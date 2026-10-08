@@ -1097,14 +1097,22 @@ function showContextMenu(e, path, type, name) {
     const closeOnDistance = (() => {
         const samples = [];
         return (event) => {
+            // Never dismiss while the cursor is over any context menu or submenu
+            const hit = document.elementFromPoint(event.clientX, event.clientY);
+            if (hit && isContextMenuUiElement(hit)) return;
             const now = performance.now();
             samples.push({ x: event.clientX, y: event.clientY, t: now });
             while (samples.length > 0 && now - samples[0].t > 100) samples.shift();
             if (samples.length < 2) return;
-            const r = menu.getBoundingClientRect();
-            const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
-            const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
-            const dist = Math.sqrt(dx * dx + dy * dy);
+            // Use the nearest open menu (main menu or any visible submenu) as anchor
+            const rects = [menu, ...document.querySelectorAll('.context-menu-submenu.visible')]
+                .filter((el) => el && el.parentNode)
+                .map((el) => el.getBoundingClientRect());
+            const dist = rects.reduce((min, r) => {
+                const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
+                const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
+                return Math.min(min, Math.sqrt(dx * dx + dy * dy));
+            }, Infinity);
             if (dist < 20) return;
             const head = samples[0];
             const dt = (now - head.t) / 1000;

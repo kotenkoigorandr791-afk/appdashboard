@@ -349,6 +349,69 @@ function monacoShouldHideMinimap() {
     return monacoIsTouchDevice && monacoIsPortraitOrientation();
 }
 
+// Monaco localizes its built-in UI (the right-click menu, the code action window,
+// the command palette, ...) through globalThis._VSCODE_NLS_MESSAGES — an array of
+// strings that the pinned monaco-editor 0.52.2 build addresses by index. The fixed
+// build ships translated arrays only for de/es/fr/it/ja/ko/ru/zh-*, so for the
+// app's languages we fill the indexes of the strings we translate ourselves. Every
+// entry left unset falls back to the build's own English text.
+//
+// The indexes below come from monaco-editor@0.52.2/min/vs/editor/editor.main.js
+// (each is the first argument of a localize()/localize2() call). They only hold
+// for that exact version — update them together with the CDN version in
+// initMonaco(), the stylesheet link in index.php and the ?v= cache buster.
+const monacoNlsMessageIndexes = {
+    // Context menu
+    monacoCtxCut: [726, 727, 728],
+    monacoCtxCopy: [730, 731, 732],
+    monacoCtxPaste: [734, 735, 736],
+    monacoCtxSelectAll: [67],
+    monacoCtxCommandPalette: [701],
+    monacoCtxFormatDocument: [922],
+    monacoCtxFormatSelection: [923],
+    monacoCtxRenameSymbol: [1242],
+    monacoCtxGoToSymbol: [703],
+    monacoCtxChangeAllOccurrences: [1167],
+    monacoCtxRefactor: [755],
+    monacoCtxSourceAction: [760],
+    monacoCtxGoToDefinition: [973],
+    monacoCtxGoToDeclaration: [976],
+    monacoCtxGoToTypeDefinition: [978],
+    monacoCtxGoToImplementations: [980],
+    monacoCtxGoToReferences: [982],
+    // Code action window ("Quick fix" and the action kind titles it groups by)
+    monacoQuickFix: [778],
+    monacoCtxExtract: [779],
+    monacoCtxInline: [780],
+    monacoCtxRewrite: [781],
+    monacoCtxMove: [782],
+    monacoCtxSurroundWith: [783],
+    monacoCtxCodeActionSource: [784],
+    monacoNoCodeActions: [750, 754],
+    monacoShowCodeActions: [793]
+};
+
+// Fills Monaco's message array with the app's translations. Must run before
+// vs/editor/editor.main is loaded, because the labels are resolved at that point.
+function monacoApplyNlsTranslations() {
+    const i18n = window.i18n || {};
+    const messages = globalThis._VSCODE_NLS_MESSAGES && Array.isArray(globalThis._VSCODE_NLS_MESSAGES)
+        ? globalThis._VSCODE_NLS_MESSAGES
+        : [];
+    let applied = 0;
+    Object.entries(monacoNlsMessageIndexes).forEach(([key, indexes]) => {
+        const value = i18n[key];
+        if (typeof value !== 'string' || value === '') return;
+        indexes.forEach((index) => {
+            messages[index] = value;
+            applied += 1;
+        });
+    });
+    globalThis._VSCODE_NLS_MESSAGES = messages;
+    globalThis._VSCODE_NLS_LANGUAGE = (window.APP_CONFIG && window.APP_CONFIG.lang) || 'en';
+    return applied;
+}
+
 // Initialize Monaco editor
 function initMonaco() {
     return new Promise((resolve, reject) => {
@@ -364,6 +427,9 @@ function initMonaco() {
             reject(new Error('Require.js is not loaded'));
             return;
         }
+
+        // Translate Monaco's own UI strings before the editor bundle resolves them.
+        monacoApplyNlsTranslations();
         
         require.config({
             paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
@@ -629,7 +695,7 @@ function monacoAddCustomEditorActions() {
     
     monaco.editor.addEditorAction({
         id: 'select-all-touch',
-        label: 'Select All',
+        label: monacoT('monacoCtxSelectAll'),
         contextMenuGroupId: '9_cutcopypaste',
         contextMenuOrder: 2,
         run: function(editor) {
@@ -645,7 +711,7 @@ function monacoAddCustomEditorActions() {
     if (monacoIsTouchDevice) {
         monaco.editor.addEditorAction({
             id: 'touch-select-word',
-            label: 'Select Word',
+            label: monacoT('monacoCtxSelectWord'),
             contextMenuGroupId: '9_cutcopypaste',
             contextMenuOrder: 3,
             run: function(editor) {
@@ -996,6 +1062,67 @@ function monacoCreateTouchToolbar(editor, container) {
 
 function monacoIsTxtFile(filePath) {
     return /\.txt$/i.test(filePath || '');
+}
+
+// Ordered-list continuation for .txt files: pressing Enter on a line that starts
+// with a number marker ("1. ", "2) ") writes the incremented number on the next
+// line, keeping the indentation, the delimiter and the spacing. Pressing Enter on
+// a marker that has no text yet removes the marker, so a list can be ended.
+function monacoSetupTxtNumberedListContinuation(editor, filePath) {
+    if (!monacoIsTxtFile(filePath)) return;
+
+    const markerPattern = /^(\s*)(\d+)([.)])([ \t]+)(.*)$/;
+
+    const disposable = editor.onKeyDown((e) => {
+        if (e.keyCode !== monaco.KeyCode.Enter) return;
+        if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
+        // Enter also commits an IME composition; leave that to the IME.
+        if (e.browserEvent && e.browserEvent.isComposing) return;
+
+        const selection = editor.getSelection();
+        if (!selection || !selection.isEmpty()) return;
+
+        const model = editor.getModel();
+        if (!model) return;
+
+        const position = selection.getStartPosition();
+        const linePrefix = model.getValueInRange(new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column));
+        const match = markerPattern.exec(linePrefix);
+        if (!match) return;
+
+        const indent = match[1];
+        const digits = match[2];
+        const delimiter = match[3];
+        const spacing = match[4];
+        const itemText = match[5];
+        const restOfLine = model.getValueInRange(new monaco.Range(
+            position.lineNumber,
+            position.column,
+            position.lineNumber,
+            model.getLineMaxColumn(position.lineNumber)
+        ));
+
+        e.preventDefault();
+
+        // Enter on a marker with no text at all ends the list and drops the marker.
+        if (itemText.trim() === '' && restOfLine.trim() === '') {
+            editor.executeEdits('txt-list-continue', [{
+                range: new monaco.Range(position.lineNumber, 1, position.lineNumber, position.column),
+                text: indent
+            }]);
+            editor.setPosition({ lineNumber: position.lineNumber, column: indent.length + 1 });
+            return;
+        }
+
+        const nextMarker = `${indent}${Number(digits) + 1}${delimiter}${spacing}`;
+        editor.executeEdits('txt-list-continue', [{
+            range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+            text: `\n${nextMarker}`
+        }]);
+        editor.setPosition({ lineNumber: position.lineNumber + 1, column: nextMarker.length + 1 });
+    });
+
+    monacoAddEditorDisposable(editor, disposable);
 }
 
 function monacoGetDefaultSpellcheckLanguage() {
@@ -2317,6 +2444,15 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             fontSize: monacoIsTouchDevice ? 18 : 14,
             fontFamily: 'Consolas, "Courier New", monospace',
             lineNumbers: 'on',
+            lineNumbersMinChars: 2,
+            // Keep the line-numbers gutter narrow. Monaco reserves a 16px
+            // folding gutter plus 10/20px of line decorations on top of the
+            // numbers, which squeezed the code area on phones. The decorations
+            // column is trimmed to 8px (the minimum that still fits the 7px
+            // .ai-agent-edit-glyph strip) and the folding arrows are hidden;
+            // folding itself still works via Ctrl+Shift+[ / ] and the
+            // command palette (F1).
+            lineDecorationsWidth: 8,
             roundedSelection: true,
             scrollBeyondLastLine: true,
             
@@ -2348,7 +2484,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             // Folding settings
             folding: true,
             foldingStrategy: 'auto',
-            showFoldingControls: 'mouseover',
+            showFoldingControls: 'never',
             
             // Context menu
             contextmenu: true,
@@ -2374,8 +2510,6 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             multiCursorMergeOverlapping: true,
             selectionClipboard: true,
             
-            // Enlarge the touch area
-            lineDecorationsWidth: monacoIsTouchDevice ? 20 : 10,
             overviewRulerLanes: 0,
             overviewRulerBorder: false,
             hideCursorInOverviewRuler: true,
@@ -2416,6 +2550,11 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
+        // Track whether the user is typing with a real Cyrillic keyboard layout:
+        // if recent typed characters are already Cyrillic, punctuation keys like '.', ','
+        // must stay literal (dot = dot) instead of being transliterated ('.' -> 'ю').
+        let lastTypedWasCyrillic = false;
+
         editor.onKeyDown((e) => {
             // Skip transliteration during IME composition
             if (isComposing) return;
@@ -2429,7 +2568,13 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             // This handles cases where user is typing with Russian/Ukrainian keyboard layout,
             // which already outputs correct Russian characters including punctuation.
             if (/[\u0400-\u04FF]/.test(key)) {
+                lastTypedWasCyrillic = true;
                 return;
+            }
+            // A Latin letter means the user switched to the transliteration flow (EN layout):
+            // punctuation keys map to their Cyrillic layout positions again.
+            if (/^[a-zA-Z]$/.test(key)) {
+                lastTypedWasCyrillic = false;
             }
 
             const isPairChar = ['(', ')', '{', '}'].includes(key);
@@ -2459,8 +2604,10 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
                         'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
                     }
             };
+            const isPunctuationKey = !/[a-zA-Z]/.test(key);
             const table = translitTables[activeLang];
-            if (key.length === 1 && table && Object.prototype.hasOwnProperty.call(table, key) && !e.ctrlKey && !e.altKey && !e.metaKey && !isPairChar) {
+            if (key.length === 1 && table && Object.prototype.hasOwnProperty.call(table, key) && !e.ctrlKey && !e.altKey && !e.metaKey && !isPairChar
+                && !(isPunctuationKey && lastTypedWasCyrillic)) {
                 e.preventDefault();
                 const selection = editor.getSelection();
                     if (selection && !selection.isEmpty()) {
@@ -2602,6 +2749,8 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         });
 
         if (!readOnly && language === 'plaintext') {
+            monacoSetupTxtNumberedListContinuation(editor, filePath);
+
             let isApplyingAutoCase = false;
             const autoSentenceCaseDisposable = editor.onDidChangeModelContent((event) => {
                 if (isApplyingAutoCase || editor.__collabApplyingRemote || event.isFlush || event.changes.length !== 1) return;

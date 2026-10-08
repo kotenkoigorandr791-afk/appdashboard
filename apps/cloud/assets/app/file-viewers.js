@@ -25,6 +25,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         let resp;
         resp = await api('open', { path, root: rootKey }, 'GET');
         const viewer = document.getElementById('viewer');
+        if (typeof clearViewerEmptyState === 'function') clearViewerEmptyState();
         const fileName = document.getElementById('file-name');
         fileName.textContent = path.split('/').pop();
         viewer.dataset.path = path;

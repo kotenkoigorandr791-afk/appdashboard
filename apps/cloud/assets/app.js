@@ -1949,6 +1949,20 @@ function saveRecentFile(path, root = null) {
 function recentFileEmptyIcon() {
     return '<svg class="viewer-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M9 15h6"></path><path d="M9 18h3"></path></svg>';
 }
+function clearViewerEmptyState() {
+    const viewer = getViewerElement();
+    if (!viewer) return;
+    viewer.querySelectorAll(':scope > .viewer-empty').forEach((el) => el.remove());
+    viewer.classList.remove('viewer-empty-state');
+    if (viewer.dataset.empty) delete viewer.dataset.empty;
+}
+function clearViewerEmptyState() {
+    const viewer = getViewerElement();
+    if (!viewer) return;
+    viewer.querySelectorAll(':scope > .viewer-empty').forEach((el) => el.remove());
+    viewer.classList.remove('viewer-empty-state');
+    if (viewer.dataset.empty) delete viewer.dataset.empty;
+}
 function renderViewerEmptyState() {
     const viewer = getViewerElement();
     const fileView = document.getElementById('file-view');
@@ -2970,6 +2984,7 @@ function restoreTabContent(tab) {
     viewer.dataset.ttsEditor = tab.ttsEditor ? 'true' : 'false';
     viewer.dataset.onlyOfficeEditor = tab.onlyOfficeEditor ? 'true' : 'false';
     viewer.dataset.zipViewer = tab.zipViewer ? 'true' : 'false';
+    if (typeof clearViewerEmptyState === 'function') clearViewerEmptyState();
     
     updateToolbarForTab(tab);
 
@@ -9742,10 +9757,18 @@ function showTabContextMenu(e, tabId) {
         if (event.key === 'Escape') removeMenu();
     };
     const closeOnDistance = (event) => {
-        const r = menu.getBoundingClientRect();
-        const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
-        const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
-        if (Math.sqrt(dx * dx + dy * dy) > 150) removeMenu();
+        // Never dismiss while the cursor is over any context menu or submenu
+        const hit = document.elementFromPoint(event.clientX, event.clientY);
+        if (typeof isContextMenuUiElement === 'function' && hit && isContextMenuUiElement(hit)) return;
+        const rects = [menu, ...document.querySelectorAll('.context-menu-submenu.visible')]
+            .filter((el) => el && el.parentNode)
+            .map((el) => el.getBoundingClientRect());
+        const dist = rects.reduce((min, r) => {
+            const dx = Math.max(r.left - event.clientX, 0, event.clientX - r.right);
+            const dy = Math.max(r.top - event.clientY, 0, event.clientY - r.bottom);
+            return Math.min(min, Math.sqrt(dx * dx + dy * dy));
+        }, Infinity);
+        if (dist > 150) removeMenu();
     };
     setTimeout(() => {
         document.addEventListener('click', closeMenu);
