@@ -1174,6 +1174,7 @@ function monacoCreateSpellcheckWorker() {
                         while ((match = wordRegex.exec(line)) !== null && errors.length < maxErrors) {
                             const word = match[0];
                             if (match.index > 0 && line[match.index - 1] === '.') continue;
+                            if (/^\.[a-z]{2,}$/i.test(word)) continue;
                             if (skipWord(word)) continue;
                             if (isSupplementalWord(word)) continue;
                             const languageIds = wordLanguageIds(word, data.languageId);

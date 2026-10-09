@@ -247,9 +247,16 @@ const monacoCollabSocketState = {
     wasConnected: false
 };
 function t(i18n, key, params = {}) {
-  let str = i18n[key];
+  let str = (i18n || {})[key];
   if (str === undefined) {
-    console.warn(`Translation missing for key: "${key}"`);
+    str = window.i18n ? window.i18n[key] : undefined;
+  }
+  if (str === undefined) {
+    // The locale fetch is still in flight on first paint, so warn once the
+    // dictionary is actually available instead of on every early caller.
+    if (window.i18n && typeof window.i18n === 'object') {
+      console.warn(`Translation missing for key: "${key}"`);
+    }
     str = key;
   }
   Object.keys(params).forEach(p => {

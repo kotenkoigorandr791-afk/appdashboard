@@ -8,13 +8,13 @@ function get_param(string $key, string $default=''): string {
   return isset($_GET[$key]) ? trim((string)$_GET[$key]) : $default;
 }
 
-$lang = get_param('lang', 'en'); // en, ru, uk, be
+$lang = get_param('lang', 'en'); // en, ru, uk, be, pl, cs
 $theme = get_param('theme', 'light'); // light, dark
 $color = get_param('color', '#4a90e2'); // hex like %2385b503
 if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) $color = '#4a90e2';
 if ($color[0] !== '#') $color = '#'.$color;
 
-$safeLang = in_array($lang, ['en','ru','uk','be'], true) ? $lang : 'en';
+$safeLang = in_array($lang, ['en','ru','uk','be','pl','cs'], true) ? $lang : 'en';
 $safeTheme = in_array($theme, ['light','dark'], true) ? $theme : 'light';
 
 $nameData = is_file(__DIR__ . '/name.json') ? json_decode((string)file_get_contents(__DIR__ . '/name.json'), true) : [];
