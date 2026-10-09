@@ -255,7 +255,7 @@
                     editor: editor,
                     container: document.getElementById('editor-container'),
                     monaco: monaco,
-                    getLang: function () { return lang; }
+                    getLang: function () { return shared.resolveLang(lang); }
                 });
                 if (window.monacoTouchSelection) window.monacoTouchSelection.enable(editor, document.getElementById('editor-container'));
                 // Realtime collaboration via the shared cloud-collab-ws tunnel

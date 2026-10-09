@@ -356,7 +356,7 @@
         editor: editor,
         container: monacoContainer,
         monaco: monaco,
-        getLang: function () { return <?php echo json_encode($lang); ?>; }
+        getLang: function () { return shared.resolveLang(<?php echo json_encode($lang); ?>); }
       });
 
       monacoReady = true;
@@ -2315,6 +2315,14 @@
           // Add a content change handler to update the preview
           listingEditor.onDidChangeModelContent(function() {
             updateListingPreview();
+          });
+
+          // Same transliteration rules as the main editor.
+          window.cloudMonacoShared.installTransliteration({
+            editor: listingEditor,
+            container: document.getElementById('listing-code-editor'),
+            monaco: monaco,
+            getLang: function () { return window.cloudMonacoShared.resolveLang(<?php echo json_encode($lang); ?>); }
           });
           
           // Initial preview update

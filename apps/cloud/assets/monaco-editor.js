@@ -1173,6 +1173,7 @@ function monacoCreateSpellcheckWorker() {
                         let match;
                         while ((match = wordRegex.exec(line)) !== null && errors.length < maxErrors) {
                             const word = match[0];
+                            if (match.index > 0 && line[match.index - 1] === '.') continue;
                             if (skipWord(word)) continue;
                             if (isSupplementalWord(word)) continue;
                             const languageIds = wordLanguageIds(word, data.languageId);
@@ -2481,7 +2482,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
                 editor,
                 container,
                 monaco,
-                getLang: () => document.querySelector('.lang-option.active')?.dataset.lang
+                getLang: () => window.cloudMonacoShared.resolveLang()
             })
         );
 

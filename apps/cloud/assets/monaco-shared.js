@@ -227,9 +227,39 @@
         return /\.txt$/i.test(filePath || '');
     }
 
+    // Reads the language currently selected in the cloud shell's switcher. Editor
+    // iframes (html/markdown/latex/zip) are same origin and live inside the shell, so
+    // they can read it across the iframe boundary instead of being reset when the
+    // shell's switcher changes (which would drop unsaved content).
+    function parentSwitcherLang() {
+        try {
+            if (!window.parent || window.parent === window) return null;
+            const active = window.parent.document.querySelector('.lang-option.active');
+            if (active && active.dataset && active.dataset.lang) return active.dataset.lang;
+        } catch (_) { /* cross-origin parent or no document */ }
+        return null;
+    }
+
+    // The live language for transliteration. The page's own switcher wins (the main
+    // cloud editor); otherwise the shell's switcher is read across the iframe boundary
+    // (project editors); only then the server-rendered fallback. Evaluated on every
+    // key, so switching languages while any editor is open takes effect immediately.
+    function resolveLang(fallback) {
+        try {
+            const active = document.querySelector('.lang-option.active');
+            if (active && active.dataset && active.dataset.lang) return active.dataset.lang;
+        } catch (_) { /* no document */ }
+        const fromParent = parentSwitcherLang();
+        if (fromParent) return fromParent;
+        return fallback || 'en';
+    }
+
     // Typing Russian/Ukrainian on an English keyboard layout: Latin letters are
-    // rewritten to the Cyrillic letter at the same layout position, punctuation is
-    // left untouched. Returns a disposable.
+    // rewritten to the Cyrillic letter at the same layout position, and punctuation
+    // keys follow the same layout ('.' -> 'ю', ',' -> 'б', '/' -> '.', '?' -> ',').
+    // When the keys arrive already Cyrillic (a real Russian/Ukrainian layout) the
+    // preceding characters are Cyrillic too, so the next punctuation key must stay
+    // literal ('.' stays '.') instead of being transliterated. Returns a disposable.
     function installTransliteration(options) {
         const editor = options.editor;
         const monacoRef = options.monaco;
@@ -248,6 +278,10 @@
             container.addEventListener('compositionend', onCompositionEnd);
         }
 
+        // True while the user is typing on a real Cyrillic layout. Punctuation then
+        // stays literal, because the layout already produced the intended character.
+        let lastTypedWasCyrillic = false;
+
         const keyDown = editor.onKeyDown((e) => {
             if (isComposing) return;
 
@@ -257,13 +291,24 @@
             const key = e.browserEvent ? e.browserEvent.key : null;
             if (!key) return;
 
-            // Already Cyrillic (real Russian/Ukrainian layout) - leave it alone.
-            if (/[\u0400-\u04FF]/.test(key)) return;
+            // Already Cyrillic (real Russian/Ukrainian layout) - leave it alone, but
+            // remember the layout so the following punctuation is not transliterated.
+            if (/[\u0400-\u04FF]/.test(key)) {
+                lastTypedWasCyrillic = true;
+                return;
+            }
+            // A Latin letter means the transliteration flow is active again: from now
+            // on punctuation keys map to their Cyrillic layout positions.
+            if (/^[a-zA-Z]$/.test(key)) {
+                lastTypedWasCyrillic = false;
+            }
 
             const isPairChar = ['(', ')', '{', '}'].includes(key);
+            const isPunctuationKey = !/[a-zA-Z]/.test(key);
             const table = TRANSLIT_TABLES[activeLang];
             if (key.length !== 1 || !Object.prototype.hasOwnProperty.call(table, key)) return;
             if (e.ctrlKey || e.altKey || e.metaKey || isPairChar) return;
+            if (isPunctuationKey && lastTypedWasCyrillic) return;
 
             e.preventDefault();
             const text = table[key];
@@ -370,6 +415,7 @@
         defineAppThemes: defineAppThemes,
         standardEditorOptions: standardEditorOptions,
         isTxtFile: isTxtFile,
+        resolveLang: resolveLang,
         installTransliteration: installTransliteration,
         installTxtNumberedListContinuation: installTxtNumberedListContinuation
     };

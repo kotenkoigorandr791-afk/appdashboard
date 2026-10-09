@@ -139,6 +139,14 @@ shared.loadMonaco({
                 alwaysConsumeMouseWheel: false // allow wheel scrolling
             }
         }));
+
+        // Same transliteration rules as the other Monaco editors.
+        shared.installTransliteration({
+            editor: window.editor,
+            container: container,
+            monaco: monaco,
+            getLang: () => shared.resolveLang(<?= json_encode($lang) ?>)
+        });
     }
 }).catch(function (e) {
     console.error('Monaco failed to load:', e);

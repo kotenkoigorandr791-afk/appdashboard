@@ -4567,7 +4567,8 @@ function initRootToolbar(i18n) {
         if (!e.target.closest('.dropdown-menu') && 
             !e.target.closest('#btn-code-actions') &&
             !e.target.closest('.settings') &&
-            !e.target.closest('#btn-settings')) {
+            !e.target.closest('#btn-settings') &&
+            !e.target.closest('#settings-modal')) {
             closeAllDropdowns();
         }
     });
@@ -5296,14 +5297,21 @@ function initLangSwitcher() {
   document.addEventListener('keydown', handleAutoTransliteration);
   document.addEventListener('keyup', handleWordCompletion);
 }
+// Monaco has its own transliteration (assets/monaco-shared.js) and reads the
+// same physical keys. Its hidden textarea.inputarea is a TEXTAREA too, so it must
+// be excluded here or punctuation would be transliterated a second time.
+function isLegacyTransliterationTarget(el) {
+  if (!el) return false;
+  if (typeof el.closest === 'function' && el.closest('.monaco-editor')) return false;
+  return el.tagName === 'TEXTAREA' ||
+         el.classList.contains('CodeMirror') ||
+         (el.closest('.CodeMirror') && el.closest('.cm-content'));
+}
 function handleAutoTransliteration(e) {
   if (e.ctrlKey || e.altKey || e.metaKey) return;
   const activeLang = document.querySelector('.lang-option.active')?.dataset.lang;
   const focusedElement = document.activeElement;
-  const isInEditor = focusedElement?.tagName === 'TEXTAREA' || 
-                    focusedElement?.classList.contains('CodeMirror') ||
-                    (focusedElement?.closest('.CodeMirror') && focusedElement?.closest('.cm-content'));
-  if (isInEditor && activeLang && activeLang !== 'en') {
+  if (isLegacyTransliterationTarget(focusedElement) && activeLang && activeLang !== 'en') {
     setTimeout(() => {
       transliterateLastChar(activeLang, focusedElement);
     }, 0);
@@ -5312,9 +5320,7 @@ function handleAutoTransliteration(e) {
 function handleWordCompletion(e) {
   const activeLang = document.querySelector('.lang-option.active')?.dataset.lang;
   const focusedElement = document.activeElement;
-  const isInEditor = focusedElement?.tagName === 'TEXTAREA' || 
-                    focusedElement?.classList.contains('CodeMirror') ||
-                    (focusedElement?.closest('.CodeMirror') && focusedElement?.closest('.cm-content'));
+  const isInEditor = isLegacyTransliterationTarget(focusedElement);
   const isWordEnd = e.key === ' ' || e.key === '.' || e.key === ',' || e.key === ';' || 
                    e.key === ':' || e.key === '!' || e.key === '?' || e.key === 'Enter';
   if (isInEditor && activeLang && activeLang !== 'en' && isWordEnd) {
@@ -5414,9 +5420,7 @@ function transliterateWord(word, lang) {
 }
 function applyTransliterationToAll(lang) {
   const focusedElement = document.activeElement;
-  const isInEditor = focusedElement?.tagName === 'TEXTAREA' || 
-                    focusedElement?.classList.contains('CodeMirror') ||
-                    (focusedElement?.closest('.CodeMirror') && focusedElement?.closest('.cm-content'));
+  const isInEditor = isLegacyTransliterationTarget(focusedElement);
   if (isInEditor && lang && lang !== 'en') {
     let currentText, setTextFunction;
     if (focusedElement.tagName === 'TEXTAREA') {

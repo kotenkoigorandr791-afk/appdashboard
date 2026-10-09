@@ -716,7 +716,7 @@
                     editor: editor,
                     container: document.getElementById('editor-container'),
                     monaco: monaco,
-                    getLang: function () { return lang; }
+                    getLang: function () { return shared.resolveLang(lang); }
                 });
                 
                 if (window.monacoTouchSelection) {

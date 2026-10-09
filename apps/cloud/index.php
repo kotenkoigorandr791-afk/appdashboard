@@ -14,7 +14,7 @@ $color = get_param('color', '#4a90e2'); // hex like %2385b503
 if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) $color = '#4a90e2';
 if ($color[0] !== '#') $color = '#'.$color;
 
-$safeLang = in_array($lang, ['en','ru','uk','be','pl','cs'], true) ? $lang : 'en';
+$safeLang = in_array($lang, ['en','ru','uk','be'], true) ? $lang : 'en';
 $safeTheme = in_array($theme, ['light','dark'], true) ? $theme : 'light';
 
 $nameData = is_file(__DIR__ . '/name.json') ? json_decode((string)file_get_contents(__DIR__ . '/name.json'), true) : [];
@@ -227,7 +227,7 @@ cloud_require_session_auth();
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=40"></script>
+<script defer src="assets/app.js?v=41"></script>
 <script defer src="assets/app/editors-and-tree.js?v=12"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -246,8 +246,8 @@ cloud_require_session_auth();
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=40"></script>
-<script defer src="assets/monaco-shared.js?v=1"></script>
-<script defer src="assets/monaco-editor.js?v=18"></script>
+<script defer src="assets/monaco-shared.js?v=2"></script>
+<script defer src="assets/monaco-editor.js?v=19"></script>
 
 
 </head>
@@ -295,8 +295,6 @@ cloud_require_session_auth();
       <div class="lang-option active" data-lang="en" data-i18n="english"></div>
       <div class="lang-option" data-lang="ru" data-i18n="russian"></div>
       <div class="lang-option" data-lang="uk" data-i18n="ukrainian"></div>
-      <div class="lang-option" data-lang="pl" data-i18n="polish"></div>
-      <div class="lang-option" data-lang="cs" data-i18n="czech"></div>
     </div>
      <button id="btn-group-chat" class="icon-btn hidden" title="" data-i18n-title="groupChatTitle">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.72a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.28 17.61a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="m6.163 21.117-2.906.85a1 1 0 0 1-1.236-1.169l.965-2.98"/></svg>
