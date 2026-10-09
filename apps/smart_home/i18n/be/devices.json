@@ -1,0 +1,22 @@
+{
+    "actions": "Дзеянні",
+    "add_device": "Дадаць",
+    "add_device_token_hint": "Лакальны адрас падцягнецца аўтаматычна пасля падключэння прылады да сервера",
+    "device_category": "Група (святло і г.д.)",
+    "device_group_label": "Група (сумесны доступ)",
+    "device_name": "Назва",
+    "device_settings": "Налады",
+    "device_token": "Токен",
+    "device_type": "Тып",
+    "devices": "Прылады",
+    "devices_count": "Прылад",
+    "events": "Падзеі",
+    "no_devices": "Прылад пакуль няма",
+    "offline_count": "Афлайн",
+    "online_count": "Анлайн",
+    "status": "Статус",
+    "status_offline": "Афлайн",
+    "status_online": "Анлайн",
+    "status_unknown": "Невядома",
+    "unknown_count": "Невядома"
+}

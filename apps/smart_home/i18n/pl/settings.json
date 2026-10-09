@@ -1,0 +1,17 @@
+{
+    "admin": "Admin",
+    "ap_domain": "Domena AP",
+    "api_docs": "Dokumentacja API",
+    "api_docs_copy": "Kopiuj",
+    "cancel": "Anuluj",
+    "endpoints_locked": "Domeny serwerów mogą być zmieniane przez menedżerów serwisu i administratorów",
+    "mqtt_topic": "Temat MQTT",
+    "period": "Okres (h)",
+    "role": "Rola",
+    "save": "Zapisz",
+    "saved_ok": "Zapisano",
+    "search": "Szukaj urządzeń",
+    "server_domain": "Domena serwera",
+    "settings": "Ustawienia",
+    "statistics": "Statystyki"
+}

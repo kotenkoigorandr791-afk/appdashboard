@@ -59,6 +59,11 @@ USED_PATTERNS = [
     re.compile(r'data-i18n(?:-title|-placeholder)?\s*=\s*["\']([A-Za-z0-9_]+)["\']'),
     re.compile(r'\bt\(\s*\$?(?:window\.)?i18n\w*\s*,\s*["\']([A-Za-z0-9_]+)["\']'),
     re.compile(r'(?<![\w.$])t\(\s*["\']([A-Za-z0-9_]+)["\']'),
+    # app-specific escaping wrappers: sh_h($t['key']), e($t['key']), esc(...).
+    # Only the plural dict names: a singular $t is commonly rebound to a loop
+    # row by `foreach ($tx as $t)` and must not be read as translations.
+    re.compile(r'[A-Za-z_][A-Za-z0-9_]*\(\s*\$(?:i18n|translations)\[[\s]*["\']([A-Za-z0-9_]+)["\'][\s]*\]'),
+    re.compile(r'\bsh_h\(\s*\$t\[[\s]*["\']([A-Za-z0-9_]+)["\'][\s]*\]'),
     # apps use different helper names for the same lookup
     re.compile(r'(?<![\w.$])getTranslation\(\s*["\']([A-Za-z0-9_]+)["\']'),
     re.compile(r'(?<![\w.$])(?:tt|translate|loc|tr_)\(\s*["\']([A-Za-z0-9_]+)["\']'),

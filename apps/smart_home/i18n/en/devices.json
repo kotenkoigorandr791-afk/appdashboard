@@ -1,0 +1,22 @@
+{
+    "actions": "Actions",
+    "add_device": "Add",
+    "add_device_token_hint": "Local address is filled automatically when the device connects to the server",
+    "device_category": "Group (lights, etc.)",
+    "device_group_label": "Share with group",
+    "device_name": "Name",
+    "device_settings": "Device settings",
+    "device_token": "Device token",
+    "device_type": "Type",
+    "devices": "Devices",
+    "devices_count": "Devices",
+    "events": "Events",
+    "no_devices": "No devices yet",
+    "offline_count": "Offline",
+    "online_count": "Online",
+    "status": "Status",
+    "status_offline": "Offline",
+    "status_online": "Online",
+    "status_unknown": "Unknown",
+    "unknown_count": "Unknown"
+}

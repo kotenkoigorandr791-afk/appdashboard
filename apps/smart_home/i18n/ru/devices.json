@@ -1,0 +1,22 @@
+{
+    "actions": "Действия",
+    "add_device": "Добавить",
+    "add_device_token_hint": "Локальный адрес подтянется автоматически, когда устройство подключится к серверу",
+    "device_category": "Группа (светильники и т.д.)",
+    "device_group_label": "Группа (общий доступ)",
+    "device_name": "Название",
+    "device_settings": "Настройки",
+    "device_token": "Токен",
+    "device_type": "Тип",
+    "devices": "Устройства",
+    "devices_count": "Устройств",
+    "events": "События",
+    "no_devices": "Устройств пока нет",
+    "offline_count": "Офлайн",
+    "online_count": "Онлайн",
+    "status": "Статус",
+    "status_offline": "Офлайн",
+    "status_online": "Онлайн",
+    "status_unknown": "Неизвестно",
+    "unknown_count": "Неизвестно"
+}
