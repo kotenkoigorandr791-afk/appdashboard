@@ -1,0 +1,14 @@
+{
+    "base_currency": "Base Currency",
+    "chart_amount": "Amount",
+    "chart_downloaded": "Chart downloaded successfully",
+    "chart_month": "Month",
+    "chart_not_available": "Chart not available",
+    "chart_settings": "Chart",
+    "monthly_budget": "Monthly Budget",
+    "rate_live": "LIVE",
+    "rate_sources": "NBU · NBP · NBRB",
+    "total_expenses": "Total Expenses",
+    "total_income": "Income",
+    "total_label": "Total:"
+}

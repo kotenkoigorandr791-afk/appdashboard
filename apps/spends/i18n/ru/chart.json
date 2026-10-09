@@ -1,0 +1,14 @@
+{
+    "base_currency": "Базовая валюта",
+    "chart_amount": "Сумма",
+    "chart_downloaded": "График успешно скачан",
+    "chart_month": "Месяц",
+    "chart_not_available": "График недоступен",
+    "chart_settings": "График",
+    "monthly_budget": "Месячный бюджет",
+    "rate_live": "LIVE",
+    "rate_sources": "NBU · NBP · NBRB",
+    "total_expenses": "Общие расходы",
+    "total_income": "Доходы",
+    "total_label": "Итого:"
+}
