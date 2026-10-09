@@ -1,0 +1,21 @@
+{
+    "backup_created": "Kopia zapasowa utworzona",
+    "backup_deleted": "Kopia zapasowa usunięta",
+    "backup_downloaded": "Kopia zapasowa pobrana pomyślnie",
+    "backup_file_not_found": "Nie znaleziono kopii zapasowej",
+    "backup_name": "Kopia zapasowa",
+    "backup_restored": "Kopia zapasowa przywrócona",
+    "create_backup": "Utwórz kopię zapasową",
+    "data_saved": "Dane zapisane",
+    "download_backup": "Pobierz kopię zapasową",
+    "failed_create_backup": "Nie udało się utworzyć kopii zapasowej",
+    "failed_delete_backup": "Nie udało się usunąć",
+    "failed_restore_backup": "Nie udało się przywrócić",
+    "failed_save": "Nie udało się zapisać",
+    "failed_save_settings": "Nie udało się zapisać ustawień",
+    "file_not_found": "Brak danych",
+    "restore": "Przywróć",
+    "restore_backup": "Przywróć z kopii zapasowej",
+    "restore_backup_detail": "Przywrócić dane z kopii „{file}\"?",
+    "restore_replaces_data": "Bieżące dane zostaną zastąpione danymi z kopii zapasowej. Przed przywróceniem zostanie utworzona automatyczna kopia zapasowa."
+}

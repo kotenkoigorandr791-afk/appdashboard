@@ -1,0 +1,21 @@
+{
+    "backup_created": "Backup created successfully",
+    "backup_deleted": "Backup deleted successfully",
+    "backup_downloaded": "Backup downloaded successfully",
+    "backup_file_not_found": "Backup not found",
+    "backup_name": "Backup",
+    "backup_restored": "Backup restored successfully",
+    "create_backup": "Create Backup",
+    "data_saved": "Data saved",
+    "download_backup": "Download Backup",
+    "failed_create_backup": "Failed to create backup",
+    "failed_delete_backup": "Failed to delete",
+    "failed_restore_backup": "Failed to restore",
+    "failed_save": "Failed to save",
+    "failed_save_settings": "Failed to save settings",
+    "file_not_found": "No data",
+    "restore": "Restore",
+    "restore_backup": "Restore from Backup",
+    "restore_backup_detail": "Restore data from \"{file}\"?",
+    "restore_replaces_data": "Current data will be replaced with data from the backup. An automatic backup will be created before restoring."
+}

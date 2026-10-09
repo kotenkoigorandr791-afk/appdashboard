@@ -1,0 +1,13 @@
+{
+    "bar_chart": "Стовпчикова діаграма",
+    "chart_next": "Далі",
+    "chart_prev": "Назад",
+    "chart_zoom": "Прокрутіть для збільшення графіку",
+    "statistics_bar_chart_label": "Інтенсивність кроків за місяцями",
+    "statistics_monthly_intensity": "Інтенсивність кроків за місяцями",
+    "statistics_navigation": "Статистика",
+    "statistics_no_data": "Немає даних про кроки",
+    "statistics_pie_chart_label": "Частка кроків за роками",
+    "statistics_title": "Статистика",
+    "statistics_yearly_distribution": "Частка кроків за роками"
+}

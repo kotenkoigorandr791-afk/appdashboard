@@ -1,0 +1,13 @@
+{
+    "bar_chart": "Wykres słupkowy",
+    "chart_next": "Dalej",
+    "chart_prev": "Wstecz",
+    "chart_zoom": "Przewiń, aby powiększyć wykres",
+    "statistics_bar_chart_label": "Intensywność kroków według miesięcy",
+    "statistics_monthly_intensity": "Miesięczna intensywność kroków",
+    "statistics_navigation": "Statystyki",
+    "statistics_no_data": "Brak danych o krokach",
+    "statistics_pie_chart_label": "Udział kroków według lat",
+    "statistics_title": "Statystyki",
+    "statistics_yearly_distribution": "Udział kroków według lat"
+}

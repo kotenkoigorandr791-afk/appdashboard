@@ -1,0 +1,21 @@
+{
+    "backup_created": "Záloha vytvořena",
+    "backup_deleted": "Záloha úspěšně smazána",
+    "backup_downloaded": "Záloha úspěšně stažena",
+    "backup_file_not_found": "Záložní kopie nebyla nalezena",
+    "backup_name": "Záložní kopie",
+    "backup_restored": "Záloha úspěšně obnovena",
+    "create_backup": "Vytvořit zálohu",
+    "data_saved": "Data uložena",
+    "download_backup": "Stáhnout zálohu",
+    "failed_create_backup": "Nepodařilo se vytvořit záložní kopii",
+    "failed_delete_backup": "Nepodařilo se smazat",
+    "failed_restore_backup": "Nepodařilo se obnovit",
+    "failed_save": "Nepodařilo se uložit",
+    "failed_save_settings": "Uložení nastavení selhalo",
+    "file_not_found": "Žádná data",
+    "restore": "Obnovit",
+    "restore_backup": "Obnovit ze zálohy",
+    "restore_backup_detail": "Obnovit data ze zálohy „{file}\"?",
+    "restore_replaces_data": "Aktuální data budou nahrazena daty ze zálohy. Před obnovením bude vytvořena automatická záloha."
+}
