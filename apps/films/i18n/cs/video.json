@@ -1,0 +1,19 @@
+{
+    "video_airplay": "AirPlay",
+    "video_exit_fullscreen": "Ukončit celou obrazovku",
+    "video_forward": "Přetočit vpřed",
+    "video_fullscreen": "Celá obrazovka",
+    "video_loop": "Smyčka",
+    "video_mute": "Ztlumit",
+    "video_pause": "Pozastavit",
+    "video_pip": "Obraz v obraze",
+    "video_play": "Přehrát",
+    "video_quality": "Kvalita",
+    "video_rewind": "Přetočit zpět",
+    "video_seek_step_seconds": "Krok přesunu (sekundy)",
+    "video_settings": "Nastavení",
+    "video_speed": "Rychlost",
+    "video_subtitles": "Titulky",
+    "video_unmute": "Zapnout zvuk",
+    "video_volume": "Hlasitost"
+}

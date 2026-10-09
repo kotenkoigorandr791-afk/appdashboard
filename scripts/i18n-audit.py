@@ -59,6 +59,9 @@ USED_PATTERNS = [
     re.compile(r'data-i18n(?:-title|-placeholder)?\s*=\s*["\']([A-Za-z0-9_]+)["\']'),
     re.compile(r'\bt\(\s*\$?(?:window\.)?i18n\w*\s*,\s*["\']([A-Za-z0-9_]+)["\']'),
     re.compile(r'(?<![\w.$])t\(\s*["\']([A-Za-z0-9_]+)["\']'),
+    # apps use different helper names for the same lookup
+    re.compile(r'(?<![\w.$])getTranslation\(\s*["\']([A-Za-z0-9_]+)["\']'),
+    re.compile(r'(?<![\w.$])(?:tt|translate|loc|tr_)\(\s*["\']([A-Za-z0-9_]+)["\']'),
     # $t is the translations dict only at file scope. Inside a loop like
     # `foreach ($tx as $t)`, $t is a DB row, so any `$t['x']` there is data,
     # not a translation. Requires the match to sit outside such a scope.
@@ -73,7 +76,9 @@ USED_PATTERNS = [
 # `const translations = { en: {...} }` is self-contained, so those lookups are
 # local and must not be compared against the host locale set.
 TRANSLATIONS_PATTERNS = (
-    re.compile(r'(?<![\w.$])translations\??\.([A-Za-z0-9_]+)\b'),
+    # the trailing \b must not swallow a file extension, e.g.
+    # require_once __DIR__ . '/translations.php'
+    re.compile(r'(?<![\w$/])(?:window\.)?translations\??\.([A-Za-z0-9_]+)(?![A-Za-z0-9_])'),
     re.compile(r'(?<![\w.$])translations\??\[\s*["\']([A-Za-z0-9_]+)["\']\s*\]'),
 )
 USED_PATTERNS.extend(TRANSLATIONS_PATTERNS)

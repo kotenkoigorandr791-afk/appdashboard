@@ -1,0 +1,19 @@
+{
+    "video_airplay": "AirPlay",
+    "video_exit_fullscreen": "Выйти из полного экрана",
+    "video_forward": "Вперед",
+    "video_fullscreen": "Полный экран",
+    "video_loop": "Повтор",
+    "video_mute": "Без звука",
+    "video_pause": "Пауза",
+    "video_pip": "Картинка в картинке",
+    "video_play": "Воспроизвести",
+    "video_quality": "Качество",
+    "video_rewind": "Назад",
+    "video_seek_step_seconds": "Шаг перемотки (секунды)",
+    "video_settings": "Настройки",
+    "video_speed": "Скорость",
+    "video_subtitles": "Субтитры",
+    "video_unmute": "Со звуком",
+    "video_volume": "Громкость"
+}

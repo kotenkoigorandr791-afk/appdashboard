@@ -1,0 +1,19 @@
+{
+    "video_airplay": "AirPlay",
+    "video_exit_fullscreen": "Вийти з повного екрана",
+    "video_forward": "Вперед",
+    "video_fullscreen": "Повний екран",
+    "video_loop": "Повтор",
+    "video_mute": "Без звуку",
+    "video_pause": "Пауза",
+    "video_pip": "Зображення в зображенні",
+    "video_play": "Відтворити",
+    "video_quality": "Якість",
+    "video_rewind": "Назад",
+    "video_seek_step_seconds": "Крок перемотки (секунди)",
+    "video_settings": "Налаштування",
+    "video_speed": "Швидкість",
+    "video_subtitles": "Субтитри",
+    "video_unmute": "Зі звуком",
+    "video_volume": "Гучність"
+}
