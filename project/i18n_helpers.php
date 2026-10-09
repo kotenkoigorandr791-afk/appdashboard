@@ -16,16 +16,22 @@ function ap_load_i18n_file(string $path): array {
     return $cache[$path] = is_array($data) ? $data : [];
 }
 function ap_load_i18n_merged_lang(string $i18nBase, string $lang): array {
-    $single = $i18nBase . '/' . $lang . '.json';
-    if (is_readable($single)) return ap_load_i18n_file($single);
+    // i18n/<lang>/<chunk>.json is the live source; i18n/<lang>.json is a
+    // generated legacy view kept for tools that read a single file. Chunks
+    // must win, otherwise a stale flat file silently shadows them.
     $subdir = $i18nBase . '/' . $lang;
-    if (!is_dir($subdir)) return [];
-    $merged = [];
-    foreach (glob($subdir . '/*.json') ?: [] as $file) {
-        $chunk = ap_load_i18n_file($file);
-        if ($chunk !== []) $merged = array_merge($merged, $chunk);
+    if (is_dir($subdir)) {
+        $merged = [];
+        $files = glob($subdir . '/*.json') ?: [];
+        sort($files);
+        foreach ($files as $file) {
+            $chunk = ap_load_i18n_file($file);
+            if ($chunk !== []) $merged = array_merge($merged, $chunk);
+        }
+        if ($merged !== []) return $merged;
     }
-    return $merged;
+    $single = $i18nBase . '/' . $lang . '.json';
+    return is_readable($single) ? ap_load_i18n_file($single) : [];
 }
 function ap_load_i18n_from_dir(string $dir, string $lang, ?string $fallbackLang = 'en'): array {
     $lang = ap_normalize_i18n_lang($lang);
