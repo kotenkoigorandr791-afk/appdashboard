@@ -62,6 +62,8 @@ USED_PATTERNS = [
     # apps use different helper names for the same lookup
     re.compile(r'(?<![\w.$])getTranslation\(\s*["\']([A-Za-z0-9_]+)["\']'),
     re.compile(r'(?<![\w.$])(?:tt|translate|loc|tr_)\(\s*["\']([A-Za-z0-9_]+)["\']'),
+    # $translations['en'] selects the base locale, not a translation key
+    re.compile(r'\$translations\[\s]*["\'](?!(?:en|ru|uk|be|pl|cs)["\'])'),
     # $t is the translations dict only at file scope. Inside a loop like
     # `foreach ($tx as $t)`, $t is a DB row, so any `$t['x']` there is data,
     # not a translation. Requires the match to sit outside such a scope.
@@ -277,6 +279,8 @@ def audit(app: str):
 
     # ---- missing: used in code, absent from the base locale ----
     # tr(key, fallback) keys are excluded: the caller ships the English text.
+    # a language code is a locale selector, never a translation key
+    used.pop('en', None)
     required = {k: v for k, v in used.items() if k not in fallback_keys}
     missing = sorted(k for k in required if k not in en)
     report['used_count'] = len(used)
