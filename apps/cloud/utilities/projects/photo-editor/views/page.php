@@ -315,9 +315,15 @@
             <label for="filter-select"><?php echo htmlspecialchars($t['filters']); ?></label>
             <select id="filter-select">
                 <option value=""><?php echo htmlspecialchars($t['no_filter']); ?></option>
-                <option value="grayscale">Grayscale</option> <option value="sepia">Sepia</option> <option value="invert">Invert</option>
-                <option value="brownie">Brownie</option> <option value="vintage">Vintage</option> <option value="kodachrome">Kodachrome</option>
-                <option value="technicolor">Technicolor</option> <option value="polaroid">Polaroid</option> <option value="blackwhite">Black & White</option>
+                <option value="grayscale"><?php echo htmlspecialchars($t['filter_grayscale']); ?></option>
+                <option value="sepia"><?php echo htmlspecialchars($t['filter_sepia']); ?></option>
+                <option value="invert"><?php echo htmlspecialchars($t['filter_invert']); ?></option>
+                <option value="brownie"><?php echo htmlspecialchars($t['filter_brownie']); ?></option>
+                <option value="vintage"><?php echo htmlspecialchars($t['filter_vintage']); ?></option>
+                <option value="kodachrome"><?php echo htmlspecialchars($t['filter_kodachrome']); ?></option>
+                <option value="technicolor"><?php echo htmlspecialchars($t['filter_technicolor']); ?></option>
+                <option value="polaroid"><?php echo htmlspecialchars($t['filter_polaroid']); ?></option>
+                <option value="blackwhite"><?php echo htmlspecialchars($t['filter_blackwhite']); ?></option>
             </select>
         </div>
 
