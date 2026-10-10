@@ -80,10 +80,8 @@ jobs:
           test -f /opt/docker/appdashboard/code/downloads/appdashboard-mcp.tgz
           test -f /opt/docker/appdashboard/code/downloads/stepmonitor.apk
           docker exec appdashboard sh -c 'cd /var/www/AppDashboard && test "$(node -p "require(\"./appdashboard-mcp/package.json\").version")" = "$(node -p "require(\"./downloads/appdashboard-mcp.json\").version")"'
-          # In-container nginx resolves docker service names, so point the appdashboard
-          # config at the compose network rather than host loopback.
-          export GITEA_INTERNAL_URL="${GITEA_INTERNAL_URL:-http://gitea:3000}"
-          export IMMICH_INTERNAL_URL="${IMMICH_INTERNAL_URL:-http://immich-server:2283}"
+          export GITEA_INTERNAL_URL="${GITEA_INTERNAL_URL:-http://host.docker.internal:${GITEA_HTTP_PORT:-3001}}"
+          export IMMICH_INTERNAL_URL="${IMMICH_INTERNAL_URL:-http://host.docker.internal:${IMMICH_PORT:-2283}}"
           python3 /opt/docker/appdashboard/code/deploy/scripts/render-nginx-conf.sh \
             /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf \
             /opt/docker/appdashboard/code/deploy/nginx/appdashboard.conf.rendered
