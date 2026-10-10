@@ -38,6 +38,21 @@
             <div id="chat-messages-area" style="display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;">
                 <div id="chat-messages" class="chat-messages-scroll" tabindex="-1" style="flex:1;overflow-y:auto;overflow-x:hidden;padding:24px;display:flex;flex-direction:column;gap:16px;min-height:0;-webkit-overflow-scrolling:touch;outline:none;"></div>
 
+                <div id="chat-storage-request" style="display:none;flex-shrink:0;margin:0 20px 10px;padding:12px 14px;border-radius:14px;border:1px solid var(--chat-color-border);background:rgba(245,158,11,0.10);color:var(--text-color);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14a9 3 0 0 0 18 0V5"></path><path d="M3 12a9 3 0 0 0 18 0"></path></svg>
+                        <strong id="chat-storage-request-title" style="font-size:14px;"><?php echo my_htmlspecialchars($translations['support_chat_storage_request'] ?? 'Storage increase request'); ?></strong>
+                    </div>
+                    <div id="chat-storage-request-info" style="font-size:12px;opacity:.85;margin-bottom:10px;line-height:1.5;"></div>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <input type="number" id="chat-storage-quota-input" min="1" step="1" style="width:120px;padding:8px 10px;border:1px solid var(--border-color);border-radius:10px;background:var(--input-bg);color:var(--text-color);">
+                        <span style="font-size:12px;opacity:.8;">MB</span>
+                        <input type="text" id="chat-storage-reason-input" placeholder="<?php echo my_htmlspecialchars($translations['support_chat_storage_reason'] ?? 'Reason (optional)'); ?>" style="flex:1;min-width:140px;padding:8px 10px;border:1px solid var(--border-color);border-radius:10px;background:var(--input-bg);color:var(--text-color);">
+                        <button type="button" id="chat-storage-approve" style="padding:8px 16px;border-radius:10px;border:none;background:linear-gradient(135deg,#22c55e,#16a34a);color:#fff;font-size:13px;font-weight:700;cursor:pointer;"><?php echo my_htmlspecialchars($translations['support_chat_storage_approve'] ?? 'Approve'); ?></button>
+                        <button type="button" id="chat-storage-reject" style="padding:8px 16px;border-radius:10px;border:1px solid rgba(239,68,68,.35);background:rgba(239,68,68,.12);color:#ef4444;font-size:13px;font-weight:700;cursor:pointer;"><?php echo my_htmlspecialchars($translations['support_chat_storage_reject'] ?? 'Reject'); ?></button>
+                    </div>
+                </div>
+
                 <div id="chat-pending-plan" style="display:none;flex-shrink:0;margin:0 20px 10px;padding:8px 12px;border-radius:12px;border:1px solid var(--chat-color-border);background:rgba(99,102,241,0.10);color:var(--text-color);font-size:13px;align-items:center;gap:8px;justify-content:space-between;">
                     <span style="display:flex;align-items:center;gap:8px;min-width:0;"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><path d="M3 10.5L21 2l-7 19-3-7-7-3.5z"/><path d="M14.5 5.5L8.5 14"/></svg><span id="chat-pending-plan-label" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><?php echo my_htmlspecialchars($translations['support_chat_plan_attached'] ?? 'Floor plan attached'); ?></span></span>
                     <button type="button" id="chat-pending-plan-remove" title="<?php echo my_htmlspecialchars($translations['support_chat_plan_remove'] ?? 'Remove plan'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['support_chat_plan_remove'] ?? 'Remove plan'); ?>" style="flex-shrink:0;width:22px;height:22px;padding:0;border:none;background:transparent;color:var(--text-secondary);cursor:pointer;font-size:15px;line-height:1;display:flex;align-items:center;justify-content:center;">✕</button>

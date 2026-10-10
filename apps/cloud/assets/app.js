@@ -4598,6 +4598,30 @@ function initRootToolbar(i18n) {
     document.getElementById('quota-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('session-limit-mb').addEventListener('change', updateSessionLimit);
     document.getElementById('session-limit-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
+    document.getElementById('btn-request-storage')?.addEventListener('click', requestMoreStorage);
+    document.getElementById('btn-manage-storage')?.addEventListener('click', openStorageAdminPanel);
+    document.getElementById('btn-storage-admin-close')?.addEventListener('click', closeStorageAdminPanel);
+    document.getElementById('btn-storage-admin-done')?.addEventListener('click', closeStorageAdminPanel);
+    document.getElementById('btn-storage-admin-refresh')?.addEventListener('click', () => { renderStorageAdminPanel(storageAdminPage); });
+    document.getElementById('modal-storage-admin')?.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'modal-storage-admin') closeStorageAdminPanel();
+    });
+    document.getElementById('btn-storage-analytics')?.addEventListener('click', openStorageAnalytics);
+    document.getElementById('btn-storage-analytics-close')?.addEventListener('click', closeStorageAnalytics);
+    document.getElementById('btn-storage-analytics-done')?.addEventListener('click', closeStorageAnalytics);
+    document.getElementById('modal-storage-analytics')?.addEventListener('click', (e) => {
+        if (e.target && e.target.id === 'modal-storage-analytics') closeStorageAnalytics();
+    });
+    const storageSearchEl = document.getElementById('storage-admin-search');
+    if (storageSearchEl) {
+        storageSearchEl.addEventListener('input', () => {
+            if (storageAdminSearchTimer) clearTimeout(storageAdminSearchTimer);
+            storageAdminSearchTimer = setTimeout(() => {
+                storageAdminQuery = storageSearchEl.value.trim();
+                renderStorageAdminPanel(1);
+            }, 300);
+        });
+    }
     document.getElementById('btn-save').addEventListener('click', async () => {
     const ok = await saveFile();
     if (ok) showSuccessCheck(document.getElementById('btn-save'));
@@ -6891,6 +6915,19 @@ async function syncSettingsControls(state = null) {
     const compileMenuItem = document.getElementById('code-action-compile');
     if (compileMenuItem) {
         compileMenuItem.style.display = (userRole === 0) ? 'none' : 'flex';
+    }
+
+    // Storage: only admins may edit quotas. Regular users can ask an admin
+    // for more space instead.
+    const isAdminUser = userRole >= 2;
+    const quotaRow = document.getElementById('settings-quota-row');
+    if (quotaRow) quotaRow.classList.toggle('hidden', !isAdminUser);
+    const manageStorageBtn = document.getElementById('btn-manage-storage');
+    if (manageStorageBtn) manageStorageBtn.classList.toggle('hidden', !isAdminUser);
+    const storageRequestSection = document.getElementById('settings-storage-request');
+    if (storageRequestSection) {
+        storageRequestSection.classList.toggle('hidden', isAdminUser);
+        if (!isAdminUser) refreshStorageRequestStatus(state);
     }
 }
 
@@ -9701,6 +9738,337 @@ async function updateLangSwitcherVisibilitySetting() {
     flashStatus(t(i18n, 'errorPrefix') + err.message);
   }
 }
+// ── Storage quota requests ─────────────────────────────────────────────
+function storageRoleLabel(role) {
+    if (Number(role) >= 2) return t(window.i18n, 'roleAdmin');
+    if (Number(role) >= 1) return t(window.i18n, 'roleManager');
+    return t(window.i18n, 'roleGuest');
+}
+async function refreshStorageRequestStatus(state = null) {
+    const section = document.getElementById('settings-storage-request');
+    if (!section || section.classList.contains('hidden')) return;
+    if (!state) {
+        try { state = await api('get_state'); } catch (_) { state = null; }
+    }
+    const active = state ? (state.users || []).find(u => u.name === state.active) : null;
+    const usedBytes = active ? (active.used_bytes || 0) : 0;
+    const quotaBytes = active ? (active.quota_mb || 0) * 1024 * 1024 : 0;
+    const summaryEl = document.getElementById('storage-request-summary');
+    if (summaryEl) {
+        summaryEl.textContent = t(window.i18n, 'storageRequestSummary', {
+            used: formatBytes(usedBytes),
+            quota: formatBytes(quotaBytes)
+        });
+    }
+    let pending = null;
+    try {
+        const res = await api('get_storage_request');
+        pending = res && res.pending ? res.pending : null;
+    } catch (err) {
+        console.warn('Storage request status failed:', err);
+    }
+    const pendingEl = document.getElementById('storage-request-pending');
+    const btn = document.getElementById('btn-request-storage');
+    if (pending) {
+        if (pendingEl) {
+            pendingEl.classList.remove('hidden');
+            pendingEl.textContent = t(window.i18n, 'storageRequestPending');
+        }
+        if (btn) btn.disabled = true;
+    } else {
+        if (pendingEl) {
+            pendingEl.classList.add('hidden');
+            pendingEl.textContent = '';
+        }
+        if (btn) btn.disabled = false;
+    }
+}
+async function requestMoreStorage() {
+    const btn = document.getElementById('btn-request-storage');
+    if (btn) btn.disabled = true;
+    try {
+        const res = await api('request_storage', { note: '' });
+        if (res && res.already_pending) {
+            flashStatus(t(window.i18n, 'storageRequestAlreadyPending'));
+        } else {
+            flashStatus(t(window.i18n, 'storageRequestSent'));
+        }
+        await refreshStorageRequestStatus();
+    } catch (err) {
+        flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+        if (btn) btn.disabled = false;
+    }
+}
+const STORAGE_ADMIN_PER_PAGE = 25;
+let storageAdminPage = 1;
+let storageAdminQuery = '';
+let storageAdminSearchTimer = null;
+function openStorageAdminPanel() {
+    const modal = document.getElementById('modal-storage-admin');
+    if (!modal) return;
+    // The settings menu lives in a full-screen modal; close it so it does not
+    // intercept clicks on the storage panel rendered underneath.
+    if (typeof window.closeSettingsMenu === 'function') window.closeSettingsMenu();
+    storageAdminPage = 1;
+    storageAdminQuery = '';
+    const search = document.getElementById('storage-admin-search');
+    if (search) search.value = '';
+    modal.classList.remove('hidden');
+    renderStorageAdminPanel(1);
+}
+function closeStorageAdminPanel() {
+    const modal = document.getElementById('modal-storage-admin');
+    if (!modal) return;
+    modal.classList.add('hidden');
+}
+async function renderStorageAdminPanel(page = null) {
+    const body = document.getElementById('storage-admin-table-body');
+    const reqWrap = document.getElementById('storage-admin-requests');
+    if (!body || !reqWrap) return;
+    if (page != null) storageAdminPage = Math.max(1, page);
+    body.innerHTML = '<tr><td colspan="5" style="text-align:center;opacity:.6;padding:16px;">' + escapeHtml(t(window.i18n, 'loading')) + '</td></tr>';
+    let data;
+    try {
+        data = await api('admin_storage_overview', {
+            page: storageAdminPage,
+            per_page: STORAGE_ADMIN_PER_PAGE,
+            q: storageAdminQuery,
+            v: Date.now()
+        }, 'GET');
+    } catch (err) {
+        body.innerHTML = '<tr><td colspan="5" style="text-align:center;color:#ef4444;padding:16px;">' + escapeHtml(err.message) + '</td></tr>';
+        return;
+    }
+    storageAdminPage = Number(data.page) || 1;
+
+    const users = data.users || [];
+    body.innerHTML = users.length ? users.map(storageUserRowHtml).join('')
+        : '<tr><td colspan="5" style="text-align:center;opacity:.6;padding:16px;">' + escapeHtml(t(window.i18n, 'storageNoUsers')) + '</td></tr>';
+    body.querySelectorAll('[data-save-email]').forEach(btnEl => {
+        btnEl.addEventListener('click', () => saveUserQuota(btnEl.getAttribute('data-save-email'), btnEl));
+    });
+
+    const requests = data.requests || [];
+    reqWrap.innerHTML = requests.length ? requests.map(r => storageRequestCardHtml(r)).join('')
+        : '<p style="margin:0;opacity:.6;font-size:13px;">' + escapeHtml(t(window.i18n, 'storageNoRequests')) + '</p>';
+    reqWrap.querySelectorAll('[data-req-approve]').forEach(btnEl => {
+        btnEl.addEventListener('click', () => resolveStorageRequestFromPanel(parseInt(btnEl.getAttribute('data-req-approve'), 10), true));
+    });
+    reqWrap.querySelectorAll('[data-req-reject]').forEach(btnEl => {
+        btnEl.addEventListener('click', () => resolveStorageRequestFromPanel(parseInt(btnEl.getAttribute('data-req-reject'), 10), false));
+    });
+
+    const countEl = document.getElementById('storage-admin-count');
+    if (countEl) countEl.textContent = t(window.i18n, 'storageTotalUsers', { total: Number(data.total) || 0 });
+    renderStorageAdminPager(data);
+}
+function storageUserRowHtml(u) {
+    const pendingTag = u.pending_request
+        ? '<span class="storage-admin-pending-tag">' + escapeHtml(t(window.i18n, 'storageRequestPendingShort')) + '</span>'
+        : '';
+    const saveLabel = escapeHtml(t(window.i18n, 'storageSaveQuota'));
+    return '<tr>' +
+        '<td title="' + escapeHtml(u.email) + '"><span class="user-name">' + escapeHtml(u.email) + '</span>' + pendingTag + '</td>' +
+        '<td class="storage-col-role"><span class="user-quota-used">' + escapeHtml(storageRoleLabel(u.role)) + '</span></td>' +
+        '<td><span class="user-quota-used">' + escapeHtml(formatBytes(u.used_bytes || 0)) + '</span></td>' +
+        '<td class="storage-quota-cell"><span style="display:inline-flex;align-items:center;gap:6px;">' +
+            '<input type="number" min="1" step="1" value="' + (Number(u.quota_mb) || 1) + '" data-quota-email="' + escapeHtml(u.email) + '" class="storage-admin-quota-input" aria-label="' + escapeHtml(t(window.i18n, 'setQuota')) + '">' +
+            '<span class="user-quota-used">MB</span></span></td>' +
+        '<td><button type="button" class="storage-admin-save-btn" data-save-email="' + escapeHtml(u.email) + '" title="' + saveLabel + '" aria-label="' + saveLabel + '">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>' +
+        '</button></td>' +
+        '</tr>';
+}
+function renderStorageAdminPager(data) {
+    const pager = document.getElementById('storage-admin-pager');
+    if (!pager) return;
+    const pages = Math.max(1, Number(data.pages) || 1);
+    const page = Math.max(1, Number(data.page) || 1);
+    if (pages <= 1) { pager.innerHTML = ''; return; }
+    pager.innerHTML =
+        '<button type="button" data-page="' + (page - 1) + '"' + (page <= 1 ? ' disabled' : '') + '>' + escapeHtml(t(window.i18n, 'storagePrev')) + '</button>' +
+        '<span class="storage-admin-pager-info">' + escapeHtml(t(window.i18n, 'storagePageInfo', { page: page, pages: pages })) + '</span>' +
+        '<button type="button" data-page="' + (page + 1) + '"' + (page >= pages ? ' disabled' : '') + '>' + escapeHtml(t(window.i18n, 'storageNext')) + '</button>';
+    pager.querySelectorAll('[data-page]').forEach(btnEl => {
+        btnEl.addEventListener('click', () => {
+            const target = parseInt(btnEl.getAttribute('data-page'), 10);
+            if (target >= 1 && target <= pages) renderStorageAdminPanel(target);
+        });
+    });
+}
+function storageRequestCardHtml(r) {
+    const suggested = Math.max(2048, (Number(r.current_quota_mb) || 0) + 1024);
+    return '<div style="border:1px solid var(--border);border-radius:12px;padding:12px 14px;background:var(--bg);">' +
+        '<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;">' +
+            '<strong style="font-size:14px;">' + escapeHtml(r.email) + '</strong>' +
+            '<span class="user-quota-used">' + escapeHtml(formatBytes(r.used_bytes || 0)) + ' / ' + escapeHtml(formatBytes((Number(r.current_quota_mb) || 0) * 1024 * 1024)) + '</span>' +
+        '</div>' +
+        '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">' +
+            '<input type="number" min="1" step="1" value="' + suggested + '" data-req-quota="' + r.id + '" style="width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
+            '<span class="user-quota-used">MB</span>' +
+            '<input type="text" data-req-reason="' + r.id + '" placeholder="' + escapeHtml(t(window.i18n, 'storageRejectReason')) + '" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
+            '<button type="button" class="btn primary small" data-req-approve="' + r.id + '">' + escapeHtml(t(window.i18n, 'storageApprove')) + '</button>' +
+            '<button type="button" class="btn secondary small" data-req-reject="' + r.id + '">' + escapeHtml(t(window.i18n, 'storageReject')) + '</button>' +
+        '</div>' +
+    '</div>';
+}
+async function saveUserQuota(email, btnEl) {
+    const scope = (btnEl && btnEl.closest('tr')) || document;
+    const input = scope.querySelector('.storage-admin-quota-input[data-quota-email="' + CSS.escape(email) + '"]') || scope.querySelector('.storage-admin-quota-input');
+    const mb = parseInt((input && input.value) || '0', 10);
+    if (!mb || mb < 1) { flashStatus(t(window.i18n, 'invalidQuota')); return; }
+    if (btnEl) btnEl.disabled = true;
+    try {
+        await api('admin_set_user_quota', { email, quota_mb: mb });
+        flashStatus(t(window.i18n, 'quotaUpdated'));
+        await renderStorageAdminPanel();
+        await refreshUsers(window.i18n);
+    } catch (err) {
+        if (btnEl) btnEl.disabled = false;
+        flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+    }
+}
+async function resolveStorageRequestFromPanel(requestId, approve) {
+    if (!requestId) return;
+    const quotaInput = document.querySelector('[data-req-quota="' + requestId + '"]');
+    const reasonInput = document.querySelector('[data-req-reason="' + requestId + '"]');
+    const quotaMb = parseInt((quotaInput && quotaInput.value) || '0', 10);
+    if (approve && (!quotaMb || quotaMb < 1)) { flashStatus(t(window.i18n, 'invalidQuota')); return; }
+    const params = { request_id: requestId, decision: approve ? 'approve' : 'reject' };
+    if (approve) params.quota_mb = quotaMb;
+    const reason = (reasonInput && reasonInput.value ? reasonInput.value : '').trim();
+    if (reason) params.reason = reason;
+    try {
+        await api('admin_resolve_storage_request', params);
+        flashStatus(t(window.i18n, approve ? 'storageRequestApproved' : 'storageRequestRejected'));
+        await renderStorageAdminPanel();
+        await refreshUsers(window.i18n);
+    } catch (err) {
+        flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+    }
+}
+
+// ── Storage analytics (donut chart of top-10 users + others) ──────────
+const STORAGE_PIE_COLORS = ['#2563eb', '#22c55e', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#84cc16', '#f97316', '#6366f1', '#94a3b8'];
+function storagePieColor(i) {
+    return i < STORAGE_PIE_COLORS.length - 1 ? STORAGE_PIE_COLORS[i] : STORAGE_PIE_COLORS[STORAGE_PIE_COLORS.length - 1];
+}
+function storageStatHtml(label, value) {
+    return '<div class="storage-stat"><span class="storage-stat-label">' + escapeHtml(label) + '</span><span class="storage-stat-value">' + escapeHtml(value) + '</span></div>';
+}
+function storageLegendItemHtml(i, label, value, total) {
+    const pct = total > 0 ? (value / total * 100) : 0;
+    return '<div class="storage-legend-item">' +
+        '<span class="storage-legend-swatch" style="background:' + storagePieColor(i) + '"></span>' +
+        '<span class="storage-legend-label" title="' + escapeHtml(label) + '">' + escapeHtml(label) + '</span>' +
+        '<span class="storage-legend-value">' + escapeHtml(formatBytes(value)) + ' · ' + pct.toFixed(1) + '%</span>' +
+        '</div>';
+}
+function drawStoragePie(canvas, slices) {
+    if (!canvas || !canvas.getContext) return;
+    const size = Math.max(160, Math.round(canvas.clientWidth) || 300);
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = size * dpr;
+    canvas.height = size * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, size, size);
+    const total = slices.reduce((sum, s) => sum + (Number(s.value) || 0), 0);
+    const cx = size / 2, cy = size / 2, r = size / 2 - 8, inner = r * 0.58;
+    const bodyStyle = getComputedStyle(document.body);
+    const surface = bodyStyle.backgroundColor || '#111';
+    const textColor = bodyStyle.color || '#eee';
+    if (!total) {
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.arc(cx, cy, inner, 0, Math.PI * 2, true);
+        ctx.fillStyle = 'rgba(148,163,184,.22)';
+        ctx.fill();
+        ctx.fillStyle = textColor;
+        ctx.globalAlpha = 0.6;
+        ctx.font = '14px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('—', cx, cy);
+        ctx.globalAlpha = 1;
+        return;
+    }
+    let start = -Math.PI / 2;
+    slices.forEach((s, i) => {
+        const value = Number(s.value) || 0;
+        if (value <= 0) return;
+        const end = start + (value / total) * Math.PI * 2;
+        ctx.beginPath();
+        ctx.moveTo(cx, cy);
+        ctx.arc(cx, cy, r, start, end);
+        ctx.closePath();
+        ctx.fillStyle = storagePieColor(i);
+        ctx.fill();
+        ctx.strokeStyle = surface;
+        ctx.lineWidth = 2;
+        ctx.stroke();
+        start = end;
+    });
+    ctx.beginPath();
+    ctx.arc(cx, cy, inner, 0, Math.PI * 2);
+    ctx.fillStyle = surface;
+    ctx.fill();
+    ctx.fillStyle = textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.globalAlpha = 0.92;
+    ctx.font = '700 16px sans-serif';
+    ctx.fillText(formatBytes(total), cx, cy - 6);
+    ctx.globalAlpha = 0.55;
+    ctx.font = '11px sans-serif';
+    ctx.fillText(t(window.i18n, 'storageTotalUsedLabel'), cx, cy + 14);
+    ctx.globalAlpha = 1;
+}
+function openStorageAnalytics() {
+    const modal = document.getElementById('modal-storage-analytics');
+    if (!modal) return;
+    modal.classList.remove('hidden');
+    renderStorageAnalytics();
+}
+function closeStorageAnalytics() {
+    const modal = document.getElementById('modal-storage-analytics');
+    if (!modal) return;
+    modal.classList.add('hidden');
+}
+async function renderStorageAnalytics() {
+    const summary = document.getElementById('storage-analytics-summary');
+    const legend = document.getElementById('storage-analytics-legend');
+    const canvas = document.getElementById('storage-analytics-canvas');
+    if (!summary || !legend || !canvas) return;
+    summary.innerHTML = storageStatHtml(t(window.i18n, 'loading'), '…');
+    legend.innerHTML = '';
+    let data;
+    try {
+        data = await api('admin_storage_analytics', { v: Date.now() }, 'GET');
+    } catch (err) {
+        summary.innerHTML = '';
+        legend.innerHTML = '<div class="storage-analytics-empty">' + escapeHtml(err.message) + '</div>';
+        drawStoragePie(canvas, []);
+        return;
+    }
+    summary.innerHTML =
+        storageStatHtml(t(window.i18n, 'storageTotalUsersLabel'), String(Number(data.total_users) || 0)) +
+        storageStatHtml(t(window.i18n, 'storageUsersWithData'), String(Number(data.users_with_usage) || 0)) +
+        storageStatHtml(t(window.i18n, 'storageTotalUsedLabel'), formatBytes(Number(data.total_used_bytes) || 0)) +
+        storageStatHtml(t(window.i18n, 'storageQuotaTotal'), formatBytes((Number(data.quota_total_mb) || 0) * 1024 * 1024));
+    const slices = [];
+    (data.top || []).forEach(x => slices.push({ label: String(x.email || ''), value: Number(x.used_bytes) || 0 }));
+    const others = data.others || { count: 0, used_bytes: 0 };
+    if ((Number(others.used_bytes) || 0) > 0) {
+        slices.push({ label: t(window.i18n, 'storageOthers') + ' (' + (Number(others.count) || 0) + ')', value: Number(others.used_bytes) || 0 });
+    }
+    const total = slices.reduce((sum, s) => sum + s.value, 0);
+    drawStoragePie(canvas, slices);
+    legend.innerHTML = total > 0
+        ? slices.map((s, i) => storageLegendItemHtml(i, s.label, s.value, total)).join('')
+        : '<div class="storage-analytics-empty">' + escapeHtml(t(window.i18n, 'storageNoAnalytics')) + '</div>';
+}
+
 function showTabContextMenu(e, tabId) {
     hideTabPreview();
     e.preventDefault();

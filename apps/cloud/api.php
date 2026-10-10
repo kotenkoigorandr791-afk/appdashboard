@@ -6,6 +6,7 @@ require_once __DIR__ . '/includes/session.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/cloud_group_chat.php';
+require_once __DIR__ . '/includes/cloud_storage_requests.php';
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
 use PhpOffice\PhpPresentation\IOFactory as PresentationIOFactory;
@@ -3027,7 +3028,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 // ------------------------------------------------------------------
 function getUserQuota(string $username): int {
     $db = getDB();
-    if (!$db) return 500;
+    if (!$db) return cloud_storage_default_quota_mb();
     $email = get_session_email();
     if ($email) {
         try {
@@ -3043,10 +3044,10 @@ function getUserQuota(string $username): int {
         $stmt = $db->prepare('SELECT quota_mb FROM cloud_user_settings WHERE email LIKE :p LIMIT 1');
         $stmt->bindValue(':p', $username, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        return $row ? max(1, (int)$row['quota_mb']) : 500;
+        return $row ? max(1, (int)$row['quota_mb']) : cloud_storage_default_quota_mb();
     } catch (Exception $e) {
         cloud_safe_error_log("getUserQuota fallback failed: " . $e->getMessage());
-        return 500;
+        return cloud_storage_default_quota_mb();
     }
 }
 
@@ -3079,7 +3080,7 @@ function ensureCloudUserSettingsSchema($db): void {
     if (!$db) return;
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_user_settings (
         email TEXT PRIMARY KEY,
-        quota_mb INTEGER NOT NULL DEFAULT 500,
+        quota_mb INTEGER NOT NULL DEFAULT 1024,
         session_limit_mb INTEGER NOT NULL DEFAULT 0,
         hide_lang_switcher INTEGER NOT NULL DEFAULT 0,
         sync_local_path TEXT NOT NULL DEFAULT '',
@@ -3159,7 +3160,7 @@ function migrate_legacy_users_json(): void {
                     $email = resolve_cloud_user_email_from_legacy_name($db, (string)($u['name'] ?? ''));
                     if (!$email) continue;
                     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
-                    $stmt->bindValue(':q', max(1, (int)($u['quota_mb'] ?? 500)), PDO::PARAM_INT);
+                    $stmt->bindValue(':q', max(1, (int)($u['quota_mb'] ?? cloud_storage_default_quota_mb())), PDO::PARAM_INT);
                     $stmt->bindValue(':l', max(0, (int)($u['session_limit_mb'] ?? 0)), PDO::PARAM_INT);
                     $stmt->execute();
                 }
