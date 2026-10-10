@@ -60,13 +60,16 @@ function cloud_ai_proxy_models(array $config): void
     header('Content-Type: application/json; charset=utf-8');
     header('Cache-Control: no-store, no-cache, must-revalidate');
     header('Pragma: no-cache');
+    // The admin-configured model list (Admin Panel → Settings → AI Assistant)
+    // is the source of truth; the upstream /models endpoint is only a fallback
+    // when nothing is configured.
+    $models = $config['models'] ?? [];
+    if (is_array($models) && $models) {
+        echo json_encode(['data' => array_map(static fn($id) => ['id' => (string)$id, 'object' => 'model'], $models)], JSON_UNESCAPED_SLASHES);
+        return;
+    }
     $result = cloud_ai_proxy_json($config, cloud_ai_upstream_models_url($config), null, 'GET');
     if (!$result['ok']) {
-        $models = $config['models'] ?? [];
-        if (is_array($models) && $models) {
-            echo json_encode(['data' => array_map(static fn($id) => ['id' => (string)$id, 'object' => 'model'], $models)], JSON_UNESCAPED_SLASHES);
-            return;
-        }
         echo json_encode(['error' => ['message' => $result['error'] ?: ('HTTP ' . $result['http'])]]);
         return;
     }

@@ -16,6 +16,24 @@ return array (
   'emojis' => 'Емодзі',
   'filters' => 'Фільтри',
   'no_filter' => '-- Без фільтра --',
+
+  'filter_grayscale' => 'Чорно-біле',
+
+  'filter_sepia' => 'Сепія',
+
+  'filter_invert' => 'Інверсія',
+
+  'filter_brownie' => 'Брауні',
+
+  'filter_vintage' => 'Вінтаж',
+
+  'filter_kodachrome' => 'Кодахром',
+
+  'filter_technicolor' => 'Техніколор',
+
+  'filter_polaroid' => 'Поляроїд',
+
+  'filter_blackwhite' => 'Чорне і біле',
   'brightness' => 'Яскравість',
   'contrast' => 'Контрастність',
   'saturation' => 'Насиченість',

@@ -8,7 +8,7 @@ function get_param(string $key, string $default=''): string {
   return isset($_GET[$key]) ? trim((string)$_GET[$key]) : $default;
 }
 
-$lang = get_param('lang', 'en'); // en, ru, uk, be
+$lang = get_param('lang', 'en'); // en, ru, uk, be, pl, cs
 $theme = get_param('theme', 'light'); // light, dark
 $color = get_param('color', '#4a90e2'); // hex like %2385b503
 if (!preg_match('/^#?[0-9a-fA-F]{6}$/', $color)) $color = '#4a90e2';
@@ -227,7 +227,7 @@ cloud_require_session_auth();
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=40"></script>
+<script defer src="assets/app.js?v=41"></script>
 <script defer src="assets/app/editors-and-tree.js?v=12"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -246,7 +246,8 @@ cloud_require_session_auth();
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=40"></script>
-<script defer src="assets/monaco-editor.js?v=13"></script>
+<script defer src="assets/monaco-shared.js?v=2"></script>
+<script defer src="assets/monaco-editor.js?v=19"></script>
 
 
 </head>
@@ -294,8 +295,6 @@ cloud_require_session_auth();
       <div class="lang-option active" data-lang="en" data-i18n="english"></div>
       <div class="lang-option" data-lang="ru" data-i18n="russian"></div>
       <div class="lang-option" data-lang="uk" data-i18n="ukrainian"></div>
-      <div class="lang-option" data-lang="pl" data-i18n="polish"></div>
-      <div class="lang-option" data-lang="cs" data-i18n="czech"></div>
     </div>
      <button id="btn-group-chat" class="icon-btn hidden" title="" data-i18n-title="groupChatTitle">
       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.1 2.182a10 10 0 0 1 3.8 0"/><path d="M13.9 21.818a10 10 0 0 1-3.8 0"/><path d="M17.609 3.72a10 10 0 0 1 2.69 2.7"/><path d="M2.182 13.9a10 10 0 0 1 0-3.8"/><path d="M20.28 17.61a10 10 0 0 1-2.7 2.69"/><path d="M21.818 10.1a10 10 0 0 1 0 3.8"/><path d="M3.721 6.391a10 10 0 0 1 2.7-2.69"/><path d="m6.163 21.117-2.906.85a1 1 0 0 1-1.236-1.169l.965-2.98"/></svg>
@@ -374,7 +373,7 @@ cloud_require_session_auth();
 
         <section class="settings-group">
           <h4 class="settings-group-title" data-i18n="quota">Quota</h4>
-          <label class="settings-row" for="quota-mb">
+          <label class="settings-row hidden" for="quota-mb" id="settings-quota-row">
             <span class="settings-row-text">
               <span class="settings-row-label" data-i18n="setQuota">Set quota (MB)</span>
             </span>
@@ -392,6 +391,18 @@ cloud_require_session_auth();
               <span>MB</span>
             </span>
           </label>
+        </section>
+
+        <section class="settings-group hidden" id="settings-storage-request">
+          <h4 class="settings-group-title" data-i18n="storageRequestSection">Storage</h4>
+          <p class="settings-row-text" id="storage-request-summary" style="margin:0;line-height:1.5;"></p>
+          <p class="settings-row-text hidden" id="storage-request-pending" style="margin:0;line-height:1.5;color:var(--accent);"></p>
+          <div class="settings-actions">
+            <button id="btn-request-storage" class="settings-action-btn" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14"></path><path d="M5 12h14"></path></svg>
+              <span data-i18n="storageRequestButton">Request more storage</span>
+            </button>
+          </div>
         </section>
 
         <section class="settings-group">
@@ -415,6 +426,10 @@ cloud_require_session_auth();
                 <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
               </svg>
               <span data-i18n="manageSyncTokens">Manage Sync Tokens</span>
+            </button>
+            <button id="btn-manage-storage" class="settings-action-btn hidden" type="button">
+              <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><ellipse cx="12" cy="5" rx="9" ry="3"></ellipse><path d="M3 5v14a9 3 0 0 0 18 0V5"></path><path d="M3 12a9 3 0 0 0 18 0"></path></svg>
+              <span data-i18n="manageStorageButton">Manage user storage</span>
             </button>
           </div>
         </section>
@@ -2060,6 +2075,71 @@ cloud_require_session_auth();
         <button type="button" id="btn-group-create" class="btn primary" data-i18n="groupCreate">Create group</button>
       </div>
       <div id="groups-manage-body"></div>
+    </div>
+  </div>
+</div>
+
+<div id="modal-storage-admin" class="modal hidden">
+  <div class="modal-content storage-admin-content">
+    <div class="modal-header">
+      <h3 data-i18n="manageStorageTitle">Manage user storage</h3>
+      <div class="storage-admin-head-actions">
+        <button type="button" id="btn-storage-analytics" class="settings-action-btn storage-admin-analytics-btn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21.21 15.89A10 10 0 1 1 8 2.83"></path><path d="M22 12A10 10 0 0 0 12 2v10z"></path></svg>
+          <span data-i18n="storageAnalyticsButton">Analytics</span>
+        </button>
+        <button type="button" id="btn-storage-admin-close" class="icon-btn" aria-label="Close">&times;</button>
+      </div>
+    </div>
+    <div class="modal-body storage-admin-body">
+      <p class="settings-row-text storage-admin-hint" id="storage-admin-hint" data-i18n="manageStorageHint">Set an individual quota for each user. Pending requests can be approved or rejected here.</p>
+      <h4 class="settings-group-title" data-i18n="storagePendingRequests">Pending requests</h4>
+      <div id="storage-admin-requests" class="storage-admin-requests"></div>
+      <div class="storage-admin-users-head">
+        <h4 class="settings-group-title" data-i18n="storageAllUsers">All users</h4>
+        <span id="storage-admin-count" class="user-quota-used"></span>
+      </div>
+      <div class="storage-admin-toolbar">
+        <input type="search" id="storage-admin-search" class="storage-admin-search" placeholder="Search by email or name" data-i18n-placeholder="storageSearchPlaceholder" autocomplete="off">
+      </div>
+      <div class="storage-admin-table-wrap">
+        <table class="storage-admin-table" id="storage-admin-table">
+          <thead>
+            <tr>
+              <th class="storage-col-user" data-i18n="user">User</th>
+              <th class="storage-col-role" data-i18n="role">Role</th>
+              <th class="storage-col-used" data-i18n="used">Used</th>
+              <th class="storage-col-quota" data-i18n="quota">Quota</th>
+              <th class="storage-col-actions" data-i18n="actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="storage-admin-table-body"></tbody>
+        </table>
+      </div>
+      <div id="storage-admin-pager" class="storage-admin-pager"></div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" id="btn-storage-admin-refresh" class="btn secondary" data-i18n="refresh">Refresh</button>
+      <button type="button" id="btn-storage-admin-done" class="btn primary" data-i18n="close">Close</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-storage-analytics" class="modal hidden">
+  <div class="modal-content storage-analytics-content">
+    <div class="modal-header">
+      <h3 data-i18n="storageAnalyticsTitle">Storage analytics</h3>
+      <button type="button" id="btn-storage-analytics-close" class="icon-btn" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body storage-analytics-body">
+      <div class="storage-analytics-summary" id="storage-analytics-summary"></div>
+      <div class="storage-analytics-chart-row">
+        <canvas id="storage-analytics-canvas" width="300" height="300"></canvas>
+        <div id="storage-analytics-legend" class="storage-analytics-legend"></div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button type="button" id="btn-storage-analytics-done" class="btn primary" data-i18n="close">Close</button>
     </div>
   </div>
 </div>

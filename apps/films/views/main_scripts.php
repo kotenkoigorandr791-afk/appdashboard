@@ -77,7 +77,7 @@ let hls = null;
 
 // Quality levels for adaptive streaming
 const qualityLevels = [
-    { label: 'Auto', value: 'auto' },
+    { label: getTranslation('quality_auto'), value: 'auto' },
     { label: '2160p (4K)', value: '3840x2160' },
     { label: '1440p (2K)', value: '2560x1440' },
     { label: '1080p', value: '1920x1080' },
@@ -279,12 +279,30 @@ function createVideoPlayer() {
             container: null
         },
         storage: { enabled: false },
-        tooltips: { controls: true, seek: true }
+        tooltips: { controls: true, seek: true },
+        i18n: {
+            play: getTranslation('video_play'),
+            pause: getTranslation('video_pause'),
+            rewind: getTranslation('video_rewind'),
+            forward: getTranslation('video_forward'),
+            mute: getTranslation('video_mute'),
+            unmute: getTranslation('video_unmute'),
+            volume: getTranslation('video_volume'),
+            fullscreen: getTranslation('video_fullscreen'),
+            exitFullscreen: getTranslation('video_exit_fullscreen'),
+            pip: getTranslation('video_pip'),
+            airplay: getTranslation('video_airplay'),
+            settings: getTranslation('video_settings'),
+            subtitles: getTranslation('video_subtitles'),
+            speed: getTranslation('video_speed'),
+            loop: getTranslation('video_loop')
+        }
     });
 
     // Add quality selector
     const qualitySelector = document.createElement('select');
     qualitySelector.className = 'quality-selector';
+    qualitySelector.setAttribute('aria-label', getTranslation('video_quality'));
     qualitySelector.style.display = 'none'; // Hide for now since we're not using HLS
     qualityLevels.forEach(level => {
         const option = document.createElement('option');

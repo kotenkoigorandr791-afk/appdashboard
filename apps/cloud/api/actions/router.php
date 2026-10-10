@@ -3,6 +3,7 @@ $action = $_GET['action'] ?? $_POST['action'] ?? '';
 require_once __DIR__ . '/ai_agent.php';
 require_once __DIR__ . '/cloud_groups.php';
 require_once __DIR__ . '/cloud_group_chat.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_storage_requests.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_config_store.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
 if (!function_exists('cloud_dedupe_tree_items')) {
@@ -78,7 +79,7 @@ if ($action === 'get_state') {
     $display_email = $email ?: $current_user;
 
     // Quota - look up by email directly (no JOIN users.name, which does not exist)
-    $user_quota    = 500;
+    $user_quota    = cloud_storage_default_quota_mb();
     $session_limit = 0;
     $hide_lang_switcher = 0;
     $sync_local_path = '';
@@ -610,6 +611,8 @@ if ($action === 'import_internal_share') {
 if ($action === 'set_quota') {
     $email = get_session_email();
     if (!$email) json_out(['error' => 'not authenticated'], 401);
+    // Users may no longer change their own storage quota — only admins can.
+    if (getUserRoleByEmail($email) < 2) json_out(['error' => 'forbidden'], 403);
     $quota_mb = max(1, (int)($_POST['quota_mb'] ?? 0));
     $db = getDB();
     if (!$db) json_out(['error' => 'db unavailable'], 500);
@@ -630,6 +633,227 @@ if ($action === 'set_quota') {
     }
 }
 
+// ------------------------------------------------------------------
+//  Storage quota requests (2-step admin approval flow)
+// ------------------------------------------------------------------
+if (!function_exists('cloud_storage_api_admin_email')) {
+    function cloud_storage_api_admin_email(): string {
+        $email = get_session_email();
+        if (!$email) json_out(['ok' => false, 'error' => 'not authenticated'], 401);
+        if (getUserRoleByEmail($email) < 2) json_out(['ok' => false, 'error' => 'forbidden'], 403);
+        return $email;
+    }
+    function cloud_storage_api_used_bytes(string $email): int {
+        $username = email_to_cloud_username(strtolower(trim($email)));
+        $root = user_root($username, 'main');
+        return is_dir($root) ? dir_size($root) : 0;
+    }
+}
+
+// A regular user asks for more storage; every admin gets a notification.
+if ($action === 'request_storage') {
+    $email = get_session_email();
+    if (!$email) json_out(['ok' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    try {
+        ensureCloudUserSettingsSchema($db);
+        $quota = cloud_storage_user_quota_mb($db, $email);
+        $used = cloud_storage_api_used_bytes($email);
+        $note = (string)($_POST['note'] ?? '');
+        $res = cloud_storage_request_create($db, $email, $quota, $used, $note);
+        if (empty($res['ok'])) json_out(['ok' => false, 'error' => $res['error'] ?? 'failed'], 400);
+        json_out(['ok' => true, 'already_pending' => !empty($res['already_pending']), 'request' => $res['request']]);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+// Current user's storage status + pending request (drives the settings button).
+if ($action === 'get_storage_request') {
+    $email = get_session_email();
+    if (!$email) json_out(['ok' => false, 'error' => 'not authenticated'], 401);
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    try {
+        ensureCloudUserSettingsSchema($db);
+        json_out([
+            'ok' => true,
+            'quota_mb' => cloud_storage_user_quota_mb($db, $email),
+            'used_bytes' => cloud_storage_api_used_bytes($email),
+            'pending' => cloud_storage_pending_request($db, $email),
+        ]);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+// Admin mini panel: every user with quota/usage + all pending requests.
+// Admin mini panel: paginated + searchable user list (built for thousands of
+// users — only the current page is resolved, usage comes from the cached stats
+// table instead of walking every home directory).
+if ($action === 'admin_storage_overview') {
+    cloud_storage_api_admin_email();
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    $page = max(1, (int)($_GET['page'] ?? $_POST['page'] ?? 1));
+    $perPage = min(100, max(5, (int)($_GET['per_page'] ?? $_POST['per_page'] ?? 25)));
+    $q = trim((string)($_GET['q'] ?? $_POST['q'] ?? ''));
+    try {
+        ensureCloudUserSettingsSchema($db);
+        $like = '%' . strtolower($q) . '%';
+        $where = $q !== '' ? "WHERE LOWER(email) LIKE :like OR LOWER(COALESCE(name,'')) LIKE :like" : '';
+
+        $cntStmt = $db->prepare('SELECT COUNT(*) AS c FROM users ' . $where);
+        if ($q !== '') $cntStmt->bindValue(':like', $like, PDO::PARAM_STR);
+        $total = (int)($cntStmt->execute()->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+        $pages = max(1, (int)ceil($total / $perPage));
+        if ($page > $pages) $page = $pages;
+
+        $listStmt = $db->prepare('SELECT email, name, role FROM users ' . $where . ' ORDER BY LOWER(email) LIMIT :lim OFFSET :off');
+        if ($q !== '') $listStmt->bindValue(':like', $like, PDO::PARAM_STR);
+        $listStmt->bindValue(':lim', $perPage, PDO::PARAM_INT);
+        $listStmt->bindValue(':off', ($page - 1) * $perPage, PDO::PARAM_INT);
+        $res = $listStmt->execute();
+        $pageRows = [];
+        $emails = [];
+        while ($res && ($u = $res->fetch(PDO::FETCH_ASSOC))) {
+            $pageRows[] = $u;
+            $emails[] = strtolower(trim((string)($u['email'] ?? '')));
+        }
+        $quotaMap = cloud_storage_quota_map($db, $emails);
+        $usageMap = cloud_storage_usage_map($db, $emails);
+        $pendingMap = cloud_storage_pending_map($db, $emails);
+
+        $users = [];
+        foreach ($pageRows as $u) {
+            $uEmail = strtolower(trim((string)($u['email'] ?? '')));
+            if ($uEmail === '') continue;
+            $users[] = [
+                'email' => $uEmail,
+                'name' => (string)($u['name'] ?? ''),
+                'role' => (int)($u['role'] ?? 0),
+                'quota_mb' => max(1, (int)($quotaMap[$uEmail] ?? cloud_storage_default_quota_mb())),
+                'used_bytes' => (int)($usageMap[$uEmail] ?? 0),
+                'pending_request' => $pendingMap[$uEmail] ?? null,
+            ];
+        }
+        json_out([
+            'ok' => true,
+            'users' => $users,
+            'requests' => cloud_storage_list_requests($db, 'pending', 100),
+            'total' => $total,
+            'page' => $page,
+            'per_page' => $perPage,
+            'pages' => $pages,
+            'query' => $q,
+        ]);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+// Admin analytics: top-10 users by used space plus the aggregated "others".
+if ($action === 'admin_storage_analytics') {
+    cloud_storage_api_admin_email();
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    try {
+        cloud_storage_ensure_usage_table($db);
+        try { $db->exec('CREATE INDEX IF NOT EXISTS idx_cloud_storage_usage_bytes ON cloud_storage_usage_stats(root_total_bytes DESC)'); } catch (Throwable $e) {}
+
+        $totalUsers = (int)($db->query('SELECT COUNT(*) AS c FROM users')->fetch(PDO::FETCH_ASSOC)['c'] ?? 0);
+        $agg = $db->query('SELECT COUNT(*) AS c, COALESCE(SUM(root_total_bytes),0) AS s FROM cloud_storage_usage_stats WHERE root_total_bytes > 0')->fetch(PDO::FETCH_ASSOC);
+        $usersWithUsage = (int)($agg['c'] ?? 0);
+        $totalUsed = (int)($agg['s'] ?? 0);
+
+        $top = [];
+        $topSum = 0;
+        $res = $db->query('SELECT LOWER(email) AS email, root_total_bytes AS bytes FROM cloud_storage_usage_stats WHERE root_total_bytes > 0 ORDER BY root_total_bytes DESC, LOWER(email) ASC LIMIT 10');
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+            $bytes = max(0, (int)$row['bytes']);
+            $topSum += $bytes;
+            $top[] = ['email' => (string)$row['email'], 'used_bytes' => $bytes];
+        }
+        $quotaTotal = (int)($db->query('SELECT COALESCE(SUM(quota_mb),0) AS s FROM cloud_user_settings')->fetch(PDO::FETCH_ASSOC)['s'] ?? 0);
+
+        json_out([
+            'ok' => true,
+            'total_users' => $totalUsers,
+            'users_with_usage' => $usersWithUsage,
+            'total_used_bytes' => $totalUsed,
+            'quota_total_mb' => $quotaTotal,
+            'top' => $top,
+            'others' => [
+                'count' => max(0, $usersWithUsage - count($top)),
+                'used_bytes' => max(0, $totalUsed - $topSum),
+            ],
+            'measured' => true,
+        ]);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+// Admin sets an arbitrary user's quota from the mini panel.
+if ($action === 'admin_set_user_quota') {
+    cloud_storage_api_admin_email();
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    $target = strtolower(trim((string)($_POST['email'] ?? '')));
+    $quotaMb = max(1, (int)($_POST['quota_mb'] ?? 0));
+    if ($target === '') json_out(['ok' => false, 'error' => 'missing_email'], 400);
+    try {
+        ensureCloudUserSettingsSchema($db);
+        cloud_storage_set_user_quota($db, $target, $quotaMb);
+        json_out(['ok' => true, 'email' => $target, 'quota_mb' => $quotaMb]);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+// Admin opens a chat with the requester — fetch their pending request.
+if ($action === 'admin_get_storage_request') {
+    cloud_storage_api_admin_email();
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    $target = strtolower(trim((string)($_GET['email'] ?? $_POST['email'] ?? '')));
+    if ($target === '') json_out(['ok' => false, 'error' => 'missing_email'], 400);
+    try {
+        ensureCloudUserSettingsSchema($db);
+        json_out([
+            'ok' => true,
+            'email' => $target,
+            'quota_mb' => cloud_storage_user_quota_mb($db, $target),
+            'used_bytes' => cloud_storage_api_used_bytes($target),
+            'pending' => cloud_storage_pending_request($db, $target),
+        ]);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
+// Admin approves (with a new quota) or rejects the request.
+if ($action === 'admin_resolve_storage_request') {
+    $adminEmail = cloud_storage_api_admin_email();
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    $id = (int)($_POST['request_id'] ?? 0);
+    $decision = (string)($_POST['decision'] ?? '');
+    $quotaMb = max(1, (int)($_POST['quota_mb'] ?? 0));
+    $reason = (string)($_POST['reason'] ?? '');
+    if ($id <= 0) json_out(['ok' => false, 'error' => 'missing_request_id'], 400);
+    if (!in_array($decision, ['approve', 'reject'], true)) json_out(['ok' => false, 'error' => 'invalid_decision'], 400);
+    if ($decision === 'approve' && (int)($_POST['quota_mb'] ?? 0) < 1) json_out(['ok' => false, 'error' => 'invalid_quota'], 400);
+    try {
+        $res = cloud_storage_request_resolve($db, $id, $decision === 'approve', $quotaMb, $adminEmail, $reason);
+        if (empty($res['ok'])) json_out(['ok' => false, 'error' => $res['error'] ?? 'failed'], 400);
+        json_out($res);
+    } catch (Exception $e) {
+        json_out(['ok' => false, 'error' => $e->getMessage()], 500);
+    }
+}
+
 if ($action === 'set_session_limit') {
     $email = get_session_email();
     if (!$email) json_out(['error' => 'not authenticated'], 401);
@@ -638,7 +862,7 @@ if ($action === 'set_session_limit') {
     if (!$db) json_out(['error' => 'db unavailable'], 500);
     try {
         ensureCloudUserSettingsSchema($db);
-        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, 500, :l, 0, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
+        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, " . cloud_storage_default_quota_mb() . ", :l, 0, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
         $ins->bindValue(':e', $email, PDO::PARAM_STR);
         $ins->bindValue(':l', $limit_mb, PDO::PARAM_INT);
         $ins->execute();
@@ -660,7 +884,7 @@ if ($action === 'set_hide_lang_switcher') {
     if (!$db) json_out(['error' => 'db unavailable'], 500);
     try {
         ensureCloudUserSettingsSchema($db);
-        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, 500, 0, :h, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
+        $ins = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, updated_at) VALUES (:e, " . cloud_storage_default_quota_mb() . ", 0, :h, extract(epoch from now())::bigint) ON CONFLICT (email) DO NOTHING");
         $ins->bindValue(':e', $email, PDO::PARAM_STR);
         $ins->bindValue(':h', $hide, PDO::PARAM_INT);
         $ins->execute();
@@ -1901,7 +2125,7 @@ if ($action === 'upload') {
     $root = user_root($user);
     $used = dir_size($root);
 
-    $quotaBytes        = 500 * 1024 * 1024; // default 500MB
+    $quotaBytes        = cloud_storage_default_quota_mb() * 1024 * 1024; // default 1GB
     $sessionLimitBytes = 0;
     if ($upload_email) {
         $db_uq = getDB();

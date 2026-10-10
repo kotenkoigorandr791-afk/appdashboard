@@ -495,6 +495,9 @@ function apNotificationVisibleTo(array $row, string $userEmail, int $userRole, a
     $appId = trim((string)($row['app_id'] ?? ''));
     $eventType = trim((string)($row['event_type'] ?? ''));
     if ($userRole >= 2) return true;
+    // Storage quota requests are admin-only; a broadcast row must not leak to
+    // regular users who happen to have access to the cloud app.
+    if ($eventType === 'cloud_storage_request') return false;
     if ($eventType === 'registration_pending' || $appId === 'registration') return false;
     if (in_array($appId, ['server','system','logs','docker','backup'], true) || str_starts_with($eventType, 'server_')) {
         return $userRole >= 1;
@@ -1840,6 +1843,7 @@ $defaultTranslations['ap_gate_subtitle'] = 'Use the same password as your accoun
 $defaultTranslations['ap_gate_unlock'] = 'Unlock';
 $defaultTranslations['ap_gate_meta'] = 'Separate from your main session · expires after inactivity';
 $defaultTranslations['show_password'] = 'Show password';
+$defaultTranslations['hide_password'] = 'Hide password';
 $defaultTranslations['csrf_forbidden'] = 'Security check failed. Refresh the page and try again.';
 $defaultTranslations['guide_reopen'] = 'Watch guide';
 $defaultTranslations['keyboard_shortcuts_desc'] = 'Hotkeys available on the home screen with app tiles.';

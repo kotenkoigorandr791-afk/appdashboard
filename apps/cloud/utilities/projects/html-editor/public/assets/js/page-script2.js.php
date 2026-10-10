@@ -225,19 +225,16 @@
             startPanelResize(e.clientX);
         });
         function initMonaco() {
-            require.config({ paths: { 'vs': 'https://cdn.jsdelivr.net/npm/monaco-editor@0.34.1/min/vs' }});
-            require(['vs/editor/editor.main'], function() {
-                monaco.editor.defineTheme('custom-dark', {
-                    base: 'vs-dark', inherit: true,
-                    rules: [{ token: 'tag', foreground: color }, { token: 'attribute.name', foreground: color }, { token: 'string', foreground: '#CE9178' }, { token: 'comment', foreground: '#6A9955' }],
-                    colors: { 'editor.foreground': '#D4D4D4', 'editor.background': '#1E1E1E', 'editorCursor.foreground': color, 'editor.lineHighlightBackground': '#2A2A2A', 'editor.selectionBackground': color + '40' }
-                });
-                monaco.editor.defineTheme('custom-light', {
-                    base: 'vs', inherit: true,
-                    rules: [{ token: 'tag', foreground: color }, { token: 'attribute.name', foreground: color }, { token: 'string', foreground: '#A31515' }, { token: 'comment', foreground: '#008000' }],
-                    colors: { 'editor.foreground': '#000000', 'editor.background': '#FFFFFF', 'editorCursor.foreground': color, 'editor.lineHighlightBackground': '#F0F0F0', 'editor.selectionBackground': color + '40' }
-                });
-                editor = monaco.editor.create(document.getElementById('editor-container'), {
+            // The Monaco loader, its localized built-in UI, the palette and the
+            // editor options all come from assets/monaco-shared.js, the single module
+            // shared with the main cloud editor.
+            const shared = window.cloudMonacoShared;
+            shared.loadMonaco({
+                lang: lang,
+                i18nUrl: '<?= htmlspecialchars(cloud_url('i18n/load.php')) ?>'
+            }).then(function () {
+                shared.defineAppThemes(monaco, { accent: color });
+                editor = monaco.editor.create(document.getElementById('editor-container'), Object.assign({}, shared.standardEditorOptions(), {
                     value: <?php echo $fileContentForJS; ?>,
                     language: 'html',
                     theme: theme === 'light' ? 'custom-light' : 'custom-dark',
@@ -252,6 +249,13 @@
                     formatOnPaste: true,
                     formatOnType: true,
                     lineNumbers: 'on'
+                }));
+                // Same transliteration rules as the main editor.
+                shared.installTransliteration({
+                    editor: editor,
+                    container: document.getElementById('editor-container'),
+                    monaco: monaco,
+                    getLang: function () { return shared.resolveLang(lang); }
                 });
                 if (window.monacoTouchSelection) window.monacoTouchSelection.enable(editor, document.getElementById('editor-container'));
                 // Realtime collaboration via the shared cloud-collab-ws tunnel
@@ -289,6 +293,8 @@
                 window.cloudIframeMonacoAiSave = saveFile;
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
                 updateButtonStates();
+            }).catch(function (e) {
+                console.error('Monaco failed to load:', e);
             });
         }
         document.addEventListener('visibilitychange', () => {

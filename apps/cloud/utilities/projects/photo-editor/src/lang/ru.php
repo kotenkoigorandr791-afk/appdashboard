@@ -16,6 +16,24 @@ return array (
   'emojis' => 'Эмодзи',
   'filters' => 'Фильтры',
   'no_filter' => '-- Без фильтра --',
+
+  'filter_grayscale' => 'Чёрно-белое',
+
+  'filter_sepia' => 'Сепия',
+
+  'filter_invert' => 'Инверсия',
+
+  'filter_brownie' => 'Брауни',
+
+  'filter_vintage' => 'Винтаж',
+
+  'filter_kodachrome' => 'Кодахром',
+
+  'filter_technicolor' => 'Техниколор',
+
+  'filter_polaroid' => 'Поляроид',
+
+  'filter_blackwhite' => 'Чёрное и белое',
   'brightness' => 'Яркость',
   'contrast' => 'Контрастность',
   'saturation' => 'Насыщенность',
