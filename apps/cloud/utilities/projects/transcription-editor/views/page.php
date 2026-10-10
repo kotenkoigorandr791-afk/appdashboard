@@ -55,6 +55,31 @@
             gap: 10px;
             align-items: center;
             flex-wrap: wrap;
+            scrollbar-width: thin;
+            scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+        }
+        
+        .controls::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        .controls::-webkit-scrollbar-track {
+            background: var(--scrollbar-bg);
+            border-radius: 3px;
+        }
+        
+        .controls::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb);
+            border-radius: -editor-thumb 3px;
+        }
+        
+        .controls::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-thumb-hover);
+        }
+        
+        .controls::-webkit-scrollbar-corner {
+            background: var(--scrollbar-bg);
         }
 
         .toolbar-spacer {
@@ -528,6 +553,25 @@
             .controls {
                 justify-content: center;
                 gap: 8px;
+                overflow-x: auto;
+                overflow-y: hidden;
+                white-space: nowrap;
+                scrollbar-width: thin;
+                scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-bg);
+            }
+            
+            .controls::-webkit-scrollbar {
+                height: 6px;
+            }
+            
+            .controls::-webkit-scrollbar-track {
+                background: var(--scrollbar-bg);
+                border-radius: 3px;
+            }
+            
+            .controls::-webkit-scrollbar-thumb {
+                background: var(--scrollbar-thumb);
+                border-radius: 3px;
             }
             
             .language-controls {

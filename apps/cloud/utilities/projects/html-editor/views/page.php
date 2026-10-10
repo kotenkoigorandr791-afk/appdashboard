@@ -52,9 +52,15 @@
         .modal-btn-secondary{background:color-mix(in srgb, #555 72%, transparent);color:#f3f4f6;border:1px solid color-mix(in srgb, #777 40%, transparent);}
         .status-message{position:fixed;top:20px;right:20px;background:var(--accent-soft);border:1px solid var(--accent-border);color:var(--accent-text);padding:10px 20px;border-radius:4px;z-index:2001;display:none;font-weight:500;}
         body.light-theme{background:#f5f5f5;color:#333;}
+        body.light-theme .resizer{background:#e0e0e0;}
+        body.light-theme .toolbar-group{border-right-color:#ccc;}
         body.light-theme .editor-panel,body.light-theme .preview-panel{background:#ffffff;border:1px solid #ddd;}
-        body.light-theme .editor-toolbar{background:#f0f0f0;border-bottom:1px solid #ddd;}
+        body.light-theme .editor-toolbar{background:#f0f0f0;border-bottom:1px solid #ddd;scrollbar-color:#bbb #f0f0f0;}
         body.light-theme .preview-header{background:#f0f0f0;border-bottom:1px solid #ddd;}
+        body.light-theme .editor-toolbar::-webkit-scrollbar-track{background:#f0f0f0;border-radius:4px;}
+        body.light-theme .editor-toolbar::-webkit-scrollbar-thumb{background:#bbb;border-radius:4px;}
+        body.light-theme .editor-toolbar::-webkit-scrollbar-thumb:hover{background:<?php echo $color;?>;}
+        body.light-theme .editor-toolbar::-webkit-scrollbar-corner{background:#f0f0f0;}
         body.light-theme .toolbar-btn{background:#ffffff;color:#333;border:1px solid #ccc;}
         body.light-theme .toolbar-btn:hover{background:#e6e6e6;}
         body.light-theme .toolbar-btn.primary{background:var(--accent-soft);border-color:var(--accent-border);color:var(--accent-text);}
