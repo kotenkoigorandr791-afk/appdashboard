@@ -1055,5 +1055,7 @@
   "uploadTotalSize": "Total size",
   "uploaded": "Uploaded",
   "uploading": "Uploading...",
-  "uploadingFiles": "Uploading files..."
+  "uploadingFiles": "Uploading files...",
+  "openTabs": "Open Tabs",
+  "noResults": "No results"
 }

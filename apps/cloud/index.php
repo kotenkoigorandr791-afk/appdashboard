@@ -68,7 +68,7 @@ cloud_require_session_auth();
   <title data-i18n="appTitle">File Space</title>
   <?php require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('cloud'); ?>
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
-  <link rel="stylesheet" href="assets/styles.css?v=35" />
+  <link rel="stylesheet" href="assets/styles.css?v=40" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -227,7 +227,7 @@ cloud_require_session_auth();
 
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=41"></script>
+<script defer src="assets/app.js?v=44"></script>
 <script defer src="assets/app/editors-and-tree.js?v=12"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -542,13 +542,38 @@ cloud_require_session_auth();
       <div id="file-view" class="file-view">
 
       <div id="tabs-container" class="tabs-container">
-          <div id="tabs-list" class="tabs-list"></div>
-           <button id="btn-close-all-tabs" class="icon-btn tab-close-all" title="" data-i18n-title="closeAllTabs">
-              <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18"></line>
-                  <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
+          <button class="tab-strip-btn" id="tab-strip-toggle" type="button" title="Tabs" aria-label="Tabs">
+              <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"></path></svg>
           </button>
+          <button class="tab-scroll-btn" id="tab-scroll-left" title="Scroll left" style="display: none;">
+              <svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"></polyline></svg>
+          </button>
+          <div id="tabs-list" class="tabs-list"></div>
+          <button class="tab-scroll-btn" id="tab-scroll-right" title="Scroll right" style="display: none;">
+              <svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"></polyline></svg>
+          </button>
+          <div class="controls-right">
+              <button id="btn-close-all-tabs" class="icon-btn tab-close-all" title="" data-i18n-title="closeAllTabs">
+                  <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="18" y1="6" x2="6" y2="18"></line>
+                      <line x1="6" y1="6" x2="18" y2="18"></line>
+                  </svg>
+              </button>
+          </div>
+          <div class="tab-search-dropdown" id="tab-search-dropdown">
+              <div class="tab-search-header">
+                  <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
+                  <input type="text" id="tab-search-input" placeholder="Search tabs" autocomplete="off">
+              </div>
+              <div class="tab-search-section">
+                  <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
+                  <div id="tab-search-open-list"></div>
+              </div>
+              <div class="tab-search-section">
+                  <div class="tab-search-title" data-i18n="recentFiles">Recent files</div>
+                  <div id="tab-search-recent-list"></div>
+              </div>
+          </div>
       </div>
 
 

@@ -3545,7 +3545,104 @@ function initTabScrolling() {
         }
     }, { passive: false });
 }
+function renderTabDropdownOpenTabs(filter = '') {
+    const list = document.getElementById('tab-search-open-list');
+    if (!list) return;
+    const q = String(filter || '').trim().toLowerCase();
+    const rows = tabsState.tabs.filter((tab) => {
+        if (!q) return true;
+        return String(tab.title || '').toLowerCase().includes(q) || String(tab.path || '').toLowerCase().includes(q);
+    });
+    list.innerHTML = '';
+    if (!rows.length) {
+        list.innerHTML = `<div class="tab-search-empty">${escapeHtml(t(i18n, 'noResults'))}</div>`;
+        return;
+    }
+    rows.forEach((tab) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-search-item';
+        btn.innerHTML = `<span class="tab-search-item-icon">${getFileIcon(tab.path)}</span><span class="tab-search-item-info"><span class="tab-search-item-title">${escapeHtml(tab.title || tab.path)}</span><span class="tab-search-item-url">${escapeHtml(formatDisplayPath(tab.path))}</span></span>`;
+        btn.addEventListener('click', () => {
+            switchToTab(tab.id);
+            closeTabDropdown();
+        });
+        list.appendChild(btn);
+    });
+}
+function renderTabDropdownRecent(filter = '') {
+    const list = document.getElementById('tab-search-recent-list');
+    if (!list) return;
+    const q = String(filter || '').trim().toLowerCase();
+    const rows = loadRecentFiles().filter((row) => {
+        if (!q) return true;
+        return String(row.title || '').toLowerCase().includes(q) || String(row.path || '').toLowerCase().includes(q);
+    });
+    list.innerHTML = '';
+    if (!rows.length) {
+        list.innerHTML = `<div class="tab-search-empty">${escapeHtml(t(i18n, 'noRecentFiles'))}</div>`;
+        return;
+    }
+    rows.forEach((row) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-search-item';
+        btn.innerHTML = `<span class="tab-search-item-icon">${getFileIconMarkup(row.title || row.path, 'app-file-icon')}</span><span class="tab-search-item-info"><span class="tab-search-item-title">${escapeHtml(row.title || row.path)}</span><span class="tab-search-item-url">${escapeHtml(formatDisplayPath(row.path))}</span></span>`;
+        btn.addEventListener('click', () => {
+            openFileInTab(row.path, false, row.root || 'main');
+            closeTabDropdown();
+        });
+        list.appendChild(btn);
+    });
+}
+function openTabDropdown() {
+    const dropdown = document.getElementById('tab-search-dropdown');
+    const toggle = document.getElementById('tab-strip-toggle');
+    if (!dropdown) return;
+    const input = document.getElementById('tab-search-input');
+    const query = input ? input.value : '';
+    renderTabDropdownOpenTabs(query);
+    renderTabDropdownRecent(query);
+    dropdown.classList.add('show');
+    if (toggle) toggle.classList.add('active');
+    if (input) input.focus();
+}
+function closeTabDropdown() {
+    const dropdown = document.getElementById('tab-search-dropdown');
+    const toggle = document.getElementById('tab-strip-toggle');
+    if (dropdown) dropdown.classList.remove('show');
+    if (toggle) toggle.classList.remove('active');
+}
+function initTabDropdown() {
+    if (window.tabDropdownInitialized) return;
+    window.tabDropdownInitialized = true;
+
+    document.addEventListener('click', (e) => {
+        const toggle = e.target.closest('#tab-strip-toggle');
+        const dropdown = document.getElementById('tab-search-dropdown');
+        if (toggle) {
+            e.stopPropagation();
+            if (dropdown && dropdown.classList.contains('show')) {
+                closeTabDropdown();
+            } else {
+                openTabDropdown();
+            }
+            return;
+        }
+        if (dropdown && dropdown.classList.contains('show') && !dropdown.contains(e.target)) {
+            closeTabDropdown();
+        }
+    });
+
+    document.addEventListener('input', (e) => {
+        if (e.target && e.target.id === 'tab-search-input') {
+            renderTabDropdownOpenTabs(e.target.value);
+            renderTabDropdownRecent(e.target.value);
+        }
+    });
+}
 function renderTabs() {
+    initTabDropdown();
     const hasTabs = tabsState.tabs.length > 0;
     document.body.classList.toggle('tabs-open', hasTabs);
     document.body.classList.toggle('tabs-empty', !hasTabs);
@@ -3572,6 +3669,9 @@ function renderTabs() {
         }
         
             tabsContainer.innerHTML = `
+            	    <button class="tab-strip-btn" id="tab-strip-toggle" type="button" title="Tabs" aria-label="Tabs">
+                <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
             	    <button class="tab-scroll-btn" id="tab-scroll-left" title="Scroll left">
                 <svg viewBox="0 0 24 24">
                     <polyline points="15 18 9 12 15 6"></polyline>
@@ -3583,12 +3683,28 @@ function renderTabs() {
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
             </button>
-	            <button class="icon-btn tab-close-all" id="btn-close-all-tabs" title="" data-i18n-title="closeAllTabs">
+            <div class="controls-right">
+                <button class="icon-btn tab-close-all" id="btn-close-all-tabs" title="" data-i18n-title="closeAllTabs">
 	                <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
 	                    <line x1="18" y1="6" x2="6" y2="18"></line>
 	                    <line x1="6" y1="6" x2="18" y2="18"></line>
 	                </svg>
 	            </button>
+            </div>
+            <div class="tab-search-dropdown" id="tab-search-dropdown">
+                <div class="tab-search-header">
+                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+                    <input type="text" id="tab-search-input" placeholder=" tabs" autocomplete="off">
+                </div>
+                <div class="tab-search-section">
+                    <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
+                    <div id="tab-search-open-list"></div>
+                </div>
+                <div class="tab-search-section">
+                    <div class="tab-search-title" data-i18n="recentFiles">Recent files</div>
+                    <div id="tab-search-recent-list"></div>
+                </div>
+            </div>
             `;
         
         // Re-initialize references
@@ -3599,6 +3715,8 @@ function renderTabs() {
 	        closeAllBtn.addEventListener('click', closeAllTabs);
 	        // Ensure translated title for dynamically-created button
 	        if (window.i18n) closeAllBtn.title = t(window.i18n, 'closeAllTabs');
+
+        initTabDropdown();
         
         // Initialize scrolling
         if (typeof initTabScrolling === 'function' && !window.tabScrollingInitialized) {

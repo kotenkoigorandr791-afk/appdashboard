@@ -1091,5 +1091,7 @@
   "wordWrap": "Перенос слів",
   "words": "Слів",
   "yes": "Так",
-  "zoom": "Масштаб"
+  "zoom": "Масштаб",
+  "noResults": "Немає результатів",
+  "openTabs": "Немає результатів (Otviť kteréi dlagisni)"
 }

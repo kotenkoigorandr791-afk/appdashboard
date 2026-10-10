@@ -262,29 +262,53 @@ body[data-theme="light"] .statusbar{background:color-mix(in srgb,#c5ccd4 63%,tra
   #status-left{gap:6px}
   #status-right{flex:1 1 auto;max-width:none}
 }
-.tabs-container{display:flex;background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);align-items:center;min-height:30px;max-height:30px;width:100%;overflow:hidden;position:relative;padding:0 4px}
-.tabs-list{display:flex;flex:1;white-space:nowrap;height:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;align-items:center;gap:2px}
+.tabs-container{display:flex;background:color-mix(in srgb,var(--panel) 88%,var(--bg));backdrop-filter:blur(12px);-webkit-backdrop-filter:blur(12px);border-bottom:1px solid color-mix(in srgb,var(--border) 70%,transparent);align-items:center;min-height:46px;max-height:46px;width:100%;overflow:visible;position:relative;padding:0 12px;gap:8px;z-index:20000}
+.tab-strip-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border:0;border-radius:50%;background:color-mix(in srgb,var(--border) 45%,transparent);color:var(--fg);cursor:pointer;flex-shrink:0;transition:background-color .2s ease}
+.tab-strip-btn:hover,.tab-strip-btn.active{background:color-mix(in srgb,var(--accent) 22%,transparent)}
+.tab-strip-btn svg{width:16px;height:16px;fill:currentColor}
+.tabs-list{display:flex;flex:1;white-space:nowrap;height:100%;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-ms-overflow-style:none;-webkit-overflow-scrolling:touch;scroll-behavior:smooth;align-items:center;gap:4px}
 .tabs-list::-webkit-scrollbar{display:none}
-.tab-scroll-btn{display:flex;align-items:center;justify-content:center;width:24px;height:24px;background:var(--panel);border:1px solid var(--border);border-radius:4px;cursor:pointer;flex-shrink:0;margin:0 2px;padding:0;color:var(--fg);transition:all 0.2s ease;z-index:10}
-.tab-scroll-btn:hover{background:color-mix(in srgb,var(--accent) 14%,var(--bg));color:var(--fg);border-color:color-mix(in srgb,var(--accent) 45%,var(--border));box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
+.tab-scroll-btn{display:flex;align-items:center;justify-content:center;width:24px;height:24px;background:transparent;border:0;border-radius:50%;cursor:pointer;flex-shrink:0;margin:0;padding:0;color:var(--muted);transition:background-color .2s ease,color .2s ease;z-index:10}
+.tab-scroll-btn:hover{background:color-mix(in srgb,var(--accent) 14%,var(--bg));color:var(--fg)}
 .tab-scroll-btn:active{transform:scale(0.95)}
 .tab-scroll-btn.hidden{display:none!important}
-.tab-scroll-btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2}
-.tab{display:inline-flex;align-items:center;min-height:26px;background:transparent;border:1px solid transparent;border-bottom:none;border-radius:8px 8px 0 0;cursor:pointer;width:140px;min-width:140px;max-width:140px;position:relative;transition:all 0.2s ease;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation;height:26px;font-size:11px;padding:0 4px 0 0;margin-top:4px}
-.tab:hover{background:color-mix(in srgb,var(--glass-bg) 80%,transparent);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);border-color:color-mix(in srgb,var(--border) 75%,transparent)}
-.tab.active{background:var(--glass-bg);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);border-color:color-mix(in srgb,var(--border) 70%,transparent);border-bottom-color:transparent;z-index:2}
-.tab.active::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:7px;background:linear-gradient(to bottom,color-mix(in srgb,var(--glass-bg) 90%,transparent) 0%,transparent 100%);pointer-events:none}
-.tab-content{display:flex;align-items:center;gap:4px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;line-height:1.1;max-width:calc(140px - 24px);-webkit-user-select:none;user-select:none}
-.tab-close{display:flex;align-items:center;justify-content:center;border:0;border-radius:4px;background:transparent;color:var(--fg);cursor:pointer;transition:background-color 0.2s ease,transform 0.2s ease;width:16px;height:16px;margin-left:4px;flex-shrink:0;position:relative;padding:0}
-.tab-close::before,.tab-close::after{content:"";position:absolute;width:10px;height:1.8px;background:currentColor;border-radius:2px}
+.tab-scroll-btn svg{width:16px;height:16px;stroke:currentColor;stroke-width:2;fill:none}
+.tab{display:inline-flex;align-items:center;min-height:34px;background:transparent;border:0;border-radius:8px;cursor:pointer;width:auto;min-width:120px;max-width:240px;position:relative;transition:background-color .15s ease;height:34px;font-size:12px;padding:0 6px 0 12px;margin-top:0;flex-shrink:1;-webkit-user-select:none;user-select:none;-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+.tab:not(.active){color:var(--muted)}
+.tab:hover:not(.active){background:color-mix(in srgb,var(--fg) 8%,transparent)}
+.tab.active{background:color-mix(in srgb,var(--fg) 13%,transparent);color:var(--fg);z-index:2;box-shadow:0 1px 3px rgba(0,0,0,.18)}
+.tab-content{display:flex;align-items:center;gap:10px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px;line-height:1.1;max-width:none;-webkit-user-select:none;user-select:none}
+.tab-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;margin-right:6px}
+.tab-icon-slot{display:flex;align-items:center;flex-shrink:0}
+.tab-close{display:flex;align-items:center;justify-content:center;border:0;border-radius:50%;background:transparent;color:inherit;cursor:pointer;transition:background-color .1s ease;width:18px;height:18px;margin-left:auto;flex-shrink:0;position:relative;padding:0;opacity:.6}
+.tab-close::before,.tab-close::after{content:"";position:absolute;width:10px;height:1.6px;background:currentColor;border-radius:2px}
 .tab-close::before{transform:rotate(45deg)}
 .tab-close::after{transform:rotate(-45deg)}
-.tab-close:hover{background:var(--danger);transform:scale(1.05)}
-.tab-close:hover{color:white}
-.tab-close-all{margin:0 6px;opacity:0.7;padding:4px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.tab-close-all:hover{opacity:1;background:var(--border)}
-.tab.modified .tab-content::after{content:" •";color:var(--accent);font-weight:bold}tab-title-text{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;-webkit-user-select:none;user-select:none}
-.tab-content .app-file-icon{width:14px;height:14px;flex-shrink:0}.context-menu{background:color-mix(in srgb,var(--panel) 24%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:30000!important;box-shadow:0 4px 12px rgba(0,0,0,0.2);min-width:160px}
+.tab-close:hover{background:color-mix(in srgb,var(--fg) 18%,transparent);opacity:1}
+.tab-close:hover{color:inherit}
+.tab-close-all{opacity:.65;padding:4px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;flex-shrink:0;border-radius:50%;border:0;background:transparent;color:var(--fg)}
+.tab-close-all:hover{opacity:1;background:color-mix(in srgb,var(--fg) 12%,transparent)}
+.tab.modified .tab-content::after{content:" •";color:var(--accent);font-weight:bold}
+.tab.modified .tab-title-text::after{content:none}
+.tab-content .app-file-icon{width:16px;height:16px;flex-shrink:0;border-radius:4px}
+.tab-search-dropdown{position:absolute;top:52px;left:8px;width:380px;max-width:calc(100vw - 32px);background:color-mix(in srgb,var(--panel) 96%,var(--bg));border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);padding:8px;box-sizing:border-box;display:none;flex-direction:column;z-index:35000!important;opacity:0;transform:translateY(-10px);transition:opacity .2s ease,transform .2s ease}
+.tab-search-dropdown.show{display:flex;opacity:1;transform:translateY(0)}
+.tab-search-header{display:flex;align-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent);border-radius:20px;padding:8px 12px;margin-bottom:8px}
+.tab-search-header svg{width:16px;height:16px;fill:var(--muted);margin-right:8px;flex-shrink:0}
+.tab-search-header input{background:transparent;border:0;color:var(--fg);font-size:13px;flex-grow:1;outline:none;min-width:0}
+.tab-search-header input::placeholder{color:var(--muted)}
+.tab-search-section{margin-bottom:8px}
+.tab-search-section:last-child{margin-bottom:0}
+.tab-search-title{font-size:11px;color:var(--muted);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.03em}
+.tab-search-item{display:flex;align-items:center;padding:8px 12px;border-radius:6px;cursor:pointer;position:relative;transition:background-color .15s ease;text-align:left;width:100%;border:0;background:transparent;color:var(--fg)}
+.tab-search-item:hover{background:color-mix(in srgb,var(--fg) 10%,transparent)}
+.tab-search-item-icon{width:24px;height:24px;border-radius:4px;margin-right:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tab-search-item-icon img{width:24px;height:24px;object-fit:contain}
+.tab-search-item-info{display:flex;flex-direction:column;overflow:hidden;flex-grow:1;min-width:0}
+.tab-search-item-title{font-size:13px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
+.tab-search-item-url{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-search-empty{padding:12px;text-align:center;color:var(--muted);font-size:13px}
+.context-menu{background:color-mix(in srgb,var(--panel) 24%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border:1px solid var(--border);border-radius:8px;padding:6px 0;z-index:30000!important;box-shadow:0 4px 12px rgba(0,0,0,0.2);min-width:160px}
 .context-menu-item{padding:8px 16px;cursor:pointer;font-size:14px;transition:background-color 0.15s ease}
 .context-menu-item:hover{background:rgba(0,0,0,0.1)}
 body[data-theme="dark"] .context-menu-item:hover{background:rgba(255,255,255,0.1)}
@@ -1255,7 +1279,7 @@ body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!importa
     .monaco-editor,
     .monaco-editor-container {
         overflow-anchor: none;
-        contain: layout paint;
+        contain: layout;
         transform: translateZ(0);
     }
 }
@@ -1263,7 +1287,7 @@ body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!importa
 /* Keep the tab bar visually stable: reserve its height and avoid reflow
    when its content is updated during realtime collaboration. */
 .tabs-container {
-    contain: layout paint;
+    contain: layout;
     min-height: 30px;
 }
 .tabs-list > .tab {

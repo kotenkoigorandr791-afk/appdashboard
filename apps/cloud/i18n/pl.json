@@ -1091,5 +1091,7 @@
   "storageTotalUsedLabel": "Total used",
   "storageTotalUsers": "{total} users",
   "storageTotalUsersLabel": "Users",
-  "storageUsersWithData": "With data"
+  "storageUsersWithData": "With data",
+  "noResults": "Brak wyników (Otwórz karty)",
+  "openTabs": "Brak wyników (Otviť kteréi dlagisni)"
 }
