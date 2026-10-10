@@ -1432,10 +1432,26 @@ function injectOmniRouteTheme(){
         }
     }catch(e){}
 }
+function ensureOmniRouteSw(frame){
+    if(!navigator.serviceWorker) return;
+    if(frame.dataset.swStarted!=='1'){
+        frame.dataset.swStarted='1';
+        navigator.serviceWorker.register('/admin-omniroute/embed-sw.js',{scope:'/admin-omniroute/'}).catch(function(){});
+    }
+    if(frame.dataset.swReload==='1') return;
+    navigator.serviceWorker.ready.then(function(){
+        if(frame.dataset.swReload==='1') return;
+        frame.dataset.swReload='1';
+        try{
+            if(!frame.contentWindow||frame.contentWindow.navigator.serviceWorker.controller) return;
+            frame.contentWindow.location.reload();
+        }catch(e){}
+    }).catch(function(){});
+}
 function loadOmniRouteIframe(){
     var frame=document.getElementById('ap-omniroute-frame');
     if(!frame) return;
-    if(!frame.dataset.themeHooked){frame.dataset.themeHooked='1';frame.addEventListener('load',injectOmniRouteTheme);}
+    if(!frame.dataset.themeHooked){frame.dataset.themeHooked='1';frame.addEventListener('load',function(){injectOmniRouteTheme();ensureOmniRouteSw(frame);});}
     var target=frame.getAttribute('data-src')||OMNIROUTE_URL;
     if(frame.dataset.loaded===target) return;
     frame.dataset.loaded=target;

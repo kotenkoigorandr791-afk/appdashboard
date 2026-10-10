@@ -19,6 +19,14 @@ map $is_secure_conn $uir_token {
     1 "upgrade-insecure-requests";
     default "";
 }
+map $is_secure_conn $external_proto {
+    1 https;
+    default http;
+}
+map $is_secure_conn $external_port {
+    1 443;
+    default 80;
+}
 limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=120r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
@@ -27,6 +35,8 @@ limit_req_status 429;
 server {
     listen 8080 default_server;
     server_name _;
+    port_in_redirect off;
+    absolute_redirect off;
 
     root /var/www/AppDashboard;
     index index.php index.html;
@@ -366,6 +376,17 @@ server {
         sub_filter '"/assets/' '"/embed/dawarich/assets/';
     }
 
+    location ^~ /_next/ {
+        proxy_pass __OMNIROUTE_UPSTREAM__/_next/;
+        proxy_http_version 1.1;
+        proxy_set_header Host __AI_HOST__;
+        proxy_set_header X-Forwarded-Proto $external_proto;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $external_port;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
     location ^~ /admin-omniroute/ {
         absolute_redirect off;
         proxy_pass __OMNIROUTE_UPSTREAM__/;
@@ -375,43 +396,29 @@ server {
         proxy_set_header Accept-Encoding "";
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Proto $external_proto;
         proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $external_port;
         proxy_set_header Upgrade $http_upgrade;
         proxy_set_header Connection $connection_upgrade;
         proxy_read_timeout 86400;
         proxy_send_timeout 86400;
         proxy_redirect ~^https?://__AI_HOST_ESC__(/.*)$ /admin-omniroute$1;
-        proxy_redirect ~^http://__BASE_DOMAIN_ESC__(/.*)$ __APP_PUBLIC_URL__$1;
-        proxy_redirect ~^https://__BASE_DOMAIN_ESC__(/.*)$ __APP_PUBLIC_URL__$1;
+        proxy_redirect ~^https?://__BASE_DOMAIN_ESC__:\d+(/.*)$ /admin-omniroute$1;
+        proxy_redirect ~^http://__BASE_DOMAIN_ESC__(/.*)$ /admin-omniroute$1;
+        proxy_redirect ~^https://__BASE_DOMAIN_ESC__(/.*)$ /admin-omniroute$1;
         proxy_redirect ~^(/.*)$ /admin-omniroute$1;
         proxy_cookie_path / /admin-omniroute/;
         proxy_hide_header Content-Security-Policy;
         proxy_hide_header X-Frame-Options;
         add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: http: ws: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss://localhost:* https://static.cloudflareinsights.com; worker-src 'self' blob:; manifest-src 'self'; $uir_token" always;
-        sub_filter_once off;
-        sub_filter_types *;
-        sub_filter '<head>' '<head><base href="/admin-omniroute/"><script>(function(){var p="/admin-omniroute",a=["/api","/v1","/dashboard","/home","/login","/offline","/manifest.webmanifest","/sw.js","/a2a","/chat","/providers","/_next"];function m(u){for(var i=0;i<a.length;i++){var v=a[i];if(u===v||u.indexOf(v+"/")===0||u.indexOf(v+"?")===0)return true}return false}function r(u){if(typeof u!=="string")return u;if(u===p||u.indexOf(p+"/")===0)return u;if(location.protocol==="https:"&&u.indexOf("http://"+location.host)===0)u="https://"+u.slice(("http://"+location.host).length);if(u.indexOf(location.origin)===0)u=u.slice(location.origin.length);if(m(u))return p+u;return u}var f=window.fetch;if(f)window.fetch=function(i,n){if(typeof i==="string")i=r(i);else if(i&&typeof Request!=="undefined"&&i instanceof Request){var x=new URL(i.url,location.href),u=r(x.host===location.host?(x.pathname+x.search):i.url);if(u!==i.url&&u!==(x.pathname+x.search))i=new Request(u,i)}return f.call(this,i,n)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(mth,u){arguments[1]=r(u);return o.apply(this,arguments)};var W=window.WebSocket;if(W){window.WebSocket=function(u,pr){if(typeof u==="string"){try{var x=new URL(u,location.href);if(x.protocol==="ws:"&&location.protocol==="https:")x.protocol="wss:";if(x.host===location.host){var path=r(x.pathname+x.search);u=x.protocol+"//"+x.host+path}}catch(e){}}return pr!==undefined?new W(u,pr):new W(u)};window.WebSocket.prototype=W.prototype;window.WebSocket.CONNECTING=W.CONNECTING;window.WebSocket.OPEN=W.OPEN;window.WebSocket.CLOSING=W.CLOSING;window.WebSocket.CLOSED=W.CLOSED}})();</script>';
-        sub_filter '"/_next/' '"/admin-omniroute/_next/';
-        sub_filter "'/_next/" "'/admin-omniroute/_next/";
-        sub_filter '"/api/' '"/admin-omniroute/api/';
-        sub_filter '"/providers/' '"/admin-omniroute/providers/';
-        sub_filter '"/dashboard' '"/admin-omniroute/dashboard';
-        sub_filter '"/home' '"/admin-omniroute/home';
-        sub_filter '"/login"' '"/admin-omniroute/login"';
-        sub_filter '"/offline"' '"/admin-omniroute/offline"';
-        sub_filter '"/manifest.webmanifest"' '"/admin-omniroute/manifest.webmanifest"';
-        sub_filter '"/apple-touch-icon' '"/admin-omniroute/apple-touch-icon';
-        sub_filter '"/favicon' '"/admin-omniroute/favicon';
-        sub_filter '"/icon-' '"/admin-omniroute/icon-';
-        sub_filter '"/sw.js' '"/admin-omniroute/sw.js';
-        sub_filter '"/a2a' '"/admin-omniroute/a2a';
-        sub_filter '"/chat/' '"/admin-omniroute/chat/';
-        sub_filter '__APP_PUBLIC_URL_HTTP__/home/' '__APP_PUBLIC_URL__/admin-omniroute/home/';
-        sub_filter '__APP_PUBLIC_URL_HTTP__/home' '__APP_PUBLIC_URL__/admin-omniroute/home';
-        sub_filter '__APP_PUBLIC_URL_HTTP__/admin-omniroute' '__APP_PUBLIC_URL__/admin-omniroute';
-        sub_filter 'url=/home' 'url=/admin-omniroute/home';
-        sub_filter '  "/",' '  "/admin-omniroute/",';
+    }
+
+    location = /admin-omniroute/embed-sw.js {
+        alias /var/www/AppDashboard/project/omniroute-embed-sw.js;
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        add_header Service-Worker-Allowed "/admin-omniroute/";
     }
 
     location ^~ /admin-omniroute/_next/ {
@@ -442,26 +449,6 @@ server {
 
     location ^~ /admin-omniroute/providers/ {
         proxy_pass __OMNIROUTE_UPSTREAM__/providers/;
-        proxy_http_version 1.1;
-        proxy_ssl_server_name on;
-        proxy_set_header Host __AI_HOST__;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_hide_header Content-Security-Policy;
-        proxy_hide_header X-Frame-Options;
-    }
-
-    location = /admin-omniroute/home {
-        proxy_pass __OMNIROUTE_UPSTREAM__/home;
-        proxy_http_version 1.1;
-        proxy_ssl_server_name on;
-        proxy_set_header Host __AI_HOST__;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_hide_header Content-Security-Policy;
-        proxy_hide_header X-Frame-Options;
-    }
-
-    location = /admin-omniroute/home/ {
-        proxy_pass __OMNIROUTE_UPSTREAM__/home;
         proxy_http_version 1.1;
         proxy_ssl_server_name on;
         proxy_set_header Host __AI_HOST__;
