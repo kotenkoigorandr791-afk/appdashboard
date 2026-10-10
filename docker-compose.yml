@@ -63,7 +63,7 @@ services:
       OMNIROUTE_UPSTREAM: "${OMNIROUTE_UPSTREAM:-http://host.docker.internal:20128}"
       SEARCH_PUBLIC_URL: "${SEARCH_PUBLIC_URL:-}"
       GITEA_PUBLIC_URL: "${GITEA_PUBLIC_URL:-}"
-      GITEA_INTERNAL_URL: "${GITEA_INTERNAL_URL:-http://gitea:3000}"
+      GITEA_INTERNAL_URL: "${GITEA_INTERNAL_URL:-http://host.docker.internal:3001}"
       IMMICH_INTERNAL_URL: "${IMMICH_INTERNAL_URL:-http://immich-server:2283}"
       IMMICH_PUBLIC_URL: "${IMMICH_PUBLIC_URL:-}"
       DOCUMENT_PUBLIC_URL: "${DOCUMENT_PUBLIC_URL:-}"
