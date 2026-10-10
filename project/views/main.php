@@ -1204,7 +1204,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .modal-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border-color);}
         .modal-header-left h2{margin:0;font-size:18px;font-weight:600;}
         #profile-content,#qr-content,#email-form,#users-content{padding:0;display:flex;flex-direction:column;}
-        #profile-content .modal-scroll-body{padding:30px;}
+        #profile-content .modal-scroll-body{padding:30px;margin:0 20px 20px 0;}
         #qr-content .modal-scroll-body{padding:30px;}
         #qr-content .modal-scroll-body:first-child{padding-top:10px;}
         #email-form .modal-scroll-body{padding:40px 20px 20px;}
@@ -4654,6 +4654,13 @@ var T=<?php echo json_encode([
     'support_chat_plan_attached_hint'=>$translations['support_chat_plan_attached_hint']??'Floor plan attached — select a recipient and send',
     'support_chat_plan_remove'=>$translations['support_chat_plan_remove']??'Remove plan',
     'support_chat_import_sent'=>$translations['support_chat_import_sent']??'Smart Home: floor plan ready for import',
+    'support_chat_storage_request'=>$translations['support_chat_storage_request']??'Storage increase request',
+    'support_chat_storage_info'=>$translations['support_chat_storage_info']??'Used {used} of {quota}',
+    'support_chat_storage_reason'=>$translations['support_chat_storage_reason']??'Reason (optional)',
+    'support_chat_storage_approve'=>$translations['support_chat_storage_approve']??'Approve',
+    'support_chat_storage_reject'=>$translations['support_chat_storage_reject']??'Reject',
+    'support_chat_storage_sent'=>$translations['support_chat_storage_sent']??'Storage request updated',
+    'support_chat_storage_error'=>$translations['support_chat_storage_error']??'Failed to update storage request',
     'delete_this_command'=>$translations['delete_this_command']??'Delete this command?',
     'qr_library_not_loaded'=>$translations['qr_library_not_loaded']??'QR Code library not loaded',
     'qr_refresh_page'=>$translations['qr_refresh_page']??'Please refresh the page',
@@ -7255,7 +7262,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,authModal];
                 let isModalClick=false;
                 modals.forEach(modal=>{if(modal&&modal.contains(e.target)){isModalClick=true;}});
-                if(e.target.closest && e.target.closest('.notification, .temp-notification, #toast, #toast-container')){isModalClick=true;}
+                if(e.target.closest && e.target.closest('.notification, .temp-notification, #toast, #toast-container, #otp-gen-modal')){isModalClick=true;}
                 if(!isModalClick){closeSidebarMenu();}
             }
         });

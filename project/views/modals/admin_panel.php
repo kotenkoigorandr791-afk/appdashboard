@@ -92,6 +92,7 @@
     content:'';
     position:absolute;
     inset:-1px;
+    z-index:0;
     border-radius:27px;
     padding:1px;
     background:linear-gradient(135deg,transparent 0%,rgba(17,255,0,0.85) 20%,rgba(34,211,238,0.5) 40%,transparent 55%,rgba(59,130,246,0.6) 75%,transparent 100%);
@@ -110,9 +111,14 @@
     left:-50%;
     width:200%;
     height:200%;
+    z-index:0;
     background:radial-gradient(circle at 30% 20%,rgba(255,255,255,0.05),transparent 55%);
     pointer-events:none;
     animation:ap-gate-shimmer 8s ease-in-out infinite;
+}
+#ap-gate-login > *{
+    position:relative;
+    z-index:1;
 }
 @keyframes ap-gate-border-rotate{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
 @keyframes ap-gate-shimmer{0%,100%{transform:translate(0,0) rotate(0deg)}50%{transform:translate(10%,5%) rotate(5deg)}}
@@ -132,10 +138,10 @@
     margin:0 0 8px;color:var(--text-color);
 }
 #ap-gate-login .ap-gate-sub{
-    font-size:13.5px;line-height:1.45;opacity:.72;margin:0 0 20px;color:var(--text-color);
+    font-size:13.5px;line-height:1.45;opacity:.82;margin:0 0 20px;color:var(--text-color);
 }
 #ap-gate-login .ap-gate-label{
-    display:block;font-size:12px;font-weight:600;opacity:.7;margin:0 0 6px;
+    display:block;font-size:12px;font-weight:600;opacity:.82;margin:0 0 6px;
 }
 #ap-gate-password{
     width:100%;box-sizing:border-box;margin:0;padding:12px 14px;
@@ -149,15 +155,22 @@
     box-shadow:0 0 0 3px color-mix(in srgb,var(--primary-color) 22%,transparent);
 }
 #ap-gate-submit{
-    width:100%;padding:12px 14px;border:none;border-radius:12px;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;padding:12px 18px;border:1px solid transparent;border-radius:12px;
     background:linear-gradient(180deg, color-mix(in srgb,var(--primary-color) 88%,white), var(--primary-color));
-    color:#fff;font-weight:700;font-size:14px;cursor:pointer;
-    box-shadow:0 10px 24px color-mix(in srgb,var(--primary-color) 35%,transparent);
-    transition:transform .15s ease, filter .15s ease, opacity .15s;
+    color:#fff!important;
+    font-family:inherit;font-weight:700;font-size:14px;letter-spacing:.01em;cursor:pointer;
+    box-shadow:0 10px 24px color-mix(in srgb,var(--primary-color) 35%,transparent),
+               inset 0 1px 0 rgba(255,255,255,.35);
+    transition:transform .15s ease, filter .15s ease, box-shadow .15s ease, opacity .15s;
 }
-#ap-gate-submit:hover{filter:brightness(1.05);transform:translateY(-1px)}
-#ap-gate-submit:active{transform:none}
-#ap-gate-submit:disabled{opacity:.55;cursor:wait;transform:none}
+#ap-gate-submit:hover{filter:brightness(1.06);transform:translateY(-1px);
+    box-shadow:0 14px 30px color-mix(in srgb,var(--primary-color) 45%,transparent),
+               inset 0 1px 0 rgba(255,255,255,.35)}
+#ap-gate-submit:active{transform:translateY(0);filter:brightness(.97);
+    box-shadow:0 6px 14px color-mix(in srgb,var(--primary-color) 32%,transparent)}
+#ap-gate-submit:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+#ap-gate-submit:disabled{opacity:.55;cursor:wait;transform:none;filter:none}
 #ap-gate-error{
     display:none;margin-top:12px;padding:10px 12px;border-radius:10px;
     font-size:13px;line-height:1.35;
@@ -167,14 +180,34 @@
 }
 body.light-theme #ap-gate-error, html:not(.dark) #ap-gate-error{color:#b91c1c}
 #ap-gate-cancel{
-    display:block;width:100%;margin-top:12px;padding:10px;
-    background:none;border:none;color:var(--text-color);opacity:.65;
-    cursor:pointer;font-size:13px;font-weight:600;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;
+    width:100%;margin-top:10px;padding:11px 18px;
+    background:color-mix(in srgb,var(--text-color) 6%,transparent);
+    border:1px solid color-mix(in srgb,var(--text-color) 18%,transparent);
+    border-radius:12px;
+    color:color-mix(in srgb,var(--text-color) 88%,transparent)!important;
+    font-family:inherit;cursor:pointer;font-size:13.5px;font-weight:600;
+    box-shadow:0 1px 2px rgba(0,0,0,.06);
+    transition:background .18s ease,border-color .18s ease,color .18s ease,transform .18s ease,box-shadow .18s ease;
 }
-#ap-gate-cancel:hover{opacity:1;color:var(--primary-color)}
+#ap-gate-cancel:hover{
+    background:color-mix(in srgb,var(--text-color) 11%,transparent);
+    border-color:color-mix(in srgb,var(--text-color) 30%,transparent);
+    color:var(--primary-color)!important;
+    transform:translateY(-1px);
+    box-shadow:0 6px 16px rgba(0,0,0,.10);
+}
+#ap-gate-cancel:active{transform:translateY(0);box-shadow:0 1px 2px rgba(0,0,0,.06)}
+#ap-gate-cancel:focus-visible{outline:2px solid var(--primary-color);outline-offset:2px}
+body.light-theme #ap-gate-cancel{
+    background:rgba(15,23,42,0.04);
+    border-color:rgba(15,23,42,0.12);
+    box-shadow:0 1px 2px rgba(15,23,42,0.06);
+}
+body.light-theme #ap-gate-cancel:hover{background:rgba(15,23,42,0.08);border-color:rgba(15,23,42,0.22)}
 #ap-gate-login .ap-gate-meta{
     margin-top:14px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--border-color) 80%,transparent);
-    font-size:11px;opacity:.55;line-height:1.4;
+    font-size:11px;opacity:.68;line-height:1.4;
 }
 .ap-gate-password-wrap{position:relative;margin-bottom:14px}
 .ap-gate-password-wrap #ap-gate-password{padding-right:52px}
@@ -207,7 +240,7 @@ body.light-theme #ap-gate-login::before{
     opacity:.7;
 }
 body.light-theme #ap-gate-login::after{
-    background:radial-gradient(circle at 30% 20%,rgba(255,255,255,0.65),transparent 55%);
+    background:radial-gradient(circle at 30% 20%,rgba(255,255,255,0.22),transparent 55%);
 }
 body.light-theme #ap-loading-skeleton::before{
     background-image:
@@ -265,6 +298,9 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     padding: 2px 10px;
     letter-spacing: 0.5px;
     text-transform: uppercase;
+    text-align: center;
+    width: fit-content;
+    align-self: center;
 }
 /* Close button — matches .std-topbar-close */
 .ap-close-btn-style,
@@ -623,8 +659,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     justify-content: center;
     gap: 7px;
     flex: 1 1 0;
-    min-width: 72px;
-    max-width: 168px;
+    min-width: 0;
     padding: 9px 12px;
     border: 0;
     border-right: 1px solid var(--border-color);
@@ -644,6 +679,9 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     min-width: 0;
 }
 .ap-settings-tab:last-child { border-right: 0; }
+@media (max-width: 900px) {
+    .ap-settings-tab { min-width: 72px; }
+}
 .ap-settings-tab:hover {
     background: color-mix(in srgb, var(--primary-color) 9%, transparent);
     opacity: 1;
@@ -1332,7 +1370,7 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
             <label class="ap-gate-label" for="ap-gate-password"><?php echo my_htmlspecialchars($translations['password'] ?? 'Password'); ?></label>
             <div class="ap-gate-password-wrap">
                 <input type="password" id="ap-gate-password" autocomplete="current-password" placeholder="••••••••">
-                <button type="button" id="ap-gate-password-toggle" title="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Показать пароль'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Показать пароль'); ?>">
+                <button type="button" id="ap-gate-password-toggle" aria-pressed="false" title="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Show password'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['show_password'] ?? 'Show password'); ?>">
                     <svg class="ap-eye-slash" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><line x1="3" y1="3" x2="21" y2="21"></line></svg>
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
                 </button>
@@ -1564,6 +1602,7 @@ function openPanel(id){
         });
     }
     if(id==='ap-omniroute') loadOmniRouteIframe();
+    if(id==='ap-apps-access'){requestAnimationFrame(function(){requestAnimationFrame(function(){if(typeof window._apRenderWorldMap==='function'){var f=window._apRenderWorldMap;window._apRenderWorldMap=null;f();}});});}
 }
 
 /* ── Open/close ── */
@@ -3040,7 +3079,7 @@ function wireEvents(){
     if(accGrid) accGrid.addEventListener('change',function(e){if(e.target&&e.target.classList.contains('ap-app-access-level')){var p=e.target.closest('.ap-app-access-tile');if(p)p.dataset.role=e.target.value;}});
     var worldMap=dynRoot.querySelector('#ap-world-map'),blockedCountries=[],vpnBlock=dynRoot.querySelector('#ap-block-vpn-traffic');
     function apLoadAmChartsMaps(){if(window._apAmChartsMapsPromise)return window._apAmChartsMapsPromise;var urls=['https://cdn.amcharts.com/lib/5/index.js','https://cdn.amcharts.com/lib/5/map.js','https://cdn.amcharts.com/lib/5/geodata/worldLow.js','https://cdn.amcharts.com/lib/5/themes/Animated.js'];window._apAmChartsMapsPromise=urls.reduce(function(p,u){return p.then(function(){return new Promise(function(res,rej){if(document.querySelector('script[src="'+u+'"]')){res();return;}var s=document.createElement('script');s.src=u;s.async=false;s.onload=res;s.onerror=function(){rej(new Error('Failed to load: '+u));};document.head.appendChild(s);});});},Promise.resolve());return window._apAmChartsMapsPromise;}
-    function renderWorldMap(){if(!worldMap)return;var countries={},hostCountry=(worldMap.dataset.hostCountry||'').toUpperCase();try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}blockedCountries=blockedCountries.filter(function(c){return c!==hostCountry;});worldMap.innerHTML='';apLoadAmChartsMaps().then(function(){if(!window.am5||!window.am5map||!window.am5geodata_worldLow)return;if(worldMap._apMapRoot)worldMap._apMapRoot.dispose();var root=am5.Root.new(worldMap);worldMap._apMapRoot=root;root.setThemes([am5themes_Animated.new(root)]);var chart=root.container.children.push(am5map.MapChart.new(root,{panX:'translateX',panY:'translateY',wheelX:'zoom',wheelY:'zoom',pinchZoom:true,maxZoomLevel:32,maxPanOut:.15,projection:am5map.geoMercator()}));var series=chart.series.push(am5map.MapPolygonSeries.new(root,{geoJSON:am5geodata_worldLow,exclude:['AQ']}));var normal=am5.color(0x64748b),active=am5.color(0xef4444),host=am5.color(0x94a3b8),hover=am5.color(0x3b82f6),stroke=am5.color(0xffffff);function apCountryCode(target){return target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;}function apply(target){var code=apCountryCode(target);target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:normal));target.set('fillOpacity',code===hostCountry ? .45 : 1);}series.mapPolygons.template.setAll({tooltipText:'{name}',interactive:true,fill:normal,stroke:stroke,strokeWidth:.5});series.mapPolygons.template.adapters.add('tooltipText',function(text,target){var code=apCountryCode(target),label=countries[code]||text;return code===hostCountry?label+' (hosting)':label;});series.mapPolygons.template.events.on('click',function(ev){var target=ev.target,code=apCountryCode(target);if(!code||code===hostCountry)return;var i=blockedCountries.indexOf(code);if(i===-1)blockedCountries.push(code);else blockedCountries.splice(i,1);apply(target);});series.mapPolygons.template.events.on('pointerover',function(ev){var code=apCountryCode(ev.target);ev.target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:hover));});series.mapPolygons.template.events.on('pointerout',function(ev){apply(ev.target);});series.events.on('datavalidated',function(){series.mapPolygons.each(apply);chart.goHome(0);});chart.set('zoomControl',am5map.ZoomControl.new(root,{}));}).catch(function(){worldMap.textContent='Map library failed to load';});}
+    function renderWorldMap(){if(!worldMap||!document.body.contains(worldMap))return;if(!worldMap.offsetWidth){window._apRenderWorldMap=renderWorldMap;return;}var countries={},hostCountry=(worldMap.dataset.hostCountry||'').toUpperCase();try{countries=JSON.parse(worldMap.dataset.countries||'{}')||{};}catch(e){}try{blockedCountries=JSON.parse(worldMap.dataset.selected||'[]')||[];}catch(e){blockedCountries=[];}blockedCountries=blockedCountries.filter(function(c){return c!==hostCountry;});worldMap.innerHTML='';apLoadAmChartsMaps().then(function(){if(!window.am5||!window.am5map||!window.am5geodata_worldLow)return;if(worldMap._apMapRoot)worldMap._apMapRoot.dispose();var root=am5.Root.new(worldMap);worldMap._apMapRoot=root;root.setThemes([am5themes_Animated.new(root)]);var chart=root.container.children.push(am5map.MapChart.new(root,{panX:'translateX',panY:'translateY',wheelY:'zoom',pinchZoom:true,maxZoomLevel:8,maxPanOut:0.1,homeGeoPoint:{latitude:20,longitude:10},homeZoomLevel:1,projection:am5map.geoMercator()}));var series=chart.series.push(am5map.MapPolygonSeries.new(root,{geoJSON:am5geodata_worldLow,exclude:['AQ']}));var normal=am5.color(0x64748b),active=am5.color(0xef4444),host=am5.color(0x94a3b8),hover=am5.color(0x3b82f6),stroke=am5.color(0xffffff);function apCountryCode(target){return target.dataItem&&target.dataItem.dataContext&&target.dataItem.dataContext.id;}function apply(target){var code=apCountryCode(target);target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:normal));target.set('fillOpacity',code===hostCountry ? .45 : 1);}series.mapPolygons.template.setAll({tooltipText:'{name}',interactive:true,fill:normal,stroke:stroke,strokeWidth:.5});series.mapPolygons.template.adapters.add('tooltipText',function(text,target){var code=apCountryCode(target),label=countries[code]||text;return code===hostCountry?label+' (hosting)':label;});series.mapPolygons.template.events.on('click',function(ev){var target=ev.target,code=apCountryCode(target);if(!code||code===hostCountry)return;var i=blockedCountries.indexOf(code);if(i===-1)blockedCountries.push(code);else blockedCountries.splice(i,1);apply(target);});series.mapPolygons.template.events.on('pointerover',function(ev){var code=apCountryCode(ev.target);ev.target.set('fill',code===hostCountry?host:(blockedCountries.indexOf(code)!==-1?active:hover));});series.mapPolygons.template.events.on('pointerout',function(ev){apply(ev.target);});series.events.on('datavalidated',function(){series.mapPolygons.each(apply);chart.goHome(0);});chart.set('zoomControl',am5map.ZoomControl.new(root,{}));chart.goHome(0);}).catch(function(){worldMap.textContent='Map library failed to load';});}
     renderWorldMap();
     if(accSav) accSav.addEventListener('click',function(){setStatus(accSt,T.saving,'info');var lv={};if(accGrid) accGrid.querySelectorAll('.ap-app-access-level').forEach(function(s){lv[s.getAttribute('data-folder')]=parseInt(s.value,10);});var fd=new FormData();fd.append('save_app_access_levels','1');fd.append('ajax','1');fd.append('levels_json',JSON.stringify(lv));fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){if(!d.success)throw new Error(d.error||T.error);var fd2=new FormData();fd2.append('save_app_access_security','1');fd2.append('ajax','1');fd2.append('countries_json',JSON.stringify(blockedCountries));fd2.append('block_vpn',vpnBlock&&vpnBlock.checked?'1':'0');return fetch('/main',{method:'POST',body:fd2}).then(function(r){return r.json();});}).then(function(d){setStatus(accSt,d.success?('+ '+T.app_access_saved):('x '+(d.error||T.error)),d.success?'success':'error');if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.app_access_saved,'success');}).catch(function(e){setStatus(accSt,'x '+(e&&e.message?e.message:T.error),'error');});});
     /* storage usage refresh */
@@ -3936,7 +3975,16 @@ if(initH) openAdminPanel(hashPanel[initH[1]]||'ap-users');
         }).catch(function(){ submit.disabled=false; apGateShow('Network error'); });
     }
     if(submit) submit.addEventListener('click',doGateLogin);
-    if(toggle&&pwd) toggle.addEventListener('click',function(){ pwd.type=pwd.type==='password'?'text':'password'; toggle.classList.toggle('active',pwd.type==='text'); });
+    if(toggle&&pwd) toggle.addEventListener('click',function(){
+        var show=pwd.type!=='text';
+        pwd.type=show?'text':'password';
+        toggle.classList.toggle('active',show);
+        var label=show?<?php echo json_encode($translations['hide_password'] ?? 'Hide password', JSON_HEX_TAG); ?>:<?php echo json_encode($translations['show_password'] ?? 'Show password', JSON_HEX_TAG); ?>;
+        toggle.title=label;
+        toggle.setAttribute('aria-label',label);
+        toggle.setAttribute('aria-pressed',show?'true':'false');
+        pwd.focus();
+    });
     if(pwd) pwd.addEventListener('keydown',function(e){ if(e.key==='Enter'){ e.preventDefault(); doGateLogin(); } });
     if(cancel) cancel.addEventListener('click',function(){ closeAdminPanel(); });
 })();

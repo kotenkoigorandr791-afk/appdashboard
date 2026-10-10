@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/theme/<?php echo $theme === 'light' ? 'default' : 'material-darker'; ?>.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/codemirror/5.65.14/addon/hint/show-hint.min.css">
   <!-- Monaco Editor -->
-  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/editor/editor.main.min.css">
+  <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/editor/editor.main.min.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root { <?php foreach ($currentTheme as $variable => $value): ?><?php echo $variable; ?>: <?php echo $value; ?>; <?php endforeach; ?> --accent-color: <?php echo $accentColor; ?>; --accent-soft: color-mix(in srgb, var(--accent-color) 24%, transparent); --accent-soft-strong: color-mix(in srgb, var(--accent-color) 34%, transparent); --accent-border: color-mix(in srgb, var(--accent-color) 62%, transparent); --accent-text: color-mix(in srgb, var(--accent-color) 90%, white 10%); --success-color: #28a745; --success-soft: color-mix(in srgb, var(--success-color) 24%, transparent); --success-soft-strong: color-mix(in srgb, var(--success-color) 34%, transparent); --success-border: color-mix(in srgb, var(--success-color) 62%, transparent); --success-text: color-mix(in srgb, var(--success-color) 90%, white 10%); --warning-color: #c89600; --warning-soft: color-mix(in srgb, var(--warning-color) 30%, transparent); --warning-soft-strong: color-mix(in srgb, var(--warning-color) 40%, transparent); --warning-border: color-mix(in srgb, var(--warning-color) 62%, transparent); --warning-text: color-mix(in srgb, var(--warning-color) 72%, black 28%); --error-color: #ff6b6b; --error-soft: color-mix(in srgb, var(--error-color) 24%, transparent); --error-soft-strong: color-mix(in srgb, var(--error-color) 34%, transparent); --error-border: color-mix(in srgb, var(--error-color) 62%, transparent); --error-text: color-mix(in srgb, var(--error-color) 90%, white 10%); --mobile-header-height: 50px; --mobile-footer-height: 50px; }
@@ -1857,7 +1857,8 @@
 
   
   <!-- Monaco Editor Scripts -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs/loader.min.js"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=1"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>

@@ -106,14 +106,18 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 <?php if ($previewType === 'monaco'): ?>
-require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.44.0/min/vs' } });
-require(['vs/editor/editor.main'], function() {
+const shared = window.cloudMonacoShared;
+shared.loadMonaco({
+    lang: <?= json_encode($lang) ?>,
+    i18nUrl: <?= json_encode(cloud_url('i18n/load.php')) ?>
+}).then(function () {
+    shared.defineAppThemes(monaco, {});
     const container = document.getElementById('monaco-container');
     if (container) {
-        window.editor = monaco.editor.create(container, {
+        window.editor = monaco.editor.create(container, Object.assign({}, shared.standardEditorOptions(), {
             value: <?= json_encode($previewContent) ?>,
             language: '<?= $monacoLanguage ?>',
-            theme: '<?= $theme === 'dark' ? 'vs-dark' : 'vs' ?>',
+            theme: '<?= $theme === 'dark' ? 'custom-dark' : 'custom-light' ?>',
             automaticLayout: true,
             readOnly: true,
             minimap: { enabled: true },
@@ -134,8 +138,18 @@ require(['vs/editor/editor.main'], function() {
                 arrowSize: 0,
                 alwaysConsumeMouseWheel: false // allow wheel scrolling
             }
+        }));
+
+        // Same transliteration rules as the other Monaco editors.
+        shared.installTransliteration({
+            editor: window.editor,
+            container: container,
+            monaco: monaco,
+            getLang: () => shared.resolveLang(<?= json_encode($lang) ?>)
         });
     }
+}).catch(function (e) {
+    console.error('Monaco failed to load:', e);
 });
 
 function copyToClipboard() { 

@@ -88,10 +88,14 @@
       }
     };
     
-    // Configure Monaco
-    require.config({ paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.34.1/min/vs' } });
-    
-    require(['vs/editor/editor.main'], function() {
+    // Configure Monaco: the loader, its localized built-in UI and the shared
+    // editor options come from assets/monaco-shared.js, the module shared with
+    // the main cloud editor.
+    const shared = window.cloudMonacoShared;
+    shared.loadMonaco({
+      lang: <?php echo json_encode($lang); ?>,
+      i18nUrl: '<?= htmlspecialchars(cloud_url('i18n/load.php')) ?>'
+    }).then(function () {
       // Register LaTeX language with custom tokens
       monaco.languages.register({ id: 'latex' });
       
@@ -122,9 +126,9 @@
       // Set theme colors based on current theme
       const isDark = <?php echo $theme === 'dark' ? 'true' : 'false'; ?>;
       
-      monaco.editor.defineTheme('latex-custom', {
-  base: isDark ? 'vs-dark' : 'vs',
-  inherit: true,
+      // Same palette as the main editor; only the LaTeX token colours are extra.
+      shared.defineAppThemes(monaco, {
+  accent: <?php echo json_encode($accentColor); ?>,
   rules: [
     { token: 'comment', foreground: '<?php echo $theme === 'light' ? '098658' : '6a9955'; ?>', fontStyle: 'italic' },
     { token: 'constant.character.escape', foreground: '<?php echo $theme === 'light' ? '0451a5' : '9cdcfe'; ?>' },
@@ -136,16 +140,7 @@
     { token: 'text', foreground: '<?php echo $theme === 'light' ? '000000' : 'ffffff'; ?>' },
     { token: 'delimiter.bracket', foreground: '<?php echo $theme === 'light' ? '000000' : 'd4d4d4'; ?>' },
     { token: 'operator', foreground: '<?php echo $theme === 'light' ? '000000' : 'd4d4d4'; ?>' },
-  ],
-  colors: {
-    'editor.background': '<?php echo $currentTheme['--code-bg']; ?>',
-    'editor.foreground': '<?php echo $currentTheme['--text-color']; ?>',
-    'editor.lineHighlightBackground': '<?php echo $theme === 'light' ? '#e8e8e8' : '#2a2a2a'; ?>',
-    'editorLineNumber.foreground': '<?php echo $theme === 'light' ? '#888888' : '#666666'; ?>',
-    'editorIndentGuide.background': '<?php echo $theme === 'light' ? '#cccccc' : '#404040'; ?>',
-    'editor.selectionBackground': '<?php echo $accentColor; ?>40',
-    'editor.inactiveSelectionBackground': '<?php echo $accentColor; ?>20',
-  }
+  ]
 });
       
       // Create editor
@@ -155,7 +150,7 @@
       editor = monaco.editor.create(monacoContainer, {
         value: initialContent,
         language: 'latex',
-        theme: 'latex-custom',
+        theme: isDark ? 'custom-dark' : 'custom-light',
         automaticLayout: true,
 
         // ── Touch-adaptive settings ──────────────────────────────────────────
@@ -355,7 +350,18 @@
 
       setupStatusBarReset();
       
+      // Same gutter, folding and transliteration rules as the main editor.
+      editor.updateOptions(shared.standardEditorOptions());
+      shared.installTransliteration({
+        editor: editor,
+        container: monacoContainer,
+        monaco: monaco,
+        getLang: function () { return shared.resolveLang(<?php echo json_encode($lang); ?>); }
+      });
+
       monacoReady = true;
+    }).catch(function (e) {
+      console.error('Monaco failed to load:', e);
     });
     
     let isResizing = false;
@@ -2296,7 +2302,7 @@
           listingEditor = monaco.editor.create(document.getElementById('listing-code-editor'), {
             value: '# Example code\nimport numpy as np\n\nx = np.linspace(0, 10, 100)\ny = np.sin(x)\n\nprint("Hello, World!")',
             language: 'python',
-            theme: 'latex-custom',
+            theme: <?php echo $theme === 'dark' ? '"custom-dark"' : '"custom-light"'; ?>,
             automaticLayout: true,
             fontSize: 14,
             lineNumbers: 'on',
@@ -2309,6 +2315,14 @@
           // Add a content change handler to update the preview
           listingEditor.onDidChangeModelContent(function() {
             updateListingPreview();
+          });
+
+          // Same transliteration rules as the main editor.
+          window.cloudMonacoShared.installTransliteration({
+            editor: listingEditor,
+            container: document.getElementById('listing-code-editor'),
+            monaco: monaco,
+            getLang: function () { return window.cloudMonacoShared.resolveLang(<?php echo json_encode($lang); ?>); }
           });
           
           // Initial preview update

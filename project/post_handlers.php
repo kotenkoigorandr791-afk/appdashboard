@@ -232,6 +232,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $authError=sprintf($translations['login_ip_locked']??'Too many failed attempts. Try again in %d seconds.',$loginLockedSec);
         }else{
             $users=loadUsers();
+            if(isset($users[$email])&&userNeedsPasswordSet($users[$email])&&!empty($users[$email]['verified'])){
+                $_SESSION['pending_oauth_data']=[
+                    'email'=>$email,
+                    'name'=>$users[$email]['name']??'',
+                    'photo'=>$users[$email]['photo']??'default_avatar.png',
+                    'provider'=>'email',
+                    'reg_method'=>'Email',
+                ];
+                $_SESSION['pending_set_password_only']=true;
+                header('Location: /register?step=set_password&password_required=1');
+                exit;
+            }
             if(isset($users[$email])&&appPasswordVerify($password, $users[$email]['password'])){
                 if (appPasswordNeedsRehash((string)$users[$email]['password'])) {
                     $users[$email]['password'] = appPasswordHash($password);
@@ -1847,13 +1859,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
     if(isset($_POST['reset_user_password']) && isset($_POST['ajax']) && $sessionIsAdmin){
         apSecRequireSameOrigin();
-        $emailToReset = $_POST['user_email'] ?? '';
-        $newPassword = $_POST['new_password'] ?? '';
-        $currentUserEmail = $_SESSION['user']['email'] ?? '';
-        $response = ['success' => false, 'message' => ''];
-        if($emailToReset){
-            $users = loadUsers();
-            if(isset($users[$emailToReset])){
+$emailToReset = $_POST['user_email'] ?? '';
+$newPassword = $_POST['new_password'] ?? '';
+$currentUserEmail = $_SESSION['user']['email'] ?? '';
+$response = ['success' => false, 'message' => ''];
+if($emailToReset){
+    $users = loadUsers();
+    if(isset($users[$emailToReset])){
                 if(($passwordErrorKey = validatePasswordPolicy($newPassword)) !== null){
                     $response['message'] = $translations[$passwordErrorKey] ?? $passwordErrorKey;
                 }else{
@@ -2112,12 +2124,23 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 echo json_encode(['success'=>true,'message'=>'No changes']);
                 exit;
             }
-        } elseif($sessionIsAdmin && isset($_POST['user_verified']) && is_array($_POST['user_verified'])){
-            // Non-root admins may only change the verified (status) flag of
-            // OTHER users — never their own and never root@root.
+        } elseif($sessionIsAdmin && (isset($_POST['user_verified']) && is_array($_POST['user_verified']) || isset($_POST['user_roles']) && is_array($_POST['user_roles']))){
+            // Non-root admins may change the status (verified flag and role)
+            // of OTHER users — never their own and never root@root.
             $users=loadUsers();
             $anyUpdated=false;
-            foreach($_POST['user_verified'] as $email=>$v){
+            if(isset($_POST['user_roles']) && is_array($_POST['user_roles'])){
+                foreach($_POST['user_roles'] as $email=>$role){
+                    if($email==='root@root') continue;
+                    if($email===$currentUserEmail) continue;
+                    if(isset($users[$email])){
+                        $users[$email]['role']=intval($role);
+                        $anyUpdated=true;
+                        adminAuditLog('user_role_change', $email, 'role='.intval($role));
+                    }
+                }
+            }
+            foreach($_POST['user_verified'] ?? [] as $email=>$v){
                 if($email==='root@root') continue;
                 if($email===$currentUserEmail) continue;
                 if(isset($users[$email])){

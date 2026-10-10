@@ -67,6 +67,103 @@
     let userSearchTimer = null;
     let pendingNewChatType = 'peer';
 
+    // ── Admin storage-increase request card ────────────────────────────
+    let chatStorageRequestAt = 0;
+    function chatFormatStorageBytes(bytes) {
+        bytes = Number(bytes) || 0;
+        if (bytes < 1024) return bytes + ' B';
+        var units = ['KB', 'MB', 'GB', 'TB'];
+        var i = -1;
+        do { bytes = bytes / 1024; i++; } while (bytes >= 1024 && i < units.length - 1);
+        return bytes.toFixed(1) + ' ' + units[i];
+    }
+    function chatStorageHide() {
+        var el = document.getElementById('chat-storage-request');
+        if (el) el.style.display = 'none';
+    }
+    function refreshChatStorageRequest(force) {
+        var el = document.getElementById('chat-storage-request');
+        if (!el) return;
+        if (!isAdmin || currentChatType !== 'support' || !currentChatUser) { chatStorageHide(); return; }
+        var now = Date.now();
+        if (!force && now - chatStorageRequestAt < 8000) return;
+        chatStorageRequestAt = now;
+        var email = currentChatUser;
+        var url = '/apps/cloud/api.php?action=admin_get_storage_request&email=' + encodeURIComponent(email) + '&v=' + now;
+        fetch(url, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (currentChatUser !== email || !isAdmin || currentChatType !== 'support') return;
+                if (!data || !data.ok || !data.pending) { chatStorageHide(); return; }
+                var p = data.pending;
+                var info = document.getElementById('chat-storage-request-info');
+                if (info) {
+                    info.textContent = (T.support_chat_storage_info || 'Used {used} of {quota}')
+                        .replace('{used}', chatFormatStorageBytes(p.used_bytes || data.used_bytes || 0))
+                        .replace('{quota}', chatFormatStorageBytes((p.current_quota_mb || data.quota_mb || 0) * 1024 * 1024));
+                }
+                var q = document.getElementById('chat-storage-quota-input');
+                if (q) q.value = Math.max(2048, (Number(p.current_quota_mb) || 0) + 1024);
+                var reasonEl = document.getElementById('chat-storage-reason-input');
+                if (reasonEl) reasonEl.value = '';
+                el.dataset.requestId = String(p.id);
+                el.style.display = 'block';
+            })
+            .catch(function() { /* keep previous state on transient errors */ });
+    }
+    function resolveChatStorageRequest(approve) {
+        var el = document.getElementById('chat-storage-request');
+        if (!el) return;
+        var requestId = parseInt(el.dataset.requestId || '0', 10);
+        if (!requestId) return;
+        var q = document.getElementById('chat-storage-quota-input');
+        var reasonEl = document.getElementById('chat-storage-reason-input');
+        var quotaMb = parseInt((q && q.value) || '0', 10);
+        if (approve && (!quotaMb || quotaMb < 1)) {
+            if (typeof showTempNotification === 'function') showTempNotification(T.support_chat_storage_error || 'Failed to update storage request', 'error');
+            return;
+        }
+        var body = new URLSearchParams();
+        body.set('action', 'admin_resolve_storage_request');
+        body.set('request_id', String(requestId));
+        body.set('decision', approve ? 'approve' : 'reject');
+        if (approve) body.set('quota_mb', String(quotaMb));
+        var reason = (reasonEl && reasonEl.value ? reasonEl.value : '').trim();
+        if (reason) body.set('reason', reason);
+        var approveBtn = document.getElementById('chat-storage-approve');
+        var rejectBtn = document.getElementById('chat-storage-reject');
+        if (approveBtn) approveBtn.disabled = true;
+        if (rejectBtn) rejectBtn.disabled = true;
+        var done = function() {
+            if (approveBtn) approveBtn.disabled = false;
+            if (rejectBtn) rejectBtn.disabled = false;
+        };
+        fetch('/apps/cloud/api.php', {
+            method: 'POST',
+            credentials: 'same-origin',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: body.toString()
+        })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                done();
+                if (data && data.ok) {
+                    if (typeof showTempNotification === 'function') showTempNotification(T.support_chat_storage_sent || 'Storage request updated', 'success');
+                    chatStorageHide();
+                } else if (typeof showTempNotification === 'function') {
+                    showTempNotification(T.support_chat_storage_error || 'Failed to update storage request', 'error');
+                }
+            })
+            .catch(function() {
+                done();
+                if (typeof showTempNotification === 'function') showTempNotification(T.support_chat_storage_error || 'Failed to update storage request', 'error');
+            });
+    }
+    var chatStorageApproveBtn = document.getElementById('chat-storage-approve');
+    var chatStorageRejectBtn = document.getElementById('chat-storage-reject');
+    if (chatStorageApproveBtn) chatStorageApproveBtn.addEventListener('click', function() { resolveChatStorageRequest(true); });
+    if (chatStorageRejectBtn) chatStorageRejectBtn.addEventListener('click', function() { resolveChatStorageRequest(false); });
+
     function chatSetPendingPlan(plan, count) {
         if (!plan || !Array.isArray(plan.elements)) return;
         chatPendingPlan = plan;
@@ -1735,6 +1832,7 @@ adminDraftEdits[currentChatKey()] = { id: editingMessageId, text: chatInput ? ch
         }
         loadMessages(false);
         startPolling();
+        refreshChatStorageRequest(true);
         adminMobilePhase = 'chat';
         syncAdminMobileLayout();
     };
@@ -2042,6 +2140,7 @@ delete adminDraftEdits[currentChatKey()];
     };
 
     function chatCloseChatModal() {
+        chatStorageHide();
         if (isAdmin) {
             window.location.hash = '';
         } else if (chatModal) {
@@ -2883,6 +2982,7 @@ delete adminDraftEdits[currentChatKey()];
         chatPollInterval = setInterval(() => {
             loadMessages(true);
             checkUnreadMessages();
+            refreshChatStorageRequest(false);
         }, 3000);
     }
 

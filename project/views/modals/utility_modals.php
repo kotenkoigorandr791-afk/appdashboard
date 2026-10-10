@@ -43,7 +43,6 @@
 
     <!-- Subtitle -->
     <p style="font-size:13px;opacity:.6;margin-bottom:20px;line-height:1.5;"><?php echo my_htmlspecialchars($translations['otp_gen_subtitle']??'Share this code to allow one-time login into your account.'); ?></p>
-    <div style="font-size:13px;opacity:.6;margin-bottom:20px;line-height:1.5;"><?php echo my_htmlspecialchars($translations['otp_gen_subtitle']??'Share this code to allow one-time login into your account.'); ?></div>
 
     <!-- TTL selector -->
     <label style="font-size:13px;display:block;text-align:left;margin-bottom:6px;color:var(--text-color);"><?php echo my_htmlspecialchars($translations['otp_ttl_label']??'Valid for:'); ?></label>
@@ -60,6 +59,9 @@
     </div>
 
     <!-- Generate button -->
+    <div id="otp-gen-forbidden" style="display:none;font-size:12px;color:#dc3545;background:rgba(220,53,69,.08);border:1px solid rgba(220,53,69,.4);border-radius:6px;padding:9px 12px;margin-bottom:18px;line-height:1.5;">
+        &#128274; <?php echo my_htmlspecialchars($translations['admin_otp_forbidden']??'One-time PIN login is disabled for administrators.'); ?>
+    </div>
     <button onclick="doGenerateOtp()" id="otp-gen-btn" style="width:100%;padding:12px;background:var(--primary-color);color:#fff;border:none;border-radius:24px;font-size:15px;font-weight:600;cursor:pointer;margin-bottom:16px;transition:opacity .2s;">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" style="vertical-align:middle;margin-right:6px;"><path d="M12 1C8.676 1 6 3.676 6 7v1H4a1 1 0 0 0-1 1v13a1 1 0 0 0 1 1h16a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1h-2V7c0-3.324-2.676-6-6-6zm0 2c2.276 0 4 1.724 4 4v1H8V7c0-2.276 1.724-4 4-4zm0 9a2 2 0 1 1 0 4 2 2 0 0 1 0-4z"/></svg>
         <?php echo my_htmlspecialchars($translations['otp_generate']??'Generate PIN'); ?>
@@ -96,6 +98,18 @@ function openOtpGeneratorModal(){
     m.style.display='flex';
     document.getElementById('otp-gen-result').style.display='none';
     document.getElementById('otp-gen-error').textContent='';
+    var forbidden=document.getElementById('otp-gen-forbidden');
+    var genBtn=document.getElementById('otp-gen-btn');
+    var ttl=document.getElementById('otp-ttl-select');
+    if(<?php echo ($_SESSION['user']['email']??'')==='root@root' ? 'true' : 'false'; ?>){
+        if(forbidden)forbidden.style.display='block';
+        if(genBtn)genBtn.style.display='none';
+        if(ttl)ttl.disabled=true;
+    }else{
+        if(forbidden)forbidden.style.display='none';
+        if(genBtn)genBtn.style.display='';
+        if(ttl)ttl.disabled=false;
+    }
     document.getElementById('otp-gen-pin-left').textContent='---';
     document.getElementById('otp-gen-pin-right').textContent='---';
 }
@@ -132,6 +146,12 @@ function doGenerateOtp(){
                     <?php echo json_encode($translations['otp_expires_in']??'Expires in', JSON_HEX_TAG); ?> + ' ' + mins + ' ' + <?php echo json_encode($translations['otp_minutes']??'min', JSON_HEX_TAG); ?>;
                 var link=location.origin+'/one-time-pin';
                 document.getElementById('otp-gen-link-box').textContent=link;
+            }else if(data.error==='otp_forbidden'){
+                var fb=document.getElementById('otp-gen-forbidden');
+                if(fb)fb.style.display='block';
+                if(btn)btn.style.display='none';
+                var sel=document.getElementById('otp-ttl-select');
+                if(sel)sel.disabled=true;
             }else{
                 errEl.textContent=data.error||<?php echo json_encode($translations['fm_network_error']??'Error', JSON_HEX_TAG); ?>;
             }

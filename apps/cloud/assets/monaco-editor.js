@@ -16,6 +16,13 @@ const monacoCollabInsertStyleIds = new Set();
 let monacoSpellcheckCodeActionsRegistered = false;
 let monacoCompletionsRegistered = false;
 const monacoSpellcheckStates = new Map();
+// All spellcheck requests are multiplexed through a single shared worker so the
+// dictionaries (typo.js plus the .aff/.dic files) are fetched, parsed and kept in
+// memory only once, no matter how many text editors are open at the same time.
+// Every request gets a unique id and is routed back to the editor that sent it.
+const monacoSpellcheckRoutes = new Map(); // requestId -> { state, kind }
+let monacoSpellcheckSharedWorker = null;
+let monacoSpellcheckRequestSeq = 0;
 const monacoFooterStatusEls = new Map();
 const monacoEditorExtraDisposables = new Map();
 const monacoSpellcheckDebounceMs = 650;
@@ -23,7 +30,10 @@ const monacoSpellcheckMaxErrors = 200;
 const monacoCompletionCache = new Map();
 const monacoSpellcheckLanguages = {
     auto: {
-        label: 'Auto'
+        label: 'monacoSpellAuto'
+    },
+    off: {
+        label: 'monacoSpellcheckOff'
     },
     en_US: {
         label: 'English',
@@ -278,6 +288,38 @@ function monacoInjectSelectionHandlesCSS() {
         .monaco-status-item {
             white-space: nowrap !important;
         }
+        /* Spellcheck language picker: use the app's input look instead of the
+           browser's default select chrome. */
+        .monaco-status-spell-select {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background-color: var(--panel, #2a2a2a) !important;
+            color: var(--fg, #e6e6e6) !important;
+            border: 1px solid color-mix(in srgb, var(--accent, #4a90e2) 35%, var(--border, rgba(255,255,255,.2))) !important;
+            border-radius: 6px !important;
+            padding: 2px 22px 2px 8px !important;
+            font-family: inherit !important;
+            line-height: 1.5 !important;
+            max-width: 100% !important;
+            cursor: pointer !important;
+            outline: none !important;
+            transition: border-color .15s ease, box-shadow .15s ease !important;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23888888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") !important;
+            background-repeat: no-repeat !important;
+            background-position: right 6px center !important;
+            background-size: 10px 6px !important;
+        }
+        .monaco-status-spell-select:hover {
+            border-color: color-mix(in srgb, var(--accent, #4a90e2) 60%, var(--border, rgba(255,255,255,.2))) !important;
+        }
+        .monaco-status-spell-select:focus {
+            border-color: var(--accent, #4a90e2) !important;
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #4a90e2) 30%, transparent) !important;
+        }
+        .monaco-status-spell-select option {
+            background: var(--panel, #2a2a2a);
+            color: var(--fg, #e6e6e6);
+        }
         @media (max-width: 768px) {
             .monaco-status-bar {
                 align-items: stretch !important;
@@ -349,6 +391,20 @@ function monacoShouldHideMinimap() {
     return monacoIsTouchDevice && monacoIsPortraitOrientation();
 }
 
+// Monaco's built-in UI strings (context menu, quick fix window, command palette, ...)
+// come from assets/monaco-shared.js so that every Monaco editor in the app shares one
+// map. It has to run before vs/editor/editor.main resolves the labels.
+function monacoApplyNlsTranslations() {
+    if (!window.cloudMonacoShared) {
+        console.error('[monaco] assets/monaco-shared.js must be loaded before assets/monaco-editor.js');
+        return 0;
+    }
+    return window.cloudMonacoShared.applyNlsTranslations(
+        window.i18n || {},
+        (window.APP_CONFIG && window.APP_CONFIG.lang) || 'en'
+    );
+}
+
 // Initialize Monaco editor
 function initMonaco() {
     return new Promise((resolve, reject) => {
@@ -364,11 +420,15 @@ function initMonaco() {
             reject(new Error('Require.js is not loaded'));
             return;
         }
-        
-        require.config({
-            paths: { vs: 'https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs' },
-            ignoreDuplicateModules: ['vs/editor/editor.main']
-        });
+
+        // Translate Monaco's own UI strings before the editor bundle resolves them,
+        // then point the loader at the shared, pinned Monaco build.
+        monacoApplyNlsTranslations();
+
+        if (!window.cloudMonacoShared || !window.cloudMonacoShared.configureLoader()) {
+            reject(new Error('assets/monaco-shared.js is missing or require.js is not loaded'));
+            return;
+        }
         
         require(['vs/editor/editor.main'], function() {
             monacoInitialized = true;
@@ -629,7 +689,7 @@ function monacoAddCustomEditorActions() {
     
     monaco.editor.addEditorAction({
         id: 'select-all-touch',
-        label: 'Select All',
+        label: monacoT('monacoCtxSelectAll'),
         contextMenuGroupId: '9_cutcopypaste',
         contextMenuOrder: 2,
         run: function(editor) {
@@ -645,7 +705,7 @@ function monacoAddCustomEditorActions() {
     if (monacoIsTouchDevice) {
         monaco.editor.addEditorAction({
             id: 'touch-select-word',
-            label: 'Select Word',
+            label: monacoT('monacoCtxSelectWord'),
             contextMenuGroupId: '9_cutcopypaste',
             contextMenuOrder: 3,
             run: function(editor) {
@@ -678,43 +738,14 @@ function monacoGetSelectionThemeColors() {
     };
 }
 
-// Update Monaco theme based on current app theme
+// Update Monaco theme based on current app theme. The palette itself lives in
+// assets/monaco-shared.js so every Monaco editor in the app looks the same.
 function monacoUpdateTheme() {
     const theme = document.body.getAttribute('data-theme');
-    const selectionColors = monacoGetSelectionThemeColors();
-    if (theme === 'dark') {
-        monaco.editor.defineTheme('custom-dark', {
-            base: 'vs-dark',
-            inherit: true,
-            rules: [],
-            colors: {
-                'editor.background': '#1a1a1a',
-                'editor.foreground': '#eeeeee',
-                'editor.lineHighlightBackground': '#2a2a2a',
-                'editorLineNumber.foreground': '#666666',
-                'editorLineNumber.activeForeground': '#eeeeee',
-                'focusBorder': '#00000000',
-                ...selectionColors,
-            }
-        });
-        monaco.editor.setTheme('custom-dark');
-    } else {
-        monaco.editor.defineTheme('custom-light', {
-            base: 'vs',
-            inherit: true,
-            rules: [],
-            colors: {
-                'editor.background': '#ffffff',
-                'editor.foreground': '#000000',
-                'editor.lineHighlightBackground': '#f0f0f0',
-                'editorLineNumber.foreground': '#999999',
-                'editorLineNumber.activeForeground': '#333333',
-                'focusBorder': '#00000000',
-                ...selectionColors,
-            }
-        });
-        monaco.editor.setTheme('custom-light');
+    if (window.cloudMonacoShared) {
+        window.cloudMonacoShared.defineAppThemes(monaco, { accent: monacoGetAccentHex() });
     }
+    monaco.editor.setTheme(theme === 'dark' ? 'custom-dark' : 'custom-light');
 }
 
 // Configure language-specific settings
@@ -998,6 +1029,15 @@ function monacoIsTxtFile(filePath) {
     return /\.txt$/i.test(filePath || '');
 }
 
+// Ordered-list continuation for .txt files. The behaviour lives in
+// assets/monaco-shared.js so that every Monaco editor shares it.
+function monacoSetupTxtNumberedListContinuation(editor, filePath) {
+    monacoAddEditorDisposable(
+        editor,
+        window.cloudMonacoShared.installTxtNumberedListContinuation({ editor, monaco, filePath })
+    );
+}
+
 function monacoGetDefaultSpellcheckLanguage() {
     const saved = localStorage.getItem('monacoSpellcheckLanguage');
     if (saved === 'off') return 'off';
@@ -1117,7 +1157,7 @@ function monacoCreateSpellcheckWorker() {
                     if (data.languageId !== 'auto') {
                         await ensureDictionary(data.languageId, data.languages[data.languageId]);
                     }
-                    self.postMessage({ type: 'ready', languageId: data.languageId });
+                    self.postMessage({ type: 'ready', requestId: data.requestId, languageId: data.languageId });
                     return;
                 }
                 if (data.type === 'check') {
@@ -1133,6 +1173,8 @@ function monacoCreateSpellcheckWorker() {
                         let match;
                         while ((match = wordRegex.exec(line)) !== null && errors.length < maxErrors) {
                             const word = match[0];
+                            if (match.index > 0 && line[match.index - 1] === '.') continue;
+                            if (/^\.[a-z]{2,}$/i.test(word)) continue;
                             if (skipWord(word)) continue;
                             if (isSupplementalWord(word)) continue;
                             const languageIds = wordLanguageIds(word, data.languageId);
@@ -1203,6 +1245,71 @@ function monacoCreateSpellcheckWorker() {
     return worker;
 }
 
+// Returns the single shared spellcheck worker, creating it on first use. Keeping
+// one worker means its dictionary cache is shared by every open editor.
+function monacoGetSpellcheckWorker() {
+    if (monacoSpellcheckSharedWorker) return monacoSpellcheckSharedWorker;
+    const worker = monacoCreateSpellcheckWorker();
+    worker.onmessage = monacoHandleSpellcheckMessage;
+    monacoSpellcheckSharedWorker = worker;
+    return worker;
+}
+
+function monacoNextSpellcheckRequestId() {
+    return ++monacoSpellcheckRequestSeq;
+}
+
+// Routes a worker response to the editor that issued the request.
+function monacoHandleSpellcheckMessage(event) {
+    const data = event.data || {};
+    if (data.requestId == null) return;
+    const route = monacoSpellcheckRoutes.get(data.requestId);
+    if (!route) return;
+    const state = route.state;
+
+    if (data.type === 'ready') {
+        monacoSpellcheckRoutes.delete(data.requestId);
+        state.ready = true;
+        const label = state.languageId === 'auto'
+            ? monacoT('monacoSpellAuto')
+            : (monacoSpellcheckLanguages[state.languageId]?.label || state.languageId);
+        if (state.statusElement) state.statusElement.textContent = `${monacoT('monacoSpellLanguage')} ${label}`;
+        if (state.editor) monacoRunSpellcheck(state.editor);
+        return;
+    }
+    if (data.type === 'checked') {
+        monacoSpellcheckRoutes.delete(data.requestId);
+        const model = state.model;
+        if (!model) return;
+        if (data.requestId !== state.latestCheckRequestId || data.versionId !== model.getVersionId()) return;
+        Object.keys(data.suggestions || {}).forEach((word) => {
+            monacoRememberSuggestion(state, word, data.suggestions[word]);
+        });
+        if (state.editor) monacoApplySpellcheckDecorations(state.editor, data.errors || []);
+        return;
+    }
+    if (data.type === 'suggestions') {
+        monacoSpellcheckRoutes.delete(data.requestId);
+        monacoRememberSuggestion(state, data.word, data.suggestions || []);
+        const pending = state.pendingSuggestions.get(data.requestId);
+        if (pending) {
+            state.pendingSuggestions.delete(data.requestId);
+            pending.resolve(data.suggestions || []);
+        }
+        return;
+    }
+    if (data.type === 'error') {
+        monacoSpellcheckRoutes.delete(data.requestId);
+        console.error('Spellcheck failed:', data.message);
+        if (state.statusElement) state.statusElement.textContent = monacoT('monacoSpellcheckUnavailable');
+        const pending = state.pendingSuggestions.get(data.requestId);
+        if (pending) {
+            state.pendingSuggestions.delete(data.requestId);
+            pending.resolve([]);
+        }
+    }
+}
+
 function monacoFindSpellcheckStateByModel(model) {
     return Array.from(monacoSpellcheckStates.values()).find(state => state.model === model);
 }
@@ -1223,10 +1330,11 @@ function monacoRequestSpellcheckSuggestions(state, word) {
     if (!state || !state.worker || !word) return Promise.resolve([]);
     if (state.suggestionCache.has(word)) return Promise.resolve(state.suggestionCache.get(word));
 
-    const requestId = ++state.requestId;
+    const requestId = monacoNextSpellcheckRequestId();
     return new Promise((resolve) => {
         state.pendingSuggestions.set(requestId, { resolve, word });
-        state.worker.postMessage({
+        monacoSpellcheckRoutes.set(requestId, { state, kind: 'suggest' });
+        monacoGetSpellcheckWorker().postMessage({
             type: 'suggest',
             requestId,
             word,
@@ -1285,10 +1393,11 @@ function monacoRunSpellcheck(editor) {
     const state = monacoSpellcheckStates.get(editor);
     if (!model || !state || !state.enabled || !state.ready || !state.worker) return;
 
-    const requestId = ++state.requestId;
+    const requestId = monacoNextSpellcheckRequestId();
     state.latestCheckRequestId = requestId;
     state.latestCheckVersionId = model.getVersionId();
-    state.worker.postMessage({
+    monacoSpellcheckRoutes.set(requestId, { state, kind: 'check' });
+    monacoGetSpellcheckWorker().postMessage({
         type: 'check',
         requestId,
         versionId: state.latestCheckVersionId,
@@ -1442,7 +1551,11 @@ function monacoDisposeSpellcheck(editor) {
     if (state.contentDisposable) state.contentDisposable.dispose();
     state.pendingSuggestions?.forEach(pending => pending.resolve([]));
     state.pendingSuggestions?.clear();
-    if (state.worker) state.worker.terminate();
+    // Drop this editor's in-flight requests but keep the shared worker (and its
+    // loaded dictionaries) alive for the other open editors.
+    monacoSpellcheckRoutes.forEach((route, requestId) => {
+        if (route.state === state) monacoSpellcheckRoutes.delete(requestId);
+    });
     if (state.decorationIds?.length) editor.deltaDecorations(state.decorationIds, []);
     // Clear spellcheck markers
     const model = editor.getModel();
@@ -1463,16 +1576,17 @@ async function monacoEnableSpellcheck(editor, container, statusElement, language
 
     statusElement.textContent = monacoT('monacoSpellcheckLoading');
 
-    const worker = monacoCreateSpellcheckWorker();
+    const worker = monacoGetSpellcheckWorker();
     const state = {
         enabled: true,
         ready: false,
         languageId,
         model,
+        editor,
+        statusElement,
         worker,
         timer: null,
         contentDisposable: null,
-        requestId: 0,
         latestCheckRequestId: 0,
         latestCheckVersionId: 0,
         decorationIds: [],
@@ -1482,47 +1596,11 @@ async function monacoEnableSpellcheck(editor, container, statusElement, language
     };
     monacoSpellcheckStates.set(editor, state);
 
-    worker.onmessage = (event) => {
-        const data = event.data || {};
-        if (data.type === 'ready') {
-            state.ready = true;
-            const label = languageId === 'auto'
-                ? monacoT('monacoSpellAuto')
-                : (monacoSpellcheckLanguages[languageId]?.label || languageId);
-            statusElement.textContent = `${monacoT('monacoSpellLanguage')} ${label}`;
-            monacoRunSpellcheck(editor);
-            return;
-        }
-        if (data.type === 'checked') {
-            if (data.requestId !== state.latestCheckRequestId || data.versionId !== model.getVersionId()) return;
-            Object.keys(data.suggestions || {}).forEach(word => {
-                monacoRememberSuggestion(state, word, data.suggestions[word]);
-            });
-            monacoApplySpellcheckDecorations(editor, data.errors || []);
-            return;
-        }
-        if (data.type === 'suggestions') {
-            monacoRememberSuggestion(state, data.word, data.suggestions || []);
-            const pending = state.pendingSuggestions.get(data.requestId);
-            if (pending) {
-                state.pendingSuggestions.delete(data.requestId);
-                pending.resolve(data.suggestions || []);
-            }
-            return;
-        }
-        if (data.type === 'error') {
-            console.error('Spellcheck failed:', data.message);
-            statusElement.textContent = monacoT('monacoSpellcheckUnavailable');
-            const pending = state.pendingSuggestions.get(data.requestId);
-            if (pending) {
-                state.pendingSuggestions.delete(data.requestId);
-                pending.resolve([]);
-            }
-        }
-    };
-
+    const loadRequestId = monacoNextSpellcheckRequestId();
+    monacoSpellcheckRoutes.set(loadRequestId, { state, kind: 'load' });
     worker.postMessage({
         type: 'load',
+        requestId: loadRequestId,
         languageId,
         languages: monacoSpellcheckLanguagesPayload()
     });
@@ -1555,22 +1633,17 @@ function monacoCreateStatusBar(editor, container, filePath, tabId, readOnly) {
         if (!embedInFooter) spellLabel.style.cssText = 'opacity:0.8;';
         const spellSelector = document.createElement('select');
         spellSelector.className = 'monaco-status-spell-select';
-        spellSelector.title = 'Select spellcheck language';
-        if (embedInFooter) {
-            spellSelector.style.cssText = '';
-        } else {
-            spellSelector.style.cssText = `background:${statusColors.itemBackground};color:${color};border:1px solid ${statusColors.itemBorder};border-radius:3px;padding:2px 6px;font-size:12px;cursor:pointer;outline:none;opacity:0.9;`;
-        }
+        spellSelector.title = monacoT('monacoSpellSelectTitle');
         const currentSpellLanguage = monacoGetDefaultSpellcheckLanguage();
         const offOption = document.createElement('option');
         offOption.value = 'off';
-        offOption.textContent = 'Off';
+        offOption.textContent = monacoT('monacoSpellOff');
         offOption.selected = currentSpellLanguage === 'off';
         spellSelector.appendChild(offOption);
         Object.entries(monacoSpellcheckLanguages).forEach(([value, optionData]) => {
             const option = document.createElement('option');
             option.value = value;
-            option.textContent = optionData.label;
+            option.textContent = value === 'auto' ? monacoT('monacoSpellAuto') : optionData.label;
             option.selected = value === currentSpellLanguage;
             spellSelector.appendChild(option);
         });
@@ -2317,6 +2390,15 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             fontSize: monacoIsTouchDevice ? 18 : 14,
             fontFamily: 'Consolas, "Courier New", monospace',
             lineNumbers: 'on',
+            lineNumbersMinChars: 2,
+            // Keep the line-numbers gutter narrow. Monaco reserves a 16px
+            // folding gutter plus 10/20px of line decorations on top of the
+            // numbers, which squeezed the code area on phones. The decorations
+            // column is trimmed to 8px (the minimum that still fits the 7px
+            // .ai-agent-edit-glyph strip) and the folding arrows are hidden;
+            // folding itself still works via Ctrl+Shift+[ / ] and the
+            // command palette (F1).
+            lineDecorationsWidth: 8,
             roundedSelection: true,
             scrollBeyondLastLine: true,
             
@@ -2348,7 +2430,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             // Folding settings
             folding: true,
             foldingStrategy: 'auto',
-            showFoldingControls: 'mouseover',
+            showFoldingControls: 'never',
             
             // Context menu
             contextmenu: true,
@@ -2374,8 +2456,6 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             multiCursorMergeOverlapping: true,
             selectionClipboard: true,
             
-            // Enlarge the touch area
-            lineDecorationsWidth: monacoIsTouchDevice ? 20 : 10,
             overviewRulerLanes: 0,
             overviewRulerBorder: false,
             hideCursorInOverviewRuler: true,
@@ -2395,98 +2475,17 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         
         monacoCreateStatusBar(editor, container, filePath, tabId, readOnly);
 
-        // Transliteration
-        // Track IME composition state to avoid interfering with native keyboard input
-        let isComposing = false;
-
-        // Listen for composition events on the editor's textarea
-        const onCompositionStart = () => {
-            isComposing = true;
-        };
-
-        const onCompositionEnd = () => {
-            isComposing = false;
-        };
-        container.addEventListener('compositionstart', onCompositionStart);
-        container.addEventListener('compositionend', onCompositionEnd);
-        monacoAddEditorDisposable(editor, {
-            dispose() {
-                container.removeEventListener('compositionstart', onCompositionStart);
-                container.removeEventListener('compositionend', onCompositionEnd);
-            }
-        });
-
-        editor.onKeyDown((e) => {
-            // Skip transliteration during IME composition
-            if (isComposing) return;
-
-            const activeLang = document.querySelector('.lang-option.active')?.dataset.lang;
-            if (!activeLang || activeLang === 'en') return;
-
-            const key = e.browserEvent.key;
-
-            // If the key is already a Cyrillic character, skip transliteration entirely.
-            // This handles cases where user is typing with Russian/Ukrainian keyboard layout,
-            // which already outputs correct Russian characters including punctuation.
-            if (/[\u0400-\u04FF]/.test(key)) {
-                return;
-            }
-
-            const isPairChar = ['(', ')', '{', '}'].includes(key);
-            const translitTables = {
-                    'ru': {
-                        'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з',
-                        '[': 'х', ']': 'ъ',
-                        'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж',
-                        "'": 'э',
-                        'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-                        'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-                        '{': 'Х', '}': 'Ъ',
-                        'A': 'Ф', 'S': 'Ы', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-                        '"': 'Э',
-                        'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-                    },
-                    'uk': {
-                        'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з',
-                        '[': 'х', ']': 'ї',
-                        'a': 'ф', 's': 'і', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж',
-                        "'": 'є',
-                        'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-                        'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-                        '{': 'Х', '}': 'Ї',
-                        'A': 'Ф', 'S': 'І', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-                        '"': 'Є',
-                        'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-                    }
-            };
-            const table = translitTables[activeLang];
-            if (key.length === 1 && table && Object.prototype.hasOwnProperty.call(table, key) && !e.ctrlKey && !e.altKey && !e.metaKey && !isPairChar) {
-                e.preventDefault();
-                const selection = editor.getSelection();
-                    if (selection && !selection.isEmpty()) {
-                        editor.executeEdits('transliteration', [{
-                            range: selection,
-                            text: table[key]
-                        }]);
-                    } else {
-                        const position = editor.getPosition();
-                        editor.executeEdits('transliteration', [{
-                            range: new monaco.Range(
-                                position.lineNumber,
-                                position.column,
-                                position.lineNumber,
-                                position.column
-                            ),
-                            text: table[key]
-                        }]);
-
-                        editor.setPosition({
-                            lineNumber: position.lineNumber,
-                            column: position.column + table[key].length
-                        });
-                    }
-            }
-        });
+        // Transliteration lives in assets/monaco-shared.js so that the project
+        // editors (html, markdown, latex, zip) follow exactly the same rules.
+        monacoAddEditorDisposable(
+            editor,
+            window.cloudMonacoShared.installTransliteration({
+                editor,
+                container,
+                monaco,
+                getLang: () => window.cloudMonacoShared.resolveLang()
+            })
+        );
 
         // ── App global hotkeys ───────────────────────────────────────
         // Monaco absorbs all key presses inside itself and does not let them bubble up
@@ -2602,6 +2601,8 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         });
 
         if (!readOnly && language === 'plaintext') {
+            monacoSetupTxtNumberedListContinuation(editor, filePath);
+
             let isApplyingAutoCase = false;
             const autoSentenceCaseDisposable = editor.onDidChangeModelContent((event) => {
                 if (isApplyingAutoCase || editor.__collabApplyingRemote || event.isFlush || event.changes.length !== 1) return;
