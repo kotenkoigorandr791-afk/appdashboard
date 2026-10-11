@@ -123,6 +123,7 @@ services:
       - appdashboard-logs:/var/log/nginx
       - appdashboard-logs:/var/log/bot
       - appdashboard-waf-logs:/var/log/modsecurity
+      - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "host-gateway:host-gateway"

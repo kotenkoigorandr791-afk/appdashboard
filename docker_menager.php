@@ -1,10 +1,11 @@
 <?php
-// portainer_dashboard.php
+// docker_dashboard.php
 require_once __DIR__ . '/lib/app_session.php';
 app_session_start();
 require_once __DIR__ . '/db.php';
 require_once __DIR__ . '/lib/admin_security.php';
 require_once __DIR__ . '/lib/embed_context.php';
+require_once __DIR__ . '/lib/docker_client.php';
 require_once __DIR__ . '/smart_log.php';
 smart_log_bootstrap('dashboard');
 adminPanelRequireGate();
@@ -16,75 +17,6 @@ $theme = ($_GET['theme'] ?? 'dark') === 'light' ? 'light' : 'dark';
 $accent = preg_match('/^#[0-9a-fA-F]{6}$/', $_GET['color'] ?? '') ? $_GET['color'] : '#007bff';
 $embed = app_is_embedded_request();
 $configuredDomain = trim((string)($dockerCfg['domain'] ?? 'localhost'));
-function dockerHostCandidates(array $dockerCfg): array {
-    $candidates = [];
-    $host = trim((string)($dockerCfg['host'] ?? ''));
-    $domain = trim((string)($dockerCfg['domain'] ?? ''));
-    $machine = trim((string)php_uname('n'));
-    foreach ([$host, $domain !== '' ? 'http://' . $domain : '', $machine !== '' ? 'http://' . $machine . ':9000' : '', 'http://localhost:9000', 'http://127.0.0.1:9000'] as $candidate) {
-        $candidate = rtrim(trim($candidate), '/');
-        if ($candidate === '') {
-            continue;
-        }
-        if (!preg_match('#^https?://#i', $candidate)) {
-            $candidate = 'http://' . $candidate;
-        }
-        if (!preg_match('#:\d+$#', preg_replace('#^https?://#i', '', $candidate))) {
-            $candidate .= ':9000';
-        }
-        $candidates[] = $candidate;
-    }
-    return array_values(array_unique($candidates));
-}
-function canAuthenticatePortainer(string $baseUrl, string $username, string $password): bool {
-    if ($username === '' || $password === '') {
-        return false;
-    }
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => rtrim($baseUrl, '/') . '/api/auth',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_POST => true,
-        CURLOPT_TIMEOUT => 10,
-        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
-        CURLOPT_POSTFIELDS => json_encode(['username' => $username, 'password' => $password], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES),
-    ]);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if ($httpCode !== 200) {
-        return false;
-    }
-    $decoded = json_decode((string)$response, true);
-    return is_array($decoded) && trim((string)($decoded['jwt'] ?? '')) !== '';
-}
-function canReachPortainerStatus(string $baseUrl): bool {
-    $ch = curl_init();
-    curl_setopt_array($ch, [
-        CURLOPT_URL => rtrim($baseUrl, '/') . '/api/status',
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT => 5,
-    ]);
-    curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    return $httpCode === 200;
-}
-function resolvePortainerUrl(array $dockerCfg): string {
-    $username = trim((string)($dockerCfg['username'] ?? ''));
-    $password = trim((string)($dockerCfg['password'] ?? ''));
-    $fallback = 'http://localhost:9000';
-    foreach (dockerHostCandidates($dockerCfg) as $candidate) {
-        if (canAuthenticatePortainer($candidate, $username, $password)) {
-            return $candidate;
-        }
-    }
-    foreach (dockerHostCandidates($dockerCfg) as $candidate) {
-        if (canReachPortainerStatus($candidate)) {
-            return $candidate;
-        }
-    }
-    return $fallback;
-}
-define('PORTAINER_URL', resolvePortainerUrl($dockerCfg));
 $displayDomain = trim((string)($_GET['docker_domain'] ?? $configuredDomain));
 if ($displayDomain === '') {
     $displayDomain = 'localhost:9000';
@@ -98,12 +30,12 @@ if (!filter_var($localIpAddr, FILTER_VALIDATE_IP) || $localIpAddr === '::1' || $
 }
 $jwtToken = trim((string)($dockerCfg['token'] ?? ''));
 $i18n = [
-    'en' => ['title' => 'Docker Manager','containers' => 'Containers','networks' => 'Networks','volumes' => 'Volumes','images' => 'Images','system' => 'System','search' => 'Search by name or image...','connected' => 'Connected','api_error' => 'API error','total_containers' => 'Total containers','running' => 'Running','images_count' => 'Images','docker_version' => 'Docker version','containers_list' => 'Containers list','refresh' => 'Refresh','logs' => 'Logs','inspect' => 'Inspect JSON','resources' => 'Resources','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pause','resume' => 'Resume','pull' => 'Pull','update' => 'Update','recreate' => 'Recreate','remove' => 'Delete','name' => 'Name','image' => 'Image','status' => 'Status','ports' => 'Ports','created' => 'Created','repository' => 'Repository','tag' => 'Tag','size' => 'Size','driver' => 'Driver','scope' => 'Scope','mountpoint' => 'Mountpoint','system_info' => 'System information','portainer' => 'Portainer','docker_engine' => 'Docker Engine','disk_usage' => 'Disk usage','main_interface' => 'Open ','api_docs' => 'Portainer API Docs','swagger' => 'Swagger CE 2.39','invalid_id' => 'Invalid container ID','back' => 'Back to list','container_logs' => 'Container logs','stats_snapshot' => 'Resources snapshot','memory' => 'Memory','network' => 'Network','raw_json' => 'Raw JSON','error' => 'Error','no_containers' => 'No containers','no_images' => 'No images','no_data' => 'No data','hide_panel' => 'Click the row again to hide the panel. Logs, inspect and resources open here.','api_missing_token' => 'Docker API token is not configured.','portainer_version' => 'Portainer version','instance_id' => 'Instance ID','docker_version_info' => 'Version (info)','docker_api' => 'Docker API','os_arch' => 'OS / arch','containers_total' => 'Total containers','running_total' => 'Running','stopped_total' => 'Stopped','images_total' => 'Images','volumes_total' => 'Volumes','cpu_cores' => 'CPU cores','ram_total' => 'Total RAM','layers_size' => 'Image layers','images_in_report' => 'Images in report','containers_in_report' => 'Containers in report','volumes_in_report' => 'Volumes in report','endpoint' => 'Endpoint','endpoint_name' => 'Name','endpoint_status' => 'Status','unavailable' => 'Unavailable'],
-    'ru' => ['title' => 'Менеджер Docker','containers' => 'Контейнеры','networks' => 'Сети','volumes' => 'Тома','images' => 'Образы','system' => 'Система','search' => 'Поиск по имени или образу...','connected' => 'Подключено к ','api_error' => 'Ошибка API','total_containers' => 'Всего контейнеров','running' => 'Запущено','images_count' => 'Образов','docker_version' => 'Docker версия','containers_list' => 'Список контейнеров','refresh' => 'Обновить','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продолжить','pull' => 'Pull','update' => 'Обновить','recreate' => 'Пересоздать','remove' => 'Удалить','name' => 'Имя','image' => 'Образ','status' => 'Статус','ports' => 'Порты','created' => 'Создан','repository' => 'Репозиторий','tag' => 'Тег','size' => 'Размер','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтирования','system_info' => 'Информация о системе','portainer' => 'Portainer','docker_engine' => 'Docker Engine','disk_usage' => 'Использование диска','main_interface' => 'Открыть ','api_docs' => 'Документация API Portainer','swagger' => 'Swagger CE 2.39','invalid_id' => 'Некорректный ID контейнера','back' => 'К списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурсы','memory' => 'Память','network' => 'Сеть','raw_json' => 'Сырой JSON','error' => 'Ошибка','no_containers' => 'Нет контейнеров','no_images' => 'Нет образов','no_data' => 'Нет данных','hide_panel' => 'Нажмите на строку ещё раз, чтобы скрыть панель. Логи, inspect и ресурсы открываются здесь.','api_missing_token' => 'Токен Docker API не настроен.','portainer_version' => 'Версия Portainer','instance_id' => 'ID экземпляра','docker_version_info' => 'Версия (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнеров всего','running_total' => 'Запущено','stopped_total' => 'Остановлено','images_total' => 'Образов','volumes_total' => 'Томов','cpu_cores' => 'CPU ядер','ram_total' => 'RAM всего','layers_size' => 'Слои образов','images_in_report' => 'Образов в отчёте','containers_in_report' => 'Контейнеров в отчёте','volumes_in_report' => 'Томов в отчёте','endpoint' => 'Эндпоинт','endpoint_name' => 'Имя','endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
-    'uk' => ['title' => 'Менеджер Docker','containers' => 'Контейнери','networks' => 'Мережі','volumes' => 'Томи','images' => 'Образи','system' => 'Система','search' => 'Пошук за назвою або образом...','connected' => 'Підключено до ','api_error' => 'Помилка API','total_containers' => 'Усього контейнерів','running' => 'Запущено','images_count' => 'Образів','docker_version' => 'Версія Docker','containers_list' => 'Список контейнерів','refresh' => 'Оновити','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурси','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продовжити','pull' => 'Pull','update' => 'Оновити','recreate' => 'Пересоздати','remove' => 'Видалити','name' => "Ім'я",'image' => 'Образ','status' => 'Статус','ports' => 'Порти','created' => 'Створено','repository' => 'Репозиторій','tag' => 'Тег','size' => 'Розмір','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтування','system_info' => 'Інформація про систему','portainer' => 'Portainer','docker_engine' => 'Docker Engine','disk_usage' => 'Використання диска','main_interface' => 'Відкрити ','api_docs' => 'Документація API Portainer','swagger' => 'Swagger CE 2.39','invalid_id' => 'Некоректний ID контейнера','back' => 'До списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурси','memory' => "Пам'ять",'network' => 'Мережа','raw_json' => 'Сирий JSON','error' => 'Помилка','no_containers' => 'Немає контейнерів','no_images' => 'Немає образів','no_data' => 'Немає даних','hide_panel' => 'Натисніть рядок ще раз, щоб сховати панель. Логи, inspect і ресурси відкриваються тут.','api_missing_token' => 'Токен Docker API не налаштований.','portainer_version' => 'Версія Portainer','instance_id' => 'ID екземпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнерів усього','running_total' => 'Запущено','stopped_total' => 'Зупинено','images_total' => 'Образів','volumes_total' => 'Томів','cpu_cores' => 'Ядер CPU','ram_total' => 'RAM усього','layers_size' => 'Шари образів','images_in_report' => 'Образів у звіті','containers_in_report' => 'Контейнерів у звіті','volumes_in_report' => 'Томів у звіті','endpoint' => 'Ендпоінт','endpoint_name' => "Ім'я",'endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
-    'be' => ['title' => 'Менеджар Docker','containers' => 'Кантэйнеры','networks' => 'Сеткі','volumes' => 'Тамы','images' => 'Вобразы','system' => 'Сістэма','search' => 'Пошук па назве або вобразе...','connected' => 'Падключана да ','api_error' => 'Памылка API','total_containers' => 'Усяго кантэйнераў','running' => 'Запушчана','images_count' => 'Вобразаў','docker_version' => 'Версія Docker','containers_list' => 'Спіс кантэйнераў','refresh' => 'Абнавіць','logs' => 'Логі','inspect' => 'Inspect JSON','resources' => 'Рэсурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рэстарт','pause' => 'Паўза','resume' => 'Працягнуць','pull' => 'Pull','update' => 'Абнавіць','recreate' => 'Перастварыць','remove' => 'Выдаліць','name' => 'Імя','image' => 'Вобраз','status' => 'Статус','ports' => 'Парты','created' => 'Створана','repository' => 'Рэпазіторый','tag' => 'Тэг','size' => 'Памер','driver' => 'Драйвер','scope' => 'Вобласць','mountpoint' => 'Кропка мантавання','system_info' => 'Інфармацыя аб сістэме','portainer' => 'Portainer','docker_engine' => 'Docker Engine','disk_usage' => 'Выкарыстанне дыска','main_interface' => 'Адкрыць ','api_docs' => 'Дакументацыя API Portainer','swagger' => 'Swagger CE 2.39','invalid_id' => 'Некарэктны ID кантэйнера','back' => 'Да спісу','container_logs' => 'Логі кантэйнера','stats_snapshot' => 'Рэсурсы','memory' => "Памяць",'network' => 'Сетка','raw_json' => 'Сыры JSON','error' => 'Памылка','no_containers' => 'Няма кантэйнераў','no_images' => 'Няма вобразаў','no_data' => 'Няма даных','hide_panel' => 'Націсніце радок яшчэ раз, каб схаваць панэль. Логі, inspect і рэсурсы адкрываюцца тут.','api_missing_token' => 'Токен Docker API не наладжаны.','portainer_version' => 'Версія Portainer','instance_id' => 'ID экзэмпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'АС / арх','containers_total' => 'Усяго кантэйнераў','running_total' => 'Запушчана','stopped_total' => 'Спынена','images_total' => 'Вобразаў','volumes_total' => 'Тамоў','cpu_cores' => 'Ядраў CPU','ram_total' => 'Усяго RAM','layers_size' => 'Слаі вобразаў','images_in_report' => 'Вобразаў у справаздачы','containers_in_report' => 'Кантэйнераў у справаздачы','volumes_in_report' => 'Тамоў у справаздачы','endpoint' => 'Эндпоінт','endpoint_name' => 'Імя','endpoint_status' => 'Статус','unavailable' => 'Недаступна'],
-    'pl' => ['title' => 'Menedżer Docker','containers' => 'Kontenery','networks' => 'Sieci','volumes' => 'Woluminy','images' => 'Obrazy','system' => 'System','search' => 'Szukaj po nazwie lub obrazie...','connected' => 'Połączono','api_error' => 'Błąd API','total_containers' => 'Wszystkie kontenery','running' => 'Uruchomione','images_count' => 'Obrazy','docker_version' => 'Wersja Docker','containers_list' => 'Lista kontenerów','refresh' => 'Odśwież','logs' => 'Logi','inspect' => 'Inspect JSON','resources' => 'Zasoby','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pauza','resume' => 'Wznów','pull' => 'Pull','update' => 'Aktualizuj','recreate' => 'Odtwórz','remove' => 'Usuń','name' => 'Nazwa','image' => 'Obraz','status' => 'Status','ports' => 'Porty','created' => 'Utworzono','repository' => 'Repozytorium','tag' => 'Tag','size' => 'Rozmiar','driver' => 'Sterownik','scope' => 'Zakres','mountpoint' => 'Punkt montowania','system_info' => 'Informacje o systemie','portainer' => 'Portainer','docker_engine' => 'Docker Engine','disk_usage' => 'Użycie dysku','main_interface' => 'Otwórz ','api_docs' => 'Dokumentacja API Portainer','swagger' => 'Swagger CE 2.39','invalid_id' => 'Nieprawidłowe ID kontenera','back' => 'Powrót do listy','container_logs' => 'Logi kontenera','stats_snapshot' => 'Zasoby','memory' => 'Pamięć','network' => 'Sieć','raw_json' => 'Surowe JSON','error' => 'Błąd','no_containers' => 'Brak kontenerów','no_images' => 'Brak obrazów','no_data' => 'Brak danych','hide_panel' => 'Kliknij wiersz ponownie, aby ukryć panel. Logi, inspect i zasoby otwierają się tutaj.','api_missing_token' => 'Token Docker API nie jest skonfigurowany.','portainer_version' => 'Wersja Portainer','instance_id' => 'ID instancji','docker_version_info' => 'Wersja (info)','docker_api' => 'API Docker','os_arch' => 'System / arch','containers_total' => 'Wszystkie kontenery','running_total' => 'Uruchomione','stopped_total' => 'Zatrzymane','images_total' => 'Obrazy','volumes_total' => 'Woluminy','cpu_cores' => 'Rdzenie CPU','ram_total' => 'RAM ogółem','layers_size' => 'Warstwy obrazów','images_in_report' => 'Obrazów w raporcie','containers_in_report' => 'Kontenerów w raporcie','volumes_in_report' => 'Woluminów w raporcie','endpoint' => 'Endpoint','endpoint_name' => 'Nazwa','endpoint_status' => 'Status','unavailable' => 'Niedostępne'],
-    'cs' => ['title' => 'Manažer Docker','containers' => 'Kontejnery','networks' => 'Sítě','volumes' => 'Svazky','images' => 'Obrazy','system' => 'Systém','search' => 'Hledat podle názvu nebo obrazu...','connected' => 'Připojeno','api_error' => 'Chyba API','total_containers' => 'Celkem kontejnerů','running' => 'Spuštěno','images_count' => 'Obrazy','docker_version' => 'Verze Docker','containers_list' => 'Seznam kontejnerů','refresh' => 'Obnovit','logs' => 'Logy','inspect' => 'Inspect JSON','resources' => 'Zdroje','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pauza','resume' => 'Pokračovat','pull' => 'Pull','update' => 'Aktualizovat','recreate' => 'Přetvořit','remove' => 'Smazat','name' => 'Název','image' => 'Obraz','status' => 'Stav','ports' => 'Porty','created' => 'Vytvořeno','repository' => 'Repozitář','tag' => 'Značka','size' => 'Velikost','driver' => 'Ovladač','scope' => 'Oblast','mountpoint' => 'Přípojný bod','system_info' => 'Informace o systému','portainer' => 'Portainer','docker_engine' => 'Docker Engine','disk_usage' => 'Využití disku','main_interface' => 'Otevřít ','api_docs' => 'Dokumentace API Portainer','swagger' => 'Swagger CE 2.39','invalid_id' => 'Neplatné ID kontejneru','back' => 'Zpět na seznam','container_logs' => 'Logy kontejneru','stats_snapshot' => 'Zdroje','memory' => 'Paměť','network' => 'Síť','raw_json' => 'Surový JSON','error' => 'Chyba','no_containers' => 'Žádné kontejnery','no_images' => 'Žádné obrazy','no_data' => 'Žádná data','hide_panel' => 'Klikněte na řádek znovu pro skrytí panelu. Logy, inspect a zdroje se otevírají zde.','api_missing_token' => 'Token Docker API není nakonfigurován.','portainer_version' => 'Verze Portainer','instance_id' => 'ID instance','docker_version_info' => 'Verze (info)','docker_api' => 'API Docker','os_arch' => 'OS / architektura','containers_total' => 'Celkem kontejnerů','running_total' => 'Spuštěno','stopped_total' => 'Zastaveno','images_total' => 'Obrazy','volumes_total' => 'Svazky','cpu_cores' => 'Jádra CPU','ram_total' => 'Celkem RAM','layers_size' => 'Vrstvy obrazů','images_in_report' => 'Obrazů ve zprávě','containers_in_report' => 'Kontejnerů ve zprávě','volumes_in_report' => 'Svazků ve zprávě','endpoint' => 'Endpoint','endpoint_name' => 'Název','endpoint_status' => 'Stav','unavailable' => 'Nedostupné']
+    'en' => ['title' => 'Docker Manager','containers' => 'Containers','networks' => 'Networks','volumes' => 'Volumes','images' => 'Images','system' => 'System','search' => 'Search by name or image...','connected' => 'Connected','api_error' => 'API error','total_containers' => 'Total containers','running' => 'Running','images_count' => 'Images','docker_version' => 'Docker version','containers_list' => 'Containers list','refresh' => 'Refresh','logs' => 'Logs','inspect' => 'Inspect JSON','resources' => 'Resources','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pause','resume' => 'Resume','pull' => 'Pull','update' => 'Update','recreate' => 'Recreate','remove' => 'Delete','name' => 'Name','image' => 'Image','status' => 'Status','ports' => 'Ports','created' => 'Created','repository' => 'Repository','tag' => 'Tag','size' => 'Size','driver' => 'Driver','scope' => 'Scope','mountpoint' => 'Mountpoint','system_info' => 'System information','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Disk usage','main_interface' => 'Open ','api_docs' => 'Docker Engine API Docs','swagger' => 'Docker Engine API','invalid_id' => 'Invalid container ID','back' => 'Back to list','container_logs' => 'Container logs','stats_snapshot' => 'Resources snapshot','memory' => 'Memory','network' => 'Network','raw_json' => 'Raw JSON','error' => 'Error','no_containers' => 'No containers','no_images' => 'No images','no_data' => 'No data','hide_panel' => 'Click the row again to hide the panel. Logs, inspect and resources open here.','api_missing_token' => 'Docker API token is not configured.','docker_version' => 'Docker version','instance_id' => 'Instance ID','docker_version_info' => 'Version (info)','docker_api' => 'Docker API','os_arch' => 'OS / arch','containers_total' => 'Total containers','running_total' => 'Running','stopped_total' => 'Stopped','images_total' => 'Images','volumes_total' => 'Volumes','cpu_cores' => 'CPU cores','ram_total' => 'Total RAM','layers_size' => 'Image layers','images_in_report' => 'Images in report','containers_in_report' => 'Containers in report','volumes_in_report' => 'Volumes in report','endpoint' => 'Endpoint','endpoint_name' => 'Name','endpoint_status' => 'Status','unavailable' => 'Unavailable'],
+    'ru' => ['title' => 'Менеджер Docker','containers' => 'Контейнеры','networks' => 'Сети','volumes' => 'Тома','images' => 'Образы','system' => 'Система','search' => 'Поиск по имени или образу...','connected' => 'Подключено к ','api_error' => 'Ошибка API','total_containers' => 'Всего контейнеров','running' => 'Запущено','images_count' => 'Образов','docker_version' => 'Docker версия','containers_list' => 'Список контейнеров','refresh' => 'Обновить','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продолжить','pull' => 'Pull','update' => 'Обновить','recreate' => 'Пересоздать','remove' => 'Удалить','name' => 'Имя','image' => 'Образ','status' => 'Статус','ports' => 'Порты','created' => 'Создан','repository' => 'Репозиторий','tag' => 'Тег','size' => 'Размер','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтирования','system_info' => 'Информация о системе','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Использование диска','main_interface' => 'Открыть ','api_docs' => 'Документация API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некорректный ID контейнера','back' => 'К списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурсы','memory' => 'Память','network' => 'Сеть','raw_json' => 'Сырой JSON','error' => 'Ошибка','no_containers' => 'Нет контейнеров','no_images' => 'Нет образов','no_data' => 'Нет данных','hide_panel' => 'Нажмите на строку ещё раз, чтобы скрыть панель. Логи, inspect и ресурсы открываются здесь.','api_missing_token' => 'Токен Docker API не настроен.','docker_version' => 'Версия Docker','instance_id' => 'ID экземпляра','docker_version_info' => 'Версия (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнеров всего','running_total' => 'Запущено','stopped_total' => 'Остановлено','images_total' => 'Образов','volumes_total' => 'Томов','cpu_cores' => 'CPU ядер','ram_total' => 'RAM всего','layers_size' => 'Слои образов','images_in_report' => 'Образов в отчёте','containers_in_report' => 'Контейнеров в отчёте','volumes_in_report' => 'Томов в отчёте','endpoint' => 'Эндпоинт','endpoint_name' => 'Имя','endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
+    'uk' => ['title' => 'Менеджер Docker','containers' => 'Контейнери','networks' => 'Мережі','volumes' => 'Томи','images' => 'Образи','system' => 'Система','search' => 'Пошук за назвою або образом...','connected' => 'Підключено до ','api_error' => 'Помилка API','total_containers' => 'Усього контейнерів','running' => 'Запущено','images_count' => 'Образів','docker_version' => 'Версія Docker','containers_list' => 'Список контейнерів','refresh' => 'Оновити','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурси','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продовжити','pull' => 'Pull','update' => 'Оновити','recreate' => 'Пересоздати','remove' => 'Видалити','name' => "Ім'я",'image' => 'Образ','status' => 'Статус','ports' => 'Порти','created' => 'Створено','repository' => 'Репозиторій','tag' => 'Тег','size' => 'Розмір','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтування','system_info' => 'Інформація про систему','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Використання диска','main_interface' => 'Відкрити ','api_docs' => 'Документація API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некоректний ID контейнера','back' => 'До списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурси','memory' => "Пам'ять",'network' => 'Мережа','raw_json' => 'Сирий JSON','error' => 'Помилка','no_containers' => 'Немає контейнерів','no_images' => 'Немає образів','no_data' => 'Немає даних','hide_panel' => 'Натисніть рядок ще раз, щоб сховати панель. Логи, inspect і ресурси відкриваються тут.','api_missing_token' => 'Токен Docker API не налаштований.','docker_version' => 'Версія Docker','instance_id' => 'ID екземпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнерів усього','running_total' => 'Запущено','stopped_total' => 'Зупинено','images_total' => 'Образів','volumes_total' => 'Томів','cpu_cores' => 'Ядер CPU','ram_total' => 'RAM усього','layers_size' => 'Шари образів','images_in_report' => 'Образів у звіті','containers_in_report' => 'Контейнерів у звіті','volumes_in_report' => 'Томів у звіті','endpoint' => 'Ендпоінт','endpoint_name' => "Ім'я",'endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
+    'be' => ['title' => 'Менеджар Docker','containers' => 'Кантэйнеры','networks' => 'Сеткі','volumes' => 'Тамы','images' => 'Вобразы','system' => 'Сістэма','search' => 'Пошук па назве або вобразе...','connected' => 'Падключана да ','api_error' => 'Памылка API','total_containers' => 'Усяго кантэйнераў','running' => 'Запушчана','images_count' => 'Вобразаў','docker_version' => 'Версія Docker','containers_list' => 'Спіс кантэйнераў','refresh' => 'Абнавіць','logs' => 'Логі','inspect' => 'Inspect JSON','resources' => 'Рэсурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рэстарт','pause' => 'Паўза','resume' => 'Працягнуць','pull' => 'Pull','update' => 'Абнавіць','recreate' => 'Перастварыць','remove' => 'Выдаліць','name' => 'Імя','image' => 'Вобраз','status' => 'Статус','ports' => 'Парты','created' => 'Створана','repository' => 'Рэпазіторый','tag' => 'Тэг','size' => 'Памер','driver' => 'Драйвер','scope' => 'Вобласць','mountpoint' => 'Кропка мантавання','system_info' => 'Інфармацыя аб сістэме','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Выкарыстанне дыска','main_interface' => 'Адкрыць ','api_docs' => 'Дакументацыя API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некарэктны ID кантэйнера','back' => 'Да спісу','container_logs' => 'Логі кантэйнера','stats_snapshot' => 'Рэсурсы','memory' => "Памяць",'network' => 'Сетка','raw_json' => 'Сыры JSON','error' => 'Памылка','no_containers' => 'Няма кантэйнераў','no_images' => 'Няма вобразаў','no_data' => 'Няма даных','hide_panel' => 'Націсніце радок яшчэ раз, каб схаваць панэль. Логі, inspect і рэсурсы адкрываюцца тут.','api_missing_token' => 'Токен Docker API не наладжаны.','docker_version' => 'Версія Docker','instance_id' => 'ID экзэмпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'АС / арх','containers_total' => 'Усяго кантэйнераў','running_total' => 'Запушчана','stopped_total' => 'Спынена','images_total' => 'Вобразаў','volumes_total' => 'Тамоў','cpu_cores' => 'Ядраў CPU','ram_total' => 'Усяго RAM','layers_size' => 'Слаі вобразаў','images_in_report' => 'Вобразаў у справаздачы','containers_in_report' => 'Кантэйнераў у справаздачы','volumes_in_report' => 'Тамоў у справаздачы','endpoint' => 'Эндпоінт','endpoint_name' => 'Імя','endpoint_status' => 'Статус','unavailable' => 'Недаступна'],
+    'pl' => ['title' => 'Menedżer Docker','containers' => 'Kontenery','networks' => 'Sieci','volumes' => 'Woluminy','images' => 'Obrazy','system' => 'System','search' => 'Szukaj po nazwie lub obrazie...','connected' => 'Połączono','api_error' => 'Błąd API','total_containers' => 'Wszystkie kontenery','running' => 'Uruchomione','images_count' => 'Obrazy','docker_version' => 'Wersja Docker','containers_list' => 'Lista kontenerów','refresh' => 'Odśwież','logs' => 'Logi','inspect' => 'Inspect JSON','resources' => 'Zasoby','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pauza','resume' => 'Wznów','pull' => 'Pull','update' => 'Aktualizuj','recreate' => 'Odtwórz','remove' => 'Usuń','name' => 'Nazwa','image' => 'Obraz','status' => 'Status','ports' => 'Porty','created' => 'Utworzono','repository' => 'Repozytorium','tag' => 'Tag','size' => 'Rozmiar','driver' => 'Sterownik','scope' => 'Zakres','mountpoint' => 'Punkt montowania','system_info' => 'Informacje o systemie','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Użycie dysku','main_interface' => 'Otwórz ','api_docs' => 'Dokumentacja API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Nieprawidłowe ID kontenera','back' => 'Powrót do listy','container_logs' => 'Logi kontenera','stats_snapshot' => 'Zasoby','memory' => 'Pamięć','network' => 'Sieć','raw_json' => 'Surowe JSON','error' => 'Błąd','no_containers' => 'Brak kontenerów','no_images' => 'Brak obrazów','no_data' => 'Brak danych','hide_panel' => 'Kliknij wiersz ponownie, aby ukryć panel. Logi, inspect i zasoby otwierają się tutaj.','api_missing_token' => 'Token Docker API nie jest skonfigurowany.','docker_version' => 'Wersja Docker','instance_id' => 'ID instancji','docker_version_info' => 'Wersja (info)','docker_api' => 'API Docker','os_arch' => 'System / arch','containers_total' => 'Wszystkie kontenery','running_total' => 'Uruchomione','stopped_total' => 'Zatrzymane','images_total' => 'Obrazy','volumes_total' => 'Woluminy','cpu_cores' => 'Rdzenie CPU','ram_total' => 'RAM ogółem','layers_size' => 'Warstwy obrazów','images_in_report' => 'Obrazów w raporcie','containers_in_report' => 'Kontenerów w raporcie','volumes_in_report' => 'Woluminów w raporcie','endpoint' => 'Endpoint','endpoint_name' => 'Nazwa','endpoint_status' => 'Status','unavailable' => 'Niedostępne'],
+    'cs' => ['title' => 'Manažer Docker','containers' => 'Kontejnery','networks' => 'Sítě','volumes' => 'Svazky','images' => 'Obrazy','system' => 'Systém','search' => 'Hledat podle názvu nebo obrazu...','connected' => 'Připojeno','api_error' => 'Chyba API','total_containers' => 'Celkem kontejnerů','running' => 'Spuštěno','images_count' => 'Obrazy','docker_version' => 'Verze Docker','containers_list' => 'Seznam kontejnerů','refresh' => 'Obnovit','logs' => 'Logy','inspect' => 'Inspect JSON','resources' => 'Zdroje','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pauza','resume' => 'Pokračovat','pull' => 'Pull','update' => 'Aktualizovat','recreate' => 'Přetvořit','remove' => 'Smazat','name' => 'Název','image' => 'Obraz','status' => 'Stav','ports' => 'Porty','created' => 'Vytvořeno','repository' => 'Repozitář','tag' => 'Značka','size' => 'Velikost','driver' => 'Ovladač','scope' => 'Oblast','mountpoint' => 'Přípojný bod','system_info' => 'Informace o systému','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Využití disku','main_interface' => 'Otevřít ','api_docs' => 'Dokumentace API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Neplatné ID kontejneru','back' => 'Zpět na seznam','container_logs' => 'Logy kontejneru','stats_snapshot' => 'Zdroje','memory' => 'Paměť','network' => 'Síť','raw_json' => 'Surový JSON','error' => 'Chyba','no_containers' => 'Žádné kontejnery','no_images' => 'Žádné obrazy','no_data' => 'Žádná data','hide_panel' => 'Klikněte na řádek znovu pro skrytí panelu. Logy, inspect a zdroje se otevírají zde.','api_missing_token' => 'Token Docker API není nakonfigurován.','docker_version' => 'Verze Docker','instance_id' => 'ID instance','docker_version_info' => 'Verze (info)','docker_api' => 'API Docker','os_arch' => 'OS / architektura','containers_total' => 'Celkem kontejnerů','running_total' => 'Spuštěno','stopped_total' => 'Zastaveno','images_total' => 'Obrazy','volumes_total' => 'Svazky','cpu_cores' => 'Jádra CPU','ram_total' => 'Celkem RAM','layers_size' => 'Vrstvy obrazů','images_in_report' => 'Obrazů ve zprávě','containers_in_report' => 'Kontejnerů ve zprávě','volumes_in_report' => 'Svazků ve zprávě','endpoint' => 'Endpoint','endpoint_name' => 'Název','endpoint_status' => 'Stav','unavailable' => 'Nedostupné']
 ];
 foreach (array_unique(['en', $lang]) as $translationLang) {
     $translationPath = __DIR__ . '/i18n/' . preg_replace('/[^a-z0-9_-]/i', '', $translationLang) . '.json';
@@ -115,12 +47,12 @@ foreach (array_unique(['en', $lang]) as $translationLang) {
     }
 }
 $dockerExtraTranslations = [
-    'en' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Update the stack', 'docker_stack_updated' => 'Stack updated', 'docker_invalid_stack' => 'Invalid stack ID', 'docker_stack_not_found' => 'Stack not found', 'docker_stack_file' => 'Compose file', 'docker_edit_stack' => 'Edit stack', 'docker_compose_detect' => 'Compose file', 'docker_compose_detect_btn' => 'Auto-detect', 'docker_compose_no_access' => 'Docker socket not accessible', 'docker_compose_not_found' => 'Compose file not detected', 'docker_compose_readonly' => 'Compose file auto-detected via Docker Compose CLI. Read-only view.', 'docker_compose_create_hint' => 'To manage through Portainer, create a stack manually in Portainer.'],
-    'ru' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Обновить stack', 'docker_stack_updated' => 'Stack обновлён', 'docker_invalid_stack' => 'Некорректный ID stack', 'docker_stack_not_found' => 'Stack не найден', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редактировать stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Определить', 'docker_compose_no_access' => 'Docker сокет недоступен', 'docker_compose_not_found' => 'Файл compose не обнаружен', 'docker_compose_readonly' => 'Compose файл автоопределён через Docker Compose CLI. Только чтение.', 'docker_compose_create_hint' => 'Чтобы управлять через Portainer, создайте стек вручную в Portainer.'],
-    'uk' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Оновити stack', 'docker_stack_updated' => 'Stack оновлено', 'docker_invalid_stack' => 'Некоректний ID stack', 'docker_stack_not_found' => 'Stack не знайдено', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редагувати stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Визначити', 'docker_compose_no_access' => 'Docker сокет недоступний', 'docker_compose_not_found' => 'Файл compose не виявлено', 'docker_compose_readonly' => 'Compose файл автовизначено через Docker Compose CLI. Тільки читання.', 'docker_compose_create_hint' => 'Щоб керувати через Portainer, створіть стек вручну в Portainer.'],
-    'be' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Абнавіць stack', 'docker_stack_updated' => 'Stack абноўлены', 'docker_invalid_stack' => 'Некарэктны ID stack', 'docker_stack_not_found' => 'Stack не знойдзены', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Рэдагаваць stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Вызначыць', 'docker_compose_no_access' => 'Docker сокет недаступны', 'docker_compose_not_found' => 'Файл compose не выяўлены', 'docker_compose_readonly' => 'Compose файл аўтавызначаны праз Docker Compose CLI. Толькі чытанне.', 'docker_compose_create_hint' => 'Каб кіраваць праз Portainer, стварыце стэк уручную ў Portainer.'],
-    'pl' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Aktualizuj stack', 'docker_stack_updated' => 'Stack zaktualizowany', 'docker_invalid_stack' => 'Nieprawidłowe ID stack', 'docker_stack_not_found' => 'Stack nie znaleziony', 'docker_stack_file' => 'Plik compose', 'docker_edit_stack' => 'Edytuj stack', 'docker_compose_detect' => 'Plik compose', 'docker_compose_detect_btn' => 'Wykryj', 'docker_compose_no_access' => 'Gniazdo Docker niedostępne', 'docker_compose_not_found' => 'Plik compose nie wykryty', 'docker_compose_readonly' => 'Plik compose wykryty automatycznie przez Docker Compose CLI. Widok tylko do odczytu.', 'docker_compose_create_hint' => 'Aby zarządzać przez Portainer, utwórz stack ręcznie w Portainer.'],
-    'cs' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Aktualizovat stack', 'docker_stack_updated' => 'Stack aktualizován', 'docker_invalid_stack' => 'Neplatné ID stack', 'docker_stack_not_found' => 'Stack nenalezen', 'docker_stack_file' => 'Soubor compose', 'docker_edit_stack' => 'Upravit stack', 'docker_compose_detect' => 'Soubor compose', 'docker_compose_detect_btn' => 'Zjistit', 'docker_compose_no_access' => 'Socket Docker není dostupný', 'docker_compose_not_found' => 'Soubor compose nezjištěn', 'docker_compose_readonly' => 'Soubor compose automaticky zjištěn přes Docker Compose CLI. Zobrazení pouze pro čtení.', 'docker_compose_create_hint' => 'Pro správu přes Portainer vytvořte stack ručně v Portainer.']
+    'en' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Update the stack', 'docker_stack_updated' => 'Stack updated', 'docker_invalid_stack' => 'Invalid stack ID', 'docker_stack_not_found' => 'Stack not found', 'docker_stack_file' => 'Compose file', 'docker_edit_stack' => 'Edit stack', 'docker_compose_detect' => 'Compose file', 'docker_compose_detect_btn' => 'Auto-detect', 'docker_compose_no_access' => 'Docker socket not accessible', 'docker_compose_not_found' => 'Compose file not detected', 'docker_compose_readonly' => 'Compose file auto-detected via Docker Compose CLI. Read-only view.', 'docker_compose_create_hint' => 'To manage through Docker, create a stack manually in Docker.'],
+    'ru' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Обновить stack', 'docker_stack_updated' => 'Stack обновлён', 'docker_invalid_stack' => 'Некорректный ID stack', 'docker_stack_not_found' => 'Stack не найден', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редактировать stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Определить', 'docker_compose_no_access' => 'Docker сокет недоступен', 'docker_compose_not_found' => 'Файл compose не обнаружен', 'docker_compose_readonly' => 'Compose файл автоопределён через Docker Compose CLI. Только чтение.', 'docker_compose_create_hint' => 'Чтобы управлять через Docker, создайте стек вручную в Docker.'],
+    'uk' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Оновити stack', 'docker_stack_updated' => 'Stack оновлено', 'docker_invalid_stack' => 'Некоректний ID stack', 'docker_stack_not_found' => 'Stack не знайдено', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Редагувати stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Визначити', 'docker_compose_no_access' => 'Docker сокет недоступний', 'docker_compose_not_found' => 'Файл compose не виявлено', 'docker_compose_readonly' => 'Compose файл автовизначено через Docker Compose CLI. Тільки читання.', 'docker_compose_create_hint' => 'Щоб керувати через Docker, створіть стек вручну в Docker.'],
+    'be' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Абнавіць stack', 'docker_stack_updated' => 'Stack абноўлены', 'docker_invalid_stack' => 'Некарэктны ID stack', 'docker_stack_not_found' => 'Stack не знойдзены', 'docker_stack_file' => 'Compose файл', 'docker_edit_stack' => 'Рэдагаваць stack', 'docker_compose_detect' => 'Compose файл', 'docker_compose_detect_btn' => 'Вызначыць', 'docker_compose_no_access' => 'Docker сокет недаступны', 'docker_compose_not_found' => 'Файл compose не выяўлены', 'docker_compose_readonly' => 'Compose файл аўтавызначаны праз Docker Compose CLI. Толькі чытанне.', 'docker_compose_create_hint' => 'Каб кіраваць праз Docker, стварыце стэк уручную ў Docker.'],
+    'pl' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Aktualizuj stack', 'docker_stack_updated' => 'Stack zaktualizowany', 'docker_invalid_stack' => 'Nieprawidłowe ID stack', 'docker_stack_not_found' => 'Stack nie znaleziony', 'docker_stack_file' => 'Plik compose', 'docker_edit_stack' => 'Edytuj stack', 'docker_compose_detect' => 'Plik compose', 'docker_compose_detect_btn' => 'Wykryj', 'docker_compose_no_access' => 'Gniazdo Docker niedostępne', 'docker_compose_not_found' => 'Plik compose nie wykryty', 'docker_compose_readonly' => 'Plik compose wykryty automatycznie przez Docker Compose CLI. Widok tylko do odczytu.', 'docker_compose_create_hint' => 'Aby zarządzać przez Docker, utwórz stack ręcznie w Docker.'],
+    'cs' => ['docker_stack_editor' => 'Web editor', 'docker_update_stack' => 'Aktualizovat stack', 'docker_stack_updated' => 'Stack aktualizován', 'docker_invalid_stack' => 'Neplatné ID stack', 'docker_stack_not_found' => 'Stack nenalezen', 'docker_stack_file' => 'Soubor compose', 'docker_edit_stack' => 'Upravit stack', 'docker_compose_detect' => 'Soubor compose', 'docker_compose_detect_btn' => 'Zjistit', 'docker_compose_no_access' => 'Socket Docker není dostupný', 'docker_compose_not_found' => 'Soubor compose nezjištěn', 'docker_compose_readonly' => 'Soubor compose automaticky zjištěn přes Docker Compose CLI. Zobrazení pouze pro čtení.', 'docker_compose_create_hint' => 'Pro správu přes Docker vytvořte stack ručně v Docker.']
 ];
 foreach ($dockerExtraTranslations as $translationLang => $translations) {
     $i18n[$translationLang] = array_merge($translations, $i18n[$translationLang] ?? []);
@@ -145,60 +77,8 @@ function dockerUrl(array $params = []) {
     return '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
 }
 
-// Function for API requests
-function tryRefreshDockerToken() {
-    global $dockerCfg, $jwtToken;
-    $username = trim((string)($dockerCfg['username'] ?? ''));
-    $password = trim((string)($dockerCfg['password'] ?? ''));
-    if ($username === '' || $password === '') {
-        return false;
-    }
-    $url = PORTAINER_URL . '/api/auth';
-    $payload = json_encode(['username' => $username, 'password' => $password], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 30);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, $payload);
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if ($httpCode !== 200) {
-        return false;
-    }
-    $decoded = json_decode((string)$response, true);
-    $newToken = is_array($decoded) ? trim((string)($decoded['jwt'] ?? '')) : '';
-    if ($newToken === '') {
-        return false;
-    }
-    $jwtToken = $newToken;
-    $dockerCfg['token'] = $newToken;
-    saveDockerConfig($dockerCfg);
-    return true;
-}
-function callPortainerAPI($endpoint, $method = 'GET', $data = null, $timeout = 120, $retryAuth = true) {
-    global $jwtToken;
-    $url = PORTAINER_URL . '/api/' . $endpoint;
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $method);
-    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-    curl_setopt($ch, CURLOPT_HTTPHEADER, [
-        'Authorization: Bearer ' . $jwtToken,
-        'Content-Type: application/json'
-    ]);
-    if ($data !== null && $data !== '') {
-        curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($data) ? $data : json_encode($data));
-    }
-    $response = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if ($retryAuth && ($httpCode === 401 || $httpCode === 403) && tryRefreshDockerToken()) {
-        return callPortainerAPI($endpoint, $method, $data, $timeout, false);
-    }
-    $decoded = json_decode($response, true);
-    return ['code' => $httpCode, 'data' => $decoded !== null ? $decoded : $response, 'raw' => $response];
+function callDockerAPI($endpoint, $method = 'GET', $data = null, $timeout = 120, $retryAuth = true) {
+    return docker_call((string)$endpoint, (string)$method, $data, (int)$timeout);
 }
 function splitDockerImageRef($image) {
     $image = preg_replace('/@sha256:[a-f0-9]+$/i', '', (string)$image);
@@ -231,34 +111,13 @@ function validStackIdParam($id) {
     return is_string($id) && preg_match('/^\d+$/', $id);
 }
 function dockerStackById($id) {
-    $result = callPortainerAPI('stacks/' . rawurlencode($id));
-    return ($result['code'] === 200 && is_array($result['data'])) ? $result['data'] : null;
+    return null;
 }
 function dockerStackFileContent($id) {
-    $result = callPortainerAPI('stacks/' . rawurlencode($id) . '/file');
-    if ($result['code'] !== 200 || !is_array($result['data'])) {
-        return [null, dockerErrorFromResult($result)];
-    }
-    foreach (['StackFileContent', 'stackFileContent', 'Content'] as $key) {
-        if (isset($result['data'][$key]) && is_string($result['data'][$key])) {
-            return [$result['data'][$key], null];
-        }
-    }
-    return ['', null];
+    return [null, t('docker_stack_not_found')];
 }
 function dockerUpdateStackFile(array $stack, $content, $prune = false, $pullImage = false) {
-    $id = (string)($stack['Id'] ?? '');
-    $endpointId = (int)($stack['EndpointId'] ?? getDockerEndpointId());
-    if ($id === '' || $endpointId <= 0) {
-        return ['code' => 0, 'data' => 'Invalid stack'];
-    }
-    $body = [
-        'StackFileContent' => (string)$content,
-        'Env' => is_array($stack['Env'] ?? null) ? $stack['Env'] : [],
-        'Prune' => (bool)$prune,
-        'PullImage' => (bool)$pullImage
-    ];
-    return callPortainerAPI('stacks/' . rawurlencode($id) . '?endpointId=' . $endpointId, 'PUT', $body, 300);
+    return ['code' => 400, 'data' => ['message' => t('docker_stack_not_found')]];
 }
 function dockerRedirect($message) {
     header('Location: ' . dockerUrl(['message' => $message, 'action' => null, 'id' => null, 'image' => null, 'view' => null]));
@@ -347,12 +206,12 @@ function buildContainerCreateBody(array $inspect) {
     return stripNulls($body);
 }
 function dockerContainerInspect($id) {
-    return callPortainerAPI(dockerApi('containers/' . rawurlencode($id) . '/json'));
+    return callDockerAPI(dockerApi('containers/' . rawurlencode($id) . '/json'));
 }
 function dockerPullImage($imageRef) {
     list($from, $tag) = splitDockerImageRef($imageRef);
     $q = http_build_query(['fromImage' => $from, 'tag' => $tag], '', '&', PHP_QUERY_RFC3986);
-    return callPortainerAPI(dockerApi('images/create?' . $q), 'POST', null, 600);
+    return callDockerAPI(dockerApi('images/create?' . $q), 'POST', null, 600);
 }
 function dockerFindHostContainer() {
     global $containers;
@@ -360,8 +219,8 @@ function dockerFindHostContainer() {
     foreach ($list as $c) {
         $labels = $c['Labels'] ?? [];
         $name = str_replace('/', '', $c['Names'][0] ?? '');
-        if (!empty($labels['io.portainer.server'])) return $c['Id'];
-        if (stripos($name, 'portainer') !== false) return $c['Id'];
+        if (!empty($labels['io.docker.server'])) return $c['Id'];
+        if (stripos($name, 'docker') !== false) return $c['Id'];
     }
     foreach ($list as $c) {
         if (($c['State'] ?? '') === 'running') return $c['Id'];
@@ -385,9 +244,7 @@ function decodeDockerStream($raw) {
 }
 
 function dockerExecReadOutput($containerId, $command, $timeout = 30) {
-    global $jwtToken;
-    $epId = getDockerEndpointId();
-    $createResult = callPortainerAPI(
+    $createResult = callDockerAPI(
         dockerApi('containers/' . rawurlencode($containerId) . '/exec'),
         'POST',
         ['Cmd' => ['sh', '-c', $command], 'AttachStdout' => true, 'AttachStderr' => true, 'Tty' => false],
@@ -395,20 +252,9 @@ function dockerExecReadOutput($containerId, $command, $timeout = 30) {
     );
     if ($createResult['code'] !== 201 || !is_array($createResult['data']) || empty($createResult['data']['Id'])) return null;
     $execId = $createResult['data']['Id'];
-    $url = PORTAINER_URL . '/api/' . dockerApi('exec/' . rawurlencode($execId) . '/start');
-    $ch = curl_init();
-    curl_setopt($ch, CURLOPT_URL, $url);
-    curl_setopt($ch, CURLOPT_POST, true);
-    curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode(['Detach' => false, 'Tty' => false]));
-    curl_setopt($ch, CURLOPT_HTTPHEADER, ['Authorization: Bearer ' . $jwtToken, 'Content-Type: application/json']);
-    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
-    $raw = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    if ($httpCode !== 200 || $raw === false || $raw === '') return null;
-    if (($httpCode === 401 || $httpCode === 403) && tryRefreshDockerToken()) {
-        return dockerExecReadOutput($containerId, $command, $timeout);
-    }
+    $startResult = callDockerAPI(dockerApi('exec/' . rawurlencode($execId) . '/start'), 'POST', ['Detach' => false, 'Tty' => false], $timeout);
+    $raw = is_string($startResult['raw'] ?? null) ? $startResult['raw'] : '';
+    if (($startResult['code'] ?? 0) !== 200 || $raw === '') return null;
     return decodeDockerStream($raw);
 }
 
@@ -437,22 +283,22 @@ function dockerRecreateContainer($id, $imageOverride = null) {
     $state = $inspect['State']['Status'] ?? '';
     $shouldStart = in_array($state, ['running', 'restarting', 'paused'], true);
     if ($state === 'running' || $state === 'paused' || $state === 'restarting') {
-        $st = callPortainerAPI(dockerApi('containers/' . rawurlencode($id) . '/stop'), 'POST', null, 120);
+        $st = callDockerAPI(dockerApi('containers/' . rawurlencode($id) . '/stop'), 'POST', null, 120);
         if ($st['code'] !== 204 && $st['code'] !== 304) {
             return 'Error: stop failed: ' . (is_array($st['data']) && isset($st['data']['message']) ? $st['data']['message'] : 'HTTP ' . $st['code']);
         }
     }
-    $rm = callPortainerAPI(dockerApi('containers/' . rawurlencode($id) . '?force=true'), 'DELETE', null, 120);
+    $rm = callDockerAPI(dockerApi('containers/' . rawurlencode($id) . '?force=true'), 'DELETE', null, 120);
     if ($rm['code'] !== 204) {
         return 'Error: remove failed: ' . (is_array($rm['data']) && isset($rm['data']['message']) ? $rm['data']['message'] : 'HTTP ' . $rm['code']);
     }
-    $cr = callPortainerAPI(dockerApi('containers/create?name=' . rawurlencode($name)), 'POST', $body, 120);
+    $cr = callDockerAPI(dockerApi('containers/create?name=' . rawurlencode($name)), 'POST', $body, 120);
     if ($cr['code'] !== 201 || !is_array($cr['data']) || empty($cr['data']['Id'])) {
         return 'Error: create failed: ' . (is_array($cr['data']) && isset($cr['data']['message']) ? $cr['data']['message'] : 'HTTP ' . $cr['code']);
     }
     $newId = $cr['data']['Id'];
     if ($shouldStart) {
-        $st2 = callPortainerAPI(dockerApi('containers/' . rawurlencode($newId) . '/start'), 'POST', null, 120);
+        $st2 = callDockerAPI(dockerApi('containers/' . rawurlencode($newId) . '/start'), 'POST', null, 120);
         if ($st2['code'] !== 204 && $st2['code'] !== 304) {
             return 'Error: start after recreate failed: ' . (is_array($st2['data']) && isset($st2['data']['message']) ? $st2['data']['message'] : 'HTTP ' . $st2['code']);
         }
@@ -461,28 +307,10 @@ function dockerRecreateContainer($id, $imageOverride = null) {
     return 'Container recreated (was stopped)';
 }
 function getDockerEndpointId() {
-    static $id = null;
-    if ($id !== null) {
-        return $id;
-    }
-    $r = callPortainerAPI('endpoints');
-    if ($r['code'] === 200 && is_array($r['data'])) {
-        foreach ($r['data'] as $ep) {
-            if (isset($ep['Type'], $ep['Id']) && (int)$ep['Type'] === 1) {
-                $id = (int)$ep['Id'];
-                return $id;
-            }
-        }
-        if (!empty($r['data'][0]['Id'])) {
-            $id = (int)$r['data'][0]['Id'];
-            return $id;
-        }
-    }
-    $id = 1;
-    return $id;
+    return 1;
 }
 function dockerApi($suffix) {
-    return 'endpoints/' . getDockerEndpointId() . '/docker/' . ltrim($suffix, '/');
+    return ltrim($suffix, '/');
 }
 function mainSiteUrl() {
     global $displayDomain;
@@ -590,7 +418,7 @@ if ($view === 'logs' && isset($_GET['id'])) {
         viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('invalid_id'), ENT_QUOTES, 'UTF-8') . '</h1>');
         exit;
     }
-    $lr = callPortainerAPI(dockerApi('containers/' . rawurlencode($lid) . '/logs?stdout=true&stderr=true&tail=500'), 'GET', null, 90);
+    $lr = callDockerAPI(dockerApi('containers/' . rawurlencode($lid) . '/logs?stdout=true&stderr=true&tail=500'), 'GET', null, 90);
     $rawLog = is_string($lr['raw'] ?? null) ? $lr['raw'] : '';
     $text = ($lr['code'] === 200) ? dockerDecodeLogStream($rawLog) : ('HTTP ' . $lr['code']);
     $copyId = 'log_' . bin2hex(random_bytes(4));
@@ -615,7 +443,7 @@ if ($view === 'image_inspect' && isset($_GET['id'])) {
         viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('docker_invalid_image'), ENT_QUOTES, 'UTF-8') . '</h1>');
         exit;
     }
-    $ir = callPortainerAPI(dockerApi('images/' . rawurlencode($imageId) . '/json'));
+    $ir = callDockerAPI(dockerApi('images/' . rawurlencode($imageId) . '/json'));
     $json = json_encode($ir['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     viewPageShell(t('docker_image_inspect'), '<div class="view-panel"><h1>' . htmlspecialchars(t('docker_image_inspect'), ENT_QUOTES, 'UTF-8') . '</h1><pre class="json-pre">' . htmlspecialchars($json, ENT_QUOTES, 'UTF-8') . '</pre></div>');
     exit;
@@ -626,7 +454,7 @@ if ($view === 'volume_inspect' && isset($_GET['id'])) {
         viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('docker_invalid_volume'), ENT_QUOTES, 'UTF-8') . '</h1>');
         exit;
     }
-    $vr = callPortainerAPI(dockerApi('volumes/' . rawurlencode($volumeName)));
+    $vr = callDockerAPI(dockerApi('volumes/' . rawurlencode($volumeName)));
     $json = json_encode($vr['data'], JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     viewPageShell(t('docker_volume_inspect'), '<div class="view-panel"><h1>' . htmlspecialchars(t('docker_volume_inspect'), ENT_QUOTES, 'UTF-8') . '</h1><pre class="json-pre">' . htmlspecialchars($json, ENT_QUOTES, 'UTF-8') . '</pre></div>');
     exit;
@@ -637,7 +465,7 @@ if ($view === 'stats' && isset($_GET['id'])) {
         viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('invalid_id'), ENT_QUOTES, 'UTF-8') . '</h1>');
         exit;
     }
-    $sr = callPortainerAPI(dockerApi('containers/' . rawurlencode($sid) . '/stats?stream=false'), 'GET', null, 30);
+    $sr = callDockerAPI(dockerApi('containers/' . rawurlencode($sid) . '/stats?stream=false'), 'GET', null, 30);
     $html = '<div class="view-panel"><h1>' . htmlspecialchars(t('stats_snapshot'), ENT_QUOTES, 'UTF-8') . '</h1>';
     if ($sr['code'] === 200 && is_array($sr['data'])) {
         $d = $sr['data'];
@@ -705,7 +533,7 @@ if ($view === 'stats_data' && isset($_GET['id'])) {
         echo json_encode(['ok' => false, 'error' => 'invalid_id'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
     }
-    $sr = callPortainerAPI(dockerApi('containers/' . rawurlencode($sid) . '/stats?stream=false'), 'GET', null, 20);
+    $sr = callDockerAPI(dockerApi('containers/' . rawurlencode($sid) . '/stats?stream=false'), 'GET', null, 20);
     if (($sr['code'] ?? 0) !== 200 || !is_array($sr['data'])) {
         echo json_encode(['ok' => false, 'error' => 'http_' . (int)($sr['code'] ?? 0)], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
         exit;
@@ -799,22 +627,22 @@ $action = $_GET['action'] ?? '';
 $message = '';
 
 if ($action === 'stop_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/stop'), 'POST');
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/stop'), 'POST');
     dockerRedirect(dockerActionMessage($result, [204, 304], 'docker_container_stopped'));
 }
 
 if ($action === 'start_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/start'), 'POST');
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/start'), 'POST');
     dockerRedirect(dockerActionMessage($result, [204, 304], 'docker_container_started'));
 }
 
 if ($action === 'restart_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/restart'), 'POST');
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/restart'), 'POST');
     dockerRedirect(dockerActionMessage($result, [204], 'docker_container_restarted'));
 }
 
 if ($action === 'remove_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '?force=true'), 'DELETE');
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '?force=true'), 'DELETE');
     dockerRedirect(dockerActionMessage($result, [204], 'docker_container_removed'));
 }
 if ($action === 'pull_image' && isset($_GET['id'])) {
@@ -857,7 +685,7 @@ if ($action === 'remove_image' && isset($_GET['id'])) {
     if ($imageId === '') {
         dockerRedirect(t('docker_invalid_image'));
     }
-    $result = callPortainerAPI(dockerApi('images/' . rawurlencode($imageId) . '?force=true&noprune=false'), 'DELETE', null, 120);
+    $result = callDockerAPI(dockerApi('images/' . rawurlencode($imageId) . '?force=true&noprune=false'), 'DELETE', null, 120);
     dockerRedirect(dockerActionMessage($result, [200, 202, 204], 'docker_image_removed'));
 }
 if ($action === 'remove_volume' && isset($_GET['id'])) {
@@ -865,7 +693,7 @@ if ($action === 'remove_volume' && isset($_GET['id'])) {
     if ($volumeName === '') {
         dockerRedirect(t('docker_invalid_volume'));
     }
-    $result = callPortainerAPI(dockerApi('volumes/' . rawurlencode($volumeName) . '?force=true'), 'DELETE', null, 120);
+    $result = callDockerAPI(dockerApi('volumes/' . rawurlencode($volumeName) . '?force=true'), 'DELETE', null, 120);
     dockerRedirect(dockerActionMessage($result, [204], 'docker_volume_removed'));
 }
 if ($action === 'update_container' && isset($_GET['id'])) {
@@ -893,35 +721,33 @@ if ($action === 'recreate_container' && isset($_GET['id'])) {
     dockerRedirect($msg);
 }
 if ($action === 'pause_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/pause'), 'POST', null, 60);
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/pause'), 'POST', null, 60);
     dockerRedirect(dockerActionMessage($result, [204], 'docker_container_paused'));
 }
 if ($action === 'unpause_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/unpause'), 'POST', null, 60);
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/unpause'), 'POST', null, 60);
     dockerRedirect(dockerActionMessage($result, [204], 'docker_container_unpaused'));
 }
 if ($action === 'kill_container' && isset($_GET['id'])) {
-    $result = callPortainerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/kill'), 'POST', null, 60);
+    $result = callDockerAPI(dockerApi('containers/' . rawurlencode($_GET['id']) . '/kill'), 'POST', null, 60);
     dockerRedirect(dockerActionMessage($result, [204], 'docker_container_killed'));
 }
 
 $message = $_GET['message'] ?? '';
 $epId = getDockerEndpointId();
-$containers = callPortainerAPI(dockerApi('containers/json?all=true'));
-$stacks = callPortainerAPI('stacks');
-$stats = callPortainerAPI(dockerApi('info'));
-$images = callPortainerAPI(dockerApi('images/json'));
-$systemInfo = callPortainerAPI('endpoints/' . $epId);
-$portainerStatus = callPortainerAPI('status');
-$networksList = callPortainerAPI(dockerApi('networks'));
-$volumesList = callPortainerAPI(dockerApi('volumes'));
-$dockerVersionInfo = callPortainerAPI(dockerApi('version'));
-$systemDfData = callPortainerAPI(dockerApi('system/df'));
+$containers = callDockerAPI(dockerApi('containers/json?all=true'));
+$stacks = ['code' => 200, 'data' => []];
+$stats = callDockerAPI(dockerApi('info'));
+$images = callDockerAPI(dockerApi('images/json'));
+$systemInfo = ['code' => 200, 'data' => ['Name' => 'Local Docker socket', 'URL' => docker_socket_path(), 'Status' => 1]];
+$dockerStatus = callDockerAPI(dockerApi('version'));
+$networksList = callDockerAPI(dockerApi('networks'));
+$volumesList = callDockerAPI(dockerApi('volumes'));
+$dockerVersionInfo = callDockerAPI(dockerApi('version'));
+$systemDfData = callDockerAPI(dockerApi('system/df'));
 $apiError = null;
 $cd = $containers['data'];
-if ($jwtToken === '') {
-    $apiError = t('api_missing_token');
-} elseif ($containers['code'] !== 200) {
+if ($containers['code'] !== 200) {
     $apiError = is_array($cd) && isset($cd['message']) ? $cd['message'] : ('HTTP ' . $containers['code']);
 } elseif (!is_array($cd)) {
     $apiError = 'Invalid API response';
@@ -1504,8 +1330,8 @@ function ico($n) {
         </div>
         <div class="sidebar-footer">
             <a href="http://<?php echo htmlspecialchars($localIpAddr, ENT_QUOTES, 'UTF-8'); ?>:9000" target="_blank" rel="noopener noreferrer"><?php echo ico('external'); ?> <?php echo htmlspecialchars(t('main_interface'), ENT_QUOTES, 'UTF-8'); ?><?php echo htmlspecialchars($localIpAddr, ENT_QUOTES, 'UTF-8'); ?>:9000</a>
-            <a href="https://docs.portainer.io/api/docs" target="_blank" rel="noopener noreferrer"><?php echo ico('info'); ?> <?php echo htmlspecialchars(t('api_docs'), ENT_QUOTES, 'UTF-8'); ?></a>
-            <a href="https://api-docs.portainer.io/?edition=ce&amp;version=2.39.1" target="_blank" rel="noopener noreferrer"><?php echo ico('layers'); ?> <?php echo htmlspecialchars(t('swagger'), ENT_QUOTES, 'UTF-8'); ?></a>
+            <a href="https://docs.docker.com/reference/api/engine/" target="_blank" rel="noopener noreferrer"><?php echo ico('info'); ?> <?php echo htmlspecialchars(t('api_docs'), ENT_QUOTES, 'UTF-8'); ?></a>
+            <a href="https://docs.docker.com/reference/api/engine/version/v1.51/" target="_blank" rel="noopener noreferrer"><?php echo ico('layers'); ?> <?php echo htmlspecialchars(t('swagger'), ENT_QUOTES, 'UTF-8'); ?></a>
         </div>
     </div>
     
@@ -1877,10 +1703,10 @@ function ico($n) {
                 </div>
             </div>
             <div style="padding: 4px 4px 8px;">
-                <h3><?php echo htmlspecialchars(t('portainer'), ENT_QUOTES, 'UTF-8'); ?></h3>
+                <h3><?php echo htmlspecialchars(t('docker'), ENT_QUOTES, 'UTF-8'); ?></h3>
                 <div class="info-grid">
-                    <div><strong><?php echo htmlspecialchars(t('portainer_version'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo ($portainerStatus['code'] === 200 && is_array($portainerStatus['data'])) ? htmlspecialchars($portainerStatus['data']['Version'] ?? '—') : ('HTTP ' . (int)($portainerStatus['code'] ?? 0)); ?></div>
-                    <div><strong><?php echo htmlspecialchars(t('instance_id'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo ($portainerStatus['code'] === 200 && is_array($portainerStatus['data'])) ? htmlspecialchars(substr((string)($portainerStatus['data']['InstanceID'] ?? ''), 0, 36)) : '—'; ?></div>
+                    <div><strong><?php echo htmlspecialchars(t('docker_version'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo ($dockerStatus['code'] === 200 && is_array($dockerStatus['data'])) ? htmlspecialchars($dockerStatus['data']['Version'] ?? '—') : ('HTTP ' . (int)($dockerStatus['code'] ?? 0)); ?></div>
+                    <div><strong><?php echo htmlspecialchars(t('instance_id'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo ($dockerStatus['code'] === 200 && is_array($dockerStatus['data'])) ? htmlspecialchars(substr((string)($dockerStatus['data']['InstanceID'] ?? ''), 0, 36)) : '—'; ?></div>
                 </div>
                 <h3 style="margin-top: 22px;"><?php echo ico('layers'); ?> <?php echo htmlspecialchars(t('docker_engine'), ENT_QUOTES, 'UTF-8'); ?></h3>
                 <div class="info-grid">

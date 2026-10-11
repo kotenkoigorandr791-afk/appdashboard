@@ -22,7 +22,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     id: "docker",
-    description: "Docker containers read-only (Portainer)",
+    description: "Docker containers read-only",
     prefixes: ["container_"],
     names: ["list_containers"],
   },

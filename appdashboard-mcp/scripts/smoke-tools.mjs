@@ -81,19 +81,19 @@ async function main() {
   await run("list_apps");
   await run("get_shared_files");
 
-  // docker — Portainer may be down in local env; treat unreachable as env skip after verifying API shape
+  // docker — Docker may be down in local env; treat unreachable as env skip after verifying API shape
   const containers = await callTool("list_containers", {});
   const cdata = parseText(containers);
   const dockerUnreachable =
     cdata?.ok === false &&
-    (String(cdata?.error || "").includes("portainer") ||
+    (String(cdata?.error || "").includes("docker") ||
       String(cdata?.error || "").includes("HTTP 0") ||
       cdata?.http === 0 ||
-      String(JSON.stringify(cdata?.data || "")).includes("portainer_unreachable"));
+      String(JSON.stringify(cdata?.data || "")).includes("docker_unreachable"));
   if (dockerUnreachable) {
-    record("list_containers", true, "env_skip_portainer_unreachable: " + JSON.stringify(cdata).slice(0, 200));
+    record("list_containers", true, "env_skip_docker_unreachable: " + JSON.stringify(cdata).slice(0, 200));
     for (const n of ["container_stats", "container_logs"]) {
-      record(n, true, "env_skip_portainer_unreachable");
+      record(n, true, "env_skip_docker_unreachable");
     }
   } else {
     record("list_containers", isOk(cdata), JSON.stringify(cdata));

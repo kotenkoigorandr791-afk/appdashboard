@@ -14,13 +14,17 @@
         "symfony/event-dispatcher-contracts": "^2|^3",
         "symfony/finder": "^5.4|^6.0|^7.0",
         "symfony/service-contracts": "^2|^3",
-        "symfony/string": "^5.4|^6.0|^7.0"
+        "symfony/string": "^5.4|^6.0|^7.0",
+        "webproject-xyz/docker-api-client": "^1.5"
     },
     "config": {
         "audit": {
             "ignore": ["true"]
         },
         "optimize-autoloader": true,
-        "sort-packages": true
+        "sort-packages": true,
+        "allow-plugins": {
+            "symfony/runtime": true
+        }
     }
 }

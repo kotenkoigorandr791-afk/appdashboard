@@ -10,7 +10,7 @@ const idSchema = {
 export const dockerTools: ToolDef[] = [
   {
     name: "list_containers",
-    description: "List Docker containers via Portainer.",
+    description: "List Docker containers via Docker Engine API.",
     minRole: 1,
     inputSchema: { type: "object", properties: {} },
     handler: async () => textResult(await apiGet("/public-api/docker/containers")),
