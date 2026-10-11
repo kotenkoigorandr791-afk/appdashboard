@@ -258,22 +258,63 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 0 16px;
     background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
-    padding: 0 16px;
     height: 60px;
-    flex-shrink: 0;
-    box-sizing: border-box;
+}
+@media (max-width: 768px) {
+    #ap-topbar {
+        padding: 0 6px;
+    }
+    #ap-topbar .ap-brand {
+        flex: 0 0 auto;
+    }
+    #ap-topbar .ap-user-info {
+        margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
 }
 #ap-topbar .ap-brand {
     display: flex;
     align-items: center;
     gap: 10px;
-    font-size: 22px;
+    font-size: 18px;
     font-weight: 700;
     letter-spacing: 1px;
     color: var(--text-color);
     text-transform: uppercase;
+}
+@media (max-width: 768px) {
+    #ap-topbar .ap-brand {
+        font-size: 12px;
+        gap: 2px;
+    }
+    #ap-topbar {
+        padding: 0 6px;
+    }
+    #ap-topbar .ap-user-info {
+        gap: 2px;
+    }
+    #ap-topbar .ap-user-info img {
+        margin-left: auto;
+    }
+    #ap-topbar .ap-user-name {
+        font-size: 9px;
+    }
+    #ap-topbar .ap-user-role {
+        font-size: 7px;
+        padding: 1px 3px;
+        border-radius: 5px;
+    }
+    #ap-close-btn {
+        width: 26px;
+        height: 26px;
+        font-size: 16px;
+        margin-left: 2px;
+    }
 }
 #ap-topbar .ap-brand svg { color: var(--primary-color); }
 #ap-topbar .ap-user-info {
@@ -617,17 +658,17 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
 
 @media (max-width: 768px) {
     .ap-stat-grid {
-        grid-template-columns: repeat(3, 1fr);
-        gap: 6px;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px;
     }
     .ap-stat-tile {
-        padding: 8px 4px;
+        padding: 6px 3px;
     }
     .ap-stat-tile .ap-stat-value {
-        font-size: 17px;
+        font-size: 15px;
     }
     .ap-stat-tile .ap-stat-label {
-        font-size: 10px;
+        font-size: 9px;
     }
 }
 #ap-stats-range-controls { flex-wrap: wrap; }
@@ -1028,6 +1069,20 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     }
     #ap-pie-canvas {
         max-width: 100%;
+    }
+}
+@media (max-width: 768px) {
+    #ap-settings .ap-field,
+    #ap-settings .ap-field input[type="text"],
+    #ap-settings .ap-field input[type="password"],
+    #ap-settings .ap-field input[type="number"],
+    #ap-settings .ap-field input[type="email"],
+    #ap-settings .ap-field textarea,
+    #ap-settings .ap-pwd-wrap,
+    #ap-settings .ap-recipients-box {
+        width: 100% !important;
+        max-width: 100% !important;
+        box-sizing: border-box !important;
     }
 }
 

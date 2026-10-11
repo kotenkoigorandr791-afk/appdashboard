@@ -575,7 +575,7 @@
   "groupsRoot": "Группы",
   "guest": "Гость",
   "hidden": "Скрытый",
-  "hideLanguageSwitcherOnMainPage": "Скрыть переключатель языков на главной странице",
+  "hideLanguageSwitcherOnMainPage": "Скрыть переключатель языков на мобильных устройствах",
   "hidePassword": "Скрыть пароль",
   "historyCleared": "История чата очищена",
   "hotkey1": "Ctrl+S — Сохранить файл",
@@ -1093,5 +1093,5 @@
   "yes": "Да",
   "zoom": "Масштаб",
   "noResults": "Нет результатов",
-  "openTabs": "Нет результатов (Otviť kteréi dlagisni)"
+  "openTabs": "Нет результатов (Открытые вкладки)"
 }
