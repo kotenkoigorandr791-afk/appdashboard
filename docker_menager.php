@@ -21,21 +21,14 @@ $displayDomain = trim((string)($_GET['docker_domain'] ?? $configuredDomain));
 if ($displayDomain === '') {
     $displayDomain = 'localhost:9000';
 }
-$localIpAddr = $_SERVER['SERVER_ADDR'] ?? '';
-if (!filter_var($localIpAddr, FILTER_VALIDATE_IP) || $localIpAddr === '::1' || $localIpAddr === '127.0.0.1' || strpos($localIpAddr, '100.') === 0) {
-    $localIpAddr = gethostbyname(php_uname('n'));
-    if ($localIpAddr === php_uname('n') || !filter_var($localIpAddr, FILTER_VALIDATE_IP) || strpos($localIpAddr, '100.') === 0) {
-        $localIpAddr = 'localhost';
-    }
-}
 $jwtToken = trim((string)($dockerCfg['token'] ?? ''));
 $i18n = [
     'en' => ['title' => 'Docker Manager','containers' => 'Containers','networks' => 'Networks','volumes' => 'Volumes','images' => 'Images','system' => 'System','search' => 'Search by name or image...','connected' => 'Connected','api_error' => 'API error','total_containers' => 'Total containers','running' => 'Running','images_count' => 'Images','docker_version' => 'Docker version','containers_list' => 'Containers list','refresh' => 'Refresh','logs' => 'Logs','inspect' => 'Inspect JSON','resources' => 'Resources','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pause','resume' => 'Resume','pull' => 'Pull','update' => 'Update','recreate' => 'Recreate','remove' => 'Delete','name' => 'Name','image' => 'Image','status' => 'Status','ports' => 'Ports','created' => 'Created','repository' => 'Repository','tag' => 'Tag','size' => 'Size','driver' => 'Driver','scope' => 'Scope','mountpoint' => 'Mountpoint','system_info' => 'System information','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Disk usage','main_interface' => 'Open ','api_docs' => 'Docker Engine API Docs','swagger' => 'Docker Engine API','invalid_id' => 'Invalid container ID','back' => 'Back to list','container_logs' => 'Container logs','stats_snapshot' => 'Resources snapshot','memory' => 'Memory','network' => 'Network','raw_json' => 'Raw JSON','error' => 'Error','no_containers' => 'No containers','no_images' => 'No images','no_data' => 'No data','hide_panel' => 'Click the row again to hide the panel. Logs, inspect and resources open here.','api_missing_token' => 'Docker API token is not configured.','docker_version' => 'Docker version','instance_id' => 'Instance ID','docker_version_info' => 'Version (info)','docker_api' => 'Docker API','os_arch' => 'OS / arch','containers_total' => 'Total containers','running_total' => 'Running','stopped_total' => 'Stopped','images_total' => 'Images','volumes_total' => 'Volumes','cpu_cores' => 'CPU cores','ram_total' => 'Total RAM','layers_size' => 'Image layers','images_in_report' => 'Images in report','containers_in_report' => 'Containers in report','volumes_in_report' => 'Volumes in report','endpoint' => 'Endpoint','endpoint_name' => 'Name','endpoint_status' => 'Status','unavailable' => 'Unavailable'],
-    'ru' => ['title' => 'Менеджер Docker','containers' => 'Контейнеры','networks' => 'Сети','volumes' => 'Тома','images' => 'Образы','system' => 'Система','search' => 'Поиск по имени или образу...','connected' => 'Подключено к ','api_error' => 'Ошибка API','total_containers' => 'Всего контейнеров','running' => 'Запущено','images_count' => 'Образов','docker_version' => 'Docker версия','containers_list' => 'Список контейнеров','refresh' => 'Обновить','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продолжить','pull' => 'Pull','update' => 'Обновить','recreate' => 'Пересоздать','remove' => 'Удалить','name' => 'Имя','image' => 'Образ','status' => 'Статус','ports' => 'Порты','created' => 'Создан','repository' => 'Репозиторий','tag' => 'Тег','size' => 'Размер','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтирования','system_info' => 'Информация о системе','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Использование диска','main_interface' => 'Открыть ','api_docs' => 'Документация API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некорректный ID контейнера','back' => 'К списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурсы','memory' => 'Память','network' => 'Сеть','raw_json' => 'Сырой JSON','error' => 'Ошибка','no_containers' => 'Нет контейнеров','no_images' => 'Нет образов','no_data' => 'Нет данных','hide_panel' => 'Нажмите на строку ещё раз, чтобы скрыть панель. Логи, inspect и ресурсы открываются здесь.','api_missing_token' => 'Токен Docker API не настроен.','docker_version' => 'Версия Docker','instance_id' => 'ID экземпляра','docker_version_info' => 'Версия (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнеров всего','running_total' => 'Запущено','stopped_total' => 'Остановлено','images_total' => 'Образов','volumes_total' => 'Томов','cpu_cores' => 'CPU ядер','ram_total' => 'RAM всего','layers_size' => 'Слои образов','images_in_report' => 'Образов в отчёте','containers_in_report' => 'Контейнеров в отчёте','volumes_in_report' => 'Томов в отчёте','endpoint' => 'Эндпоинт','endpoint_name' => 'Имя','endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
-    'uk' => ['title' => 'Менеджер Docker','containers' => 'Контейнери','networks' => 'Мережі','volumes' => 'Томи','images' => 'Образи','system' => 'Система','search' => 'Пошук за назвою або образом...','connected' => 'Підключено до ','api_error' => 'Помилка API','total_containers' => 'Усього контейнерів','running' => 'Запущено','images_count' => 'Образів','docker_version' => 'Версія Docker','containers_list' => 'Список контейнерів','refresh' => 'Оновити','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурси','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продовжити','pull' => 'Pull','update' => 'Оновити','recreate' => 'Пересоздати','remove' => 'Видалити','name' => "Ім'я",'image' => 'Образ','status' => 'Статус','ports' => 'Порти','created' => 'Створено','repository' => 'Репозиторій','tag' => 'Тег','size' => 'Розмір','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтування','system_info' => 'Інформація про систему','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Використання диска','main_interface' => 'Відкрити ','api_docs' => 'Документація API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некоректний ID контейнера','back' => 'До списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурси','memory' => "Пам'ять",'network' => 'Мережа','raw_json' => 'Сирий JSON','error' => 'Помилка','no_containers' => 'Немає контейнерів','no_images' => 'Немає образів','no_data' => 'Немає даних','hide_panel' => 'Натисніть рядок ще раз, щоб сховати панель. Логи, inspect і ресурси відкриваються тут.','api_missing_token' => 'Токен Docker API не налаштований.','docker_version' => 'Версія Docker','instance_id' => 'ID екземпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнерів усього','running_total' => 'Запущено','stopped_total' => 'Зупинено','images_total' => 'Образів','volumes_total' => 'Томів','cpu_cores' => 'Ядер CPU','ram_total' => 'RAM усього','layers_size' => 'Шари образів','images_in_report' => 'Образів у звіті','containers_in_report' => 'Контейнерів у звіті','volumes_in_report' => 'Томів у звіті','endpoint' => 'Ендпоінт','endpoint_name' => "Ім'я",'endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
-    'be' => ['title' => 'Менеджар Docker','containers' => 'Кантэйнеры','networks' => 'Сеткі','volumes' => 'Тамы','images' => 'Вобразы','system' => 'Сістэма','search' => 'Пошук па назве або вобразе...','connected' => 'Падключана да ','api_error' => 'Памылка API','total_containers' => 'Усяго кантэйнераў','running' => 'Запушчана','images_count' => 'Вобразаў','docker_version' => 'Версія Docker','containers_list' => 'Спіс кантэйнераў','refresh' => 'Абнавіць','logs' => 'Логі','inspect' => 'Inspect JSON','resources' => 'Рэсурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рэстарт','pause' => 'Паўза','resume' => 'Працягнуць','pull' => 'Pull','update' => 'Абнавіць','recreate' => 'Перастварыць','remove' => 'Выдаліць','name' => 'Імя','image' => 'Вобраз','status' => 'Статус','ports' => 'Парты','created' => 'Створана','repository' => 'Рэпазіторый','tag' => 'Тэг','size' => 'Памер','driver' => 'Драйвер','scope' => 'Вобласць','mountpoint' => 'Кропка мантавання','system_info' => 'Інфармацыя аб сістэме','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Выкарыстанне дыска','main_interface' => 'Адкрыць ','api_docs' => 'Дакументацыя API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некарэктны ID кантэйнера','back' => 'Да спісу','container_logs' => 'Логі кантэйнера','stats_snapshot' => 'Рэсурсы','memory' => "Памяць",'network' => 'Сетка','raw_json' => 'Сыры JSON','error' => 'Памылка','no_containers' => 'Няма кантэйнераў','no_images' => 'Няма вобразаў','no_data' => 'Няма даных','hide_panel' => 'Націсніце радок яшчэ раз, каб схаваць панэль. Логі, inspect і рэсурсы адкрываюцца тут.','api_missing_token' => 'Токен Docker API не наладжаны.','docker_version' => 'Версія Docker','instance_id' => 'ID экзэмпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'АС / арх','containers_total' => 'Усяго кантэйнераў','running_total' => 'Запушчана','stopped_total' => 'Спынена','images_total' => 'Вобразаў','volumes_total' => 'Тамоў','cpu_cores' => 'Ядраў CPU','ram_total' => 'Усяго RAM','layers_size' => 'Слаі вобразаў','images_in_report' => 'Вобразаў у справаздачы','containers_in_report' => 'Кантэйнераў у справаздачы','volumes_in_report' => 'Тамоў у справаздачы','endpoint' => 'Эндпоінт','endpoint_name' => 'Імя','endpoint_status' => 'Статус','unavailable' => 'Недаступна'],
-    'pl' => ['title' => 'Menedżer Docker','containers' => 'Kontenery','networks' => 'Sieci','volumes' => 'Woluminy','images' => 'Obrazy','system' => 'System','search' => 'Szukaj po nazwie lub obrazie...','connected' => 'Połączono','api_error' => 'Błąd API','total_containers' => 'Wszystkie kontenery','running' => 'Uruchomione','images_count' => 'Obrazy','docker_version' => 'Wersja Docker','containers_list' => 'Lista kontenerów','refresh' => 'Odśwież','logs' => 'Logi','inspect' => 'Inspect JSON','resources' => 'Zasoby','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pauza','resume' => 'Wznów','pull' => 'Pull','update' => 'Aktualizuj','recreate' => 'Odtwórz','remove' => 'Usuń','name' => 'Nazwa','image' => 'Obraz','status' => 'Status','ports' => 'Porty','created' => 'Utworzono','repository' => 'Repozytorium','tag' => 'Tag','size' => 'Rozmiar','driver' => 'Sterownik','scope' => 'Zakres','mountpoint' => 'Punkt montowania','system_info' => 'Informacje o systemie','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Użycie dysku','main_interface' => 'Otwórz ','api_docs' => 'Dokumentacja API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Nieprawidłowe ID kontenera','back' => 'Powrót do listy','container_logs' => 'Logi kontenera','stats_snapshot' => 'Zasoby','memory' => 'Pamięć','network' => 'Sieć','raw_json' => 'Surowe JSON','error' => 'Błąd','no_containers' => 'Brak kontenerów','no_images' => 'Brak obrazów','no_data' => 'Brak danych','hide_panel' => 'Kliknij wiersz ponownie, aby ukryć panel. Logi, inspect i zasoby otwierają się tutaj.','api_missing_token' => 'Token Docker API nie jest skonfigurowany.','docker_version' => 'Wersja Docker','instance_id' => 'ID instancji','docker_version_info' => 'Wersja (info)','docker_api' => 'API Docker','os_arch' => 'System / arch','containers_total' => 'Wszystkie kontenery','running_total' => 'Uruchomione','stopped_total' => 'Zatrzymane','images_total' => 'Obrazy','volumes_total' => 'Woluminy','cpu_cores' => 'Rdzenie CPU','ram_total' => 'RAM ogółem','layers_size' => 'Warstwy obrazów','images_in_report' => 'Obrazów w raporcie','containers_in_report' => 'Kontenerów w raporcie','volumes_in_report' => 'Woluminów w raporcie','endpoint' => 'Endpoint','endpoint_name' => 'Nazwa','endpoint_status' => 'Status','unavailable' => 'Niedostępne'],
-    'cs' => ['title' => 'Manažer Docker','containers' => 'Kontejnery','networks' => 'Sítě','volumes' => 'Svazky','images' => 'Obrazy','system' => 'Systém','search' => 'Hledat podle názvu nebo obrazu...','connected' => 'Připojeno','api_error' => 'Chyba API','total_containers' => 'Celkem kontejnerů','running' => 'Spuštěno','images_count' => 'Obrazy','docker_version' => 'Verze Docker','containers_list' => 'Seznam kontejnerů','refresh' => 'Obnovit','logs' => 'Logy','inspect' => 'Inspect JSON','resources' => 'Zdroje','start' => 'Start','stop' => 'Stop','restart' => 'Restart','pause' => 'Pauza','resume' => 'Pokračovat','pull' => 'Pull','update' => 'Aktualizovat','recreate' => 'Přetvořit','remove' => 'Smazat','name' => 'Název','image' => 'Obraz','status' => 'Stav','ports' => 'Porty','created' => 'Vytvořeno','repository' => 'Repozitář','tag' => 'Značka','size' => 'Velikost','driver' => 'Ovladač','scope' => 'Oblast','mountpoint' => 'Přípojný bod','system_info' => 'Informace o systému','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Využití disku','main_interface' => 'Otevřít ','api_docs' => 'Dokumentace API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Neplatné ID kontejneru','back' => 'Zpět na seznam','container_logs' => 'Logy kontejneru','stats_snapshot' => 'Zdroje','memory' => 'Paměť','network' => 'Síť','raw_json' => 'Surový JSON','error' => 'Chyba','no_containers' => 'Žádné kontejnery','no_images' => 'Žádné obrazy','no_data' => 'Žádná data','hide_panel' => 'Klikněte na řádek znovu pro skrytí panelu. Logy, inspect a zdroje se otevírají zde.','api_missing_token' => 'Token Docker API není nakonfigurován.','docker_version' => 'Verze Docker','instance_id' => 'ID instance','docker_version_info' => 'Verze (info)','docker_api' => 'API Docker','os_arch' => 'OS / architektura','containers_total' => 'Celkem kontejnerů','running_total' => 'Spuštěno','stopped_total' => 'Zastaveno','images_total' => 'Obrazy','volumes_total' => 'Svazky','cpu_cores' => 'Jádra CPU','ram_total' => 'Celkem RAM','layers_size' => 'Vrstvy obrazů','images_in_report' => 'Obrazů ve zprávě','containers_in_report' => 'Kontejnerů ve zprávě','volumes_in_report' => 'Svazků ve zprávě','endpoint' => 'Endpoint','endpoint_name' => 'Název','endpoint_status' => 'Stav','unavailable' => 'Nedostupné']
+    'ru' => ['title' => 'Менеджер Docker','containers' => 'Контейнеры','networks' => 'Сети','volumes' => 'Тома','images' => 'Образы','system' => 'Система','search' => 'Поиск по имени или образу...','connected' => 'Подключено к ','api_error' => 'Ошибка API','total_containers' => 'Всего контейнеров','running' => 'Запущено','images_count' => 'Образов','docker_version' => 'Docker версия','containers_list' => 'Список контейнеров','refresh' => 'Обновить','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продолжить','pull' => 'Скачать','update' => 'Обновить','recreate' => 'Пересоздать','remove' => 'Удалить','name' => 'Имя','image' => 'Образ','status' => 'Статус','ports' => 'Порты','created' => 'Создан','repository' => 'Репозиторий','tag' => 'Тег','size' => 'Размер','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтирования','system_info' => 'Информация о системе','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Использование диска','main_interface' => 'Открыть ','api_docs' => 'Документация API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некорректный ID контейнера','back' => 'К списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурсы','memory' => 'Память','network' => 'Сеть','raw_json' => 'Сырой JSON','error' => 'Ошибка','no_containers' => 'Нет контейнеров','no_images' => 'Нет образов','no_data' => 'Нет данных','hide_panel' => 'Нажмите на строку ещё раз, чтобы скрыть панель. Логи, inspect и ресурсы открываются здесь.','api_missing_token' => 'Токен Docker API не настроен.','docker_version' => 'Версия Docker','instance_id' => 'ID экземпляра','docker_version_info' => 'Версия (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнеров всего','running_total' => 'Запущено','stopped_total' => 'Остановлено','images_total' => 'Образов','volumes_total' => 'Томов','cpu_cores' => 'CPU ядер','ram_total' => 'RAM всего','layers_size' => 'Слои образов','images_in_report' => 'Образов в отчёте','containers_in_report' => 'Контейнеров в отчёте','volumes_in_report' => 'Томов в отчёте','endpoint' => 'Эндпоинт','endpoint_name' => 'Имя','endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
+    'uk' => ['title' => 'Менеджер Docker','containers' => 'Контейнери','networks' => 'Мережі','volumes' => 'Томи','images' => 'Образи','system' => 'Система','search' => 'Пошук за назвою або образом...','connected' => 'Підключено до ','api_error' => 'Помилка API','total_containers' => 'Усього контейнерів','running' => 'Запущено','images_count' => 'Образів','docker_version' => 'Версія Docker','containers_list' => 'Список контейнерів','refresh' => 'Оновити','logs' => 'Логи','inspect' => 'Inspect JSON','resources' => 'Ресурси','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рестарт','pause' => 'Пауза','resume' => 'Продовжити','pull' => 'Завантажити','update' => 'Оновити','recreate' => 'Пересоздати','remove' => 'Видалити','name' => "Ім'я",'image' => 'Образ','status' => 'Статус','ports' => 'Порти','created' => 'Створено','repository' => 'Репозиторій','tag' => 'Тег','size' => 'Розмір','driver' => 'Драйвер','scope' => 'Область','mountpoint' => 'Точка монтування','system_info' => 'Інформація про систему','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Використання диска','main_interface' => 'Відкрити ','api_docs' => 'Документація API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некоректний ID контейнера','back' => 'До списку','container_logs' => 'Логи контейнера','stats_snapshot' => 'Ресурси','memory' => "Пам'ять",'network' => 'Мережа','raw_json' => 'Сирий JSON','error' => 'Помилка','no_containers' => 'Немає контейнерів','no_images' => 'Немає образів','no_data' => 'Немає даних','hide_panel' => 'Натисніть рядок ще раз, щоб сховати панель. Логи, inspect і ресурси відкриваються тут.','api_missing_token' => 'Токен Docker API не налаштований.','docker_version' => 'Версія Docker','instance_id' => 'ID екземпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'ОС / арх','containers_total' => 'Контейнерів усього','running_total' => 'Запущено','stopped_total' => 'Зупинено','images_total' => 'Образів','volumes_total' => 'Томів','cpu_cores' => 'Ядер CPU','ram_total' => 'RAM усього','layers_size' => 'Шари образів','images_in_report' => 'Образів у звіті','containers_in_report' => 'Контейнерів у звіті','volumes_in_report' => 'Томів у звіті','endpoint' => 'Ендпоінт','endpoint_name' => "Ім'я",'endpoint_status' => 'Статус','unavailable' => 'Недоступно'],
+    'be' => ['title' => 'Менеджар Docker','containers' => 'Кантэйнеры','networks' => 'Сеткі','volumes' => 'Тамы','images' => 'Вобразы','system' => 'Сістэма','search' => 'Пошук па назве або вобразе...','connected' => 'Падключана да ','api_error' => 'Памылка API','total_containers' => 'Усяго кантэйнераў','running' => 'Запушчана','images_count' => 'Вобразаў','docker_version' => 'Версія Docker','containers_list' => 'Спіс кантэйнераў','refresh' => 'Абнавіць','logs' => 'Логі','inspect' => 'Inspect JSON','resources' => 'Рэсурсы','start' => 'Запуск','stop' => 'Стоп','restart' => 'Рэстарт','pause' => 'Паўза','resume' => 'Працягнуць','pull' => 'Сцягнуць','update' => 'Абнавіць','recreate' => 'Перастварыць','remove' => 'Выдаліць','name' => 'Імя','image' => 'Вобраз','status' => 'Статус','ports' => 'Парты','created' => 'Створана','repository' => 'Рэпазіторый','tag' => 'Тэг','size' => 'Памер','driver' => 'Драйвер','scope' => 'Вобласць','mountpoint' => 'Кропка мантавання','system_info' => 'Інфармацыя аб сістэме','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Выкарыстанне дыска','main_interface' => 'Адкрыць ','api_docs' => 'Дакументацыя API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Некарэктны ID кантэйнера','back' => 'Да спісу','container_logs' => 'Логі кантэйнера','stats_snapshot' => 'Рэсурсы','memory' => "Памяць",'network' => 'Сетка','raw_json' => 'Сыры JSON','error' => 'Памылка','no_containers' => 'Няма кантэйнераў','no_images' => 'Няма вобразаў','no_data' => 'Няма даных','hide_panel' => 'Націсніце радок яшчэ раз, каб схаваць панэль. Логі, inspect і рэсурсы адкрываюцца тут.','api_missing_token' => 'Токен Docker API не наладжаны.','docker_version' => 'Версія Docker','instance_id' => 'ID экзэмпляра','docker_version_info' => 'Версія (info)','docker_api' => 'API Docker','os_arch' => 'АС / арх','containers_total' => 'Усяго кантэйнераў','running_total' => 'Запушчана','stopped_total' => 'Спынена','images_total' => 'Вобразаў','volumes_total' => 'Тамоў','cpu_cores' => 'Ядраў CPU','ram_total' => 'Усяго RAM','layers_size' => 'Слаі вобразаў','images_in_report' => 'Вобразаў у справаздачы','containers_in_report' => 'Кантэйнераў у справаздачы','volumes_in_report' => 'Тамоў у справаздачы','endpoint' => 'Эндпоінт','endpoint_name' => 'Імя','endpoint_status' => 'Статус','unavailable' => 'Недаступна'],
+    'pl' => ['title' => 'Menedżer Docker','containers' => 'Kontenery','networks' => 'Sieci','volumes' => 'Woluminy','images' => 'Obrazy','system' => 'System','search' => 'Szukaj po nazwie lub obrazie...','connected' => 'Połączono','api_error' => 'Błąd API','total_containers' => 'Wszystkie kontenery','running' => 'Uruchomione','images_count' => 'Obrazy','docker_version' => 'Wersja Docker','containers_list' => 'Lista kontenerów','refresh' => 'Odśwież','logs' => 'Logi','inspect' => 'Inspect JSON','resources' => 'Zasoby','start' => 'Uruchom','stop' => 'Zatrzymaj','restart' => 'Uruchom ponownie','pause' => 'Pauza','resume' => 'Wznów','pull' => 'Pobierz','update' => 'Aktualizuj','recreate' => 'Odtwórz','remove' => 'Usuń','name' => 'Nazwa','image' => 'Obraz','status' => 'Status','ports' => 'Porty','created' => 'Utworzono','repository' => 'Repozytorium','tag' => 'Tag','size' => 'Rozmiar','driver' => 'Sterownik','scope' => 'Zakres','mountpoint' => 'Punkt montowania','system_info' => 'Informacje o systemie','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Użycie dysku','main_interface' => 'Otwórz ','api_docs' => 'Dokumentacja API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Nieprawidłowe ID kontenera','back' => 'Powrót do listy','container_logs' => 'Logi kontenera','stats_snapshot' => 'Zasoby','memory' => 'Pamięć','network' => 'Sieć','raw_json' => 'Surowe JSON','error' => 'Błąd','no_containers' => 'Brak kontenerów','no_images' => 'Brak obrazów','no_data' => 'Brak danych','hide_panel' => 'Kliknij wiersz ponownie, aby ukryć panel. Logi, inspect i zasoby otwierają się tutaj.','api_missing_token' => 'Token Docker API nie jest skonfigurowany.','docker_version' => 'Wersja Docker','instance_id' => 'ID instancji','docker_version_info' => 'Wersja (info)','docker_api' => 'API Docker','os_arch' => 'System / arch','containers_total' => 'Wszystkie kontenery','running_total' => 'Uruchomione','stopped_total' => 'Zatrzymane','images_total' => 'Obrazy','volumes_total' => 'Woluminy','cpu_cores' => 'Rdzenie CPU','ram_total' => 'RAM ogółem','layers_size' => 'Warstwy obrazów','images_in_report' => 'Obrazów w raporcie','containers_in_report' => 'Kontenerów w raporcie','volumes_in_report' => 'Woluminów w raporcie','endpoint' => 'Endpoint','endpoint_name' => 'Nazwa','endpoint_status' => 'Status','unavailable' => 'Niedostępne'],
+    'cs' => ['title' => 'Manažer Docker','containers' => 'Kontejnery','networks' => 'Sítě','volumes' => 'Svazky','images' => 'Obrazy','system' => 'Systém','search' => 'Hledat podle názvu nebo obrazu...','connected' => 'Připojeno','api_error' => 'Chyba API','total_containers' => 'Celkem kontejnerů','running' => 'Spuštěno','images_count' => 'Obrazy','docker_version' => 'Verze Docker','containers_list' => 'Seznam kontejnerů','refresh' => 'Obnovit','logs' => 'Logy','inspect' => 'Inspect JSON','resources' => 'Zdroje','start' => 'Spustit','stop' => 'Zastavit','restart' => 'Restartovat','pause' => 'Pauza','resume' => 'Pokračovat','pull' => 'Stáhnout','update' => 'Aktualizovat','recreate' => 'Přetvořit','remove' => 'Smazat','name' => 'Název','image' => 'Obraz','status' => 'Stav','ports' => 'Porty','created' => 'Vytvořeno','repository' => 'Repozitář','tag' => 'Značka','size' => 'Velikost','driver' => 'Ovladač','scope' => 'Oblast','mountpoint' => 'Přípojný bod','system_info' => 'Informace o systému','docker' => 'Docker','docker_engine' => 'Docker Engine','disk_usage' => 'Využití disku','main_interface' => 'Otevřít ','api_docs' => 'Dokumentace API Docker','swagger' => 'Docker Engine API','invalid_id' => 'Neplatné ID kontejneru','back' => 'Zpět na seznam','container_logs' => 'Logy kontejneru','stats_snapshot' => 'Zdroje','memory' => 'Paměť','network' => 'Síť','raw_json' => 'Surový JSON','error' => 'Chyba','no_containers' => 'Žádné kontejnery','no_images' => 'Žádné obrazy','no_data' => 'Žádná data','hide_panel' => 'Klikněte na řádek znovu pro skrytí panelu. Logy, inspect a zdroje se otevírají zde.','api_missing_token' => 'Token Docker API není nakonfigurován.','docker_version' => 'Verze Docker','instance_id' => 'ID instance','docker_version_info' => 'Verze (info)','docker_api' => 'API Docker','os_arch' => 'OS / architektura','containers_total' => 'Celkem kontejnerů','running_total' => 'Spuštěno','stopped_total' => 'Zastaveno','images_total' => 'Obrazy','volumes_total' => 'Svazky','cpu_cores' => 'Jádra CPU','ram_total' => 'Celkem RAM','layers_size' => 'Vrstvy obrazů','images_in_report' => 'Obrazů ve zprávě','containers_in_report' => 'Kontejnerů ve zprávě','volumes_in_report' => 'Svazků ve zprávě','endpoint' => 'Koncový bod','endpoint_name' => 'Název','endpoint_status' => 'Stav','unavailable' => 'Nedostupné']
 ];
 foreach (array_unique(['en', $lang]) as $translationLang) {
     $translationPath = __DIR__ . '/i18n/' . preg_replace('/[^a-z0-9_-]/i', '', $translationLang) . '.json';
@@ -56,6 +49,17 @@ $dockerExtraTranslations = [
 ];
 foreach ($dockerExtraTranslations as $translationLang => $translations) {
     $i18n[$translationLang] = array_merge($translations, $i18n[$translationLang] ?? []);
+}
+$dockerUiTranslations = [
+    'en' => ['stacks' => 'Stacks', 'unused_volumes' => 'Unused volumes', 'id' => 'ID', 'pids' => 'PIDs', 'live_monitoring' => 'Live monitoring', 'cpu_total' => 'CPU total', 'container' => 'Container', 'block_io' => 'Block I/O', 'show_containers' => 'Show containers', 'containers_in_stack' => 'Containers in stack', 'click_to_navigate' => 'Click to navigate to this container', 'no_stacks_found' => 'No stacks found', 'unused' => 'unused', 'endpoint_url' => 'URL', 'close' => 'Close', 'docker_details' => 'Docker details', 'copy' => 'Copy', 'copied' => 'Copied!', 'cpu' => 'CPU', 'cores' => 'cores', 'block_io_read' => 'Block I/O read', 'block_io_write' => 'Block I/O write', 'read' => 'Read', 'invalid_project' => 'Invalid project', 'prune_services' => 'Prune services', 'pull_latest_image' => 'Pull latest image', 'max_label' => 'max {value}', 'na' => 'n/a', 'open' => 'Open', 'containers_col' => 'Containers', 'type' => 'Type', 'live_monitoring_colon' => 'Live monitoring: {name}', 'compose' => 'Compose', 'swarm' => 'Swarm'],
+    'ru' => ['stacks' => 'Стеки', 'unused_volumes' => 'Неиспользуемые тома', 'id' => 'ID', 'pids' => 'PИДы', 'live_monitoring' => 'Мониторинг', 'cpu_total' => 'CPU всего', 'container' => 'Контейнер', 'block_io' => 'Блочный ввод-вывод', 'show_containers' => 'Показать контейнеры', 'containers_in_stack' => 'Контейнеры в стеке', 'click_to_navigate' => 'Нажмите, чтобы перейти к контейнеру', 'no_stacks_found' => 'Стеки не найдены', 'unused' => 'не используется', 'endpoint_url' => 'URL', 'close' => 'Закрыть', 'docker_details' => 'Детали Docker', 'copy' => 'Копировать', 'copied' => 'Скопировано!', 'cpu' => 'CPU', 'cores' => 'ядра', 'block_io_read' => 'Блочный ввод-вывод: чтение', 'block_io_write' => 'Блочный ввод-вывод: запись', 'read' => 'Чтение', 'invalid_project' => 'Некорректный проект', 'prune_services' => 'Удалить неиспользуемые сервисы', 'pull_latest_image' => 'Скачать последний образ', 'max_label' => 'макс {value}', 'na' => 'н/д', 'open' => 'Открыть', 'containers_col' => 'Контейнеры', 'type' => 'Тип', 'live_monitoring_colon' => 'Мониторинг: {name}', 'compose' => 'Compose', 'swarm' => 'Swarm'],
+    'uk' => ['stacks' => 'Стеки', 'unused_volumes' => 'Невикористані томи', 'id' => 'ID', 'pids' => 'ПІДи', 'live_monitoring' => 'Моніторинг', 'cpu_total' => 'CPU всього', 'container' => 'Контейнер', 'block_io' => 'Блоковий ввід-вивід', 'show_containers' => 'Показати контейнери', 'containers_in_stack' => 'Контейнери у стеку', 'click_to_navigate' => 'Натисніть, щоб перейти до контейнера', 'no_stacks_found' => 'Стеки не знайдено', 'unused' => 'не використовується', 'endpoint_url' => 'URL', 'close' => 'Закрити', 'docker_details' => 'Деталі Docker', 'copy' => 'Копіювати', 'copied' => 'Скопійовано!', 'cpu' => 'CPU', 'cores' => 'ядра', 'block_io_read' => 'Блоковий ввід-вивід: читання', 'block_io_write' => 'Блоковий ввід-вивід: запис', 'read' => 'Читання', 'invalid_project' => 'Невірний проєкт', 'prune_services' => 'Видалити невикористані сервіси', 'pull_latest_image' => 'Завантажити останній образ', 'max_label' => 'макс {value}', 'na' => 'н/д', 'open' => 'Відкрити', 'containers_col' => 'Контейнери', 'type' => 'Тип', 'live_monitoring_colon' => 'Моніторинг: {name}', 'compose' => 'Compose', 'swarm' => 'Swarm'],
+    'be' => ['stacks' => 'Стэкі', 'unused_volumes' => 'Невыкарыстаныя тамы', 'id' => 'ID', 'pids' => 'ПІДы', 'live_monitoring' => 'Маніторынг', 'cpu_total' => 'CPU ўсяго', 'container' => 'Кантэйнер', 'block_io' => 'Блачны ўвод-вывод', 'show_containers' => 'Паказаць кантэйнеры', 'containers_in_stack' => 'Кантэйнеры ў стэку', 'click_to_navigate' => 'Націсніце, каб перайсці да кантэйнера', 'no_stacks_found' => 'Стэкі не знойдзена', 'unused' => 'не выкарыстоўваецца', 'endpoint_url' => 'URL', 'close' => 'Закрыць', 'docker_details' => 'Дэталі Docker', 'copy' => 'Скапіяваць', 'copied' => 'Скапіявана!', 'cpu' => 'CPU', 'cores' => 'ядры', 'block_io_read' => 'Блачны ўвод-вывод: чытанне', 'block_io_write' => 'Блачны ўвод-вывод: запіс', 'read' => 'Чытанне', 'invalid_project' => 'Няправільны праект', 'prune_services' => 'Выдаліць невыкарыстаныя сэрвісы', 'pull_latest_image' => 'Сцягнуць апошні вобраз', 'max_label' => 'макс {value}', 'na' => 'н/д', 'open' => 'Адкрыць', 'containers_col' => 'Кантэйнеры', 'type' => 'Тып', 'live_monitoring_colon' => 'Маніторынг: {name}', 'compose' => 'Compose', 'swarm' => 'Swarm'],
+    'pl' => ['stacks' => 'Stacki', 'unused_volumes' => 'Nieużywane woluminy', 'id' => 'ID', 'pids' => 'PIDs', 'live_monitoring' => 'Monitoring', 'cpu_total' => 'CPU łącznie', 'container' => 'Kontener', 'block_io' => 'Wejście/wyjście blokowe', 'show_containers' => 'Pokaż kontenery', 'containers_in_stack' => 'Kontenery w stacku', 'click_to_navigate' => 'Kliknij, aby przejść do kontenera', 'no_stacks_found' => 'Nie znaleziono stacków', 'unused' => 'nieużywany', 'endpoint_url' => 'URL', 'close' => 'Zamknij', 'docker_details' => 'Szczegóły Docker', 'copy' => 'Kopiuj', 'copied' => 'Skopiowano!', 'cpu' => 'CPU', 'cores' => 'rdzenie', 'block_io_read' => 'Wejście/wyjście blokowe: odczyt', 'block_io_write' => 'Wejście/wyjście blokowe: zapis', 'read' => 'Odczyt', 'invalid_project' => 'Nieprawidłowy projekt', 'prune_services' => 'Usuń nieużywane usługi', 'pull_latest_image' => 'Pobierz najnowszy obraz', 'max_label' => 'maks {value}', 'na' => 'nd', 'open' => 'Otwórz', 'containers_col' => 'Kontenery', 'type' => 'Typ', 'live_monitoring_colon' => 'Monitoring: {name}', 'compose' => 'Compose', 'swarm' => 'Swarm'],
+    'cs' => ['stacks' => 'Stacky', 'unused_volumes' => 'Nepoužívané svazky', 'id' => 'ID', 'pids' => 'PID', 'live_monitoring' => 'Monitorování', 'cpu_total' => 'CPU celkem', 'container' => 'Kontejner', 'block_io' => 'Blokový vstup/výstup', 'show_containers' => 'Zobrazit kontejnery', 'containers_in_stack' => 'Kontejnery ve stacku', 'click_to_navigate' => 'Klikněte pro přechod do kontejneru', 'no_stacks_found' => 'Nenalezeny žádné stacky', 'unused' => 'nepoužito', 'endpoint_url' => 'URL', 'close' => 'Zavřít', 'docker_details' => 'Podrobnosti Docker', 'copy' => 'Kopírovat', 'copied' => 'Zkopírováno!', 'cpu' => 'CPU', 'cores' => 'jádra', 'block_io_read' => 'Blokový vstup/výstup: čtení', 'block_io_write' => 'Blokový vstup/výstup: zápis', 'read' => 'Čtení', 'invalid_project' => 'Neplatný projekt', 'prune_services' => 'Odstranit nepoužívané služby', 'pull_latest_image' => 'Stáhnout nejnovější obraz', 'max_label' => 'max {value}', 'na' => 'nedostupné', 'open' => 'Otevřít', 'containers_col' => 'Kontejnery', 'type' => 'Typ', 'live_monitoring_colon' => 'Monitorování: {name}', 'compose' => 'Compose', 'swarm' => 'Swarm'],
+];
+foreach ($dockerUiTranslations as $translationLang => $translations) {
+    $i18n[$translationLang] = array_merge($i18n[$translationLang] ?? [], $translations);
 }
 function t($key) {
     global $i18n, $lang;
@@ -368,6 +372,13 @@ function renderHighlightedLogs($text) {
     }
     return $html . '</div>';
 }
+function dockerSafeInt($value): int {
+    if (is_int($value)) return $value;
+    if (!is_numeric($value)) return 0;
+    $float = (float)$value;
+    if (!is_finite($float) || $float > PHP_INT_MAX || $float < PHP_INT_MIN) return PHP_INT_MAX;
+    return (int)$float;
+}
 function formatBytesValue($bytes) {
     $bytes = (float)$bytes;
     $units = ['B', 'KiB', 'MiB', 'GiB', 'TiB'];
@@ -387,7 +398,9 @@ function statBarHtml($label, $valueText, $percent, $class = '') {
     return '<div class="metric ' . htmlspecialchars($class, ENT_QUOTES, 'UTF-8') . '"><div class="metric-head"><span>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span><strong>' . htmlspecialchars($valueText, ENT_QUOTES, 'UTF-8') . '</strong></div><div class="metric-bar"><span style="width:' . htmlspecialchars((string)$p, ENT_QUOTES, 'UTF-8') . '%"></span></div></div>';
 }
 function viewPageShell($title, $innerHtml) {
-    header('Content-Type: text/html; charset=UTF-8');
+    if (!headers_sent()) {
+        header('Content-Type: text/html; charset=UTF-8');
+    }
     global $theme, $accent, $embed;
     $bg = $theme === 'light' ? '#f3f6fb' : '#0f1419';
     $text = $theme === 'light' ? '#0f172a' : '#f4f7fb';
@@ -422,7 +435,9 @@ if ($view === 'logs' && isset($_GET['id'])) {
     $rawLog = is_string($lr['raw'] ?? null) ? $lr['raw'] : '';
     $text = ($lr['code'] === 200) ? dockerDecodeLogStream($rawLog) : ('HTTP ' . $lr['code']);
     $copyId = 'log_' . bin2hex(random_bytes(4));
-    $innerHtml = '<div class="view-panel"><div class="log-toolbar"><h1>' . htmlspecialchars(t('container_logs'), ENT_QUOTES, 'UTF-8') . '</h1><button class="log-copy-btn" onclick="copyLogText(\'' . $copyId . '\',this)">' . ico('copy') . ' Copy</button></div>' . renderHighlightedLogs($text) . '</div><script id="' . $copyId . '-script">function copyLogText(id,btn){var e=document.querySelector(\'#\'+id+\' ~ .log-code, #\'+id+\'-script ~ .log-code\');if(!e){var all=document.querySelectorAll(\'.log-code\');if(all.length)e=all[all.length-1];}if(!e)return;var t=document.createElement(\'textarea\');t.value=e.textContent;document.body.appendChild(t);t.select();document.execCommand(\'copy\');document.body.removeChild(t);btn.innerHTML=\'\u2713 Copied!\';setTimeout(function(){btn.innerHTML=\'\u2398 Copy\';},2000);btn.classList.toggle(\'copied\',btn.innerHTML.indexOf(\'Copied\')>-1);setTimeout(function(){btn.classList.remove(\'copied\');},3000);}<\/script>';
+    $copyTxt = json_encode(t('copy'), JSON_UNESCAPED_UNICODE);
+    $copiedTxt = json_encode(t('copied'), JSON_UNESCAPED_UNICODE);
+    $innerHtml = '<div class="view-panel"><div class="log-toolbar"><h1>' . htmlspecialchars(t('container_logs'), ENT_QUOTES, 'UTF-8') . '</h1><button class="log-copy-btn" onclick="copyLogText(\'' . $copyId . '\',this)">' . ico('copy') . ' ' . htmlspecialchars(t('copy'), ENT_QUOTES, 'UTF-8') . '</button></div>' . renderHighlightedLogs($text) . '</div><script id="' . $copyId . '-script">function copyLogText(id,btn){var e=document.querySelector(\'#\'+id+\' ~ .log-code, #\'+id+\'-script ~ .log-code\');if(!e){var all=document.querySelectorAll(\'.log-code\');if(all.length)e=all[all.length-1];}if(!e)return;var t=document.createElement(\'textarea\');t.value=e.textContent;document.body.appendChild(t);t.select();document.execCommand(\'copy\');document.body.removeChild(t);btn.innerHTML=\'\u2713 ' . $copiedTxt . '\';setTimeout(function(){btn.innerHTML=\'\u2398 ' . $copyTxt . '\';},2000);btn.classList.toggle(\'copied\',btn.innerHTML.indexOf(' . $copiedTxt . ')>-1);setTimeout(function(){btn.classList.remove(\'copied\');},3000);}<\/script>';
     viewPageShell(t('container_logs'), $innerHtml);
     exit;
 }
@@ -475,10 +490,10 @@ if ($view === 'stats' && isset($_GET['id'])) {
         $mp = ($ml > 0) ? round(100 * $mu / $ml, 1) : 0;
         $cpuDelta = (float)(($d['cpu_stats']['cpu_usage']['total_usage'] ?? 0) - ($d['precpu_stats']['cpu_usage']['total_usage'] ?? 0));
         $systemDelta = (float)(($d['cpu_stats']['system_cpu_usage'] ?? 0) - ($d['precpu_stats']['system_cpu_usage'] ?? 0));
-        $onlineCpus = (int)($d['cpu_stats']['online_cpus'] ?? 0);
+        $onlineCpus = dockerSafeInt($d['cpu_stats']['online_cpus'] ?? 0);
         $cpuPercent = ($cpuDelta > 0 && $systemDelta > 0 && $onlineCpus > 0) ? round(($cpuDelta / $systemDelta) * $onlineCpus * 100, 1) : 0;
-        $pidsCurrent = (int)($d['pids_stats']['current'] ?? 0);
-        $pidsLimit = (int)($d['pids_stats']['limit'] ?? 0);
+        $pidsCurrent = dockerSafeInt($d['pids_stats']['current'] ?? 0);
+        $pidsLimit = dockerSafeInt($d['pids_stats']['limit'] ?? 0);
         $pidsPercent = $pidsLimit > 0 ? round(100 * $pidsCurrent / $pidsLimit, 1) : 0;
         $rx = 0;
         $tx = 0;
@@ -487,8 +502,8 @@ if ($view === 'stats' && isset($_GET['id'])) {
                 if (!is_array($net)) {
                     continue;
                 }
-                $rx += (int)($net['rx_bytes'] ?? 0);
-                $tx += (int)($net['tx_bytes'] ?? 0);
+                $rx += dockerSafeInt($net['rx_bytes'] ?? 0);
+                $tx += dockerSafeInt($net['tx_bytes'] ?? 0);
             }
         }
         $blockRead = 0;
@@ -501,23 +516,23 @@ if ($view === 'stats' && isset($_GET['id'])) {
                 }
                 $op = strtolower((string)($io['op'] ?? ''));
                 if ($op === 'read') {
-                    $blockRead += (int)($io['value'] ?? 0);
+                    $blockRead += dockerSafeInt($io['value'] ?? 0);
                 } elseif ($op === 'write') {
-                    $blockWrite += (int)($io['value'] ?? 0);
+                    $blockWrite += dockerSafeInt($io['value'] ?? 0);
                 }
             }
         }
         $html .= '<div class="stats-grid-view">';
-        $html .= statBarHtml('CPU', $cpuPercent . '% / ' . $onlineCpus . ' cores', min($cpuPercent, 100), $cpuPercent >= 85 ? 'danger' : ($cpuPercent >= 65 ? 'warn' : 'ok'));
+        $html .= statBarHtml(t('cpu'), $cpuPercent . '% / ' . $onlineCpus . ' ' . t('cores'), min($cpuPercent, 100), $cpuPercent >= 85 ? 'danger' : ($cpuPercent >= 65 ? 'warn' : 'ok'));
         $html .= statBarHtml(t('memory'), formatBytesValue($mu) . ' / ' . ($ml ? formatBytesValue($ml) : '—') . ' (' . $mp . '%)', $mp, $mp >= 85 ? 'danger' : ($mp >= 65 ? 'warn' : 'ok'));
-        $html .= statBarHtml('PIDs', $pidsCurrent . ($pidsLimit ? ' / ' . $pidsLimit : ''), $pidsPercent, $pidsPercent >= 85 ? 'danger' : ($pidsPercent >= 65 ? 'warn' : 'ok'));
+        $html .= statBarHtml(t('pids'), $pidsCurrent . ($pidsLimit ? ' / ' . $pidsLimit : ''), $pidsPercent, $pidsPercent >= 85 ? 'danger' : ($pidsPercent >= 65 ? 'warn' : 'ok'));
         $html .= statBarHtml(t('network'), 'RX ' . formatBytesValue($rx) . ' / TX ' . formatBytesValue($tx), 100, '');
-        $html .= statBarHtml('Block I/O read', formatBytesValue($blockRead), 100, '');
-        $html .= statBarHtml('Block I/O write', formatBytesValue($blockWrite), 100, '');
+        $html .= statBarHtml(t('block_io_read'), formatBytesValue($blockRead), 100, '');
+        $html .= statBarHtml(t('block_io_write'), formatBytesValue($blockWrite), 100, '');
         $html .= '</div><div class="detail-list">';
-        $html .= '<div><strong>ID:</strong> ' . htmlspecialchars((string)($d['id'] ?? ''), ENT_QUOTES, 'UTF-8') . '</div>';
-        $html .= '<div><strong>Name:</strong> ' . htmlspecialchars((string)($d['name'] ?? ''), ENT_QUOTES, 'UTF-8') . '</div>';
-        $html .= '<div><strong>Read:</strong> ' . htmlspecialchars((string)($d['read'] ?? ''), ENT_QUOTES, 'UTF-8') . '</div>';
+        $html .= '<div><strong>' . htmlspecialchars(t('instance_id'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . htmlspecialchars((string)($d['id'] ?? ''), ENT_QUOTES, 'UTF-8') . '</div>';
+        $html .= '<div><strong>' . htmlspecialchars(t('name'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . htmlspecialchars((string)($d['name'] ?? ''), ENT_QUOTES, 'UTF-8') . '</div>';
+        $html .= '<div><strong>' . htmlspecialchars(t('read'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . htmlspecialchars((string)($d['read'] ?? ''), ENT_QUOTES, 'UTF-8') . '</div>';
         $html .= '</div>';
     } else {
         $html .= '<p>' . htmlspecialchars(t('error'), ENT_QUOTES, 'UTF-8') . ' HTTP ' . (int)($sr['code'] ?? 0) . '</p>';
@@ -540,19 +555,19 @@ if ($view === 'stats_data' && isset($_GET['id'])) {
     }
     $d = $sr['data'];
     $mem = $d['memory_stats'] ?? [];
-    $mu = (int)($mem['usage'] ?? 0);
-    $ml = (int)($mem['limit'] ?? 0);
+    $mu = dockerSafeInt($mem['usage'] ?? 0);
+    $ml = dockerSafeInt($mem['limit'] ?? 0);
     $cpuDelta = (float)(($d['cpu_stats']['cpu_usage']['total_usage'] ?? 0) - ($d['precpu_stats']['cpu_usage']['total_usage'] ?? 0));
     $systemDelta = (float)(($d['cpu_stats']['system_cpu_usage'] ?? 0) - ($d['precpu_stats']['system_cpu_usage'] ?? 0));
-    $onlineCpus = (int)($d['cpu_stats']['online_cpus'] ?? 0);
+    $onlineCpus = dockerSafeInt($d['cpu_stats']['online_cpus'] ?? 0);
     $cpuPercent = ($cpuDelta > 0 && $systemDelta > 0 && $onlineCpus > 0) ? (($cpuDelta / $systemDelta) * $onlineCpus * 100) : 0.0;
     $rx = 0;
     $tx = 0;
     if (!empty($d['networks']) && is_array($d['networks'])) {
         foreach ($d['networks'] as $net) {
             if (!is_array($net)) continue;
-            $rx += (int)($net['rx_bytes'] ?? 0);
-            $tx += (int)($net['tx_bytes'] ?? 0);
+            $rx += dockerSafeInt($net['rx_bytes'] ?? 0);
+            $tx += dockerSafeInt($net['tx_bytes'] ?? 0);
         }
     }
     $blockRead = 0;
@@ -562,11 +577,11 @@ if ($view === 'stats_data' && isset($_GET['id'])) {
         foreach ($ioRows as $io) {
             if (!is_array($io)) continue;
             $op = strtolower((string)($io['op'] ?? ''));
-            if ($op === 'read') $blockRead += (int)($io['value'] ?? 0);
-            if ($op === 'write') $blockWrite += (int)($io['value'] ?? 0);
+            if ($op === 'read') $blockRead += dockerSafeInt($io['value'] ?? 0);
+            if ($op === 'write') $blockWrite += dockerSafeInt($io['value'] ?? 0);
         }
     }
-    echo json_encode(['ok' => true, 'ts' => time(), 'stats' => ['cpu_total' => round($cpuPercent, 2), 'mem_used' => $mu, 'mem_limit' => $ml, 'pids' => (int)($d['pids_stats']['current'] ?? 0), 'net_rx' => $rx, 'net_tx' => $tx, 'blk_read' => $blockRead, 'blk_write' => $blockWrite]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    echo json_encode(['ok' => true, 'ts' => time(), 'stats' => ['cpu_total' => round($cpuPercent, 2), 'mem_used' => $mu, 'mem_limit' => $ml, 'pids' => dockerSafeInt($d['pids_stats']['current'] ?? 0), 'net_rx' => $rx, 'net_tx' => $tx, 'blk_read' => $blockRead, 'blk_write' => $blockWrite]], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_stack') {
@@ -584,7 +599,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && ($_POST['action'] ?? '') === 'save_
 }
 if ($view === 'compose_project' && isset($_GET['project'])) {
     $projectName = trim((string)$_GET['project']);
-    if ($projectName === '') { viewPageShell(t('error'), '<h1>Invalid project</h1>'); exit; }
+    if ($projectName === '') { viewPageShell(t('error'), '<h1>' . htmlspecialchars(t('invalid_project'), ENT_QUOTES, 'UTF-8') . '</h1>'); exit; }
     [$content, $error] = detectComposeFile($projectName);
     $innerHtml = '<div class="view-panel"><div class="log-toolbar"><h1>' . htmlspecialchars(t('docker_compose_detect') . ' · ' . $projectName, ENT_QUOTES, 'UTF-8') . '</h1></div>';
     if ($error !== null) {
@@ -619,7 +634,7 @@ if ($view === 'stack_editor' && isset($_GET['id'])) {
     if ($fileError !== null) {
         $innerHtml .= '<p style="color:var(--danger);margin-bottom:12px;">' . htmlspecialchars($fileError, ENT_QUOTES, 'UTF-8') . '</p>';
     }
-    $innerHtml .= '<textarea name="stack_file_content" spellcheck="false" style="width:100%;min-height:62vh;resize:vertical;background:rgba(0,0,0,.16);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . htmlspecialchars((string)$content, ENT_QUOTES, 'UTF-8') . '</textarea><div class="detail-list"><label><input type="checkbox" name="prune" value="1"> Prune services</label><label><input type="checkbox" name="pull_image" value="1"> Pull latest image</label><div><strong>Endpoint:</strong> ' . (int)($stack['EndpointId'] ?? getDockerEndpointId()) . '</div><div><strong>ID:</strong> ' . htmlspecialchars($stackId, ENT_QUOTES, 'UTF-8') . '</div></div></form></div>';
+    $innerHtml .= '<textarea name="stack_file_content" spellcheck="false" style="width:100%;min-height:62vh;resize:vertical;background:rgba(0,0,0,.16);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:12px;font:13px/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;">' . htmlspecialchars((string)$content, ENT_QUOTES, 'UTF-8') . '</textarea><div class="detail-list"><label><input type="checkbox" name="prune" value="1">' . htmlspecialchars(t('prune_services'), ENT_QUOTES, 'UTF-8') . '</label><label><input type="checkbox" name="pull_image" value="1">' . htmlspecialchars(t('pull_latest_image'), ENT_QUOTES, 'UTF-8') . '</label><div><strong>' . htmlspecialchars(t('endpoint'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . (int)($stack['EndpointId'] ?? getDockerEndpointId()) . '</div><div><strong>ID:</strong> ' . htmlspecialchars($stackId, ENT_QUOTES, 'UTF-8') . '</div></div></form></div>';
     viewPageShell(t('docker_stack_editor'), $innerHtml);
     exit;
 }
@@ -695,26 +710,6 @@ if ($action === 'remove_volume' && isset($_GET['id'])) {
     }
     $result = callDockerAPI(dockerApi('volumes/' . rawurlencode($volumeName) . '?force=true'), 'DELETE', null, 120);
     dockerRedirect(dockerActionMessage($result, [204], 'docker_volume_removed'));
-}
-if ($action === 'update_container' && isset($_GET['id'])) {
-    $insp = dockerContainerInspect($_GET['id']);
-    $img = ($insp['code'] === 200 && is_array($insp['data'])) ? ($insp['data']['Config']['Image'] ?? '') : '';
-    if ($img === '') {
-        dockerRedirect(t('docker_container_image_missing'));
-    }
-    $pr = dockerPullImage($img);
-    $raw = is_string($pr['raw'] ?? null) ? $pr['raw'] : '';
-    if ($pr['code'] !== 200) {
-        dockerRedirect(tf('docker_pull_http_error', ['code' => $pr['code']]));
-    }
-    if ($raw !== '' && (strpos($raw, '"error"') !== false || strpos($raw, '"errorDetail"') !== false)) {
-        dockerRedirect(t('docker_image_pull_docker_error'));
-    }
-    $message = dockerRecreateContainer($_GET['id'], null);
-    if (strpos($message, 'Error') !== 0) {
-        $message = tf('docker_container_updated', ['message' => $message]);
-    }
-    dockerRedirect($message);
 }
 if ($action === 'recreate_container' && isset($_GET['id'])) {
     $msg = dockerRecreateContainer($_GET['id'], null);
@@ -832,7 +827,6 @@ function ico($n) {
         'trash' => '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>',
         'pause' => '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>',
         'download' => '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
-        'update' => '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></svg>',
         'duplicate' => '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>',
         'kill' => '<svg class="ico" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="m15 9-6 6"/><path d="m9 9 6 6"/></svg>',
         'dot' => '<svg class="ico" width="8" height="8" viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="12" cy="12" r="5"/></svg>',
@@ -912,8 +906,27 @@ function ico($n) {
         .c-panel { padding: 14px 16px; background: rgba(0,0,0,0.22); border: 1px solid var(--border); border-radius: 10px; }
         .c-panel-hint { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
         .c-quick { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
-        .c-quick a { font-size: 12px; color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; }
-        .c-quick a:hover { text-decoration: underline; }
+        .c-quick a {
+            font-size: 12px;
+            font-weight: 500;
+            color: var(--text);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--surface-hover);
+            transition: background 0.15s, border-color 0.15s, color 0.15s;
+        }
+        .c-quick a .ico { color: var(--accent); width: 14px; height: 14px; }
+        .c-quick a:hover {
+            color: var(--accent);
+            background: var(--accent-muted);
+            border-color: rgba(34, 211, 238, 0.4);
+            text-decoration: none;
+        }
         .stack-open-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 7px 12px; border-radius: 8px; border: 1px solid var(--border); background: var(--accent-muted); color: var(--accent); text-decoration: none; font-size: 12px; font-weight: 600; }
         .stack-open-btn:hover { filter: brightness(1.08); }
         .stack-container-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 10px; }
@@ -950,11 +963,6 @@ function ico($n) {
             font-size: 18px;
             font-weight: 600;
             color: var(--text);
-        }
-        .sidebar-header p {
-            font-size: 12px;
-            color: var(--muted);
-            margin-top: 6px;
         }
         .sidebar-nav { padding: 16px 0; }
         .nav-item {
@@ -1300,12 +1308,11 @@ function ico($n) {
     <div class="sidebar" id="sidebar">
         <div class="sidebar-header">
             <div class="brand-row"><?php echo ico('brand'); ?><h2><?php echo htmlspecialchars(t('title'), ENT_QUOTES, 'UTF-8'); ?></h2></div>
-            <p><?php echo htmlspecialchars($displayDomain, ENT_QUOTES, 'UTF-8'); ?> · <span title="API">CE</span></p>
         </div>
         <div class="sidebar-nav">
             <div class="nav-item active" onclick="showSection('stacks', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('layers'); ?></span>
-                <span>Stacks</span>
+                <span><?php echo htmlspecialchars(t('stacks'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
             <div class="nav-item" onclick="showSection('containers', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('cube'); ?></span>
@@ -1329,9 +1336,7 @@ function ico($n) {
             </div>
         </div>
         <div class="sidebar-footer">
-            <a href="http://<?php echo htmlspecialchars($localIpAddr, ENT_QUOTES, 'UTF-8'); ?>:9000" target="_blank" rel="noopener noreferrer"><?php echo ico('external'); ?> <?php echo htmlspecialchars(t('main_interface'), ENT_QUOTES, 'UTF-8'); ?><?php echo htmlspecialchars($localIpAddr, ENT_QUOTES, 'UTF-8'); ?>:9000</a>
             <a href="https://docs.docker.com/reference/api/engine/" target="_blank" rel="noopener noreferrer"><?php echo ico('info'); ?> <?php echo htmlspecialchars(t('api_docs'), ENT_QUOTES, 'UTF-8'); ?></a>
-            <a href="https://docs.docker.com/reference/api/engine/version/v1.51/" target="_blank" rel="noopener noreferrer"><?php echo ico('layers'); ?> <?php echo htmlspecialchars(t('swagger'), ENT_QUOTES, 'UTF-8'); ?></a>
         </div>
     </div>
     
@@ -1344,7 +1349,7 @@ function ico($n) {
             </div>
         </div>
         <div class="top-bar">
-            <h1 class="page-title" id="pageTitle">Stacks</h1>
+            <h1 class="page-title" id="pageTitle"><?php echo htmlspecialchars(t('stacks'), ENT_QUOTES, 'UTF-8'); ?></h1>
             <div class="connection-status<?php echo $apiError ? ' err' : ''; ?>">
                 <div class="status-dot"></div>
                 <span><?php echo htmlspecialchars($apiError ? t('api_error') : rtrim(t('connected')), ENT_QUOTES, 'UTF-8'); ?></span>
@@ -1382,32 +1387,32 @@ function ico($n) {
                 </div>
             </div>
             <div class="stat-card">
-                <div class="stat-title">Stacks</div>
+                <div class="stat-title"><?php echo htmlspecialchars(t('stacks'), ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="stat-value" id="statStacks"><?php echo count($stacksMap); ?></div>
             </div>
             <div class="stat-card">
-                <div class="stat-title">Unused volumes</div>
+                <div class="stat-title"><?php echo htmlspecialchars(t('unused_volumes'), ENT_QUOTES, 'UTF-8'); ?></div>
                 <div class="stat-value" id="statUnusedVolumes">0</div>
             </div>
         </div>
         <div class="section" id="chartsSection" style="display:none;margin-bottom:16px;">
-            <div class="section-header"><div class="section-title-wrap"><?php echo ico('chart'); ?><div class="section-title" id="monitorTitle">Live monitoring</div></div></div>
+            <div class="section-header"><div class="section-title-wrap"><?php echo ico('chart'); ?><div class="section-title" id="monitorTitle"><?php echo htmlspecialchars(t('live_monitoring'), ENT_QUOTES, 'UTF-8'); ?></div></div></div>
             <div class="stats-grid-view">
-                <div class="monitor-tile"><div class="metric-head"><span>CPU total</span><strong id="mCpu">0%</strong></div><div class="monitor-canvas-wrap"><canvas id="chartCpu"></canvas></div><div class="monitor-scale"><span>0</span><span id="sCpu">max 0%</span></div></div>
-                <div class="monitor-tile"><div class="metric-head"><span>Memory</span><strong id="mMem">0 B</strong></div><div class="monitor-canvas-wrap"><canvas id="chartMem"></canvas></div><div class="monitor-scale"><span>0</span><span id="sMem">max 0 B</span></div></div>
-                <div class="monitor-tile"><div class="metric-head"><span>Network RX/TX</span><strong id="mNet">0 B / 0 B</strong></div><div class="monitor-canvas-wrap"><canvas id="chartNet"></canvas></div><div class="monitor-scale"><span>0</span><span id="sNet">max 0 B</span></div></div>
-                <div class="monitor-tile"><div class="metric-head"><span>Block I/O</span><strong id="mIo">0 B / 0 B</strong></div><div class="monitor-canvas-wrap"><canvas id="chartIo"></canvas></div><div class="monitor-scale"><span>0</span><span id="sIo">max 0 B</span></div></div>
-                <div class="monitor-tile"><div class="metric-head"><span>PIDs</span><strong id="mPids">0</strong></div><div class="monitor-canvas-wrap"><canvas id="chartPids"></canvas></div><div class="monitor-scale"><span>0</span><span id="sPids">max 0</span></div></div>
-                <div class="monitor-tile"><div class="metric-head"><span>Container</span><strong id="mContainers">n/a</strong></div><div class="monitor-canvas-wrap"><canvas id="chartContainers"></canvas></div><div class="monitor-scale"><span>0</span><span id="sContainer">CPU/PIDs scale</span></div></div>
+                <div class="monitor-tile"><div class="metric-head"><span><?php echo htmlspecialchars(t('cpu_total'), ENT_QUOTES, 'UTF-8'); ?></span><strong id="mCpu">0%</strong></div><div class="monitor-canvas-wrap"><canvas id="chartCpu"></canvas></div><div class="monitor-scale"><span>0</span><span id="sCpu"><?php echo htmlspecialchars(tf('max_label', ['value' => '0%']), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
+                <div class="monitor-tile"><div class="metric-head"><span><?php echo htmlspecialchars(t('memory'), ENT_QUOTES, 'UTF-8'); ?></span><strong id="mMem">0 B</strong></div><div class="monitor-canvas-wrap"><canvas id="chartMem"></canvas></div><div class="monitor-scale"><span>0</span><span id="sMem"><?php echo htmlspecialchars(tf('max_label', ['value' => '0 B']), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
+                <div class="monitor-tile"><div class="metric-head"><span>Network RX/TX</span><strong id="mNet">0 B / 0 B</strong></div><div class="monitor-canvas-wrap"><canvas id="chartNet"></canvas></div><div class="monitor-scale"><span>0</span><span id="sNet"><?php echo htmlspecialchars(tf('max_label', ['value' => '0 B']), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
+                <div class="monitor-tile"><div class="metric-head"><span><?php echo htmlspecialchars(t('block_io'), ENT_QUOTES, 'UTF-8'); ?></span><strong id="mIo">0 B / 0 B</strong></div><div class="monitor-canvas-wrap"><canvas id="chartIo"></canvas></div><div class="monitor-scale"><span>0</span><span id="sIo"><?php echo htmlspecialchars(tf('max_label', ['value' => '0 B']), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
+                <div class="monitor-tile"><div class="metric-head"><span>PIDs</span><strong id="mPids">0</strong></div><div class="monitor-canvas-wrap"><canvas id="chartPids"></canvas></div><div class="monitor-scale"><span>0</span><span id="sPids"><?php echo htmlspecialchars(tf('max_label', ['value' => '0']), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
+                <div class="monitor-tile"><div class="metric-head"><span><?php echo htmlspecialchars(t('container'), ENT_QUOTES, 'UTF-8'); ?></span><strong id="mContainers">n/a</strong></div><div class="monitor-canvas-wrap"><canvas id="chartContainers"></canvas></div><div class="monitor-scale"><span>0</span><span id="sContainer"><?php echo htmlspecialchars(t('cpu') . '/' . t('container'), ENT_QUOTES, 'UTF-8'); ?></span></div></div>
             </div>
         </div>
         <div id="stacksSection" class="section">
-            <div class="section-header"><div class="section-title-wrap"><?php echo ico('layers'); ?><div class="section-title">Stacks</div></div></div>
-            <div class="table-container containers-table-wrap"><table><thead><tr><th>Name</th><th>Containers</th><th>Type</th><th><?php echo htmlspecialchars(t('docker_stack_file'), ENT_QUOTES, 'UTF-8'); ?></th><th>Open</th></tr></thead><tbody>
+            <div class="section-header"><div class="section-title-wrap"><?php echo ico('layers'); ?><div class="section-title"><?php echo htmlspecialchars(t('stacks'), ENT_QUOTES, 'UTF-8'); ?></div></div></div>
+            <div class="table-container containers-table-wrap"><table><thead><tr><th><?php echo htmlspecialchars(t('name'), ENT_QUOTES, 'UTF-8'); ?></th><th><?php echo htmlspecialchars(t('containers_col'), ENT_QUOTES, 'UTF-8'); ?></th><th><?php echo htmlspecialchars(t('type'), ENT_QUOTES, 'UTF-8'); ?></th><th><?php echo htmlspecialchars(t('docker_stack_file'), ENT_QUOTES, 'UTF-8'); ?></th><th><?php echo htmlspecialchars(t('open'), ENT_QUOTES, 'UTF-8'); ?></th></tr></thead><tbody>
             <?php if (!empty($stacksMap)): foreach ($stacksMap as $stackName => $stackData): $sc=(int)($stackData['containers']??0); $stackId=$stackData['id'] ?? null; $stackType=(int)($stackData['type'] ?? 0); ?>
-                <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars(strtolower((string)$stackName), ENT_QUOTES, 'UTF-8'); ?>"><td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars((string)$stackName, ENT_QUOTES, 'UTF-8'); ?></strong></span></td><td><?php echo $sc; ?></td><td><?php echo $stackType === 2 ? 'Compose' : ($stackType === 1 ? 'Swarm' : ''); ?></td><td><?php if ($stackId !== null): ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'stack_editor', 'id' => (string)$stackId, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_stack_editor') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_edit_stack'), ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'compose_project', 'project' => (string)$stackName, 'id' => null, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_compose_detect') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_compose_detect_btn'), ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?></td><td><a class="stack-open-btn" href="#" onclick="event.preventDefault();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);">Show containers</a></td></tr>
-                <tr class="c-actions" style="display:none"><td colspan="5"><div class="c-panel"><div class="c-panel-hint">Containers in stack</div><?php if (!empty($containersInStack[$stackName])): ?><div class="stack-container-grid"><?php foreach ($containersInStack[$stackName] as $stackContainer): $scState = (string)$stackContainer['state']; ?><div class="stack-container-card" onclick="event.stopPropagation();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackContainer['name'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);" title="Click to navigate to this container"><div class="stack-card-top"><span class="scc-name"><?php echo htmlspecialchars((string)$stackContainer['name'], ENT_QUOTES, 'UTF-8'); ?></span><span class="status-badge status-<?php echo $scState === 'running' ? 'running' : ($scState === 'exited' ? 'exited' : ($scState === 'paused' ? 'paused' : 'created')); ?>"><?php echo ico('dot'); ?> <?php echo htmlspecialchars($scState, ENT_QUOTES, 'UTF-8'); ?></span></div><div class="stack-card-image"><?php echo ico('cube'); ?> <span class="mono-clip"><?php echo htmlspecialchars((string)$stackContainer['image'], ENT_QUOTES, 'UTF-8'); ?></span></div></div><?php endforeach; ?></div><?php else: ?><div class="detail-list"><div>No containers</div></div><?php endif; ?></div></td></tr>
-            <?php endforeach; else: ?><tr><td colspan="5" style="text-align:center;padding:40px;">No stacks found</td></tr><?php endif; ?>
+                <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars(strtolower((string)$stackName), ENT_QUOTES, 'UTF-8'); ?>"><td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars((string)$stackName, ENT_QUOTES, 'UTF-8'); ?></strong></span></td><td><?php echo $sc; ?></td><td><?php echo $stackType === 2 ? t('compose') : ($stackType === 1 ? t('swarm') : ''); ?></td><td><?php if ($stackId !== null): ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'stack_editor', 'id' => (string)$stackId, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_stack_editor') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_edit_stack'), ENT_QUOTES, 'UTF-8'); ?></a><?php else: ?><a class="stack-open-btn" href="<?php echo htmlspecialchars(dockerUrl(['view' => 'compose_project', 'project' => (string)$stackName, 'id' => null, 'action' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>" onclick="openDockerModal(event, this.href, <?php echo htmlspecialchars(json_encode(t('docker_compose_detect') . ' · ' . (string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>)"><?php echo ico('file'); ?> <?php echo htmlspecialchars(t('docker_compose_detect_btn'), ENT_QUOTES, 'UTF-8'); ?></a><?php endif; ?></td><td><a class="stack-open-btn" href="#" onclick="event.preventDefault();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackName, JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);"><?php echo htmlspecialchars(t('show_containers'), ENT_QUOTES, 'UTF-8'); ?></a></td></tr>
+                <tr class="c-actions" style="display:none"><td colspan="5"><div class="c-panel"><div class="c-panel-hint"><?php echo htmlspecialchars(t('containers_in_stack'), ENT_QUOTES, 'UTF-8'); ?></div><?php if (!empty($containersInStack[$stackName])): ?><div class="stack-container-grid"><?php foreach ($containersInStack[$stackName] as $stackContainer): $scState = (string)$stackContainer['state']; ?><div class="stack-container-card" onclick="event.stopPropagation();showSection('containers',document.querySelector('.nav-item[onclick*=\'containers\']'));applyContainerFilter(<?php echo htmlspecialchars(json_encode((string)$stackContainer['name'], JSON_UNESCAPED_UNICODE), ENT_QUOTES, 'UTF-8'); ?>);" title="<?php echo htmlspecialchars(t('click_to_navigate'), ENT_QUOTES, 'UTF-8'); ?>"><div class="stack-card-top"><span class="scc-name"><?php echo htmlspecialchars((string)$stackContainer['name'], ENT_QUOTES, 'UTF-8'); ?></span><span class="status-badge status-<?php echo $scState === 'running' ? 'running' : ($scState === 'exited' ? 'exited' : ($scState === 'paused' ? 'paused' : 'created')); ?>"><?php echo ico('dot'); ?> <?php echo htmlspecialchars($scState, ENT_QUOTES, 'UTF-8'); ?></span></div><div class="stack-card-image"><?php echo ico('cube'); ?> <span class="mono-clip"><?php echo htmlspecialchars((string)$stackContainer['image'], ENT_QUOTES, 'UTF-8'); ?></span></div></div><?php endforeach; ?></div><?php else: ?><div class="detail-list"><div><?php echo htmlspecialchars(t('no_containers'), ENT_QUOTES, 'UTF-8'); ?></div></div><?php endif; ?></div></td></tr>
+            <?php endforeach; else: ?><tr><td colspan="5" style="text-align:center;padding:40px;"><?php echo htmlspecialchars(t('no_stacks_found'), ENT_QUOTES, 'UTF-8'); ?></td></tr><?php endif; ?>
             </tbody></table></div>
         </div>
         
@@ -1496,7 +1501,6 @@ function ico($n) {
                                             <?php endif; ?>
                                             <a href="<?php echo htmlspecialchars(dockerUrl(['action' => 'restart_container', 'id' => $container['Id'], 'view' => null]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-restart" title="<?php echo htmlspecialchars(t('restart'), ENT_QUOTES, 'UTF-8'); ?>" data-confirm="<?php echo htmlspecialchars(t('restart') . '?', ENT_QUOTES, 'UTF-8'); ?>" onclick="confirmDockerAction(event, this)"><?php echo ico('restart'); ?> <?php echo htmlspecialchars(t('restart'), ENT_QUOTES, 'UTF-8'); ?></a>
                                             <a href="<?php echo htmlspecialchars(dockerUrl(['action' => 'pull_image', 'id' => $container['Id'], 'view' => null]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-pull" title="<?php echo htmlspecialchars(t('pull'), ENT_QUOTES, 'UTF-8'); ?>" data-confirm="<?php echo htmlspecialchars(t('pull') . '?', ENT_QUOTES, 'UTF-8'); ?>" onclick="confirmDockerAction(event, this)"><?php echo ico('download'); ?> <?php echo htmlspecialchars(t('pull'), ENT_QUOTES, 'UTF-8'); ?></a>
-                                            <a href="<?php echo htmlspecialchars(dockerUrl(['action' => 'update_container', 'id' => $container['Id'], 'view' => null]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-update" title="<?php echo htmlspecialchars(t('update'), ENT_QUOTES, 'UTF-8'); ?>" data-confirm="<?php echo htmlspecialchars(t('update') . '?', ENT_QUOTES, 'UTF-8'); ?>" onclick="confirmDockerAction(event, this)"><?php echo ico('update'); ?> <?php echo htmlspecialchars(t('update'), ENT_QUOTES, 'UTF-8'); ?></a>
                                             <a href="<?php echo htmlspecialchars(dockerUrl(['action' => 'recreate_container', 'id' => $container['Id'], 'view' => null]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-recreate" title="<?php echo htmlspecialchars(t('recreate'), ENT_QUOTES, 'UTF-8'); ?>" data-confirm="<?php echo htmlspecialchars(t('recreate') . '?', ENT_QUOTES, 'UTF-8'); ?>" onclick="confirmDockerAction(event, this)"><?php echo ico('duplicate'); ?> <?php echo htmlspecialchars(t('recreate'), ENT_QUOTES, 'UTF-8'); ?></a>
                                             <?php if (in_array($st, ['running', 'paused', 'restarting'], true)): ?>
                                                 <a href="<?php echo htmlspecialchars(dockerUrl(['action' => 'kill_container', 'id' => $container['Id'], 'view' => null]), ENT_QUOTES, 'UTF-8'); ?>" class="btn btn-kill" title="<?php echo htmlspecialchars(t('docker_kill'), ENT_QUOTES, 'UTF-8'); ?>" data-confirm="<?php echo htmlspecialchars(t('docker_kill') . '?', ENT_QUOTES, 'UTF-8'); ?>" onclick="confirmDockerAction(event, this)"><?php echo ico('kill'); ?> <?php echo htmlspecialchars(t('docker_kill'), ENT_QUOTES, 'UTF-8'); ?></a>
@@ -1532,7 +1536,7 @@ function ico($n) {
                         <tr>
                             <th><?php echo htmlspecialchars(t('repository'), ENT_QUOTES, 'UTF-8'); ?></th>
                             <th><?php echo htmlspecialchars(t('tag'), ENT_QUOTES, 'UTF-8'); ?></th>
-                            <th>ID</th>
+                            <th><?php echo htmlspecialchars(t('id'), ENT_QUOTES, 'UTF-8'); ?></th>
                             <th><?php echo htmlspecialchars(t('size'), ENT_QUOTES, 'UTF-8'); ?></th>
                             <th><?php echo htmlspecialchars(t('created'), ENT_QUOTES, 'UTF-8'); ?></th>
                         </tr>
@@ -1606,7 +1610,7 @@ function ico($n) {
                             <th><?php echo htmlspecialchars(t('name'), ENT_QUOTES, 'UTF-8'); ?></th>
                             <th><?php echo htmlspecialchars(t('driver'), ENT_QUOTES, 'UTF-8'); ?></th>
                             <th><?php echo htmlspecialchars(t('scope'), ENT_QUOTES, 'UTF-8'); ?></th>
-                            <th>ID</th>
+                            <th><?php echo htmlspecialchars(t('id'), ENT_QUOTES, 'UTF-8'); ?></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -1666,7 +1670,7 @@ function ico($n) {
                                 $isVolumeUsed = isset($usedVolumesMap[$volumeName]);
                         ?>
                             <tr class="c-row" tabindex="0" data-search="<?php echo htmlspecialchars($volumeSearch, ENT_QUOTES, 'UTF-8'); ?>">
-                                <td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars($volumeName); ?></strong><?php if (!$isVolumeUsed): ?><span class="tag-pill" style="margin-left:8px;background:var(--danger-bg);color:var(--danger);">unused</span><?php endif; ?></span></td>
+                                <td><span class="c-name-wrap"><?php echo ico('chevron'); ?><strong><?php echo htmlspecialchars($volumeName); ?></strong><?php if (!$isVolumeUsed): ?><span class="tag-pill" style="margin-left:8px;background:var(--danger-bg);color:var(--danger);"><?php echo htmlspecialchars(t('unused'), ENT_QUOTES, 'UTF-8'); ?></span><?php endif; ?></span></td>
                                 <td><?php echo htmlspecialchars($vo['Driver'] ?? ''); ?></td>
                                 <td style="font-family: monospace; font-size: 11px;"><?php echo htmlspecialchars($vo['Mountpoint'] ?? ''); ?></td>
                             </tr>
@@ -1737,7 +1741,7 @@ function ico($n) {
                 <h3 style="margin-top: 22px;"><?php echo htmlspecialchars(t('endpoint'), ENT_QUOTES, 'UTF-8'); ?> #<?php echo (int)$epId; ?></h3>
                 <div class="info-grid">
                     <div><strong><?php echo htmlspecialchars(t('endpoint_name'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo htmlspecialchars($systemInfo['data']['Name'] ?? ''); ?></div>
-                    <div><strong>URL:</strong> <?php echo htmlspecialchars($systemInfo['data']['URL'] ?? 'N/A'); ?></div>
+                    <div><strong><?php echo htmlspecialchars(t('endpoint_url'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo htmlspecialchars($systemInfo['data']['URL'] ?? 'N/A'); ?></div>
                     <div><strong><?php echo htmlspecialchars(t('endpoint_status'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo isset($systemInfo['data']['Status']) ? (int)$systemInfo['data']['Status'] : 'N/A'; ?></div>
                 </div>
                 <?php endif; ?>
@@ -1780,14 +1784,18 @@ function ico($n) {
         <div class="docker-modal-card" role="dialog" aria-modal="true" aria-labelledby="dockerModalTitle">
             <div class="docker-modal-head">
                 <div class="docker-modal-title" id="dockerModalTitle"></div>
-                <button type="button" class="docker-modal-close" onclick="closeDockerModal()" aria-label="Close">&times;</button>
+                <button type="button" class="docker-modal-close" onclick="closeDockerModal()" aria-label="<?php echo htmlspecialchars(t('close'), ENT_QUOTES, 'UTF-8'); ?>">&times;</button>
             </div>
-            <iframe class="docker-modal-frame" id="dockerModalFrame" title="Docker details"></iframe>
+            <iframe class="docker-modal-frame" id="dockerModalFrame" title="<?php echo htmlspecialchars(t('docker_details'), ENT_QUOTES, 'UTF-8'); ?>"></iframe>
         </div>
     </div>
     
     <script>
-        const sectionTitles = <?php echo json_encode(['stacks' => 'Stacks', 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')], JSON_UNESCAPED_UNICODE); ?>;
+        const I18N = <?php echo json_encode($i18n[$lang] ?? $i18n['en'], JSON_UNESCAPED_UNICODE); ?>;
+        const I18N_EN = <?php echo json_encode($i18n['en'], JSON_UNESCAPED_UNICODE); ?>;
+        function t(key){return I18N[key] ?? I18N_EN[key] ?? key;}
+        function tf(key, vars){let text=t(key);for(const n in (vars||{})){text=text.split('{'+n+'}').join(vars[n]);}return text;}
+        const sectionTitles = <?php echo json_encode(['stacks' => t('stacks'), 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')], JSON_UNESCAPED_UNICODE); ?>;
         const startupModals = <?php echo json_encode($startupModals, JSON_UNESCAPED_UNICODE); ?>;
         const modalIcons = <?php echo json_encode(['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')], JSON_UNESCAPED_UNICODE); ?>;
         const modalLabels = <?php echo json_encode(['noticeTitle' => t('docker_modal_notice_title'), 'confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE); ?>;
@@ -1815,7 +1823,7 @@ function ico($n) {
             const cw=c.clientWidth||300; const ch=c.clientHeight||86;
             c.width=Math.floor(cw*dpr); c.height=Math.floor(ch*dpr);
             const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-            const w=cw; const h=ch; const p={l:30,r:8,t:8,b:18};
+            const w=cw; const h=ch; const p={l:38,r:8,t:8,b:12};
             const pw=w-p.l-p.r; const ph=h-p.t-p.b;
             ctx.clearRect(0,0,w,h);
             ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(p.l,p.t,pw,ph);
@@ -1830,12 +1838,15 @@ function ico($n) {
                 arr.forEach((v,i)=>{const x=p.l+(i*(pw/(arr.length-1))); const y=p.t+ph-((v/max)*ph); if(i===0)ctx.moveTo(x,y); else ctx.lineTo(x,y);});
                 ctx.stroke();
             });
-            ctx.fillStyle='rgba(148,163,184,0.8)'; ctx.font='10px sans-serif';
-            ctx.fillText('0',6,p.t+ph+2);
             const topLabel=unit==='bytes'?toBytesText(max):(unit==='percent'?`${max.toFixed(0)}%`:Math.round(max).toString());
-            ctx.fillText(topLabel,4,p.t+8);
+            ctx.save();
+            ctx.translate(11,p.t+ph); ctx.rotate(-Math.PI/2);
+            ctx.fillStyle='rgba(148,163,184,0.85)'; ctx.font='10px sans-serif';
+            ctx.textAlign='center'; ctx.textBaseline='middle';
+            ctx.fillText(topLabel,0,ph); ctx.fillText('0',0,0);
+            ctx.restore();
             const sl=document.getElementById(scaleLabelId);
-            if(sl)sl.textContent=unit==='bytes'?`max ${toBytesText(max)}`:(unit==='percent'?`max ${max.toFixed(1)}%`:`max ${Math.round(max)}`);
+            if(sl)sl.textContent=unit==='bytes'?tf('max_label',{value:toBytesText(max)}):(unit==='percent'?tf('max_label',{value:max.toFixed(1)+'%'}):tf('max_label',{value:String(Math.round(max))}));
             return max;
         }
         function updateLiveUi(stats){
@@ -1846,7 +1857,7 @@ function ico($n) {
             set('mNet', `${toBytesText(stats.net_rx)} / ${toBytesText(stats.net_tx)}`);
             set('mIo', `${toBytesText(stats.blk_read)} / ${toBytesText(stats.blk_write)}`);
             set('mPids', String(stats.pids || 0));
-            set('mContainers', monitorContainerId ? monitorContainerId.slice(0,12) : 'n/a');
+            set('mContainers', monitorContainerId ? monitorContainerId.slice(0,12) : t('na'));
             pushMetric('cpu',stats.cpu_total); pushMetric('mem',stats.mem_used); pushMetric('rx',stats.net_rx); pushMetric('tx',stats.net_tx); pushMetric('br',stats.blk_read); pushMetric('bw',stats.blk_write); pushMetric('pids',stats.pids);
             if(monitorContainerId)try{localStorage.setItem('docker_chart_'+monitorContainerId,JSON.stringify(chartHistory));}catch(e){}
             drawChart('chartCpu',['cpu'],'sCpu','percent');
@@ -1877,7 +1888,7 @@ function ico($n) {
             const sec=document.getElementById('chartsSection');
             if(sec)sec.style.display='block';
             const mt=document.getElementById('monitorTitle');
-            if(mt)mt.textContent=`Live monitoring: ${containerName||containerId.slice(0,12)}`;
+            if(mt)mt.textContent=tf('live_monitoring_colon',{name:containerName||containerId.slice(0,12)});
             var saved=localStorage.getItem('docker_chart_'+containerId);
             if(saved){try{var p=JSON.parse(saved);if(p&&typeof p==='object'){Object.keys(p).forEach(function(k){if(Array.isArray(p[k]))chartHistory[k]=p[k];});}}catch(e){}}
             if(Object.keys(chartHistory).some(function(k){return chartHistory[k].length>0;})){
