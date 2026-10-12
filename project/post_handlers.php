@@ -831,7 +831,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         }
     }
     if($_SERVER['REQUEST_METHOD']==='POST'&&isset($_POST['settings'])){
-    $newLanguage=$_POST['language'];
+    $newLanguage=ap_normalize_pref_language((string)($_POST['language'] ?? ''), 'en');
     $newTheme=$_POST['theme'];
     $newColor=ap_sanitize_hex_color((string)($_POST['color'] ?? ''));
     $newIconSortOrder=in_array(($_POST['icon_sort_order']??''),['alpha','popularity'],true)?$_POST['icon_sort_order']:'alpha';
@@ -2071,10 +2071,10 @@ if($emailToReset){
             }
             // Languages
             if(isset($_POST['user_languages']) && is_array($_POST['user_languages'])){
-                $allowed_langs=['en','ru','uk','be'];
+                $allowed_langs=['en','ru','uk','be','pl','cs'];
                 foreach($_POST['user_languages'] as $email=>$lang){
                     if($email==='root@root') continue;
-                    if(isset($users[$email]) && in_array($lang, $allowed_langs)){
+                    if(isset($users[$email]) && in_array($lang, $allowed_langs, true)){
                         $users[$email]['language']=$lang;
                         $anyUpdated=true;
                     }

@@ -1193,7 +1193,7 @@ window.toggleWindChart = toggleWindChart;
                 var locEl = widget.querySelector('.weather-location');
                 var windEl = widget.querySelector('.weather-wind');
                 var pinEl = widget.querySelector('.weather-pin-icon');
-                if(permEl) permEl.style.display = 'none';
+                if(permEl) { permEl.style.display = 'none'; permEl.removeAttribute('title'); }
                 if(iconEl) iconEl.style.display = '';
                 if(tempEl) tempEl.style.display = '';
                 if(locSepEl) locSepEl.style.display = '';
@@ -1227,6 +1227,7 @@ window.toggleWindChart = toggleWindChart;
                 if(permEl) {
                     permEl.style.display = 'block';
                     permEl.textContent = message;
+                    permEl.title = message;
                 }
                 if(iconEl) iconEl.style.display = 'none';
                 if(tempEl) tempEl.style.display = 'none';

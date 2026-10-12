@@ -1,11 +1,3 @@
-        const I18N = <?php echo json_encode($i18n[$lang] ?? $i18n['en'], JSON_UNESCAPED_UNICODE); ?>;
-        const I18N_EN = <?php echo json_encode($i18n['en'], JSON_UNESCAPED_UNICODE); ?>;
-        function t(key){return I18N[key] ?? I18N_EN[key] ?? key;}
-        function tf(key, vars){let text=t(key);for(const n in (vars||{})){text=text.split('{'+n+'}').join(vars[n]);}return text;}
-        const sectionTitles = <?php echo json_encode(['stacks' => t('docker_stacks'), 'containers' => t('docker_containers'), 'networks' => t('docker_networks'), 'volumes' => t('docker_volumes'), 'images' => t('docker_images'), 'info' => t('docker_system')], JSON_UNESCAPED_UNICODE); ?>;
-        const startupModals = <?php echo json_encode($startupModals, JSON_UNESCAPED_UNICODE); ?>;
-        const modalIcons = <?php echo json_encode(['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')], JSON_UNESCAPED_UNICODE); ?>;
-        const modalLabels = <?php echo json_encode(['noticeTitle' => t('docker_modal_notice_title'), 'confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE); ?>;
         let noticeQueue = [];
         let pendingActionHref = '';
         let liveBusy = false;
@@ -64,7 +56,7 @@
             set('mNet', `${toBytesText(stats.net_rx)} / ${toBytesText(stats.net_tx)}`);
             set('mIo', `${toBytesText(stats.blk_read)} / ${toBytesText(stats.blk_write)}`);
             set('mPids', String(stats.pids || 0));
-            set('mContainers', monitorContainerId ? monitorContainerId.slice(0,12) : t('docker_na'));
+            set('mContainers', monitorContainerId ? monitorContainerId.slice(0,12) : t('na'));
             pushMetric('cpu',stats.cpu_total); pushMetric('mem',stats.mem_used); pushMetric('rx',stats.net_rx); pushMetric('tx',stats.net_tx); pushMetric('br',stats.blk_read); pushMetric('bw',stats.blk_write); pushMetric('pids',stats.pids);
             if(monitorContainerId)try{localStorage.setItem('docker_chart_'+monitorContainerId,JSON.stringify(chartHistory));}catch(e){}
             drawChart('chartCpu',['cpu'],'sCpu','percent');
@@ -271,4 +263,4 @@
                 if(cells.length>=2&&cells[1].textContent.trim()==='1'){r.click();}
             });
         },100);
-    </script>
+

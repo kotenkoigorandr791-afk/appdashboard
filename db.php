@@ -1672,7 +1672,9 @@ function activeSessionTtlSeconds(string $email): int {
     $role = (int)(($users[$email]['role'] ?? 0));
     $adminIdle = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : appAuthTimeoutSeconds();
     if ($email === 'root@root' || $role >= 2) {
-        return $adminIdle;
+        // Admins used to get a much shorter idle timeout than regular users,
+        // which logged the admin panel out constantly. Keep the standard window.
+        return max($adminIdle, appAuthTimeoutSeconds());
     }
     $fp = getDeviceFingerprint();
     if ($email !== '' && $fp !== '' && isTrustedDevice($email, $fp)) {

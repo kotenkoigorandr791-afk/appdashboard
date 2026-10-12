@@ -1728,6 +1728,17 @@ function apGateHide(){
 function apGateStatus(){
     return apAdminFetch({admin_panel_status:'1',ajax:'1'});
 }
+// Keep the admin session alive (and refresh the countdown) while the panel is open,
+// so the gate does not pop up in the middle of active work.
+if(!window._apKeepAliveId){
+    window._apKeepAliveId=setInterval(function(){
+        var ov=document.getElementById('admin-panel-overlay');
+        if(!ov||!ov.classList.contains('active'))return;
+        apGateStatus().then(function(d){
+            if(d&&d.authenticated&&d.expires_at) apSessionStartTimer(d.expires_at);
+        }).catch(function(){});
+    },60000);
+}
 function apGateLogin(password){
     return apAdminFetch({admin_panel_login:'1',ajax:'1',password:password||''});
 }
