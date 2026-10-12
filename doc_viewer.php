@@ -80,8 +80,7 @@ $theme = $config['theme'];
 $color = $config['color'];
 
 // Load translations
-$translations = [];
-$i18nPath = __DIR__ . '/i18n/' . preg_replace('/[^a-z0-9_-]/i', '', $language) . '.json';
+$translations = [];    $i18nPath = __DIR__ . '/project/i18n/' . preg_replace('/[^a-z0-9_-]/i', '', $language) . '.json';
 if (is_readable($i18nPath)) {
     $translations = json_decode(file_get_contents($i18nPath), true) ?: [];
 }

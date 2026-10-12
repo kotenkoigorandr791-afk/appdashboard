@@ -60,8 +60,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
         $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
         $__homeHtml = file_get_contents(APP_ROOT . '/project/views/home.html');
         if ($__homeHtml !== false) {
-            $__cssVersion = is_file(APP_ROOT . '/home/home.css') ? (string)filemtime(APP_ROOT . '/home/home.css') : '1';
-            $__jsVersion = is_file(APP_ROOT . '/home/home.js') ? (string)filemtime(APP_ROOT . '/home/home.js') : '1';
+            $__cssVersion = is_file(APP_ROOT . '/project/home/home.css') ? (string)filemtime(APP_ROOT . '/project/home/home.css') : '1';
+            $__jsVersion = is_file(APP_ROOT . '/project/home/home.js') ? (string)filemtime(APP_ROOT . '/project/home/home.js') : '1';
             $__homeHtml = str_replace('href="/home/home.css"', 'href="/home/home.css?v=' . $__cssVersion . '"', $__homeHtml);
             $__homeHtml = str_replace('src="/home/home.js"', 'src="/home/home.js?v=' . $__jsVersion . '"', $__homeHtml);
             $__homeHtml = str_replace(
@@ -74,8 +74,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
         exit;
     }
     $__homeAssets = [
-        '/home/home.css' => ['home/home.css', 'text/css; charset=UTF-8'],
-        '/home/home.js' => ['home/home.js', 'application/javascript; charset=UTF-8'],
+        '/home/home.css' => ['project/home/home.css', 'text/css; charset=UTF-8'],
+        '/home/home.js' => ['project/home/home.js', 'application/javascript; charset=UTF-8'],
     ];
     if (isset($__homeAssets[$__path])) {
         [$__file, $__type] = $__homeAssets[$__path];
@@ -90,6 +90,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
     }
     if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/onboarding/') || str_starts_with($__pathLower, '/project/icon')) {
         $__relative = ltrim(rawurldecode($__path), '/');
+        if (str_starts_with($__pathLower, '/home/')) {
+            $__relative = 'project/' . $__relative;
+        }
         $__target = realpath(APP_ROOT . '/' . $__relative);
         $__root = realpath(APP_ROOT);
         if ($__target && $__root && str_starts_with($__target, $__root . DIRECTORY_SEPARATOR) && is_file($__target)) {

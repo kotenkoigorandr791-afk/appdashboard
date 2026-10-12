@@ -1447,7 +1447,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         
 <div class="ap-panel" id="ap-docker-manager" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/docker_menager.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
+                <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/project/docker/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
                         title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>"
                         style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
                 </iframe>
