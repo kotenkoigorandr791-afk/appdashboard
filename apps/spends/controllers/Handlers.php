@@ -1372,6 +1372,17 @@ if (strcmp($rangeStart, $rangeEnd) <= 0) {
 $currentYear = (int)date('Y');
 $allDates = listCalendarDaysInclusive($currentYear . '-01-01', $currentYear . '-12-31');
 
+// Year range for the table's calendar picker (year/month selector)
+$tableMinYear = $currentYear;
+$tableMaxYear = $currentYear;
+try {
+    $minMaxDates = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses")->fetch(PDO::FETCH_ASSOC);
+    if (!empty($minMaxDates['lo'])) $tableMinYear = (int)substr($minMaxDates['lo'], 0, 4);
+    if (!empty($minMaxDates['hi'])) $tableMaxYear = (int)substr($minMaxDates['hi'], 0, 4);
+} catch (Exception $e) {}
+$tableMaxYear = max($tableMaxYear, $currentYear);
+if ($tableMinYear < 2000 || $tableMinYear > $tableMaxYear) $tableMinYear = min(2000, $tableMaxYear);
+
 $allStoresExpenses = [];
 $allIncomes = [];
 if (!empty($storeNames)) {

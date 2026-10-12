@@ -21,9 +21,11 @@ let currentCropType = '';
 let currentCropId   = '';
 let saveTimeout;
 let tableSettings = <?= json_encode($tableSettings, $jsonFlags) ?: '{}' ?>;
-let searchTerm    = '';
 let pendingDelete = { type:'', id:'', name:'' };
 let totalRowsDB   = <?= (int)$totalRows ?>;
+const tableYearMin = <?= (int)($tableMinYear ?? date('Y')) ?>;
+const tableYearMax = <?= (int)($tableMaxYear ?? date('Y')) ?>;
+let pendingScrollDate = null;
 let shareChart    = null;
 let currentRates  = {};
 
@@ -57,16 +59,10 @@ function showNotification(message, type='info') {
 }
 
 // ══ Server-side table data ════════════════════════════════════════════════════
-function filterTable() {
-    searchTerm = document.getElementById('search-input').value.trim();
-    loadPage();
-}
-
 function loadPage() {
     const monthRange = getMonthDateRange();
     const params = new URLSearchParams({
         get_expenses_page: 1,
-        search: searchTerm,
         months_window: 0,
         sort: 'date_asc',
         start_date: monthRange.start_date,
@@ -145,6 +141,7 @@ function loadPage() {
         totalRowsDB = data.total;
         renderPagination();
         highlightCurrentDate();
+        if (pendingScrollDate) { scrollToTableRow(pendingScrollDate); pendingScrollDate = null; }
 
         document.querySelectorAll('#data-table tbody input').forEach(inp=>{
             inp.defaultValue = inp.value;
@@ -161,6 +158,19 @@ function renderPagination() {
 // ══ Month pagination ═══════════════════════════════════════════════════════
 let currentMonth = null;
 let currentYear = null;
+
+function localYmd(d){
+    const p = n => String(n).padStart(2,'0');
+    return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate());
+}
+function scrollToTableRow(dateStr){
+    const scroller = document.querySelector('.table-modal .data-table-scroll');
+    const row = document.querySelector(`#data-table tbody tr[data-date="${dateStr}"]`);
+    if(!scroller||!row) return;
+    const r = row.getBoundingClientRect();
+    const s = scroller.getBoundingClientRect();
+    scroller.scrollTop += (r.top - s.top) - Math.max(0,(s.height - r.height)/2);
+}
 
 function getMonthData() {
     const now = new Date();
@@ -197,17 +207,109 @@ function renderMonthPagination() {
     nextBtn.onclick = () => { navigateMonth(1); };
     container.appendChild(nextBtn);
 
-    // Today button
+    // Today button: jumps to the current month and highlights today's whole row
     const todayBtn = document.createElement('button');
+    todayBtn.type = 'button';
     todayBtn.textContent = t('today','Today');
     todayBtn.style.marginLeft = '8px';
-    const now = new Date();
-    if (month === now.getMonth() && year === now.getFullYear()) {
-        todayBtn.disabled = true;
-    }
-    todayBtn.onclick = () => { currentMonth = null; currentYear = null; loadPageWithMonth(); };
+    todayBtn.onclick = () => {
+        const now = new Date();
+        currentMonth = now.getMonth();
+        currentYear = now.getFullYear();
+        pendingScrollDate = localYmd(now);
+        loadPageWithMonth();
+    };
     container.appendChild(todayBtn);
+
+    // Calendar: pick any year and month
+    const calBtn = document.createElement('button');
+    calBtn.type = 'button';
+    calBtn.className = 'table-cal-trigger';
+    calBtn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4.5" width="18" height="17" rx="2.5"/><line x1="16" y1="2.5" x2="16" y2="6.5"/><line x1="8" y1="2.5" x2="8" y2="6.5"/><line x1="3" y1="10" x2="21" y2="10"/></svg>';
+    calBtn.title = t('select_date_label','Select Date:');
+    calBtn.style.marginLeft = '8px';
+    container.appendChild(calBtn);
+
+    const pop = buildMonthPickerPopup(month, year);
+    container.appendChild(pop);
+    calBtn.onclick = (e) => { e.stopPropagation(); pop.classList.toggle('open'); };
 }
+
+let calReopen = false;
+function buildMonthPickerPopup(month, year) {
+    const pop = document.createElement('div');
+    pop.className = 'table-cal-pop';
+
+    const title = document.createElement('div');
+    title.className = 'table-cal-title';
+    title.textContent = t('select_date_label','Select Date:');
+    pop.appendChild(title);
+
+    const grid = document.createElement('div');
+    grid.className = 'table-cal-grid';
+
+    const yearSel = document.createElement('select');
+    yearSel.setAttribute('data-cal-year','1');
+    yearSel.setAttribute('aria-label', t('year_label','Year'));
+    // Any past year must stay reachable: months without data still render empty cells.
+    const minYear = Math.min(2000, tableYearMin);
+    const maxYear = Math.max(tableYearMax, year, (new Date()).getFullYear());
+    for (let y = minYear; y <= maxYear; y++) {
+        const o = document.createElement('option');
+        o.value = y; o.textContent = y;
+        if (y === year) o.selected = true;
+        yearSel.appendChild(o);
+    }
+
+    const monthSel = document.createElement('select');
+    monthSel.setAttribute('data-cal-month','1');
+    monthSel.setAttribute('aria-label', t('month_label','Month'));
+    monthNames.forEach((m,i)=>{
+        const o = document.createElement('option');
+        o.value = i; o.textContent = m;
+        if (i === month) o.selected = true;
+        monthSel.appendChild(o);
+    });
+
+    const yearField = document.createElement('label');
+    yearField.className = 'table-cal-field';
+    const yearCap = document.createElement('span');
+    yearCap.textContent = t('year_label','Year');
+    yearField.appendChild(yearCap);
+    yearField.appendChild(yearSel);
+
+    const monthField = document.createElement('label');
+    monthField.className = 'table-cal-field';
+    const monthCap = document.createElement('span');
+    monthCap.textContent = t('month_label','Month');
+    monthField.appendChild(monthCap);
+    monthField.appendChild(monthSel);
+
+    grid.appendChild(yearField);
+    grid.appendChild(monthField);
+    pop.appendChild(grid);
+
+    const apply = () => {
+        const y = parseInt(yearSel.value,10);
+        const m = parseInt(monthSel.value,10);
+        if (isNaN(y) || isNaN(m)) return;
+        currentYear = y;
+        currentMonth = m;
+        calReopen = true;
+        loadPageWithMonth();
+    };
+    yearSel.onchange = apply;
+    monthSel.onchange = apply;
+    return pop;
+}
+
+document.addEventListener('click', e => {
+    const openPop = document.querySelector('.table-cal-pop.open');
+    if (!openPop) return;
+    if (openPop.contains(e.target)) return;
+    if (e.target.closest && e.target.closest('.table-cal-trigger')) return;
+    openPop.classList.remove('open');
+});
 
 function navigateMonth(direction) {
     const { month, year } = getMonthData();
@@ -220,16 +322,23 @@ function navigateMonth(direction) {
 
 function loadPageWithMonth() {
     renderMonthPagination();
+    if (calReopen) {
+        const pop = document.querySelector('.table-cal-pop');
+        if (pop) pop.classList.add('open');
+        calReopen = false;
+    }
     loadPage();
 }
 
 function getMonthDateRange() {
     const { month, year } = getMonthData();
+    // Build the range in LOCAL time: toISOString() would shift to UTC and drop
+    // the last day of the month for users ahead of UTC (e.g. June 30 missing).
     const start = new Date(year, month, 1);
     const end = new Date(year, month + 1, 0);
     return {
-        start_date: start.toISOString().slice(0, 10),
-        end_date: end.toISOString().slice(0, 10)
+        start_date: localYmd(start),
+        end_date: localYmd(end)
     };
 }
 
@@ -732,8 +841,8 @@ document.addEventListener('click',e=>{
 function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
 
 function highlightCurrentDate() {
-    document.querySelectorAll('.current-date-row').forEach(r=>r.classList.remove('current-date-row'));
-    const today = new Date().toISOString().split('T')[0];
+    document.querySelectorAll('#data-table .current-date-row').forEach(r=>r.classList.remove('current-date-row'));
+    const today = localYmd(new Date());
     document.querySelectorAll('#data-table tbody tr').forEach(r=>{
         if (r.getAttribute('data-date')===today) {
             r.classList.add('current-date-row');
