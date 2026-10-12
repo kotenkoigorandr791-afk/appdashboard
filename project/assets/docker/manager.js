@@ -1,4 +1,3 @@
-        let noticeQueue = [];
         let pendingActionHref = '';
         let liveBusy = false;
         let monitorContainerId = '';
@@ -129,6 +128,35 @@
             const charts = document.getElementById('chartsSection');
             if (charts && section !== 'containers') charts.style.display = 'none';
             if (charts && section === 'containers' && monitorContainerId) charts.style.display = 'block';
+            dockerSaveState();
+        }
+        function dockerSaveState() {
+            try {
+                const active = document.querySelector('.nav-item.active');
+                const section = active && active.getAttribute('onclick') ? (active.getAttribute('onclick').match(/showSection\('(\w+)'/) || [])[1] : '';
+                if (section) localStorage.setItem('docker_active_section', section);
+                const cf = document.getElementById('containerFilter');
+                localStorage.setItem('docker_filter', cf ? cf.value : '');
+                const expanded = Array.from(document.querySelectorAll('.c-row.expanded')).map(r => r.getAttribute('data-search') || '');
+                localStorage.setItem('docker_expanded', JSON.stringify(expanded));
+            } catch (e) {}
+        }
+        function dockerRestoreState() {
+            let section = 'stacks';
+            try {
+                const saved = localStorage.getItem('docker_active_section');
+                if (saved && document.getElementById(saved + 'Section')) section = saved;
+            } catch (e) {}
+            showSection(section, document.querySelector('.nav-item[data-section="' + section + '"]'));
+            let filter = '';
+            try { filter = localStorage.getItem('docker_filter') || ''; } catch (e) {}
+            if (filter) applyContainerFilter(filter);
+            let expanded = [];
+            try { expanded = JSON.parse(localStorage.getItem('docker_expanded') || '[]') || []; } catch (e) {}
+            expanded.forEach(function(key) {
+                const row = document.querySelector('.c-row[data-search="' + String(key).replace(/"/g, '\\"') + '"]');
+                if (row && !row.classList.contains('expanded')) row.click();
+            });
         }
         function toggleSidebar() {
             document.getElementById('sidebar').classList.toggle('open');
@@ -163,24 +191,33 @@
             if (type === 'success' || type === 'error' || type === 'warn') target.classList.add(type);
             target.innerHTML = modalIcons[type] || modalIcons.info || '';
         }
-        function openNoticeModal(notice) {
-            const modal = document.getElementById('noticeModal');
-            const icon = document.getElementById('noticeModalIcon');
-            const type = notice.type || 'info';
-            setModalIcon(icon, type);
-            document.getElementById('noticeModalTitle').textContent = notice.title || modalLabels.noticeTitle || '';
-            document.getElementById('noticeModalText').textContent = notice.message || '';
-            modal.classList.add('active');
-            modal.setAttribute('aria-hidden', 'false');
+        function showDockerToast(notice) {
+            const type = notice.type === 'error' ? 'error' : (notice.type === 'success' ? 'success' : 'info');
+            const notification = document.createElement('div');
+            notification.className = 'notification ' + type;
+            notification.innerHTML =
+                (modalIcons[type] || modalIcons.info || '') +
+                '<span class="notification-content"></span>' +
+                '<button class="notification-close" type="button">&times;</button>';
+            notification.querySelector('.notification-content').textContent =
+                (notice.title ? notice.title + ': ' : '') + (notice.message || '');
+            document.body.appendChild(notification);
+            const dismiss = () => {
+                if (!notification.parentNode) return;
+                notification.classList.remove('show');
+                setTimeout(() => { notification.remove(); updateDockerToastStack(); }, 250);
+            };
+            notification.querySelector('.notification-close').addEventListener('click', dismiss);
+            updateDockerToastStack();
+            setTimeout(() => { notification.classList.add('show'); }, 50);
+            setTimeout(dismiss, 4000);
         }
-        function closeNoticeModal() {
-            const modal = document.getElementById('noticeModal');
-            modal.classList.remove('active');
-            modal.setAttribute('aria-hidden', 'true');
-            if (noticeQueue.length > 0) openNoticeModal(noticeQueue.shift());
-        }
-        function closeNoticeModalOnBackdrop(e) {
-            if (e.target && e.target.id === 'noticeModal') closeNoticeModal();
+        function updateDockerToastStack() {
+            let offset = 0;
+            Array.from(document.querySelectorAll('.notification')).reverse().forEach(el => {
+                el.style.bottom = (24 + offset) + 'px';
+                offset += el.offsetHeight + 10;
+            });
         }
         function confirmDockerAction(e, link) {
             e.preventDefault();
@@ -210,7 +247,6 @@
             if (e.key === 'Escape') {
                 closeDockerModal();
                 closeConfirmModal();
-                closeNoticeModal();
             }
         });
         document.querySelectorAll('.containers-table-wrap').forEach(wrap => {
@@ -234,6 +270,7 @@
                         startContainerMonitor(this.getAttribute('data-container-id') || '', this.getAttribute('data-container-name') || '');
                     }
                 }
+                dockerSaveState();
             });
             row.addEventListener('keydown', function(e) {
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
@@ -251,12 +288,10 @@
                     if (!ok) { det.style.display = 'none'; row.classList.remove('expanded'); }
                 }
             });
+            dockerSaveState();
         });
-        if (startupModals.length > 0) {
-            noticeQueue = startupModals.slice(1);
-            openNoticeModal(startupModals[0]);
-        }
-        showSection('stacks', document.querySelector('.sidebar .nav-item.active'));
+        startupModals.forEach(showDockerToast);
+        dockerRestoreState();
         setTimeout(function(){
             document.querySelectorAll('#stacksSection .c-row').forEach(function(r){
                 var cells=r.querySelectorAll('td');

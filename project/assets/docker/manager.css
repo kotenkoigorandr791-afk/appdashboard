@@ -429,6 +429,51 @@
             background: rgba(0,0,0,0.16);
         }
         html[data-theme="light"] .message-modal-actions { background: rgba(15,23,42,0.025); }
+        .notification {
+            position: fixed;
+            bottom: 24px;
+            right: 20px;
+            padding: 10px 14px 10px 16px;
+            border-radius: 8px;
+            color: var(--text);
+            z-index: 5000;
+            opacity: 0;
+            transform: translateX(30px);
+            transition: all 0.25s ease;
+            max-width: 320px;
+            font-size: 13px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.18);
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            border-left: 4px solid var(--accent);
+            background: var(--surface);
+        }
+        .notification.show { opacity: 1; transform: translateX(0); }
+        .notification.success { border-left-color: #00C851; }
+        .notification.success .ico { stroke: #00C851; }
+        .notification.error { border-left-color: #ff4444; }
+        .notification.error .ico { stroke: #ff4444; }
+        .notification.info .ico { stroke: var(--accent); }
+        .notification-content { flex: 1; line-height: 1.4; word-break: break-word; }
+        .notification-close {
+            background: none;
+            border: none;
+            color: var(--text);
+            cursor: pointer;
+            opacity: 0.4;
+            padding: 0;
+            width: 18px;
+            height: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            transition: all 0.15s;
+            flex-shrink: 0;
+            font-size: 16px;
+        }
+        .notification-close:hover { opacity: 0.8; background: var(--surface-hover); }
         .docker-modal-head {
             display: flex;
             justify-content: space-between;

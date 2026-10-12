@@ -1,10 +1,16 @@
+<?php
+$dockerCssPath = __DIR__ . '/../../assets/docker/manager.css';
+$dockerJsPath = __DIR__ . '/../../assets/docker/manager.js';
+$dockerCssUrl = '/project/assets/docker/manager.css?v=' . @filemtime($dockerCssPath);
+$dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath);
+?>
 <!DOCTYPE html>
 <html lang="<?php echo htmlspecialchars($lang, ENT_QUOTES, 'UTF-8'); ?>" data-theme="<?php echo htmlspecialchars($theme, ENT_QUOTES, 'UTF-8'); ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?php echo htmlspecialchars(t('docker_manager_title'), ENT_QUOTES, 'UTF-8'); ?></title>
-    <link rel="stylesheet" href="/project/assets/docker/manager.css">
+    <link rel="stylesheet" href="<?php echo htmlspecialchars($dockerCssUrl, ENT_QUOTES, 'UTF-8'); ?>">
     <style>
         :root {
             --accent: <?php echo htmlspecialchars($accent, ENT_QUOTES, 'UTF-8'); ?>;
@@ -25,27 +31,27 @@
             <div class="brand-row"><?php echo ico('brand'); ?><h2><?php echo htmlspecialchars(t('docker_manager_title'), ENT_QUOTES, 'UTF-8'); ?></h2></div>
         </div>
         <div class="sidebar-nav">
-            <div class="nav-item active" onclick="showSection('stacks', this); closeSidebar();">
+            <div class="nav-item active" data-section="stacks" onclick="showSection('stacks', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('layers'); ?></span>
                 <span><?php echo htmlspecialchars(t('docker_stacks'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <div class="nav-item" onclick="showSection('containers', this); closeSidebar();">
+            <div class="nav-item" data-section="containers" onclick="showSection('containers', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('cube'); ?></span>
                 <span><?php echo htmlspecialchars(t('containers'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <div class="nav-item" onclick="showSection('networks', this); closeSidebar();">
+            <div class="nav-item" data-section="networks" onclick="showSection('networks', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('network'); ?></span>
                 <span><?php echo htmlspecialchars(t('networks'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <div class="nav-item" onclick="showSection('volumes', this); closeSidebar();">
+            <div class="nav-item" data-section="volumes" onclick="showSection('volumes', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('volume'); ?></span>
                 <span><?php echo htmlspecialchars(t('volumes'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <div class="nav-item" onclick="showSection('images', this); closeSidebar();">
+            <div class="nav-item" data-section="images" onclick="showSection('images', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('layers'); ?></span>
                 <span><?php echo htmlspecialchars(t('images'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
-            <div class="nav-item" onclick="showSection('info', this); closeSidebar();">
+            <div class="nav-item" data-section="info" onclick="showSection('info', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('info'); ?></span>
                 <span><?php echo htmlspecialchars(t('docker_system'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
@@ -464,21 +470,6 @@
         </div>
     </div>
 
-    <div class="docker-modal" id="noticeModal" aria-hidden="true" onclick="closeNoticeModalOnBackdrop(event)">
-        <div class="message-modal-card" role="dialog" aria-modal="true" aria-labelledby="noticeModalTitle">
-            <div class="message-modal-body">
-                <div class="message-modal-icon" id="noticeModalIcon"><?php echo ico('info'); ?></div>
-                <div class="message-modal-content">
-                    <h3 id="noticeModalTitle"></h3>
-                    <p id="noticeModalText"></p>
-                </div>
-            </div>
-            <div class="message-modal-actions">
-                <button type="button" class="btn btn-ghost" onclick="closeNoticeModal()"><?php echo htmlspecialchars(t('docker_modal_ok'), ENT_QUOTES, 'UTF-8'); ?></button>
-            </div>
-        </div>
-    </div>
-
     <div class="docker-modal" id="confirmModal" aria-hidden="true" onclick="closeConfirmModalOnBackdrop(event)">
         <div class="message-modal-card" role="dialog" aria-modal="true" aria-labelledby="confirmModalTitle">
             <div class="message-modal-body">
@@ -513,8 +504,8 @@
         const sectionTitles = <?php echo json_encode(['stacks' => t('stacks'), 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')], JSON_UNESCAPED_UNICODE); ?>;
         const startupModals = <?php echo json_encode($startupModals, JSON_UNESCAPED_UNICODE); ?>;
         const modalIcons = <?php echo json_encode(['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')], JSON_UNESCAPED_UNICODE); ?>;
-        const modalLabels = <?php echo json_encode(['noticeTitle' => t('docker_modal_notice_title'), 'confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE); ?>;
+        const modalLabels = <?php echo json_encode(['confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE); ?>;
     </script>
-    <script src="/project/assets/docker/manager.js"></script>
+    <script src="<?php echo htmlspecialchars($dockerJsUrl, ENT_QUOTES, 'UTF-8'); ?>"></script>
 </body>
 </html>

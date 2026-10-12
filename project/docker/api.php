@@ -140,60 +140,152 @@ function dockerPullImage($imageRef) {
     $q = http_build_query(['fromImage' => $from, 'tag' => $tag], '', '&', PHP_QUERY_RFC3986);
     return callDockerAPI(dockerApi('images/create?' . $q), 'POST', null, 600);
 }
-function dockerFindHostContainer() {
+function dockerAllContainers() {
     global $containers;
-    $list = is_array($containers['data'] ?? null) ? $containers['data'] : [];
-    foreach ($list as $c) {
-        $labels = $c['Labels'] ?? [];
-        $name = str_replace('/', '', $c['Names'][0] ?? '');
-        if (!empty($labels['io.docker.server'])) return $c['Id'];
-        if (stripos($name, 'docker') !== false) return $c['Id'];
+    if (is_array($containers['data'] ?? null)) {
+        return $containers['data'];
     }
-    foreach ($list as $c) {
-        if (($c['State'] ?? '') === 'running') return $c['Id'];
+    $res = callDockerAPI(dockerApi('containers/json?all=true'));
+    return is_array($res['data'] ?? null) ? $res['data'] : [];
+}
+
+function detectComposeFile($projectName) {
+    $candidates = dockerComposeFileCandidates($projectName);
+    if ($candidates === []) {
+        return [null, t('docker_compose_not_found')];
+    }
+    foreach ($candidates as $path) {
+        $content = dockerReadHostFile($path);
+        if ($content !== null) {
+            return [$content, null];
+        }
+    }
+    return [null, t('docker_compose_not_found') . ': ' . implode(', ', $candidates)];
+}
+
+/**
+ * Compose file paths of a project, taken from the compose labels of its containers
+ * with the usual file names appended to the recorded working directory.
+ */
+function dockerComposeFileCandidates($projectName) {
+    $project = trim((string)$projectName);
+    if ($project === '') {
+        return [];
+    }
+    $files = [];
+    $dirs = [];
+    foreach (dockerAllContainers() as $c) {
+        if (!is_array($c)) continue;
+        $labels = is_array($c['Labels'] ?? null) ? $c['Labels'] : [];
+        if (trim((string)($labels['com.docker.compose.project'] ?? '')) !== $project) continue;
+        $configFiles = trim((string)($labels['com.docker.compose.project.config_files'] ?? ''));
+        if ($configFiles === '') {
+            $configFiles = trim((string)($labels['com.docker.compose.project.config_file'] ?? ''));
+        }
+        foreach (preg_split('/\s*,\s*/', $configFiles) ?: [] as $part) {
+            if ($part !== '') $files[] = $part;
+        }
+        $dir = trim((string)($labels['com.docker.compose.project.working_dir'] ?? ''));
+        if ($dir !== '') $dirs[] = $dir;
+    }
+    foreach ($dirs as $dir) {
+        foreach (['docker-compose.yml', 'docker-compose.yaml', 'compose.yml', 'compose.yaml'] as $name) {
+            $files[] = rtrim($dir, '/') . '/' . $name;
+        }
+    }
+    $files = array_values(array_unique($files));
+    sort($files);
+    return $files;
+}
+
+/**
+ * Read a file located on the Docker host.
+ *
+ * The dashboard itself runs inside a container, so host paths are translated
+ * through the bind mounts of the project containers. Only files served by one
+ * of those mounts (or by the dashboard root) can be read.
+ */
+function dockerReadHostFile($path) {
+    foreach (dockerHostPathVariants($path) as $candidate) {
+        if (!dockerPathAllowed($candidate)) continue;
+        if (!is_file($candidate) || !is_readable($candidate)) continue;
+        $content = @file_get_contents($candidate);
+        if (is_string($content) && trim($content) !== '') {
+            return $content;
+        }
     }
     return null;
 }
 
-function decodeDockerStream($raw) {
-    $output = '';
-    $offset = 0;
-    $len = strlen($raw);
-    while ($offset + 8 <= $len) {
-        $hdr = substr($raw, $offset, 8);
-        $frameLen = unpack('N', substr($hdr, 4, 4))[1];
-        $offset += 8;
-        $frameLen = min($frameLen, $len - $offset);
-        if ($frameLen > 0) $output .= substr($raw, $offset, $frameLen);
-        $offset += $frameLen;
+/**
+ * A translated path is readable only inside the dashboard root or inside a
+ * bind mount of a project container, so nothing else of the container leaks.
+ */
+function dockerPathAllowed($path) {
+    $path = '/' . ltrim((string)$path, '/');
+    $allowed = [];
+    $root = defined('APP_ROOT') ? '/' . trim((string)APP_ROOT, '/') : (string)getcwd();
+    if ($root !== '') {
+        $allowed[] = rtrim($root, '/');
     }
-    return trim($output);
+    foreach (dockerProjectBindMounts() as $destination) {
+        $allowed[] = rtrim($destination, '/');
+    }
+    foreach ($allowed as $prefix) {
+        if ($path === $prefix || strpos($path, $prefix . '/') === 0) {
+            return true;
+        }
+    }
+    return false;
 }
 
-function dockerExecReadOutput($containerId, $command, $timeout = 30) {
-    $createResult = callDockerAPI(
-        dockerApi('containers/' . rawurlencode($containerId) . '/exec'),
-        'POST',
-        ['Cmd' => ['sh', '-c', $command], 'AttachStdout' => true, 'AttachStderr' => true, 'Tty' => false],
-        $timeout
-    );
-    if ($createResult['code'] !== 201 || !is_array($createResult['data']) || empty($createResult['data']['Id'])) return null;
-    $execId = $createResult['data']['Id'];
-    $startResult = callDockerAPI(dockerApi('exec/' . rawurlencode($execId) . '/start'), 'POST', ['Detach' => false, 'Tty' => false], $timeout);
-    $raw = is_string($startResult['raw'] ?? null) ? $startResult['raw'] : '';
-    if (($startResult['code'] ?? 0) !== 200 || $raw === '') return null;
-    return decodeDockerStream($raw);
+/**
+ * Every path a host path may answer to from inside the dashboard container.
+ * Mount destinations are absolute container paths, so a host path under a bind
+ * mount source simply maps to the destination plus the remaining sub-path.
+ */
+function dockerHostPathVariants($path) {
+    $path = '/' . ltrim((string)$path, '/');
+    $out = [];
+    foreach (dockerProjectBindMounts() as $source => $destination) {
+        $prefix = rtrim($source, '/');
+        if (strpos($path, $prefix . '/') !== 0) continue;
+        $out[] = rtrim($destination, '/') . substr($path, strlen($prefix));
+    }
+    $out[] = $path;
+    return array_values(array_unique($out));
 }
 
-function detectComposeFile($projectName) {
-    $hostContainerId = dockerFindHostContainer();
-    if ($hostContainerId === null) return [null, t('docker_compose_no_access')];
-    $escaped = escapeshellarg($projectName);
-    $cmd = 'docker compose -p ' . $escaped . ' config 2>&1; docker-compose -p ' . $escaped . ' config 2>&1';
-    $output = dockerExecReadOutput($hostContainerId, $cmd);
-    if ($output === null || trim($output) === '') return [null, t('docker_compose_not_found')];
-    if (preg_match('/command not found|not a docker command|no such command|is not a docker command/i', $output)) return [null, t('docker_compose_not_found') . ' (CLI)'];
-    return [$output, null];
+/**
+ * Source => destination bind mounts of every container, as seen from the
+ * dashboard container. Docker stores mounts under /var/lib/docker/volumes on the
+ * host, so volume sources are translated back to their in-container path.
+ */
+function dockerProjectBindMounts() {
+    static $mounts = null;
+    if ($mounts !== null) {
+        return $mounts;
+    }
+    $mounts = [];
+    foreach (dockerAllContainers() as $c) {
+        if (!is_array($c)) continue;
+        $id = (string)($c['Id'] ?? '');
+        if ($id === '') continue;
+        $insp = dockerContainerInspect($id);
+        if (($insp['code'] ?? 0) !== 200 || !is_array($insp['data'])) continue;
+        foreach ($insp['data']['Mounts'] ?? [] as $mount) {
+            if (!is_array($mount) || (string)($mount['Type'] ?? '') !== 'bind') continue;
+            $source = (string)($mount['Source'] ?? '');
+            $destination = (string)($mount['Destination'] ?? '');
+            if ($source === '' || $destination === '') continue;
+            if (strpos($source, '/var/lib/docker/volumes/') === 0) {
+                $source = '/' . ltrim(str_replace('_data', '', substr($source, strlen('/var/lib/docker/volumes/'))), '/');
+                if ($source === '/') continue;
+            }
+            $mounts[$source] = '/' . ltrim($destination, '/');
+        }
+    }
+    return $mounts;
 }
 
 function dockerRecreateContainer($id, $imageOverride = null) {
