@@ -55,37 +55,28 @@ if [ -n "$KEY_PATH" ] && [ -f "$KEY_PATH" ]; then
   fi
 fi
 
-# Seed default SSH profile once (host/user from env) when none is saved yet.
-SSH_DEFAULT_HOST="${SSH_DEFAULT_HOST:-host.docker.internal}"
-SSH_DEFAULT_USER="${SSH_DEFAULT_USER:-root}"
-SSH_DEFAULT_PORT="${SSH_DEFAULT_PORT:-22}"
-export SSH_DEFAULT_HOST SSH_DEFAULT_USER SSH_DEFAULT_PORT KEY_PATH APP_ROOT
-if [ -f "$APP_ROOT/db.php" ] && [ -f "$APP_ROOT/ssh_terminal_handler.php" ] && [ -n "$KEY_PATH" ] && [ -f "$KEY_PATH" ]; then
-  /usr/local/bin/php -r '
-require getenv("APP_ROOT")."/db.php";
-require getenv("APP_ROOT")."/ssh_terminal_handler.php";
-$existing = apSshReadSavedProfile();
-if (!empty($existing["host"]) && !empty($existing["user"])) {
-  echo "ssh profile already configured\n";
-  exit(0);
-}
-$host = trim((string)(getenv("SSH_DEFAULT_HOST") ?: "host.docker.internal"));
-$user = trim((string)(getenv("SSH_DEFAULT_USER") ?: "root"));
-$port = (int)(getenv("SSH_DEFAULT_PORT") ?: 22);
-$key = trim((string)(getenv("KEY_PATH") ?: ""));
-if ($host === "" || $user === "" || $key === "" || !is_readable($key)) {
-  fwrite(STDERR, "ssh profile seed skipped (missing host/user/key)\n");
-  exit(0);
-}
-$ok = apSshWriteSavedProfile([
-  "host" => $host,
-  "user" => $user,
-  "port" => $port > 0 ? $port : 22,
-  "key_path" => $key,
-  "key_passphrase" => "",
-]);
-echo $ok ? "ssh profile seeded: {$user}@{$host}:{$port}\n" : "ssh profile seed failed\n";
-' || echo "ssh profile seed skipped (db not ready)"
+# Auto-create dedicated host key for connecting to host.docker.internal
+HOST_KEY_PATH="$SSH_DIR/id_ed25519_host"
+if [ ! -f "$HOST_KEY_PATH" ]; then
+  if command -v ssh-keygen >/dev/null 2>&1; then
+    ssh-keygen -t ed25519 -N "" -f "$HOST_KEY_PATH" -C "appdashboard-ssh-host" >/dev/null 2>&1 || true
+  fi
+fi
+if [ -f "$HOST_KEY_PATH" ]; then
+  chown www-data:www-data "$HOST_KEY_PATH" "$HOST_KEY_PATH.pub" 2>/dev/null || true
+  chmod 0600 "$HOST_KEY_PATH" 2>/dev/null || true
+  chmod 0644 "$HOST_KEY_PATH.pub" 2>/dev/null || true
 fi
 
-echo "ssh-ws runtime ready"
+# Ensure known_hosts has host.docker.internal for passwordless connections
+KNOWN_HOSTS="$SSH_DIR/known_hosts"
+if [ ! -f "$KNOWN_HOSTS" ]; then
+  touch "$KNOWN_HOSTS"
+fi
+if ! grep -q "host.docker.internal" "$KNOWN_HOSTS" 2>/dev/null; then
+  ssh-keyscan -t ed25519,rsa,ecdsa host.docker.internal >> "$KNOWN_HOSTS" 2>/dev/null || true
+fi
+chown www-data:www-data "$KNOWN_HOSTS" 2>/dev/null || true
+chmod 0644 "$KNOWN_HOSTS" 2>/dev/null || true
+
+echo "SSH WebSocket setup complete."

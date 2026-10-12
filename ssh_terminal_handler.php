@@ -47,6 +47,100 @@ if (!function_exists('apSshValidateHost')) {
     }
 }
 
+if (!function_exists('apSshTcpReachable')) {
+    function apSshTcpReachable(string $host, int $port, float $timeout = 2.0): bool
+    {
+        $targets = [];
+        $v4 = @gethostbyname($host);
+        // gethostbyname() returns the input unchanged when resolution fails.
+        if ($v4 !== $host && filter_var($v4, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+            $targets[] = $v4;
+        }
+        $targets[] = $host;
+        foreach (array_unique($targets) as $target) {
+            $errno = 0;
+            $errstr = '';
+            $sock = @fsockopen($target, $port, $errno, $errstr, $timeout);
+            if ($sock !== false) {
+                fclose($sock);
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
+if (!function_exists('apSshResolveTargetHost')) {
+    /**
+     * Picks the first host that actually accepts SSH connections.
+     * SSH_HOST overrides everything; otherwise the common container-to-host
+     * aliases are probed in order.
+     */
+    function apSshResolveTargetHost(): string
+    {
+        $configured = trim((string)(getenv('SSH_DEFAULT_HOST') ?: getenv('SSH_HOST') ?: ''));
+        $candidates = [];
+        if ($configured !== '') {
+            $candidates[] = $configured;
+        }
+        foreach (['host.docker.internal', '172.17.0.1', '172.18.0.1'] as $alias) {
+            if (!in_array($alias, $candidates, true)) {
+                $candidates[] = $alias;
+            }
+        }
+        foreach ($candidates as $candidate) {
+            if (apSshTcpReachable($candidate, 22)) {
+                return $candidate;
+            }
+        }
+        return $configured !== '' ? $configured : 'host.docker.internal';
+    }
+}
+
+if (!function_exists('apSshAuthorizeHostKey')) {
+    /**
+     * Returns the public key that matches the configured private key.
+     * ssh-keygen -y is authoritative because the .pub file can be stale.
+     */
+    function apSshPublicKeyFor(string $privateKeyPath): string
+    {
+        $out = [];
+        $code = 0;
+        @exec('ssh-keygen -y -f ' . escapeshellarg($privateKeyPath) . ' 2>/dev/null', $out, $code);
+        if ($code === 0 && !empty($out[0])) {
+            return trim($out[0]);
+        }
+        $pubPath = $privateKeyPath . '.pub';
+        if (is_readable($pubPath)) {
+            return trim((string)@file_get_contents($pubPath));
+        }
+        return '';
+    }
+}
+
+if (!function_exists('apSshResolveTargetUser')) {
+    /**
+     * SSH_USER wins. Otherwise a normal account is preferred over root.
+     * Web-server service accounts (www-data, apache, nginx, …) are skipped:
+     * they only exist inside the container and have no login shell on the host.
+     */
+    function apSshResolveTargetUser(): string
+    {
+        $configured = trim((string)(getenv('SSH_DEFAULT_USER') ?: getenv('SSH_USER') ?: ''));
+        if ($configured !== '' && apSshValidateUser($configured)) {
+            return $configured;
+        }
+        $serviceAccounts = ['www-data', 'apache', 'nginx', 'httpd', 'nobody', 'daemon', 'wwwrun'];
+        $current = function_exists('get_current_user') ? trim((string)get_current_user()) : '';
+        if ($current !== ''
+            && apSshValidateUser($current)
+            && !in_array(strtolower($current), $serviceAccounts, true)) {
+            return $current;
+        }
+        return 'root';
+    }
+}
+
 if (!function_exists('apSshValidateUser')) {
     function apSshValidateUser(string $user): bool
     {
@@ -65,6 +159,64 @@ if (!function_exists('apSshKeysDir')) {
     }
 }
 
+if (!function_exists('apSshGetHostKeyPath')) {
+    function apSshGetHostKeyPath(): string
+    {
+        return apSshKeysDir() . '/id_ed25519_host';
+    }
+}
+
+if (!function_exists('apSshRotateHostKey')) {
+    function apSshRotateHostKey(): ?array
+    {
+        $keysDir = apSshKeysDir();
+        if (!is_dir($keysDir)) {
+            mkdir($keysDir, 0700, true);
+        }
+
+        $privateKeyPath = apSshGetHostKeyPath();
+        $publicKeyPath = $privateKeyPath . '.pub';
+
+        foreach ([$privateKeyPath, $publicKeyPath] as $stale) {
+            if (is_file($stale)) {
+                @unlink($stale);
+            }
+        }
+
+        $cmd = "ssh-keygen -t ed25519 -N '' -f " . escapeshellarg($privateKeyPath) . " -C 'appdashboard-ssh-host'";
+        $output = [];
+        $returnCode = 0;
+        exec($cmd, $output, $returnCode);
+
+        if ($returnCode !== 0 || !is_file($privateKeyPath) || !is_file($publicKeyPath)) {
+            return null;
+        }
+
+        // Set permissions
+        chmod($privateKeyPath, 0600);
+        chmod($publicKeyPath, 0644);
+
+        // ssh-keygen -y is authoritative: it reflects the actual private key.
+        $publicKey = apSshPublicKeyFor($privateKeyPath);
+        if ($publicKey === '') {
+            return null;
+        }
+
+        // Change ownership to www-data
+        $uid = posix_getpwnam('www-data');
+        if ($uid) {
+            chown($privateKeyPath, $uid['uid']);
+            chown($publicKeyPath, $uid['uid']);
+        }
+
+        return [
+            'private_key_path' => $privateKeyPath,
+            'public_key_path' => $publicKeyPath,
+            'public_key' => $publicKey,
+        ];
+    }
+}
+
 if (!function_exists('apSshDiscoverKeyPath')) {
     function apSshDiscoverKeyPath(): string
     {
@@ -72,6 +224,12 @@ if (!function_exists('apSshDiscoverKeyPath')) {
         if (!is_dir($dir)) {
             return '';
         }
+        // First check for the dedicated host key
+        $hostKeyPath = apSshGetHostKeyPath();
+        if (is_readable($hostKeyPath)) {
+            return $hostKeyPath;
+        }
+        // Fall back to any other key
         foreach (['id_ed25519', 'id_rsa', 'id_ecdsa'] as $name) {
             $path = $dir . '/' . $name;
             if (is_readable($path)) {
@@ -592,6 +750,27 @@ if (!function_exists('handleSshTerminalRequest')) {
             $_SESSION['ssh_terminal'] = [];
         }
 
+        // Handle SSH key rotation
+        $isRotateKey = isset($_POST['ssh_rotate_key']);
+        if ($isRotateKey) {
+            adminRequireCapability('ssh');
+            adminRequireMutationThrottle('ssh', 5, 60);
+            $rotated = apSshRotateHostKey();
+            if ($rotated) {
+                apSshJsonResponse([
+                    'success' => true,
+                    'message' => 'SSH key rotated successfully. The public key has been updated.',
+                    'public_key' => $rotated['public_key'] ?? '',
+                ]);
+            } else {
+                apSshJsonResponse([
+                    'success' => false,
+                    'error' => 'Failed to rotate SSH key',
+                ]);
+            }
+            return true;
+        }
+
         if ($isGetProfile) {
             $saved = apSshReadSavedProfile();
             $defaultKey = apSshDiscoverKeyPath();
@@ -636,39 +815,28 @@ if (!function_exists('handleSshTerminalRequest')) {
         }
 
         if ($isInit) {
-            $saved = apSshReadSavedProfile();
-            $host = apSshReadPostString('ssh_host', '127.0.0.1');
-            $user = apSshReadPostString('ssh_user', get_current_user() ?: 'root');
-            $port = (int)($_POST['ssh_port'] ?? 22);
+            // Auto-configure to connect to host machine
+            $host = apSshResolveTargetHost();
+            $port = (int)(getenv('SSH_DEFAULT_PORT') ?: getenv('SSH_PORT') ?: 22);
+            $user = apSshResolveTargetUser();
             $backend = 'phpseclib';
-            $keyPathInput = isset($_POST['ssh_key_path'])
-                ? apSshReadPostString('ssh_key_path', '')
-                : (string)($saved['key_path'] ?? '');
-            $keyPath = apSshResolveKeyPath($keyPathInput);
-            $keyPassphrase = isset($_POST['ssh_key_passphrase'])
-                ? (string)($_POST['ssh_key_passphrase'] ?? '')
-                : (string)($saved['key_passphrase'] ?? '');
+            // Use the dedicated host key
+            $keyPath = apSshGetHostKeyPath();
 
-            if (!apSshValidateHost($host)) {
-                apSshJsonResponse(['success' => false, 'error' => 'Invalid SSH host']);
-                return true;
+            // If host key doesn't exist, discover any available key
+            if (!is_readable($keyPath)) {
+                $keyPath = apSshDiscoverKeyPath();
             }
-            if (!apSshValidateUser($user)) {
-                apSshJsonResponse(['success' => false, 'error' => 'Invalid SSH user']);
-                return true;
-            }
-            if ($port < 1 || $port > 65535) {
-                apSshJsonResponse(['success' => false, 'error' => 'Invalid SSH port']);
-                return true;
-            }
-
+            
             if ($keyPath === '') {
                 apSshJsonResponse([
                     'success' => false,
-                    'error' => 'SSH private key not found. Place id_ed25519 or id_rsa in ' . apSshKeysDir(),
+                    'error' => 'SSH private key not found. Place id_ed25519_host or id_ed25519 in ' . apSshKeysDir(),
                 ]);
                 return true;
             }
+            
+            $keyPassphrase = '';
 
             $_SESSION['ssh_terminal'] = [
                 'host' => $host,
@@ -686,13 +854,20 @@ if (!function_exists('handleSshTerminalRequest')) {
             $wsToken = apSshIssueWsToken($_SESSION['ssh_terminal']);
             $_SESSION['ssh_ws_token'] = $wsToken;
 
+            $hint = '';
+            if (empty($probe['success'])) {
+                $hint = ' Add this public key to ~/.ssh/authorized_keys of ' . $user . '@' . $host . " on the host:\n"
+                    . apSshPublicKeyFor($keyPath);
+            }
+
             apSshJsonResponse([
                 'success' => !empty($probe['success']),
                 'message' => 'SSH profile saved',
                 'backend' => $backend,
+                'host' => $host,
                 'connected' => !empty($probe['success']),
                 'connect_output' => apSshEnsureUtf8((string)($probe['output'] ?? '')),
-                'connect_error' => apSshEnsureUtf8((string)($probe['error'] ?? '')),
+                'connect_error' => apSshEnsureUtf8((string)($probe['error'] ?? '')) . $hint,
                 'ws_token' => $wsToken,
                 'ws_url' => apSshWsPublicUrl(),
             ]);

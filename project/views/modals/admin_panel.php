@@ -126,6 +126,7 @@
     from{opacity:0;transform:translateY(14px) scale(.98)}
     to{opacity:1;transform:none}
 }
+@keyframes _ap_spin{from{transform:rotate(0deg)}to{transform:rotate(360deg)}}
 #ap-gate-login .ap-gate-badge{
     display:inline-flex;align-items:center;gap:8px;
     font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;
@@ -676,6 +677,20 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
 #ap-stats-range-controls input[type="date"] { flex-shrink: 1; }
 @media (min-width: 1200px) {
     #ap-stats-range-controls { flex-wrap: nowrap; }
+}
+
+/* Fix date picker calendar icon visibility in dark theme */
+#ap-stats-range-controls input[type="date"]::-webkit-calendar-picker-indicator,
+#npo-edit-date::-webkit-calendar-picker-indicator,
+input[type="date"]::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.7;
+    cursor: pointer;
+}
+#ap-stats-range-controls input[type="date"]::-webkit-calendar-picker-indicator:hover,
+#npo-edit-date::-webkit-calendar-picker-indicator:hover,
+input[type="date"]::-webkit-calendar-picker-indicator:hover {
+    opacity: 1;
 }
 
 /* Settings tabs */
@@ -1622,7 +1637,10 @@ function apSessionStartTimer(expiresAt){
     function fmt(sec){
         if(sec<=0) return '0:00';
         var h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60;
-        return (h>0? h+':'+String(m).padStart(2,'0') : String(m))+':'+String(s).padStart(2,'0');
+        if(h>0){
+            return h+':'+String(m).padStart(2,'0');
+        }
+        return String(m)+':'+String(s).padStart(2,'0');
     }
     function tick(){
         var left=Math.floor((expiresAt-Date.now())/1000);
@@ -1906,99 +1924,103 @@ function reloadAdminStats(year){
 function wireSshPanel(){
     var terminalEl = dynRoot.querySelector('#ap-ssh-terminal');
     var terminalShellEl = dynRoot.querySelector('.ap-ssh-terminal-shell');
-    var settingsBtn = dynRoot.querySelector('#ap-ssh-settings-btn');
-    var modalEl = dynRoot.querySelector('#ap-ssh-settings-modal');
-    var closeBtn = dynRoot.querySelector('#ap-ssh-settings-close');
-    if(!terminalEl || !settingsBtn || !modalEl || !closeBtn){
+    var rotateKeyBtn = dynRoot.querySelector('#ap-ssh-rotate-key-btn');
+    if(!terminalEl){
         return;
     }
 
-    var hostEl = dynRoot.querySelector('#ap-ssh-host');
-    var userEl = dynRoot.querySelector('#ap-ssh-user');
-    var portEl = dynRoot.querySelector('#ap-ssh-port');
-    var keyPathEl = dynRoot.querySelector('#ap-ssh-key-path');
-    var keyPassEl = dynRoot.querySelector('#ap-ssh-key-passphrase');
-    var keyHintEl = dynRoot.querySelector('#ap-ssh-key-hint');
-
-    var testBtn = dynRoot.querySelector('#ap-ssh-test-profile');
-    var saveBtn = dynRoot.querySelector('#ap-ssh-save-profile');
-    var modalStatusEl = dynRoot.querySelector('#ap-ssh-modal-status');
-    var connectOutEl = dynRoot.querySelector('#ap-ssh-modal-connect-output');
-    if(!hostEl || !userEl || !portEl || !keyPathEl || !keyPassEl || !testBtn || !saveBtn || !modalStatusEl || !connectOutEl){
-        return;
-    }
-
-    function parseApiJson(response){
-        return response.text().then(function(raw){
-            var txt = String(raw || '').trim();
-            var first = txt.indexOf('{');
-            if(first > 0){ txt = txt.slice(first); }
-            try{
-                return JSON.parse(txt);
-            }catch(err){
-                if(txt.indexOf('cf-') !== -1 || txt.indexOf('cloudflare') !== -1 || txt.indexOf('challenge') !== -1){
-                    throw new Error('Request blocked by Cloudflare. Try disabling Cloudflare protection for this endpoint.');
+    // Auto-connect on panel open
+    function autoConnect(){
+        var fd = new FormData();
+        fd.append('ssh_terminal_init', '1');
+        fd.append('ajax', '1');
+        fetch('/main', {method:'POST', body:fd})
+            .then(parseApiJson)
+            .then(function(d){
+                if(d && d.success && d.connected){
+                    if(d.ws_token && terminalEl){
+                        terminalEl._apSshPreauthToken = d.ws_token;
+                        terminalEl._apSshPreauthUrl = d.ws_url || '';
+                    }
+                    if(terminalEl && typeof terminalEl._apSshReconnect === 'function'){
+                        terminalEl._apSshReconnect();
+                    }
+                }else{
+                    var term = terminalEl._apTerm;
+                    var msg = ((d && (d.connect_error || d.error)) ? (d.connect_error || d.error) : 'SSH not connected');
+                    if(term){
+                        term.writeln('\x1b[31m' + msg + '\x1b[0m');
+                    }else{
+                        terminalEl.textContent = '[Error] ' + msg;
+                    }
                 }
-                throw new Error('Invalid JSON response: ' + txt.slice(0, 200));
-            }
+            })
+            .catch(function(err){
+                var msg = (err && err.message) ? err.message : 'network error';
+                var term = terminalEl._apTerm;
+                if(term){
+                    term.writeln('\x1b[31m' + msg + '\x1b[0m');
+                }else{
+                    terminalEl.textContent = '[Error] ' + msg;
+                }
+            });
+    }
+
+    if(rotateKeyBtn){
+        // Rotate SSH key
+        rotateKeyBtn.addEventListener('click', function(){
+            if(rotateKeyBtn.disabled) return;
+            rotateKeyBtn.disabled = true;
+            var originalText = rotateKeyBtn.innerHTML;
+            rotateKeyBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:4px;animation:_ap_spin 1s linear infinite;"><circle cx="12" cy="12" r="10" stroke-opacity="0.25"></circle><path d="M12 2a10 10 0 0 1 10 10" stroke-opacity="0.75"></path></svg> Rotating...';
+
+            var fd = new FormData();
+            fd.append('ssh_rotate_key', '1');
+            fd.append('ajax', '1');
+            fetch('/main', {method:'POST', body:fd})
+                .then(parseApiJson)
+                .then(function(d){
+                    rotateKeyBtn.disabled = false;
+                    rotateKeyBtn.innerHTML = originalText;
+                    if(d && d.success){
+                        terminalEl.textContent = '[Info] ' + (d.message || 'SSH key rotated successfully');
+                        if(d.public_key){
+                            terminalEl.textContent += '\n\nNew public key:\n' + d.public_key + '\n\nAdd this to ~/.ssh/authorized_keys on the host machine.';
+                        }
+                    }else{
+                        terminalEl.textContent = '[Error] ' + (d && d.error ? d.error : 'Failed to rotate key');
+                    }
+                })
+                .catch(function(err){
+                    rotateKeyBtn.disabled = false;
+                    rotateKeyBtn.innerHTML = originalText;
+                    terminalEl.textContent = '[Error] ' + (err && err.message ? err.message : 'network error');
+                });
         });
     }
 
-    function setPreText(el, text){
-        if(!el) return;
-        el.textContent = String(text || '');
-        try{ el.scrollTop = el.scrollHeight; }catch(_){}
-    }
-
-        /** NBSP / narrow NBSP → normal space (fixes 'broken' prompts on copy-paste) */
-    function apSshNormalizeSpaces(s){
-        return String(s || '').replace(/\u00a0/g,' ').replace(/\u202f/g,' ').replace(/\u2007/g,' ');
-    }
-
-        /** Remove helper lines like libs: … if they ever end up in the output */
-    function apSshStripLibsLines(text){
-        return String(text || '').split(/\r?\n/).filter(function(line){
-            return !/^\s*libs\s*:/i.test(apSshNormalizeSpaces(line).trim());
-        }).join('\n');
-    }
-
-        /** Simple ANSI highlighting for typical cmd output (dir), JSON and 'key=value' */
-    function apSshAnsiHighlightLine(line){
-        var raw = apSshNormalizeSpaces(line);
-        var t = raw.trim();
-        if(t === '') return raw;
-
-        var DIM = '\x1b[90m';
-        var GRN = '\x1b[32m';
-        var CYA = '\x1b[36m';
-        var YEL = '\x1b[33m';
-        var MAG = '\x1b[35m';
-        var RST = '\x1b[0m';
-
-        if(/^\s*Volume in drive/i.test(t) || /^\s*Volume Serial Number is/i.test(t)){
-            return GRN + raw + RST;
+function parseApiJson(response){
+    return response.text().then(function(raw){
+        var txt = String(raw || '').trim();
+        var first = txt.indexOf('{');
+        if(first > 0){ txt = txt.slice(first); }
+        try{
+            return JSON.parse(txt);
+        }catch(err){
+            if(txt.indexOf('cf-') !== -1 || txt.indexOf('cloudflare') !== -1 || txt.indexOf('challenge') !== -1){
+                throw new Error('Request blocked by Cloudflare. Try disabling Cloudflare protection for this endpoint.');
+            }
+            throw new Error('Invalid JSON response: ' + txt.slice(0, 200));
         }
-        if(/^\s*Directory of\b/i.test(t)){
-            return CYA + raw + RST;
-        }
-        if(/^\s*\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}/.test(t) && /<DIR>/i.test(t)){
-            return raw.replace(/^(\s*\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}\s+)/, DIM + '$1' + RST)
-                .replace(/<DIR>/gi, CYA + '<DIR>' + RST);
-        }
-        if(/^\s*\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}\s+/.test(t) && !/<DIR>/i.test(t)){
-            return raw.replace(/^(\s*\d{2}\.\d{2}\.\d{4}\s+\d{2}:\d{2}\s+)/, DIM + '$1' + RST)
-                .replace(/(\d[\d,\s]*\s*bytes?|\d[\d,\s]*\s*File\(s\)|\d[\d,\s]*\s*Dir\(s\))/gi, YEL + '$1' + RST);
-        }
-        if(/^\s*[\{\[]/.test(t) || /^\s*"[^"]+"\s*:/.test(t)){
-            return raw.replace(/("(?:\\.|[^"\\])*")/g, YEL + '$1' + RST)
-                .replace(/\b(true|false|null)\b/g, MAG + '$1' + RST);
-        }
-        if(/^\s*[A-Za-z_][\w.-]*\s*=/.test(t)){
-            return raw.replace(/^(\s*[A-Za-z_][\w.-]*)(\s*=)/, GRN + '$1' + RST + '$2');
-        }
-        return raw;
-    }
+    });
+}
 
+/** NBSP / narrow NBSP → normal space (fixes 'broken' prompts on copy-paste) */
+function apSshNormalizeSpaces(s){
+    return String(s || '').replace(/\u00a0/g,' ').replace(/\u202f/g,' ').replace(/\u2007/g,' ');
+}
+
+/** Remove helper lines like libs: … if they ever end up in the output */
     var apSshWs = null;
     var apSshWsReady = false;
     var apSshWsToken = null;
@@ -2234,6 +2256,17 @@ function wireSshPanel(){
                 apSshWsReady = false;
                 term.clear();
                 term.writeln('\x1b[90mConnecting to SSH shell...\x1b[0m');
+
+                // ssh_terminal_init already issued a token for this session.
+                var preToken = terminalEl._apSshPreauthToken;
+                var preUrl = terminalEl._apSshPreauthUrl;
+                if(preToken && preUrl){
+                    terminalEl._apSshPreauthToken = '';
+                    terminalEl._apSshPreauthUrl = '';
+                    apSshWsOpen(preToken, preUrl);
+                    return;
+                }
+
                 var fd = new FormData();
                 fd.append('ssh_terminal_ws_token', '1');
                 fd.append('ajax', '1');
@@ -2242,40 +2275,43 @@ function wireSshPanel(){
                     .then(function(d){
                         if(!d || !d.success || !d.token || !d.ws_url){
                             term.writeln('\x1b[31m' + ((d && d.error) ? d.error : 'WebSocket token failed') + '\x1b[0m');
-                            term.writeln('\x1b[90mOpen settings (gear) and save SSH profile first.\x1b[0m');
                             return;
                         }
-                        apSshWsToken = d.token;
-                        apSshWs = new WebSocket(d.ws_url);
-                        apSshWs.onopen = function(){
-                            apSshFitTerm();
-                            var sz = apSshTermSize(term);
-                            apSshWsSend({type:'auth', token: apSshWsToken, cols: sz.cols, rows: sz.rows});
-                        };
-                        apSshWs.onmessage = function(ev){
-                            var msg;
-                            try{ msg = JSON.parse(ev.data); }catch(_){ return; }
-                            if(!msg || !msg.type) return;
-                            if(msg.type === 'output' && msg.data){
-                                term.write(msg.data);
-                            }else if(msg.type === 'connected'){
-                                apSshWsReady = true;
-                                term.focus();
-                            }else if(msg.type === 'error'){
-                                term.writeln('\r\n\x1b[31m' + (msg.message || 'SSH error') + '\x1b[0m');
-                            }
-                        };
-                        apSshWs.onclose = function(){
-                            apSshWsReady = false;
-                            term.writeln('\r\n\x1b[90mSSH session closed.\x1b[0m');
-                        };
-                        apSshWs.onerror = function(){
-                            term.writeln('\r\n\x1b[31mWebSocket connection failed. Is the SSH WS service running?\x1b[0m');
-                        };
+                        apSshWsOpen(d.token, d.ws_url);
                     })
                     .catch(function(err){
                         term.writeln('\x1b[31m' + ((err && err.message) ? err.message : 'network error') + '\x1b[0m');
                     });
+            }
+
+            function apSshWsOpen(token, url){
+                apSshWsToken = token;
+                apSshWs = new WebSocket(url);
+                apSshWs.onopen = function(){
+                    apSshFitTerm();
+                    var sz = apSshTermSize(term);
+                    apSshWsSend({type:'auth', token: apSshWsToken, cols: sz.cols, rows: sz.rows});
+                };
+                apSshWs.onmessage = function(ev){
+                    var msg;
+                    try{ msg = JSON.parse(ev.data); }catch(_){ return; }
+                    if(!msg || !msg.type) return;
+                    if(msg.type === 'output' && msg.data){
+                        term.write(msg.data);
+                    }else if(msg.type === 'connected'){
+                        apSshWsReady = true;
+                        term.focus();
+                    }else if(msg.type === 'error'){
+                        term.writeln('\r\n\x1b[31m' + (msg.message || 'SSH error') + '\x1b[0m');
+                    }
+                };
+                apSshWs.onclose = function(){
+                    apSshWsReady = false;
+                    term.writeln('\r\n\x1b[90mSSH session closed.\x1b[0m');
+                };
+                apSshWs.onerror = function(){
+                    term.writeln('\r\n\x1b[31mWebSocket connection failed. Is the SSH WS service running?\x1b[0m');
+                };
             }
             terminalEl._apSshReconnect = apSshWsConnect;
             terminalEl._apSshSendInput = function(text){
@@ -2287,7 +2323,7 @@ function wireSshPanel(){
                 if(apSshWsReady) apSshWsSend({type:'input', data: data});
             });
 
-            term.writeln(apSshNormalizeSpaces('Interactive SSH terminal (PTY). Configure profile in settings if needed.'));
+            term.writeln(apSshNormalizeSpaces('Interactive SSH terminal (PTY).'));
             apSshWsConnect();
 
             function apSshCopyTextToClipboard(text){
@@ -2356,117 +2392,6 @@ function wireSshPanel(){
             });
         });
     }
-
-    function loadProfileIntoModal(){
-        setPreText(connectOutEl, '');
-        setStatus(modalStatusEl, T.ssh_loading_profile || 'Loading saved SSH profile...', 'info');
-
-        var fd = new FormData();
-        fd.append('ssh_terminal_get_profile', '1');
-        fd.append('ajax', '1');
-        fetch('/main', {method:'POST', body:fd})
-            .then(parseApiJson)
-            .then(function(d){
-                if(d && d.success){
-                    hostEl.value = d.host || '';
-                    userEl.value = d.user || '';
-                    portEl.value = d.port || 22;
-                    keyPathEl.value = d.key_path || d.default_key_path || '';
-                    if(keyHintEl){
-                        keyHintEl.textContent = keyPathEl.value
-                            ? (T.ssh_key_ready || 'SSH key found. Only key authentication is used.')
-                            : (T.ssh_key_only_hint || 'Password login is disabled. Place id_ed25519 or id_rsa in data/.ssh/');
-                    }
-                    if(terminalEl && terminalEl._apSshUpdatePrompt){
-                        terminalEl._apSshUpdatePrompt();
-                    }
-                    setStatus(modalStatusEl, T.ssh_profile_loaded || 'Profile loaded', 'success');
-                }else{
-                    if(d && d.default_key_path){
-                        keyPathEl.value = d.default_key_path;
-                    }
-                    setStatus(modalStatusEl, (d && d.error) ? d.error : (T.ssh_no_saved_profile || 'No saved SSH profile'), 'error');
-                    if(keyHintEl){
-                        keyHintEl.textContent = T.ssh_key_only_hint || 'Password login is disabled. Place id_ed25519 or id_rsa in data/.ssh/';
-                    }
-                }
-            })
-            .catch(function(err){
-                setStatus(modalStatusEl, (T.ssh_load_failed || 'Load failed:') + ' ' + (err && err.message ? err.message : (T.network_error || 'network error')), 'error');
-            });
-    }
-
-    function runInitFromModal(){
-        setStatus(modalStatusEl, T.ssh_saving_testing || 'Saving & testing SSH connection...', 'info');
-        setPreText(connectOutEl, '');
-
-        var fd = new FormData();
-        fd.append('ssh_terminal_init', '1');
-        fd.append('ajax', '1');
-        fd.append('ssh_host', (hostEl && hostEl.value ? hostEl.value : '').trim());
-        fd.append('ssh_user', (userEl && userEl.value ? userEl.value : '').trim());
-        fd.append('ssh_port', (portEl && portEl.value ? portEl.value : '22').toString().trim());
-        fd.append('ssh_key_path', (keyPathEl && keyPathEl.value ? keyPathEl.value : '').trim());
-
-        if(keyPassEl && keyPassEl.value && String(keyPassEl.value).trim() !== ''){
-            fd.append('ssh_key_passphrase', keyPassEl.value);
-        }
-
-        fetch('/main', {method:'POST', body:fd})
-            .then(parseApiJson)
-            .then(function(d){
-                var ok = !!(d && d.success && d.connected);
-                setStatus(modalStatusEl,
-                    ok
-                        ? ((T.ssh_connected_via || 'SSH connected via') + ' ' + (d.backend || 'phpseclib'))
-                        : ((T.ssh_not_connected || 'SSH not connected:') + ' ' + ((d && (d.connect_error || d.error)) ? (d.connect_error || d.error) : (T.ssh_unknown_error || 'unknown error'))),
-                    ok ? 'success' : 'error'
-                );
-                if(d && d.connect_output){
-                    setPreText(connectOutEl, d.connect_output);
-                }else if(d && (d.connect_error || d.error)){
-                    setPreText(connectOutEl, (d.connect_error || d.error));
-                }else{
-                    setPreText(connectOutEl, '');
-                }
-
-                // Echo into terminal for better UX
-                var term = terminalEl && terminalEl._apTerm ? terminalEl._apTerm : null;
-                if(term){
-                    var msg = ok
-                        ? ((T.ssh_connected_via || 'SSH connected via') + ' ' + (d.backend || 'phpseclib'))
-                        : ((T.ssh_not_connected || 'SSH not connected:') + ' ' + ((d && (d.connect_error || d.error)) ? (d.connect_error || d.error) : (T.ssh_unknown_error || 'unknown error')));
-                    term.writeln((ok ? '\x1b[32m' : '\x1b[31m') + msg + '\x1b[0m');
-                    if(d && d.connect_output){
-                        apSshStripLibsLines(apSshNormalizeSpaces(String(d.connect_output))).replace(/\r\n/g,'\n').split('\n').forEach(function(line){
-                            term.writeln(apSshAnsiHighlightLine(line));
-                        });
-                    }
-                }
-                if(ok && terminalEl && typeof terminalEl._apSshReconnect === 'function'){
-                    terminalEl._apSshReconnect();
-                }else if(terminalEl && terminalEl._apSshUpdatePrompt){
-                    terminalEl._apSshUpdatePrompt();
-                }
-            })
-            .catch(function(err){
-                setStatus(modalStatusEl, (T.ssh_test_failed || 'SSH test failed:') + ' ' + (err && err.message ? err.message : (T.network_error || 'network error')), 'error');
-                setPreText(connectOutEl, err && err.message ? err.message : (T.network_error || 'network error'));
-            });
-    }
-
-    settingsBtn.addEventListener('click', function(){
-        modalEl.style.display = 'flex';
-        loadProfileIntoModal();
-    });
-    closeBtn.addEventListener('click', function(){
-        modalEl.style.display = 'none';
-    });
-    modalEl.addEventListener('click', function(e){
-        if(e.target === modalEl){
-            modalEl.style.display = 'none';
-        }
-    });
 
     // ── Quick Commands ──
     var qcManageBtn = dynRoot.querySelector('#ap-ssh-quick-commands-manage-btn');
@@ -2709,13 +2634,6 @@ function wireSshPanel(){
         loadQuickCommands();
     }
 
-    testBtn.addEventListener('click', function(){
-        runInitFromModal();
-    });
-    saveBtn.addEventListener('click', function(){
-        runInitFromModal();
-    });
-
     // Init terminal only when SSH panel becomes visible
     var sshPanelEl = dynRoot.querySelector('#ap-ssh');
     function ensureTerminalVisible(){
@@ -2727,6 +2645,7 @@ function wireSshPanel(){
         }
     }
     ensureTerminalVisible();
+    autoConnect();
     var sshNavBtn = dynRoot.querySelector('[data-panel="ap-ssh"]');
     if(sshNavBtn){
         sshNavBtn.addEventListener('click', function(){

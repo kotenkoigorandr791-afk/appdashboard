@@ -1586,73 +1586,28 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         </div>
                         <div class="ap-page-title" style="margin:0;font-size:16px;">SSH Terminal</div>
                     </div>
-                    <button type="button" id="ap-ssh-settings-btn" class="ap-btn ap-btn-secondary" style="padding:7px 12px;border-radius:8px;">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                            <path d="M12 1v2"></path>
-                            <path d="M12 21v2"></path>
-                            <path d="M4.22 4.22l1.42 1.42"></path>
-                            <path d="M18.36 18.36l1.42 1.42"></path>
-                            <path d="M1 12h2"></path>
-                            <path d="M21 12h2"></path>
-                            <path d="M4.22 19.78l1.42-1.42"></path>
-                            <path d="M18.36 5.64l1.42-1.42"></path>
-                            <circle cx="12" cy="12" r="7"></circle>
-                        </svg>
-                    </button>
-                </div>
-                <!-- Quick Commands Buttons Bar -->
-                <div id="ap-ssh-quick-commands-bar">
-                    <button type="button" id="ap-ssh-quick-commands-manage-btn" style="padding:5px 10px;background:var(--primary-color);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;" title="Manage Quick Commands">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;">
-                            <polyline points="13 17 9 12 13 7"></polyline>
-                            <polyline points="18 17 14 12 18 7"></polyline>
-                            <polyline points="4 17 0 12 4 7"></polyline>
-                        </svg>
-                        Manage Commands
-                    </button>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <button type="button" id="ap-ssh-rotate-key-btn" class="ap-btn ap-btn-secondary" style="padding:7px 12px;border-radius:8px;" title="Rotate SSH Key">
+                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                                <path d="M23 4v6h-6"></path>
+                                <path d="M1 20v-6h6"></path>
+                                <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                            </svg>
+                            <span style="font-size:12px;">Rotate Key</span>
+                        </button>
+                        <button type="button" id="ap-ssh-quick-commands-manage-btn" style="padding:5px 10px;background:var(--primary-color);color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:500;white-space:nowrap;" title="Manage Quick Commands">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="vertical-align:middle;margin-right:3px;">
+                                <polyline points="13 17 9 12 13 7"></polyline>
+                                <polyline points="18 17 14 12 18 7"></polyline>
+                                <polyline points="4 17 0 12 4 7"></polyline>
+                            </svg>
+                            Manage Commands
+                        </button>
+                    </div>
                 </div>
                 <div class="ap-ssh-terminal-shell"><div id="ap-ssh-terminal"></div></div>
             </div>
 
-            <!-- SSH Settings Modal -->
-            <div id="ap-ssh-settings-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10000;justify-content:center;align-items:center;">
-                <div id="ap-ssh-settings-content" style="background:var(--modal-bg);color:var(--text-color);padding:28px;border-radius:12px;width:92%;max-width:640px;max-height:90vh;overflow:auto;box-shadow:0 8px 40px rgba(0,0,0,.3);position:relative;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:14px;">
-                        <div style="font-weight:700;text-transform:uppercase;letter-spacing:.5px;font-size:13px;opacity:.9;display:flex;align-items:center;gap:8px;">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                                <path d="M19.14 12.94c.04-.3.06-.61.06-.94s-.02-.64-.06-.94l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.6-.22l-2.39.96a7.3 7.3 0 0 0-1.63-.94l-.36-2.54A.5.5 0 0 0 14.2 1h-4a.5.5 0 0 0-.49.42l-.36 2.54c-.59.23-1.13.54-1.63.94l-2.39-.96a.5.5 0 0 0-.6.22L2.8 7.48a.5.5 0 0 0 .12.64l2.03 1.58c-.04.3-.06.62-.06.94s.02.64.06.94L2.92 14.52a.5.5 0 0 0-.12.64l1.92 3.32c.13.22.39.3.6.22l2.39-.96c.5.4 1.04.71 1.63.94l.36 2.54c.05.24.25.42.49.42h4c.24 0 .44-.18.49-.42l.36-2.54c.59-.23 1.13-.54 1.63-.94l2.39.96c.21.08.47 0 .6-.22l1.92-3.32a.5.5 0 0 0-.12-.64l-2.03-1.58ZM12 15.5A3.5 3.5 0 1 1 12 8a3.5 3.5 0 0 1 0 7.5Z"></path>
-                            </svg>
-                            <?php echo my_htmlspecialchars($translations['ssh_profile']??'SSH Profile'); ?>
-                        </div>
-                        <button type="button" id="ap-ssh-settings-close" class="ap-btn ap-btn-secondary" style="padding:6px 10px;"><?php echo my_htmlspecialchars($translations['close']??'Close'); ?></button>
-                    </div>
-
-                    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:10px;">
-                        <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_host']??'Host'); ?></label><input id="ap-ssh-host" type="text" value="127.0.0.1" placeholder="127.0.0.1"></div>
-                        <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_user']??'User'); ?></label><input id="ap-ssh-user" type="text" value="<?php echo my_htmlspecialchars(get_current_user() ?: 'root'); ?>" placeholder="root"></div>
-                        <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_port']??'Port'); ?></label><input id="ap-ssh-port" type="number" value="22" min="1" max="65535"></div>
-                        <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_backend']??'Backend'); ?></label><input type="text" value="WebSocket + PTY" readonly style="opacity:.75;"></div>
-                        <?php
-                        $apSshKeysDir = function_exists('apSshKeysDir') ? apSshKeysDir() : (appdata_data_dir() . '/.ssh');
-                        $apSshDefaultKey = function_exists('apSshDiscoverKeyPath') ? apSshDiscoverKeyPath() : '';
-                        ?>
-                        <div class="ap-field" style="margin:0;grid-column:1/-1;"><label><?php echo my_htmlspecialchars($translations['ssh_key_path']??'SSH private key'); ?></label><input id="ap-ssh-key-path" type="text" value="<?php echo my_htmlspecialchars($apSshDefaultKey); ?>" placeholder="<?php echo my_htmlspecialchars($apSshKeysDir . '/id_ed25519'); ?>" readonly style="opacity:.85;"></div>
-                        <div class="ap-field" style="margin:0;grid-column:1/-1;"><div class="ap-hint" id="ap-ssh-key-hint"><?php echo my_htmlspecialchars($translations['ssh_key_only_hint']??'Password login is disabled. Place id_ed25519 or id_rsa in data/.ssh/'); ?></div></div>
-                        <div class="ap-field" style="margin:0;"><label><?php echo my_htmlspecialchars($translations['ssh_key_passphrase_optional']??'Key passphrase (optional)'); ?></label><input id="ap-ssh-key-passphrase" type="password" placeholder="<?php echo my_htmlspecialchars($translations['optional']??'optional'); ?>"></div>
-                    </div>
-
-                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;">
-                        <button type="button" id="ap-ssh-test-profile" class="ap-btn ap-btn-secondary"><?php echo my_htmlspecialchars($translations['ssh_test_connection']??'Test Connection'); ?></button>
-                        <button type="button" id="ap-ssh-save-profile" class="ap-btn ap-btn-primary"><?php echo my_htmlspecialchars($translations['ssh_save_profile']??'Save SSH Profile'); ?></button>
-                    </div>
-                    <div class="ap-status" id="ap-ssh-modal-status" style="margin-top:12px;"></div>
-
-                    <div class="ap-field" style="margin-top:14px;margin-bottom:0;">
-                        <label><?php echo my_htmlspecialchars($translations['ssh_connection_test_output']??'Connection test output'); ?></label>
-                        <pre id="ap-ssh-modal-connect-output" style="background:var(--bg-color);color:var(--text-color);border:1px solid var(--border-color);border-radius:6px;padding:12px;min-height:140px;max-height:40vh;overflow:auto;font-family:'Courier New',monospace;font-size:12px;line-height:1.45;white-space:pre-wrap;margin:0;"></pre>
-                    </div>
-                </div>
-            </div>
 
             <!-- Quick Commands Management Modal -->
             <div id="ap-ssh-quick-commands-modal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:10001;justify-content:center;align-items:center;">
