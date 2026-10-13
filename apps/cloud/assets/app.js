@@ -3343,8 +3343,13 @@ function updateToolbarForTab(tab) {
         undoBtn?.classList.add('hidden');
         redoBtn?.classList.add('hidden');
     } else {
+        const isTxtFile = /\.txt$/i.test(tab.path || '');
         saveBtn.classList.toggle('hidden', !tab.editMode);
-        codeActionsBtn.classList.toggle('hidden', !tab.editMode);
+        // Plain text files have no code actions, so the button stays hidden for them.
+        codeActionsBtn.classList.toggle('hidden', !tab.editMode || isTxtFile);
+        if (isTxtFile || !tab.editMode) {
+            document.getElementById('code-actions-menu')?.classList.add('hidden');
+        }
         if (copyBtn) {
             const isBinary = isBinaryFile(tab.path);
             copyBtn.classList.toggle('hidden', isBinary);

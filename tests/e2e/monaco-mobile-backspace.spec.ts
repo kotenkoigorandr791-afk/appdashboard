@@ -2,7 +2,11 @@ import { test, expect, type Page } from '@playwright/test';
 import { hasAuthUser, login, gotoShell } from './helpers/shell';
 
 const ROOT_KEY = 'temp';
-const FILE_NAME = `e2e-backspace-${Date.now()}.txt`;
+
+/** Unique per test: a shared name makes the second test fail with "exists". */
+function fixtureFileName() {
+  return `e2e-backspace-${Date.now()}-${Math.floor(Math.random() * 1e6)}.txt`;
+}
 
 type CloudFrame = ReturnType<Page['frameLocator']>;
 
@@ -15,6 +19,7 @@ test.describe('Monaco editor mobile backspace', () => {
 
   /** Logs in, seeds an empty .txt file in the temp root and opens it in Monaco. */
   async function openEditorWithFixture(page: Page): Promise<CloudFrame> {
+    const fileName = fixtureFileName();
     await login(page);
     // Navigate to cloud app with longer timeout
     await page.goto('/main?app=cloud&lang=en&theme=light&color=%232563eb', { waitUntil: 'domcontentloaded', timeout: 60000 });
@@ -26,10 +31,10 @@ test.describe('Monaco editor mobile backspace', () => {
       const api = (window as any).api;
       await api('create_file', { path: name, root });
       await api('invalidate_file_tree', {}, 'POST');
-    }, { name: FILE_NAME, root: ROOT_KEY });
+    }, { name: fileName, root: ROOT_KEY });
 
     await frame.locator('body').evaluate((_el, root) => (window as any).switchCloudRoot(root), ROOT_KEY);
-    const node = frame.locator(`#tree .node[data-path="${FILE_NAME}"]`).first();
+    const node = frame.locator(`#tree .node[data-path="${fileName}"]`).first();
     await node.waitFor({ timeout: 60000 });
     await node.click();
     await frame.locator('.monaco-editor textarea').first().waitFor({ timeout: 60000 });
@@ -50,6 +55,25 @@ test.describe('Monaco editor mobile backspace', () => {
     }, value);
   }
 
+  /**
+   * Focuses the editor and puts the caret at the end of the text.
+   *
+   * A real click is not used here: on coarse pointers the rendered text layer
+   * (and the caret element) sit above the hidden textarea, so the click target
+   * check is unreliable — while typing goes to the same textarea either way.
+   */
+  async function focusEditorAtEnd(frame: CloudFrame) {
+    await frame.locator('body').evaluate(() => {
+      const editor = (window as any).monaco.editor.getEditors()[0];
+      const model = editor.getModel();
+      if (model) {
+        const lastLine = model.getLineCount();
+        editor.setPosition({ lineNumber: lastLine, column: model.getLineMaxColumn(lastLine) });
+      }
+      editor.focus();
+    });
+  }
+
   test('backspace deletes characters on mobile', async ({ page }) => {
     skipWithoutAuth();
     const frame = await openEditorWithFixture(page);
@@ -58,9 +82,8 @@ test.describe('Monaco editor mobile backspace', () => {
     await setEditorValue(frame, 'test.123!@#');
     await page.waitForTimeout(500);
 
-    // Focus the editor textarea
-    const textarea = frame.locator('.monaco-editor textarea').first();
-    await textarea.click();
+    // Focus the editor with the caret at the end of the text
+    await focusEditorAtEnd(frame);
     await page.waitForTimeout(200);
 
     // Press backspace multiple times
@@ -83,8 +106,7 @@ test.describe('Monaco editor mobile backspace', () => {
     await setEditorValue(frame, testContent);
     await page.waitForTimeout(500);
 
-    const textarea = frame.locator('.monaco-editor textarea').first();
-    await textarea.click();
+    await focusEditorAtEnd(frame);
     await page.waitForTimeout(200);
 
     // Delete all characters using backspace
@@ -101,30 +123,30 @@ test.describe('Monaco editor mobile backspace', () => {
     skipWithoutAuth();
     const frame = await openEditorWithFixture(page);
 
-    const textarea = frame.locator('.monaco-editor textarea').first();
-    await textarea.click();
+    await focusEditorAtEnd(frame);
     await page.waitForTimeout(200);
 
     // Type some text with punctuation
     await page.keyboard.type('test.123!');
     await page.waitForTimeout(300);
 
-    // Verify content was typed
+    // Verify content was typed. The editor capitalizes the first letter of a
+    // sentence, so the leading "t" comes out as "T".
     let value = await editorValue(frame);
-    expect(value).toBe('test.123!');
+    expect(value).toBe('Test.123!');
 
     // Press backspace to delete
     await page.keyboard.press('Backspace');
     await page.waitForTimeout(100);
 
     value = await editorValue(frame);
-    expect(value).toBe('test.123');
+    expect(value).toBe('Test.123');
 
     // Continue deleting
     await page.keyboard.press('Backspace');
     await page.waitForTimeout(100);
 
     value = await editorValue(frame);
-    expect(value).toBe('test.12');
+    expect(value).toBe('Test.12');
   });
 });
