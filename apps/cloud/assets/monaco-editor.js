@@ -2436,6 +2436,10 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             contextmenu: true,
             multiCursorModifier: 'alt',
             
+            // Mobile keyboard/input support
+            accessibilitySupport: 'off',
+            disableLayerHinting: true,
+            
             // Hints and autocomplete
             quickSuggestions: true,
             suggestOnTriggerCharacters: true,
