@@ -1862,6 +1862,7 @@ function monacoEnableTouchSelection(editor, container) {
     let selectionInProgress = false;
     let initialPosition = null;
     let longPressTimer = null;
+    let pendingLongPress = false;
     let isScrolling = false;
     let isDraggingHandle = null; // 'start' or 'end'
     let selectionHandles = null;
@@ -2093,6 +2094,23 @@ function monacoEnableTouchSelection(editor, container) {
     container.style.webkitUserSelect = 'text';
     container.style.userSelect = 'text';
 
+    // Intercept contextmenu before Monaco: if our long-press selected a word,
+    // suppress native menu so our handles show. Otherwise let native menu through
+    // by stopping Monaco from seeing the event but NOT preventing default.
+    addListener(container, 'contextmenu', (e) => {
+        if (selectionInProgress) {
+            // We successfully selected a word via our long-press: suppress native
+            // menu so our custom handles appear.
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        // Not our selection — stop Monaco's handler from running (which would
+        // prevent default and show its own menu), but DON'T prevent default,
+        // so the browser's native context menu appears.
+        e.stopImmediatePropagation();
+    }, { capture: true });
+
     addListener(container, 'touchstart', (e) => {
         // If dragging a handle - ignore normal handlers
         if (isDraggingHandle) return;
@@ -2126,32 +2144,51 @@ function monacoEnableTouchSelection(editor, container) {
             }
         }
 
+        // A real finger starts a native long press / text drag the moment the
+        // touch is held, and that native selection replaces whatever we set.
+        // Claim the gesture before the browser does: if the finger stays put,
+        // we own it; if it moves, touchmove restores scrolling and the
+        // platform keeps its own behaviour (including the menu).
+        pendingLongPress = false;
+        container.style.touchAction = 'none';
+
         // Start long press timer - only activate selection after holding
         longPressTimer = setTimeout(() => {
-            if (touchStart && !isScrolling) {
-                // Long press detected - activate selection mode and select the word
-                selectionInProgress = true;
-                container.style.touchAction = 'none';
-
-                // Select the word under the cursor
-                if (touchStart.position) {
-                    const word = editor.getModel().getWordAtPosition(touchStart.position);
-                    if (word) {
-                        const range = new monaco.Range(
-                            touchStart.position.lineNumber,
-                            word.startColumn,
-                            touchStart.position.lineNumber,
-                            word.endColumn
-                        );
-                        editor.setSelection(range);
-                        editor.revealRange(range);
-                        
-                        // Create selection handles
-                        createSelectionHandles();
-                        setTimeout(updateSelectionHandlesPosition, 10);
-                    }
-                }
+            // Decide before committing: only a word under the finger, and only
+            // when nothing is selected yet. Otherwise the platform must be left
+            // alone so it can show its own menu.
+            if (!touchStart || isScrolling || !touchStart.position) {
+                longPressTimer = null;
+                return;
             }
+            const currentSelection = editor.getSelection();
+            if (currentSelection && !currentSelection.isEmpty()) {
+                longPressTimer = null;
+                return;
+            }
+            const word = editor.getModel().getWordAtPosition(touchStart.position);
+            if (!word) {
+                longPressTimer = null;
+                return;
+            }
+
+            // Long press detected - select the word
+            pendingLongPress = true;
+            selectionInProgress = true;
+
+            const range = new monaco.Range(
+                touchStart.position.lineNumber,
+                word.startColumn,
+                touchStart.position.lineNumber,
+                word.endColumn
+            );
+            editor.setSelection(range);
+            editor.revealRange(range);
+
+            // Create selection handles
+            createSelectionHandles();
+            setTimeout(updateSelectionHandlesPosition, 10);
+
             longPressTimer = null;
         }, LONG_PRESS_DELAY);
 
@@ -2179,6 +2216,10 @@ function monacoEnableTouchSelection(editor, container) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
                 isScrolling = true;
+                // Hand the gesture back to the platform: it must be allowed to
+                // scroll from the current touchstart, which only works when
+                // touch-action is restored to a scrolling value.
+                container.style.touchAction = 'pan-x pan-y';
                 return;
             }
         }
@@ -2211,17 +2252,17 @@ function monacoEnableTouchSelection(editor, container) {
             clearTimeout(longPressTimer);
             longPressTimer = null;
         }
-
-        // Double tap - select word (only if not scrolling)
+// Double tap - select word (only if not scrolling and the finger is on a word)
         if (touchDuration < 200 && (touchEnd - lastTapTime) < 300 && !isScrolling) {
-            e.preventDefault();
-
             const touch = e.changedTouches[0];
             const position = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
 
             if (position && position.position) {
                 const word = editor.getModel().getWordAtPosition(position.position);
                 if (word) {
+                    // Only claim the tap when we actually select something, so a
+                    // tap elsewhere still reaches the platform menu.
+                    e.preventDefault();
                     const range = new monaco.Range(
                         position.position.lineNumber,
                         word.startColumn,
@@ -2230,21 +2271,21 @@ function monacoEnableTouchSelection(editor, container) {
                     );
                     editor.setSelection(range);
                     editor.revealRange(range);
-                    
+
                     // Create handles for double tap
                     createSelectionHandles();
                     setTimeout(updateSelectionHandlesPosition, 10);
                 }
             }
         }
+
         // Triple tap - select line (only if not scrolling)
         else if (touchDuration < 200 && (touchEnd - lastTapTime) < 600 && !isScrolling) {
-            e.preventDefault();
-
             const touch = e.changedTouches[0];
             const position = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
 
             if (position && position.position) {
+                e.preventDefault();
                 const lineNumber = position.position.lineNumber;
                 const lineContent = editor.getModel().getLineContent(lineNumber);
 
@@ -2256,14 +2297,14 @@ function monacoEnableTouchSelection(editor, container) {
                 );
                 editor.setSelection(range);
                 editor.revealLine(lineNumber);
-                
+
                 // Create handles for triple tap
                 createSelectionHandles();
                 setTimeout(updateSelectionHandlesPosition, 10);
             }
         }
         // Long press - the word is already selected in touchstart
-        else if (touchDuration > LONG_PRESS_DELAY && selectionInProgress && !isScrolling) {
+        else if (pendingLongPress && !isScrolling) {
             e.preventDefault();
             // Selection was already made in touchstart
         }
@@ -2273,6 +2314,7 @@ function monacoEnableTouchSelection(editor, container) {
             selectionInProgress = false;
             container.style.touchAction = 'pan-x pan-y';
         }
+        pendingLongPress = false;
 
         if (!selectionInProgress && touchDuration < 200 && !isScrolling) {
             const touch = e.changedTouches[0];
