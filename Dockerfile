@@ -11,7 +11,7 @@ ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx libnginx-mod-http-modsecurity modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full mosquitto mosquitto-clients \
     libpq-dev libzip-dev libpng-dev libjpeg62-turbo-dev libfreetype6-dev \
-    libxml2-dev libonig-dev libicu-dev libcurl4-openssl-dev ffmpeg tesseract-ocr tesseract-ocr-rus \
+    libxml2-dev libonig-dev libicu-dev libcurl4-openssl-dev ffmpeg tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-bel \
     tesseract-ocr-ukr smartmontools util-linux openssh-client \
     default-jdk-headless \
     python3 python3-pip python3-venv python3-dev python3-psycopg2 build-essential autoconf pkg-config docker.io \

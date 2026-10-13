@@ -88,23 +88,151 @@ function cloud_ai_cell_scalar_value(mixed $value): string
     return trim((string)$value);
 }
 
+/**
+ * Tesseract language string for OCR: every installed pack, preferring the app's
+ * supported languages first. Russian (rus) and Ukrainian (ukr) packs ship with the
+ * image, so scanned Cyrillic documents are read the same way as English ones, and
+ * any extra packs added later are picked up automatically.
+ */
+function cloud_ai_pdf_ocr_languages(): string
+{
+    static $langs = null;
+    if (is_string($langs)) {
+        return $langs;
+    }
+    $packs = [];
+    foreach ([
+        '/usr/share/tesseract-ocr/*/tessdata/*.traineddata',
+        '/usr/share/tessdata/*.traineddata',
+        '/usr/local/share/tessdata/*.traineddata',
+    ] as $pattern) {
+        foreach (glob($pattern) ?: [] as $file) {
+            $pack = preg_replace('/[^a-z_]/', '', strtolower(pathinfo($file, PATHINFO_FILENAME))) ?? '';
+            if ($pack !== '' && $pack !== 'osd') {
+                $packs[$pack] = true;
+            }
+        }
+    }
+    $ordered = [];
+    foreach (['eng', 'rus', 'ukr'] as $pack) {
+        if (isset($packs[$pack])) {
+            $ordered[] = $pack;
+            unset($packs[$pack]);
+        }
+    }
+    ksort($packs);
+    $ordered = array_merge($ordered, array_keys($packs));
+    $langs = $ordered === [] ? 'eng' : implode('+', $ordered);
+    return $langs;
+}
+
+function cloud_ai_pdf_count_pages(string $filePath): int
+{
+    $out = shell_exec('pdfinfo ' . escapeshellarg($filePath) . ' 2>/dev/null');
+    if (is_string($out) && preg_match('/^Pages:\s+(\d+)/mi', $out, $m)) {
+        return max(1, (int)$m[1]);
+    }
+    return 0;
+}
+
+function cloud_ai_pdf_ocr_cleanup(string $dir): void
+{
+    foreach (glob($dir . '/*') ?: [] as $file) {
+        @unlink($file);
+    }
+    @rmdir($dir);
+}
+
+/**
+ * OCR fallback for image-only PDFs (scans/photos), where pdftotext finds no text
+ * layer. Rasterizes the first pages with pdftoppm and reads them with tesseract.
+ * The whole pass is bounded by a wall-clock budget so it stays inside the PHP-FPM
+ * request timeout; large documents return the leading pages plus a truncation note.
+ */
+function cloud_ai_extract_pdf_ocr_text(string $filePath, int $maxChars = 120000, float $budgetSeconds = 16.0, int $maxPages = 10): array
+{
+    $deadline = microtime(true) + max(5.0, $budgetSeconds);
+    $dir = sys_get_temp_dir() . '/pdf_ocr_' . bin2hex(random_bytes(6));
+    if (!@mkdir($dir, 0700, true) && !is_dir($dir)) {
+        return ['ok' => false, 'error' => 'Failed to create temp directory'];
+    }
+    $pageCount = cloud_ai_pdf_count_pages($filePath);
+    $lastPage = $pageCount > 0 ? min($pageCount, $maxPages) : $maxPages;
+    $prefix = $dir . '/page';
+    $cmd = 'pdftoppm -r 250 -gray -png -f 1 -l ' . $lastPage . ' '
+        . escapeshellarg($filePath) . ' ' . escapeshellarg($prefix) . ' 2>/dev/null';
+    exec($cmd, $ppOutput, $ppCode);
+    $images = glob($prefix . '*.png') ?: [];
+    if ($images === []) {
+        cloud_ai_pdf_ocr_cleanup($dir);
+        return ['ok' => false, 'error' => 'PDF rasterization failed'];
+    }
+    natsort($images);
+    $langs = cloud_ai_pdf_ocr_languages();
+    $timeoutBin = trim((string)shell_exec('command -v timeout 2>/dev/null'));
+    $chunks = [];
+    $total = 0;
+    $pageNo = 0;
+    $scanned = count($images);
+    foreach ($images as $image) {
+        $pageNo++;
+        $remaining = $deadline - microtime(true);
+        if ($remaining <= 1.0) {
+            break;
+        }
+        $perPage = (int)max(3, min(12, floor($remaining)));
+        $prefixCmd = $timeoutBin !== '' ? escapeshellarg($timeoutBin) . ' ' . $perPage . ' ' : '';
+        $ocrCmd = $prefixCmd . 'tesseract ' . escapeshellarg($image) . ' stdout -l ' . escapeshellarg($langs) . ' 2>/dev/null';
+        $pageText = trim((string)shell_exec($ocrCmd));
+        if ($pageText === '') {
+            continue;
+        }
+        $chunks[] = ($scanned > 1 ? ('--- Page ' . $pageNo . " ---\n") : '') . $pageText;
+        $total += strlen($pageText);
+        if ($total >= $maxChars) {
+            break;
+        }
+    }
+    cloud_ai_pdf_ocr_cleanup($dir);
+    $text = trim(implode("\n\n", $chunks));
+    if ($text === '') {
+        return ['ok' => false, 'error' => 'No text recognised in PDF'];
+    }
+    if ($pageCount > $scanned) {
+        $text .= "\n\n[... OCR covered the first " . $scanned . ' of ' . $pageCount . ' pages ...]';
+    }
+    return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/pdf', 'ocr' => true];
+}
+
 function cloud_ai_extract_pdf_text(string $filePath, int $maxChars = 120000): array
 {
     if (!is_file($filePath) || !is_readable($filePath)) {
         return ['ok' => false, 'error' => 'File not found'];
     }
+    $text = '';
+    $code = 1;
+    $output = [];
     $tmpOut = tempnam(sys_get_temp_dir(), 'pdf_txt_');
-    if ($tmpOut === false) {
-        return ['ok' => false, 'error' => 'Failed to create temp file'];
+    if ($tmpOut !== false) {
+        $cmd = 'pdftotext -enc UTF-8 ' . escapeshellarg($filePath) . ' ' . escapeshellarg($tmpOut) . ' 2>&1';
+        exec($cmd, $output, $code);
+        $text = is_file($tmpOut) ? (string)file_get_contents($tmpOut) : '';
+        @unlink($tmpOut);
     }
-    $cmd = 'pdftotext -enc UTF-8 ' . escapeshellarg($filePath) . ' ' . escapeshellarg($tmpOut) . ' 2>&1';
-    exec($cmd, $output, $code);
-    $text = is_file($tmpOut) ? (string)file_get_contents($tmpOut) : '';
-    @unlink($tmpOut);
-    if ($code !== 0 || trim($text) === '') {
-        return ['ok' => false, 'error' => 'PDF text extraction failed', 'details' => implode("\n", $output)];
+    // A real text layer is the fast path. Anything below a few visible characters
+    // means a scanned/image PDF (or fonts with no extractable glyphs) - OCR it.
+    $visible = strlen(preg_replace('/\s+/', '', $text) ?? '');
+    if ($code === 0 && $visible >= 16) {
+        return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/pdf'];
     }
-    return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/pdf'];
+    $ocr = cloud_ai_extract_pdf_ocr_text($filePath, $maxChars);
+    if ($ocr['ok'] ?? false) {
+        return $ocr;
+    }
+    if ($code === 0 && trim($text) !== '') {
+        return ['ok' => true, 'content' => cloud_ai_truncate_extracted_text($text, $maxChars), 'mime' => 'application/pdf'];
+    }
+    return ['ok' => false, 'error' => 'PDF text extraction failed', 'details' => implode("\n", $output) . ' | ' . (string)($ocr['error'] ?? '')];
 }
 
 function cloud_ai_collect_rich_text_lines(object $rich): array

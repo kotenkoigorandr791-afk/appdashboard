@@ -16,7 +16,7 @@ const CLOUD_AI_LEGACY_KEYS = [
     'default_model' => 'cloud_ai_default_model',
 ];
 const CLOUD_AI_DEFAULT_ENDPOINT = ''; // filled by cloud_ai_default_endpoint()
-const CLOUD_AI_DEFAULT_MODEL = 'github/gpt-4o-mini';
+const CLOUD_AI_DEFAULT_MODEL = 'nvidia/nemotron-3-super-120b-a12b';
 
 function cloud_ai_default_endpoint(): string
 {
@@ -31,11 +31,10 @@ function cloud_ai_default_endpoint(): string
 }
 
 const CLOUD_AI_DEFAULT_MODELS = [
-    'github/gpt-4o-mini',
-    'github/gpt-4o',
-    'github/gpt-5-mini',
-    'github/gpt-5.4-mini',
-    'github/claude-haiku-4.5',
+    'nvidia/nemotron-3-super-120b-a12b',
+    'auto/best-chat',
+    'auto/coding:pro',
+    'auto/best-coding',
 ];
 
 function cloud_ai_db(): ?AppDatabase
