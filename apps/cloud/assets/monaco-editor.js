@@ -2430,7 +2430,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             
             automaticLayout: true,
             fontSize: monacoIsTouchDevice ? 18 : 14,
-            fontFamily: 'Consolas, "Courier New", monospace',
+            fontFamily: '"JetBrains Mono", Consolas, "Courier New", monospace',
             lineNumbers: 'on',
             lineNumbersMinChars: 2,
             // Keep the line-numbers gutter narrow. Monaco reserves a 16px
@@ -3518,7 +3518,7 @@ function monacoCreateRemovedZoneNode(lines) {
     node.style.cssText = [
         'box-sizing:border-box',
         'width:100%',
-        'font-family:Consolas,"Courier New",monospace',
+        'font-family:"JetBrains Mono", Consolas, "Courier New", monospace',
         'font-size:12px',
         'line-height:1.35',
         'border-top:1px solid rgba(220,38,38,0.32)',
