@@ -3201,6 +3201,7 @@ endif; // showOtpPage
             <?php endif;?>
             <div id="login-content" class="auth-content <?php echo $path==='/login'?'active':''; ?>">
                 <form method="post" action="/login">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo $showDefaultAdminNotice?'root@root':''; ?>" required>
                     <div class="password-input-container">
                         <input type="password" name="password" id="login-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['password']); ?>" value="<?php echo $showDefaultAdminNotice?'root':''; ?>" required>

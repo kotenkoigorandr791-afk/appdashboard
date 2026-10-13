@@ -1113,7 +1113,7 @@
                 }
                 #ai-modal .modal-header {
                     position: relative !important;
-                    padding-left: calc(var(--menu-button-mobile-reserve, 50px) + 8px) !important;
+                    padding-left: 16px !important;
                 }
                 #ai-modal .modal-header h3 {
                     position: static !important;

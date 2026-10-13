@@ -1610,47 +1610,52 @@
       const placeholder = document.getElementById('pdf-placeholder');
       if (placeholder) placeholder.style.display = 'none';
       pdfView.innerHTML = '<div class="pdf-loading">' + t['pdf_loading'] + '</div>';
-      const url = URL.createObjectURL(pdfBlob);
-      const loadingTask = pdfjsLib.getDocument(url);
-      loadingTask.promise.then(pdf => {
-        pdfView.innerHTML = '';
-        const pageRenderPromises = [];
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          pageRenderPromises.push(
-            pdf.getPage(pageNum).then(page => {
-              const viewport = page.getViewport({ scale: 1.5 });
-              const canvas = document.createElement('canvas');
-              const context = canvas.getContext('2d');
-              canvas.height = viewport.height;
-              canvas.width = viewport.width;
-              canvas.className = 'pdf-page';
-              canvas.setAttribute('data-page-number', pageNum);
-              const renderContext = { canvasContext: context, viewport: viewport };
-              return page.render(renderContext).promise.then(() => {
-                return { canvas, pageNum };
-              });
-            })
-          );
-        }
-        return Promise.all(pageRenderPromises);
-      })
-      .then(renderedPages => {
-        renderedPages.sort((a, b) => a.pageNum - b.pageNum);
-        renderedPages.forEach((item, index) => {
-          pdfView.appendChild(item.canvas);
-          if (index < renderedPages.length - 1) {
-            const separator = document.createElement('div');
-            separator.style.height = '20px';
-            separator.style.width = '100%';
-            pdfView.appendChild(separator);
+      // Pass the bytes to PDF.js instead of a blob: URL. PDF.js fetches a blob: URL
+      // from inside its worker, which CSP blocks (connect-src has no blob:), so the
+      // worker got an empty response and PDF.js reported "Unexpected server
+      // response (0) while retrieving PDF". Reading the blob here keeps the render
+      // in the page context and needs no blob: URL at all.
+      pdfBlob.arrayBuffer().then(buffer => {
+        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
+        loadingTask.promise.then(pdf => {
+          pdfView.innerHTML = '';
+          const pageRenderPromises = [];
+          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+            pageRenderPromises.push(
+              pdf.getPage(pageNum).then(page => {
+                const viewport = page.getViewport({ scale: 1.5 });
+                const canvas = document.createElement('canvas');
+                const context = canvas.getContext('2d');
+                canvas.height = viewport.height;
+                canvas.width = viewport.width;
+                canvas.className = 'pdf-page';
+                canvas.setAttribute('data-page-number', pageNum);
+                const renderContext = { canvasContext: context, viewport: viewport };
+                return page.render(renderContext).promise.then(() => {
+                  return { canvas, pageNum };
+                });
+              })
+            );
           }
+          return Promise.all(pageRenderPromises);
+        })
+        .then(renderedPages => {
+          renderedPages.sort((a, b) => a.pageNum - b.pageNum);
+          renderedPages.forEach((item, index) => {
+            pdfView.appendChild(item.canvas);
+            if (index < renderedPages.length - 1) {
+              const separator = document.createElement('div');
+              separator.style.height = '20px';
+              separator.style.width = '100%';
+              pdfView.appendChild(separator);
+            }
+          });
+          setStatus(t['pdf_loaded'], 'status-ok');
+        })
+        .catch(error => {
+          pdfView.innerHTML = '<div style="color: red;">' + t['pdf_load_error'] + ' ' + error.message + '</div>';
+          setStatus(t['status_err'], 'status-error');
         });
-        URL.revokeObjectURL(url);
-        setStatus(t['pdf_loaded'], 'status-ok');
-      })
-      .catch(error => {
-        pdfView.innerHTML = '<div style="color: red;">' + t['pdf_load_error'] + ' ' + error.message + '</div>';
-        setStatus(t['status_err'], 'status-error');
       });
     }
     

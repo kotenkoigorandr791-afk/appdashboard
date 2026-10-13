@@ -112,7 +112,7 @@ services:
       STORAGE_USAGE_DAWARICH_DB_USER: "${STORAGE_USAGE_DAWARICH_DB_USER:-postgres}"
       STORAGE_USAGE_DAWARICH_DB_PASSWORD: "${STORAGE_USAGE_DAWARICH_DB_PASSWORD:-${DAWARICH_DB_PASSWORD:-}}"
     ports:
-      - "127.0.0.1:80:8080"
+      - "80:8080"
       - "127.0.0.1:8808:8808"
     volumes:
       - .:/var/www/AppDashboard
