@@ -719,6 +719,25 @@ function get_root_folder_name(string $rootKey): string {
     static $map = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash'];
     return $map[$rootKey] ?? '';
 }
+function cloud_resolve_rooted_target_path(string $path, string $rootKey): array {
+    $path = safe_path($path);
+    if (cloud_parse_group_id($rootKey) !== null) {
+        return [$rootKey, $path];
+    }
+    $prefixMap = [
+        '.archive' => 'archive',
+        '.temp_files' => 'temp',
+        '.documents' => 'documents',
+        '.photos' => 'photos',
+        '.pdf' => 'pdf',
+        '.trash' => 'trash',
+    ];
+    foreach ($prefixMap as $prefix => $key) {
+        if ($path === $prefix) return [$key, ''];
+        if (strpos($path, $prefix . '/') === 0) return [$key, substr($path, strlen($prefix) + 1)];
+    }
+    return [$rootKey, $path];
+}
 function is_documents_root(?string $rootKey = null): bool {
     return ($rootKey ?? get_requested_root_key()) === 'documents';
 }

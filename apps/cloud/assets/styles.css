@@ -379,7 +379,15 @@ body[data-theme="dark"] .upload-drop-zone:hover,body[data-theme="dark"] .upload-
 .hidden{display:none!important}
 .search-panel{position:fixed;top:100px;left:50%;transform:translateX(-50%);width:auto;min-width:300px;max-width:500px;background:var(--panel);border:1px solid var(--border);border-radius:8px;box-shadow:0 4px 20px rgba(0,0,0,0.15);z-index:25000!important;user-select:none;cursor:move;padding:5px 6px}eplace-controls.hidden{display:none}.search-highlight{background-color:#ffeb3b90;color:#2800f0;border-radius:2px;padding:1px 0}
 .search-current{background-color:#8bff0fc6!important;color:#001b75!important}
-.modal{position:fixed;inset:0;width:auto;max-width:none;height:auto;max-height:none;background:rgba(0,0,0,0.7);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000000!important;transform:none!important;box-sizing:border-box}
+.modal{position:fixed;inset:0;width:auto;max-width:none;height:auto;max-height:none;background:rgba(0,0,0,0.7);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);display:flex;align-items:center;justify-content:center;padding:20px;z-index:1000000!important;transform:none!important;box-sizing:border-box;overflow-y:auto;overscroll-behavior:contain}
+body[data-modal-depth="1"]>.modal{z-index:1000000!important}
+body[data-modal-depth="2"]>.modal{z-index:1000001!important}
+body[data-modal-depth="3"]>.modal{z-index:1000002!important}
+body[data-modal-depth="4"]>.modal{z-index:1000003!important}
+body[data-modal-depth="5"]>.modal{z-index:1000004!important}
+/* Only the topmost modal paints the dimming/blur layer; nested modals stay clear
+   so the stack is not washed out by several stacked backdrops. */
+body.modal-stack-active>.modal:not(.modal-top){background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none}
 .modal:not(.hidden){animation:modalFadeIn 0.2s ease-out}
 #ai-modal:not(.hidden){animation:none!important}
 #advanced-search-modal:not(.hidden){animation:modalFadeIn 0.2s ease-out}
@@ -1297,8 +1305,8 @@ body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!importa
    when its content is updated during realtime collaboration. */
 .tabs-container {
     contain: layout;
-    min-height: 41px;
-    max-height: 41px;
+    min-height: 27px;
+    max-height: 27px;
     background: var(--glass-panel);
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
@@ -1307,12 +1315,49 @@ body:has(#floating-download-btn.hidden) #floating-upload-btn{bottom:30px!importa
     min-width: 108px;
     max-width: 190px;
     padding: 0 4px 0 9px;
+    height: 22px;
+    min-height: 22px;
+    font-size: 11px;
 }
 .tabs-container .tab-content {
     gap: 7px;
+    font-size: 11px;
 }
 .tabs-container .tab-title-text {
     margin-right: 2px;
+}
+.tabs-container .tab-strip-btn {
+    width: 24px;
+    height: 24px;
+}
+.tabs-container .tab-strip-btn svg {
+    width: 14px;
+    height: 14px;
+}
+.tabs-container .tab-scroll-btn {
+    width: 20px;
+    height: 20px;
+}
+.tabs-container .tab-content .app-file-icon {
+    width: 14px;
+    height: 14px;
+}
+.tabs-container .tab-close {
+    width: 16px;
+    height: 16px;
+}
+.tabs-container .tab-close::before,
+.tabs-container .tab-close::after {
+    width: 8px;
+    height: 1.4px;
+}
+.tabs-container .tab-close-all {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+}
+.tabs-container .tab-search-dropdown {
+    top: 34px;
 }
 .tabs-list > .tab {
     will-change: auto;

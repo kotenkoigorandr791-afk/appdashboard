@@ -379,7 +379,7 @@ function isOfficeFile(path) {
     const officeExts = ['doc', 'docx', 'odt', 'rtf', 'xls', 'xlsx', 'ods', 'csv', 'ppt', 'pptx', 'odp'];
     return officeExts.includes(ext);
 }
-function openOnlyOfficeEditor(filePath) {
+function openOnlyOfficeEditor(filePath, root = null) {
     const existingViewTab = tabsState.tabs.find(tab => tab.path === filePath && !tab.onlyOfficeEditor);
     const inheritedRoot = existingViewTab ? existingViewTab.root : null;
     if (existingViewTab) {
@@ -401,7 +401,7 @@ function openOnlyOfficeEditor(filePath) {
         path: filePath,
         editMode: true,
         onlyOfficeEditor: true,
-        root: inheritedRoot || getCurrentCloudRoot(),
+root: root || inheritedRoot || getCurrentCloudRoot(),
         title: filePath.split('/').pop(),
         modified: false,
         content: null
@@ -1589,7 +1589,7 @@ function buildTreeFromFlatItems(flatItems) {
             node.addEventListener('contextmenu', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                showContextMenu(e, getNodePath(), getNodeType(), getNodeName());
+                showContextMenu(e, getNodePath(), getNodeType(), getNodeName(), getCurrentCloudRoot());
             });
 
             node.addEventListener('keydown', (e) => {

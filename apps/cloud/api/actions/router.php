@@ -380,13 +380,15 @@ if ($action === 'share_file') {
     $user = get_current_user_from_sessions();
     if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
 
-    $base = user_root($user, get_requested_root_key());
-    $path = safe_path((string)($_POST['path'] ?? ''));
+    $requestedRootKey = get_requested_root_key();
+    $rawPath = safe_path((string)($_POST['path'] ?? ''));
 
-    if ($path === '') {
+    if ($rawPath === '') {
         json_out(['error' => 'path required'], 400);
     }
 
+    [$rootKey, $path] = cloud_resolve_rooted_target_path($rawPath, $requestedRootKey);
+    $base = user_root($user, $rootKey);
     $fullPath = $base . '/' . $path;
     if (!file_exists($fullPath)) {
         json_out(['error' => 'file not found'], 404);
@@ -552,9 +554,11 @@ if ($action === 'share_file') {
 if ($action === 'internal_share_metadata') {
     $user = get_current_user_from_sessions();
     if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
-    $base = user_root($user, get_requested_root_key());
-    $path = safe_path((string)($_GET['path'] ?? $_POST['path'] ?? ''));
-    if ($path === '') json_out(['error' => 'path required'], 400);
+    $requestedRootKey = get_requested_root_key();
+    $rawPath = safe_path((string)($_GET['path'] ?? $_POST['path'] ?? ''));
+    if ($rawPath === '') json_out(['error' => 'path required'], 400);
+    [$rootKey, $path] = cloud_resolve_rooted_target_path($rawPath, $requestedRootKey);
+    $base = user_root($user, $rootKey);
     $target = $base . '/' . $path;
     if (!is_file($target)) json_out(['error' => 'file not found'], 404);
     $name = basename($target);
@@ -566,7 +570,15 @@ if ($action === 'internal_share_metadata') {
     $textExts = ['txt','md','json','xml','csv','log','html','css','js','ts','tsx','jsx','php','py','java','c','cpp','h','hpp','go','rs','sql','yaml','yml','sh','ini','conf','config'];
     if (($size <= 65536 && (is_text_mime($mime) || in_array($ext, $textExts, true))) || $size === 0) {
         $previewType = 'text';
-        $preview = substr((string)@file_get_contents($target, false, null, 0, 1200), 0, 500);
+        if (is_documents_root($rootKey)) {
+            $rawContent = decrypt_documents_content((string)@file_get_contents($target), $user);
+        } else {
+            $rawContent = (string)@file_get_contents($target, false, null, 0, 1200);
+        }
+        $preview = substr($rawContent, 0, 500);
+        if (!@preg_match('//u', $preview)) {
+            $preview = '';
+        }
     } elseif ($size <= 262144 && preg_match('#^image/(png|jpe?g|gif|webp|svg\+xml)$#i', $mime)) {
         $previewType = 'image';
         $preview = 'data:' . $mime . ';base64,' . base64_encode((string)@file_get_contents($target));

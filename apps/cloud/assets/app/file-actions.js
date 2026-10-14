@@ -12,7 +12,15 @@ function validateCloudFilename(name, input) {
 function newFolder(basePath) {
   // Guard: ensure basePath is always a string
   if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
-  newFolderState.basePath = (typeof basePath === 'string') ? basePath : '';
+let targetPath = (typeof basePath === 'string') ? basePath : '';
+let targetRoot = getCurrentCloudRoot();
+const pathRoot = typeof getRootFromPath === 'function' ? getRootFromPath(targetPath) : 'main';
+if (pathRoot !== 'main') {
+targetRoot = pathRoot;
+targetPath = typeof fromMainTreePath === 'function' ? fromMainTreePath(targetPath, targetRoot) : targetPath;
+}
+newFolderState.basePath = targetPath;
+newFolderState.baseRoot = targetRoot;
   const modal = document.getElementById('new-folder-modal');
   const folderNameInput = document.getElementById('new-folder-name');
   guardFilenameInput(folderNameInput);
@@ -32,7 +40,7 @@ function createNewFolder() {
   if (!validateCloudFilename(name, folderNameInput)) return;
   const path = newFolderState.basePath ? `${String(newFolderState.basePath)}/${name}` : name;
   document.getElementById('new-folder-modal').classList.add('hidden');
-  const mkdirRoot = getCurrentCloudRoot();
+const mkdirRoot = newFolderState.baseRoot || getCurrentCloudRoot();
   api('mkdir', { path, root: mkdirRoot }).then(async () => {
     const now = Math.floor(Date.now() / 1000);
     const newItem = { name, path, type: 'dir', size: null, mtime: now };
@@ -73,7 +81,15 @@ function initCreateFolderModal() {
 function newFile(basePath) {
   // Guard: ensure basePath is always a string
   if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
-  newFileState.basePath = (typeof basePath === 'string') ? basePath : '';
+  let targetPath = (typeof basePath === 'string') ? basePath : '';
+  let targetRoot = getCurrentCloudRoot();
+  const pathRoot = typeof getRootFromPath === 'function' ? getRootFromPath(targetPath) : 'main';
+  if (pathRoot !== 'main') {
+    targetRoot = pathRoot;
+    targetPath = typeof fromMainTreePath === 'function' ? fromMainTreePath(targetPath, targetRoot) : targetPath;
+  }
+  newFileState.basePath = targetPath;
+  newFileState.baseRoot = targetRoot;
   const modal = document.getElementById('new-file-modal');
   const fileNameInput = document.getElementById('new-file-name');
   const extensionSelect = document.getElementById('file-extension-select');
@@ -658,22 +674,22 @@ function createNewFile() {
   if (!validateCloudFilename(fullFileName, fileNameInput)) return;
   const path = newFileState.basePath ? `${String(newFileState.basePath)}/${fullFileName}` : fullFileName;
   document.getElementById('new-file-modal').classList.add('hidden');
-  const createRoot = getCurrentCloudRoot();
+  const createRoot = newFileState.baseRoot || getCurrentCloudRoot();
   api('create_file', { path, root: createRoot }).then(async () => {
     const now = Math.floor(Date.now() / 1000);
     const newItem = { name: fullFileName, path, type: 'file', size: 0, mtime: now };
     await insertTreeItem(newItem, createRoot);
     const fileExt = fullFileName.split('.').pop().toLowerCase();
     if (fileExt === 'tex' || fileExt === 'latex') {
-      openLatexEditor(path);
+      openLatexEditor(path, createRoot);
     } else if (isMarkdownFile(fullFileName)) {
-      openMarkdownEditor(path);
+      openMarkdownEditor(path, createRoot);
     } else if (typeof isHtmlFile === 'function' && isHtmlFile(fullFileName)) {
-      if (typeof openHtmlEditor === 'function') openHtmlEditor(path);
+      if (typeof openHtmlEditor === 'function') openHtmlEditor(path, createRoot);
     } else if (isOfficeFile(fullFileName)) {
-      openOnlyOfficeEditor(path);
+      openOnlyOfficeEditor(path, createRoot);
     } else if (isTextFile(fullFileName)) {
-      openFileInTab(path, true);
+      openFileInTab(path, true, createRoot);
     }
     flashStatus(t(i18n, 'fileCreated', {name: fullFileName}));
   }).catch(err => {
@@ -968,7 +984,7 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
 }
 window.buildFileContextMenuOptions = buildFileContextMenuOptions;
 
-function showContextMenu(e, path, type, name) {
+function showContextMenu(e, path, type, name, root) {
     // Guard: if path is an object (item was passed instead of item.path), extract fields
     if (path !== null && typeof path === 'object') {
         name = path.name || '';
@@ -1073,7 +1089,7 @@ function showContextMenu(e, path, type, name) {
             ...(type !== 'file' ? [
                 { label: t(window.i18n, 'upload'), icon: 'upload', action: () => openUploadDialog(basePath) },
             ] : []),
-            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file', root: getCurrentCloudRoot() })
+            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file', root: root || getCurrentCloudRoot() })
         );
     }
     if (options.length === 0) {
@@ -1658,7 +1674,7 @@ function sendCloudShareToChat(path, type, root) {
             if (!shareData?.key) throw new Error('Failed to generate share key');
             let metadata = {};
             try {
-                metadata = await api('internal_share_metadata', { path: normalizedPath, root: 'main' }, 'GET');
+                metadata = await api('internal_share_metadata', { path: normalizedPath, root: root || getCurrentCloudRoot() }, 'GET');
             } catch (_) {}
             const sessionUrl = new URL('/main', window.location.origin);
             sessionUrl.searchParams.set('api', 'support_chat');

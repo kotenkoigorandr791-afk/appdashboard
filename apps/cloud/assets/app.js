@@ -433,14 +433,16 @@ let dragState = {
     initialY: 0
 };
 let newFileState = {
-  basePath: ''
+  basePath: '',
+  baseRoot: 'main'
 };
 let renameState = {
   oldPath: '',
   currentExt: ''
 };
 let newFolderState = {
-  basePath: ''
+  basePath: '',
+  baseRoot: 'main'
 };
 let deleteState = {
     path: '',
@@ -4338,7 +4340,7 @@ function displaySearchResults(results, query) {
     node.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (typeof showContextMenu === 'function') showContextMenu(e, resolved.localPath, item.type, item.name);
+      if (typeof showContextMenu === 'function') showContextMenu(e, resolved.localPath, item.type, item.name, resolved.root);
     });
     container.appendChild(node);
   });
@@ -7600,7 +7602,7 @@ function renderTrashItems(items) {
         card.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showContextMenu(e, item.path, item.type, item.name);
+            showContextMenu(e, item.path, item.type, item.name, getCurrentCloudRoot());
         });
 
         grid.appendChild(card);
@@ -8584,7 +8586,7 @@ function renderNodes(items, basePath = '', depth = 0) {
     });
 
         attachMobileContextMenuTrigger(node, (menuEvent) => {
-            showContextMenu(menuEvent, item.path, item.type, item.name);
+            showContextMenu(menuEvent, item.path, item.type, item.name, getCurrentCloudRoot());
         });
         
         // Double click handler remains unchanged
@@ -8623,7 +8625,7 @@ function renderNodes(items, basePath = '', depth = 0) {
                 return;
             }
             e.preventDefault();
-            showContextMenu(e, item.path, item.type, item.name);
+            showContextMenu(e, item.path, item.type, item.name, getCurrentCloudRoot());
         });
         
         container.appendChild(node);
