@@ -745,6 +745,7 @@
   "paragraphs": "Абзацев",
   "part": "Часть",
   "password": "Пароль",
+  "password_optional": "Optional password",
   "passwordRequired": "Введите пароль",
   "path": "Путь",
   "pause": "Пауза",
@@ -1094,5 +1095,13 @@
   "yes": "Да",
   "zoom": "Масштаб",
   "noResults": "Нет результатов",
-  "openTabs": "Нет результатов (Открытые вкладки)"
+  "openTabs": "Нет результатов (Открытые вкладки)",
+  "shareAccessMode": "Режим доступа",
+  "share-access-none": "Без ограничений",
+  "share-access-view-only": "Только просмотр (без скачивания и копирования)",
+  "share-access-disable-download": "Отключить скачивание",
+  "share-access-disable-copy": "Отключить копирование",
+  "share-open-limit": "Открыть лимит",
+  "shareGetLink": "Получить ссылку",
+  "shareSendToChat": "Отправить в чат"
 }

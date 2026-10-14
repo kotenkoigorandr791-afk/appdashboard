@@ -742,6 +742,7 @@
   "paragraphs": "Odstavce",
   "part": "Část",
   "password": "Heslo",
+  "password_optional": "Optional password",
   "passwordRequired": "Zadejte heslo",
   "path": "Cesta",
   "pause": "Pozastavit",
@@ -1094,5 +1095,13 @@
   "storageTotalUsersLabel": "Users",
   "storageUsersWithData": "With data",
   "noResults": "Žádné výsledky (Otevřít záložky)",
-  "openTabs": "Žádné výsledky (Otevřít záložky)"
+  "openTabs": "Žádné výsledky (Otevřít záložky)",
+  "shareAccessMode": "Režim přístupu",
+  "share-access-none": "Bez omezení",
+  "share-access-view-only": "Pouze pro zobrazení (bez stažení a kopírování)",
+  "share-access-disable-download": "Zakázat stažení",
+  "share-access-disable-copy": "Zakázat kopírování",
+  "share-open-limit": "Otevřít limit",
+  "shareGetLink": "Získat odkaz",
+  "shareSendToChat": "Odeslat do chatu"
 }

@@ -29,6 +29,7 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         const fileName = document.getElementById('file-name');
         fileName.textContent = path.split('/').pop();
         viewer.dataset.path = path;
+    viewer.dataset.tabRoot = rootKey;
         viewer.dataset.editMode = editMode ? 'true' : 'false';
         const saveBtn = document.getElementById('btn-save');
         const codeActionsBtn = document.getElementById('btn-code-actions');

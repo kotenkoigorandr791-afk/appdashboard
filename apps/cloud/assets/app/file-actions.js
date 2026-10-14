@@ -856,6 +856,9 @@ function renderContextMenuOptions(menu, options, hooks = {}) {
 }
 window.renderContextMenuOptions = renderContextMenuOptions;
 
+function getShareActionPath(path, root) {
+    return typeof toMainTreePath === 'function' ? toMainTreePath(path, root || getCurrentCloudRoot()) : path;
+}
 function buildFileActionGroupItems(path, type, opts = {}) {
     const actionItems = [];
     const includeSelect = opts.includeSelect === true && type === 'file';
@@ -920,8 +923,8 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
             label: t(window.i18n, 'share'),
             icon: 'share',
             items: [
-                { label: cloudActionText('shareGetLink', 'Get link'), icon: 'link', action: () => shareItem(path, type) },
-                { label: cloudActionText('shareSendToChat', 'Send to chat'), icon: 'message', action: () => sendCloudShareToChat(path, type) }
+                { label: cloudActionText('shareGetLink', 'Get link'), icon: 'link', action: () => shareItem(path, type, opts.root) },
+                { label: cloudActionText('shareSendToChat', 'Send to chat'), icon: 'message', action: () => sendCloudShareToChat(path, type, opts.root) }
             ]
         });
     }
@@ -1070,7 +1073,7 @@ function showContextMenu(e, path, type, name) {
             ...(type !== 'file' ? [
                 { label: t(window.i18n, 'upload'), icon: 'upload', action: () => openUploadDialog(basePath) },
             ] : []),
-            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file' })
+            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file', root: getCurrentCloudRoot() })
         );
     }
     if (options.length === 0) {
@@ -1515,19 +1518,20 @@ function cloudActionText(key, fallback) {
     return value && value !== key ? value : fallback;
 }
 
-async function shareItem(path, type) {
+async function shareItem(path, type, root) {
     if (!path) {
         flashStatus(t(i18n, 'noPathSelected'));
         return;
     }
 
     try {
-        shareState.currentPath = path;
         const displayName = path.split('/').pop();
-        if (typeof window.renderShareModalForPath === 'function') {
-            await window.renderShareModalForPath(path, displayName, shareState.currentExpiresOption || 'never');
+        const normalizedPath = getShareActionPath(path, root);
+        shareState.currentPath = normalizedPath;
+        if (typeof renderShareModalForPath === 'function') {
+            await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
         } else {
-            const result = await api('share_file', { path, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            const result = await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
         }
     } catch (err) {
@@ -1559,11 +1563,12 @@ function getCloudShareChatModal() {
     return modal;
 }
 
-function sendCloudShareToChat(path, type) {
+function sendCloudShareToChat(path, type, root) {
     if (!path) {
         flashStatus(t(i18n, 'noPathSelected'));
         return;
     }
+    const normalizedPath = getShareActionPath(path, root);
     const modal = getCloudShareChatModal();
     const emailInput = modal.querySelector('#cloud-share-chat-email');
     const results = modal.querySelector('#cloud-share-chat-results');
@@ -1648,12 +1653,12 @@ function sendCloudShareToChat(path, type) {
         status.textContent = cloudActionText('generatingLink', 'Generating link...');
         try {
             const shareData = typeof window.generateShareKey === 'function'
-                ? await window.generateShareKey(path, shareState.currentExpiresOption || 'never')
-                : await api('share_file', { path, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never')
+                : await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!shareData?.key) throw new Error('Failed to generate share key');
             let metadata = {};
             try {
-                metadata = await api('internal_share_metadata', { path, root: getCurrentCloudRoot() }, 'GET');
+                metadata = await api('internal_share_metadata', { path: normalizedPath, root: 'main' }, 'GET');
             } catch (_) {}
             const sessionUrl = new URL('/main', window.location.origin);
             sessionUrl.searchParams.set('api', 'support_chat');

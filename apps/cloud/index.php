@@ -82,7 +82,7 @@ cloud_require_session_auth();
 :root{--menu-button-reserve:<?php echo (int)$menuBtnReserve; ?>px;--menu-button-mobile-reserve:<?php echo (int)$menuBtnMobileReserve; ?>px;--menu-button-clear-top:<?php echo (int)$menuBtnClearTop; ?>px;--menu-button-toolbar-top:<?php echo (int)$menuBtnToolbarTop; ?>px;--menu-button-mobile-toolbar-top:<?php echo (int)$menuBtnMobileToolbarTop; ?>px;}
 .hide-lang-switcher .lang-switcher{display:none!important;}
 .settings-menu,.dropdown-menu,.context-menu,.tab-preview,.search-panel{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
-.modal-content{background:color-mix(in srgb,var(--panel) 88%,var(--bg))!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
+.modal-content{background:color-mix(in srgb,var(--panel) 88%,var(--bg));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
 .root-toolbar{width:50px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 7px;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:opacity 0.3s ease,transform 0.3s ease}
 .root-toolbar.hidden-by-sidebar{opacity:0;transform:translateX(-100%);pointer-events:none;position:absolute;height:100%;z-index:-1}
 .trash-mode .root-toolbar.hidden-by-sidebar{opacity:1;transform:none;pointer-events:auto;position:static;height:auto;z-index:auto}
@@ -316,6 +316,7 @@ cloud_require_session_auth();
             </svg>
           </button>
         </div>
+        <div class="settings-menu-body">
 
         <section class="settings-group">
           <h4 class="settings-group-title" data-i18n="sectionOverview">Overview</h4>
@@ -426,6 +427,8 @@ cloud_require_session_auth();
             </button>
           </div>
         </section>
+        </div>
+        <div class="settings-menu-footer"></div>
       </div>
     </div>
   </div>
@@ -1066,7 +1069,7 @@ cloud_require_session_auth();
 
   <!-- Modal for file sharing -->
 <div id="share-modal" class="modal hidden">
-  <div class="modal-content" style="max-width: 560px; position:relative; overflow:hidden;">
+  <div class="modal-content" style="max-width: 560px; overflow:hidden;">
     <div class="modal-header" style="padding-right:52px; margin:0 -6px; border-bottom:1px solid var(--border);">
       <h3 data-i18n="shareFile">Share File</h3>
       <button id="btn-close-share" class="icon-btn" style="position:absolute; top:10px; right:10px; z-index:2;">
@@ -1078,8 +1081,9 @@ cloud_require_session_auth();
         <a id="share-link" href="#" target="_blank"></a>
       </div>
       <div id="qrcode-container" style="margin: 20px auto; display: inline-block;"></div>
-      <div id="share-modal-actions" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:nowrap; margin-top:20px;">
-        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
+    </div>
+    <div id="share-modal-actions" class="modal-footer" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:nowrap;">
+        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; height:38px;" data-i18n="shareFile">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2-icon lucide-settings-2"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
           <span>Link settings</span>
         </button>
@@ -1092,7 +1096,6 @@ cloud_require_session_auth();
         <span data-i18n="shareCopyButton">Copy link</span>
         </button>
       </div>
-    </div>
   </div>
 </div>
 <div id="share-settings-modal" class="modal hidden">
@@ -1119,15 +1122,15 @@ cloud_require_session_auth();
           </select>
           <div id="share-expires-at" style="margin-top: 8px; font-size: 12px; color: var(--muted);"></div>
         </div>
-        <div style="font-size:13px; color:var(--muted);">Access mode</div>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-none" value="none" checked><span>No restrictions</span></label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-view-only" value="view_only"><span>Only view (no download and no copy)</span></label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-disable-download" value="disable_download"><span>Disable download</span></label>
-        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-disable-copy" value="disable_copy"><span>Disable copy</span></label>
+        <div style="font-size:13px; color:var(--muted);" data-i18n="shareAccessMode">Access mode</div>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-none" value="none" checked><span data-i18n="share-access-none"></span></label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-view-only" value="view_only"><span data-i18n="share-access-view-only"></span></label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-disable-download" value="disable_download"><span data-i18n="share-access-disable-download"></span></label>
+        <label style="display:flex; align-items:center; gap:8px; font-size:13px;"><input type="radio" name="share-access-mode" id="share-access-disable-copy" value="disable_copy"><span data-i18n="share-access-disable-copy"></span></label>
         <label style="display:block; font-size:13px;">
-          <span style="display:block; margin:4px 0 6px;">Password</span>
+          <span style="display:block; margin:4px 0 6px;" data-i18n="password"></span>
           <div style="position:relative;">
-             <input id="share-password" type="password" placeholder="Optional password" autocomplete="new-password" style="width:100%;padding-right:44px;">
+             <input id="share-password" type="password" placeholder="Optional password" data-i18n-placeholder="password_optional" autocomplete="new-password" style="width:100%;padding-right:44px;">
             <button id="btn-toggle-share-password" type="button" class="icon-btn" style="position:absolute;right:6px;top:50%;transform:translateY(-50%);width:30px;height:30px;">
               <svg id="share-password-eye-open" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg>
               <svg id="share-password-eye-closed" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none;"><path d="m3 3 18 18"/><path d="M10.58 10.58a2 2 0 1 0 2.83 2.83"/><path d="M16.68 16.67A10.94 10.94 0 0 1 12 17.75c-5 0-9.27-3.11-11-7.5a11.8 11.8 0 0 1 5.17-5.94"/><path d="M9.88 5.09A10.94 10.94 0 0 1 12 4.75c5 0 9.27 3.11 11 7.5a11.8 11.8 0 0 1-1.39 2.5"/></svg>
@@ -1135,7 +1138,7 @@ cloud_require_session_auth();
           </div>
         </label>
         <label style="display:block; font-size:13px;">
-          <span style="display:block; margin:4px 0 6px;">Open limit</span>
+          <span style="display:block; margin:4px 0 6px;" data-i18n="share-open-limit"></span>
           <input id="share-open-limit" type="number" min="0" step="1" value="0" style="width:100%;">
         </label>
       </div>

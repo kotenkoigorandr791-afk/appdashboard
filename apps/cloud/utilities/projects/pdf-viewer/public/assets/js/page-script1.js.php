@@ -523,7 +523,8 @@ function setViewerPreviewScale(nextScale, immediate = false) {
     if (!viewer || !Number.isFinite(nextScale) || !Number.isFinite(renderedScale) || renderedScale <= 0) return;
     const ratio = nextScale / renderedScale;
     viewer.classList.add('is-zooming');
-    viewer.style.transition = immediate ? 'none' : 'transform 180ms ease';
+    // Disable transition to prevent horizontal scrollbar flicker
+    viewer.style.transition = 'none';
     viewer.style.transformOrigin = 'top center';
     viewer.style.transform = `scale(${ratio})`;
 }
@@ -531,7 +532,8 @@ function setViewerPreviewScale(nextScale, immediate = false) {
 function clearViewerPreviewScale() {
     if (!viewer) return;
     viewer.classList.remove('is-zooming');
-    viewer.style.transition = 'transform 140ms ease, opacity 160ms ease';
+    // Immediately reset scale without transition
+    viewer.style.transition = 'none';
     viewer.style.transform = 'scale(1)';
 }
 
@@ -751,6 +753,9 @@ async function renderAllPages() {
     renderAborted = false;
     renderedPages = 0;
 
+    // Clear existing page wrappers to prevent accumulation/duplication
+    viewer.innerHTML = '';
+
     try {
         fileProgress.stopCreep();
         fileProgress.set(PDF_DOWNLOAD_WEIGHT);
@@ -813,10 +818,15 @@ function updateScale(newScale, immediate = true) {
     renderAborted = true;
     currentRenderId++;
     
+    // Hide scrollbar during scale transition to prevent flicker
+    viewerContainer.style.overflow = 'hidden';
+    
     setViewerPreviewScale(newScale, !immediate);
     pendingRender = requestAnimationFrame(async () => {
         await renderAllPages();
         pendingRender = null;
+        // Restore overflow after render completes
+        viewerContainer.style.overflow = 'auto';
         requestAnimationFrame(() => {
             viewerContainer.scrollTop = scrollTop * (scale / oldScale);
             viewerContainer.scrollLeft = scrollLeft * (scale / oldScale);

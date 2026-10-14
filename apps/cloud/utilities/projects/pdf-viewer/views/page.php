@@ -22,7 +22,7 @@ button[data-tooltip]{position:relative;}
 
 svg{width:18px;height:18px;stroke:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
 /* Page info pagination */
-.page-info-pagination{display:inline-flex;align-items:center;gap:4px;background:<?php echo $theme === 'light' ? 'color-mix(in srgb,var(--panel) 96%,transparent)' : 'color-mix(in srgb,var(--panel) 12%,transparent)'; ?>;border-radius:20px;padding:4px 8px;min-width:56px;}
+.page-info-pagination{display:inline-flex;align-items:center;gap:4px;background:<?php echo $theme === 'light' ? 'color-mix(in srgb,var(--panel) 96%,transparent)' : 'color-mix(in srgb,var(--panel) 12%,transparent)'; ?>;border-radius:20px;padding:4px 8px;min-width:56px;color:<?php echo $theme === 'light' ? '#6b7280' : '#fff'; ?>;}
 .page-input{background:transparent;border:none;outline:none;padding:0;margin:0;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;letter-spacing:inherit;width:1.2ch;text-align:center;caret-color:#3b82f6;-moz-appearance:textfield;appearance:textfield;}
 .page-input::-webkit-outer-spin-button,.page-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
 .page-input:hover{background-color:rgba(0,0,0,0.04);border-radius:4px;}
@@ -32,16 +32,17 @@ svg{width:18px;height:18px;stroke:<?php echo $theme === 'light' ? '#333' : '#fff
 .color-selector:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(255,107,107,0.4);}
 .color-selector:active{transform:scale(0.98);}
 
-.zoom-wrapper{width:100%;background-color:<?php echo $theme === 'light' ? '#f0f2f5' : '#2a2a2a'; ?>;padding:8px 12px;border-radius:24px;box-sizing:border-box;display:flex;align-items:center;box-shadow:inset 0 2px 4px rgba(0,0,0,0.04);}
+.zoom-wrapper{width:100%;background-color:<?php echo $theme === 'light' ? '#f0f2f5' : '#2a2a2a'; ?>;padding:10px 16px;border-radius:50px;box-sizing:border-box;display:flex;align-items:center;box-shadow:inset 0 2px 4px rgba(0,0,0,0.04);}
 .zoom-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:#d1d5db;border-radius:10px;outline:none;cursor:pointer;}
-.zoom-slider::-webkit-slider-runnable-track{height:6px;border-radius:10px;background:linear-gradient(to right,#4f46e5 0%,#4f46e5 var(--val,50%),#d1d5db var(--val,50%),#d1d5db 100%);}
-.zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:#fff;border:2px solid #4f46e2;border-radius:50%;margin-top:-7px;box-shadow:0 2px 6px rgba(79,70,229,0.4);transition:transform .15s;}
+.zoom-slider::-webkit-slider-runnable-track{height:6px;border-radius:10px;background:linear-gradient(to right,#4a90e2 0%,#4a90e2 var(--val,50%),#d1d5db var(--val,50%),#d1d5db 100%);}
+.zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:#fff;border:2px solid #4a90e2;border-radius:50%;margin-top:-7px;box-shadow:0 2px 6px rgba(74,144,226,0.4);transition:transform .15s;}
 .zoom-slider::-webkit-slider-thumb:hover{transform:scale(1.15);}
 .zoom-slider::-moz-range-track{height:6px;border-radius:10px;background:#d1d5db;}
-.zoom-slider::-moz-range-progress{height:6px;border-radius:10px;background:#4f46e5;}
-.zoom-slider::-moz-range-thumb{width:20px;height:20px;background:#fff;border:2px solid #4f46e2;border-radius:50%;box-shadow:0 2px 6px rgba(79,70,229,0.4);cursor:grab;}
+.zoom-slider::-moz-range-progress{height:6px;border-radius:10px;background:#4a90e2;}
+.zoom-slider::-moz-range-thumb{width:20px;height:20px;background:#fff;border:2px solid #4a90e2;border-radius:50%;box-shadow:0 2px 6px rgba(74,144,226,0.4);cursor:grab;}
 .zoom-select-container{position:relative;display:inline-flex;align-items:center;min-width:100%;margin:0;}
-.zoom-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background:<?php echo $theme === 'light' ? '#f5f5f5' : '#404040'; ?>;border:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;border-radius:4px;color:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;font-size:11px;font-weight:600;padding:5px 22px 5px 6px;cursor:pointer;width:100%;outline:none;text-align-last:center;}
+.zoom-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background:<?php echo $theme === 'light' ? '#f5f5f5' : '#404040'; ?>;border:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;border-radius:4px;color:#fff !important;font-size:11px;font-weight:600;padding:5px 22px 5px 6px;cursor:pointer;width:100%;outline:none;text-align-last:center;}
+select option{color:#333 !important;background:#fff;}
 .zoom-select:hover{background:<?php echo $theme === 'light' ? '#e8e8e8' : '#4a4a4a'; ?>;border-color:#<?php echo $color; ?>;}
 .zoom-select:focus{border-color:#<?php echo $color; ?>;box-shadow:0 0 0 2px #<?php echo $color; ?>33;}
 .zoom-select-arrow{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:14px;height:14px;pointer-events:none;stroke:<?php echo $theme === 'light' ? '#666' : '#aaa'; ?>;stroke-width:2;fill:none;}
@@ -162,6 +163,7 @@ button{padding:6px;min-width:36px;}
 </div>
 <div class="toolbar-group">
 <div class="toolbar-label">Zoom</div>
+
 <div class="zoom-select-container">
 <select id="zoom-select" class="zoom-select">
 <option value="0.25">25%</option>

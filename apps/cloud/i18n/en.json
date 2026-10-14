@@ -745,6 +745,7 @@
   "paragraphs": "Paragraphs",
   "part": "Part",
   "password": "Password",
+  "password_optional": "Optional password",
   "passwordRequired": "Password required",
   "path": "Path",
   "pause": "Pause",
@@ -1094,5 +1095,13 @@
   "yes": "Yes",
   "zoom": "Zoom",
   "openTabs": "Open Tabs",
-  "noResults": "No results"
+  "noResults": "No results",
+  "shareAccessMode": "Access mode",
+  "share-access-none": "No restrictions",
+  "share-access-view-only": "Only view (no download and no copy)",
+  "share-access-disable-download": "Disable download",
+  "share-access-disable-copy": "Disable copy",
+  "share-open-limit": "Open limit",
+  "shareGetLink": "Get link",
+  "shareSendToChat": "Send to chat"
 }

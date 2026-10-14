@@ -1330,9 +1330,11 @@ async function openShareModal() {
         flashStatus(t(i18n, 'noFileOpen'));
         return false;
     }
+    const root = viewer.dataset.tabRoot || getActiveTabRoot();
+    const sharePath = typeof toMainTreePath === 'function' ? toMainTreePath(filePath, root) : filePath;
     try {
-        viewer.dataset.lastSharedPath = filePath;
-        await renderShareModalForPath(filePath, viewer.dataset.path.split('/').pop(), shareState.currentExpiresOption || 'never');
+        viewer.dataset.lastSharedPath = sharePath;
+        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never');
         return true;
     } catch (err) {
         flashStatus(t(i18n, 'shareError') + ': ' + err.message);
@@ -1399,7 +1401,7 @@ function initShareFeature() {
                 return;
             }
             if (typeof window.sendCloudShareToChat === 'function') {
-                window.sendCloudShareToChat(filePath, 'file');
+                window.sendCloudShareToChat(filePath, 'file', viewer.dataset.tabRoot || getActiveTabRoot());
             }
         });
     });
@@ -10203,7 +10205,7 @@ function showTabContextMenu(e, tabId) {
         tab.transcriptionEditor || tab.onlyOfficeEditor || tab.ttsEditor || tab.zipViewer ||
         (typeof shouldHideEditMenuOption === 'function' && shouldHideEditMenuOption(path));
     const options = typeof buildFileContextMenuOptions === 'function'
-        ? buildFileContextMenuOptions(path, type, { includeSelect: false, hideEdit, tabId, tabTitle: tab.title })
+        ? buildFileContextMenuOptions(path, type, { includeSelect: false, hideEdit, tabId, tabTitle: tab.title, root: getResolvedTabRoot(tab) })
         : [];
     if (options.length === 0) {
         options.push({ label: t(window.i18n, 'noActions'), action: () => {} });
