@@ -433,14 +433,16 @@ let dragState = {
     initialY: 0
 };
 let newFileState = {
-  basePath: ''
+  basePath: '',
+  baseRoot: 'main'
 };
 let renameState = {
   oldPath: '',
   currentExt: ''
 };
 let newFolderState = {
-  basePath: ''
+  basePath: '',
+  baseRoot: 'main'
 };
 let deleteState = {
     path: '',
@@ -1330,9 +1332,11 @@ async function openShareModal() {
         flashStatus(t(i18n, 'noFileOpen'));
         return false;
     }
+    const root = viewer.dataset.tabRoot || getActiveTabRoot();
+    const sharePath = typeof toMainTreePath === 'function' ? toMainTreePath(filePath, root) : filePath;
     try {
-        viewer.dataset.lastSharedPath = filePath;
-        await renderShareModalForPath(filePath, viewer.dataset.path.split('/').pop(), shareState.currentExpiresOption || 'never');
+        viewer.dataset.lastSharedPath = sharePath;
+        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never');
         return true;
     } catch (err) {
         flashStatus(t(i18n, 'shareError') + ': ' + err.message);
@@ -1399,7 +1403,7 @@ function initShareFeature() {
                 return;
             }
             if (typeof window.sendCloudShareToChat === 'function') {
-                window.sendCloudShareToChat(filePath, 'file');
+                window.sendCloudShareToChat(filePath, 'file', viewer.dataset.tabRoot || getActiveTabRoot());
             }
         });
     });
@@ -3343,8 +3347,13 @@ function updateToolbarForTab(tab) {
         undoBtn?.classList.add('hidden');
         redoBtn?.classList.add('hidden');
     } else {
+        const isTxtFile = /\.txt$/i.test(tab.path || '');
         saveBtn.classList.toggle('hidden', !tab.editMode);
-        codeActionsBtn.classList.toggle('hidden', !tab.editMode);
+        // Plain text files have no code actions, so the button stays hidden for them.
+        codeActionsBtn.classList.toggle('hidden', !tab.editMode || isTxtFile);
+        if (isTxtFile || !tab.editMode) {
+            document.getElementById('code-actions-menu')?.classList.add('hidden');
+        }
         if (copyBtn) {
             const isBinary = isBinaryFile(tab.path);
             copyBtn.classList.toggle('hidden', isBinary);
@@ -3545,7 +3554,86 @@ function initTabScrolling() {
         }
     }, { passive: false });
 }
+function renderTabDropdownOpenTabs() {
+    const list = document.getElementById('tab-search-open-list');
+    if (!list) return;
+    const rows = tabsState.tabs;
+    list.innerHTML = '';
+    if (!rows.length) {
+        list.innerHTML = `<div class="tab-search-empty">${escapeHtml(t(i18n, 'noResults'))}</div>`;
+        return;
+    }
+    rows.forEach((tab) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-search-item';
+        btn.innerHTML = `<span class="tab-search-item-icon">${getFileIcon(tab.path)}</span><span class="tab-search-item-info"><span class="tab-search-item-title">${escapeHtml(tab.title || tab.path)}</span><span class="tab-search-item-url">${escapeHtml(formatDisplayPath(tab.path))}</span></span>`;
+        btn.addEventListener('click', () => {
+            switchToTab(tab.id);
+            closeTabDropdown();
+        });
+        list.appendChild(btn);
+    });
+}
+function renderTabDropdownRecent() {
+    const list = document.getElementById('tab-search-recent-list');
+    if (!list) return;
+    const rows = loadRecentFiles();
+    list.innerHTML = '';
+    if (!rows.length) {
+        list.innerHTML = `<div class="tab-search-empty">${escapeHtml(t(i18n, 'noRecentFiles'))}</div>`;
+        return;
+    }
+    rows.forEach((row) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'tab-search-item';
+        btn.innerHTML = `<span class="tab-search-item-icon">${getFileIconMarkup(row.title || row.path, 'app-file-icon')}</span><span class="tab-search-item-info"><span class="tab-search-item-title">${escapeHtml(row.title || row.path)}</span><span class="tab-search-item-url">${escapeHtml(formatDisplayPath(row.path))}</span></span>`;
+        btn.addEventListener('click', () => {
+            openFileInTab(row.path, false, row.root || 'main');
+            closeTabDropdown();
+        });
+        list.appendChild(btn);
+    });
+}
+function openTabDropdown() {
+    const dropdown = document.getElementById('tab-search-dropdown');
+    const toggle = document.getElementById('tab-strip-toggle');
+    if (!dropdown) return;
+    renderTabDropdownOpenTabs();
+    renderTabDropdownRecent();
+    dropdown.classList.add('show');
+    if (toggle) toggle.classList.add('active');
+}
+function closeTabDropdown() {
+    const dropdown = document.getElementById('tab-search-dropdown');
+    const toggle = document.getElementById('tab-strip-toggle');
+    if (dropdown) dropdown.classList.remove('show');
+    if (toggle) toggle.classList.remove('active');
+}
+function initTabDropdown() {
+    if (window.tabDropdownInitialized) return;
+    window.tabDropdownInitialized = true;
+
+    document.addEventListener('click', (e) => {
+        const toggle = e.target.closest('#tab-strip-toggle');
+        const dropdown = document.getElementById('tab-search-dropdown');
+        if (toggle) {
+            e.stopPropagation();
+            if (dropdown && dropdown.classList.contains('show')) {
+                closeTabDropdown();
+            } else {
+                openTabDropdown();
+            }
+            return;
+        }
+        if (dropdown && dropdown.classList.contains('show') && !dropdown.contains(e.target)) {
+            closeTabDropdown();
+        }
+    });
+}
 function renderTabs() {
+    initTabDropdown();
     const hasTabs = tabsState.tabs.length > 0;
     document.body.classList.toggle('tabs-open', hasTabs);
     document.body.classList.toggle('tabs-empty', !hasTabs);
@@ -3572,6 +3660,9 @@ function renderTabs() {
         }
         
             tabsContainer.innerHTML = `
+            	    <button class="tab-strip-btn" id="tab-strip-toggle" type="button" title="Tabs" aria-label="Tabs">
+                <svg viewBox="0 0 24 24"><path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/></svg>
+            </button>
             	    <button class="tab-scroll-btn" id="tab-scroll-left" title="Scroll left">
                 <svg viewBox="0 0 24 24">
                     <polyline points="15 18 9 12 15 6"></polyline>
@@ -3583,12 +3674,24 @@ function renderTabs() {
                     <polyline points="9 18 15 12 9 6"></polyline>
                 </svg>
             </button>
-	            <button class="icon-btn tab-close-all" id="btn-close-all-tabs" title="" data-i18n-title="closeAllTabs">
+            <div class="controls-right">
+                <button class="icon-btn tab-close-all" id="btn-close-all-tabs" title="" data-i18n-title="closeAllTabs">
 	                <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
 	                    <line x1="18" y1="6" x2="6" y2="18"></line>
 	                    <line x1="6" y1="6" x2="18" y2="18"></line>
 	                </svg>
 	            </button>
+            </div>
+            <div class="tab-search-dropdown" id="tab-search-dropdown">
+                <div class="tab-search-section">
+                    <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
+                    <div id="tab-search-open-list"></div>
+                </div>
+                <div class="tab-search-section">
+                    <div class="tab-search-title" data-i18n="recentFiles">Recent files</div>
+                    <div id="tab-search-recent-list"></div>
+                </div>
+            </div>
             `;
         
         // Re-initialize references
@@ -3599,6 +3702,8 @@ function renderTabs() {
 	        closeAllBtn.addEventListener('click', closeAllTabs);
 	        // Ensure translated title for dynamically-created button
 	        if (window.i18n) closeAllBtn.title = t(window.i18n, 'closeAllTabs');
+
+        initTabDropdown();
         
         // Initialize scrolling
         if (typeof initTabScrolling === 'function' && !window.tabScrollingInitialized) {
@@ -3753,16 +3858,16 @@ function renderTabs() {
             closeBtn.setAttribute('data-tab-id', tab.id);
         }
 
-        // Only append new tabs: re-appending an existing node would move it to the
-        // end of the DOM and cause the tab bar to visibly jump/flicker on every
-        // content update (e.g. realtime collab sync).
+        // Only move nodes that are actually out of position: re-appending an
+        // existing node would move it to the end of the DOM and cause the tab bar
+        // to visibly jump/flicker on every content update (e.g. realtime sync).
         if (tabElement.parentElement !== tabsList) {
             tabsList.appendChild(tabElement);
         } else {
-            const lastAppended = tabsList.querySelector('.tab:last-of-type');
-            if (lastAppended !== tabElement &&
-                Array.from(tabsList.children).indexOf(tabElement) !== tabsState.tabs.indexOf(tab)) {
-                tabsList.insertBefore(tabElement, tabsList.children[tabsState.tabs.indexOf(tab)] || null);
+            const desiredIndex = tabsState.tabs.indexOf(tab);
+            const currentIndex = Array.from(tabsList.children).indexOf(tabElement);
+            if (desiredIndex !== -1 && currentIndex !== desiredIndex) {
+                tabsList.insertBefore(tabElement, tabsList.children[desiredIndex] || null);
             }
         }
         existingTabs.delete(key);
@@ -4235,7 +4340,7 @@ function displaySearchResults(results, query) {
     node.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       e.stopPropagation();
-      if (typeof showContextMenu === 'function') showContextMenu(e, resolved.localPath, item.type, item.name);
+      if (typeof showContextMenu === 'function') showContextMenu(e, resolved.localPath, item.type, item.name, resolved.root);
     });
     container.appendChild(node);
   });
@@ -4594,8 +4699,6 @@ function initRootToolbar(i18n) {
     document.getElementById('btn-code-actions').addEventListener('click', toggleCodeActionsMenu);
     document.getElementById('btn-apply-code-changes').addEventListener('click', applyCodeChanges);
     document.getElementById('btn-close-code-modal').addEventListener('click', closeCodeModal);
-    document.getElementById('quota-mb').addEventListener('change', updateQuota);
-    document.getElementById('quota-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('session-limit-mb').addEventListener('change', updateSessionLimit);
     document.getElementById('session-limit-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('btn-request-storage')?.addEventListener('click', requestMoreStorage);
@@ -6896,7 +6999,6 @@ async function syncSettingsControls(state = null) {
     if (!active) return;
     const activeDisplayEmail = (active && active.email) || state.active_email || state.active;
     window.cloudCurrentUserDisplayEmail = activeDisplayEmail || '';
-    document.getElementById('quota-mb').value = active.quota_mb;
     document.getElementById('session-limit-mb').value = active.session_limit_mb || 0;
     const hideLangToggle = document.getElementById('hide-lang-switcher-toggle');
     if (hideLangToggle) {
@@ -6917,11 +7019,9 @@ async function syncSettingsControls(state = null) {
         compileMenuItem.style.display = (userRole === 0) ? 'none' : 'flex';
     }
 
-    // Storage: only admins may edit quotas. Regular users can ask an admin
-    // for more space instead.
+    // Storage: quotas are edited only from the admin "Manage user storage"
+    // window. Regular users can ask an admin for more space instead.
     const isAdminUser = userRole >= 2;
-    const quotaRow = document.getElementById('settings-quota-row');
-    if (quotaRow) quotaRow.classList.toggle('hidden', !isAdminUser);
     const manageStorageBtn = document.getElementById('btn-manage-storage');
     if (manageStorageBtn) manageStorageBtn.classList.toggle('hidden', !isAdminUser);
     const storageRequestSection = document.getElementById('settings-storage-request');
@@ -7502,7 +7602,7 @@ function renderTrashItems(items) {
         card.addEventListener('contextmenu', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            showContextMenu(e, item.path, item.type, item.name);
+            showContextMenu(e, item.path, item.type, item.name, getCurrentCloudRoot());
         });
 
         grid.appendChild(card);
@@ -8486,7 +8586,7 @@ function renderNodes(items, basePath = '', depth = 0) {
     });
 
         attachMobileContextMenuTrigger(node, (menuEvent) => {
-            showContextMenu(menuEvent, item.path, item.type, item.name);
+            showContextMenu(menuEvent, item.path, item.type, item.name, getCurrentCloudRoot());
         });
         
         // Double click handler remains unchanged
@@ -8525,7 +8625,7 @@ function renderNodes(items, basePath = '', depth = 0) {
                 return;
             }
             e.preventDefault();
-            showContextMenu(e, item.path, item.type, item.name);
+            showContextMenu(e, item.path, item.type, item.name, getCurrentCloudRoot());
         });
         
         container.appendChild(node);
@@ -9699,20 +9799,6 @@ function showCloudEncryptionNoticeModal(i18n) {
   };
   modal.querySelector('#cloud-encryption-notice-confirm')?.addEventListener('click', finalize);
 }
-async function updateQuota() {
-  const mb = parseInt(document.getElementById('quota-mb').value || '0', 10);
-  if (mb <= 0) {
-    flashStatus(t(i18n, 'invalidQuota'));
-    return;
-  }
-  try {
-    await api('set_quota', { quota_mb: mb }); // without name - the server will figure out the current user
-    flashStatus(t(i18n, 'quotaUpdated'));
-    await refreshUsers(i18n);
-  } catch (err) {
-    flashStatus(t(i18n, 'errorPrefix') + err.message);
-  }
-}
 async function updateSessionLimit() {
   const mb = parseInt(document.getElementById('session-limit-mb').value || '0', 10);
   try {
@@ -9872,8 +9958,23 @@ function storageUserRowHtml(u) {
         '<td class="storage-col-role"><span class="user-quota-used">' + escapeHtml(storageRoleLabel(u.role)) + '</span></td>' +
         '<td><span class="user-quota-used">' + escapeHtml(formatBytes(u.used_bytes || 0)) + '</span></td>' +
         '<td class="storage-quota-cell"><span style="display:inline-flex;align-items:center;gap:6px;">' +
-            '<input type="number" min="1" step="1" value="' + (Number(u.quota_mb) || 1) + '" data-quota-email="' + escapeHtml(u.email) + '" class="storage-admin-quota-input" aria-label="' + escapeHtml(t(window.i18n, 'setQuota')) + '">' +
-            '<span class="user-quota-used">MB</span></span></td>' +
+            '<select class="storage-admin-quota-input" data-quota-email="' + escapeHtml(u.email) + '" aria-label="' + escapeHtml(t(window.i18n, 'setQuota')) + '">' +
+            '<option value="1024">1 ГБ</option>' +
+            '<option value="2048">2 ГБ</option>' +
+            '<option value="4096">4 ГБ</option>' +
+            '<option value="8192">8 ГБ</option>' +
+            '<option value="16384">16 ГБ</option>' +
+            '<option value="32768">32 ГБ</option>' +
+            '<option value="65536">64 ГБ</option>' +
+            '<option value="131072">128 ГБ</option>' +
+            '<option value="262144">256 ГБ</option>' +
+            '<option value="524288">512 ГБ</option>' +
+            '<option value="1048576">1 ГБ</option>' +
+            '<option value="2097152">2 ГБ</option>' +
+            '<option value="5242880">5 ГБ</option>' +
+            '<option selected value="' + (Number(u.quota_mb) || 1) + '">' + (Number(u.quota_mb) || 1) + ' МБ</option>' +
+            '</select>' +
+            '</span></td>' +
         '<td><button type="button" class="storage-admin-save-btn" data-save-email="' + escapeHtml(u.email) + '" title="' + saveLabel + '" aria-label="' + saveLabel + '">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>' +
         '</button></td>' +
@@ -9904,8 +10005,23 @@ function storageRequestCardHtml(r) {
             '<span class="user-quota-used">' + escapeHtml(formatBytes(r.used_bytes || 0)) + ' / ' + escapeHtml(formatBytes((Number(r.current_quota_mb) || 0) * 1024 * 1024)) + '</span>' +
         '</div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">' +
-            '<input type="number" min="1" step="1" value="' + suggested + '" data-req-quota="' + r.id + '" style="width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
-            '<span class="user-quota-used">MB</span>' +
+            '<select class="storage-admin-quota-input" data-req-quota="' + r.id + '" style="width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
+            '<option value="1024">1 ГБ</option>' +
+            '<option value="2048">2 ГБ</option>' +
+            '<option value="4096">4 ГБ</option>' +
+            '<option value="8192">8 ГБ</option>' +
+            '<option value="16384">16 ГБ</option>' +
+            '<option value="32768">32 ГБ</option>' +
+            '<option value="65536">64 ГБ</option>' +
+            '<option value="131072">128 ГБ</option>' +
+            '<option value="262144">256 ГБ</option>' +
+            '<option value="524288">512 ГБ</option>' +
+            '<option value="1048576">1 ГБ</option>' +
+            '<option value="2097152">2 ГБ</option>' +
+            '<option value="5242880">5 ГБ</option>' +
+            '<option selected value="' + suggested + '">' + suggested + ' МБ</option>' +
+            '</select>' +
+            '' +
             '<input type="text" data-req-reason="' + r.id + '" placeholder="' + escapeHtml(t(window.i18n, 'storageRejectReason')) + '" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
             '<button type="button" class="btn primary small" data-req-approve="' + r.id + '">' + escapeHtml(t(window.i18n, 'storageApprove')) + '</button>' +
             '<button type="button" class="btn secondary small" data-req-reject="' + r.id + '">' + escapeHtml(t(window.i18n, 'storageReject')) + '</button>' +
@@ -10091,7 +10207,7 @@ function showTabContextMenu(e, tabId) {
         tab.transcriptionEditor || tab.onlyOfficeEditor || tab.ttsEditor || tab.zipViewer ||
         (typeof shouldHideEditMenuOption === 'function' && shouldHideEditMenuOption(path));
     const options = typeof buildFileContextMenuOptions === 'function'
-        ? buildFileContextMenuOptions(path, type, { includeSelect: false, hideEdit, tabId, tabTitle: tab.title })
+        ? buildFileContextMenuOptions(path, type, { includeSelect: false, hideEdit, tabId, tabTitle: tab.title, root: getResolvedTabRoot(tab) })
         : [];
     if (options.length === 0) {
         options.push({ label: t(window.i18n, 'noActions'), action: () => {} });
@@ -10162,6 +10278,11 @@ function refreshTabContent(tabId) {
     if (!tab) return;
     const savedRoot = getTabRoot(tab);
     const prevRoot = getCurrentCloudRoot();
+    // Remember where the tab lived and whether it was the active one, so that
+    // refreshing does not move it or steal focus from the tab the user had open.
+    const originalIndex = tabsState.tabs.findIndex(t => t.id === tabId);
+    const wasActive = tabsState.activeTabId === tabId;
+    const prevActiveId = wasActive ? null : tabsState.activeTabId;
     setCurrentCloudRoot(savedRoot);
     closeTab(tabId);
     if (tab.photoEditor) {
@@ -10190,16 +10311,8 @@ function refreshTabContent(tabId) {
             content: null,
             fullPath: tab.fullPath
         };
-        if (tabsState.activeTabId) {
-            const activeIndex = tabsState.tabs.findIndex(t => t.id === tabsState.activeTabId);
-            if (activeIndex !== -1) {
-                tabsState.tabs.splice(activeIndex + 1, 0, newTab);
-            } else {
-                tabsState.tabs.push(newTab);
-            }
-        } else {
-            tabsState.tabs.push(newTab);
-        }
+        const insertAt = originalIndex >= 0 ? Math.min(originalIndex, tabsState.tabs.length) : tabsState.tabs.length;
+        tabsState.tabs.splice(insertAt, 0, newTab);
         tabsState.activeTabId = newTab.id;
         renderTabs();
         loadZipViewerToTab(newTab);
@@ -10208,7 +10321,22 @@ function refreshTabContent(tabId) {
         openFileInTab(tab.path, tab.editMode);
     }
     const freshTab = tabsState.tabs.find(t => t.id === tabsState.activeTabId);
-    if (freshTab && !freshTab.root) freshTab.root = savedRoot;
+    if (freshTab) {
+        if (!freshTab.root) freshTab.root = savedRoot;
+        // Re-opening appends the tab at the end of the strip; put it back where it was.
+        const freshIndex = tabsState.tabs.indexOf(freshTab);
+        if (originalIndex >= 0 && freshIndex !== originalIndex) {
+            tabsState.tabs.splice(freshIndex, 1);
+            const target = Math.max(0, Math.min(originalIndex, tabsState.tabs.length));
+            tabsState.tabs.splice(target, 0, freshTab);
+        }
+        renderTabs();
+        // Refreshing a background tab must not switch the user away from their current tab.
+        if (!wasActive && prevActiveId != null && tabsState.tabs.some(t => t.id === prevActiveId)) {
+            switchToTab(prevActiveId);
+        }
+        saveTabsState();
+    }
     setCurrentCloudRoot(prevRoot);
     flashStatus(t(i18n, 'tabRefreshed', { name: tab.title }));
 }

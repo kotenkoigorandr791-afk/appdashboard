@@ -109,6 +109,14 @@ const monacoSpellcheckLanguages = {
 
 const monacoCollabRemoteColors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#ec4899', '#14b8a6', '#a855f7', '#f97316'];
 
+// Punctuation that sticks to the word in front of it: when a suggestion put a
+// trailing space at the end of the text, typing one of these removes that space
+// again instead of leaving "word ," behind.
+const monacoStickyPunctuation = /^[.,!?;:)\]}>%°…»”’"'–—-]$/u;
+// Command id used by completion items and code actions to request the trailing
+// space after the word the user just accepted.
+const monacoSuggestionSpaceCommandId = 'cloudMonacoSuggestionTrailingSpace';
+
 function monacoT(key, params) {
     if (typeof t === 'function' && window.i18n) return t(window.i18n, key, params || {});
     return key;
@@ -288,11 +296,16 @@ function monacoInjectSelectionHandlesCSS() {
         .monaco-status-item {
             white-space: nowrap !important;
         }
-        /* Spellcheck language picker: use the app's input look instead of the
-           browser's default select chrome. */
+        /* Spellcheck language picker: the trigger keeps the app's input look (the
+           native select chrome is gone because the picker is now a modal, but the
+           arrow still hints that a list opens). */
         .monaco-status-spell-select {
             appearance: none !important;
             -webkit-appearance: none !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            gap: 6px !important;
+            text-align: left !important;
             background-color: var(--panel, #2a2a2a) !important;
             color: var(--fg, #e6e6e6) !important;
             border: 1px solid color-mix(in srgb, var(--accent, #4a90e2) 35%, var(--border, rgba(255,255,255,.2))) !important;
@@ -316,9 +329,167 @@ function monacoInjectSelectionHandlesCSS() {
             border-color: var(--accent, #4a90e2) !important;
             box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent, #4a90e2) 30%, transparent) !important;
         }
-        .monaco-status-spell-select option {
-            background: var(--panel, #2a2a2a);
-            color: var(--fg, #e6e6e6);
+        /* Flag/icon shown inside the trigger */
+        .monaco-spell-icon {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 18px !important;
+            height: 12px !important;
+            flex: 0 0 auto !important;
+            border-radius: 2px !important;
+            overflow: hidden !important;
+        }
+        .monaco-spell-icon svg,
+        .monaco-spell-option-icon svg {
+            width: 100% !important;
+            height: 100% !important;
+            display: block !important;
+        }
+        .monaco-spell-icon-label {
+            min-width: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        /* Language picker modal, centered on screen */
+        .monaco-spell-modal-overlay {
+            position: fixed !important;
+            inset: 0 !important;
+            z-index: 20000 !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            padding: 16px !important;
+            background: rgba(0, 0, 0, .45) !important;
+            backdrop-filter: blur(2px) !important;
+            -webkit-backdrop-filter: blur(2px) !important;
+            animation: monacoSpellModalFade .12s ease-out !important;
+        }
+        @keyframes monacoSpellModalFade {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        .monaco-spell-modal {
+            width: min(360px, 100%) !important;
+            max-height: min(70vh, 520px) !important;
+            display: flex !important;
+            flex-direction: column !important;
+            background: var(--panel, #2a2a2a) !important;
+            color: var(--fg, #e6e6e6) !important;
+            border: 1px solid color-mix(in srgb, var(--accent, #4a90e2) 35%, var(--border, rgba(255,255,255,.2))) !important;
+            border-radius: 12px !important;
+            box-shadow: 0 18px 48px rgba(0, 0, 0, .45) !important;
+            overflow: hidden !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+            font-size: 13px !important;
+        }
+        .monaco-spell-modal-head {
+            display: flex !important;
+            align-items: center !important;
+            justify-content: space-between !important;
+            gap: 8px !important;
+            padding: 12px 14px !important;
+            font-weight: 600 !important;
+            border-bottom: 1px solid color-mix(in srgb, var(--border, rgba(255,255,255,.2)) 70%, transparent) !important;
+        }
+        .monaco-spell-modal-close {
+            appearance: none !important;
+            -webkit-appearance: none !important;
+            background: transparent !important;
+            border: 0 !important;
+            color: inherit !important;
+            font: inherit !important;
+            font-size: 18px !important;
+            line-height: 1 !important;
+            padding: 2px 8px !important;
+            border-radius: 6px !important;
+            cursor: pointer !important;
+        }
+        .monaco-spell-modal-close:hover {
+            background: color-mix(in srgb, var(--fg, #ffffff) 12%, transparent) !important;
+        }
+        .monaco-spell-modal-list {
+            display: flex !important;
+            flex-direction: column !important;
+            gap: 2px !important;
+            padding: 8px !important;
+            overflow-y: auto !important;
+            /* Must be allowed to shrink inside the capped panel, otherwise the
+               tail of the list would be clipped by the panel with no way to
+               scroll to it. */
+            flex: 1 1 auto !important;
+            min-height: 0 !important;
+            overscroll-behavior: contain !important;
+            /* Follow the app theme: dark track/thumb in the dark theme instead of
+               the browser's default light scrollbar. */
+            scrollbar-width: thin !important;
+            scrollbar-color: var(--scrollbar-thumb, var(--muted, #888888)) var(--scrollbar-track, var(--panel, #2a2a2a)) !important;
+        }
+        .monaco-spell-modal-list::-webkit-scrollbar {
+            width: 10px !important;
+        }
+        .monaco-spell-modal-list::-webkit-scrollbar-track {
+            background: var(--scrollbar-track, var(--panel, #2a2a2a)) !important;
+            border-radius: 3px !important;
+        }
+        .monaco-spell-modal-list::-webkit-scrollbar-thumb {
+            background: var(--scrollbar-thumb, var(--muted, #888888)) !important;
+            border: 2px solid transparent !important;
+            background-clip: padding-box !important;
+            border-radius: 999px !important;
+        }
+        .monaco-spell-modal-list::-webkit-scrollbar-thumb:hover {
+            background: var(--scrollbar-thumb-hover, var(--muted, #888888)) !important;
+            background-clip: padding-box !important;
+        }
+        .monaco-spell-option {
+            display: flex !important;
+            align-items: center !important;
+            gap: 10px !important;
+            width: 100% !important;
+            padding: 8px 10px !important;
+            background: transparent !important;
+            border: 1px solid transparent !important;
+            border-radius: 8px !important;
+            color: inherit !important;
+            font: inherit !important;
+            text-align: left !important;
+            cursor: pointer !important;
+        }
+        .monaco-spell-option:hover,
+        .monaco-spell-option:focus-visible {
+            background: color-mix(in srgb, var(--accent, #4a90e2) 12%, transparent) !important;
+            outline: none !important;
+        }
+        .monaco-spell-option.is-active {
+            background: color-mix(in srgb, var(--accent, #4a90e2) 18%, transparent) !important;
+            border-color: color-mix(in srgb, var(--accent, #4a90e2) 45%, transparent) !important;
+        }
+        .monaco-spell-option-icon {
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            width: 26px !important;
+            height: 18px !important;
+            flex: 0 0 auto !important;
+            border-radius: 3px !important;
+            overflow: hidden !important;
+        }
+        .monaco-spell-option-label {
+            flex: 1 1 auto !important;
+            min-width: 0 !important;
+            white-space: nowrap !important;
+            overflow: hidden !important;
+            text-overflow: ellipsis !important;
+        }
+        .monaco-spell-option-check {
+            flex: 0 0 auto !important;
+            opacity: 0 !important;
+            color: var(--accent, #4a90e2) !important;
+        }
+        .monaco-spell-option.is-active .monaco-spell-option-check {
+            opacity: 1 !important;
         }
         @media (max-width: 768px) {
             .monaco-status-bar {
@@ -448,6 +619,7 @@ function initMonaco() {
             
             monacoSetupLanguages();
             monacoAddCustomEditorActions();
+            monacoRegisterSuggestionTrailingSpace();
             monacoRegisterSpellcheckCodeActions();
             
             resolve();
@@ -456,6 +628,18 @@ function initMonaco() {
             reject(error);
         });
     });
+}
+
+// Marks the completion items that are plain words, so accepting one can append the
+// trailing space (see monacoAppendSuggestionTrailingSpace). Snippets that place the
+// caret inside brackets must keep their own layout.
+function monacoWithSuggestionSpaceCommand(items) {
+    (items || []).forEach((item) => {
+        if (typeof item.insertText === 'string' && /^[A-Za-z_][A-Za-z0-9_]*$/.test(item.insertText)) {
+            item.command = { id: monacoSuggestionSpaceCommandId, title: '' };
+        }
+    });
+    return items;
 }
 
 // Register hints from completions.js
@@ -676,6 +860,7 @@ function monacoRegisterCompletions() {
                     });
                 }
                 
+                monacoWithSuggestionSpaceCommand(suggestions);
                 monacoCompletionCache.set(langId, suggestions);
                 return { suggestions };
             }
@@ -1174,7 +1359,10 @@ function monacoCreateSpellcheckWorker() {
                         while ((match = wordRegex.exec(line)) !== null && errors.length < maxErrors) {
                             const word = match[0];
                             if (match.index > 0 && line[match.index - 1] === '.') continue;
-                            if (/^\.[a-z]{2,}$/i.test(word)) continue;
+                            // Inside this template literal the backslash must be doubled, otherwise the
+                            // template unescape turns /^\.[a-z]{2,}$/ into /^.[a-z]{2,}$/ — a pattern that
+                            // matches every all-letter word and silently skips the whole dictionary.
+                            if (/^\\.[a-z]{2,}$/i.test(word)) continue;
                             if (skipWord(word)) continue;
                             if (isSupplementalWord(word)) continue;
                             const languageIds = wordLanguageIds(word, data.languageId);
@@ -1427,6 +1615,154 @@ function monacoRefreshFooterStatusBar() {
     }
 }
 
+// ── Trailing space after an accepted suggestion ────────────────────────────
+// Suggestion lists (the .txt spellcheck quick fix and the completion list) insert
+// the chosen word under the caret. When that word ends up at the end of the text
+// there is nothing to separate it from whatever the user types next, so a space is
+// appended — but only there: in the middle of a sentence the following text already
+// provides the separation. That appended space is remembered with a tracked
+// decoration, so a punctuation mark typed right after the suggestion glues itself
+// to the word (the decoration's space is dropped again).
+let monacoSuggestionSpaceRegistered = false;
+let monacoAutoSpaceState = null; // { editor, collection, listener }
+
+function monacoRegisterSuggestionTrailingSpace() {
+    if (monacoSuggestionSpaceRegistered) return;
+    if (!monaco.editor || typeof monaco.editor.registerCommand !== 'function') return;
+    monacoSuggestionSpaceRegistered = true;
+    monaco.editor.registerCommand(monacoSuggestionSpaceCommandId, () => {
+        monacoAppendSuggestionTrailingSpace();
+    });
+}
+
+function monacoEditorWithTextFocus() {
+    const editors = typeof monaco.editor.getEditors === 'function' ? monaco.editor.getEditors() : [];
+    return editors.find((editor) => typeof editor.hasTextFocus === 'function' && editor.hasTextFocus())
+        || monacoEditors.get(window.tabsState && window.tabsState.activeTabId)
+        || editors[0]
+        || null;
+}
+
+function monacoClearAutoSpace() {
+    const state = monacoAutoSpaceState;
+    monacoAutoSpaceState = null;
+    if (!state) return;
+    try { state.collection.clear(); } catch (_) {}
+    try { state.listener.dispose(); } catch (_) {}
+}
+
+function monacoTrackAutoSpace(editor, model, spaceOffset) {
+    monacoClearAutoSpace();
+    if (typeof editor.createDecorationsCollection !== 'function') return;
+    const start = model.getPositionAt(spaceOffset);
+    const end = model.getPositionAt(spaceOffset + 1);
+    const collection = editor.createDecorationsCollection([{
+        range: new monaco.Range(start.lineNumber, start.column, end.lineNumber, end.column),
+        options: {
+            description: 'cloudSuggestionAutoSpace',
+            stickiness: monaco.editor.TrackedRangeStickiness.NeverGrowsWhenTypingAtEdges
+        }
+    }]);
+    const listener = editor.onDidChangeModelContent((event) => {
+        monacoAbsorbAutoSpacePunctuation(editor, event);
+    });
+    monacoAutoSpaceState = { editor, collection, listener };
+}
+
+// Drops the auto inserted space when the character typed right after it is
+// punctuation, so the mark sits against the word ("word," not "word ,").
+function monacoAbsorbAutoSpacePunctuation(editor, event) {
+    const state = monacoAutoSpaceState;
+    if (!state || state.editor !== editor) return;
+    if (event.isFlush || !event.changes || event.changes.length !== 1) return;
+    const change = event.changes[0];
+    if (change.rangeLength !== 0 || change.text.length !== 1) return;
+    if (!monacoStickyPunctuation.test(change.text)) return;
+    const model = editor.getModel();
+    if (!model) return;
+    const range = state.collection.getRange(0);
+    if (!range) {
+        monacoClearAutoSpace();
+        return;
+    }
+    const spaceEndOffset = model.getOffsetAt({ lineNumber: range.endLineNumber, column: range.endColumn });
+    if (spaceEndOffset !== change.rangeOffset) return;
+    // Only while the punctuation is the last thing on the line: otherwise the
+    // auto space separates two words that must stay apart.
+    const punctuationPosition = model.getPositionAt(change.rangeOffset);
+    if (model.getLineContent(punctuationPosition.lineNumber).length !== punctuationPosition.column) return;
+    try {
+        editor.executeEdits('suggestion-auto-space-punctuation', [{
+            range: monaco.Range.fromPositions(
+                { lineNumber: range.startLineNumber, column: range.startColumn },
+                { lineNumber: range.endLineNumber, column: range.endColumn }
+            ),
+            text: ''
+        }]);
+    } catch (_) {
+        // Editing inside a content change event is not allowed everywhere; leaving
+        // the space in place is an acceptable fallback.
+    } finally {
+        monacoClearAutoSpace();
+    }
+}
+
+function monacoAppendSuggestionTrailingSpace(editorOverride) {
+    const editor = editorOverride || monacoEditorWithTextFocus();
+    if (!editor || typeof editor.executeEdits !== 'function') return;
+    const model = editor.getModel();
+    const selection = editor.getSelection();
+    if (!model || !selection || !selection.isEmpty()) return;
+    const position = selection.getPosition();
+    if (!position || position.column <= 1) return;
+    // Not in the middle of a sentence: only when no text follows the caret —
+    // neither on this line nor anywhere below it.
+    const tail = model.getValue().slice(model.getOffsetAt(position));
+    if (/\S/.test(tail)) return;
+    const lineContent = model.getLineContent(position.lineNumber);
+    const beforeCaret = lineContent.charAt(position.column - 2);
+    if (!beforeCaret || /\s/.test(beforeCaret)) return;
+    const offset = model.getOffsetAt(position);
+    editor.executeEdits('suggestion-trailing-space', [{
+        range: new monaco.Range(position.lineNumber, position.column, position.lineNumber, position.column),
+        text: ' '
+    }]);
+    const afterSpace = model.getPositionAt(offset + 1);
+    editor.setPosition(afterSpace);
+    monacoTrackAutoSpace(editor, model, offset);
+}
+
+// Accepting a word from a suggestion list — the completion popup or the spelling
+// quick fix — inserts a whole word in a single edit, while typing always arrives
+// one character at a time. So a word shaped insert that ends right under the caret
+// is treated as an accepted suggestion and gets the trailing space when the text
+// ends there. This covers every provider (our own completions, the built-in word
+// and type suggestions, the spellcheck quick fix), not just the ones we register.
+function monacoNoteSuggestionAcceptance(editor, event) {
+    if (!event || event.isFlush || event.isUndoing || event.isRedoing) return;
+    if (!event.changes || event.changes.length !== 1) return;
+    const change = event.changes[0];
+    const inserted = change.text;
+    // One line only, and a real word: snippets, list markers and newlines are out.
+    if (!inserted || inserted.length < 2 || /\r|\n/.test(inserted)) return;
+    if (!/^[\p{L}][\p{L}\p{M}\d_']*$/u.test(inserted)) return;
+    const model = editor.getModel();
+    if (!model) return;
+    // The word starts at a word boundary: it replaced the typed prefix instead of
+    // extending a word that was already there.
+    const before = change.rangeOffset > 0 ? model.getValue().charAt(change.rangeOffset - 1) : '';
+    if (before && /[\p{L}\p{M}\d_']/u.test(before)) return;
+    // The caret lands right after the inserted word; check that once Monaco has
+    // finished applying the edit (the selection is only updated afterwards).
+    const endPosition = model.getPositionAt(change.rangeOffset + inserted.length);
+    setTimeout(() => {
+        if (editor.getModel() !== model) return;
+        const position = editor.getPosition();
+        if (!position || position.lineNumber !== endPosition.lineNumber || position.column !== endPosition.column) return;
+        monacoAppendSuggestionTrailingSpace(editor);
+    }, 0);
+}
+
 function monacoRegisterSpellcheckCodeActions() {
     if (monacoSpellcheckCodeActionsRegistered || !monaco.languages) return;
     monacoSpellcheckCodeActionsRegistered = true;
@@ -1474,7 +1810,10 @@ function monacoRegisterSpellcheckCodeActions() {
                             }
                         }]
                     },
-                    isPreferred: index === 0
+                    isPreferred: index === 0,
+                    // Runs after the edit: adds a trailing space when the corrected
+                    // word ends up at the end of the text.
+                    command: { id: monacoSuggestionSpaceCommandId, title: '' }
                 })),
                 dispose: () => {}
             });
@@ -1607,6 +1946,157 @@ async function monacoEnableSpellcheck(editor, container, statusElement, language
     state.contentDisposable = editor.onDidChangeModelContent(() => monacoScheduleSpellcheck(editor));
 }
 
+// Icons for the spellcheck language picker: the two non-language options get an
+// icon (a globe for automatic detection, a crossed-out circle for off) and every
+// real language gets its country flag. All of them share the 24x16 viewBox so the
+// picker can size them with one CSS box; the icons are drawn inside it, which
+// keeps their square shape.
+const monacoSpellcheckIcons = {
+    // Automatic detection: two sparkles (the usual "magic/auto" metaphor).
+    auto: '<svg viewBox="4 0 16 16" aria-hidden="true"><path d="M11 2q.8 5 5.5 5.7-4.7.8-5.5 5.8-.8-5-5.5-5.8Q10.2 7 11 2z" fill="currentColor"/><path d="M16.6 11.1q.35 2.1 2.3 2.3-1.95.2-2.3 2.3-.35-2.1-2.3-2.3 1.95-.2 2.3-2.3z" fill="currentColor" opacity=".75"/></svg>',
+    off: '<svg viewBox="4 0 16 16" aria-hidden="true"><circle cx="12" cy="8" r="6.4" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M7.5 12.5 16.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>',
+    en_US: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#ffffff"/><g fill="#b22234"><rect width="24" height="1.23"/><rect y="2.46" width="24" height="1.23"/><rect y="4.92" width="24" height="1.23"/><rect y="7.38" width="24" height="1.23"/><rect y="9.84" width="24" height="1.23"/><rect y="12.3" width="24" height="1.23"/><rect y="14.76" width="24" height="1.24"/></g><rect width="10" height="8.61" fill="#3c3b6e"/><g fill="#ffffff"><circle cx="2" cy="1.8" r=".55"/><circle cx="5.2" cy="1.8" r=".55"/><circle cx="8.4" cy="1.8" r=".55"/><circle cx="3.6" cy="3.9" r=".55"/><circle cx="6.8" cy="3.9" r=".55"/><circle cx="2" cy="6" r=".55"/><circle cx="5.2" cy="6" r=".55"/><circle cx="8.4" cy="6" r=".55"/></g></svg>',
+    ru_RU: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#ffffff"/><rect y="5.33" width="24" height="5.34" fill="#0039a6"/><rect y="10.67" width="24" height="5.33" fill="#d52b1e"/></svg>',
+    uk_UA: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="8" fill="#0057b7"/><rect y="8" width="24" height="8" fill="#ffd700"/></svg>',
+    be_BY: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#c8313e"/><rect y="10.67" width="24" height="5.33" fill="#4aa657"/><rect width="5.5" height="16" fill="#ffffff"/><path d="M2.75 1 5.5 3.6 2.75 6.2 0 3.6zM2.75 9.8 5.5 12.4 2.75 15 0 12.4z" fill="#c8313e"/></svg>',
+    de_DE: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="5.33" fill="#111111"/><rect y="5.33" width="24" height="5.34" fill="#dd0000"/><rect y="10.67" width="24" height="5.33" fill="#ffce00"/></svg>',
+    fr_FR: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="8" height="16" fill="#0055a4"/><rect x="8" width="8" height="16" fill="#ffffff"/><rect x="16" width="8" height="16" fill="#ef4135"/></svg>',
+    es_ES: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#aa151b"/><rect y="4" width="24" height="8" fill="#f1bf00"/></svg>',
+    it_IT: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="8" height="16" fill="#009246"/><rect x="8" width="8" height="16" fill="#ffffff"/><rect x="16" width="8" height="16" fill="#ce2b37"/></svg>',
+    pt_BR: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#009c3b"/><path d="M12 1.8 22.2 8 12 14.2 1.8 8z" fill="#ffdf00"/><circle cx="12" cy="8" r="3.1" fill="#002776"/></svg>',
+    nl_NL: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="5.33" fill="#ae1c28"/><rect y="5.33" width="24" height="5.34" fill="#ffffff"/><rect y="10.67" width="24" height="5.33" fill="#21468b"/></svg>',
+    pl_PL: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="8" fill="#ffffff"/><rect y="8" width="24" height="8" fill="#dc143c"/></svg>',
+    cs_CZ: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="8" fill="#ffffff"/><rect y="8" width="24" height="8" fill="#d7141a"/><path d="M0 0 10 8 0 16z" fill="#11457e"/></svg>',
+    da_DK: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#c60c30"/><rect x="7" width="3.2" height="16" fill="#ffffff"/><rect y="6.4" width="24" height="3.2" fill="#ffffff"/></svg>',
+    sv_SE: '<svg viewBox="0 0 24 16" aria-hidden="true"><rect width="24" height="16" fill="#006aa7"/><rect x="7" width="3.2" height="16" fill="#fecc00"/><rect y="6.4" width="24" height="3.2" fill="#fecc00"/></svg>'
+};
+
+function monacoSpellcheckIcon(languageId) {
+    return monacoSpellcheckIcons[languageId] || monacoSpellcheckIcons.auto;
+}
+
+function monacoSpellcheckLanguageLabel(languageId) {
+    if (languageId === 'auto') return monacoT('monacoSpellAuto');
+    if (languageId === 'off') return monacoT('monacoSpellOff');
+    return monacoSpellcheckLanguages[languageId]?.label || languageId;
+}
+
+// Options shown in the picker: off first, then auto detection, then languages.
+function monacoSpellcheckLanguageOptions() {
+    const options = [{ value: 'off', label: monacoT('monacoSpellOff') }];
+    Object.keys(monacoSpellcheckLanguages).forEach((languageId) => {
+        if (languageId === 'off') return;
+        options.push({ value: languageId, label: monacoSpellcheckLanguageLabel(languageId) });
+    });
+    return options;
+}
+
+let monacoSpellcheckModalCleanup = null;
+let monacoSpellcheckModalOwner = null;
+
+function monacoCloseSpellcheckLanguageModal() {
+    const cleanup = monacoSpellcheckModalCleanup;
+    monacoSpellcheckModalCleanup = null;
+    monacoSpellcheckModalOwner = null;
+    if (cleanup) cleanup();
+}
+
+// The language picker lives in a centered modal instead of a select element: a
+// native dropdown cannot render the flags next to the language names.
+function monacoOpenSpellcheckLanguageModal(options) {
+    monacoCloseSpellcheckLanguageModal();
+
+    const overlay = document.createElement('div');
+    overlay.className = 'monaco-spell-modal-overlay';
+    overlay.setAttribute('role', 'dialog');
+    overlay.setAttribute('aria-modal', 'true');
+    overlay.setAttribute('aria-label', monacoT('monacoSpellSelectTitle'));
+
+    const panel = document.createElement('div');
+    panel.className = 'monaco-spell-modal';
+
+    const head = document.createElement('div');
+    head.className = 'monaco-spell-modal-head';
+    const title = document.createElement('span');
+    title.textContent = monacoT('monacoSpellSelectTitle');
+    const closeButton = document.createElement('button');
+    closeButton.type = 'button';
+    closeButton.className = 'monaco-spell-modal-close';
+    const closeLabel = monacoT('close');
+    closeButton.setAttribute('aria-label', closeLabel && closeLabel !== 'close' ? closeLabel : 'Close');
+    closeButton.textContent = '\u00d7';
+    head.append(title, closeButton);
+
+    const list = document.createElement('div');
+    list.className = 'monaco-spell-modal-list';
+    list.setAttribute('role', 'listbox');
+
+    monacoSpellcheckLanguageOptions().forEach((option) => {
+        const item = document.createElement('button');
+        item.type = 'button';
+        item.className = 'monaco-spell-option';
+        item.dataset.value = option.value;
+        item.setAttribute('role', 'option');
+        const isActive = option.value === options.current;
+        if (isActive) item.classList.add('is-active');
+        item.setAttribute('aria-selected', isActive ? 'true' : 'false');
+
+        const icon = document.createElement('span');
+        icon.className = 'monaco-spell-option-icon';
+        icon.innerHTML = monacoSpellcheckIcon(option.value);
+        const label = document.createElement('span');
+        label.className = 'monaco-spell-option-label';
+        label.textContent = option.label;
+        const check = document.createElement('span');
+        check.className = 'monaco-spell-option-check';
+        check.textContent = '\u2713';
+        item.append(icon, label, check);
+
+        item.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const value = option.value;
+            monacoCloseSpellcheckLanguageModal();
+            options.onSelect(value);
+            options.trigger?.focus?.();
+        });
+        list.appendChild(item);
+    });
+
+    panel.append(head, list);
+    overlay.appendChild(panel);
+
+    const onKeyDown = (event) => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            monacoCloseSpellcheckLanguageModal();
+            options.trigger?.focus?.();
+        }
+    };
+    const onOverlayClick = (event) => {
+        if (event.target === overlay) monacoCloseSpellcheckLanguageModal();
+    };
+
+    closeButton.addEventListener('click', (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        monacoCloseSpellcheckLanguageModal();
+        options.trigger?.focus?.();
+    });
+    overlay.addEventListener('mousedown', onOverlayClick);
+    document.addEventListener('keydown', onKeyDown, true);
+    document.body.appendChild(overlay);
+
+    monacoSpellcheckModalOwner = options.owner || null;
+    monacoSpellcheckModalCleanup = () => {
+        document.removeEventListener('keydown', onKeyDown, true);
+        overlay.remove();
+    };
+
+    (list.querySelector('.monaco-spell-option.is-active') || list.firstElementChild)?.focus?.();
+}
+
 function monacoCreateStatusBar(editor, container, filePath, tabId, readOnly) {
     const isDark = document.body.getAttribute('data-theme') !== 'light' &&
                    !document.body.classList.contains('light-theme');
@@ -1631,35 +2121,56 @@ function monacoCreateStatusBar(editor, container, filePath, tabId, readOnly) {
         spellLabel.className = 'monaco-status-spell-label';
         spellLabel.textContent = monacoT('monacoSpellLanguage');
         if (!embedInFooter) spellLabel.style.cssText = 'opacity:0.8;';
-        const spellSelector = document.createElement('select');
+        // Trigger for the language modal: shows the flag/icon of the active choice.
+        const spellSelector = document.createElement('button');
+        spellSelector.type = 'button';
         spellSelector.className = 'monaco-status-spell-select';
         spellSelector.title = monacoT('monacoSpellSelectTitle');
+        spellSelector.setAttribute('aria-haspopup', 'dialog');
+        const spellSelectorIcon = document.createElement('span');
+        spellSelectorIcon.className = 'monaco-spell-icon';
+        const spellSelectorLabel = document.createElement('span');
+        spellSelectorLabel.className = 'monaco-spell-icon-label';
+        spellSelector.append(spellSelectorIcon, spellSelectorLabel);
+
         const currentSpellLanguage = monacoGetDefaultSpellcheckLanguage();
-        const offOption = document.createElement('option');
-        offOption.value = 'off';
-        offOption.textContent = monacoT('monacoSpellOff');
-        offOption.selected = currentSpellLanguage === 'off';
-        spellSelector.appendChild(offOption);
-        Object.entries(monacoSpellcheckLanguages).forEach(([value, optionData]) => {
-            const option = document.createElement('option');
-            option.value = value;
-            option.textContent = value === 'auto' ? monacoT('monacoSpellAuto') : optionData.label;
-            option.selected = value === currentSpellLanguage;
-            spellSelector.appendChild(option);
-        });
+        let activeSpellLanguage = currentSpellLanguage;
         const spellStatus = document.createElement('span');
         spellStatus.className = 'monaco-status-spell-status';
         if (!embedInFooter) spellStatus.style.cssText = 'opacity:0.7;';
         spellStatus.textContent = currentSpellLanguage === 'off' ? monacoT('monacoSpellcheckOff') : monacoT('monacoSpellcheckLoading');
-        spellSelector.addEventListener('change', (e) => {
-            const selectedLanguage = e.target.value;
-            localStorage.setItem('monacoSpellcheckLanguage', selectedLanguage);
-            monacoEnableSpellcheck(editor, container, spellStatus, selectedLanguage);
+
+        function paintSpellcheckTrigger(languageId) {
+            spellSelectorIcon.innerHTML = monacoSpellcheckIcon(languageId);
+            spellSelectorLabel.textContent = monacoSpellcheckLanguageLabel(languageId);
+            spellSelector.setAttribute('aria-label', `${monacoT('monacoSpellLanguage')} ${monacoSpellcheckLanguageLabel(languageId)}`);
+        }
+        function applySpellcheckLanguage(languageId) {
+            activeSpellLanguage = languageId;
+            localStorage.setItem('monacoSpellcheckLanguage', languageId);
+            paintSpellcheckTrigger(languageId);
+            monacoEnableSpellcheck(editor, container, spellStatus, languageId);
+        }
+        paintSpellcheckTrigger(currentSpellLanguage);
+        spellSelector.addEventListener('click', (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            monacoOpenSpellcheckLanguageModal({
+                current: activeSpellLanguage,
+                trigger: spellSelector,
+                owner: editor,
+                onSelect: applySpellcheckLanguage
+            });
+        });
+        monacoAddEditorDisposable(editor, {
+            dispose() {
+                if (monacoSpellcheckModalOwner === editor) monacoCloseSpellcheckLanguageModal();
+            }
         });
         leftItems.appendChild(spellLabel);
         leftItems.appendChild(spellSelector);
         leftItems.appendChild(spellStatus);
-        monacoEnableSpellcheck(editor, container, spellStatus, currentSpellLanguage);
+        monacoEnableSpellcheck(editor, container, spellStatus, activeSpellLanguage);
     }
     const rightItems = document.createElement('div');
     rightItems.className = 'monaco-status-right';
@@ -1862,6 +2373,7 @@ function monacoEnableTouchSelection(editor, container) {
     let selectionInProgress = false;
     let initialPosition = null;
     let longPressTimer = null;
+    let pendingLongPress = false;
     let isScrolling = false;
     let isDraggingHandle = null; // 'start' or 'end'
     let selectionHandles = null;
@@ -2093,6 +2605,23 @@ function monacoEnableTouchSelection(editor, container) {
     container.style.webkitUserSelect = 'text';
     container.style.userSelect = 'text';
 
+    // Intercept contextmenu before Monaco: if our long-press selected a word,
+    // suppress native menu so our handles show. Otherwise let native menu through
+    // by stopping Monaco from seeing the event but NOT preventing default.
+    addListener(container, 'contextmenu', (e) => {
+        if (selectionInProgress) {
+            // We successfully selected a word via our long-press: suppress native
+            // menu so our custom handles appear.
+            e.preventDefault();
+            e.stopPropagation();
+            return;
+        }
+        // Not our selection — stop Monaco's handler from running (which would
+        // prevent default and show its own menu), but DON'T prevent default,
+        // so the browser's native context menu appears.
+        e.stopImmediatePropagation();
+    }, { capture: true });
+
     addListener(container, 'touchstart', (e) => {
         // If dragging a handle - ignore normal handlers
         if (isDraggingHandle) return;
@@ -2126,32 +2655,51 @@ function monacoEnableTouchSelection(editor, container) {
             }
         }
 
+        // A real finger starts a native long press / text drag the moment the
+        // touch is held, and that native selection replaces whatever we set.
+        // Claim the gesture before the browser does: if the finger stays put,
+        // we own it; if it moves, touchmove restores scrolling and the
+        // platform keeps its own behaviour (including the menu).
+        pendingLongPress = false;
+        container.style.touchAction = 'none';
+
         // Start long press timer - only activate selection after holding
         longPressTimer = setTimeout(() => {
-            if (touchStart && !isScrolling) {
-                // Long press detected - activate selection mode and select the word
-                selectionInProgress = true;
-                container.style.touchAction = 'none';
-
-                // Select the word under the cursor
-                if (touchStart.position) {
-                    const word = editor.getModel().getWordAtPosition(touchStart.position);
-                    if (word) {
-                        const range = new monaco.Range(
-                            touchStart.position.lineNumber,
-                            word.startColumn,
-                            touchStart.position.lineNumber,
-                            word.endColumn
-                        );
-                        editor.setSelection(range);
-                        editor.revealRange(range);
-                        
-                        // Create selection handles
-                        createSelectionHandles();
-                        setTimeout(updateSelectionHandlesPosition, 10);
-                    }
-                }
+            // Decide before committing: only a word under the finger, and only
+            // when nothing is selected yet. Otherwise the platform must be left
+            // alone so it can show its own menu.
+            if (!touchStart || isScrolling || !touchStart.position) {
+                longPressTimer = null;
+                return;
             }
+            const currentSelection = editor.getSelection();
+            if (currentSelection && !currentSelection.isEmpty()) {
+                longPressTimer = null;
+                return;
+            }
+            const word = editor.getModel().getWordAtPosition(touchStart.position);
+            if (!word) {
+                longPressTimer = null;
+                return;
+            }
+
+            // Long press detected - select the word
+            pendingLongPress = true;
+            selectionInProgress = true;
+
+            const range = new monaco.Range(
+                touchStart.position.lineNumber,
+                word.startColumn,
+                touchStart.position.lineNumber,
+                word.endColumn
+            );
+            editor.setSelection(range);
+            editor.revealRange(range);
+
+            // Create selection handles
+            createSelectionHandles();
+            setTimeout(updateSelectionHandlesPosition, 10);
+
             longPressTimer = null;
         }, LONG_PRESS_DELAY);
 
@@ -2179,6 +2727,10 @@ function monacoEnableTouchSelection(editor, container) {
                 clearTimeout(longPressTimer);
                 longPressTimer = null;
                 isScrolling = true;
+                // Hand the gesture back to the platform: it must be allowed to
+                // scroll from the current touchstart, which only works when
+                // touch-action is restored to a scrolling value.
+                container.style.touchAction = 'pan-x pan-y';
                 return;
             }
         }
@@ -2211,17 +2763,17 @@ function monacoEnableTouchSelection(editor, container) {
             clearTimeout(longPressTimer);
             longPressTimer = null;
         }
-
-        // Double tap - select word (only if not scrolling)
+// Double tap - select word (only if not scrolling and the finger is on a word)
         if (touchDuration < 200 && (touchEnd - lastTapTime) < 300 && !isScrolling) {
-            e.preventDefault();
-
             const touch = e.changedTouches[0];
             const position = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
 
             if (position && position.position) {
                 const word = editor.getModel().getWordAtPosition(position.position);
                 if (word) {
+                    // Only claim the tap when we actually select something, so a
+                    // tap elsewhere still reaches the platform menu.
+                    e.preventDefault();
                     const range = new monaco.Range(
                         position.position.lineNumber,
                         word.startColumn,
@@ -2230,21 +2782,21 @@ function monacoEnableTouchSelection(editor, container) {
                     );
                     editor.setSelection(range);
                     editor.revealRange(range);
-                    
+
                     // Create handles for double tap
                     createSelectionHandles();
                     setTimeout(updateSelectionHandlesPosition, 10);
                 }
             }
         }
+
         // Triple tap - select line (only if not scrolling)
         else if (touchDuration < 200 && (touchEnd - lastTapTime) < 600 && !isScrolling) {
-            e.preventDefault();
-
             const touch = e.changedTouches[0];
             const position = editor.getTargetAtClientPoint(touch.clientX, touch.clientY);
 
             if (position && position.position) {
+                e.preventDefault();
                 const lineNumber = position.position.lineNumber;
                 const lineContent = editor.getModel().getLineContent(lineNumber);
 
@@ -2256,14 +2808,14 @@ function monacoEnableTouchSelection(editor, container) {
                 );
                 editor.setSelection(range);
                 editor.revealLine(lineNumber);
-                
+
                 // Create handles for triple tap
                 createSelectionHandles();
                 setTimeout(updateSelectionHandlesPosition, 10);
             }
         }
         // Long press - the word is already selected in touchstart
-        else if (touchDuration > LONG_PRESS_DELAY && selectionInProgress && !isScrolling) {
+        else if (pendingLongPress && !isScrolling) {
             e.preventDefault();
             // Selection was already made in touchstart
         }
@@ -2273,6 +2825,7 @@ function monacoEnableTouchSelection(editor, container) {
             selectionInProgress = false;
             container.style.touchAction = 'pan-x pan-y';
         }
+        pendingLongPress = false;
 
         if (!selectionInProgress && touchDuration < 200 && !isScrolling) {
             const touch = e.changedTouches[0];
@@ -2388,7 +2941,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             
             automaticLayout: true,
             fontSize: monacoIsTouchDevice ? 18 : 14,
-            fontFamily: 'Consolas, "Courier New", monospace',
+            fontFamily: '"JetBrains Mono", Consolas, "Courier New", monospace',
             lineNumbers: 'on',
             lineNumbersMinChars: 2,
             // Keep the line-numbers gutter narrow. Monaco reserves a 16px
@@ -2436,6 +2989,10 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             contextmenu: true,
             multiCursorModifier: 'alt',
             
+            // Mobile keyboard/input support
+            accessibilitySupport: 'off',
+            disableLayerHinting: true,
+            
             // Hints and autocomplete
             quickSuggestions: true,
             suggestOnTriggerCharacters: true,
@@ -2465,7 +3022,26 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             scrollBeyondLastColumn: 5
         };
         
+        // The editor renders with the JetBrains Mono webfont. Monaco measures the
+        // character width at creation time and wraps lines with that measurement,
+        // so the font has to be there first — otherwise wrapped lines end up wider
+        // than the width Monaco wrapped for and the leftover range lets the text
+        // scroll horizontally (the view jitters left and right while typing).
+        if (window.cloudMonacoShared && window.cloudMonacoShared.waitForEditorFont) {
+            await window.cloudMonacoShared.waitForEditorFont({
+                fontFamily: editorOptions.fontFamily,
+                fontSize: editorOptions.fontSize
+            });
+        }
+
         const editor = monaco.editor.create(container, editorOptions);
+
+        // Word wrap is on, so the text must never scroll sideways: pin the
+        // horizontal offset to zero (see installHorizontalScrollLock).
+        if (window.cloudMonacoShared && window.cloudMonacoShared.installHorizontalScrollLock) {
+            monacoAddEditorDisposable(editor, window.cloudMonacoShared.installHorizontalScrollLock(editor));
+        }
+
         const notifyUndoRedoState = () => {
             window.dispatchEvent(new CustomEvent('cloudMonacoUndoRedoChanged', { detail: { tabId } }));
         };
@@ -2628,6 +3204,9 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         }
 
         monacoEditors.set(tabId, editor);
+        monacoAddEditorDisposable(editor, editor.onDidChangeModelContent((event) => {
+            monacoNoteSuggestionAcceptance(editor, event);
+        }));
         monacoAddEditorDisposable(editor, editor.onDidChangeModelContent(() => { notifyUndoRedoState(); }));
         monacoAddEditorDisposable(editor, editor.onDidFocusEditorText(() => { notifyUndoRedoState(); }));
         notifyUndoRedoState();
@@ -3472,7 +4051,7 @@ function monacoCreateRemovedZoneNode(lines) {
     node.style.cssText = [
         'box-sizing:border-box',
         'width:100%',
-        'font-family:Consolas,"Courier New",monospace',
+        'font-family:"JetBrains Mono", Consolas, "Courier New", monospace',
         'font-size:12px',
         'line-height:1.35',
         'border-top:1px solid rgba(220,38,38,0.32)',

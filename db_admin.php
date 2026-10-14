@@ -60,8 +60,8 @@ if (!isset($_SESSION['user']['role']) || (int)$_SESSION['user']['role'] < 2) {
     if (isset($_POST['action'])) { header('Content-Type: application/json'); echo json_encode(['error'=>'Forbidden']); exit; }
     require_once __DIR__ . '/project/i18n_helpers.php';
     $authLang = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
-    $authI18n = ap_load_i18n_file(__DIR__ . '/i18n/' . $authLang . '.json');
-    if ($authI18n === []) $authI18n = ap_load_i18n_file(__DIR__ . '/i18n/en.json');
+    $authI18n = ap_load_i18n_file(__DIR__ . '/project/i18n/' . $authLang . '.json');
+    if ($authI18n === []) $authI18n = ap_load_i18n_file(__DIR__ . '/project/i18n/en.json');
     http_response_code(403); die(ap_i18n_t($authI18n, 'forbidden', 'Forbidden'));
 }
 

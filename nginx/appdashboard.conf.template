@@ -629,6 +629,7 @@ server {
     }
 
     location ^~ /home/ {
+        alias /var/www/AppDashboard/project/home/;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
@@ -649,7 +650,7 @@ server {
     # Internal PHP includes under /project/ must never be requested directly:
     # they rely on the bootstrap chain and would leak paths via fatal errors.
     # Legitimate public API endpoints under /project/ are allow-listed.
-    location ~ ^/project/(?!weather_settings\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$).*\.php$ {
+    location ~ ^/project/(?!weather_settings\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$).*\.php$ {
         return 404;
     }
 

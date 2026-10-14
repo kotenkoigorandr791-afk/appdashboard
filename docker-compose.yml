@@ -66,9 +66,9 @@ services:
       GITEA_INTERNAL_URL: "${GITEA_INTERNAL_URL:-http://host.docker.internal:3001}"
       IMMICH_INTERNAL_URL: "${IMMICH_INTERNAL_URL:-http://immich-server:2283}"
       IMMICH_PUBLIC_URL: "${IMMICH_PUBLIC_URL:-}"
-      DOCUMENT_PUBLIC_URL: "${DOCUMENT_PUBLIC_URL:-}"
-      DOCKER_PUBLIC_URL: "${DOCKER_PUBLIC_URL:-}"
-      DAWARICH_PUBLIC_URL: "${DAWARICH_PUBLIC_URL:-}"
+      DOCUMENT_PUBLIC_URL: "${DOCUMENT_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://document.${BASE_DOMAIN}}"
+      DOCKER_PUBLIC_URL: "${DOCKER_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://docker.${BASE_DOMAIN}}"
+      DAWARICH_PUBLIC_URL: "${DAWARICH_PUBLIC_URL:-${APP_PUBLIC_SCHEME}://dawarich.${BASE_DOMAIN}}"
       APP_DB_CONFIG: /opt/AppDashboard/data/db.env
       APPDATA_DATA_DIR: /opt/AppDashboard/data
       APP_DB_SKIP_SESSION_INIT: "1"
@@ -112,7 +112,7 @@ services:
       STORAGE_USAGE_DAWARICH_DB_USER: "${STORAGE_USAGE_DAWARICH_DB_USER:-postgres}"
       STORAGE_USAGE_DAWARICH_DB_PASSWORD: "${STORAGE_USAGE_DAWARICH_DB_PASSWORD:-${DAWARICH_DB_PASSWORD:-}}"
     ports:
-      - "127.0.0.1:80:8080"
+      - "80:8080"
       - "127.0.0.1:8808:8808"
     volumes:
       - .:/var/www/AppDashboard
@@ -123,6 +123,7 @@ services:
       - appdashboard-logs:/var/log/nginx
       - appdashboard-logs:/var/log/bot
       - appdashboard-waf-logs:/var/log/modsecurity
+      - /var/run/docker.sock:/var/run/docker.sock
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "host-gateway:host-gateway"

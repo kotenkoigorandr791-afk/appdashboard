@@ -742,6 +742,7 @@
   "paragraphs": "Абзацаў",
   "part": "Частка",
   "password": "Пароль",
+  "password_optional": "Optional password",
   "passwordRequired": "Увядзіце пароль",
   "path": "Шлях",
   "pause": "Паўза",
@@ -776,6 +777,7 @@
   "readOnly": "Толькі для чытання",
   "ready": "Гатова",
   "readyForCompilation": "Гатова да наступнай кампіяцыі...",
+  "size_gb": "ГБ",
   "recentFiles": "Нядаўнія файлы",
   "recommendation": "Рэкамендацыя",
   "rectangle": "Прастакутнік",
@@ -1091,5 +1093,15 @@
   "storageTotalUsedLabel": "Total used",
   "storageTotalUsers": "{total} users",
   "storageTotalUsersLabel": "Users",
-  "storageUsersWithData": "With data"
+  "storageUsersWithData": "With data",
+  "noResults": "Няма вынікаў",
+  "openTabs": "Няма вынікаў (Otviť kteréi dlagisni)",
+  "shareAccessMode": "Режым даступу",
+  "share-access-none": "Без обмежень",
+  "share-access-view-only": "Только просмотр (без скачування та копіювання)",
+  "share-access-disable-download": "Вимкнути завантаження",
+  "share-access-disable-copy": "Вимкнути копіювання",
+  "share-open-limit": "Відкрити ліміт",
+  "shareGetLink": "Получаць ссылку",
+  "shareSendToChat": "Паднаўленне ў чат"
 }

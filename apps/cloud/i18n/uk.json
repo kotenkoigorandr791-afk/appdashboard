@@ -745,6 +745,7 @@
   "paragraphs": "Абзаців",
   "part": "Частина",
   "password": "Пароль",
+  "password_optional": "Optional password",
   "passwordRequired": "Введіть пароль",
   "path": "Шлях",
   "pause": "Пауза",
@@ -779,6 +780,7 @@
   "readOnly": "Тільки для читання",
   "ready": "Готово",
   "readyForCompilation": "Готово до наступної компіляції...",
+  "size_gb": "ГБ",
   "recentFiles": "Нещодавні файли",
   "recommendation": "Рекомендація",
   "rectangle": "Прямокутник",
@@ -1091,5 +1093,15 @@
   "wordWrap": "Перенос слів",
   "words": "Слів",
   "yes": "Так",
-  "zoom": "Масштаб"
+  "zoom": "Масштаб",
+  "noResults": "Немає результатів",
+  "openTabs": "Немає результатів (Відкриті вкладки)",
+  "shareAccessMode": "Режим доступу",
+  "share-access-none": "Без обмежень",
+  "share-access-view-only": "Тільки просмотр (без скачування та копіювання)",
+  "share-access-disable-download": "Вимкнути завантаження",
+  "share-access-disable-copy": "Вимкнути копіювання",
+  "share-open-limit": "Відкрити ліміт",
+  "shareGetLink": "Отримати посилання",
+  "shareSendToChat": "Надіслати в чат"
 }

@@ -118,7 +118,10 @@ test.describe('cloud storage requests', () => {
     await loginAs(page, normalUser);
     const frame = await openCloudApp(page);
     await frame.locator('#btn-settings').click();
-    await expect(frame.locator('#settings-quota-row')).toBeHidden();
+    // The quota selector was removed from Settings for every role; quotas are
+    // only edited from the admin "Manage user storage" window.
+    await expect(frame.locator('#settings-quota-row')).toHaveCount(0);
+    await expect(frame.locator('#quota-mb')).toHaveCount(0);
     await expect(frame.locator('#settings-storage-request')).toBeVisible();
     await expect(frame.locator('#storage-request-summary')).toContainText('GB');
     await frame.locator('#btn-request-storage').click();
@@ -201,7 +204,10 @@ test.describe('cloud storage requests', () => {
     await loginAs(adminPage, adminUser);
     const frame = await openCloudApp(adminPage);
     await frame.locator('#btn-settings').click();
-    await expect(frame.locator('#settings-quota-row')).toBeVisible();
+    // No quota selector in Settings even for admins; it lives in the storage
+    // admin window opened below.
+    await expect(frame.locator('#settings-quota-row')).toHaveCount(0);
+    await expect(frame.locator('#quota-mb')).toHaveCount(0);
     await expect(frame.locator('#settings-storage-request')).toBeHidden();
     await frame.locator('#btn-manage-storage').click();
     await expect(frame.locator('#modal-storage-admin')).toBeVisible({ timeout: 15000 });

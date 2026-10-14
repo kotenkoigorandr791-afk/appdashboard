@@ -38,6 +38,10 @@ let currentSize = 3;
 let currentPage = 1;
 let drawingStates = new Map(); // Store drawing history per page
 
+// Rendering state
+let renderAborted = false;
+let currentRenderId = 0;
+
 const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
 const viewer = document.getElementById('viewer');
 const viewerContainer = document.getElementById('viewer-container');
@@ -290,6 +294,11 @@ drawToggle.addEventListener('click', () => {
     document.querySelectorAll('.draw-canvas').forEach(canvas => {
         canvas.classList.toggle('active', isDrawingMode);
     });
+    
+    // While drawing, let strokes through instead of selecting the text layer
+    document.querySelectorAll('.text-layer').forEach(layer => {
+        layer.classList.toggle('no-select', isDrawingMode);
+    });
 });
 
 drawColor.addEventListener('input', (e) => {
@@ -427,7 +436,10 @@ function loadPDF(password) {
             scale = containerWidth / 612;
             updateZoomSelect(scale);
         }
-        renderAllPages();
+        // Small delay before starting render to let UI settle
+        requestAnimationFrame(() => {
+            renderAllPages();
+        });
     }).catch(error => {
         console.error('Error loading PDF:', error);
         
@@ -511,7 +523,8 @@ function setViewerPreviewScale(nextScale, immediate = false) {
     if (!viewer || !Number.isFinite(nextScale) || !Number.isFinite(renderedScale) || renderedScale <= 0) return;
     const ratio = nextScale / renderedScale;
     viewer.classList.add('is-zooming');
-    viewer.style.transition = immediate ? 'none' : 'transform 180ms ease';
+    // Disable transition to prevent horizontal scrollbar flicker
+    viewer.style.transition = 'none';
     viewer.style.transformOrigin = 'top center';
     viewer.style.transform = `scale(${ratio})`;
 }
@@ -519,77 +532,211 @@ function setViewerPreviewScale(nextScale, immediate = false) {
 function clearViewerPreviewScale() {
     if (!viewer) return;
     viewer.classList.remove('is-zooming');
-    viewer.style.transition = 'transform 140ms ease, opacity 160ms ease';
+    // Immediately reset scale without transition
+    viewer.style.transition = 'none';
     viewer.style.transform = 'scale(1)';
 }
 
-async function buildRenderedPage(num) {
-    const page = await pdfDoc.getPage(num);
-        const viewport = page.getViewport({scale, rotation});
-        const wrapper = document.createElement('div');
-        wrapper.className = 'page-wrapper';
-        wrapper.style.width = viewport.width + 'px';
-        wrapper.style.height = viewport.height + 'px';
-        wrapper.style.margin = '0 auto 10px auto';
-        
-        const canvasContainer = document.createElement('div');
-        canvasContainer.className = 'canvas-container';
-        canvasContainer.style.width = '100%';
-        canvasContainer.style.height = '100%';
-        
-        const pdfCanvas = document.createElement('canvas');
-        pdfCanvas.className = 'pdf-canvas';
-        const outputScale = Math.max(devicePixelRatio, 2);
-        pdfCanvas.width = viewport.width * outputScale;
-        pdfCanvas.height = viewport.height * outputScale;
-        pdfCanvas.style.width = viewport.width + 'px';
-        pdfCanvas.style.height = viewport.height + 'px';
-        
-        canvasContainer.appendChild(pdfCanvas);
-        wrapper.appendChild(canvasContainer);
-        
-        const ctx = pdfCanvas.getContext('2d', {alpha: false});
-        ctx.scale(outputScale, outputScale);
-        
-        const renderContext = {
-            canvasContext: ctx,
-            viewport: viewport,
-            enableWebGL: true,
-            renderInteractiveForms: true
-        };
-        await page.render(renderContext).promise;
+// Build one selectable span per visual line instead of one span per PDF text
+// item. pdf.js's per-item text layer leaves the gaps between words unhighlighted,
+// so a drag-select looks like a grid of separate boxes. Grouping text items into
+// lines makes the selection highlight continuous, line by line, and still copies
+// the page text in the right order.
+function getTextAscent(ctx, fontSize) {
+    ctx.font = `${fontSize}px sans-serif`;
+    const metrics = ctx.measureText('g');
+    const ascent = metrics.fontBoundingBoxAscent;
+    const descent = metrics.fontBoundingBoxDescent;
+    if (ascent && ascent + descent > 0) {
+        return ascent / (ascent + descent);
+    }
+    return 0.8;
+}
 
-        // Create drawing canvas with saved state
-        const drawData = createDrawCanvas(wrapper, viewport.width, viewport.height, num);
-        if (drawData) {
-            const drawCanvas = drawData.canvas;
-            const drawCtx = drawData.ctx;
-            
-            // Add drawing event listeners
-            const startHandler = (e) => {
-                startDrawing(e, drawCanvas, drawCtx, num);
-            };
-            
-            const moveHandler = (e) => {
-                draw(e, drawCanvas, drawCtx, num);
-            };
-            
-            const stopHandler = (e) => {
-                stopDrawing(e, drawCanvas, num);
-            };
-            
-            drawCanvas.addEventListener('mousedown', startHandler);
-            drawCanvas.addEventListener('mousemove', moveHandler);
-            drawCanvas.addEventListener('mouseup', stopHandler);
-            drawCanvas.addEventListener('mouseleave', stopHandler);
-            
-            drawCanvas.addEventListener('touchstart', startHandler, {passive: false});
-            drawCanvas.addEventListener('touchmove', moveHandler, {passive: false});
-            drawCanvas.addEventListener('touchend', stopHandler);
-            drawCanvas.addEventListener('touchcancel', stopHandler);
+async function renderLineTextLayer(page, viewport, container) {
+    const textContent = await page.getTextContent();
+    const items = [];
+
+    for (const item of textContent.items) {
+        if (!item || typeof item.str !== 'string' || item.str.length === 0) continue;
+        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const fontHeight = Math.hypot(tx[2], tx[3]) || item.height * viewport.scale;
+        if (!fontHeight) continue;
+        items.push({
+            str: item.str,
+            x: tx[4],
+            baseline: tx[5],
+            width: item.width * viewport.scale,
+            fontHeight: fontHeight
+        });
+    }
+
+    if (items.length === 0) return;
+
+    items.sort((a, b) => (a.baseline - b.baseline) || (a.x - b.x));
+
+    // Group items that share a baseline (and are close horizontally, so that
+    // separate columns are not merged into one line).
+    const lines = [];
+    const baselineTolerance = 1.5;
+    for (const item of items) {
+        const line = lines[lines.length - 1];
+        const maxGap = item.fontHeight * 1.5;
+        if (!line || Math.abs(item.baseline - line.baseline) > baselineTolerance || item.x - line.right > maxGap) {
+            lines.push({
+                baseline: item.baseline,
+                fontHeight: item.fontHeight,
+                left: item.x,
+                right: item.x + item.width,
+                items: [item]
+            });
+        } else {
+            line.items.push(item);
+            line.left = Math.min(line.left, item.x);
+            line.right = Math.max(line.right, item.x + item.width);
+            line.fontHeight = Math.max(line.fontHeight, item.fontHeight);
         }
+    }
 
-        return { num, wrapper };
+    const measureCtx = document.createElement('canvas').getContext('2d');
+
+    for (const line of lines) {
+        let text = '';
+        let previousEnd = null;
+        for (const item of line.items) {
+            if (previousEnd !== null) {
+                const gap = item.x - previousEnd;
+                if (gap > item.fontHeight * 0.15 && !text.endsWith(' ') && !item.str.startsWith(' ')) {
+                    text += ' ';
+                }
+            }
+            text += item.str;
+            previousEnd = item.x + item.width;
+        }
+        text = text.replace(/\s+$/, '');
+        if (!text.trim()) continue;
+
+        const fontSize = line.fontHeight;
+        const span = document.createElement('span');
+        span.textContent = text;
+        span.style.left = line.left.toFixed(2) + 'px';
+        span.style.top = (line.baseline - getTextAscent(measureCtx, fontSize) * fontSize).toFixed(2) + 'px';
+        span.style.fontSize = fontSize.toFixed(2) + 'px';
+        span.style.fontFamily = 'sans-serif';
+        span.style.lineHeight = '1';
+
+        measureCtx.font = `${fontSize}px sans-serif`;
+        const naturalWidth = measureCtx.measureText(text).width;
+        const lineWidth = Math.max(1, line.right - line.left);
+        if (naturalWidth > 0) {
+            span.style.transform = `scaleX(${lineWidth / naturalWidth})`;
+        }
+        container.appendChild(span);
+    }
+}
+
+async function buildRenderedPage(num, renderId) {
+    // Check if this render is still current
+    if (renderId !== currentRenderId) return null;
+    
+    const page = await pdfDoc.getPage(num);
+    
+    // Yield to event loop after getting page
+    await new Promise(r => setTimeout(r, 0));
+    if (renderId !== currentRenderId) return null;
+    
+    const viewport = page.getViewport({scale, rotation});
+    const wrapper = document.createElement('div');
+    wrapper.className = 'page-wrapper';
+    wrapper.style.width = viewport.width + 'px';
+    wrapper.style.height = viewport.height + 'px';
+    wrapper.style.margin = '0 auto 10px auto';
+    
+    const canvasContainer = document.createElement('div');
+    canvasContainer.className = 'canvas-container';
+    canvasContainer.style.width = '100%';
+    canvasContainer.style.height = '100%';
+    canvasContainer.style.position = 'relative';
+    
+    const pdfCanvas = document.createElement('canvas');
+    pdfCanvas.className = 'pdf-canvas';
+    const outputScale = Math.max(devicePixelRatio, 2);
+    pdfCanvas.width = viewport.width * outputScale;
+    pdfCanvas.height = viewport.height * outputScale;
+    pdfCanvas.style.width = viewport.width + 'px';
+    pdfCanvas.style.height = viewport.height + 'px';
+    
+    canvasContainer.appendChild(pdfCanvas);
+    wrapper.appendChild(canvasContainer);
+    
+    const ctx = pdfCanvas.getContext('2d', {alpha: false});
+    ctx.scale(outputScale, outputScale);
+    
+    const renderContext = {
+        canvasContext: ctx,
+        viewport: viewport,
+        enableWebGL: true,
+        renderInteractiveForms: true
+    };
+    
+    // Render PDF page with abort check
+    await page.render(renderContext).promise;
+    
+    // Check if render was aborted
+    if (renderId !== currentRenderId) return null;
+    
+    // Yield before text layer
+    await new Promise(r => setTimeout(r, 0));
+    if (renderId !== currentRenderId) return null;
+
+    // Create an invisible, selectable text layer on top of the canvas.
+    const textLayerDiv = document.createElement('div');
+    textLayerDiv.className = 'text-layer';
+    if (isDrawingMode) textLayerDiv.classList.add('no-select');
+    canvasContainer.appendChild(textLayerDiv);
+    
+    // Yield before text content
+    await new Promise(r => setTimeout(r, 0));
+    if (renderId !== currentRenderId) return null;
+    
+    // One span per visual line, so selection is continuous line-by-line.
+    await renderLineTextLayer(page, viewport, textLayerDiv);
+    
+    // Yield after text layer render
+    await new Promise(r => setTimeout(r, 0));
+    if (renderId !== currentRenderId) return null;
+
+    // Create drawing canvas with saved state
+    const drawData = createDrawCanvas(wrapper, viewport.width, viewport.height, num);
+    if (drawData) {
+        const drawCanvas = drawData.canvas;
+        const drawCtx = drawData.ctx;
+        
+        // Add drawing event listeners
+        const startHandler = (e) => {
+            startDrawing(e, drawCanvas, drawCtx, num);
+        };
+        
+        const moveHandler = (e) => {
+            draw(e, drawCanvas, drawCtx, num);
+        };
+        
+        const stopHandler = (e) => {
+            stopDrawing(e, drawCanvas, num);
+        };
+        
+        drawCanvas.addEventListener('mousedown', startHandler);
+        drawCanvas.addEventListener('mousemove', moveHandler);
+        drawCanvas.addEventListener('mouseup', stopHandler);
+        drawCanvas.addEventListener('mouseleave', stopHandler);
+        
+        drawCanvas.addEventListener('touchstart', startHandler, {passive: false});
+        drawCanvas.addEventListener('touchmove', moveHandler, {passive: false});
+        drawCanvas.addEventListener('touchend', stopHandler);
+        drawCanvas.addEventListener('touchcancel', stopHandler);
+    }
+
+    return { num, wrapper };
 }
 
 async function renderAllPages() {
@@ -602,31 +749,39 @@ async function renderAllPages() {
     
     isRendering = true;
     const renderId = ++renderGeneration;
+    currentRenderId = renderId;
+    renderAborted = false;
     renderedPages = 0;
+
+    // Clear existing page wrappers to prevent accumulation/duplication
+    viewer.innerHTML = '';
 
     try {
         fileProgress.stopCreep();
         fileProgress.set(PDF_DOWNLOAD_WEIGHT);
         const renderSpan = 100 - PDF_DOWNLOAD_WEIGHT;
-        const buildTasks = [];
-        for (let i = 1; i <= totalPages; i++) {
-            buildTasks.push(
-                buildRenderedPage(i).then((result) => {
-                    renderedPages++;
-                    fileProgress.set(PDF_DOWNLOAD_WEIGHT + (renderedPages / totalPages) * renderSpan);
-                    return result;
-                })
-            );
-        }
-
-        const builtPages = await Promise.all(buildTasks);
-        if (renderId !== renderGeneration) return;
-
+        
         const nextPages = [];
-        builtPages.sort((a, b) => a.num - b.num).forEach(({ num, wrapper }) => {
-            nextPages[num] = wrapper;
-        });
-        viewer.replaceChildren(...builtPages.sort((a, b) => a.num - b.num).map((item) => item.wrapper));
+        
+        // Render pages SEQUENTIALLY with yields to prevent freezing
+        for (let i = 1; i <= totalPages; i++) {
+            if (renderId !== currentRenderId || renderAborted) return;
+            
+            const result = await buildRenderedPage(i, renderId);
+            
+            if (renderId !== currentRenderId || renderAborted || !result) return;
+            
+            renderedPages++;
+            nextPages[result.num] = result.wrapper;
+            viewer.appendChild(result.wrapper);
+            fileProgress.set(PDF_DOWNLOAD_WEIGHT + (renderedPages / totalPages) * renderSpan);
+            
+            // Small yield every page to keep UI responsive
+            await new Promise(r => setTimeout(r, 0));
+        }
+        
+        if (renderId !== currentRenderId || renderAborted) return;
+        
         pages = nextPages;
         renderedScale = scale;
         clearViewerPreviewScale();
@@ -659,10 +814,19 @@ function updateScale(newScale, immediate = true) {
         cancelAnimationFrame(pendingRender);
     }
     
+    // Mark current render as aborted
+    renderAborted = true;
+    currentRenderId++;
+    
+    // Hide scrollbar during scale transition to prevent flicker
+    viewerContainer.style.overflow = 'hidden';
+    
     setViewerPreviewScale(newScale, !immediate);
     pendingRender = requestAnimationFrame(async () => {
         await renderAllPages();
         pendingRender = null;
+        // Restore overflow after render completes
+        viewerContainer.style.overflow = 'auto';
         requestAnimationFrame(() => {
             viewerContainer.scrollTop = scrollTop * (scale / oldScale);
             viewerContainer.scrollLeft = scrollLeft * (scale / oldScale);
@@ -720,6 +884,8 @@ viewerContainer.addEventListener('wheel', (e) => {
 document.getElementById('rotate-left').addEventListener('click', () => {
     if (pdfDoc) {
         rotation = (rotation - 90) % 360;
+        renderAborted = true;
+        currentRenderId++;
         renderAllPages();
     }
 });
@@ -727,6 +893,8 @@ document.getElementById('rotate-left').addEventListener('click', () => {
 document.getElementById('rotate-right').addEventListener('click', () => {
     if (pdfDoc) {
         rotation = (rotation + 90) % 360;
+        renderAborted = true;
+        currentRenderId++;
         renderAllPages();
     }
 });
@@ -872,11 +1040,12 @@ document.addEventListener('gesturestart', (e) => e.preventDefault(), {passive: f
 document.addEventListener('gesturechange', (e) => e.preventDefault(), {passive: false});
 document.addEventListener('gestureend', (e) => e.preventDefault(), {passive: false});
 
-// Prevent zoom on double-tap for mobile
+// Prevent zoom on double-tap for mobile, but keep the native double-tap-to-
+// select-word behaviour on the selectable text layer.
 let lastTouchEnd = 0;
 document.addEventListener('touchend', (e) => {
     const now = Date.now();
-    if (now - lastTouchEnd <= 300) {
+    if (now - lastTouchEnd <= 300 && !(e.target instanceof Element && e.target.closest('.text-layer'))) {
         e.preventDefault();
     }
     lastTouchEnd = now;

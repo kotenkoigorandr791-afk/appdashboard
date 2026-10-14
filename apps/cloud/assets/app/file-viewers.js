@@ -29,12 +29,18 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         const fileName = document.getElementById('file-name');
         fileName.textContent = path.split('/').pop();
         viewer.dataset.path = path;
+    viewer.dataset.tabRoot = rootKey;
         viewer.dataset.editMode = editMode ? 'true' : 'false';
         const saveBtn = document.getElementById('btn-save');
         const codeActionsBtn = document.getElementById('btn-code-actions');
         const filePath = path;
+        const isTxtFile = /\.txt$/i.test(filePath || '');
         saveBtn.classList.toggle('hidden', !editMode);
-        codeActionsBtn.classList.toggle('hidden', !editMode);
+        // No code actions for plain text files.
+        codeActionsBtn.classList.toggle('hidden', !editMode || isTxtFile);
+        if (isTxtFile || !editMode) {
+            document.getElementById('code-actions-menu')?.classList.add('hidden');
+        }
         
         // Show/hide compile button based on file type
         const compileMenuItem = document.getElementById('code-action-compile');

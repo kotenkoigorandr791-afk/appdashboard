@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 const ADMIN_CAPABILITIES = ['users', 'ssh', 'files', 'docker', 'secrets', 'integrations', 'database'];
-const ADMIN_SESSION_IDLE_SECONDS = 3600;
+const ADMIN_SESSION_IDLE_SECONDS = 14400;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 function adminSecurityEnsureSchema(): void {
@@ -370,11 +370,25 @@ function adminPanelGateValid(?string $expectedEmail = null): bool {
     if (!hash_equals(strtolower((string)($row['email'] ?? '')), strtolower($email))) {
         return false;
     }
-    $touch = getDB()->prepare("UPDATE admin_panel_tokens SET last_used_at = :u WHERE token_hash = :h");
-    $touch->bindValue(':u', time(), PDO::PARAM_INT);
+    // Sliding expiry: an active admin session must not be dropped mid-use.
+    // Extend the token (and its cookie) once per minute while it is being used;
+    // a token still expires after ADMIN_SESSION_IDLE_SECONDS of inactivity.
+    $now = time();
+    $ttl = max(600, (int)ADMIN_SESSION_IDLE_SECONDS);
+    $expires = (int)($row['expires_at'] ?? 0);
+    $extend = ($expires - $now) < ($ttl - 60);
+    if ($extend) {
+        $expires = $now + $ttl;
+        $touch = getDB()->prepare("UPDATE admin_panel_tokens SET last_used_at = :u, expires_at = :x WHERE token_hash = :h");
+        $touch->bindValue(':x', $expires, PDO::PARAM_INT);
+        adminPanelSetCookie($token, $expires);
+    } else {
+        $touch = getDB()->prepare("UPDATE admin_panel_tokens SET last_used_at = :u WHERE token_hash = :h");
+    }
+    $touch->bindValue(':u', $now, PDO::PARAM_INT);
     $touch->bindValue(':h', hash('sha256', $token));
     $touch->execute();
-    $_SESSION['admin_panel_gate_until'] = (int)$row['expires_at'];
+    $_SESSION['admin_panel_gate_until'] = $expires;
     $_SESSION['admin_panel_gate_email'] = $email;
     return true;
 }

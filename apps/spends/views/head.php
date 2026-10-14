@@ -397,7 +397,34 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
         .table-toolbar { display:flex; justify-content:flex-end; margin:0 0 12px; flex-shrink:0; }
         .table-modal .data-table-container { flex:1 1 auto; min-height:0; max-height:none; margin:0; box-shadow:none; overflow:hidden; display:flex; flex-direction:column; }
         .table-modal .data-table-scroll { flex:1 1 0%; min-height:0; height:0; max-height:none; overflow:auto; }
-        .table-modal .data-table th { position:sticky; top:0; z-index:10; }
+        .table-modal .data-table th { position:sticky; top:0; z-index:10; background-color:color-mix(in srgb,var(--primary-color) 86%,#111); }
+        /* Compact rows (PC + mobile) */
+        .table-modal .data-table th, .table-modal .data-table td { padding:3px 6px; min-width:64px; }
+        .table-modal .data-table th { padding:5px 6px; font-size:11.5px; line-height:1.2; }
+        .table-modal .data-table td { line-height:1.2; }
+        .table-modal .data-table td input { height:26px; margin:0; box-sizing:border-box; padding:2px 4px; font-size:13.5px; line-height:1.2; }
+        .table-modal .data-table .store-icon { width:16px; height:16px; }
+        /* Focused column header must stay opaque so values do not show through */
+        .table-modal .data-table th.highlight-column { background-color:color-mix(in srgb,var(--primary-color) 68%,#fff); }
+        /* Today's row (all stores) is visibly highlighted */
+        .table-modal .data-table tbody tr.current-date-row td { background-color:rgba(var(--primary-color-rgb),.16)!important; color:var(--text-color)!important; }
+        .table-modal .data-table tbody tr.current-date-row td:first-child { color:var(--primary-color)!important; font-weight:800; }
+        .table-modal .data-table tbody tr.current-date-row td.highlight-column { background-color:rgba(var(--primary-color-rgb),.3)!important; }
+        /* Year/month calendar popover next to the "Today" button */
+        .month-pagination { position:relative; }
+        .table-cal-pop { position:absolute; bottom:calc(100% + 8px); left:50%; transform:translateX(-50%); z-index:1500; display:none; flex-direction:column; gap:10px; padding:12px; background:var(--modal-bg); border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 14px 36px rgba(0,0,0,.3); min-width:264px; backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
+        .table-cal-pop.open { display:flex; }
+        .table-cal-pop .table-cal-title { font-size:12px; font-weight:800; color:var(--muted-text); text-transform:uppercase; letter-spacing:.04em; }
+        .table-cal-grid { display:grid; grid-template-columns:96px minmax(0,1fr); gap:10px; }
+        .table-cal-field { display:flex; flex-direction:column; gap:5px; min-width:0; }
+        .table-cal-field > span { font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:var(--muted-text); }
+        .table-cal-pop select { flex:1 1 auto; min-width:0; margin:0; width:100%; padding:9px 30px 9px 10px; color:var(--text-color); background-color:var(--surface-solid); background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23999' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>"); background-repeat:no-repeat; background-position:right 10px center; background-size:12px 12px; border:1px solid var(--border-color); border-radius:var(--radius-sm); font-family:inherit; font-size:14px; font-weight:700; line-height:1.2; -webkit-appearance:none; appearance:none; -moz-appearance:none; cursor:pointer; transition:border-color .15s ease, box-shadow .15s ease; }
+        .table-cal-pop select:hover { border-color:rgba(var(--primary-color-rgb),.55); }
+        .table-cal-pop select:focus { outline:none; border-color:var(--primary-color); box-shadow:0 0 0 3px rgba(var(--primary-color-rgb),.22); }
+        /* Calendar trigger styled exactly like the neighbouring month buttons */
+        .month-pagination button.table-cal-trigger { display:inline-flex; align-items:center; justify-content:center; line-height:1; padding:8px 10px; }
+        .month-pagination button.table-cal-trigger svg { display:block; width:15px; height:15px; }
+        @media (min-width:769px){ .table-modal .modal-body { padding-top:8px; padding-bottom:8px; } }
         .notification { border:1px solid var(--border-color); border-radius:var(--radius-md); box-shadow:0 18px 42px rgba(0,0,0,.2); }
         #pagination { margin:14px 0 0; }
         #pagination button { padding:8px 12px; border-radius:var(--radius-sm); font-weight:700; }

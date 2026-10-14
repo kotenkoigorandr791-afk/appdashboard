@@ -12,7 +12,15 @@ function validateCloudFilename(name, input) {
 function newFolder(basePath) {
   // Guard: ensure basePath is always a string
   if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
-  newFolderState.basePath = (typeof basePath === 'string') ? basePath : '';
+let targetPath = (typeof basePath === 'string') ? basePath : '';
+let targetRoot = getCurrentCloudRoot();
+const pathRoot = typeof getRootFromPath === 'function' ? getRootFromPath(targetPath) : 'main';
+if (pathRoot !== 'main') {
+targetRoot = pathRoot;
+targetPath = typeof fromMainTreePath === 'function' ? fromMainTreePath(targetPath, targetRoot) : targetPath;
+}
+newFolderState.basePath = targetPath;
+newFolderState.baseRoot = targetRoot;
   const modal = document.getElementById('new-folder-modal');
   const folderNameInput = document.getElementById('new-folder-name');
   guardFilenameInput(folderNameInput);
@@ -32,7 +40,7 @@ function createNewFolder() {
   if (!validateCloudFilename(name, folderNameInput)) return;
   const path = newFolderState.basePath ? `${String(newFolderState.basePath)}/${name}` : name;
   document.getElementById('new-folder-modal').classList.add('hidden');
-  const mkdirRoot = getCurrentCloudRoot();
+const mkdirRoot = newFolderState.baseRoot || getCurrentCloudRoot();
   api('mkdir', { path, root: mkdirRoot }).then(async () => {
     const now = Math.floor(Date.now() / 1000);
     const newItem = { name, path, type: 'dir', size: null, mtime: now };
@@ -73,7 +81,15 @@ function initCreateFolderModal() {
 function newFile(basePath) {
   // Guard: ensure basePath is always a string
   if (basePath !== null && typeof basePath === 'object') basePath = basePath.path || '';
-  newFileState.basePath = (typeof basePath === 'string') ? basePath : '';
+  let targetPath = (typeof basePath === 'string') ? basePath : '';
+  let targetRoot = getCurrentCloudRoot();
+  const pathRoot = typeof getRootFromPath === 'function' ? getRootFromPath(targetPath) : 'main';
+  if (pathRoot !== 'main') {
+    targetRoot = pathRoot;
+    targetPath = typeof fromMainTreePath === 'function' ? fromMainTreePath(targetPath, targetRoot) : targetPath;
+  }
+  newFileState.basePath = targetPath;
+  newFileState.baseRoot = targetRoot;
   const modal = document.getElementById('new-file-modal');
   const fileNameInput = document.getElementById('new-file-name');
   const extensionSelect = document.getElementById('file-extension-select');
@@ -658,22 +674,22 @@ function createNewFile() {
   if (!validateCloudFilename(fullFileName, fileNameInput)) return;
   const path = newFileState.basePath ? `${String(newFileState.basePath)}/${fullFileName}` : fullFileName;
   document.getElementById('new-file-modal').classList.add('hidden');
-  const createRoot = getCurrentCloudRoot();
+  const createRoot = newFileState.baseRoot || getCurrentCloudRoot();
   api('create_file', { path, root: createRoot }).then(async () => {
     const now = Math.floor(Date.now() / 1000);
     const newItem = { name: fullFileName, path, type: 'file', size: 0, mtime: now };
     await insertTreeItem(newItem, createRoot);
     const fileExt = fullFileName.split('.').pop().toLowerCase();
     if (fileExt === 'tex' || fileExt === 'latex') {
-      openLatexEditor(path);
+      openLatexEditor(path, createRoot);
     } else if (isMarkdownFile(fullFileName)) {
-      openMarkdownEditor(path);
+      openMarkdownEditor(path, createRoot);
     } else if (typeof isHtmlFile === 'function' && isHtmlFile(fullFileName)) {
-      if (typeof openHtmlEditor === 'function') openHtmlEditor(path);
+      if (typeof openHtmlEditor === 'function') openHtmlEditor(path, createRoot);
     } else if (isOfficeFile(fullFileName)) {
-      openOnlyOfficeEditor(path);
+      openOnlyOfficeEditor(path, createRoot);
     } else if (isTextFile(fullFileName)) {
-      openFileInTab(path, true);
+      openFileInTab(path, true, createRoot);
     }
     flashStatus(t(i18n, 'fileCreated', {name: fullFileName}));
   }).catch(err => {
@@ -718,7 +734,10 @@ function attachContextMenuDismiss(removeMenu) {
         if (!document.getElementById('context-menu')) return;
         const hit = document.elementFromPoint(ev.clientX, ev.clientY);
         if (!hit || isContextMenuUiElement(hit)) return;
-        if (hit.tagName === 'IFRAME' || hit.closest?.('#viewer')) dismiss();
+        if (hit.tagName === 'IFRAME' || hit.closest?.('#viewer')) {
+            // Tap inside an editor iframe should close open dropdown menus
+            dismiss();
+        }
     }, { signal, capture: true });
     return dismiss;
 }
@@ -820,7 +839,7 @@ function renderContextMenuOptions(menu, options, hooks = {}) {
             group.className = 'context-menu-group';
             const trigger = document.createElement('div');
             trigger.className = 'context-menu-item context-menu-group-trigger';
-            trigger.innerHTML = `${getContextMenuIconSvg(opt.icon)}<span class="context-menu-item-label">${escapeHtml(opt.label || '')}</span>${getContextMenuIconSvg('chevron-right')}`;
+            trigger.innerHTML = `${getContextMenuIconSvg(opt.icon)}<span class="context-menu-item-label">${escapeHtml(opt.label || '')}</span><svg class="context-menu-aim-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
             const submenu = document.createElement('div');
             submenu.className = 'context-menu-submenu';
             opt.items.forEach((sub) => appendOption(submenu, sub));
@@ -853,6 +872,9 @@ function renderContextMenuOptions(menu, options, hooks = {}) {
 }
 window.renderContextMenuOptions = renderContextMenuOptions;
 
+function getShareActionPath(path, root) {
+    return typeof toMainTreePath === 'function' ? toMainTreePath(path, root || getCurrentCloudRoot()) : path;
+}
 function buildFileActionGroupItems(path, type, opts = {}) {
     const actionItems = [];
     const includeSelect = opts.includeSelect === true && type === 'file';
@@ -917,8 +939,8 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
             label: t(window.i18n, 'share'),
             icon: 'share',
             items: [
-                { label: cloudActionText('shareGetLink', 'Get link'), icon: 'link', action: () => shareItem(path, type) },
-                { label: cloudActionText('shareSendToChat', 'Send to chat'), icon: 'message', action: () => sendCloudShareToChat(path, type) }
+                { label: cloudActionText('shareGetLink', 'Get link'), icon: 'link', action: () => shareItem(path, type, opts.root) },
+                { label: cloudActionText('shareSendToChat', 'Send to chat'), icon: 'message', action: () => sendCloudShareToChat(path, type, opts.root) }
             ]
         });
     }
@@ -962,7 +984,7 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
 }
 window.buildFileContextMenuOptions = buildFileContextMenuOptions;
 
-function showContextMenu(e, path, type, name) {
+function showContextMenu(e, path, type, name, root) {
     // Guard: if path is an object (item was passed instead of item.path), extract fields
     if (path !== null && typeof path === 'object') {
         name = path.name || '';
@@ -1067,7 +1089,7 @@ function showContextMenu(e, path, type, name) {
             ...(type !== 'file' ? [
                 { label: t(window.i18n, 'upload'), icon: 'upload', action: () => openUploadDialog(basePath) },
             ] : []),
-            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file' })
+            ...buildFileContextMenuOptions(path, type, { includeSelect: type === 'file', root: root || getCurrentCloudRoot() })
         );
     }
     if (options.length === 0) {
@@ -1512,19 +1534,20 @@ function cloudActionText(key, fallback) {
     return value && value !== key ? value : fallback;
 }
 
-async function shareItem(path, type) {
+async function shareItem(path, type, root) {
     if (!path) {
         flashStatus(t(i18n, 'noPathSelected'));
         return;
     }
 
     try {
-        shareState.currentPath = path;
         const displayName = path.split('/').pop();
-        if (typeof window.renderShareModalForPath === 'function') {
-            await window.renderShareModalForPath(path, displayName, shareState.currentExpiresOption || 'never');
+        const normalizedPath = getShareActionPath(path, root);
+        shareState.currentPath = normalizedPath;
+        if (typeof renderShareModalForPath === 'function') {
+            await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
         } else {
-            const result = await api('share_file', { path, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            const result = await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
         }
     } catch (err) {
@@ -1556,11 +1579,12 @@ function getCloudShareChatModal() {
     return modal;
 }
 
-function sendCloudShareToChat(path, type) {
+function sendCloudShareToChat(path, type, root) {
     if (!path) {
         flashStatus(t(i18n, 'noPathSelected'));
         return;
     }
+    const normalizedPath = getShareActionPath(path, root);
     const modal = getCloudShareChatModal();
     const emailInput = modal.querySelector('#cloud-share-chat-email');
     const results = modal.querySelector('#cloud-share-chat-results');
@@ -1645,12 +1669,12 @@ function sendCloudShareToChat(path, type) {
         status.textContent = cloudActionText('generatingLink', 'Generating link...');
         try {
             const shareData = typeof window.generateShareKey === 'function'
-                ? await window.generateShareKey(path, shareState.currentExpiresOption || 'never')
-                : await api('share_file', { path, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never')
+                : await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!shareData?.key) throw new Error('Failed to generate share key');
             let metadata = {};
             try {
-                metadata = await api('internal_share_metadata', { path, root: getCurrentCloudRoot() }, 'GET');
+                metadata = await api('internal_share_metadata', { path: normalizedPath, root: root || getCurrentCloudRoot() }, 'GET');
             } catch (_) {}
             const sessionUrl = new URL('/main', window.location.origin);
             sessionUrl.searchParams.set('api', 'support_chat');

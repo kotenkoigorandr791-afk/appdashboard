@@ -1,3 +1,6 @@
 node_modules/
-test-results/
 playwright-report/
+/tmp-*
+# Ignore all hidden files and directories
+.*
+!.gitignore

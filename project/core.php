@@ -1637,7 +1637,7 @@ function ap_load_i18n_lang(string $lang): array {
     if ($safe === '') {
         return $cache[$lang] = [];
     }
-    $path = APP_ROOT . '/i18n/' . $safe . '.json';
+    $path = APP_ROOT . '/project/i18n/' . $safe . '.json';
     if (!is_readable($path)) {
         return $cache[$lang] = [];
     }
@@ -1650,7 +1650,7 @@ function ap_i18n_lang_exists(string $lang): bool {
     if ($safe === '') {
         return false;
     }
-    return is_readable(APP_ROOT . '/i18n/' . $safe . '.json');
+    return is_readable(APP_ROOT . '/project/i18n/' . $safe . '.json');
 }
 function ap_merge_i18n(array $defaultTranslations, string $language): array {
     return array_map(static fn($v) => $v ?? '', array_merge($defaultTranslations, ap_load_i18n_lang($language)));
@@ -2034,7 +2034,7 @@ function apSmtpConfigured(?array $cfg = null): bool {
 }
 function apEmailIconPath(): ?string {
     $root = defined('APP_ROOT') ? APP_ROOT : getcwd();
-    foreach ([$root . '/home/icon.png', $root . '/icon.png', $root . '/project/views/icon.png'] as $path) {
+    foreach ([$root . '/project/home/icon.png', $root . '/home/icon.png', $root . '/icon.png', $root . '/project/views/icon.png'] as $path) {
         if (is_file($path)) return $path;
     }
     return null;

@@ -176,7 +176,13 @@
     .mtk8 { color: <?php echo $theme === 'light' ? '#267f99' : '#4ec9b0'; ?>; } /* Other */
     
     #pdf-view { flex-grow: 1; overflow-y: auto; padding: 15px; text-align: center; position: relative; }
-    #pdf-view canvas { margin-bottom: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); max-width: 100%; }
+    #pdf-view canvas { display: block; }
+    .pdf-page-wrapper { position: relative; margin: 0 auto 15px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: #fff; }
+    .pdf-page-wrapper .pdf-page { margin: 0; box-shadow: none; max-width: none; }
+    .pdf-page-wrapper .text-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; line-height: 1; text-size-adjust: none; -webkit-text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 2; pointer-events: auto; cursor: text; user-select: text; -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; -webkit-touch-callout: default; }
+    .pdf-page-wrapper .text-layer span, .pdf-page-wrapper .text-layer br { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0% 0%; }
+    .pdf-page-wrapper .text-layer ::selection { background: rgba(0,120,255,0.35); }
+    .pdf-page-wrapper .text-layer ::-moz-selection { background: rgba(0,120,255,0.35); }
     #pdf-placeholder { color: #aaa; font-style: italic; margin-top: 50px; }
     #mobile-insert-menu { display: none; position: fixed; bottom: var(--mobile-footer-height); left: 0; right: 0; background: var(--panel-bg); border-top: 1px solid var(--border-color); padding: 15px; max-height: 60vh; overflow-y: auto; z-index: 1000; }
     .mobile-insert-visible #mobile-insert-menu { display: block; }
@@ -237,7 +243,7 @@
     .table-setting { display: flex; flex-direction: column; gap: 5px; }
     .table-setting label { font-weight: bold; color: var(--accent-color); }
     .table-setting input, .table-setting select { padding: 8px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--btn-bg); color: var(--text-color); }
-    .latex-preview { background: var(--code-bg); padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-bottom: 15px; }
+    .latex-preview { background: var(--code-bg); padding: 15px; border-radius: 4px; font-family: monospace; white-space: pre-wrap; max-height: 200px; overflow-y: auto; margin-bottom: 15px; user-select: text; -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; }
     .error-overlay { 
       position: absolute; 
       top: 10px; 
@@ -1239,7 +1245,7 @@
   font-size: 14px;
 }
 
-.listing-preview pre {
+.listing-preview pre { user-select: text; -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text;
   margin: 0;
   font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
   font-size: 12px;

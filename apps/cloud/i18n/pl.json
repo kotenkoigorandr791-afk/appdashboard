@@ -742,6 +742,7 @@
   "paragraphs": "Akapity",
   "part": "Część",
   "password": "Hasło",
+  "password_optional": "Optional password",
   "passwordRequired": "Wpisz hasło",
   "path": "Ścieżka",
   "pause": "Wstrzymaj",
@@ -776,6 +777,7 @@
   "readOnly": "Tylko do odczytu",
   "ready": "Gotowy",
   "readyForCompilation": "Gotowi na kolejną kompilację...",
+  "size_gb": "GB",
   "recentFiles": "Ostatnie pliki",
   "recommendation": "Zalecenie",
   "rectangle": "Prostokąt",
@@ -1091,5 +1093,15 @@
   "storageTotalUsedLabel": "Total used",
   "storageTotalUsers": "{total} users",
   "storageTotalUsersLabel": "Users",
-  "storageUsersWithData": "With data"
+  "storageUsersWithData": "With data",
+  "noResults": "Brak wyników (Otwórz karty)",
+  "openTabs": "Brak wyników (Otwórz karty)",
+  "shareAccessMode": "Tryb dostępu",
+  "share-access-none": "Brak ograniczeń",
+  "share-access-view-only": "Tylko do podglądu (bez pobierania i kopiowania)",
+  "share-access-disable-download": "Wyłącz pobieranie",
+  "share-access-disable-copy": "Wyłącz kopiowanie",
+  "share-open-limit": "Otwórz limit",
+  "shareGetLink": "Pobierz link",
+  "shareSendToChat": "Wyślij do czatu"
 }

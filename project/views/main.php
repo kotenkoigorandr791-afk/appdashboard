@@ -1658,11 +1658,12 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             font-size: 12px;
             color: #f59e0b;
             cursor: default;
-            max-width: 166px;
+            max-width: 240px;
             text-align: center;
             line-height: 1.4;
-            word-wrap: break-word;
-            white-space: normal;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
             display: none;
         }
         #sidebarWeatherWidget .weather-perm {
@@ -1756,9 +1757,9 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             .weather-widget .weather-wind, .weather-widget .weather-location, .weather-widget .weather-pin-icon, .weather-widget .weather-location-sep {
                 display: none;
             }
-            .weather-perm {
+            .weather-widget .weather-perm {
                 font-size:11px;
-                max-width:80px;
+                max-width:calc(100vw - 208px);
             }
         }
         @media (max-width:360px){
@@ -3200,6 +3201,7 @@ endif; // showOtpPage
             <?php endif;?>
             <div id="login-content" class="auth-content <?php echo $path==='/login'?'active':''; ?>">
                 <form method="post" action="/login">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo $showDefaultAdminNotice?'root@root':''; ?>" required>
                     <div class="password-input-container">
                         <input type="password" name="password" id="login-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['password']); ?>" value="<?php echo $showDefaultAdminNotice?'root':''; ?>" required>

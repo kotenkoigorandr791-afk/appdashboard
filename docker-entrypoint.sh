@@ -157,7 +157,7 @@ if [ -d /usr/local/share/lopaka ] && [ ! -f /var/www/AppDashboard/apps/lopaka/in
 fi
 git config --system --add safe.directory /var/www/AppDashboard 2>/dev/null || true
 if [ "${RUN_MCP_PACKAGE_BUILD:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh ]; then
-  sh /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh /var/www/AppDashboard >/var/log/supervisor/mcp-package-build.log 2>&1
+  sh /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh /var/www/AppDashboard >/var/log/supervisor/mcp-package-build.log 2>&1 &
 fi
 if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
   export COMPOSER_CACHE_DIR="${COMPOSER_CACHE_DIR:-$APPDATA_BASE_DIR/.composer-cache}"
@@ -211,7 +211,7 @@ if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
   chown -R www-data:www-data "$HF_HOME" 2>/dev/null || true
   chmod -R ug+rwX "$HF_HOME" 2>/dev/null || true
   if "$SPENDS_VENV/bin/python3" -c 'import transformers, qwen_vl_utils, huggingface_hub' 2>/dev/null; then
-    su -s /bin/sh www-data -c "HF_HOME='$HF_HOME' '$SPENDS_VENV/bin/python3' -" <<'PY' || true
+    su -s /bin/sh www-data -c "HF_HOME='$HF_HOME' '$SPENDS_VENV/bin/python3' -" <<'PY' >/dev/null 2>&1 &
 import os
 from huggingface_hub import snapshot_download
 model=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
@@ -223,7 +223,7 @@ PY
     python3 -m venv "$BOT_VENV"
   fi
   "$BOT_VENV/bin/pip" install -q -r /var/www/AppDashboard/bot/requirements.txt || true
-  } >/var/log/supervisor/startup-deps.log 2>&1
+  } >/var/log/supervisor/startup-deps.log 2>&1 &
 fi
 if [ -f /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php ]; then
   /usr/local/bin/php /var/www/AppDashboard/apps/smart_home/mqtt_auth_sync.php --once >/var/log/supervisor/smart-home-mqtt-auth-boot.log 2>&1 || true

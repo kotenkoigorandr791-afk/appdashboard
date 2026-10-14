@@ -223,6 +223,59 @@
         }, overrides || {});
     }
 
+    // Monaco measures the character width when the editor is created and wraps
+    // lines using that measurement. The editors render with the JetBrains Mono
+    // webfont, which CSS loads with font-display: swap; when the font arrives
+    // after the editor was created, every wrapped line renders slightly wider
+    // than the width Monaco wrapped for. That leftover width becomes a phantom
+    // horizontal scroll range, so the text drifts left and right while typing.
+    // Waiting for the font before the editor is created keeps the measurement
+    // and the rendered glyphs in sync (bounded by a timeout so an unreachable
+    // font CDN can never block the editor).
+    function waitForEditorFont(overrides) {
+        const fonts = typeof document !== 'undefined' ? document.fonts : null;
+        if (!fonts || typeof fonts.load !== 'function') return Promise.resolve();
+        const options = overrides || {};
+        const families = String(options.fontFamily || '')
+            .split(',')
+            .map(function (part) { return part.trim().replace(/^["']|["']$/g, ''); })
+            .filter(function (name) { return name && !/^(monospace|serif|sans-serif|system-ui)$/i.test(name); });
+        if (!families.length) return Promise.resolve();
+        const size = options.fontSize || 14;
+        const weight = options.fontWeight || '400';
+        const loads = families.map(function (family) {
+            try {
+                return fonts.load(weight + ' ' + size + 'px "' + family + '"');
+            } catch (_) {
+                return Promise.resolve([]);
+            }
+        });
+        const settled = Promise.all(loads)
+            .then(function () { return fonts.ready; })
+            .catch(function () { /* font unavailable: keep the fallback metrics */ });
+        const timeout = new Promise(function (resolve) { setTimeout(resolve, 1500); });
+        return Promise.race([settled, timeout]);
+    }
+
+    // Every editor here wraps its lines, so there is never a legitimate reason to
+    // scroll horizontally. Monaco can still scroll by a few pixels when a wrapped
+    // line ends up marginally wider than the content area (character width
+    // rounding) and each such scroll makes the text jump left and right while
+    // typing, so keep the horizontal offset pinned to zero.
+    function installHorizontalScrollLock(editor) {
+        let restoring = false;
+        const disposable = editor.onDidScrollChange(function (event) {
+            if (restoring || !event.scrollLeftChanged) return;
+            if (editor.getScrollLeft() === 0) return;
+            restoring = true;
+            editor.setScrollLeft(0);
+            restoring = false;
+        });
+        return {
+            dispose: function () { disposable.dispose(); }
+        };
+    }
+
     function isTxtFile(filePath) {
         return /\.txt$/i.test(filePath || '');
     }
@@ -340,9 +393,14 @@
         };
     }
 
+    // Counter for the per-editor context keys used by the list continuation below.
+    let txtListMarkerKeySeq = 0;
+
     // Ordered-list continuation for .txt files: Enter on "1. foo" writes "2. " on the
     // next line, keeping the indentation, the delimiter and the spacing. Enter on a
-    // marker without text removes the marker so the list can be ended. Returns a disposable.
+    // marker without text removes the marker so the list can be ended. Backspace right
+    // after the auto inserted marker removes the whole marker in one press, the way
+    // Word drops the automatic numbering. Returns a disposable.
     function installTxtNumberedListContinuation(options) {
         const editor = options.editor;
         const monacoRef = options.monaco;
@@ -350,6 +408,63 @@
         if (!editor || !monacoRef || !isTxtFile(filePath)) return { dispose: function () {} };
 
         const markerPattern = /^(\s*)(\d+)([.)])([ \t]+)(.*)$/;
+        // The marker the previous Enter added ("2. "), so Backspace can tell it apart
+        // from a number the user typed by hand.
+        let autoMarker = null;
+        // Backspace is bound through this context key instead of a keydown listener: a
+        // keydown listener would still let Monaco delete one more character, while a
+        // gated command replaces the default deletion whenever the caret sits right
+        // after the auto inserted marker. Key names are per editor so that two open
+        // editors cannot fight over the same key.
+        const contextKeyName = 'cloudTxtAutoListMarker' + (++txtListMarkerKeySeq);
+        const markerAtCaret = typeof editor.createContextKey === 'function'
+            ? editor.createContextKey(contextKeyName, false)
+            : null;
+
+        function caretSitsAfterAutoMarker() {
+            if (!autoMarker) return false;
+            const selection = editor.getSelection();
+            if (!selection || !selection.isEmpty()) return false;
+            const model = editor.getModel();
+            if (!model) return false;
+            const position = selection.getStartPosition();
+            if (position.lineNumber < 1 || position.lineNumber > model.getLineCount()) return false;
+            return model.getValueInRange(new monacoRef.Range(
+                position.lineNumber,
+                1,
+                position.lineNumber,
+                position.column
+            )) === autoMarker.marker;
+        }
+
+        function refreshMarkerContext() {
+            if (!markerAtCaret) return;
+            markerAtCaret.set(caretSitsAfterAutoMarker());
+        }
+
+        function removeAutoMarker() {
+            if (!autoMarker) return;
+            const model = editor.getModel();
+            const selection = editor.getSelection();
+            if (!model || !selection) return;
+            const position = selection.getStartPosition();
+            // The whole marker goes away in one press; the indentation and any text
+            // that follows on the line stay untouched (Word-like).
+            editor.executeEdits('txt-list-marker-backspace', [{
+                range: new monacoRef.Range(position.lineNumber, 1, position.lineNumber, position.column),
+                text: autoMarker.indent
+            }]);
+            editor.setPosition({ lineNumber: position.lineNumber, column: autoMarker.indent.length + 1 });
+            autoMarker = null;
+            refreshMarkerContext();
+        }
+
+        const backspaceCommand = markerAtCaret
+            ? editor.addCommand(monacoRef.KeyCode.Backspace, removeAutoMarker, contextKeyName)
+            : null;
+        const contentWatcher = editor.onDidChangeModelContent(() => refreshMarkerContext());
+        const selectionWatcher = editor.onDidChangeCursorSelection(() => refreshMarkerContext());
+
         const keyDown = editor.onKeyDown((e) => {
             if (e.keyCode !== monacoRef.KeyCode.Enter) return;
             if (e.ctrlKey || e.altKey || e.metaKey || e.shiftKey) return;
@@ -384,6 +499,8 @@
             e.preventDefault();
 
             if (itemText.trim() === '' && restOfLine.trim() === '') {
+                // Ending the list: drop the empty item's own marker.
+                autoMarker = null;
                 editor.executeEdits('txt-list-continue', [{
                     range: new monacoRef.Range(position.lineNumber, 1, position.lineNumber, position.column),
                     text: indent
@@ -398,10 +515,21 @@
                 text: '\n' + nextMarker
             }]);
             editor.setPosition({ lineNumber: position.lineNumber + 1, column: nextMarker.length + 1 });
+            autoMarker = { marker: nextMarker, indent: indent };
+            refreshMarkerContext();
         });
 
         return {
-            dispose: function () { keyDown.dispose(); }
+            dispose: function () {
+                keyDown.dispose();
+                contentWatcher.dispose();
+                selectionWatcher.dispose();
+                // addCommand returns an id on newer Monaco builds and a disposable on
+                // older ones, so only dispose when there is something to dispose.
+                if (backspaceCommand && typeof backspaceCommand.dispose === 'function') {
+                    backspaceCommand.dispose();
+                }
+            }
         };
     }
 
@@ -414,6 +542,8 @@
         loadMonaco: loadMonaco,
         defineAppThemes: defineAppThemes,
         standardEditorOptions: standardEditorOptions,
+        waitForEditorFont: waitForEditorFont,
+        installHorizontalScrollLock: installHorizontalScrollLock,
         isTxtFile: isTxtFile,
         resolveLang: resolveLang,
         installTransliteration: installTransliteration,

@@ -346,6 +346,7 @@ server {
     }
 
     location ^~ /home/ {
+        alias /var/www/AppDashboard/project/home/;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
