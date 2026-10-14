@@ -718,7 +718,10 @@ function attachContextMenuDismiss(removeMenu) {
         if (!document.getElementById('context-menu')) return;
         const hit = document.elementFromPoint(ev.clientX, ev.clientY);
         if (!hit || isContextMenuUiElement(hit)) return;
-        if (hit.tagName === 'IFRAME' || hit.closest?.('#viewer')) dismiss();
+        if (hit.tagName === 'IFRAME' || hit.closest?.('#viewer')) {
+            // Tap inside an editor iframe should close open dropdown menus
+            dismiss();
+        }
     }, { signal, capture: true });
     return dismiss;
 }
@@ -820,7 +823,7 @@ function renderContextMenuOptions(menu, options, hooks = {}) {
             group.className = 'context-menu-group';
             const trigger = document.createElement('div');
             trigger.className = 'context-menu-item context-menu-group-trigger';
-            trigger.innerHTML = `${getContextMenuIconSvg(opt.icon)}<span class="context-menu-item-label">${escapeHtml(opt.label || '')}</span>${getContextMenuIconSvg('chevron-right')}`;
+            trigger.innerHTML = `${getContextMenuIconSvg(opt.icon)}<span class="context-menu-item-label">${escapeHtml(opt.label || '')}</span><svg class="context-menu-aim-triangle" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>`;
             const submenu = document.createElement('div');
             submenu.className = 'context-menu-submenu';
             opt.items.forEach((sub) => appendOption(submenu, sub));

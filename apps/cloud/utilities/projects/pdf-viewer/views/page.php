@@ -15,14 +15,31 @@ body{height:100vh;overflow:hidden;background:<?php echo $theme === 'light' ? '#f
 button{background:0;border:0;border-radius:4px;padding:6px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;min-width:32px;position:relative;z-index: auto;}
 button:hover{background:<?php echo $theme === 'light' ? '#c0c0c0' : '#4a4a4a'; ?>;z-index: 10000;}
 button.active{background:<?php echo $theme === 'light' ? '#a0a0a0' : '#4a4a4a'; ?>;}
-button.active svg{stroke:<?php echo $theme === 'light' ? '#fff' : '#<?php echo $color; ?>'; ?>;}
+button.active svg{stroke:<?php echo $theme === 'light' ? '#333' : '#<?php echo $color; ?>'; ?>;}
+button:not(.active) svg{stroke:<?php echo $theme === 'light' ? '#333' : '#<?php echo $color; ?>'; ?>;}
 button[data-tooltip]{position:relative;}
 
 
 svg{width:18px;height:18px;stroke:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;stroke-width:2;fill:none;stroke-linecap:round;stroke-linejoin:round;}
-#page-info{color:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;display:flex;align-items:center;justify-content:center;gap:2px;margin:0;font-size:13px;font-weight:600;flex-shrink:0;line-height:1.2;text-align:center;}
-#page-input{width:28px;background:<?php echo $theme === 'light' ? '#fff' : '#404040'; ?>;border:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;color:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;padding:3px 2px;border-radius:4px;text-align:center;font-size:12px;}
-#page-input:focus{outline:none;border-color:#<?php echo $color; ?>;}
+/* Page info pagination */
+.page-info-pagination{display:inline-flex;align-items:center;gap:4px;background:<?php echo $theme === 'light' ? 'color-mix(in srgb,var(--panel) 96%,transparent)' : 'color-mix(in srgb,var(--panel) 12%,transparent)'; ?>;border-radius:20px;padding:4px 8px;min-width:56px;}
+.page-input{background:transparent;border:none;outline:none;padding:0;margin:0;font-family:inherit;font-size:inherit;font-weight:inherit;color:inherit;letter-spacing:inherit;width:1.2ch;text-align:center;caret-color:#3b82f6;-moz-appearance:textfield;appearance:textfield;}
+.page-input::-webkit-outer-spin-button,.page-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0;}
+.page-input:hover{background-color:rgba(0,0,0,0.04);border-radius:4px;}
+.page-input:focus{background-color:#f9fafb;border-radius:4px;box-shadow:0 0 0 2px rgba(59,130,246,0.2);}
+.page-total{user-select:none;color:<?php echo $theme === 'light' ? '#6b7280' : '#d7d7d7'; ?>;font-size:11px;}
+.color-selector{width:36px;height:36px;border-radius:50%;border:2px solid currentColor;background:radial-gradient(circle at 30% 30%,#ff6b6b,#ee5a5a);box-shadow:0 2px 8px rgba(255,107,107,0.3);cursor:pointer;transition:transform .15s ease,box-shadow .15s ease;outline:none;padding:0;}
+.color-selector:hover{transform:scale(1.05);box-shadow:0 4px 12px rgba(255,107,107,0.4);}
+.color-selector:active{transform:scale(0.98);}
+
+.zoom-wrapper{width:100%;background-color:<?php echo $theme === 'light' ? '#f0f2f5' : '#2a2a2a'; ?>;padding:8px 12px;border-radius:24px;box-sizing:border-box;display:flex;align-items:center;box-shadow:inset 0 2px 4px rgba(0,0,0,0.04);}
+.zoom-slider{-webkit-appearance:none;appearance:none;width:100%;height:6px;background:#d1d5db;border-radius:10px;outline:none;cursor:pointer;}
+.zoom-slider::-webkit-slider-runnable-track{height:6px;border-radius:10px;background:linear-gradient(to right,#4f46e5 0%,#4f46e5 var(--val,50%),#d1d5db var(--val,50%),#d1d5db 100%);}
+.zoom-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:20px;height:20px;background:#fff;border:2px solid #4f46e2;border-radius:50%;margin-top:-7px;box-shadow:0 2px 6px rgba(79,70,229,0.4);transition:transform .15s;}
+.zoom-slider::-webkit-slider-thumb:hover{transform:scale(1.15);}
+.zoom-slider::-moz-range-track{height:6px;border-radius:10px;background:#d1d5db;}
+.zoom-slider::-moz-range-progress{height:6px;border-radius:10px;background:#4f46e5;}
+.zoom-slider::-moz-range-thumb{width:20px;height:20px;background:#fff;border:2px solid #4f46e2;border-radius:50%;box-shadow:0 2px 6px rgba(79,70,229,0.4);cursor:grab;}
 .zoom-select-container{position:relative;display:inline-flex;align-items:center;min-width:100%;margin:0;}
 .zoom-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background:<?php echo $theme === 'light' ? '#f5f5f5' : '#404040'; ?>;border:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;border-radius:4px;color:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;font-size:11px;font-weight:600;padding:5px 22px 5px 6px;cursor:pointer;width:100%;outline:none;text-align-last:center;}
 .zoom-select:hover{background:<?php echo $theme === 'light' ? '#e8e8e8' : '#4a4a4a'; ?>;border-color:#<?php echo $color; ?>;}
@@ -66,11 +83,11 @@ svg{width:18px;height:18px;stroke:<?php echo $theme === 'light' ? '#333' : '#fff
 #password-submit:hover{background:var(--accent-soft-strong);}
 #password-cancel{background:<?php echo $theme === 'light' ? '#e0e0e0' : '#4a4a4a'; ?>;color:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;}
 #password-error{color:#ff4444;margin-top:8px;font-size:14px;display:none;}
-.draw-controls{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-left:0;}
-.draw-color-picker{width:24px;height:24px;border-radius:50%;border:2px solid <?php echo $theme === 'light' ? '#ccc' : '#666'; ?>;cursor:pointer;padding:0;}
+.draw-controls{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-left:0;background:<?php echo $theme === 'light' ? '#fff' : '#333'; ?>;padding:8px;border-radius:8px;}
+.draw-color-picker{width:24px;height:24px;border-radius:50%;border:2px solid <?php echo $theme === 'light' ? '#333' : '#fff'; ?>;cursor:pointer;padding:0;background:<?php echo $theme === 'light' ? '#fff' : '#333'; ?>;}
 .draw-color-picker::-webkit-color-swatch-wrapper{padding:0;}
 .draw-color-picker::-webkit-color-swatch{border:none;border-radius:50%;}
-.draw-size-slider{width:100%;height:4px;background:<?php echo $theme === 'light' ? '#ccc' : '#666'; ?>;border-radius:2px;-webkit-appearance:none;}
+.draw-size-slider{width:100%;height:4px;background:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;border-radius:2px;-webkit-appearance:none;}
 .draw-size-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:#<?php echo $color; ?>;border-radius:50%;cursor:pointer;}
 @media (min-width:769px){
 #toolbar{padding:clamp(4px,0.7vh,8px) clamp(4px,0.5vw,6px);gap:clamp(6px,0.8vh,10px)}
@@ -134,7 +151,10 @@ button{padding:6px;min-width:36px;}
 </div>
 <div id="toolbar">
 <div class="toolbar-group">
-<span id="page-info"><input type="text" id="page-input" value="1" title="<?php echo $t['page']; ?>">/<span id="page-count">1</span></span>
+<div class="page-info-pagination">
+                <input type="text" id="page-input" class="page-input" value="1" title="<?php echo $t['page']; ?>" inputmode="numeric" pattern="[0-9]*" aria-label="Страница" oninput="this.style.width = Math.max(1.2, this.value.length * 0.8) + 'ch';">
+                <span class="page-total">/<span id="page-count">1</span></span>
+              </div>
 <div class="toolbar-row">
 <button id="prev" data-tooltip="<?php echo $t['prev_page']; ?>"><svg viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></svg></button>
 <button id="next" data-tooltip="<?php echo $t['next_page']; ?>"><svg viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></svg></button>
@@ -221,9 +241,18 @@ button{padding:6px;min-width:36px;}
 <script><?php echo file_get_contents(dirname(__DIR__, 4) . '/assets/file-load-progress.js'); ?></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script>
+(function() {
 <?php require __DIR__ . '/../public/assets/js/page-script1.js.php'; ?>
-</script>
 
+{
+    const currentPageInput = document.getElementById('page-input');
+    currentPageInput?.addEventListener('input', function() {
+        this.style.width = Math.max(1.2, this.value.length * 0.8) + 'ch';
+    });
+}
+
+})();
+</script>
 
 </body>
 </html>

@@ -9954,8 +9954,23 @@ function storageUserRowHtml(u) {
         '<td class="storage-col-role"><span class="user-quota-used">' + escapeHtml(storageRoleLabel(u.role)) + '</span></td>' +
         '<td><span class="user-quota-used">' + escapeHtml(formatBytes(u.used_bytes || 0)) + '</span></td>' +
         '<td class="storage-quota-cell"><span style="display:inline-flex;align-items:center;gap:6px;">' +
-            '<input type="number" min="1" step="1" value="' + (Number(u.quota_mb) || 1) + '" data-quota-email="' + escapeHtml(u.email) + '" class="storage-admin-quota-input" aria-label="' + escapeHtml(t(window.i18n, 'setQuota')) + '">' +
-            '<span class="user-quota-used">MB</span></span></td>' +
+            '<select class="storage-admin-quota-input" data-quota-email="' + escapeHtml(u.email) + '" aria-label="' + escapeHtml(t(window.i18n, 'setQuota')) + '">' +
+            '<option value="1024">1 ГБ</option>' +
+            '<option value="2048">2 ГБ</option>' +
+            '<option value="4096">4 ГБ</option>' +
+            '<option value="8192">8 ГБ</option>' +
+            '<option value="16384">16 ГБ</option>' +
+            '<option value="32768">32 ГБ</option>' +
+            '<option value="65536">64 ГБ</option>' +
+            '<option value="131072">128 ГБ</option>' +
+            '<option value="262144">256 ГБ</option>' +
+            '<option value="524288">512 ГБ</option>' +
+            '<option value="1048576">1 ГБ</option>' +
+            '<option value="2097152">2 ГБ</option>' +
+            '<option value="5242880">5 ГБ</option>' +
+            '<option selected value="' + (Number(u.quota_mb) || 1) + '">' + (Number(u.quota_mb) || 1) + ' МБ</option>' +
+            '</select>' +
+            '</span></td>' +
         '<td><button type="button" class="storage-admin-save-btn" data-save-email="' + escapeHtml(u.email) + '" title="' + saveLabel + '" aria-label="' + saveLabel + '">' +
             '<svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>' +
         '</button></td>' +
@@ -9986,8 +10001,23 @@ function storageRequestCardHtml(r) {
             '<span class="user-quota-used">' + escapeHtml(formatBytes(r.used_bytes || 0)) + ' / ' + escapeHtml(formatBytes((Number(r.current_quota_mb) || 0) * 1024 * 1024)) + '</span>' +
         '</div>' +
         '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:10px;">' +
-            '<input type="number" min="1" step="1" value="' + suggested + '" data-req-quota="' + r.id + '" style="width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
-            '<span class="user-quota-used">MB</span>' +
+            '<select class="storage-admin-quota-input" data-req-quota="' + r.id + '" style="width:120px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
+            '<option value="1024">1 ГБ</option>' +
+            '<option value="2048">2 ГБ</option>' +
+            '<option value="4096">4 ГБ</option>' +
+            '<option value="8192">8 ГБ</option>' +
+            '<option value="16384">16 ГБ</option>' +
+            '<option value="32768">32 ГБ</option>' +
+            '<option value="65536">64 ГБ</option>' +
+            '<option value="131072">128 ГБ</option>' +
+            '<option value="262144">256 ГБ</option>' +
+            '<option value="524288">512 ГБ</option>' +
+            '<option value="1048576">1 ГБ</option>' +
+            '<option value="2097152">2 ГБ</option>' +
+            '<option value="5242880">5 ГБ</option>' +
+            '<option selected value="' + suggested + '">' + suggested + ' МБ</option>' +
+            '</select>' +
+            '' +
             '<input type="text" data-req-reason="' + r.id + '" placeholder="' + escapeHtml(t(window.i18n, 'storageRejectReason')) + '" style="flex:1;min-width:140px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;background:var(--input-bg,var(--bg));color:var(--fg);">' +
             '<button type="button" class="btn primary small" data-req-approve="' + r.id + '">' + escapeHtml(t(window.i18n, 'storageApprove')) + '</button>' +
             '<button type="button" class="btn secondary small" data-req-reject="' + r.id + '">' + escapeHtml(t(window.i18n, 'storageReject')) + '</button>' +

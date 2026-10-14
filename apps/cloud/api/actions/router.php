@@ -2600,10 +2600,17 @@ if ($action === 'get_folder_properties') {
 }
 
 if ($action === 'view_pdf') {
+  cloud_session_start();
   $user = get_current_user_from_sessions();
+  if ($user === 'guest' || $user === '') {
+    http_response_code(401); echo 'Unauthorized'; exit;
+  }
   $rootKey = get_requested_root_key();
   $base = user_root($user, $rootKey);
   $path = safe_path((string)($_GET['path'] ?? ''));
+  if ($path === '') {
+    http_response_code(400); echo 'Path required'; exit;
+  }
   $target = $base . '/' . $path;
 
   if (!file_exists($target)) {
@@ -2612,16 +2619,20 @@ if ($action === 'view_pdf') {
 
   // Handle encrypted files in .documents folder
   if (is_documents_root($rootKey)) {
-    $encryptedContent = file_get_contents($target);
-    $decryptedContent = decrypt_documents_content($encryptedContent, $user);
-    $target = tempnam(sys_get_temp_dir(), 'pdf_view_') . '.pdf';
-    file_put_contents($target, $decryptedContent);
+    $encryptedContent = @file_get_contents($target);
+    if ($encryptedContent !== false) {
+      $decryptedContent = decrypt_documents_content($encryptedContent, $user);
+      $target = tempnam(sys_get_temp_dir(), 'pdf_view_') . '.pdf';
+      if ($decryptedContent !== false) {
+        file_put_contents($target, $decryptedContent);
+      }
+    }
   }
 
-  $mime = mime_content_type($target);
+  $mime = @mime_content_type($target);
   if ($mime !== 'application/pdf') {
     http_response_code(400); 
-    if (is_documents_root($rootKey) && file_exists($target)) {
+    if (is_documents_root($rootKey)) {
         @unlink($target);
     }
     echo 'Not a PDF file'; 
