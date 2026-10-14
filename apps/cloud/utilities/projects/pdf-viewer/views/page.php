@@ -42,6 +42,11 @@ svg{width:18px;height:18px;stroke:<?php echo $theme === 'light' ? '#333' : '#fff
 .canvas-container .pdf-canvas{z-index:1;}
 .canvas-container .draw-canvas{z-index:2;pointer-events:none;}
 .canvas-container .draw-canvas.active{pointer-events:auto;cursor:crosshair;}
+.canvas-container .text-layer{z-index:3;position:absolute;top:0;left:0;width:100%;height:100%;overflow:hidden;line-height:1;text-size-adjust:none;-webkit-text-size-adjust:none;forced-color-adjust:none;transform-origin:0 0;pointer-events:auto;cursor:text;user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;-webkit-touch-callout:default;}
+.canvas-container .text-layer span,.canvas-container .text-layer br{position:absolute;color:transparent;white-space:pre;cursor:text;transform-origin:0% 0%;}
+.canvas-container .text-layer ::selection{background:rgba(0,120,255,0.35);}
+.canvas-container .text-layer ::-moz-selection{background:rgba(0,120,255,0.35);}
+.canvas-container .text-layer.no-select{pointer-events:none;user-select:none;-webkit-user-select:none;}
 .toolbar-group{display:flex;flex-direction:column;align-items:stretch;gap:6px;padding:0 0 10px;border-right:0;border-bottom:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;flex-shrink:0;}
 .toolbar-group:last-child{border-bottom:0;padding-bottom:0;}
 .toolbar-row{display:flex;align-items:center;justify-content:center;gap:6px;}

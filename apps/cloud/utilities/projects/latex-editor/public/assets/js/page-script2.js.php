@@ -1605,6 +1605,91 @@
         redoBtn.style.opacity = canRedo ? '1' : '0.5';
     }
 
+    // Build one selectable span per visual line instead of one span per PDF text
+    // item, so drag-selection is continuous line-by-line rather than a grid of
+    // separate boxes.
+    function getTextAscent(ctx, fontSize) {
+      ctx.font = fontSize + 'px sans-serif';
+      const metrics = ctx.measureText('g');
+      const ascent = metrics.fontBoundingBoxAscent;
+      const descent = metrics.fontBoundingBoxDescent;
+      if (ascent && ascent + descent > 0) return ascent / (ascent + descent);
+      return 0.8;
+    }
+
+    async function renderLineTextLayer(page, viewport, container) {
+      const textContent = await page.getTextContent();
+      const items = [];
+      for (const item of textContent.items) {
+        if (!item || typeof item.str !== 'string' || item.str.length === 0) continue;
+        const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+        const fontHeight = Math.hypot(tx[2], tx[3]) || item.height * viewport.scale;
+        if (!fontHeight) continue;
+        items.push({
+          str: item.str,
+          x: tx[4],
+          baseline: tx[5],
+          width: item.width * viewport.scale,
+          fontHeight: fontHeight
+        });
+      }
+      if (items.length === 0) return;
+
+      items.sort((a, b) => (a.baseline - b.baseline) || (a.x - b.x));
+
+      const lines = [];
+      const baselineTolerance = 1.5;
+      for (const item of items) {
+        const line = lines[lines.length - 1];
+        const maxGap = item.fontHeight * 1.5;
+        if (!line || Math.abs(item.baseline - line.baseline) > baselineTolerance || item.x - line.right > maxGap) {
+          lines.push({
+            baseline: item.baseline,
+            fontHeight: item.fontHeight,
+            left: item.x,
+            right: item.x + item.width,
+            items: [item]
+          });
+        } else {
+          line.items.push(item);
+          line.left = Math.min(line.left, item.x);
+          line.right = Math.max(line.right, item.x + item.width);
+          line.fontHeight = Math.max(line.fontHeight, item.fontHeight);
+        }
+      }
+
+      const measureCtx = document.createElement('canvas').getContext('2d');
+      for (const line of lines) {
+        let text = '';
+        let previousEnd = null;
+        for (const item of line.items) {
+          if (previousEnd !== null) {
+            const gap = item.x - previousEnd;
+            if (gap > item.fontHeight * 0.15 && !text.endsWith(' ') && !item.str.startsWith(' ')) text += ' ';
+          }
+          text += item.str;
+          previousEnd = item.x + item.width;
+        }
+        text = text.replace(/\s+$/, '');
+        if (!text.trim()) continue;
+
+        const fontSize = line.fontHeight;
+        const span = document.createElement('span');
+        span.textContent = text;
+        span.style.left = line.left.toFixed(2) + 'px';
+        span.style.top = (line.baseline - getTextAscent(measureCtx, fontSize) * fontSize).toFixed(2) + 'px';
+        span.style.fontSize = fontSize.toFixed(2) + 'px';
+        span.style.fontFamily = 'sans-serif';
+        span.style.lineHeight = '1';
+
+        measureCtx.font = fontSize + 'px sans-serif';
+        const naturalWidth = measureCtx.measureText(text).width;
+        const lineWidth = Math.max(1, line.right - line.left);
+        if (naturalWidth > 0) span.style.transform = 'scaleX(' + (lineWidth / naturalWidth) + ')';
+        container.appendChild(span);
+      }
+    }
+
     function displayPdf(pdfBlob) {
       const pdfView = document.getElementById('pdf-view');
       const placeholder = document.getElementById('pdf-placeholder');
@@ -1617,23 +1702,47 @@
       // in the page context and needs no blob: URL at all.
       pdfBlob.arrayBuffer().then(buffer => {
         const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
-        loadingTask.promise.then(pdf => {
+        loadingTask.promise.then(async pdf => {
           pdfView.innerHTML = '';
+          // Fit the page to the preview panel width. The canvas must not be
+          // shrunk by CSS afterwards, otherwise the selectable text layer would
+          // no longer line up with the rendered text.
+          const firstPage = await pdf.getPage(1);
+          const baseViewport = firstPage.getViewport({ scale: 1 });
+          const availableWidth = Math.max(200, (pdfView.clientWidth || 600) - 30);
+          const renderScale = Math.min(2, Math.max(0.5, availableWidth / baseViewport.width));
           const pageRenderPromises = [];
           for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
             pageRenderPromises.push(
-              pdf.getPage(pageNum).then(page => {
-                const viewport = page.getViewport({ scale: 1.5 });
+              pdf.getPage(pageNum).then(async page => {
+                const viewport = page.getViewport({ scale: renderScale });
+                // Each page lives in a positioned wrapper so an invisible,
+                // selectable text layer can sit exactly on top of the canvas.
+                const wrapper = document.createElement('div');
+                wrapper.className = 'pdf-page-wrapper';
+                wrapper.style.width = viewport.width + 'px';
+                wrapper.style.height = viewport.height + 'px';
                 const canvas = document.createElement('canvas');
-                const context = canvas.getContext('2d');
-                canvas.height = viewport.height;
-                canvas.width = viewport.width;
+                // Render at device pixel ratio so the PDF stays crisp on HiDPI
+                // screens; the CSS size (and the text layer) stays in viewport px.
+                const outputScale = Math.max(window.devicePixelRatio || 1, 2);
+                canvas.width = Math.floor(viewport.width * outputScale);
+                canvas.height = Math.floor(viewport.height * outputScale);
+                canvas.style.width = viewport.width + 'px';
+                canvas.style.height = viewport.height + 'px';
                 canvas.className = 'pdf-page';
                 canvas.setAttribute('data-page-number', pageNum);
+                wrapper.appendChild(canvas);
+                const context = canvas.getContext('2d');
+                context.scale(outputScale, outputScale);
                 const renderContext = { canvasContext: context, viewport: viewport };
-                return page.render(renderContext).promise.then(() => {
-                  return { canvas, pageNum };
-                });
+                await page.render(renderContext).promise;
+                // Text layer: one selectable span per visual line.
+                const textLayer = document.createElement('div');
+                textLayer.className = 'text-layer';
+                wrapper.appendChild(textLayer);
+                await renderLineTextLayer(page, viewport, textLayer);
+                return { wrapper, pageNum };
               })
             );
           }
@@ -1642,7 +1751,7 @@
         .then(renderedPages => {
           renderedPages.sort((a, b) => a.pageNum - b.pageNum);
           renderedPages.forEach((item, index) => {
-            pdfView.appendChild(item.canvas);
+            pdfView.appendChild(item.wrapper);
             if (index < renderedPages.length - 1) {
               const separator = document.createElement('div');
               separator.style.height = '20px';

@@ -3550,14 +3550,10 @@ function initTabScrolling() {
         }
     }, { passive: false });
 }
-function renderTabDropdownOpenTabs(filter = '') {
+function renderTabDropdownOpenTabs() {
     const list = document.getElementById('tab-search-open-list');
     if (!list) return;
-    const q = String(filter || '').trim().toLowerCase();
-    const rows = tabsState.tabs.filter((tab) => {
-        if (!q) return true;
-        return String(tab.title || '').toLowerCase().includes(q) || String(tab.path || '').toLowerCase().includes(q);
-    });
+    const rows = tabsState.tabs;
     list.innerHTML = '';
     if (!rows.length) {
         list.innerHTML = `<div class="tab-search-empty">${escapeHtml(t(i18n, 'noResults'))}</div>`;
@@ -3575,14 +3571,10 @@ function renderTabDropdownOpenTabs(filter = '') {
         list.appendChild(btn);
     });
 }
-function renderTabDropdownRecent(filter = '') {
+function renderTabDropdownRecent() {
     const list = document.getElementById('tab-search-recent-list');
     if (!list) return;
-    const q = String(filter || '').trim().toLowerCase();
-    const rows = loadRecentFiles().filter((row) => {
-        if (!q) return true;
-        return String(row.title || '').toLowerCase().includes(q) || String(row.path || '').toLowerCase().includes(q);
-    });
+    const rows = loadRecentFiles();
     list.innerHTML = '';
     if (!rows.length) {
         list.innerHTML = `<div class="tab-search-empty">${escapeHtml(t(i18n, 'noRecentFiles'))}</div>`;
@@ -3604,13 +3596,10 @@ function openTabDropdown() {
     const dropdown = document.getElementById('tab-search-dropdown');
     const toggle = document.getElementById('tab-strip-toggle');
     if (!dropdown) return;
-    const input = document.getElementById('tab-search-input');
-    const query = input ? input.value : '';
-    renderTabDropdownOpenTabs(query);
-    renderTabDropdownRecent(query);
+    renderTabDropdownOpenTabs();
+    renderTabDropdownRecent();
     dropdown.classList.add('show');
     if (toggle) toggle.classList.add('active');
-    if (input) input.focus();
 }
 function closeTabDropdown() {
     const dropdown = document.getElementById('tab-search-dropdown');
@@ -3636,13 +3625,6 @@ function initTabDropdown() {
         }
         if (dropdown && dropdown.classList.contains('show') && !dropdown.contains(e.target)) {
             closeTabDropdown();
-        }
-    });
-
-    document.addEventListener('input', (e) => {
-        if (e.target && e.target.id === 'tab-search-input') {
-            renderTabDropdownOpenTabs(e.target.value);
-            renderTabDropdownRecent(e.target.value);
         }
     });
 }
@@ -3697,10 +3679,6 @@ function renderTabs() {
 	            </button>
             </div>
             <div class="tab-search-dropdown" id="tab-search-dropdown">
-                <div class="tab-search-header">
-                    <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
-                    <input type="text" id="tab-search-input" placeholder=" tabs" autocomplete="off">
-                </div>
                 <div class="tab-search-section">
                     <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
                     <div id="tab-search-open-list"></div>
@@ -3876,16 +3854,16 @@ function renderTabs() {
             closeBtn.setAttribute('data-tab-id', tab.id);
         }
 
-        // Only append new tabs: re-appending an existing node would move it to the
-        // end of the DOM and cause the tab bar to visibly jump/flicker on every
-        // content update (e.g. realtime collab sync).
+        // Only move nodes that are actually out of position: re-appending an
+        // existing node would move it to the end of the DOM and cause the tab bar
+        // to visibly jump/flicker on every content update (e.g. realtime sync).
         if (tabElement.parentElement !== tabsList) {
             tabsList.appendChild(tabElement);
         } else {
-            const lastAppended = tabsList.querySelector('.tab:last-of-type');
-            if (lastAppended !== tabElement &&
-                Array.from(tabsList.children).indexOf(tabElement) !== tabsState.tabs.indexOf(tab)) {
-                tabsList.insertBefore(tabElement, tabsList.children[tabsState.tabs.indexOf(tab)] || null);
+            const desiredIndex = tabsState.tabs.indexOf(tab);
+            const currentIndex = Array.from(tabsList.children).indexOf(tabElement);
+            if (desiredIndex !== -1 && currentIndex !== desiredIndex) {
+                tabsList.insertBefore(tabElement, tabsList.children[desiredIndex] || null);
             }
         }
         existingTabs.delete(key);
@@ -4717,8 +4695,6 @@ function initRootToolbar(i18n) {
     document.getElementById('btn-code-actions').addEventListener('click', toggleCodeActionsMenu);
     document.getElementById('btn-apply-code-changes').addEventListener('click', applyCodeChanges);
     document.getElementById('btn-close-code-modal').addEventListener('click', closeCodeModal);
-    document.getElementById('quota-mb').addEventListener('change', updateQuota);
-    document.getElementById('quota-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('session-limit-mb').addEventListener('change', updateSessionLimit);
     document.getElementById('session-limit-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('btn-request-storage')?.addEventListener('click', requestMoreStorage);
@@ -7019,7 +6995,6 @@ async function syncSettingsControls(state = null) {
     if (!active) return;
     const activeDisplayEmail = (active && active.email) || state.active_email || state.active;
     window.cloudCurrentUserDisplayEmail = activeDisplayEmail || '';
-    document.getElementById('quota-mb').value = active.quota_mb;
     document.getElementById('session-limit-mb').value = active.session_limit_mb || 0;
     const hideLangToggle = document.getElementById('hide-lang-switcher-toggle');
     if (hideLangToggle) {
@@ -7040,11 +7015,9 @@ async function syncSettingsControls(state = null) {
         compileMenuItem.style.display = (userRole === 0) ? 'none' : 'flex';
     }
 
-    // Storage: only admins may edit quotas. Regular users can ask an admin
-    // for more space instead.
+    // Storage: quotas are edited only from the admin "Manage user storage"
+    // window. Regular users can ask an admin for more space instead.
     const isAdminUser = userRole >= 2;
-    const quotaRow = document.getElementById('settings-quota-row');
-    if (quotaRow) quotaRow.classList.toggle('hidden', !isAdminUser);
     const manageStorageBtn = document.getElementById('btn-manage-storage');
     if (manageStorageBtn) manageStorageBtn.classList.toggle('hidden', !isAdminUser);
     const storageRequestSection = document.getElementById('settings-storage-request');
@@ -9822,20 +9795,6 @@ function showCloudEncryptionNoticeModal(i18n) {
   };
   modal.querySelector('#cloud-encryption-notice-confirm')?.addEventListener('click', finalize);
 }
-async function updateQuota() {
-  const mb = parseInt(document.getElementById('quota-mb').value || '0', 10);
-  if (mb <= 0) {
-    flashStatus(t(i18n, 'invalidQuota'));
-    return;
-  }
-  try {
-    await api('set_quota', { quota_mb: mb }); // without name - the server will figure out the current user
-    flashStatus(t(i18n, 'quotaUpdated'));
-    await refreshUsers(i18n);
-  } catch (err) {
-    flashStatus(t(i18n, 'errorPrefix') + err.message);
-  }
-}
 async function updateSessionLimit() {
   const mb = parseInt(document.getElementById('session-limit-mb').value || '0', 10);
   try {
@@ -10285,6 +10244,11 @@ function refreshTabContent(tabId) {
     if (!tab) return;
     const savedRoot = getTabRoot(tab);
     const prevRoot = getCurrentCloudRoot();
+    // Remember where the tab lived and whether it was the active one, so that
+    // refreshing does not move it or steal focus from the tab the user had open.
+    const originalIndex = tabsState.tabs.findIndex(t => t.id === tabId);
+    const wasActive = tabsState.activeTabId === tabId;
+    const prevActiveId = wasActive ? null : tabsState.activeTabId;
     setCurrentCloudRoot(savedRoot);
     closeTab(tabId);
     if (tab.photoEditor) {
@@ -10313,16 +10277,8 @@ function refreshTabContent(tabId) {
             content: null,
             fullPath: tab.fullPath
         };
-        if (tabsState.activeTabId) {
-            const activeIndex = tabsState.tabs.findIndex(t => t.id === tabsState.activeTabId);
-            if (activeIndex !== -1) {
-                tabsState.tabs.splice(activeIndex + 1, 0, newTab);
-            } else {
-                tabsState.tabs.push(newTab);
-            }
-        } else {
-            tabsState.tabs.push(newTab);
-        }
+        const insertAt = originalIndex >= 0 ? Math.min(originalIndex, tabsState.tabs.length) : tabsState.tabs.length;
+        tabsState.tabs.splice(insertAt, 0, newTab);
         tabsState.activeTabId = newTab.id;
         renderTabs();
         loadZipViewerToTab(newTab);
@@ -10331,7 +10287,22 @@ function refreshTabContent(tabId) {
         openFileInTab(tab.path, tab.editMode);
     }
     const freshTab = tabsState.tabs.find(t => t.id === tabsState.activeTabId);
-    if (freshTab && !freshTab.root) freshTab.root = savedRoot;
+    if (freshTab) {
+        if (!freshTab.root) freshTab.root = savedRoot;
+        // Re-opening appends the tab at the end of the strip; put it back where it was.
+        const freshIndex = tabsState.tabs.indexOf(freshTab);
+        if (originalIndex >= 0 && freshIndex !== originalIndex) {
+            tabsState.tabs.splice(freshIndex, 1);
+            const target = Math.max(0, Math.min(originalIndex, tabsState.tabs.length));
+            tabsState.tabs.splice(target, 0, freshTab);
+        }
+        renderTabs();
+        // Refreshing a background tab must not switch the user away from their current tab.
+        if (!wasActive && prevActiveId != null && tabsState.tabs.some(t => t.id === prevActiveId)) {
+            switchToTab(prevActiveId);
+        }
+        saveTabsState();
+    }
     setCurrentCloudRoot(prevRoot);
     flashStatus(t(i18n, 'tabRefreshed', { name: tab.title }));
 }

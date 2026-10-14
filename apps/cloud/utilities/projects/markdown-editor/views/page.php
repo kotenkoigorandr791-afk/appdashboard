@@ -52,7 +52,7 @@
         .editor-toolbar::-webkit-scrollbar-thumb{background:#555;border-radius:4px;}
         .editor-toolbar::-webkit-scrollbar-thumb:hover{background:<?php echo $color;?>;}
         .editor-toolbar::-webkit-scrollbar-corner{background:#252526;}
-        .preview-content{max-width:100%;word-wrap:break-word;}
+        .preview-content{max-width:100%;word-wrap:break-word;user-select:text;-webkit-user-select:text;-moz-user-select:text;-ms-user-select:text;}
         .preview-content h1{color:<?php echo $color;?>;border-bottom:2px solid <?php echo $color;?>;padding-bottom:5px;margin:20px 0 15px 0;font-size:1.8rem;}
         .preview-content h2{color:<?php echo $color;?>;opacity:0.9;margin:18px 0 12px 0;font-size:1.5rem;}
         .preview-content h3{color:<?php echo $color;?>;opacity:0.8;margin:16px 0 10px 0;font-size:1.3rem;}

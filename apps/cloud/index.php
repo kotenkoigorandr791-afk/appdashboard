@@ -374,16 +374,7 @@ cloud_require_session_auth();
         </section>
 
         <section class="settings-group">
-          <h4 class="settings-group-title" data-i18n="quota">Quota</h4>
-          <label class="settings-row hidden" for="quota-mb" id="settings-quota-row">
-            <span class="settings-row-text">
-              <span class="settings-row-label" data-i18n="setQuota">Set quota (MB)</span>
-            </span>
-            <span class="settings-number-field">
-              <input type="number" id="quota-mb" min="1" step="1" />
-              <span>MB</span>
-            </span>
-          </label>
+          <h4 class="settings-group-title" data-i18n="sessionLimit">Session Limit</h4>
           <label class="settings-row" for="session-limit-mb">
             <span class="settings-row-text">
               <span class="settings-row-label" data-i18n="setSessionLimit">Set session limit</span>
@@ -563,10 +554,6 @@ cloud_require_session_auth();
               </button>
           </div>
           <div class="tab-search-dropdown" id="tab-search-dropdown">
-              <div class="tab-search-header">
-                  <svg viewBox="0 0 24 24"><path d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path></svg>
-                  <input type="text" id="tab-search-input" placeholder="Search tabs" autocomplete="off">
-              </div>
               <div class="tab-search-section">
                   <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
                   <div id="tab-search-open-list"></div>
