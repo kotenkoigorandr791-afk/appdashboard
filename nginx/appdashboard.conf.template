@@ -387,6 +387,31 @@ server {
         proxy_hide_header X-Frame-Options;
     }
 
+    location = /admin-omniroute/home/icon.png {
+        proxy_pass __OMNIROUTE_UPSTREAM__/favicon.ico;
+        proxy_http_version 1.1;
+        proxy_set_header Host __AI_HOST__;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location = /admin-omniroute/live-ws {
+        proxy_pass http://127.0.0.1:20131/live-ws;
+        proxy_http_version 1.1;
+        proxy_set_header Host __AI_HOST__;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $external_proto;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port $external_port;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_buffering off;
+        proxy_request_buffering off;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+
     location ^~ /admin-omniroute/ {
         absolute_redirect off;
         proxy_pass __OMNIROUTE_UPSTREAM__/;
@@ -412,6 +437,9 @@ server {
         proxy_hide_header Content-Security-Policy;
         proxy_hide_header X-Frame-Options;
         add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: http: ws: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss://localhost:* https://static.cloudflareinsights.com; worker-src 'self' blob:; manifest-src 'self'; $uir_token" always;
+        sub_filter_once off;
+        sub_filter_types text/html;
+        sub_filter '</head>' '<script>(function(){var W=window.WebSocket;if(!W)return;function P(u,p){if(typeof u==="string"){try{var x=new URL(u,location.href);if(x.hostname===location.hostname&&x.port==="20132"){x.protocol=location.protocol==="https:"?"wss:":"ws:";x.host=location.host;x.port="";x.pathname="/admin-omniroute/live-ws";u=x.toString()}}catch(e){}}return p===undefined?new W(u):new W(u,p)}P.prototype=W.prototype;P.CONNECTING=W.CONNECTING;P.OPEN=W.OPEN;P.CLOSING=W.CLOSING;P.CLOSED=W.CLOSED;window.WebSocket=P})()</script></head>';
     }
 
     location = /admin-omniroute/embed-sw.js {
