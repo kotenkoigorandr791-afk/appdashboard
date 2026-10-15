@@ -6,11 +6,52 @@ require_once __DIR__ . '/includes/auth_gate.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 cloud_session_start();
-cloud_require_session_auth();
 
 $DOC_SERV_URL = rtrim((string)(getenv('DOCUMENT_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('document') : '')), '/');
 if ($DOC_SERV_URL === '') { $DOC_SERV_URL = 'http://document.localhost'; }
 $JWT_SECRET = trim(getOnlyofficeJwtSecret());
+
+function cloud_onlyoffice_b64url_decode(string $raw): string {
+    $raw = strtr($raw, '-_', '+/');
+    $pad = strlen($raw) % 4;
+    if ($pad) $raw .= str_repeat('=', 4 - $pad);
+    $decoded = base64_decode($raw, true);
+    return $decoded === false ? '' : $decoded;
+}
+function cloud_onlyoffice_jwt_decode(string $token, string $secret): ?array {
+    $parts = explode('.', $token);
+    if (count($parts) !== 3 || $secret === '') return null;
+    $expected = rtrim(strtr(base64_encode(hash_hmac('sha256', $parts[0] . '.' . $parts[1], $secret, true)), '+/', '-_'), '=');
+    if (!hash_equals($expected, $parts[2])) return null;
+    $payload = json_decode(cloud_onlyoffice_b64url_decode($parts[1]), true);
+    return is_array($payload) ? $payload : null;
+}
+function cloud_onlyoffice_server_authorized(string $secret): bool {
+    $token = trim((string)($_GET['oo_token'] ?? ''));
+    if ($token === '') {
+        $header = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? '');
+        if (preg_match('/Bearer\s+(\S+)/i', $header, $m)) $token = $m[1];
+    }
+    $payload = $token !== '' ? cloud_onlyoffice_jwt_decode($token, $secret) : null;
+    if (!$payload) return false;
+    if (isset($payload['exp']) && (int)$payload['exp'] < time()) return false;
+    return (string)($payload['path'] ?? '') === (string)($_GET['path'] ?? '')
+        && (string)($payload['user'] ?? '') === (string)($_GET['user'] ?? '')
+        && (string)($payload['root'] ?? '') === (string)($_GET['root'] ?? '');
+}
+
+$ooIsDownload = isset($_GET['action']) && (string)$_GET['action'] === 'download';
+$ooIsCallback = isset($_GET['callback']);
+if ($ooIsDownload || $ooIsCallback) {
+    if (!cloud_onlyoffice_server_authorized($JWT_SECRET)) {
+        http_response_code(403);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['error' => 1, 'message' => 'Forbidden']);
+        exit;
+    }
+} else {
+    cloud_require_session_auth();
+}
 
 $filePath = isset($_GET['path']) ? $_GET['path'] : '';
 $user = isset($_GET['user']) ? $_GET['user'] : 'default';
@@ -308,9 +349,16 @@ if ($groupDocParams) {
     $docDownloadPath = $groupDocParams['path'];
 }
 
-$docUrl = $baseUrl . '?action=download&path=' . urlencode($docDownloadPath) . '&user=' . urlencode($docDownloadUser) . '&root=' . urlencode($docDownloadRoot);
+$ooAccessToken = jwtEncode([
+    'path' => $docDownloadPath,
+    'user' => $docDownloadUser,
+    'root' => $docDownloadRoot,
+    'exp' => time() + 86400,
+], $JWT_SECRET);
+$ooAccessQuery = '&oo_token=' . urlencode($ooAccessToken);
+$docUrl = $baseUrl . '?action=download&path=' . urlencode($docDownloadPath) . '&user=' . urlencode($docDownloadUser) . '&root=' . urlencode($docDownloadRoot) . $ooAccessQuery;
 
-$cbUrl = $baseUrl . '?callback=1&path=' . urlencode($docDownloadPath) . '&user=' . urlencode($docDownloadUser) . '&root=' . urlencode($docDownloadRoot);
+$cbUrl = $baseUrl . '?callback=1&path=' . urlencode($docDownloadPath) . '&user=' . urlencode($docDownloadUser) . '&root=' . urlencode($docDownloadRoot) . $ooAccessQuery;
 
 $fileMtime = @filemtime($fullPath);
 $fileMtime = $fileMtime !== false ? (int)$fileMtime : 0;
@@ -405,6 +453,17 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
 <head>
     <meta charset="utf-8">
     <title>ONLYOFFICE Editor - <?php echo htmlspecialchars(basename($filePath)); ?></title>
+    <script>
+    (function () {
+        var orig = HTMLIFrameElement.prototype.setAttribute;
+        HTMLIFrameElement.prototype.setAttribute = function (name, value) {
+            if (String(name).toLowerCase() === 'allow' && String(value).indexOf('unload') === -1) {
+                value = String(value).replace(/;\s*$/, '') + '; unload';
+            }
+            return orig.call(this, name, value);
+        };
+    })();
+    </script>
     <script src="<?php echo $DOC_SERV_URL; ?>/web-apps/apps/api/documents/api.js"></script>
     <style>
         html, body {

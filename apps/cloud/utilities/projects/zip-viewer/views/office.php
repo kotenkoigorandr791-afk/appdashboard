@@ -4,6 +4,17 @@
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>ONLYOFFICE - <?php echo htmlspecialchars(basename($officeFilePath)); ?></title>
+        <script>
+        (function () {
+            var orig = HTMLIFrameElement.prototype.setAttribute;
+            HTMLIFrameElement.prototype.setAttribute = function (name, value) {
+                if (String(name).toLowerCase() === 'allow' && String(value).indexOf('unload') === -1) {
+                    value = String(value).replace(/;\s*$/, '') + '; unload';
+                }
+                return orig.call(this, name, value);
+            };
+        })();
+        </script>
         <script src="<?php echo $DOC_SERV_URL; ?>/web-apps/apps/api/documents/api.js"></script>
         <style>
             .fa-solid::before { content: "•"; }

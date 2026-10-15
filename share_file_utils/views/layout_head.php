@@ -36,6 +36,17 @@
 <script type="importmap">{"imports":{"three":"https://unpkg.com/three@0.170.0/build/three.module.js","three/addons/":"https://unpkg.com/three@0.170.0/examples/jsm/"}}</script>
 <?php endif; ?>
 <?php if ($fileType === 'office'): ?>
+<script>
+(function () {
+    var orig = HTMLIFrameElement.prototype.setAttribute;
+    HTMLIFrameElement.prototype.setAttribute = function (name, value) {
+        if (String(name).toLowerCase() === 'allow' && String(value).indexOf('unload') === -1) {
+            value = String(value).replace(/;\s*$/, '') + '; unload';
+        }
+        return orig.call(this, name, value);
+    };
+})();
+</script>
 <script src="<?php echo htmlspecialchars($DOC_SERV_URL); ?>/web-apps/apps/api/documents/api.js"></script>
 <?php endif; ?>
 <link rel="stylesheet" href="<?php echo htmlspecialchars(SFU_ASSET_BASE . 'css/main.php?' . http_build_query(['theme' => $theme, 'color' => $color, 'fullscreen' => $isFullscreen ? '1' : '0', 'folder' => $isFolder ? '1' : '0', 'v' => filemtime(SFU_DIR . '/assets/css/main.php')])); ?>">
