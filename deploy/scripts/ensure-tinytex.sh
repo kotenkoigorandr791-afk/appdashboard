@@ -127,6 +127,22 @@ if [ "$need_packages" = "1" ]; then
   fi
 fi
 
+# Pre-build common T2A/LH metrics so 14pt bold/italic do not fail at first compile.
+pregen_tfms() {
+  MKTEXTFM="$BINDIR/mktextfm"
+  [ -x "$MKTEXTFM" ] || return 0
+  echo "ensure-tinytex: pre-generating common T2A TFMs"
+  for series in larm labx lati labi; do
+    for size in 0500 0600 0700 0800 0900 1000 1095 1200 1440 1728 2074 2488 2986; do
+      name="${series}${size}"
+      if ! "$BINDIR/kpsewhich" "${name}.tfm" >/dev/null 2>&1; then
+        "$MKTEXTFM" "$name" >/dev/null 2>&1 || true
+      fi
+    done
+  done
+}
+pregen_tfms
+
 # Ensure www-data can generate missing TFM/PK on demand.
 chown -R www-data:www-data "$TINYTEX_HOME" 2>/dev/null || true
 chmod -R ug+rwX "$TINYTEX_HOME/texmf-var" 2>/dev/null || true
