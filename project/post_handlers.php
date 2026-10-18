@@ -1617,13 +1617,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 </div>
             </div>
         </div>
-        <div class="ap-panel" id="ap-backup" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-backup-frame" name="devtools-backup" title="Backup Dashboard" src="/backup_dashboard.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['backup'] ?? 'Backup'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
-                </iframe>
-            </div>
+        <div class="ap-panel" id="ap-backup">
+            <?php require __DIR__ . '/views/modals/backup_manager.php'; ?>
         </div>
         <div class="ap-panel" id="ap-docs" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">

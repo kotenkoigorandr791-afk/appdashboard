@@ -1,5 +1,7 @@
 <?php if($isAdmin): ?>
 <!-- ====================== ADMIN PANEL ====================== -->
+<link rel="stylesheet" href="/project/backup/assets/backup.css">
+<script src="/project/backup/assets/backup.js" defer></script>
 <style>
 /* ══════════════════════════════════════════════════════════
    ADMIN PANEL — uses CSS variables from main app theme
@@ -1365,6 +1367,170 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 }
 
 /* OmniRoute panel – same embedded styles */
+/* Backup panel: the restic UI is inline (no iframe) and manages its own
+   padding/scroll inside #bdp-app (project/backup/assets/backup.css). */
+#ap-backup.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+}
+#ap-backup .ap-breadcrumb,
+#ap-backup .ap-page-title,
+#ap-backup .ap-page-subtitle {
+    display: none;
+}
+#ap-content:has(#ap-backup.active) {
+    padding: 0 !important;
+}
+#ap-backup.active {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* Documentation panel styles */
+#ap-docs.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+#ap-docs .ap-breadcrumb,
+#ap-docs .ap-page-title,
+#ap-docs .ap-page-subtitle {
+    display: none;
+}
+#ap-docs > div {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+}
+#ap-docs iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    border-radius: 0;
+}
+#ap-content:has(#ap-docs.active) {
+    padding: 0 !important;
+}
+#ap-docs.active {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+#ap-docs.active + *,
+#ap-docs.active {
+    padding: 0 !important;
+}
+#ap-docs.active,
+#ap-docs.active ~ *,
+#ap-content:has(#ap-docs.active) {
+    padding: 0 !important;
+}
+
+/* Database panel – same embedded styles */
+#ap-db.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+#ap-db .ap-breadcrumb,
+#ap-db .ap-page-title,
+#ap-db .ap-page-subtitle {
+    display: none;
+}
+#ap-db > div {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+}
+#ap-db iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    border-radius: 0;
+}
+#ap-content:has(#ap-db.active) {
+    padding: 0 !important;
+}
+#ap-db.active {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+#ap-db.active + *,
+#ap-db.active {
+    padding: 0 !important;
+}
+#ap-db.active,
+#ap-db.active ~ *,
+#ap-content:has(#ap-db.active) {
+    padding: 0 !important;
+}
+
+#ap-performance.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+}
+#ap-performance > div {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    border: none;
+}
+#ap-performance iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+    border-radius: 0;
+    background: var(--bg-color);
+}
+#ap-content:has(#ap-performance.active) {
+    padding: 0 !important;
+    overflow: hidden;
+}
+#ap-performance.active {
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+/* OmniRoute panel – same embedded styles */
+
 #ap-omniroute.ap-panel.active {
     display: flex;
     flex-direction: column;

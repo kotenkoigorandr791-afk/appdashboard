@@ -38,6 +38,20 @@ Override any of those env vars if a service uses a non-standard host.
 
 PHP helpers live in `lib/app_domains.php` (`app_public_url()`, `app_base_domain()`). Nginx is rendered from `nginx/appdashboard.conf.template` (no hardcoded production domain).
 
+## Backups (restic)
+
+Backups are built into the `appdashboard` container — no Duplicati service is needed. Open **Admin Panel → Backup** to configure the repository, sources, schedule, retention, and to browse/restore snapshots.
+
+- `restic` is installed in the image; jobs run in the background and can be cancelled.
+- The host filesystem is mounted read-write at `/host`; use paths such as `/home`, `/etc`, or `/mnt/main_backup` in the UI (they resolve under `/host`).
+- Restore targets are host paths too: `/restore` writes to `/host/restore`.
+- The scheduler runs every minute inside the container via Supervisor (`backup-scheduler`).
+- Repository credentials are encrypted with AES-256-GCM in the app database; backup data is encrypted by restic itself.
+
+```bash
+docker compose exec appdashboard restic version
+```
+
 ## Subdomains to configure (DNS / reverse proxy)
 
 Point these hosts at the AppDashboard host (or the dedicated service behind it):
@@ -112,7 +126,7 @@ The WebSocket worker (`ssh-ws`) always autostarts; the profile is only the remot
 | `appdashboard-db` | `—` | Postgres 16 (только внутри docker-сети) |
 | `appdashboard-redis` | `—` | Redis (только внутри docker-сети) |
 
-Optional profiles: `portainer`, `duplicati`, `gitea`, `immich`, `dawarich`.
+Optional profiles: `portainer`, `gitea`, `immich`, `dawarich`.
 
 ```bash
 docker compose --profile gitea --profile immich up -d
