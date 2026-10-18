@@ -230,11 +230,11 @@ cloud_require_session_auth();
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
 <script defer src="assets/app.js?v=45"></script>
-<script defer src="assets/app/editors-and-tree.js?v=12"></script>
+<script defer src="assets/app/editors-and-tree.js?v=13"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
 <script defer src="assets/app/file-viewers.js?v=3"></script>
-<script defer src="assets/app/file-actions.js?v=10"></script>
+<script defer src="assets/app/file-actions.js?v=11"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=8"></script>
 <script defer src="assets/audio-player.js?v=2"></script>
