@@ -112,7 +112,10 @@ if ($sourcePath) {
     $extension = strtolower(pathinfo($sourcePath, PATHINFO_EXTENSION));
     if ($extension === 'm4a' || $extension === 'mp4') $audioMimeType = 'audio/mp4';
     elseif ($extension === 'wav') $audioMimeType = 'audio/wav';
-    elseif ($extension === 'ogg') $audioMimeType = 'audio/ogg';
+    elseif ($extension === 'ogg' || $extension === 'oga' || $extension === 'opus') $audioMimeType = 'audio/ogg';
+    elseif ($extension === 'webm' || $extension === 'weba') $audioMimeType = 'audio/webm';
+    elseif ($extension === 'flac') $audioMimeType = 'audio/flac';
+    elseif ($extension === 'aac') $audioMimeType = 'audio/aac';
 }
 $audioStreamUrl = $apiAudioPath !== '' ? ($apiUrl . '?action=raw&path=' . rawurlencode($apiAudioPath) . '&root=' . rawurlencode($root)) : '';
 $accentColor = ltrim(urldecode((string)$color), '#%');

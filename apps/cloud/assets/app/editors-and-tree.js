@@ -78,7 +78,11 @@ function loadPhotoEditorToTab(tab) {
         iframe.setAttribute('tabindex', '0');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        const theme = urlParams.get('theme') || 'dark';
+        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
+        // over the raw URL: it often has no ?theme= and used to force dark editors.
+        const theme = (typeof getEffectiveCloudTheme === 'function')
+            ? getEffectiveCloudTheme(urlParams)
+            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';
@@ -222,7 +226,7 @@ function loadTranscriptionEditorToTab(tab) {
     const viewer = document.getElementById('viewer');
     const fileName = document.getElementById('file-name');
     const fileExt = tab.path.split('.').pop().toLowerCase();
-    const supportedAudioFormats = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'];
+    const supportedAudioFormats = ['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'flac', 'aac', 'webm', 'weba'];
     if (!supportedAudioFormats.includes(fileExt)) {
         flashStatus(t(i18n, 'unsupportedAudioFormat'));
         return;
@@ -240,7 +244,11 @@ function loadTranscriptionEditorToTab(tab) {
         iframe.setAttribute('tabindex', '0');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        const theme = urlParams.get('theme') || 'dark';
+        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
+        // over the raw URL: it often has no ?theme= and used to force dark editors.
+        const theme = (typeof getEffectiveCloudTheme === 'function')
+            ? getEffectiveCloudTheme(urlParams)
+            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';
@@ -293,7 +301,11 @@ function loadTTSEditorToTab(tab) {
         iframe.setAttribute('data-tab-id', tab.id);
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        const theme = urlParams.get('theme') || 'dark';
+        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
+        // over the raw URL: it often has no ?theme= and used to force dark editors.
+        const theme = (typeof getEffectiveCloudTheme === 'function')
+            ? getEffectiveCloudTheme(urlParams)
+            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
         const color = urlParams.get('color') || '#85b503';
 
         let currentUser = currentUserState.user || 'default';
@@ -467,7 +479,11 @@ function loadOnlyOfficeEditorToTab(tab) {
         iframe.setAttribute('tabindex', '0');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        const theme = urlParams.get('theme') || 'dark';
+        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
+        // over the raw URL: it often has no ?theme= and used to force dark editors.
+        const theme = (typeof getEffectiveCloudTheme === 'function')
+            ? getEffectiveCloudTheme(urlParams)
+            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';
