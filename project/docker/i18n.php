@@ -23,18 +23,32 @@ function docker_normalize_lang($lang): string {
  * t() / the JS I18N payload can fall back key-by-key.
  */
 function docker_load_i18n(string $lang): array {
+    static $cache = [];
     $lang = docker_normalize_lang($lang);
+    if (isset($cache[$lang])) {
+        return $cache[$lang];
+    }
     $base = dirname(__DIR__) . '/i18n';
     $merged = [];
     foreach (array_unique(['en', $lang]) as $code) {
         $path = $base . '/' . $code . '.json';
         if (!is_readable($path)) continue;
-        $data = json_decode((string)file_get_contents($path), true);
+        $raw = @file_get_contents($path);
+        if ($raw === false) {
+            // "Too many open files" and similar transient I/O failures must not
+            // abort rendering; fall back to whatever dictionary loaded so far.
+            if (function_exists('cloud_safe_error_log')) {
+                cloud_safe_error_log('docker_load_i18n: unable to read ' . $code . '.json');
+            }
+            continue;
+        }
+        $data = json_decode($raw, true);
         if (is_array($data)) $merged[$code] = $data;
     }
     $en = $merged['en'] ?? [];
     $result = ['en' => $en];
     $result[$lang] = ($lang === 'en') ? $en : array_merge($en, $merged[$lang] ?? []);
+    $cache[$lang] = $result;
     return $result;
 }
 

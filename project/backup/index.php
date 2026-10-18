@@ -43,7 +43,16 @@ if ($activeSession === null && !isset($_SESSION['user'])) {
 }
 
 adminPanelRequireGate();
-$csrf = apSecCsrfToken();
+// bootstrap.php normally provides apSecCsrfToken(); keep a local fallback so a
+// partially bootstrapped request cannot die with "undefined function".
+if (function_exists('apSecCsrfToken')) {
+    $csrf = apSecCsrfToken();
+} else {
+    if (empty($_SESSION['_csrf_token']) || !is_string($_SESSION['_csrf_token'])) {
+        $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+    }
+    $csrf = (string)$_SESSION['_csrf_token'];
+}
 
 require_once __DIR__ . '/i18n.php';
 

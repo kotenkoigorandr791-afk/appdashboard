@@ -373,8 +373,10 @@
             }
             return data;
         }).catch(function (err) {
+            // The failure is already reported in the panel; resolving instead of
+            // rethrowing keeps it out of the unhandled-rejection channel.
             setAlert('error', err.message);
-            throw err;
+            return null;
         });
     }
 
@@ -870,14 +872,18 @@
             loadDisk();
             return data;
         }).catch(function (err) {
-            if (seq !== state.loadSeq) throw err;
+            if (seq !== state.loadSeq) return null;
             state.backups = state.backups || [];
             renderBackups();
             renderSnapshots();
             renderJobs();
             if (showErrors) setAlert('error', err.message);
             updateStatus();
-            throw err;
+            // Expected configuration failures ("Repository password is
+            // required.", restic/server errors) are surfaced in the panel; do
+            // not rethrow, otherwise the unhandled rejection is reported as a
+            // JavaScript error.
+            return null;
         });
     }
 
@@ -993,7 +999,7 @@
                 var include = (el(root, '#bdp-restore-include') || {}).value || '';
                 if (!target.trim()) { setAlert('error', t('target_required')); return; }
                 startJob(api('restore', { method: 'POST', body: { snapshot: dataset.snapshot, target: target.trim(), include: include.trim(), profile: state.activeRepo } }))
-                    .then(function () { closeModal(); });
+                    .then(function (data) { if (data) closeModal(); });
                 return;
             case 'restore_form':
                 openRestore(dataset.snapshot, dataset.path || '');

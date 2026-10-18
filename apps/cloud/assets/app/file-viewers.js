@@ -1023,7 +1023,22 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
         finalizeTabFileLoad(fileContainer, path, tabId, loadToken);
         if (typeof syncViewerLayout === 'function') syncViewerLayout();
         } catch (err) {
-        console.error('Error opening file:', err);
+        // A file that vanished server-side (deleted in another tab, stale tab or
+        // recent entry) answers 404. That is an expected state the viewer already
+        // renders, so it must not be reported as an application error.
+        const openErrText = String((err && err.message) || err || '');
+        const openErrMissing = /(^|\D)404(\D|$)/.test(openErrText);
+        if (openErrMissing) {
+            console.warn('File no longer available:', path);
+            try {
+                const recentRows = JSON.parse(localStorage.getItem('cloudRecentFiles') || '[]');
+                if (Array.isArray(recentRows)) {
+                    localStorage.setItem('cloudRecentFiles', JSON.stringify(recentRows.filter((row) => !row || row.path !== path)));
+                }
+            } catch (_) {}
+        } else {
+            console.error('Error opening file:', err);
+        }
         
         // Create a container for the error message
         const viewer = document.getElementById('viewer');

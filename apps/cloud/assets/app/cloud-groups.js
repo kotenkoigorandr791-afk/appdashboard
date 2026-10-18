@@ -102,7 +102,10 @@
                 window.cloudGroupChat.onGroupsLoaded();
             }
         } catch (e) {
-            console.error('groups_list failed', e);
+            // groups_list can fail transiently (server restart, 502 from the
+            // proxy). The empty group list is rendered either way, so keep this
+            // out of the application-error channel.
+            console.warn('groups_list failed', e && e.message ? e.message : e);
         }
     }
     async function switchToGroup(groupId) {

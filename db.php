@@ -37,13 +37,22 @@ function getDB(): AppDatabase {
         $db = AppDatabase::connect();
         $db->enableExceptions(true);
         $schemaStamp = '/opt/AppDashboard/data/.schema_init_stamp';
-        $schemaKey = hash_file('sha256', __FILE__) . ':' . (is_file(__DIR__ . '/lib/pg_foreign_keys.php') ? hash_file('sha256', __DIR__ . '/lib/pg_foreign_keys.php') : '');
+        // Fingerprint the schema sources by mtime+size instead of hashing their
+        // contents on every request: hash_file() opened two extra descriptors per
+        // getDB() call, which contributed to "Too many open files" under load.
+        $schemaKey = app_db_schema_fingerprint(__FILE__) . ':' . app_db_schema_fingerprint(__DIR__ . '/lib/pg_foreign_keys.php');
         if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey || !app_db_schema_ready($db)) {
             initDB($db);
             @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
         }
     }
     return $db;
+}
+function app_db_schema_fingerprint(string $path): string {
+    if (!is_file($path)) return '';
+    $mtime = @filemtime($path) ?: 0;
+    $size = @filesize($path) ?: 0;
+    return $mtime . '-' . $size;
 }
 function app_db_schema_ready(AppDatabase $db): bool {
     try {

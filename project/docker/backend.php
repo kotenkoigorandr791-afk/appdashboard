@@ -132,7 +132,17 @@ if ($view === 'stats' && isset($_GET['id'])) {
     exit;
 }
 if ($view === 'stats_data' && isset($_GET['id'])) {
-    header('Content-Type: application/json; charset=UTF-8');
+    // An earlier PHP warning (e.g. "Too many open files") may already have
+    // flushed output; discard it so the JSON response stays parseable and no
+    // second "headers already sent" warning is triggered.
+    if (headers_sent()) {
+        while (ob_get_level() > 0) {
+            ob_end_clean();
+        }
+    }
+    if (!headers_sent()) {
+        header('Content-Type: application/json; charset=UTF-8');
+    }
     $sid = $_GET['id'];
     if (!validContainerIdParam($sid)) {
         echo json_encode(['ok' => false, 'error' => 'invalid_id'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

@@ -1,8 +1,8 @@
 <script>
-const themeClass = '<?= $theme ?>';
-const primaryColor = '<?= $color ?>';
-const userRole = <?= $userRole ?>;
-const translations = {
+var themeClass = '<?= $theme ?>';
+var primaryColor = '<?= $color ?>';
+var userRole = <?= $userRole ?>;
+var translations = {
     days: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['days']??['day','days'];}echo json_encode($d,JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
     hours: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['hours']??['hour','hours'];}echo json_encode($d,JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
     minutes: <?php $d=[];foreach($translations as $lc=>$ld){$d[$lc]=$ld['minutes']??['minute','minutes'];}echo json_encode($d,JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
@@ -26,7 +26,7 @@ const translations = {
     echo json_encode($jsUi, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG);
     ?>
 };
-const monitorChartsLabels = <?= json_encode([
+var monitorChartsLabels = <?= json_encode([
     'title' => $monitorChartsTitle,
     'system' => $t['system_metrics'] ?? 'System Metrics',
     'disk' => $t['disk_usage'] ?? 'Disk Usage',
@@ -39,12 +39,12 @@ const monitorChartsLabels = <?= json_encode([
     'error' => $t['cleanup_error'] ?? 'Error deleting data',
 ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
 
-const STORAGE_KEY = 'server_monitor_chart_data_v3';
-const DATA_MAX_AGE = 3 * 60 * 60 * 1000;
-const UPDATE_INTERVAL = 120000;
-const SECTION_STORAGE_KEY = 'server_monitor_active_section';
-const MAX_DATA_POINTS = 180;
-const lang = '<?= $lang ?>';
+var STORAGE_KEY = 'server_monitor_chart_data_v3';
+var DATA_MAX_AGE = 3 * 60 * 60 * 1000;
+var UPDATE_INTERVAL = 120000;
+var SECTION_STORAGE_KEY = 'server_monitor_active_section';
+var MAX_DATA_POINTS = 180;
+var lang = '<?= $lang ?>';
 
 function t(key, params = {}) {
     const dict = translations.ui[lang] || {};
@@ -59,31 +59,31 @@ function t(key, params = {}) {
     return str;
 }
 
-const serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
-const serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
+var serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
+var serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 
-let cpuData = [];
-let memoryData = [];
-let diskData = [];
-let networkData = [];
-let swapData = [];
-let graphChart = null;
-let isFetching = false;
-let fetchQueue = [];
-let retryCount = 0;
-const maxRetries = 3;
-let lastNginxSearch = '';
-let lastPhpSearch = '';
-let lastNginxModules = [];
-let lastPhpModules = [];
-let lastSessionEnd = null;
-let currentSessionStart = null;
-let hoverPreviewChart = null;
-let hoverPreviewEl = null;
-let hoverPreviewCanvas = null;
-let hoverPreviewRequestId = 0;
+var cpuData = [];
+var memoryData = [];
+var diskData = [];
+var networkData = [];
+var swapData = [];
+var graphChart = null;
+var isFetching = false;
+var fetchQueue = [];
+var retryCount = 0;
+var maxRetries = 3;
+var lastNginxSearch = '';
+var lastPhpSearch = '';
+var lastNginxModules = [];
+var lastPhpModules = [];
+var lastSessionEnd = null;
+var currentSessionStart = null;
+var hoverPreviewChart = null;
+var hoverPreviewEl = null;
+var hoverPreviewCanvas = null;
+var hoverPreviewRequestId = 0;
 // Latest numeric metrics for reliable caching
-let lastKnownMetrics = {
+var lastKnownMetrics = {
     cpu_usage: 0,
     memory_usage: 0,
     disk_usage: 0,
@@ -91,23 +91,23 @@ let lastKnownMetrics = {
     network_speed: 0,
     uptime: '-'
 };
-let lastKnownDrives = [];
-let lastKnownNetworkInterfaces = [];
-let lastKnownSmartData = null;
-let lastKnownUptimeMonitoring = null;
-let lastKnownDockerContainers = [];
-let uptimeChecksById = {};
-let expandedDockerChecks = {};
-let dockerChartPeriods = {};
-let dockerMetricCharts = {};
-let uptimeGroupCollapsed = { docker: false, other: false };
-let monitorChartsLoaded = false;
-let monitorChartsPeriod = '24h';
-let monitorCharts = {};
+var lastKnownDrives = [];
+var lastKnownNetworkInterfaces = [];
+var lastKnownSmartData = null;
+var lastKnownUptimeMonitoring = null;
+var lastKnownDockerContainers = [];
+var uptimeChecksById = {};
+var expandedDockerChecks = {};
+var dockerChartPeriods = {};
+var dockerMetricCharts = {};
+var uptimeGroupCollapsed = { docker: false, other: false };
+var monitorChartsLoaded = false;
+var monitorChartsPeriod = '24h';
+var monitorCharts = {};
 
 // Auto-zoom state (only for admins)
-let autoZoomEnabled = userRole >= 2;
-let autoZoomScales = {
+var autoZoomEnabled = userRole >= 2;
+var autoZoomScales = {
     cpu: { min: 0, max: 100 },
     memory: { min: 0, max: 100 },
     disk: { min: 0, max: 100 },
@@ -1659,8 +1659,8 @@ function prepareChartData(data, type, label) {
     return { labels, datasets };
 }
 
-let histDataCache = null;
-let histDataCacheTime = 0;
+var histDataCache = null;
+var histDataCacheTime = 0;
 
 async function fetchHistoricalDataIfNeeded() {
     const now = Date.now();
@@ -2045,7 +2045,7 @@ function loadMonitorCharts() {
         });
 }
 
-let appConfirmCallback = null;
+var appConfirmCallback = null;
 
 function openAppConfirmDialog(message, onConfirm, options = {}) {
     const modal = document.getElementById('appConfirmModal');

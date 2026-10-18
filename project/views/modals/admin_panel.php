@@ -2065,11 +2065,15 @@ function loadPanel(target, year){
             wireEvents();
         })
         .catch(function(err){
-            if(err&&err.message===AP_GATE){apGateShow('');}
-            else if(err&&err.message==='csrf_forbidden'){apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>);}
-            else if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();}
+            var expected=false;
+            if(err&&err.message===AP_GATE){apGateShow('');expected=true;}
+            else if(err&&err.message==='csrf_forbidden'){apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>);expected=true;}
+            else if(err&&err.message===AP_UNAUTH){apShowUnauthorizedMsg();expected=true;}
             else if(msgEl){msgEl.style.display=''; msgEl.textContent='Error: '+(err.message||'Unknown error');}
-            console.error('[AdminPanel]',err);
+            // An expired/absent admin session is a normal outcome of the gate,
+            // not an application error worth reporting.
+            if(expected) console.warn('[AdminPanel]',err&&err.message);
+            else console.error('[AdminPanel]',err);
         });
 }
 
