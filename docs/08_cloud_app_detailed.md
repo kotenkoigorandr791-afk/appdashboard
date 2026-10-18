@@ -15,7 +15,7 @@ The Cloud Storage application is the flagship application of the ServerKherson p
 - 3D Viewing: Three.js-based viewer for 3MF, STL, OBJ, FBX, DXF, DWG formats
 - AI Assistant: LLM-powered chat assistant for code help and analysis
 - Document Editing: LaTeX, Markdown, Photo editing, OnlyOffice integration
-- Transcription: Audio-to-text conversion with Python/whisper
+- Transcription: Audio-to-text conversion through the AI hub (speech model from the AI settings)
 - OCR: Tesseract.js optical character recognition
 - WebDAV: WebDAV server for remote file access
 
@@ -158,7 +158,6 @@ Supports all 6 interface languages (en, uk, ru, be, pl, cs) with dynamic languag
 - codemirror: In-browser code editor
 - three.js: 3D rendering
 - tesseract.js: OCR processing
-- whisper.cpp WASM: Speech-to-text
 - filepond: File upload handling
 - dropzone.js: Drag-and-drop uploads
 

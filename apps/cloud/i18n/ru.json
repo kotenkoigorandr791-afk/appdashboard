@@ -897,6 +897,7 @@
   "shareExpiryLabel": "Срок действия ссылки",
   "shareExpiryNever": "Никогда",
   "shareFile": "Поделиться файлом",
+  "shareLinkSettings": "Настройки ссылки",
   "shareLinkCopied": "Ссылка скопирована в буфер обмена!",
   "shareLinkCopiedFallback": "Ссылка скопирована (резервный способ)",
   "shareLinkExpiresAt": "Действует до",

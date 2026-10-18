@@ -3060,13 +3060,24 @@
             }
             const confirmBtnClicked = e.target.closest('.ai-agent-confirm-btn');
             if (confirmBtnClicked) {
+                e.preventDefault();
+                e.stopPropagation();
                 const msg = confirmBtnClicked.closest('.message');
-                const patchId = msg?.dataset.agentPatchId;
-                if (!patchId) return;
+                const patchId = msg?.dataset.agentPatchId || msg?.id || '';
+                if (!msg) return;
+                if (confirmBtnClicked.dataset.applying === '1') return;
+                confirmBtnClicked.dataset.applying = '1';
+                confirmBtnClicked.disabled = true;
                 try {
+                    const undoSnapshot = snapshotAgentPatchesForUndo();
                     if (Object.keys(aiState.pendingAgentPatches).length > 0) {
-                        await applyAllPendingAgentChanges();
-                    } else if (aiState.pendingAgentPatch && aiState.pendingAgentPatch.id === patchId) {
+                        const paths = await applyAllPendingAgentChanges();
+                        await refreshFileTreeAfterAgent(paths);
+                        if (Object.keys(undoSnapshot).length) {
+                            aiState.lastAgentUndo = { messageId: patchId || msg.id, paths: undoSnapshot };
+                            attachAgentUndoFooter(msg, patchId || msg.id);
+                        }
+                    } else if (aiState.pendingAgentPatch && (!patchId || aiState.pendingAgentPatch.id === patchId)) {
                         const beforeText = String(aiState.pendingAgentPatch.beforeText || '');
                         const applied = applyOpsToText(beforeText, aiState.pendingAgentPatch.ops);
                         if (!applied) {
@@ -3078,20 +3089,28 @@
                             flashStatus(tr('aiAgentNoActiveEditor', 'No active editor for patch apply'));
                             return;
                         }
-                        if (typeof window.saveFile === 'function') {
-                            try { await window.saveFile(); } catch (e) { logAiError('Agent apply: saveFile', e); }
-                        } else {
-                            try { await sendIframeMonacoAiAction('save'); } catch (e) { logAiError('Agent apply: iframe save', e); }
+                        const saved = await saveActiveEditorToServer();
+                        if (!saved && typeof window.saveFile === 'function') {
+                            try { await window.saveFile(); } catch (err) { logAiError('Agent apply: saveFile', err); }
                         }
                         clearEditorHighlights();
                         aiState.lastAppliedAgentPatch = { beforeText, afterText: applied.text, id: patchId };
                         aiState.pendingAgentPatch = null;
+                        removeAgentActionFooter(msg);
+                    } else {
+                        flashStatus(tr('aiAgentPatchApplyFailed', 'Could not apply agent patch'));
+                        return;
                     }
-                    removeAgentActionFooter(msg);
+                    msg.querySelector('.ai-agent-apply-footer')?.remove();
+                    delete msg.dataset.agentPatchId;
+                    delete msg.dataset.agentApplied;
                     flashStatus(tr('aiAgentChangesApplied', 'Agent changes applied'));
                 } catch (err) {
                     logAiError('Agent patch apply', err);
                     flashStatus(err.message || tr('aiAgentApplyFailed', 'Apply failed'));
+                } finally {
+                    confirmBtnClicked.dataset.applying = '0';
+                    confirmBtnClicked.disabled = false;
                 }
                 return;
             }
@@ -4837,6 +4856,24 @@
     function hideAgentStreamShell() {
         setAgentStreamText('');
     }
+    function finalizeToolRunAnswer(messageId, answerText, { includeStagedSummary = false } = {}) {
+        stopAgentRunTimer();
+        hideAgentStreamShell();
+        const msgEl = messageId ? document.getElementById(messageId) : getAgentPlanMessageEl();
+        if (!msgEl) return null;
+        applyToolRunRoleToMessage(msgEl.id);
+        ensureAgentPlanContainer(msgEl);
+        hideAgentStreamShell();
+        const answerHost = msgEl.querySelector('.ai-agent-final-answer') || msgEl.querySelector('.message-content');
+        if (answerHost) {
+            answerHost.replaceChildren();
+            answerHost.appendChild(formatResponseInner(answerText || tr('aiEmptyResponse', 'Empty response')));
+            renderMath(answerHost);
+            if (includeStagedSummary) renderAgentStagedSummary(answerHost);
+        }
+        renderAgentPlanInMessage();
+        return msgEl;
+    }
     function formatAgentElapsed(ms) {
         const sec = Math.max(0, Math.floor(ms / 1000));
         if (sec < 60) return `${sec}s`;
@@ -5300,7 +5337,10 @@
     }
     function removeAgentActionFooter(msg) {
         if (!msg) return;
-        msg.querySelector('.message-footer')?.remove();
+        msg.querySelectorAll('.ai-agent-apply-footer, .ai-agent-undo-last-footer').forEach((el) => el.remove());
+        msg.querySelectorAll('.message-footer').forEach((el) => {
+            if (el.querySelector('.ai-agent-confirm-btn, .ai-agent-undo-btn')) el.remove();
+        });
         delete msg.dataset.agentPatchId;
         delete msg.dataset.agentApplied;
     }
@@ -5311,7 +5351,11 @@
         return found ? found[1].after : null;
     }
     function findStagedPatchForOpenFile() {
-        const openFile = normalizeAgentPath(aiState.currentFileName);
+        const openFile = normalizeAgentPath(
+            aiState.currentFileName
+            || window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId)?.path
+            || ''
+        );
         if (!openFile) return null;
         if (aiState.pendingAgentPatches[openFile]) return aiState.pendingAgentPatches[openFile];
         const found = Object.entries(aiState.pendingAgentPatches).find(([p]) => pathsMatchAgent(openFile, p));
@@ -5320,17 +5364,20 @@
     function stageAgentFileChange(filePath, beforeText, afterText, meta = {}) {
         const norm = normalizeAgentPath(filePath);
         if (!norm) return;
+        const activePath = normalizeAgentPath(
+            aiState.currentFileName
+            || window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId)?.path
+            || ''
+        );
         aiState.pendingAgentPatches[norm] = {
             before: String(beforeText ?? ''),
             after: String(afterText ?? ''),
             tool: meta.tool || '',
-            root: meta.root || getRootForAgentPath(norm) || ''
+            root: meta.root || getRootForAgentPath(norm) || getRootForFileContext() || ''
         };
-        const openName = normalizeAgentPath(aiState.currentFileName);
-        if (openName && pathsMatchAgent(openName, norm)) {
+        if (activePath && pathsMatchAgent(activePath, norm)) {
             showAgentPreviewInEditor(aiState.pendingAgentPatches[norm].before, aiState.pendingAgentPatches[norm].after);
         }
-        void persistSingleStagedAgentChange(norm).catch((err) => flashStatus(err.message || 'Save failed'));
     }
     async function persistSingleStagedAgentChange(path) {
         const patch = aiState.pendingAgentPatches[normalizeAgentPath(path)];
@@ -5353,12 +5400,13 @@
     }
     async function applyAllPendingAgentChanges() {
         const entries = Object.entries(aiState.pendingAgentPatches);
+        if (!entries.length) throw new Error(tr('aiAgentPatchApplyFailed', 'Could not apply agent patch'));
         for (const [path, patch] of entries) {
             const body = new URLSearchParams({
                 action: 'ai_agent_tool',
                 tool: 'write_file',
                 args: JSON.stringify({ path, content: patch.after, persist: true }),
-                root: patch.root || getRootForAgentPath(path) || ''
+                root: patch.root || getRootForAgentPath(path) || getRootForFileContext() || ''
             });
             const res = await fetch(AI_CONFIG.fileApiEndpoint, {
                 method: 'POST',
@@ -5368,12 +5416,16 @@
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) throw new Error(data.error || `Failed to apply changes: ${path}`);
+            void highlightNewFilesInTree([{ path: data.path || path, type: 'file', root: data.root || patch.root || '' }]);
         }
         const openPatch = findStagedPatchForOpenFile();
         if (openPatch) {
             setActiveEditorContent(openPatch.after, []);
+            const saved = await saveActiveEditorToServer();
+            if (!saved) {
+                // Disk write already succeeded; keep editor content even if tab save helper failed.
+            }
         }
-        await saveActiveEditorToServer();
         clearEditorHighlights();
         const paths = entries.map(([p]) => p);
         aiState.pendingAgentPatches = {};
@@ -5633,15 +5685,18 @@
         host.appendChild(bar);
     }
     function attachAgentConfirmFooter(messageDiv, messageId) {
-        if (!messageDiv || messageDiv.querySelector('.ai-agent-confirm-btn')) return;
+        if (!messageDiv) return;
+        messageDiv.querySelectorAll('.ai-agent-confirm-btn').forEach((btn) => btn.closest('.message-footer')?.remove());
         const footer = document.createElement('div');
-        footer.className = 'message-footer';
+        footer.className = 'message-footer ai-agent-apply-footer';
         const actions = document.createElement('div');
         actions.className = 'message-actions';
         const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
         confirmBtn.className = 'action-button ai-agent-confirm-btn';
-        confirmBtn.textContent = tr('ok', 'OK');
+        confirmBtn.textContent = tr('apply', 'Apply');
         const undoBtn = document.createElement('button');
+        undoBtn.type = 'button';
         undoBtn.className = 'action-button ai-agent-undo-btn';
         undoBtn.textContent = tr('undo', 'Undo');
         actions.appendChild(confirmBtn);
@@ -7002,7 +7057,7 @@
             }
 
             if (!prepend) {
-                aiState.chatHistory = aiState.chatHistory.concat(newMsgs);
+                aiState.chatHistory = offset === 0 ? newMsgs : aiState.chatHistory.concat(newMsgs);
                 renderChatHistory();
                 setTimeout(setupStickyCodeHeaders, 100);
                 scrollChatToBottom();
@@ -8487,7 +8542,18 @@
                     payload.tool_choice = tool_choice || 'auto';
                 }
                 return fetchAgentCompletionStream(payload, aiState.abortController?.signal, (partial) => {
-                    if (partial && partial.trim()) setAgentStreamText(partial);
+                    if (!(partial && partial.trim())) return;
+                    if (forceAnswerOnly) {
+                        stopAgentRunTimer();
+                        hideAgentStreamShell();
+                        const host = getAgentPlanMessageEl()?.querySelector('.ai-agent-final-answer');
+                        if (host) {
+                            host.replaceChildren();
+                            host.appendChild(formatResponseInner(partial));
+                            return;
+                        }
+                    }
+                    setAgentStreamText(partial);
                 });
             },
             hooks: {
@@ -8613,7 +8679,18 @@
                     payload.tool_choice = tool_choice || 'auto';
                 }
                 return fetchAgentCompletionStream(payload, aiState.abortController?.signal, (partial) => {
-                    if (partial && partial.trim()) setAgentStreamText(partial);
+                    if (!(partial && partial.trim())) return;
+                    if (forceAnswerOnly) {
+                        stopAgentRunTimer();
+                        hideAgentStreamShell();
+                        const host = getAgentPlanMessageEl()?.querySelector('.ai-agent-final-answer');
+                        if (host) {
+                            host.replaceChildren();
+                            host.appendChild(formatResponseInner(partial));
+                            return;
+                        }
+                    }
+                    setAgentStreamText(partial);
                 });
             },
             hooks: {
@@ -8852,21 +8929,14 @@
                     const agentText = String(agentResult?.content || '').trim();
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, agentResult?.usage, agentText, messageWithMentions);
-                    const msgEl = document.getElementById(agentMessageId);
+                    const msgEl = finalizeToolRunAnswer(agentMessageId, agentText, { includeStagedSummary: true });
+                    const metaJson = buildAgentMetaJson(agentText, attachmentsForRequest, mentionedFilesForRequest);
                     if (msgEl) {
-                        applyToolRunRoleToMessage(agentMessageId);
-                        const answerHost = msgEl.querySelector('.ai-agent-final-answer') || msgEl.querySelector('.message-content');
-                        if (answerHost) {
-                            answerHost.replaceChildren();
-                            answerHost.appendChild(formatResponseInner(agentText || tr('aiEmptyResponse', 'Empty response')));
-                            renderMath(answerHost);
-                            renderAgentStagedSummary(answerHost);
-                        }
-                        renderAgentPlanInMessage();
                         appendMessageStatsFooter(msgEl, stats, agentText);
                         const hadStaged = Object.keys(aiState.pendingAgentPatches).length > 0;
                         if (hadStaged) {
                             const undoSnapshot = snapshotAgentPatchesForUndo();
+                            attachAgentConfirmFooter(msgEl, agentMessageId);
                             try {
                                 await persistAgentWorkAfterRun();
                                 aiState.lastAgentUndo = { messageId: agentMessageId, paths: undoSnapshot };
@@ -8877,6 +8947,9 @@
                                     result: tr('aiAgentSavedShort', 'Saved')
                                 });
                                 renderAgentPlanInMessage();
+                                msgEl.querySelector('.ai-agent-apply-footer')?.remove();
+                                delete msgEl.dataset.agentPatchId;
+                                delete msgEl.dataset.agentApplied;
                                 attachAgentUndoFooter(msgEl, agentMessageId);
                                 flashStatus(tr('aiAgentSaved', 'Agent changes saved to disk'));
                             } catch (saveErr) {
@@ -8886,31 +8959,14 @@
                                     status: 'error',
                                     result: saveErr.message || 'Save failed'
                                 });
+                                renderAgentPlanInMessage();
                                 attachAgentConfirmFooter(msgEl, agentMessageId);
-                                setTimeout(async () => {
-                                    if (!Object.keys(aiState.pendingAgentPatches).length || isConfirmDialogOpen()) return;
-                                    const ok = await showConfirmDialog(
-                                        escapeHtml(tr('aiAgentConfirmTitle', 'Apply assistant changes?')),
-                                        escapeHtml(saveErr.message || tr('aiAgentConfirmMessage', 'The assistant staged file changes but could not save them automatically. Apply them now?'))
-                                    );
-                                    if (ok && Object.keys(aiState.pendingAgentPatches).length > 0) {
-                                        try {
-                                            await persistAgentWorkAfterRun();
-                                            aiState.lastAgentUndo = { messageId: agentMessageId, paths: undoSnapshot };
-                                            attachAgentUndoFooter(msgEl, agentMessageId);
-                                        } catch (e) {
-                                            flashStatus(e.message || 'Save failed');
-                                        }
-                                    }
-                                }, 0);
+                                flashStatus(saveErr.message || tr('aiAgentConfirmMessage', 'The assistant staged file changes but could not save them automatically. Apply them now?'));
                             }
                         }
-                        hideAgentStreamShell();
-                        renderAgentPlanInMessage();
                     } else {
                         addMessageToUI('assistant', agentText || tr('aiEmptyResponse', 'Empty response'));
                     }
-                    const metaJson = buildAgentMetaJson(agentText, attachmentsForRequest, mentionedFilesForRequest);
                     const agentMeta = parseAgentMetaJson(metaJson);
                     const currentFile = document.getElementById('viewer')?.dataset.path || fileData?.name || '';
                     await appendChatPairToDb(userFacingMessage, agentText, requestModel, currentFile, stats, metaJson);
@@ -8973,19 +9029,9 @@
                     }
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, chatResult?.usage, chatText, messageWithMentions);
-                    const msgEl = document.getElementById(chatMessageId);
+                    const msgEl = finalizeToolRunAnswer(chatMessageId, chatText);
                     if (msgEl) {
-                        applyToolRunRoleToMessage(chatMessageId);
-                        const answerHost = msgEl.querySelector('.ai-agent-final-answer') || msgEl.querySelector('.message-content');
-                        if (answerHost) {
-                            answerHost.replaceChildren();
-                            answerHost.appendChild(formatResponseInner(chatText || tr('aiEmptyResponse', 'Empty response')));
-                            renderMath(answerHost);
-                        }
-                        renderAgentPlanInMessage();
                         appendMessageStatsFooter(msgEl, stats, chatText);
-                        hideAgentStreamShell();
-                        renderAgentPlanInMessage();
                     } else {
                         addMessageToUI('assistant', chatText || tr('aiEmptyResponse', 'Empty response'));
                     }
@@ -9187,11 +9233,13 @@
                     const actions = document.createElement('div');
                     actions.className = 'message-actions';
                     const confirmBtn = document.createElement('button');
+                    confirmBtn.type = 'button';
                     confirmBtn.className = 'action-button ai-agent-confirm-btn';
-                    confirmBtn.textContent = 'Confirm';
+                    confirmBtn.textContent = tr('apply', 'Apply');
                     const undoBtn = document.createElement('button');
+                    undoBtn.type = 'button';
                     undoBtn.className = 'action-button ai-agent-undo-btn';
-                    undoBtn.textContent = 'Undo';
+                    undoBtn.textContent = tr('undo', 'Undo');
                     undoBtn.disabled = !appliedPreview;
                     actions.appendChild(confirmBtn);
                     actions.appendChild(undoBtn);

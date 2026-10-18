@@ -48,7 +48,6 @@
             translateBackendMessage(message) {
                 const map = {
                     'Preparing startup...': this.translations.starting_transcription,
-                    'Loading Whisper model...': this.logText('log_model_loading', 'Loading Whisper model...'),
                     'Preparing audio...': this.logText('log_audio_preparing', 'Preparing audio...'),
                     'Transcribing audio...': this.logText('log_transcribing', 'Transcribing audio...'),
                     'Saving result...': this.logText('log_saving_result', 'Saving result...'),

@@ -1214,12 +1214,12 @@ function monacoIsTxtFile(filePath) {
     return /\.txt$/i.test(filePath || '');
 }
 
-// Ordered-list continuation for .txt files. The behaviour lives in
+// Ordered-list continuation for prose files. The behaviour lives in
 // assets/monaco-shared.js so that every Monaco editor shares it.
 function monacoSetupTxtNumberedListContinuation(editor, filePath) {
     monacoAddEditorDisposable(
         editor,
-        window.cloudMonacoShared.installTxtNumberedListContinuation({ editor, monaco, filePath })
+        window.cloudMonacoShared.installNumberedListContinuation({ editor, monaco, filePath })
     );
 }
 

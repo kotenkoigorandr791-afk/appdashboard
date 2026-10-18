@@ -426,9 +426,10 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     position: fixed;
     left: 68px;
     top: 0;
-    background: var(--modal-bg);
+    /* Opaque so the tooltip text stays readable over any panel content. */
+    background: color-mix(in srgb, var(--primary-color) 10%, var(--bg-color));
     color: var(--text-color);
-    border: 1px solid var(--border-color);
+    border: 1px solid color-mix(in srgb, var(--border-color) 70%, var(--text-color));
     padding: 5px 10px;
     border-radius: 6px;
     font-size: 12px;
@@ -437,7 +438,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     display: none;
     z-index: 99999;
     font-family: sans-serif;
-    box-shadow: 0 4px 12px rgba(0,0,0,.2);
+    box-shadow: 0 6px 18px rgba(0,0,0,.35);
 }
 .ap-nav-btn:hover .ap-tooltip { display: none; }
 .ap-sidebar-divider {
@@ -2941,41 +2942,6 @@ function wireEvents(){
     if(tgSv) tgSv.addEventListener('click',function(){setStatus(tgSt,T.saving,'info');tgReq('save_tg_bot_config').then(function(d){setStatus(tgSt,d.success?('+ '+T.tg_saved):('x '+(d.error||T.error)),d.success?'success':'error');});});
     if(tgTs) tgTs.addEventListener('click',function(){setStatus(tgSt,'...','info');tgReq('test_tg_bot').then(function(d){setStatus(tgSt,d.success?('+ '+T.tg_test_ok):('x '+(d.error||T.tg_test_fail)),d.success?'success':'error');});});
     if(tgGn) tgGn.addEventListener('click',function(){setStatus(tgSt,T.saving,'info');var fd=new FormData();fd.append('generate_tg_link_token','1');fd.append('ajax','1');var sel=dynRoot.querySelector('#ap-tg-link-email');fd.append('tg_link_email',sel?sel.value:'');fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){var out=dynRoot.querySelector('#ap-tg-link-token');if(d.success&&out)out.value=d.token;setStatus(tgSt,d.success?('+ '+(d.token||'')):('x '+(d.error||T.error)),d.success?'success':'error');}).catch(function(){setStatus(tgSt,'x Network error','error');});});
-    var dkSt=dynRoot.querySelector('#ap-docker-status'),dkSv=dynRoot.querySelector('#ap-save-docker'),dkFrame=dynRoot.querySelector('#ap-docker-frame');
-    if(dkSv) dkSv.addEventListener('click',function(){
-        setStatus(dkSt,T.saving,'info');
-        var fd=new FormData();
-        fd.append('save_docker_config','1');
-        fd.append('ajax','1');
-        fd.append('docker_token',(dynRoot.querySelector('#ap-docker-token')||{value:''}).value);
-        fd.append('docker_username',(dynRoot.querySelector('#ap-docker-username')||{value:''}).value);
-        fd.append('docker_password',(dynRoot.querySelector('#ap-docker-password')||{value:''}).value);
-        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-            setStatus(dkSt,d.success?('+ '+T.docker_saved):('x '+(d.error||T.error)),d.success?'success':'error');
-            if(d.success&&dkFrame){
-                var u=new URL(dkFrame.src,window.location.origin);
-                u.searchParams.set('docker_domain','localhost');
-                u.searchParams.set('lang',<?php echo json_encode($language, JSON_HEX_TAG); ?>);
-                u.searchParams.set('theme',<?php echo json_encode($themeForAppLink, JSON_HEX_TAG); ?>);
-                u.searchParams.set('color',<?php echo json_encode($config['color'] ?? '#007bff', JSON_HEX_TAG); ?>);
-                dkFrame.src=u.toString();
-            }
-        }).catch(function(){setStatus(dkSt,'x '+T.error,'error');});
-    });
-    var orSt=dynRoot.querySelector('#ap-omniroute-status'),orSv=dynRoot.querySelector('#ap-save-omniroute');
-    if(orSv) orSv.addEventListener('click',function(){
-        setStatus(orSt,T.saving,'info');
-        var fd=new FormData();
-        fd.append('save_omniroute_oauth_config','1');
-        fd.append('ajax','1');
-        fd.append('omniroute_google_client_id',(dynRoot.querySelector('#ap-omniroute-gcid')||{value:''}).value.trim());
-        fd.append('omniroute_google_client_secret',(dynRoot.querySelector('#ap-omniroute-gcsecret')||{value:''}).value.trim());
-        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-            var ok=!!d.success, msg=d.message||d.error||T.error;
-            setStatus(orSt,(ok?'+ ':'x ')+msg,ok?'success':'error');
-            if(ok&&typeof showTempNotification!=='undefined')showTempNotification(msg,'success');
-        }).catch(function(){setStatus(orSt,'x '+T.error,'error');});
-    });
     var ooSt=dynRoot.querySelector('#ap-onlyoffice-status'),ooSv=dynRoot.querySelector('#ap-save-onlyoffice');
     if(ooSv) ooSv.addEventListener('click',function(){
         setStatus(ooSt,T.saving,'info');
@@ -2988,19 +2954,6 @@ function wireEvents(){
             if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.onlyoffice_saved,'success');
         }).catch(function(){setStatus(ooSt,'x '+T.error,'error');});
     });
-    var bkHost=dynRoot.querySelector('#ap-backup-host'),bkToken=dynRoot.querySelector('#ap-backup-token'),bkSt=dynRoot.querySelector('#ap-backup-creds-status'),bkSave=dynRoot.querySelector('#ap-save-backup-creds'),bkDel=dynRoot.querySelector('#ap-delete-backup-creds'),bkFrame=dynRoot.querySelector('#ap-backup-frame');
-    function normalizeBackupTokenAdmin(v){var s=String(v||'').trim().replace(/^\uFEFF/,'');while(/^bearer\s+/i.test(s))s=s.replace(/^bearer\s+/i,'').trim();return s;}
-    function reloadBackupFrame(){if(!bkFrame)return;try{var u=new URL(bkFrame.src,window.location.origin);u.searchParams.set('_ts',Date.now().toString());bkFrame.src=u.toString();}catch(e){bkFrame.src=bkFrame.src;}}
-    function loadBackupCreds(){
-        if(!bkToken)return;
-        setStatus(bkSt,'Loading...','info');
-        fetch('/backup_dashboard.php?config=load',{credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
-            if(bkHost)bkHost.value=d.host||'http://127.0.0.1:8200';
-            if(bkToken)bkToken.value=normalizeBackupTokenAdmin(d.token||'');
-            setStatus(bkSt,d.token?'Loaded':'Not configured',d.token?'success':'info');
-        }).catch(function(){setStatus(bkSt,'x '+T.error,'error');});
-    }
-    loadBackupCreds();
     var aiSt=dynRoot.querySelector('#ap-ai-config-status'),aiSave=dynRoot.querySelector('#ap-save-ai-config'),aiNewKey=dynRoot.querySelector('#ap-ai-new-key'),aiConfirmKey=dynRoot.querySelector('#ap-ai-confirm-key'),aiMatch=dynRoot.querySelector('#ap-ai-key-match');
     function checkAiKeyMatch(){
         if(!aiMatch||!aiNewKey||!aiConfirmKey)return;
@@ -3013,7 +2966,7 @@ function wireEvents(){
     if(aiNewKey)aiNewKey.addEventListener('input',checkAiKeyMatch);
     if(aiConfirmKey)aiConfirmKey.addEventListener('input',checkAiKeyMatch);
     if(aiSave)aiSave.addEventListener('click',function(){
-        var endpointEl=dynRoot.querySelector('#ap-ai-endpoint'),modelsEl=dynRoot.querySelector('#ap-ai-models'),defaultEl=dynRoot.querySelector('#ap-ai-default-model'),currentEl=dynRoot.querySelector('#ap-ai-current-key');
+        var endpointEl=dynRoot.querySelector('#ap-ai-endpoint'),modelsEl=dynRoot.querySelector('#ap-ai-models'),defaultEl=dynRoot.querySelector('#ap-ai-default-model'),currentEl=dynRoot.querySelector('#ap-ai-current-key'),speechModelsEl=dynRoot.querySelector('#ap-ai-speech-models'),speechModelEl=dynRoot.querySelector('#ap-ai-speech-model');
         var newKey=aiNewKey?aiNewKey.value.trim():'',confirmKey=aiConfirmKey?aiConfirmKey.value.trim():'';
         var hasKey=!!(newKey||confirmKey);
         if(hasKey){
@@ -3029,6 +2982,8 @@ function wireEvents(){
         fd.append('api_endpoint',endpointEl?endpointEl.value.trim():'');
         fd.append('models',modelsEl?modelsEl.value.trim():'');
         fd.append('default_model',defaultEl?defaultEl.value.trim():'');
+        fd.append('speech_models',speechModelsEl?speechModelsEl.value.trim():'');
+        fd.append('speech_model',speechModelEl?speechModelEl.value.trim():'');
         if(hasKey)fd.append('api_key',newKey);
         fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
             setStatus(aiSt,d.success?('+ '+(d.message||T.ai_config_saved)+(d.has_key===false?' · API key missing':'')):('x '+(d.error||T.error)),d.success&&d.has_key!==false?'success':'error');
@@ -3038,6 +2993,8 @@ function wireEvents(){
                     if(endpointEl&&d.config.api_endpoint)endpointEl.value=d.config.api_endpoint;
                     if(modelsEl&&Array.isArray(d.config.models))modelsEl.value=d.config.models.join('\n');
                     if(defaultEl&&d.config.default_model)defaultEl.value=d.config.default_model;
+                    if(speechModelsEl&&Array.isArray(d.config.speech_models))speechModelsEl.value=d.config.speech_models.join('\n');
+                    if(speechModelEl&&d.config.speech_model)speechModelEl.value=d.config.speech_model;
                     if(currentEl&&d.config.api_key){currentEl.value=d.config.api_key;currentEl.type='password';}
                 }
                 if(aiNewKey)aiNewKey.value='';
@@ -3046,34 +3003,6 @@ function wireEvents(){
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
     });
-    if(bkSave)bkSave.addEventListener('click',function(){
-        var host=(bkHost?bkHost.value:'').trim()||'http://127.0.0.1:8200';
-        var token=normalizeBackupTokenAdmin(bkToken?bkToken.value:'');
-        if(!/^https?:\/\//i.test(host)){setStatus(bkSt,'x Invalid Duplicati URL','error');return;}
-        if(!token){setStatus(bkSt,'x Token is required','error');return;}
-        setStatus(bkSt,T.saving,'info');
-        fetch('/backup_dashboard.php?config=save',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({host:host,token:token})}).then(function(r){
-            return r.json().then(function(d){d._ok=r.ok;return d;}).catch(function(){return{_ok:r.ok,error:'Save failed'};});
-        }).then(function(d){
-            setStatus(bkSt,d._ok?('+ '+T.backup_saved):('x '+(d.error||T.error)),d._ok?'success':'error');
-            if(d._ok){if(typeof showTempNotification!=='undefined')showTempNotification(T.backup_saved,'success');reloadBackupFrame();}
-        }).catch(function(){setStatus(bkSt,'x '+T.error,'error');});
-    });
-    if(bkDel)bkDel.addEventListener('click',function(){
-        var _bkMsg=(T.backup_deleted||'Delete backup credentials')+'?';
-        if(typeof fmConfirm==='function'){fmConfirm(_bkMsg,function(){doBkDel();});return;}
-        if(!confirm(_bkMsg))return;
-        doBkDel();
-    });
-    function doBkDel(){
-        setStatus(bkSt,T.saving,'info');
-        fetch('/backup_dashboard.php?config=delete',{method:'POST',credentials:'same-origin'}).then(function(r){return r.json();}).then(function(d){
-            if(bkHost)bkHost.value='';
-            if(bkToken)bkToken.value='';
-            setStatus(bkSt,d.ok?('+ '+T.backup_deleted):('x '+(d.error||T.error)),d.ok?'success':'error');
-            if(d.ok)reloadBackupFrame();
-        }).catch(function(){setStatus(bkSt,'x '+T.error,'error');});
-    }
     var accGrid=dynRoot.querySelector('#ap-app-access-grid'),accSort=dynRoot.querySelector('#ap-app-access-sort'),accSav=dynRoot.querySelector('#ap-save-app-access'),accSt=dynRoot.querySelector('#ap-app-access-status');
     function apSortAccessTiles(){if(!accGrid||!accSort)return;var tiles=Array.from(accGrid.querySelectorAll('.ap-app-access-tile')),m=accSort.value;tiles.sort(function(a,b){if(m==='name')return(a.dataset.name||'').localeCompare(b.dataset.name||'');if(m==='role')return parseInt(a.dataset.role,10)-parseInt(b.dataset.role,10);return parseInt(b.dataset.visits,10)-parseInt(a.dataset.visits,10);});tiles.forEach(function(t){accGrid.appendChild(t);});}
     if(accSort) accSort.addEventListener('change',apSortAccessTiles);

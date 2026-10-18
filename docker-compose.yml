@@ -56,8 +56,6 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
       MODELS_ROOT: /opt/ApplicationData/models
       HF_HOME: /opt/ApplicationData/models/huggingface
-      TORCH_HOME: /opt/ApplicationData/models/torch
-      WHISPER_CACHE: /opt/ApplicationData/models/whisper
       U2NET_HOME: /opt/ApplicationData/models/rembg
       XDG_CACHE_HOME: /opt/ApplicationData/models/cache
       XDG_DATA_HOME: /opt/ApplicationData/models

@@ -60,7 +60,7 @@ apps/cloud/
 - 3D viewing (Three.js: 3MF, STL, OBJ, FBX, DXF, DWG)
 - AI integration (LM Studio proxy, chat)
 - Document editing (LaTeX, Markdown, OnlyOffice, Photo editor)
-- Transcription (Python/whisper, Tesseract.js OCR)
+- Transcription (AI hub speech model, Tesseract.js OCR)
 - WebDAV support (`/webdav` and `apps/cloud/webdav.php`)
 
 ---

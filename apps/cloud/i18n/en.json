@@ -897,6 +897,7 @@
   "shareExpiryLabel": "Link expiration",
   "shareExpiryNever": "Never",
   "shareFile": "Share File",
+  "shareLinkSettings": "Link settings",
   "shareLinkCopied": "Link copied to clipboard!",
   "shareLinkCopiedFallback": "Link copied (fallback method)",
   "shareLinkExpiresAt": "Valid until",

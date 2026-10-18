@@ -718,6 +718,10 @@
                     monaco: monaco,
                     getLang: function () { return shared.resolveLang(lang); }
                 });
+                // Enter on "1. item" continues the list with "2. ", like the .txt editor.
+                if (shared.installNumberedListContinuation) {
+                    shared.installNumberedListContinuation({ editor: editor, monaco: monaco, filePath: filePath });
+                }
                 
                 if (window.monacoTouchSelection) {
                     window.monacoTouchSelection.enable(editor, document.getElementById('editor-container'));

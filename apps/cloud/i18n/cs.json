@@ -894,6 +894,7 @@
   "shareExpiryLabel": "Vypršení platnosti odkazu",
   "shareExpiryNever": "Nikdy",
   "shareFile": "Sdílet soubor",
+  "shareLinkSettings": "Nastavení odkazu",
   "shareLinkCopied": "Odkaz zkopírován do schránky!",
   "shareLinkCopiedFallback": "Odkaz zkopírován (záložní metoda)",
   "shareLinkExpiresAt": "Platí do",

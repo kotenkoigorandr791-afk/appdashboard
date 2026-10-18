@@ -9,6 +9,8 @@ const CLOUD_AI_CFG_ENDPOINT = 'api_endpoint';
 const CLOUD_AI_CFG_KEY = 'api_key';
 const CLOUD_AI_CFG_MODELS = 'models';
 const CLOUD_AI_CFG_DEFAULT_MODEL = 'default_model';
+const CLOUD_AI_CFG_SPEECH_MODELS = 'speech_models';
+const CLOUD_AI_CFG_SPEECH_MODEL = 'speech_model';
 const CLOUD_AI_LEGACY_KEYS = [
     'api_endpoint' => 'cloud_ai_api_endpoint',
     'api_key' => 'cloud_ai_api_key',
@@ -36,6 +38,13 @@ const CLOUD_AI_DEFAULT_MODELS = [
     'auto/coding:pro',
     'auto/best-coding',
 ];
+
+const CLOUD_AI_DEFAULT_SPEECH_MODELS = [
+    'groq/whisper-large-v3',
+    'groq/whisper-large-v3-turbo',
+    'cohere/cohere-transcribe-03-2026',
+];
+const CLOUD_AI_DEFAULT_SPEECH_MODEL = 'groq/whisper-large-v3';
 
 function cloud_ai_db(): ?AppDatabase
 {
@@ -240,6 +249,12 @@ function cloud_ai_seed_defaults(): void
     if (cloud_ai_get_config(CLOUD_AI_CFG_MODELS, '') === '') {
         cloud_ai_set_config(CLOUD_AI_CFG_MODELS, cloud_ai_models_to_json(CLOUD_AI_DEFAULT_MODELS));
     }
+    if (cloud_ai_get_config(CLOUD_AI_CFG_SPEECH_MODELS, '') === '') {
+        cloud_ai_set_config(CLOUD_AI_CFG_SPEECH_MODELS, cloud_ai_models_to_json(CLOUD_AI_DEFAULT_SPEECH_MODELS));
+    }
+    if (cloud_ai_get_config(CLOUD_AI_CFG_SPEECH_MODEL, '') === '') {
+        cloud_ai_set_config(CLOUD_AI_CFG_SPEECH_MODEL, CLOUD_AI_DEFAULT_SPEECH_MODEL);
+    }
 }
 
 function cloud_ai_load_config(): array
@@ -257,11 +272,21 @@ function cloud_ai_load_config(): array
     if ($defaultModel === '' || !in_array($defaultModel, $models, true)) {
         $defaultModel = $models[0] ?? CLOUD_AI_DEFAULT_MODEL;
     }
+    $speechModels = cloud_ai_parse_models_list(cloud_ai_get_config(CLOUD_AI_CFG_SPEECH_MODELS, ''));
+    if ($speechModels === []) {
+        $speechModels = CLOUD_AI_DEFAULT_SPEECH_MODELS;
+    }
+    $speechModel = trim(cloud_ai_get_config(CLOUD_AI_CFG_SPEECH_MODEL, CLOUD_AI_DEFAULT_SPEECH_MODEL));
+    if ($speechModel === '' || !in_array($speechModel, $speechModels, true)) {
+        $speechModel = $speechModels[0] ?? CLOUD_AI_DEFAULT_SPEECH_MODEL;
+    }
     return [
         'api_key' => trim(cloud_ai_get_config(CLOUD_AI_CFG_KEY, '')),
         'api_endpoint' => cloud_ai_normalize_endpoint(cloud_ai_get_config(CLOUD_AI_CFG_ENDPOINT, cloud_ai_default_endpoint())),
         'default_model' => $defaultModel,
         'models' => $models,
+        'speech_model' => $speechModel,
+        'speech_models' => $speechModels,
     ];
 }
 
@@ -311,6 +336,29 @@ function cloud_ai_save_config(array $newConfig): array
         if (!in_array($current['default_model'], $models, true)) {
             $current['default_model'] = $models[0];
             cloud_ai_set_config(CLOUD_AI_CFG_DEFAULT_MODEL, $current['default_model']);
+        }
+    }
+    if (isset($newConfig['speech_models'])) {
+        $speechModels = cloud_ai_parse_models_list($newConfig['speech_models']);
+        if ($speechModels === []) {
+            $speechModels = CLOUD_AI_DEFAULT_SPEECH_MODELS;
+        }
+        cloud_ai_set_config(CLOUD_AI_CFG_SPEECH_MODELS, cloud_ai_models_to_json($speechModels));
+        $current['speech_models'] = $speechModels;
+        if (!in_array($current['speech_model'] ?? '', $speechModels, true)) {
+            $current['speech_model'] = $speechModels[0];
+            cloud_ai_set_config(CLOUD_AI_CFG_SPEECH_MODEL, $current['speech_model']);
+        }
+    }
+    if (isset($newConfig['speech_model'])) {
+        $speechModel = trim((string)$newConfig['speech_model']);
+        if ($speechModel !== '') {
+            if (!in_array($speechModel, $current['speech_models'] ?? [], true)) {
+                $current['speech_models'][] = $speechModel;
+                cloud_ai_set_config(CLOUD_AI_CFG_SPEECH_MODELS, cloud_ai_models_to_json($current['speech_models']));
+            }
+            cloud_ai_set_config(CLOUD_AI_CFG_SPEECH_MODEL, $speechModel);
+            $current['speech_model'] = $speechModel;
         }
     }
     return ['success' => true, 'message' => 'AI configuration updated', 'config' => $current];

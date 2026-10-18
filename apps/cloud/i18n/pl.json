@@ -894,6 +894,7 @@
   "shareExpiryLabel": "Wygaśnięcie linku",
   "shareExpiryNever": "Nigdy",
   "shareFile": "Udostępnij plik",
+  "shareLinkSettings": "Ustawienia linku",
   "shareLinkCopied": "Link skopiowany do schowka!",
   "shareLinkCopiedFallback": "Link skopiowany (metoda awaryjna)",
   "shareLinkExpiresAt": "Ważne do",

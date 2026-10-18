@@ -6,8 +6,6 @@ ENV PIP_RETRIES=10
 ENV PYTHONUNBUFFERED=1
 ENV MODELS_ROOT=/opt/ApplicationData/models
 ENV HF_HOME=/opt/ApplicationData/models/huggingface
-ENV TORCH_HOME=/opt/ApplicationData/models/torch
-ENV WHISPER_CACHE=/opt/ApplicationData/models/whisper
 ENV U2NET_HOME=/opt/ApplicationData/models/rembg
 ENV XDG_CACHE_HOME=/opt/ApplicationData/models/cache
 ENV XDG_DATA_HOME=/opt/ApplicationData/models
@@ -23,7 +21,7 @@ COPY deploy/python-sidecar/requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 COPY lib/pg_db.py lib/pg_sqlite_compat.py lib/pg_user_db.py /app/lib/
-COPY apps/cloud/transcribe.py apps/cloud/tts_generate.py /app/apps/cloud/
+COPY apps/cloud/tts_generate.py /app/apps/cloud/
 COPY apps/recipes/bg_remove.py /app/apps/recipes/
 COPY apps/spends/utils/parser_bridge.py apps/spends/utils/expense_ocr_worker.py apps/spends/utils/merchant_classifier.py /app/apps/spends/utils/
 COPY deploy/python-sidecar/process_pdf.py deploy/python-sidecar/server.py deploy/python-sidecar/entrypoint.sh /app/

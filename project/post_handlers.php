@@ -1168,8 +1168,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
         $_apAuthCfg  = loadAuthConfig();
         $_apTgCfg    = loadTgBotConfig();
-        $_apDockerCfg= loadDockerConfig();
-        $_apOmnirouteCfg = loadOmnirouteOAuthConfig();
         $_apAccessSec = loadAppAccessSecurityConfig();
         $_apHostCountry = appAccessHostCountry();
         $_apCountries = [
@@ -1308,7 +1306,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-users-autosave-hint"><span style="font-size:12px;opacity:.4;font-family:sans-serif;"><?php echo my_htmlspecialchars($translations['ap_autosave']??'Changes are saved automatically on edit'); ?></span></div>
             </div>
         </div>
-        <!-- Settings Panel (Email, Telegram, Docker, Backup) -->
+        <!-- Settings Panel (Email, Telegram, OnlyOffice, AI) -->
         <div class="ap-panel" id="ap-settings">
             <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['settings_title']??'Settings'); ?></span></div>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['settings_title']??'System Settings'); ?></div>
@@ -1323,21 +1321,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.373 0 0 5.373 0 12s5.373 12 12 12 12-5.373 12-12S18.627 0 12 0zm5.894 8.221l-1.97 9.28c-.145.658-.537.818-1.084.508l-3-2.21-1.447 1.394c-.16.16-.295.295-.605.295l.213-3.053 5.56-5.023c.242-.213-.054-.333-.373-.12l-6.871 4.326-2.962-.924c-.643-.204-.657-.643.136-.953l11.57-4.461c.537-.194 1.006.131.833.941z"/></svg>
                     <span><?php echo my_htmlspecialchars($translations['bot_settings']??'Telegram Bot'); ?></span>
                 </button>
-                <button type="button" class="ap-settings-tab" data-settings-section="docker" role="tab" aria-selected="false">
-                    <svg width="16" height="16" viewBox="0 0 50 50"><path d="M20 9v5H10v5H5v5H1.125c-.484 0-.883.336-.969.813C.148 24.848 0 25.684 0 26.75c0 .7.066 1.461.188 2.219C1.332 28.695 3.43 28.285 3.063 26.938c1.972 2.285 6.706 1.593 7.905.468 1.34 1.942 9.145 1.2 9.688-.312 1.68 1.969 6.887 1.969 8.563 0 .543 1.512 8.316 2.254 9.656.312.426.399 1.313.731 2.344.907.347-.66.668-1.325.968-2.032C48.54 26.203 49.91 21.637 49.97 21.438c.11-.383-.04-.778-.344-1.032-.105-.09-2.45-1.992-6.25-1.343-1.066-3.473-3.813-5.055-3.938-5.125-.359-.204-.804-.172-1.125.093-.101.082-2.464 2.086-2.093 6.188.093 1.031.363 1.941.781 2.75-.82.457-2.23 1.031-4.5 1.031H32v-5h-5V9H20zm20.813 20H.188c.242 1.469.742 3.008 1.5 4.5C4.313 36.98 8.762 42 17 42c10.805 0 19.113-4.59 23.813-13zM22 11h3v3h-3v-3zm-10 5h3v3h-3v-3zm5 0h3v3h-3v-3zm5 0h3v3h-3v-3zM7 21h3v3H7v-3zm5 0h3v3h-3v-3zm5 0h3v3h-3v-3zm5 0h3v3h-3v-3zm5 0h3v3h-3v-3z" fill="currentColor"/></svg>
-                    <span><?php echo my_htmlspecialchars($translations['docker_title']??'Docker'); ?></span>
-                </button>
-                <button type="button" class="ap-settings-tab" data-settings-section="omniroute" role="tab" aria-selected="false">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
-                    <span><?php echo my_htmlspecialchars($translations['omniroute_title']??'OmniRoute'); ?></span>
-                </button>
                 <button type="button" class="ap-settings-tab" data-settings-section="onlyoffice" role="tab" aria-selected="false">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h10a2 2 0 0 1 2 2v3h-2V6H5v12h6v2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M14 12v-2l5 3-5 3v-2H9v-2h5z"/></svg>
                     <span><?php echo my_htmlspecialchars($translations['onlyoffice_title']??'OnlyOffice'); ?></span>
-                </button>
-                <button type="button" class="ap-settings-tab" data-settings-section="backup" role="tab" aria-selected="false">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                    <span><?php echo my_htmlspecialchars($translations['backup']??'Backup'); ?></span>
                 </button>
                 <button type="button" class="ap-settings-tab" data-settings-section="ai" role="tab" aria-selected="false">
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
@@ -1393,22 +1379,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-status" id="ap-tg-status"></div>
             </div>
 
-            <!-- Docker Settings -->
-            <div class="ap-card ap-settings-card" data-settings-card="docker">
-                <div class="ap-card-title"><svg xmlns="http://www.w3.org/2000/svg" x="0px" y="0px" width="20" height="20" viewBox="0 0 50 50"><path d="M 20 9 L 20 14 L 10 14 L 10 19 L 5 19 L 5 24 L 1.125 24 C 0.640625 24 0.242188 24.335938 0.15625 24.8125 C 0.148438 24.847656 0 25.683594 0 26.75 C 0 27.449219 0.0664063 28.210938 0.1875 28.96875 C 1.332031 28.695313 3.429688 28.285156 3.0625 26.9375 C 5.035156 29.222656 9.769531 28.53125 10.96875 27.40625 C 12.308594 29.347656 20.113281 28.605469 20.65625 27.09375 C 22.335938 29.0625 27.542969 29.0625 29.21875 27.09375 C 29.761719 28.605469 37.535156 29.347656 38.875 27.40625 C 39.300781 27.804688 40.1875 28.136719 41.21875 28.3125 C 41.566406 27.652344 41.886719 26.988281 42.1875 26.28125 C 48.539063 26.203125 49.910156 21.636719 49.96875 21.4375 C 50.078125 21.054688 49.929688 20.660156 49.625 20.40625 C 49.519531 20.316406 47.175781 18.414063 43.375 19.0625 C 42.308594 15.589844 39.5625 14.007813 39.4375 13.9375 C 39.078125 13.734375 38.632813 13.765625 38.3125 14.03125 C 38.210938 14.113281 35.847656 16.117188 36.21875 20.21875 C 36.3125 21.25 36.582031 22.160156 37 22.96875 C 36.179688 23.425781 34.769531 24 32.5 24 L 32 24 L 32 19 L 27 19 L 27 9 Z M 41.21875 28.3125 C 41.097656 28.546875 40.941406 28.773438 40.8125 29 L 49.84375 29 C 48.757813 28.726563 46.425781 28.359375 46.8125 26.9375 C 45.535156 28.414063 43.109375 28.632813 41.21875 28.3125 Z M 40.8125 29 L 0.1875 29 C 0.429688 30.46875 0.929688 32.007813 1.6875 33.5 C 7.117188 34.777344 12.816406 32.832031 12.875 32.8125 C 13.398438 32.628906 13.945313 32.917969 14.125 33.4375 C 14.308594 33.957031 14.050781 34.539063 13.53125 34.71875 C 13.339844 34.785156 9.90625 35.9375 5.6875 35.9375 C 4.851563 35.9375 3.972656 35.890625 3.09375 35.78125 C 5.71875 39.261719 10.167969 42 17 42 C 27.804688 42 36.113281 37.410156 40.8125 29 Z M 0.1875 29 C 0.183594 28.984375 0.191406 28.984375 0.1875 28.96875 C 0.121094 28.984375 0.0585938 28.984375 0 29 Z M 22 11 L 25 11 L 25 14 L 22 14 Z M 12 16 L 15 16 L 15 19 L 12 19 Z M 17 16 L 20 16 L 20 19 L 17 19 Z M 22 16 L 25 16 L 25 19 L 22 19 Z M 7 21 L 10 21 L 10 24 L 7 24 Z M 12 21 L 15 21 L 15 24 L 12 24 Z M 17 21 L 20 21 L 20 24 L 17 24 Z M 22 21 L 25 21 L 25 24 L 22 24 Z M 27 21 L 30 21 L 30 24 L 27 24 Z M 16 31 C 16.128906 31 16.261719 31.019531 16.375 31.0625 C 16.253906 31.132813 16.15625 31.253906 16.15625 31.40625 C 16.15625 31.632813 16.335938 31.84375 16.5625 31.84375 C 16.714844 31.84375 16.867188 31.75 16.9375 31.625 C 16.988281 31.742188 17 31.863281 17 32 C 17 32.550781 16.550781 33 16 33 C 15.449219 33 15 32.550781 15 32 C 15 31.449219 15.449219 31 16 31 Z" fill="currentColor"/></svg><?php echo my_htmlspecialchars($translations['docker_title']??'Docker'); ?></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['docker_token_label']??'API Token'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-docker-token" value="<?php echo my_htmlspecialchars($_apDockerCfg['token']??''); ?>" placeholder="ptr_xxxxx"><button type="button" class="ap-pwd-eye" data-target="ap-docker-token"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['docker_username_label']??'API Username'); ?></label><input type="text" id="ap-docker-username" value="<?php echo my_htmlspecialchars($_apDockerCfg['username']??''); ?>" placeholder="login"></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['docker_password_label']??'API Password'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-docker-password" value="<?php echo my_htmlspecialchars($_apDockerCfg['password']??''); ?>" placeholder="password"><button type="button" class="ap-pwd-eye" data-target="ap-docker-password"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
-                <div class="ap-btn-row"><button type="button" id="ap-save-docker" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button></div>
-                <div class="ap-status" id="ap-docker-status"></div>
-            </div>
-            <div class="ap-card ap-settings-card" data-settings-card="omniroute">
-                <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg><?php echo my_htmlspecialchars($translations['omniroute_title']??'OmniRoute'); ?></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['omniroute_google_client_id']??'Google OAuth Client ID'); ?></label><input type="text" id="ap-omniroute-gcid" value="<?php echo my_htmlspecialchars($_apOmnirouteCfg['google_client_id']??''); ?>" placeholder="xxxx.apps.googleusercontent.com"></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['omniroute_google_client_secret']??'Google OAuth Client Secret'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-omniroute-gcsecret" value="<?php echo my_htmlspecialchars($_apOmnirouteCfg['google_client_secret']??''); ?>" placeholder="GOCSPX-..."><button type="button" class="ap-pwd-eye" data-target="ap-omniroute-gcsecret"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
-                <div class="ap-btn-row"><button type="button" id="ap-save-omniroute" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button></div>
-                <div class="ap-status" id="ap-omniroute-status"></div>
-            </div>
             <div class="ap-card ap-settings-card" data-settings-card="onlyoffice">
                 <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M5 4h10a2 2 0 0 1 2 2v3h-2V6H5v12h6v2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2z"/><path d="M14 12v-2l5 3-5 3v-2H9v-2h5z"/></svg><?php echo my_htmlspecialchars($translations['onlyoffice_title']??'OnlyOffice'); ?></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['onlyoffice_token_label']??'JWT Token'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-onlyoffice-token" value="<?php echo my_htmlspecialchars($_apOnlyofficeToken??''); ?>" placeholder="your-onlyoffice-jwt-token"><button type="button" class="ap-pwd-eye" data-target="ap-onlyoffice-token"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['onlyoffice_token_hint']??'Stored in the config table with key onlyoffice_jwt_secret.'); ?></div></div>
@@ -1416,17 +1386,6 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-status" id="ap-onlyoffice-status"></div>
             </div>
 
-            <!-- Backup Settings -->
-            <div class="ap-card ap-settings-card" data-settings-card="backup">
-                <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg><?php echo my_htmlspecialchars($translations['backup_settings']??'Backup Credentials'); ?></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['backup_host_label']??'Duplicati URL'); ?></label><input type="text" id="ap-backup-host" value="" placeholder="http://127.0.0.1:8200"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['backup_host_hint']??'URL reachable from the AppDashboard server.'); ?></div></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['backup_token_label']??'API Token (Forever Token)'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-backup-token" value="" placeholder="JWT token; Bearer prefix is optional"><button type="button" class="ap-pwd-eye" data-target="ap-backup-token"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div><div class="ap-hint"><?php echo my_htmlspecialchars($translations['backup_credentials_hint']??'Stored encrypted in the database and used by the Backup manager.'); ?></div></div>
-                <div class="ap-btn-row">
-                    <button type="button" id="ap-save-backup-creds" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button>
-                    <button type="button" id="ap-delete-backup-creds" class="ap-btn ap-btn-danger"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM8 9h8v10H8V9zm7.5-5l-1-1h-5l-1 1H5v2h14V4z"/></svg><?php echo my_htmlspecialchars($translations['delete']??'Delete'); ?></button>
-                </div>
-                <div class="ap-status" id="ap-backup-creds-status"></div>
-            </div>
             <div class="ap-card ap-settings-card" data-settings-card="ai" style="overflow-x:auto;">
                 <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg><?php echo my_htmlspecialchars($translations['changeApiKey']??'Change API Key'); ?></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['search_engine_url']??'Search Engine URL (SearXNG)'); ?></label><input type="text" id="ap-search-engine-url" value="<?php echo my_htmlspecialchars(getConfig('search_engine_url', '')); ?>" placeholder="https://search.example.com" autocomplete="off" style="font-family:monospace;font-size:12px;"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['search_engine_url_hint']??'SearXNG instance URL. Used for AI web search and recipe image search. JSON format must be enabled on the instance.'); ?></div></div>
@@ -1434,6 +1393,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['currentApiKey']??'Current API Key'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-ai-current-key" value="<?php echo my_htmlspecialchars($_apAiCfg['api_key']??''); ?>" readonly autocomplete="off" style="font-family:monospace;font-size:12px;"><button type="button" class="ap-pwd-eye" data-target="ap-ai-current-key"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_models_label']??'Models (one per line)'); ?></label><textarea id="ap-ai-models" rows="4" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"><?php echo my_htmlspecialchars(implode("\n", $_apAiCfg['models'] ?? [])); ?></textarea></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_default_model_label']??'Default model'); ?></label><input type="text" id="ap-ai-default-model" value="<?php echo my_htmlspecialchars($_apAiCfg['default_model']??''); ?>" placeholder="nvidia/openai/gpt-oss-120b" autocomplete="off" style="font-family:monospace;font-size:12px;"></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_models_label']??'Speech models (one per line)'); ?></label><textarea id="ap-ai-speech-models" rows="3" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"><?php echo my_htmlspecialchars(implode("\n", $_apAiCfg['speech_models'] ?? [])); ?></textarea><div class="ap-hint"><?php echo my_htmlspecialchars($translations['ai_speech_models_hint']??'Models used for speech recognition (transcription) and voice playback through the AI hub.'); ?></div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_model_label']??'Speech recognition model'); ?></label><input type="text" id="ap-ai-speech-model" value="<?php echo my_htmlspecialchars($_apAiCfg['speech_model']??''); ?>" placeholder="groq/whisper-large-v3" autocomplete="off" style="font-family:monospace;font-size:12px;"></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['newApiKey']??'New API Key'); ?></label><textarea id="ap-ai-new-key" rows="2" placeholder="sk-..." autocomplete="off" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['confirmNewApiKey']??'Confirm New API Key'); ?></label><textarea id="ap-ai-confirm-key" rows="2" placeholder="sk-..." autocomplete="off" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea></div>
                 <div id="ap-ai-key-match" class="ap-hint" style="display:none;"></div>
@@ -1887,20 +1848,6 @@ if($emailToReset){
         exit;
     }
 
-    if(isset($_POST['save_docker_config']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $prevDocker = loadDockerConfig();
-        $cfg = [
-            'host' => $prevDocker['host'] ?? 'http://localhost:9000',
-            'domain' => 'localhost',
-            'token' => trim($_POST['docker_token'] ?? ''),
-            'username' => trim($_POST['docker_username'] ?? ''),
-            'password' => trim($_POST['docker_password'] ?? '')
-        ];
-        saveDockerConfig($cfg);
-        header('Content-Type: application/json');
-        echo json_encode(['success'=>true,'message'=>$translations['docker_saved']??'Docker settings saved']);
-        exit;
-    }
     if(isset($_POST['load_ai_config']) && isset($_POST['ajax']) && $sessionIsAdmin){
         require_once __DIR__ . '/../apps/cloud/includes/ai_config_store.php';
         header('Content-Type: application/json');
@@ -1918,6 +1865,8 @@ if($emailToReset){
             'api_endpoint' => trim((string)($_POST['api_endpoint'] ?? '')),
             'default_model' => trim((string)($_POST['default_model'] ?? '')),
             'models' => trim((string)($_POST['models'] ?? '')),
+            'speech_models' => trim((string)($_POST['speech_models'] ?? '')),
+            'speech_model' => trim((string)($_POST['speech_model'] ?? '')),
         ];
         $newKey = trim((string)($_POST['api_key'] ?? ''));
         if ($newKey !== '') {
@@ -1938,17 +1887,6 @@ if($emailToReset){
         setConfig('onlyoffice_jwt_secret', $onlyofficeToken);
         header('Content-Type: application/json');
         echo json_encode(['success'=>true,'message'=>$translations['onlyoffice_saved']??'OnlyOffice token saved']);
-        exit;
-    }
-    if(isset($_POST['save_omniroute_oauth_config']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $omnirouteCfg = [
-            'google_client_id' => trim((string)($_POST['omniroute_google_client_id'] ?? '')),
-            'google_client_secret' => trim((string)($_POST['omniroute_google_client_secret'] ?? '')),
-        ];
-        saveOmnirouteOAuthConfig($omnirouteCfg);
-        $syncResult = syncOmnirouteOAuthEnv($omnirouteCfg);
-        header('Content-Type: application/json');
-        echo json_encode($syncResult);
         exit;
     }
     if(isset($_POST['oauth_unlink']) && isset($_SESSION['user']['email'])){
