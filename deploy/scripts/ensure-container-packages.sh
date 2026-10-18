@@ -21,43 +21,14 @@ command -v pandoc >/dev/null 2>&1 || need="${need:+$need }pandoc"
 command -v bwrap >/dev/null 2>&1 || need="${need:+$need }bubblewrap"
 command -v gcc >/dev/null 2>&1 || need="${need:+$need }gcc"
 command -v g++ >/dev/null 2>&1 || need="${need:+$need }g++"
-command -v javac >/dev/null 2>&1 || need="${need:+$need }default-jdk-headless"
 if [ -n "$need" ]; then
     export DEBIAN_FRONTEND=noninteractive
     apt-get update -qq
     apt-get install -y -qq --no-install-recommends $need
     rm -rf /var/lib/apt/lists/*
 fi
-export ANDROID_HOME="${ANDROID_HOME:-/opt/android-sdk}"
-export ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT:-$ANDROID_HOME}"
-export PATH="$ANDROID_HOME/cmdline-tools/latest/bin:$ANDROID_HOME/platform-tools:$PATH"
-if ! command -v sdkmanager >/dev/null 2>&1 || [ ! -d "$ANDROID_HOME/platforms/android-35" ]; then
-    mkdir -p "$ANDROID_HOME/cmdline-tools"
-    tmp="$(mktemp)"
-    curl -fsSL -o "$tmp" https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip
-    rm -rf "$ANDROID_HOME/cmdline-tools/latest"
-    unzip -q "$tmp" -d "$ANDROID_HOME/cmdline-tools"
-    mv "$ANDROID_HOME/cmdline-tools/cmdline-tools" "$ANDROID_HOME/cmdline-tools/latest"
-    rm -f "$tmp"
-    yes | sdkmanager --licenses >/dev/null
-    sdkmanager "platform-tools" "platforms;android-35" "build-tools;35.0.0"
-fi
 if command -v bwrap >/dev/null 2>&1; then
     chmod u+s "$(command -v bwrap)" 2>/dev/null || true
-fi
-
-# Ensure Python packages for image processing & background removal
-# Note: import names differ from pip package names for some packages
-PYTHON_MISSING=""
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('PIL') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }pillow"
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('numpy') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }numpy"
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('scipy') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }scipy"
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('rembg') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }rembg"
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('onnxruntime') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }onnxruntime"
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('gtts') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }gtts"
-python3 -c "import importlib.util; raise SystemExit(0 if importlib.util.find_spec('psycopg2') else 1)" 2>/dev/null || PYTHON_MISSING="${PYTHON_MISSING:+$PYTHON_MISSING }psycopg2-binary"
-if [ -n "$PYTHON_MISSING" ]; then
-    python3 -m pip install --break-system-packages --no-cache-dir $PYTHON_MISSING
 fi
 
 mkdir -p /var/www/AppDashboard/apps/cloud/tts_output/.cache

@@ -57,6 +57,26 @@ if (!in_array((string)$imageInfo['mime'], $supportedMime, true)) {
     bg_fail(200, 'unsupported_image', ['mime' => (string)$imageInfo['mime']]);
 }
 
+require_once dirname(__DIR__, 2) . '/lib/py_sidecar.php';
+if (py_sidecar_enabled()) {
+    $res = py_sidecar('remove-bg', [], $inputPath, 'file', 180);
+    @unlink($inputPath);
+    @unlink($outputPath);
+    if (($res['body']['success'] ?? false) !== true) {
+        bg_fail(200, 'background_remove_failed', [
+            'details' => $res['body']['details'] ?? $res['error'] ?? $res['raw'],
+            'exit_code' => $res['body']['exit_code'] ?? $res['code'],
+        ]);
+    }
+    echo json_encode([
+        'success' => true,
+        'mime' => 'image/png',
+        'filename' => 'background-removed.png',
+        'data' => $res['body']['data'] ?? '',
+        'stats' => $res['body']['stats'] ?? null,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 $python = is_executable('/usr/bin/python3') ? '/usr/bin/python3' : trim((string)shell_exec('command -v python3'));
 $script = __DIR__ . '/bg_remove.py';
 $cwd = __DIR__;

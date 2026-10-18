@@ -3,12 +3,12 @@ import sys
 import threading
 import time
 SCRIPT_DIR = os.path.dirname(__file__)
-CACHE_DIR = os.path.join(SCRIPT_DIR, "transcription_uploads", ".cache")
+CACHE_DIR = os.environ.get("WHISPER_CACHE") or os.path.join(SCRIPT_DIR, "transcription_uploads", ".cache")
 os.makedirs(CACHE_DIR, exist_ok=True)
 os.environ.setdefault("HOME", CACHE_DIR)
 os.environ.setdefault("XDG_CACHE_HOME", CACHE_DIR)
 os.environ.setdefault("MPLCONFIGDIR", CACHE_DIR)
-os.environ.setdefault("TORCH_HOME", CACHE_DIR)
+os.environ.setdefault("TORCH_HOME", os.environ.get("TORCH_HOME") or CACHE_DIR)
 import whisper
 sys.path.insert(0, os.path.join(SCRIPT_DIR, '..', '..', 'lib'))
 import pg_sqlite_compat as sqlite3

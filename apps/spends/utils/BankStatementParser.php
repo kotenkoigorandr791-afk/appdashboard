@@ -50,6 +50,19 @@ final class BankStatementParser
             throw new InvalidArgumentException('File too large (max 64MB)');
         }
 
+        $sidecarHelper = dirname(__DIR__, 3) . '/lib/py_sidecar.php';
+        if (is_file($sidecarHelper)) {
+            require_once $sidecarHelper;
+        }
+        if (function_exists('py_sidecar_enabled') && py_sidecar_enabled()) {
+            $res = py_sidecar('parse-bank-statement', [], $filePath, 'file', 180);
+            if ($res['code'] < 200 || $res['code'] >= 300 || !is_array($res['body'])) {
+                $detail = is_array($res['body']) ? json_encode($res['body']) : ($res['error'] ?: $res['raw']);
+                throw new RuntimeException('Parser failed: ' . substr((string)$detail, 0, 500));
+            }
+            return $res['body'];
+        }
+
         $outputFile = tempnam(sys_get_temp_dir(), 'bsp_result_');
         if ($outputFile === false) {
             throw new RuntimeException('Failed to create temp output file');

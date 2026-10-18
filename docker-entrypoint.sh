@@ -3,6 +3,11 @@ set -e
 if [ "${RUN_ENSURE_CONTAINER_PACKAGES:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh || true
 fi
+if [ "${RUN_ENSURE_TINYTEX:-1}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh ]; then
+  chmod +x /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh 2>/dev/null || true
+  # Sync on first boot so /usr/bin/xelatex exists; later starts are cheap.
+  sh /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh >/var/log/supervisor/tinytex.log 2>&1 || true
+fi
 if [ "${PHP_OPCACHE_ENABLE:-1}" = "0" ]; then
   {
     printf 'opcache.enable=0\n'
@@ -194,29 +199,6 @@ if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
   fi
   if [ -f /var/www/AppDashboard/apps/steps/utils/requirements.txt ] && ! "$VENV/bin/python3" -c 'import pyzipper, psycopg2' 2>/dev/null; then
     "$VENV/bin/pip" install -q -r /var/www/AppDashboard/apps/steps/utils/requirements.txt || true
-  fi
-  SPENDS_VENV=/var/www/AppDashboard/apps/spends/utils/.venv
-  if [ ! -d "$SPENDS_VENV" ]; then
-    python3 -m venv "$SPENDS_VENV"
-  fi
-  if [ ! -x "$SPENDS_VENV/bin/pip" ]; then
-    python3 -m venv --clear "$SPENDS_VENV"
-  fi
-  "$SPENDS_VENV/bin/python3" -m ensurepip --upgrade >/dev/null 2>&1 || true
-  if [ -f /var/www/AppDashboard/apps/spends/utils/requirements-ocr.txt ] && ! "$SPENDS_VENV/bin/python3" -c 'import torch, transformers, qwen_vl_utils, PIL, numpy, psycopg2' 2>/dev/null; then
-    "$SPENDS_VENV/bin/python3" -m pip install -q -r /var/www/AppDashboard/apps/spends/utils/requirements-ocr.txt || true
-  fi
-  export HF_HOME="${HF_HOME:-/opt/ApplicationData/huggingface}"
-  mkdir -p "$HF_HOME"
-  chown -R www-data:www-data "$HF_HOME" 2>/dev/null || true
-  chmod -R ug+rwX "$HF_HOME" 2>/dev/null || true
-  if "$SPENDS_VENV/bin/python3" -c 'import transformers, qwen_vl_utils, huggingface_hub' 2>/dev/null; then
-    su -s /bin/sh www-data -c "HF_HOME='$HF_HOME' '$SPENDS_VENV/bin/python3' -" <<'PY' >/dev/null 2>&1 &
-import os
-from huggingface_hub import snapshot_download
-model=os.environ.get("SPENDS_OCR_VLM_MODEL","Qwen/Qwen2.5-VL-3B-Instruct")
-snapshot_download(model,ignore_patterns=["*.msgpack","*.h5","*.ot","*.onnx"])
-PY
   fi
   BOT_VENV=/var/www/AppDashboard/bot/.venv
   if [ ! -d "$BOT_VENV" ]; then

@@ -38,6 +38,45 @@ services:
       timeout: 5s
       retries: 5
 
+  appdashboard-py:
+    build:
+      context: .
+      dockerfile: deploy/python-sidecar/Dockerfile
+    image: appdashboard-py:latest
+    container_name: appdashboard-py
+    restart: unless-stopped
+    expose:
+      - "8100"
+    environment:
+      APP_DB_CONFIG: /opt/AppDashboard/data/db.env
+      DB_HOST: "${DB_HOST:-appdashboard-db}"
+      DB_PORT: "5432"
+      DB_NAME: appdashboard
+      DB_USER: appdashboard
+      DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+      MODELS_ROOT: /opt/ApplicationData/models
+      HF_HOME: /opt/ApplicationData/models/huggingface
+      TORCH_HOME: /opt/ApplicationData/models/torch
+      WHISPER_CACHE: /opt/ApplicationData/models/whisper
+      U2NET_HOME: /opt/ApplicationData/models/rembg
+      XDG_CACHE_HOME: /opt/ApplicationData/models/cache
+      XDG_DATA_HOME: /opt/ApplicationData/models
+      PREFETCH_MODELS: "${PREFETCH_MODELS:-1}"
+    volumes:
+      - .:/var/www/AppDashboard
+      - appdashboard-data:/opt/AppDashboard/data
+      - appdashboard-appdata:/opt/ApplicationData
+    depends_on:
+      appdashboard-db:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:8100/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 120s
+
   appdashboard:
     build:
       context: .
@@ -51,6 +90,8 @@ services:
     depends_on:
       appdashboard-redis:
         condition: service_healthy
+      appdashboard-py:
+        condition: service_started
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
@@ -84,6 +125,9 @@ services:
       REDIS_PORT: "6379"
       REDIS_DATABASE: "0"
       REDIS_PREFIX: "appdashboard:"
+      PY_SIDECAR_URL: "${PY_SIDECAR_URL:-http://appdashboard-py:8100}"
+      TINYTEX_HOME: /opt/ApplicationData/tinytex
+      RUN_ENSURE_TINYTEX: "${RUN_ENSURE_TINYTEX:-1}"
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"
       APP_WAF_RULE_ENGINE: "${APP_WAF_RULE_ENGINE:-On}"

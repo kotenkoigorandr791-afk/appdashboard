@@ -19,6 +19,16 @@ def load_db_config():
                 elif k == 'db_name': cfg['name'] = v
                 elif k == 'db_user': cfg['user'] = v
                 elif k == 'db_password': cfg['password'] = v
+    for env_key, cfg_key in (
+        ('DB_HOST', 'host'),
+        ('DB_PORT', 'port'),
+        ('DB_NAME', 'name'),
+        ('DB_USER', 'user'),
+        ('DB_PASSWORD', 'password'),
+    ):
+        val = os.environ.get(env_key)
+        if val:
+            cfg[cfg_key] = val
     return cfg
 
 def get_conn():
