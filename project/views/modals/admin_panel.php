@@ -1859,6 +1859,14 @@ function openPanel(id){
     }
     if(id==='ap-omniroute') loadOmniRouteIframe();
     if(id==='ap-apps-access'){requestAnimationFrame(function(){requestAnimationFrame(function(){if(typeof window._apRenderWorldMap==='function'){var f=window._apRenderWorldMap;window._apRenderWorldMap=null;f();}});});}
+    if(id==='ap-backup'&&window.BackupPanel){
+        if(!apPanelInited['ap-backup']){
+            apPanelInited['ap-backup']=true;
+            try{window.BackupPanel.init(dynRoot);}catch(e){console.error('[AdminPanel] BackupPanel.init:',e);}
+        }else if(typeof window.BackupPanel.refresh==='function'){
+            try{window.BackupPanel.refresh();}catch(e){}
+        }
+    }
 }
 
 /* ── Open/close ── */
@@ -2051,6 +2059,7 @@ function loadPanel(target, year){
             dynRoot.innerHTML=d.html;
             skeleton.style.display='none';
             dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
+            apPanelInited={};
             apEnsureStatsDeps().catch(function(e){console.error('[AdminPanel] stats dependencies:',e);});
             openPanel(target||'ap-users');
             wireEvents();

@@ -237,8 +237,8 @@ cloud_require_session_auth();
 <script defer src="assets/app/file-actions.js?v=11"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=8"></script>
-<script defer src="assets/audio-player.js?v=2"></script>
-<script defer src="assets/app/cloud-group-chat.js?v=9"></script>
+<script defer src="assets/audio-player.js?v=3"></script>
+<script defer src="assets/app/cloud-group-chat.js?v=10"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
 <script defer src="assets/settings/sync-modals.js?v=9"></script>

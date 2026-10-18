@@ -78,11 +78,9 @@ function loadPhotoEditorToTab(tab) {
         iframe.setAttribute('tabindex', '0');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
-        // over the raw URL: it often has no ?theme= and used to force dark editors.
-        const theme = (typeof getEffectiveCloudTheme === 'function')
-            ? getEffectiveCloudTheme(urlParams)
-            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
+        // The rendered page is the source of truth: APP_CONFIG can lag behind the
+        // theme actually applied to <body>, and the raw URL usually has no ?theme=.
+        const theme = resolveEmbeddedEditorTheme(urlParams);
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';
@@ -244,11 +242,9 @@ function loadTranscriptionEditorToTab(tab) {
         iframe.setAttribute('tabindex', '0');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
-        // over the raw URL: it often has no ?theme= and used to force dark editors.
-        const theme = (typeof getEffectiveCloudTheme === 'function')
-            ? getEffectiveCloudTheme(urlParams)
-            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
+        // The rendered page is the source of truth: APP_CONFIG can lag behind the
+        // theme actually applied to <body>, and the raw URL usually has no ?theme=.
+        const theme = resolveEmbeddedEditorTheme(urlParams);
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';
@@ -301,11 +297,9 @@ function loadTTSEditorToTab(tab) {
         iframe.setAttribute('data-tab-id', tab.id);
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
-        // over the raw URL: it often has no ?theme= and used to force dark editors.
-        const theme = (typeof getEffectiveCloudTheme === 'function')
-            ? getEffectiveCloudTheme(urlParams)
-            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
+        // The rendered page is the source of truth: APP_CONFIG can lag behind the
+        // theme actually applied to <body>, and the raw URL usually has no ?theme=.
+        const theme = resolveEmbeddedEditorTheme(urlParams);
         const color = urlParams.get('color') || '#85b503';
 
         let currentUser = currentUserState.user || 'default';
@@ -353,6 +347,17 @@ function handleEmbeddedEditorMessage(event) {
 }
 
 window.addEventListener('message', handleEmbeddedEditorMessage);
+
+function resolveEmbeddedEditorTheme(urlParams) {
+    const bodyTheme = document.body && document.body.getAttribute('data-theme');
+    if (bodyTheme === 'light' || bodyTheme === 'dark') return bodyTheme;
+    if (window.APP_CONFIG && (window.APP_CONFIG.theme === 'light' || window.APP_CONFIG.theme === 'dark')) {
+        return window.APP_CONFIG.theme;
+    }
+    const param = urlParams ? urlParams.get('theme') : '';
+    return param === 'dark' ? 'dark' : 'light';
+}
+window.resolveEmbeddedEditorTheme = resolveEmbeddedEditorTheme;
 
 function isEditableAudio(path) {
     const ext = path.split('.').pop().toLowerCase();
@@ -479,11 +484,9 @@ function loadOnlyOfficeEditorToTab(tab) {
         iframe.setAttribute('tabindex', '0');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
-        // Prefer the theme actually applied to the page (APP_CONFIG / saved user theme)
-        // over the raw URL: it often has no ?theme= and used to force dark editors.
-        const theme = (typeof getEffectiveCloudTheme === 'function')
-            ? getEffectiveCloudTheme(urlParams)
-            : (urlParams.get('theme') === 'light' ? 'light' : 'dark');
+        // The rendered page is the source of truth: APP_CONFIG can lag behind the
+        // theme actually applied to <body>, and the raw URL usually has no ?theme=.
+        const theme = resolveEmbeddedEditorTheme(urlParams);
         const color = urlParams.get('color') || '#85b503';
         
         let currentUser = currentUserState.user || 'default';

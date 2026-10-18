@@ -187,7 +187,9 @@
                 }
                 this.audioPlayer = new CustomAudioPlayer(playerContainer, this.audioBlobUrl, {
                     autoplay: false,
-                    showVolume: true
+                    showVolume: false,
+                    variant: 'line',
+                    title: String(this.textPath || '').split('/').pop()
                 });
 
                 if (window.parent) {

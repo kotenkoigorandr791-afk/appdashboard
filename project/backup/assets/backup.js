@@ -870,6 +870,11 @@
             loadDisk();
             return data;
         }).catch(function (err) {
+            if (seq !== state.loadSeq) throw err;
+            state.backups = state.backups || [];
+            renderBackups();
+            renderSnapshots();
+            renderJobs();
             if (showErrors) setAlert('error', err.message);
             updateStatus();
             throw err;
@@ -1193,5 +1198,14 @@
     }
 
     window.BackupPanel = { init: init, refresh: function () { if (state.root) loadAll(true); } };
-    ready(function () { init(document); });
+    ready(function () {
+        init(document);
+        if (state.root) return;
+        var obs = new MutationObserver(function () {
+            if (!document.getElementById('bdp-app')) return;
+            init(document);
+            if (state.root) obs.disconnect();
+        });
+        obs.observe(document.documentElement, { childList: true, subtree: true });
+    });
 })();

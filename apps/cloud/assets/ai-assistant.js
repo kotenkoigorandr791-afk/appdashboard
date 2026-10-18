@@ -1384,7 +1384,7 @@
                 background: rgba(209,74,74,.22) !important;
             }
             .ai-agent-inline-add {
-                color: #85b503 !important;
+                color: var(--ai-ok-accent, #85b503) !important;
                 background: rgba(133,181,3,.16) !important;
             }
             .ai-agent-patch-preview {
@@ -1458,8 +1458,8 @@
                 overflow-wrap: anywhere !important;
             }
             .ai-agent-patch-row.eq { color: var(--fg) !important; }
-            .ai-agent-patch-row.rm { background: rgba(209,74,74,.18) !important; color: #ff8a8a !important; }
-            .ai-agent-patch-row.add { background: rgba(133,181,3,.16) !important; color: #9fe870 !important; }
+            .ai-agent-patch-row.rm { background: rgba(209,74,74,.18) !important; color: var(--ai-err-text, #ff8a8a) !important; }
+            .ai-agent-patch-row.add { background: rgba(133,181,3,.16) !important; color: var(--ai-ok-text, #9fe870) !important; }
             #ai-agent-activity { display: none !important; }
             .ai-agent-plan {
                 border: 1px solid var(--border) !important;
@@ -1643,8 +1643,8 @@
                 -webkit-line-clamp: 2 !important;
                 overflow: hidden !important;
             }
-            .ai-agent-plan-step.error .ai-agent-plan-result-body { color: #ff8a8a !important; }
-            .ai-agent-plan-step.done .ai-agent-plan-result-body { color: #9fe870 !important; }
+            .ai-agent-plan-step.error .ai-agent-plan-result-body { color: var(--ai-err-text, #ff8a8a) !important; }
+            .ai-agent-plan-step.done .ai-agent-plan-result-body { color: var(--ai-ok-text, #9fe870) !important; }
             .ai-agent-plan-result-expand {
                 display: none !important;
                 margin-top: 4px !important;
@@ -1653,14 +1653,14 @@
                 background: none !important;
                 font-size: 10px !important;
                 color: var(--muted) !important;
-                opacity: .55 !important;
+                opacity: .95 !important;
                 cursor: pointer !important;
                 text-decoration: underline !important;
                 text-underline-offset: 2px !important;
             }
             .ai-agent-plan-result-expand.visible { display: inline-block !important; }
-            .ai-agent-plan-step.error .ai-agent-plan-result { color: #ff8a8a !important; }
-            .ai-agent-plan-step.done .ai-agent-plan-result { color: #9fe870 !important; }
+            .ai-agent-plan-step.error .ai-agent-plan-result { color: var(--ai-err-text, #ff8a8a) !important; }
+            .ai-agent-plan-step.done .ai-agent-plan-result { color: var(--ai-ok-text, #9fe870) !important; }
             .ai-agent-patch-row.skip {
                 color: var(--muted) !important;
                 font-style: italic !important;

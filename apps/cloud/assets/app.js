@@ -959,6 +959,10 @@ function canStartTreeLasso(e) {
     if (!treeTarget && !trashTarget) return false;
     if (isLassoBlockedTarget(el)) return false;
     if (isLassoDragHandle(el)) return false;
+    // Rubber-band selection may only be entered from empty tree space. Dragging
+    // from a file/folder row (icon, name, or row background) keeps its normal
+    // behaviour; selection mode is still available from the context menu.
+    if (treeTarget && !selectionState.active && el.closest('.node, .advanced-search-result')) return false;
     return true;
 }
 function initLassoSelection() {

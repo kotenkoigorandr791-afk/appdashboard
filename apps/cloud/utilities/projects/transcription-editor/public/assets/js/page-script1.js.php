@@ -227,7 +227,9 @@
                     const objUrl = URL.createObjectURL(blob);
                     this.audioPlayer = new CustomAudioPlayer(container, objUrl, {
                         autoplay: false,
-                        showVolume: true
+                        showVolume: false,
+                        variant: 'line',
+                        title: String(this.audioPath || '').split('/').pop()
                     });
                     this.fileLoadProgress.complete();
                 } catch (error) {

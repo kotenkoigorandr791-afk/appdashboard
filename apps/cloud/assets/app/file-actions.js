@@ -2498,6 +2498,11 @@ function switchToPrevTab() {
     switchToTab(prevTab.id);
     flashStatus(t(i18n, 'switchedToTab', { title: prevTab.title }));
 }
+function isAssistantOverlayOpen() {
+  const modal = document.getElementById('ai-modal');
+  return !!(modal && !modal.classList.contains('hidden'));
+}
+
 function handleHotkeys(e, i18n) {
   const mac = navigator.platform.toUpperCase().includes('MAC');
   const mod = mac ? e.metaKey : e.ctrlKey;
@@ -2520,6 +2525,10 @@ function handleHotkeys(e, i18n) {
   if (isInput && !isCodeMirror && !isGlobalHotkey) {
     return;
   }
+
+  // The assistant modal is the topmost layer: Escape must close it first, even
+  // when a tree selection or lasso is active underneath.
+  if (e.key === 'Escape' && isAssistantOverlayOpen()) return;
 
   if (isTrashRoot()) {
     if (mod && e.key.toLowerCase() === 'a') {
