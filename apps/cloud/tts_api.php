@@ -84,6 +84,7 @@ const TTS_OUTPUT_DIR = __DIR__ . '/tts_output';
 
 require_once __DIR__ . '/../../lib/app_db.php';
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/lib/py_sidecar.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 
 if (!function_exists('getDB')) {
@@ -338,16 +339,19 @@ if ($action === 'generate_tts') {
 
     $pythonPath = python_bin();
     $pythonScript = app_path('tts_generate.py');
+    $useSidecar = py_sidecar_enabled();
 
-    if (!file_exists($pythonScript)) {
+    if (!$useSidecar && !file_exists($pythonScript)) {
         echo json_encode(['success' => false, 'error' => 'TTS script not found']);
         exit;
     }
 
-    [$pythonReady, $pythonError] = tts_python_preflight($pythonPath);
-    if (!$pythonReady) {
-        echo json_encode(['success' => false, 'error' => $pythonError]);
-        exit;
+    if (!$useSidecar) {
+        [$pythonReady, $pythonError] = tts_python_preflight($pythonPath);
+        if (!$pythonReady) {
+            echo json_encode(['success' => false, 'error' => $pythonError]);
+            exit;
+        }
     }
 
     // Cleanup old temporary files (older than 1 hour)
@@ -393,21 +397,40 @@ if ($action === 'generate_tts') {
     $tempTextFileAbs = realpath($tempTextFile);
     $outputPathAbs = realpath(TTS_OUTPUT_DIR) . DIRECTORY_SEPARATOR . $outputFilename;
 
-    $command = escapeshellarg($pythonPath) . ' ' .
+    $logFile = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . $progressId . '.log';
+    $cacheDir = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . '.cache';
+
+    if ($useSidecar) {
+        $res = py_sidecar('tts', [
+            'text_file' => $tempTextFileAbs,
+            'output_file' => $outputPathAbs,
+            'language' => $language,
+            'speed' => (string)$speed,
+            'progress_id' => $progressId,
+            'log_file' => $logFile,
+        ], null, 'file', 30);
+        if (!($res['code'] >= 200 && $res['code'] < 300 && (($res['body']['success'] ?? false) === true))) {
+            echo json_encode(['success' => false, 'error' => 'Failed to start TTS via sidecar']);
+            exit;
+        }
+    } elseif (substr(php_uname(), 0, 7) === "Windows") {
+        $command = escapeshellarg($pythonPath) . ' ' .
                escapeshellarg($pythonScript) . ' ' .
                escapeshellarg($tempTextFileAbs) . ' ' .
                escapeshellarg($outputPathAbs) . ' ' .
                escapeshellarg($language) . ' ' .
                escapeshellarg($speed) . ' ' .
                escapeshellarg($progressId);
-
-    $logFile = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . $progressId . '.log';
-    $cacheDir = TTS_OUTPUT_DIR . DIRECTORY_SEPARATOR . '.cache';
-
-    if (substr(php_uname(), 0, 7) === "Windows") {
         $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($logFile) . ' 2>&1');
         pclose(popen($runCommand, "r"));
     } else {
+        $command = escapeshellarg($pythonPath) . ' ' .
+               escapeshellarg($pythonScript) . ' ' .
+               escapeshellarg($tempTextFileAbs) . ' ' .
+               escapeshellarg($outputPathAbs) . ' ' .
+               escapeshellarg($language) . ' ' .
+               escapeshellarg($speed) . ' ' .
+               escapeshellarg($progressId);
         $env = 'HOME=' . escapeshellarg($cacheDir) . ' XDG_CACHE_HOME=' . escapeshellarg($cacheDir) . ' MPLCONFIGDIR=' . escapeshellarg($cacheDir) . ' PYTHONUNBUFFERED=1 ';
         exec($env . $command . ' > ' . escapeshellarg($logFile) . ' 2>&1 &');
     }

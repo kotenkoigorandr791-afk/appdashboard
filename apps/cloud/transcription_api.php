@@ -5,6 +5,7 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/lib/py_sidecar.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 
 function app_path($relativePath = '') {
@@ -271,30 +272,43 @@ if ($action === 'start_transcription') {
         echo json_encode(['success' => false, 'error' => 'Failed to create transcription job']);
         exit;
     }
-    $pythonScript = app_path('transcribe.py');
-    if (!file_exists($pythonScript)) {
-        echo json_encode(['success' => false,'error' => 'Python script not found']);
-        exit;
-    }
-    if (!file_exists($ffmpegPath)) {
-        echo json_encode(['success' => false,'error' => 'FFmpeg not found']);
-        exit;
-    }
-    exec("\"$ffmpegPath\" -version 2>&1", $ffmpegOutput, $ffmpegReturn);
-    if ($ffmpegReturn !== 0) {
-        echo json_encode(['success' => false,'error' => 'FFmpeg not working: ' . implode("\n", $ffmpegOutput)]);
-        exit;
-    }
-    $command = escapeshellarg($pythonPath) . ' ' . escapeshellarg($pythonScript) . ' ' . escapeshellarg($filePath) . ' ' . escapeshellarg($language) . ' ' . escapeshellarg($normalizedProgressId) . ' ' . escapeshellarg($user) . ' ' . escapeshellarg($audioPath);
     $pythonLogFile = dirname($filePath) . DIRECTORY_SEPARATOR . 'python.log';
-    if (substr(php_uname(), 0, 7) === "Windows") {
-        $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1');
-        pclose(popen($runCommand, "r"));
-        $success = true;
+    $success = false;
+    if (py_sidecar_enabled()) {
+        $res = py_sidecar('transcribe', [
+            'input_file' => $filePath,
+            'language' => $language,
+            'progress_id' => $normalizedProgressId,
+            'user' => $user,
+            'audio_path' => $audioPath,
+            'log_file' => $pythonLogFile,
+        ], null, 'file', 30);
+        $success = $res['code'] >= 200 && $res['code'] < 300 && (($res['body']['success'] ?? false) === true);
     } else {
-        $env = 'HOME=' . escapeshellarg($cacheDir) . ' XDG_CACHE_HOME=' . escapeshellarg($cacheDir) . ' MPLCONFIGDIR=' . escapeshellarg($cacheDir) . ' TORCH_HOME=' . escapeshellarg($cacheDir) . ' PYTHONUNBUFFERED=1 ';
-        exec($env . $command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1 &', $output, $returnCode);
-        $success = ($returnCode === 0);
+        $pythonScript = app_path('transcribe.py');
+        if (!file_exists($pythonScript)) {
+            echo json_encode(['success' => false,'error' => 'Python script not found']);
+            exit;
+        }
+        if (!file_exists($ffmpegPath)) {
+            echo json_encode(['success' => false,'error' => 'FFmpeg not found']);
+            exit;
+        }
+        exec("\"$ffmpegPath\" -version 2>&1", $ffmpegOutput, $ffmpegReturn);
+        if ($ffmpegReturn !== 0) {
+            echo json_encode(['success' => false,'error' => 'FFmpeg not working: ' . implode("\n", $ffmpegOutput)]);
+            exit;
+        }
+        $command = escapeshellarg($pythonPath) . ' ' . escapeshellarg($pythonScript) . ' ' . escapeshellarg($filePath) . ' ' . escapeshellarg($language) . ' ' . escapeshellarg($normalizedProgressId) . ' ' . escapeshellarg($user) . ' ' . escapeshellarg($audioPath);
+        if (substr(php_uname(), 0, 7) === "Windows") {
+            $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1');
+            pclose(popen($runCommand, "r"));
+            $success = true;
+        } else {
+            $env = 'HOME=' . escapeshellarg($cacheDir) . ' XDG_CACHE_HOME=' . escapeshellarg($cacheDir) . ' MPLCONFIGDIR=' . escapeshellarg($cacheDir) . ' TORCH_HOME=' . escapeshellarg($cacheDir) . ' PYTHONUNBUFFERED=1 ';
+            exec($env . $command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1 &', $output, $returnCode);
+            $success = ($returnCode === 0);
+        }
     }
     if ($success) {
         echo json_encode(['success' => true,'message' => 'Transcription started','transcription_file' => 'db:' . $normalizedProgressId,'progress_id' => $normalizedProgressId]);

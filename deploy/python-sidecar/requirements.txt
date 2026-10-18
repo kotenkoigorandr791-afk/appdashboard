@@ -1,0 +1,15 @@
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch==2.5.1+cpu
+openai-whisper
+gTTS
+pillow
+numpy
+scipy
+opencv-python-headless
+rembg
+onnxruntime
+psycopg2-binary
+bankstatementparser[excel]
+fastapi
+uvicorn[standard]
+python-multipart
