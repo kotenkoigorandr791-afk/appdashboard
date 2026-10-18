@@ -344,7 +344,7 @@ window.addEventListener('message', handleEmbeddedEditorMessage);
 
 function isEditableAudio(path) {
     const ext = path.split('.').pop().toLowerCase();
-    const audioExts = ['mp3', 'wav', 'ogg', 'm4a', 'flac', 'aac'];
+    const audioExts = ['mp3', 'wav', 'ogg', 'oga', 'opus', 'm4a', 'flac', 'aac', 'webm', 'weba'];
     return audioExts.includes(ext);
 }
 

@@ -1025,6 +1025,7 @@
   "totalSize": "Загальний розмір",
   "totalUploadSize": "Загальний розмір: {size}",
   "transcription": "Транскрипція",
+  "transcribeAudio": "Транскрибувати",
   "transcriptionCleanupFailed": "Не вдалося очистити транскрипції",
   "transcriptionSaved": "Транскрипція успішно збережена",
   "trashEmptied": "Кошик очищено",

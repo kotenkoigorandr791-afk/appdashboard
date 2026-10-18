@@ -1025,6 +1025,7 @@
   "totalSize": "Total Size",
   "totalUploadSize": "Total size: {size}",
   "transcription": "Transcription",
+  "transcribeAudio": "Transcribe audio",
   "transcriptionCleanupFailed": "Failed to clean up transcriptions",
   "transcriptionSaved": "Transcription saved successfully",
   "trashEmptied": "Trash emptied",

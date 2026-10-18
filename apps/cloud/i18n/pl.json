@@ -992,6 +992,7 @@
   "totalSize": "Całkowity rozmiar",
   "totalUploadSize": "Rozmiar całkowity: {size}",
   "transcription": "Transkrypcja",
+  "transcribeAudio": "Transkrybuj",
   "transcriptionCleanupFailed": "Nie udało się wyczyścić transkrypcji",
   "transcriptionSaved": "Transkrypcja została zapisana pomyślnie",
   "trashEmptied": "Kosz został opróżniony",

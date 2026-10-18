@@ -992,6 +992,7 @@
   "totalSize": "Celková velikost",
   "totalUploadSize": "Celková velikost: {size}",
   "transcription": "Přepis",
+  "transcribeAudio": "Přepsat zvuk",
   "transcriptionCleanupFailed": "Přepisy se nepodařilo vyčistit",
   "transcriptionSaved": "Přepis byl úspěšně uložen",
   "trashEmptied": "Koš vyprázdněn",

@@ -992,6 +992,7 @@
   "totalSize": "Агульны памер",
   "totalUploadSize": "Агульны памер: {size}",
   "transcription": "Транскрыпцыя",
+  "transcribeAudio": "Транскрыбіраваць",
   "transcriptionCleanupFailed": "Не атрымалася ачысціць транскрыпцыі",
   "transcriptionSaved": "Транскрыпцыя паспяхова захавана",
   "trashEmptied": "Кошык ачышчаны",

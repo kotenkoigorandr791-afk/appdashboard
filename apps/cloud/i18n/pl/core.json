@@ -730,6 +730,7 @@
     "totalFiles": "Łączna liczba plików",
     "totalSize": "Całkowity rozmiar",
     "transcription": "Transkrypcja",
+    "transcribeAudio": "Transkrybuj",
     "transcriptionCleanupFailed": "Nie udało się wyczyścić transkrypcji",
     "transcriptionSaved": "Transkrypcja została zapisana pomyślnie",
     "trashEmptied": "Kosz został opróżniony",

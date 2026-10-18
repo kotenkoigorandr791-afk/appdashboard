@@ -763,6 +763,7 @@
     "totalFiles": "Всього файлів",
     "totalSize": "Загальний розмір",
     "transcription": "Транскрипція",
+    "transcribeAudio": "Транскрибувати",
     "transcriptionCleanupFailed": "Не вдалося очистити транскрипції",
     "transcriptionSaved": "Транскрипція успішно збережена",
     "trashEmptied": "Кошик очищено",

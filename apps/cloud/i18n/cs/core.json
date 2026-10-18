@@ -730,6 +730,7 @@
     "totalFiles": "Celkem souborů",
     "totalSize": "Celková velikost",
     "transcription": "Přepis",
+    "transcribeAudio": "Přepsat zvuk",
     "transcriptionCleanupFailed": "Přepisy se nepodařilo vyčistit",
     "transcriptionSaved": "Přepis byl úspěšně uložen",
     "trashEmptied": "Koš vyprázdněn",

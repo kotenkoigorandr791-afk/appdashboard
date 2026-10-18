@@ -919,6 +919,13 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
     if (type === 'file' && path.toLowerCase().endsWith('.txt')) {
         options.push({ label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) });
     }
+    if (type === 'file' && typeof isEditableAudio === 'function' && isEditableAudio(path)) {
+        options.push({
+            label: (window.i18n && window.i18n.transcribeAudio) || 'Transcribe audio',
+            icon: 'speech',
+            action: () => openTranscriptionEditor(path)
+        });
+    }
     if (type === 'file' && isZipFile(path)) {
         options.push({ label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') });
     }
