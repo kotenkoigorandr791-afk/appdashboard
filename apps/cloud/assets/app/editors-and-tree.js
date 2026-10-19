@@ -268,9 +268,9 @@ function loadTranscriptionEditorToTab(tab) {
     }
 }
 function updateToolbarForTranscriptionEditor() {
-    const saveBtn = document.getElementById('btn-save');
     const codeActionsBtn = document.getElementById('btn-code-actions');
-    saveBtn.classList.add('hidden');
+    // Save lives in the shell toolbar and posts a message into this iframe.
+    document.getElementById('btn-save')?.classList.remove('hidden');
     codeActionsBtn.classList.add('hidden');
 }
 
@@ -324,9 +324,9 @@ function loadTTSEditorToTab(tab) {
 }
 
 function updateToolbarForTTSEditor() {
-    const saveBtn = document.getElementById('btn-save');
     const codeActionsBtn = document.getElementById('btn-code-actions');
-    saveBtn.classList.add('hidden');
+    // Save lives in the shell toolbar and posts a message into this iframe.
+    document.getElementById('btn-save')?.classList.remove('hidden');
     codeActionsBtn.classList.add('hidden');
 }
 
@@ -995,6 +995,96 @@ function resetTreeBrowsePath() {
     treeBrowsePath = '';
     persistTreeBrowsePath();
     updateTreeBrowseHeader();
+}
+let treeBrowseRenameState = null;
+function cancelTreeBrowseRename() {
+    if (!treeBrowseRenameState) return;
+    const { input, label } = treeBrowseRenameState;
+    treeBrowseRenameState = null;
+    input?.remove();
+    label?.classList.remove('hidden');
+}
+async function commitTreeBrowseRename() {
+    if (!treeBrowseRenameState) return;
+    const { input, label, originalPath, originalName } = treeBrowseRenameState;
+    const value = (input?.value || '').trim();
+    if (!value) {
+        cancelTreeBrowseRename();
+        return;
+    }
+    if (value === originalName) {
+        cancelTreeBrowseRename();
+        return;
+    }
+    if (typeof validateCloudFilename === 'function' && !validateCloudFilename(value, input)) return;
+    const parent = getTreeBrowseParentPath(originalPath);
+    const newPath = parent ? parent + '/' + value : value;
+    cancelTreeBrowseRename();
+    try {
+        await api('rename', { old_path: originalPath, new_name: value });
+        const root = typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main';
+        if (typeof patchTreeCacheForRoot === 'function') {
+            await patchTreeCacheForRoot([{ op: 'rename', old_path: originalPath, new_path: newPath, new_name: value }], root);
+        }
+        treeBrowsePath = newPath;
+        persistTreeBrowsePath();
+        updateTreeBrowseHeader();
+        if (typeof buildTree === 'function') await buildTree('');
+        flashStatus(t(i18n, 'fileRenamed'));
+    } catch (err) {
+        flashStatus(t(i18n, 'errorPrefix') + err.message);
+        updateTreeBrowseHeader();
+    }
+}
+function startTreeBrowseRename() {
+    if (!treeBrowsePath || treeBrowseRenameState) return;
+    const folder = document.querySelector('#tree-browse-bar .tree-browse-folder');
+    const label = document.getElementById('tree-browse-label');
+    if (!folder || !label || label.classList.contains('hidden')) return;
+    const originalName = getTreeBrowseFolderName();
+    if (!originalName) return;
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'tree-rename-input tree-browse-rename-input';
+    input.value = originalName;
+    input.setAttribute('aria-label', t(i18n, 'rename') || 'Rename');
+    if (typeof guardFilenameInput === 'function') guardFilenameInput(input);
+    label.classList.add('hidden');
+    folder.appendChild(input);
+    treeBrowseRenameState = { input, label, originalPath: treeBrowsePath, originalName };
+    input.addEventListener('keydown', (e) => {
+        e.stopPropagation();
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            commitTreeBrowseRename();
+        } else if (e.key === 'Escape') {
+            e.preventDefault();
+            cancelTreeBrowseRename();
+        }
+    });
+    input.addEventListener('blur', () => { commitTreeBrowseRename(); });
+    input.addEventListener('click', (e) => e.stopPropagation());
+    input.addEventListener('dblclick', (e) => e.stopPropagation());
+    requestAnimationFrame(() => {
+        input.focus();
+        input.select();
+    });
+}
+function initTreeBrowseRename() {
+    const label = document.getElementById('tree-browse-label');
+    if (!label || label.dataset.renameBound === '1') return;
+    label.dataset.renameBound = '1';
+    label.addEventListener('dblclick', (e) => {
+        if (!treeBrowsePath) return;
+        e.preventDefault();
+        e.stopPropagation();
+        startTreeBrowseRename();
+    });
+}
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initTreeBrowseRename);
+} else {
+    initTreeBrowseRename();
 }
 window.getTreeBrowsePath = getTreeBrowsePath;
 window.persistTreeBrowsePath = persistTreeBrowsePath;

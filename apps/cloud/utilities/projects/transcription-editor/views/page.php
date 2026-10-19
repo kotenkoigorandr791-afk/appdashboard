@@ -671,6 +671,8 @@
             }
         }
     </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style>#btn-save-server,#btn-save{display:none!important}</style>
 </head>
 <body data-theme="<?php echo htmlspecialchars($theme, ENT_QUOTES, 'UTF-8'); ?>" data-accent-color="<?php echo htmlspecialchars($accentColor, ENT_QUOTES, 'UTF-8'); ?>">
     <div class="editor-container">
@@ -715,7 +717,6 @@
                 <h3><?php echo $t['audio_file']; ?></h3>
                 <div class="file-info" id="file-info">
                     <?php if ($sourcePath && file_exists($sourcePath)): ?>
-                        <div class="debug-info" style="color: green;"><?php echo $t['file_exists']; ?> (<?php echo formatFileSize(filesize($sourcePath)); ?>)</div>
                         <div class="debug-info">Format: <?php echo strtoupper(pathinfo($sourcePath, PATHINFO_EXTENSION)); ?> (<?php echo $audioMimeType; ?>)</div>
                     <?php else: ?>
                         <div class="debug-info" style="color: red;"><?php echo $t['file_not_found']; ?></div>
@@ -757,5 +758,6 @@
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script1.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

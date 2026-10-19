@@ -1550,7 +1550,7 @@
             }
             .ai-agent-plan-step.running .ai-agent-plan-icon { background: var(--accent) !important; color: #fff !important; }
             .ai-agent-plan-step.done .ai-agent-plan-icon { background: #85b503 !important; color: #111 !important; }
-            .ai-agent-plan-step.error .ai-agent-plan-icon { background: #d14a4a !important; color: #fff !important; }
+            .ai-agent-plan-step.error .ai-agent-plan-icon { background: var(--ai-err-icon-bg, #d14a4a) !important; color: #fff !important; }
             .ai-agent-plan-label {
                 display: inline-flex !important;
                 align-items: center !important;
@@ -6322,6 +6322,8 @@
         setMobilePageScrollLocked(true);
         scheduleModalViewportHeightSync();
         elements.modal.classList.remove('hidden');
+        // Keep page scrollbars from flashing while the assistant slides in.
+        document.documentElement.classList.add('ai-modal-open');
         elements.modal.classList.remove('ai-open');
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
@@ -6365,6 +6367,7 @@
         }
 
         elements.modal.classList.remove('ai-open');
+        document.documentElement.classList.remove('ai-modal-open');
         elements.settingsModal?.classList.add('hidden');
         stopModalResize();
         setMobilePageScrollLocked(false);
@@ -6372,6 +6375,7 @@
         if (aiModalCloseTimer) clearTimeout(aiModalCloseTimer);
         aiModalCloseTimer = setTimeout(() => {
             elements.modal.classList.add('hidden');
+            document.documentElement.classList.remove('ai-modal-open');
             aiModalCloseTimer = null;
         }, 280);
     }

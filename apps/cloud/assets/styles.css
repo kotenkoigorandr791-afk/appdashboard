@@ -1,6 +1,6 @@
-:root{--bg:#ffffff;--fg:#111111;--muted:#666666;--panel:#f4f6f8;--accent:#929292;--danger:#e74c3c;--border:#e0e3e7;--tree-guide-color:color-mix(in srgb,#eb9a05 50%,transparent);--code-bg:#a9a9a9;--scrollbar-track:#f1f1f1;--scrollbar-thumb:#c1c1c1;--scrollbar-thumb-hover:#a8a8a8;--terminal-bg:#dfdfdf;--terminal-fg:#00ff00;--terminal-cursor:#00ff00;--ai-ok-text:#1f6b32;--ai-ok-accent:#3f6d0a;--ai-err-text:#a6261c;--topbar-height:48px;--statusbar-height:28px;--glass-panel:color-mix(in srgb,var(--panel) 21%,transparent);--glass-bg:color-mix(in srgb,var(--panel) 19%,transparent);--ui-border:var(--border)}
+:root{--bg:#ffffff;--fg:#111111;--muted:#666666;--panel:#f4f6f8;--accent:#929292;--danger:#e74c3c;--border:#e0e3e7;--tree-guide-color:color-mix(in srgb,#eb9a05 50%,transparent);--code-bg:#a9a9a9;--scrollbar-track:#f1f1f1;--scrollbar-thumb:#c1c1c1;--scrollbar-thumb-hover:#a8a8a8;--terminal-bg:#dfdfdf;--terminal-fg:#00ff00;--terminal-cursor:#00ff00;--ai-ok-text:#1f6b32;--ai-ok-accent:#3f6d0a;--ai-err-text:#a6261c;--ai-err-icon-bg:#b42318;--topbar-height:48px;--statusbar-height:28px;--glass-panel:color-mix(in srgb,var(--panel) 21%,transparent);--glass-bg:color-mix(in srgb,var(--panel) 19%,transparent);--ui-border:var(--border)}
 body[data-theme="light"]{--bg:#eceef1;--border:#b0b8c1;--ui-border:#a8b0b9;--muted:#3d4550;--panel:#dfe3e8;--glass-panel:color-mix(in srgb,var(--panel) 27%,transparent);--glass-bg:color-mix(in srgb,var(--panel) 25%,transparent)}
-body[data-theme="dark"]{--bg:#1a1a1a;--fg:#e6e6e6;--muted:#a0a3a8;--panel:#2a2a2a;--accent:#7e7e7e;--danger:#ff6b6b;--border:#3a3a3a;--code-bg:#454545;--scrollbar-track:#2a2a2a;--scrollbar-thumb:#555;--scrollbar-thumb-hover:#666;--terminal-bg:#bdbdbd;--terminal-fg:#50fa7b;--terminal-cursor:#50fa7b;--ai-ok-text:#9fe870;--ai-ok-accent:#85b503;--ai-err-text:#ff8a8a}
+body[data-theme="dark"]{--bg:#1a1a1a;--fg:#e6e6e6;--muted:#a0a3a8;--panel:#2a2a2a;--accent:#7e7e7e;--danger:#ff6b6b;--border:#3a3a3a;--code-bg:#454545;--scrollbar-track:#2a2a2a;--scrollbar-thumb:#555;--scrollbar-thumb-hover:#666;--terminal-bg:#bdbdbd;--terminal-fg:#50fa7b;--terminal-cursor:#50fa7b;--ai-ok-text:#9fe870;--ai-ok-accent:#85b503;--ai-err-text:#ff8a8a;--ai-err-icon-bg:#d14a4a}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden}
 html{background:#eceef1}
@@ -160,6 +160,10 @@ button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scrol
 .tree .toggle .tree-folder-icon.is-open .tree-folder-icon-open{opacity:1;transform:scale(1)}
 .tree.is-empty::before{content:"Click here to create files/folders";display:block;padding:30px;text-align:center;color:var(--muted);font-style:italic;cursor:pointer}
 .tree.is-empty::before:hover{color:var(--accent)}
+.btn:disabled,.icon-btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
+body.shell-menu-hidden #btn-toggle-sidebar{display:none!important}
+html.ai-modal-open,html.ai-modal-open body{overflow:hidden}
+.tree-browse-folder .tree-browse-rename-input{flex:1;min-width:0;height:26px;font-size:13px;width:auto}
 .tree-browse-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,var(--ui-border) 70%,transparent);background:color-mix(in srgb,var(--panel) 40%,transparent);flex-shrink:0}
 .tree-browse-bar.hidden{display:none}
 .tree-back-btn{display:inline-flex;align-items:center;gap:4px;padding:4px 8px;border:1px solid color-mix(in srgb,var(--ui-border) 80%,transparent);border-radius:6px;background:var(--glass-bg);color:var(--fg);font:inherit;font-size:13px;cursor:pointer;white-space:nowrap;flex-shrink:0}
@@ -502,7 +506,7 @@ body[data-theme="dark"] .preview-container embed,body[data-theme="dark"] .previe
 .audio-file-info{margin:0;color:var(--muted);font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .audio-player-controls{display:flex;align-items:center;justify-content:center;gap:25px;margin-top:20px;flex-wrap:wrap;max-width:100%}
 .audio-player-container{width:100%;height:100%;min-width:0;overflow:hidden;box-sizing:border-box;padding:8px}
-.video-player-container{width:100%;height:100%;min-width:0;overflow:hidden}
+.video-player-container{width:100%;height:100%;min-width:0;min-height:0;overflow:hidden;display:flex;align-items:center;justify-content:center;background:var(--bg)}
 #viewer,.viewer,.file-content-container{min-width:0;max-width:100%}
 .content.viewer-area-compact .audio-player-wrapper,.audio-player-wrapper.audio-player-compact{width:100%!important;max-width:100%!important;padding:12px!important}
 .content.viewer-area-compact .audio-info-icon,.audio-player-wrapper.audio-player-compact .audio-info-icon{width:44px;height:44px}
@@ -613,7 +617,12 @@ body[data-theme="light"] .lang-switcher .lang-option.active {
 }
 .selection-mode-active .node.selected{background:rgba(74,144,226,0.2);border-left:3px solid var(--accent)}
 .supported-formats{margin:10px 0;padding:10px;background:var(--panel);border-radius:4px;border-left:3px solid var(--accent)}lyr{border-radius:0!important;width:100%;height:100%}
-.plyr__video-wrapper{background:#000}
+.video-player-container .plyr,.video-player-container .plyr__video-wrapper{width:100%;height:100%}
+.video-player-container video{width:100%;height:100%;object-fit:contain;display:block}
+/* Plyr's own stylesheet paints the wrapper black; make it transparent so the
+   themed container background shows through as the letterbox. */
+.video-player-container .plyr__video-wrapper{background:transparent}
+.video-player-container .plyr__video-wrapper video{max-width:100%;max-height:100%}
 .plyr--video .plyr__controls{background:linear-gradient(rgba(0,0,0,0),rgba(0,0,0,0.7))}
 .video-loader{font-family:'Courier New',monospace;animation:pulse 1.5s ease-in-out infinite}
 @keyframes pulse{0%,100%{opacity:1;transform:translate(-50%,-50%) scale(1)}50%{opacity:0.7;transform:translate(-50%,-50%) scale(1.1)}}
@@ -645,6 +654,19 @@ body[data-theme="light"] .lang-switcher .lang-option.active {
 .section-title-center #section-title-label.hidden{display:none}
 .group-section-switcher{max-width:100%;min-width:0;padding:6px 10px;border-radius:8px;border:1px solid color-mix(in srgb,var(--ui-border) 80%,transparent);background:var(--glass-bg);color:var(--fg);font-weight:600;font-size:14px;text-align:center}
 .group-section-switcher.hidden{display:none}
+/* Group switcher rendered as the same custom pill dropdown as #ai-chat-select. */
+.group-switcher-ui{position:relative;display:inline-flex;align-items:center;min-width:0;max-width:220px}
+.group-switcher-ui.hidden{display:none!important}
+.group-switcher-ui>.group-section-switcher{display:none!important}
+.group-switcher-btn{display:inline-flex;align-items:center;justify-content:space-between;gap:8px;min-width:0;height:31px;max-width:100%;padding:0 12px;border:1px solid color-mix(in srgb,var(--ui-border) 80%,transparent);border-radius:999px;background:var(--glass-bg);color:var(--fg);font:inherit;font-size:14px;font-weight:600;line-height:1;cursor:pointer;transition:border-color .15s ease,background-color .15s ease}
+.group-switcher-btn:hover,.group-switcher-btn:focus-visible{border-color:var(--accent);outline:none}
+.group-switcher-btn-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-switcher-btn svg{flex:0 0 auto;opacity:.7}
+.group-switcher-menu{position:fixed;z-index:40000;max-height:min(280px,60vh);overflow-y:auto;min-width:160px;padding:5px;border:1px solid var(--border);border-radius:8px;background:var(--panel);color:var(--fg);box-shadow:0 10px 28px rgba(0,0,0,.24);scrollbar-width:thin}
+.group-switcher-menu[hidden]{display:none!important}
+.group-switcher-item{display:block;width:100%;min-height:30px;padding:6px 10px;border:0;border-radius:6px;background:transparent;color:var(--fg);font:inherit;font-size:13px;text-align:left;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.group-switcher-item:hover,.group-switcher-item:focus-visible{background:var(--bg);outline:none}
+.group-switcher-item[aria-selected="true"]{background:color-mix(in srgb,var(--accent) 14%,transparent);font-weight:600}
 .section-title .icon-btn{display:flex;align-items:center;justify-content:center;width:32px;height:32px;border-radius:6px;background:var(--glass-bg);border:1px solid color-mix(in srgb,var(--ui-border) 80%,transparent);color:var(--fg);cursor:pointer;transition:all 0.2s ease;flex-shrink:0}
 .section-title .icon-btn:hover{background:color-mix(in srgb,var(--accent) 10%,var(--panel));color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 12%,transparent)}
 .section-title .icon-btn:active{transform:scale(0.95)}
@@ -901,7 +923,7 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 @keyframes nodeHighlight{0%{background:rgba(var(--accent-rgb),0);transform:scale(1)}50%{background:rgba(var(--accent-rgb),0.3);transform:scale(1.02)}100%{background:rgba(var(--accent-rgb),0.15);transform:scale(1)}}
 #search-folder-tree-container{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);max-height:250px!important}
 #search-folder-tree-container::-webkit-scrollbar{width:6px;height:6px}
-#search-folder-tree-container::-webkit-scrollbar-track{background:var(--scrollbar-track);border-radius:3px}
+#search-folder-tree-container::-webkit-scrollbar-track{background:transparent;border-radius:3px;margin:6px 0}
 #search-folder-tree-container::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px}
 #search-folder-tree-container::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover)}
 .search-folder-node{user-select:none;margin:2px 0}
@@ -915,7 +937,7 @@ pre code{display:block;padding:12px;overflow-x:auto;background:var(--bg);color:v
 .folder-tree-loading{display:flex;flex-direction:column;align-items:center;justify-content:center}
 .selected-folder-display{transition:all 0.2s ease}
 .selected-folder-display svg{flex-shrink:0}
-#advanced-search-modal #search-folder-tree-container{border-radius:12px!important;overflow-y:auto}
+#advanced-search-modal #search-folder-tree-container{border-radius:12px!important;overflow-y:auto;background:var(--panel)}
 #advanced-search-modal .folder-checkmark{border-radius:50%!important}
 .search-extension-autocomplete{position:relative}
 .search-extension-suggestions{position:absolute;left:0;top:calc(100% + 6px);width:100%;max-height:220px;overflow-y:auto;background:var(--panel);border:1px solid var(--border);border-radius:2px;box-shadow:0 10px 24px rgba(0,0,0,0.2);z-index:1000001;padding:4px;display:none}

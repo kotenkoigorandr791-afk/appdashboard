@@ -281,6 +281,8 @@
             }
         }
     </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style>#btn-save-server,#btn-save{display:none!important}</style>
 </head>
 <body data-theme="<?php echo $theme; ?>" data-accent-color="<?php echo htmlspecialchars(ltrim(urldecode((string)$color), '#%'), ENT_QUOTES, 'UTF-8'); ?>">
     <div class="editor-container">
@@ -356,5 +358,6 @@
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script1.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

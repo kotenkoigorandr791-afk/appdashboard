@@ -1281,6 +1281,7 @@
   background: var(--accent-soft-strong);
 }
   </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
 </head>
 <body class="<?php 
   if ($isMobile) {
@@ -1873,5 +1874,6 @@
   <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

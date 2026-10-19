@@ -202,6 +202,9 @@
                 // Save button
                 if (this.elements.saveBtn) {
                     this.elements.saveBtn.addEventListener('click', () => this.saveTranscription());
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'editor:save') this.saveTranscription();
+                });
                 }
 
                 // Cleanup on page unload
@@ -654,6 +657,7 @@
                     if (result.success) {
                         this.showStatus('Transcription saved', 'success');
                         this.showDebug('Transcription saved');
+                        if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
 
                         // Notify parent window to refresh file list
                         if (window.parent) {
@@ -670,6 +674,7 @@
                 } catch (error) {
                     console.error('Save error:', this.sanitizeMessage(error.message));
                     this.showStatus('Error: ' + this.sanitizeMessage(error.message), 'error');
+                    if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: 'Error: ' + this.sanitizeMessage(error.message) }, '*');
                     this.showDebug('Save error: ' + this.sanitizeMessage(error.message));
                 } finally {
                     this.elements.saveBtn.disabled = false;

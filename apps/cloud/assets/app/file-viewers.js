@@ -180,9 +180,9 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
                 display: flex;
                 align-items: center;
                 justify-content: center;
-                background: #000;
                 position: relative;
                 min-width: 0;
+                min-height: 0;
                 overflow: hidden;
             `;
             
@@ -190,8 +190,8 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             const video = document.createElement('video');
             video.src = `api.php?action=raw_video&path=${encodeURIComponent(path)}&root=${rootKey}`;
             video.controls = true;
-            video.style.maxWidth = '100%';
-            video.style.maxHeight = '100%';
+            video.style.width = '100%';
+            video.style.height = '100%';
             video.style.objectFit = 'contain';
             
             // Add the plyr class

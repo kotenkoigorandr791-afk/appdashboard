@@ -118,7 +118,29 @@ function ensureCloudDeviceId() {
   }
   return value;
 }
+function syncShellMenuForModals() {
+    const anyOpen = Array.from(document.querySelectorAll('.modal')).some((modal) => !modal.classList.contains('hidden'));
+    document.body.classList.toggle('shell-menu-hidden', anyOpen);
+}
+function initShellModalWatcher() {
+    const observeModal = (node) => {
+        if (node.nodeType !== 1) return;
+        if (node.classList?.contains('modal')) {
+            new MutationObserver(syncShellMenuForModals).observe(node, { attributes: true, attributeFilter: ['class'] });
+        }
+        node.querySelectorAll?.('.modal').forEach((modal) => {
+            new MutationObserver(syncShellMenuForModals).observe(modal, { attributes: true, attributeFilter: ['class'] });
+        });
+    };
+    document.querySelectorAll('.modal').forEach(observeModal);
+    new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => mutation.addedNodes.forEach(observeModal));
+        syncShellMenuForModals();
+    }).observe(document.body, { childList: true, subtree: true });
+    syncShellMenuForModals();
+}
 document.addEventListener('DOMContentLoaded', async function() {
+    initShellModalWatcher();
     //comment
   await waitForAPP_CONFIG();
   await waitForStylesheetsReady();
@@ -1092,6 +1114,10 @@ function initLassoSelection() {
             return;
         }
         if (typeof getTopModal === 'function' && getTopModal()) return;
+        // The assistant modal is the topmost layer: let it handle Escape first and
+        // only clear the tree selection on the next Escape press.
+        const aiModal = document.getElementById('ai-modal');
+        if (aiModal && !aiModal.classList.contains('hidden')) return;
         if (document.getElementById('context-menu')) return;
         if (!selectionState.active) return;
         clearSelection();
@@ -2541,6 +2567,15 @@ window.addEventListener('message', function(event) {
     if (event.data.type === 'transcriptionSaved') {
         flashStatus(t(i18n, 'transcriptionSaved'));
     }
+    if (event.data.type === 'editorSaveResult') {
+        const saveButton = document.getElementById('btn-save');
+        if (event.data.ok) {
+            flashStatus(t(i18n, 'fileSaved'));
+            if (saveButton) showSuccessCheck(saveButton);
+        } else if (event.data.message) {
+            flashStatus(event.data.message);
+        }
+    }
     if (event.data.type === 'closeTranscriptionEditor') {
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
         if (activeTab && activeTab.transcriptionEditor) {
@@ -2670,9 +2705,10 @@ window.addEventListener('message', function(event) {
     }
 });
 function updateToolbarForMarkdownEditor() {
-    const saveBtn = document.getElementById('btn-save');
     const codeActionsBtn = document.getElementById('btn-code-actions');
-    saveBtn.classList.add('hidden');
+    // The save button lives in the shell toolbar; the editor asks its own
+    // iframe to save via postMessage.
+    document.getElementById('btn-save')?.classList.remove('hidden');
     codeActionsBtn.classList.add('hidden');
 }
 function openHtmlEditor(filePath, root = null) {
@@ -3343,9 +3379,16 @@ function updateToolbarForTab(tab) {
     const copyBtn = document.getElementById('btn-copy');
     const undoBtn = document.getElementById('btn-monaco-undo');
     const redoBtn = document.getElementById('btn-monaco-redo');
-    if (tab.photoEditor || tab.latexEditor || tab.transcriptionEditor || 
-        tab.onlyOfficeEditor || tab.markdownEditor || tab.htmlEditor || tab.zipViewer) {
+    if (tab.photoEditor || tab.latexEditor || tab.onlyOfficeEditor || tab.zipViewer) {
         saveBtn.classList.add('hidden');
+        codeActionsBtn.classList.add('hidden');
+        if (copyBtn) copyBtn.classList.add('hidden');
+        undoBtn?.classList.add('hidden');
+        redoBtn?.classList.add('hidden');
+    } else if (tab.transcriptionEditor || tab.ttsEditor || tab.markdownEditor || tab.htmlEditor) {
+        // Saving happens inside the embedded editor; the toolbar button asks it
+        // to save via postMessage instead of carrying a second save button.
+        saveBtn.classList.remove('hidden');
         codeActionsBtn.classList.add('hidden');
         if (copyBtn) copyBtn.classList.add('hidden');
         undoBtn?.classList.add('hidden');
@@ -9451,6 +9494,16 @@ async function saveFile() {
     const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
     if (!activeTab) {
         flashStatus(t(i18n, 'noFileToSave'));
+        return false;
+    }
+
+    if (activeTab.transcriptionEditor || activeTab.ttsEditor || activeTab.markdownEditor || activeTab.htmlEditor) {
+        const iframe = document.querySelector(`iframe[data-tab-id="${activeTab.id}"]`) || tabsState.iframeCache.get(activeTab.id);
+        if (!iframe || !iframe.contentWindow) {
+            flashStatus(t(i18n, 'noFileToSave'));
+            return false;
+        }
+        iframe.contentWindow.postMessage({ type: 'editor:save' }, '*');
         return false;
     }
 

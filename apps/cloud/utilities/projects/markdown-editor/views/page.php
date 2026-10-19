@@ -367,6 +367,8 @@
             background: #e6e6e6;
         }
     </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style>#saveBtn{display:none!important}</style>
 </head>
 <body class="<?php echo $theme === 'light' ? 'light-theme' : ''; ?>">
     <div class="container">
@@ -616,5 +618,6 @@
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>
