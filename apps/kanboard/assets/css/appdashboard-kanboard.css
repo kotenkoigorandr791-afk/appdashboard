@@ -1,0 +1,5 @@
+.appdashboard-live-markdown{margin-top:8px;min-height:3em;padding:8px;border:1px solid var(--form-border-color,#bbb);border-radius:3px;background:var(--form-background,#fff)}
+.appdashboard-color-option{display:inline-flex;align-items:center;min-width:28px}
+.appdashboard-color-option .color-picker-square{margin:0}
+.complexity-picker{min-width:150px}
+.ui-datepicker,.ui-timepicker-div,.ui-timepicker-wrapper,.ui-selectmenu-menu{z-index:10001!important}

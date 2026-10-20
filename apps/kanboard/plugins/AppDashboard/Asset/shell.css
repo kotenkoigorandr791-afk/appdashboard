@@ -1315,6 +1315,17 @@ ul.dropdown-submenu-open a .fa-fw {
   color: var(--kb-muted) !important;
   text-decoration: none !important;
   box-shadow: var(--kb-shadow);
+  line-height: 1 !important;
+}
+#modal-close-button i,
+#modal-close-button .fa {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1 !important;
+  height: 1em;
+  position: relative;
+  top: 1px;
 }
 #modal-close-button:hover {
   color: var(--kb-text) !important;
@@ -5202,6 +5213,16 @@ ul.dropdown-submenu-open li,
 }
 .kb-select-native {
   display: none !important;
+}
+.ui-timepicker-select {
+  display: inline-block !important;
+}
+.ui-datepicker .kb-select-trigger {
+  position: relative;
+  z-index: 10002;
+}
+.kb-menu-select {
+  z-index: 10003 !important;
 }
 .kb-select-trigger {
   display: inline-flex;

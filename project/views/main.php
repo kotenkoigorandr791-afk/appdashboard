@@ -1279,7 +1279,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #content.app-edge-lopaka{--app-edge-bg:<?php echo $config['theme']==='dark'?'#0a0a0a':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
         #content.app-edge-kanboard{--app-edge-bg:<?php echo $config['theme']==='dark'?'#12161D':'#F7F8FA';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#2a303b':'#e6e8ec';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#e8eaed':'#1a1d23';?>;}
         #content.app-edge-sentry{--app-edge-bg:<?php echo $config['theme']==='dark'?'#12161D':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#2a303b':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#e8eaed':'#111827';?>;}
-        #content.edge-app-shell #app-icon-rail{background:var(--app-edge-bg);border-color:var(--app-edge-border);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;}
+        #content.edge-app-shell #app-icon-rail{background:#12161D;border-color:var(--app-edge-border);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;}
+        body.theme-light #content.edge-app-shell #app-icon-rail,body.light-theme #content.edge-app-shell #app-icon-rail{background:#F7F8FA;}
         #content.edge-app-shell #app-iframe{background:var(--app-edge-bg);}
         #content.edge-app-shell .app-rail-link,#content.edge-app-shell .app-rail-service-name{color:var(--app-edge-text);}
         #content.edge-app-shell #menu-button{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1003;}

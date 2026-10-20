@@ -17,7 +17,7 @@
         <?= $this->asset->colorCss() ?>
         <?= $this->asset->css('assets/css/vendor.min.css') ?>
         <?php if (! isset($not_editable)): ?>
-            <?= $this->asset->css('assets/css/'.$this->user->getTheme().'.min.css') ?>
+            <?= $this->asset->css('assets/css/'.(function_exists('kanboard_bridge_theme') ? kanboard_bridge_theme() : $this->user->getTheme()).'.min.css') ?>
         <?php else: ?>
             <?= $this->asset->css('assets/css/light.min.css') ?>
         <?php endif ?>
@@ -31,6 +31,8 @@
 
         <?= $this->hook->asset('css', 'template:layout:css') ?>
         <?= $this->hook->asset('js', 'template:layout:js') ?>
+        <?= $this->asset->css('assets/css/appdashboard-kanboard.css') ?>
+        <?= $this->asset->js('assets/js/appdashboard-kanboard.js') ?>
 
         <link rel="icon" href="<?= $this->url->dir() ?>assets/img/adaptive-favicon.svg" type="image/svg+xml">
         <link rel="icon" type="image/png" href="<?= $this->url->dir() ?>assets/img/favicon.png">

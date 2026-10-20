@@ -22,7 +22,8 @@
 
   function iframeSrc(folder) {
     var path = 'apps/' + encodeURIComponent(folder) + '/' + (folder === 'lopaka' ? '' : 'index.php');
-    var q = 'lang=' + encodeURIComponent(lang) + '&theme=' + encodeURIComponent(theme) + '&color=' + encodeURIComponent(color);
+    var activeTheme = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : (document.body.classList.contains('light-theme') || document.body.classList.contains('theme-light') ? 'light' : theme);
+    var q = 'lang=' + encodeURIComponent(lang) + '&theme=' + encodeURIComponent(activeTheme) + '&color=' + encodeURIComponent(color);
     if (userData) q += '&user_data=' + encodeURIComponent(userData);
     return path + '?' + q;
   }
