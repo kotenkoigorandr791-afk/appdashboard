@@ -881,7 +881,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
           radial-gradient(ellipse at 70% 88%, color-mix(in srgb,var(--primary-color) 16%,transparent) 0%, transparent 45%),
           linear-gradient(160deg, color-mix(in srgb,var(--bg-color) 88%,#000) 0%, var(--bg-color) 45%, color-mix(in srgb,var(--bg-color) 82%,var(--primary-color)) 100%);
         }
-        body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;}
+        body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;background-image:none!important;background-color:#05070a!important;}
         #shell-home[hidden],#shell-app-frame[hidden]{display:none!important;}
         body.shell-app-open #top-bar{display:none!important;}
         body.shell-app-open #menu-button{display:flex!important;}

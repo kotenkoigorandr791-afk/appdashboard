@@ -5130,6 +5130,14 @@
         const result = step?.rawResult || {};
         const items = Array.isArray(result.results) ? result.results.slice(0, 6) : [];
         if (!items.length || !['web_search', 'image_search'].includes(step.tool)) return;
+        const details = document.createElement('details');
+        details.className = 'ai-agent-resource-details';
+        details.open = false;
+        const summary = document.createElement('summary');
+        summary.className = 'ai-agent-resource-summary';
+        summary.textContent = step.tool === 'image_search'
+            ? tr('aiImageSearchResults', 'Image results ({count})').replace('{count}', String(items.length))
+            : tr('aiWebSearchResults', 'Search results ({count})').replace('{count}', String(items.length));
         const wrap = document.createElement('div');
         wrap.className = step.tool === 'image_search' ? 'ai-agent-resource-grid' : 'ai-agent-resource-list';
         items.forEach((item) => {
@@ -5149,7 +5157,8 @@
             link.appendChild(title);
             wrap.appendChild(link);
         });
-        host.appendChild(wrap);
+        details.append(summary, wrap);
+        host.appendChild(details);
     }
     function planLabelFromStoredStep(step) {
         if (!step) return '';
@@ -6839,7 +6848,95 @@
         bindChatSessionControls();
     }
 
-    function renderAiChatSessions() {
+    function chatDayKey(ts) {
+        const d = new Date(Number(ts || 0) * 1000);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function chatWeekKey(ts) {
+        const d = new Date(Number(ts || 0) * 1000);
+        if (Number.isNaN(d.getTime())) return '';
+        const day = (d.getDay() + 6) % 7;
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - day);
+        return 'w:' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function buildChatDividerNodes(chats) {
+        const byDay = new Map();
+        chats.forEach((chat) => {
+            const key = chatDayKey(chat.updated_at);
+            if (!byDay.has(key)) byDay.set(key, []);
+            byDay.get(key).push(chat);
+        });
+        const useDaily = Array.from(byDay.values()).some((list) => list.length > 2);
+        const nodes = [];
+        let lastKey = null;
+        chats.forEach((chat) => {
+            const key = useDaily ? chatDayKey(chat.updated_at) : chatWeekKey(chat.updated_at);
+            if (key && key !== lastKey) {
+                lastKey = key;
+                const divider = document.createElement('div');
+                divider.className = 'ai-chat-menu-divider';
+                const labelDate = chat.updated_at ? new Date(Number(chat.updated_at) * 1000) : null;
+                divider.textContent = labelDate
+                    ? (useDaily ? labelDate.toLocaleDateString() : (tr('aiChatWeekOf', 'Week of') + ' ' + labelDate.toLocaleDateString()))
+                    : '';
+                nodes.push(divider);
+            }
+            nodes.push(chat);
+        });
+        return nodes;
+    }
+    function openAiChatManager() {
+        let modal = document.getElementById('ai-chat-manager-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'ai-chat-manager-modal';
+            modal.className = 'modal hidden';
+            modal.innerHTML = '<div class="modal-content ai-chat-manager-content"><div class="modal-header"><h3></h3><button type="button" class="icon-btn close-btn" aria-label="Close">×</button></div><div class="modal-body"><input type="search" class="ai-chat-manager-search" /><div class="ai-chat-manager-list"></div><p class="ai-chat-retention-note"></p></div></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+            modal.querySelector('.ai-chat-manager-search').addEventListener('input', () => renderAiChatManagerList());
+        }
+        modal.querySelector('h3').textContent = tr('aiManageChats', 'Manage chats');
+        modal.querySelector('.ai-chat-manager-search').placeholder = tr('aiSearchChats', 'Search chats');
+        modal.querySelector('.ai-chat-retention-note').textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
+        modal.classList.remove('hidden');
+        renderAiChatManagerList();
+    }
+    function renderAiChatManagerList() {
+        const modal = document.getElementById('ai-chat-manager-modal');
+        if (!modal) return;
+        const list = modal.querySelector('.ai-chat-manager-list');
+        const q = String(modal.querySelector('.ai-chat-manager-search')?.value || '').trim().toLowerCase();
+        const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
+        list.replaceChildren();
+        buildChatDividerNodes(chats).forEach((node) => {
+            if (node && node.className === 'ai-chat-menu-divider') {
+                list.appendChild(node);
+                return;
+            }
+            const chat = node;
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'ai-chat-menu-item';
+            row.innerHTML = '<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="' + escapeHtml(tr('aiDeleteChat', 'Delete chat')) + '">×</span>';
+            row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
+            row.querySelector('.ai-chat-menu-date').textContent = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleString() : '';
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.ai-chat-menu-delete')) {
+                    e.stopPropagation();
+                    deleteAiChat(chat.id).then(() => renderAiChatManagerList());
+                    return;
+                }
+                modal.classList.add('hidden');
+                switchAiChat(chat.id);
+            });
+            list.appendChild(row);
+        });
+    }
+    function renderAiChatSessions(filterQuery) {
         if (!elements.chatSelect) return;
         const titleEl = elements.chatSelect.querySelector('.ai-chat-current-title');
         const menu = document.getElementById('ai-chat-menu');
@@ -6847,7 +6944,28 @@
         menu.replaceChildren();
         const active = aiState.chatSessions.find((chat) => String(chat.id) === String(aiState.activeChatId)) || aiState.chatSessions[0] || null;
         if (titleEl) titleEl.textContent = active?.title || 'New chat';
-        aiState.chatSessions.forEach((chat) => {
+        const notice = document.createElement('div');
+        notice.className = 'ai-chat-retention-note';
+        notice.textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
+        menu.appendChild(notice);
+        const search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'ai-chat-menu-search';
+        search.placeholder = tr('aiSearchChats', 'Search chats');
+        search.value = filterQuery || '';
+        search.addEventListener('input', () => renderAiChatSessions(search.value));
+        search.addEventListener('click', (e) => e.stopPropagation());
+        menu.appendChild(search);
+        const q = String(filterQuery || '').trim().toLowerCase();
+        const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
+        const PREVIEW_LIMIT = 8;
+        const preview = chats.slice(0, PREVIEW_LIMIT);
+        buildChatDividerNodes(preview).forEach((node) => {
+            if (node && node.className === 'ai-chat-menu-divider') {
+                menu.appendChild(node);
+                return;
+            }
+            const chat = node;
             const row = document.createElement('button');
             row.type = 'button';
             row.className = 'ai-chat-menu-item' + (String(chat.id) === String(aiState.activeChatId) ? ' active' : '');
@@ -6867,6 +6985,25 @@
             });
             menu.appendChild(row);
         });
+        if (chats.length > PREVIEW_LIMIT) {
+            const manage = document.createElement('button');
+            manage.type = 'button';
+            manage.className = 'ai-chat-menu-manage';
+            manage.textContent = tr('aiManageChats', 'Manage chats');
+            manage.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.classList.add('hidden');
+                openAiChatManager();
+            });
+            menu.appendChild(manage);
+        }
+        if (search.value) {
+            requestAnimationFrame(() => {
+                search.focus();
+                const len = search.value.length;
+                try { search.setSelectionRange(len, len); } catch (_) {}
+            });
+        }
     }
 
     async function loadAiChatSessions() {
