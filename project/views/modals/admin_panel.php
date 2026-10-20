@@ -3171,9 +3171,14 @@ function wireEvents(){
                 if(d.config){
                     if(endpointEl&&d.config.api_endpoint)endpointEl.value=d.config.api_endpoint;
                     if(modelsEl&&Array.isArray(d.config.models))modelsEl.value=d.config.models.join('\n');
-                    if(defaultEl&&d.config.default_model)defaultEl.value=d.config.default_model;
                     if(speechModelsEl&&Array.isArray(d.config.speech_models))speechModelsEl.value=d.config.speech_models.join('\n');
-                    if(speechModelEl&&d.config.speech_model)speechModelEl.value=d.config.speech_model;
+                    if(typeof apSyncModelSelect==='function'){
+                        apSyncModelSelect(defaultEl, modelsEl?modelsEl.value:'', d.config.default_model||'');
+                        apSyncModelSelect(speechModelEl, speechModelsEl?speechModelsEl.value:'', d.config.speech_model||'');
+                    } else {
+                        if(defaultEl&&d.config.default_model)defaultEl.value=d.config.default_model;
+                        if(speechModelEl&&d.config.speech_model)speechModelEl.value=d.config.speech_model;
+                    }
                     if(currentEl&&d.config.api_key){currentEl.value=d.config.api_key;currentEl.type='password';}
                 }
                 if(aiNewKey)aiNewKey.value='';
@@ -3181,6 +3186,61 @@ function wireEvents(){
                 if(aiMatch)aiMatch.style.display='none';
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
+    });
+    function apParseModelLines(text){
+        return String(text||'').split(/\r?\n/).map(function(s){return s.trim();}).filter(Boolean);
+    }
+    function apSyncModelSelect(selectEl, modelsText, current){
+        if(!selectEl)return;
+        var models=apParseModelLines(modelsText);
+        var cur=current||selectEl.value||'';
+        if(cur&&models.indexOf(cur)===-1)models.unshift(cur);
+        selectEl.innerHTML='';
+        if(!models.length){
+            var o=document.createElement('option');
+            o.value='';o.textContent=T.ai_models_label||'Add models above';
+            selectEl.appendChild(o);
+            return;
+        }
+        models.forEach(function(m){
+            var o=document.createElement('option');
+            o.value=m;o.textContent=m;
+            if(m===cur)o.selected=true;
+            selectEl.appendChild(o);
+        });
+    }
+    var modelsElLive=dynRoot.querySelector('#ap-ai-models'),defaultElLive=dynRoot.querySelector('#ap-ai-default-model');
+    var speechModelsElLive=dynRoot.querySelector('#ap-ai-speech-models'),speechModelElLive=dynRoot.querySelector('#ap-ai-speech-model');
+    if(modelsElLive){
+        modelsElLive.addEventListener('input',function(){
+            apSyncModelSelect(defaultElLive, modelsElLive.value, defaultElLive?defaultElLive.value:'');
+        });
+    }
+    if(speechModelsElLive){
+        speechModelsElLive.addEventListener('input',function(){
+            apSyncModelSelect(speechModelElLive, speechModelsElLive.value, speechModelElLive?speechModelElLive.value:'');
+        });
+    }
+    // After successful save, refresh selects from returned config
+    var aiTest=dynRoot.querySelector('#ap-test-ai-models');
+    if(aiTest)aiTest.addEventListener('click',function(){
+        var modelsEl=dynRoot.querySelector('#ap-ai-models');
+        setStatus(aiSt,(T.testing||'Testing...'),'info');
+        aiTest.disabled=true;
+        var fd=new FormData();
+        fd.append('test_ai_models','1');fd.append('ajax','1');
+        fd.append('models',modelsEl?modelsEl.value.trim():'');
+        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+            var msg=d.message||(d.success?'OK':(d.error||T.error));
+            setStatus(aiSt,(d.success?'+ ':'x ')+msg,d.success?'success':'error');
+            if(typeof showTempNotification!=='undefined')showTempNotification(msg,d.success?'success':'error');
+            if(Array.isArray(d.results)){
+                console.log('AI model test results', d.results);
+            }
+        }).catch(function(){
+            setStatus(aiSt,'x '+T.error,'error');
+            if(typeof showTempNotification!=='undefined')showTempNotification(T.error||'Error','error');
+        }).then(function(){aiTest.disabled=false;});
     });
     var accGrid=dynRoot.querySelector('#ap-app-access-grid'),accSort=dynRoot.querySelector('#ap-app-access-sort'),accSav=dynRoot.querySelector('#ap-save-app-access'),accSt=dynRoot.querySelector('#ap-app-access-status');
     function apSortAccessTiles(){if(!accGrid||!accSort)return;var tiles=Array.from(accGrid.querySelectorAll('.ap-app-access-tile')),m=accSort.value;tiles.sort(function(a,b){if(m==='name')return(a.dataset.name||'').localeCompare(b.dataset.name||'');if(m==='role')return parseInt(a.dataset.role,10)-parseInt(b.dataset.role,10);return parseInt(b.dataset.visits,10)-parseInt(a.dataset.visits,10);});tiles.forEach(function(t){accGrid.appendChild(t);});}

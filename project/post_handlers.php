@@ -1472,14 +1472,42 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['apiEndpoint']??'API Endpoint'); ?></label><input type="text" id="ap-ai-endpoint" value="<?php echo my_htmlspecialchars($_apAiCfg['api_endpoint']??''); ?>" placeholder="https://ai.example.com/v1/chat/completions" autocomplete="off" style="font-family:monospace;font-size:12px;"></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['currentApiKey']??'Current API Key'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-ai-current-key" value="<?php echo my_htmlspecialchars($_apAiCfg['api_key']??''); ?>" readonly autocomplete="off" style="font-family:monospace;font-size:12px;"><button type="button" class="ap-pwd-eye" data-target="ap-ai-current-key"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_models_label']??'Models (one per line)'); ?></label><textarea id="ap-ai-models" rows="4" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"><?php echo my_htmlspecialchars(implode("\n", $_apAiCfg['models'] ?? [])); ?></textarea></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_default_model_label']??'Default model'); ?></label><input type="text" id="ap-ai-default-model" value="<?php echo my_htmlspecialchars($_apAiCfg['default_model']??''); ?>" placeholder="nvidia/openai/gpt-oss-120b" autocomplete="off" style="font-family:monospace;font-size:12px;"></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_default_model_label']??'Default model'); ?></label><?php
+                    $_apAiModels = array_values(array_filter(array_map('strval', $_apAiCfg['models'] ?? [])));
+                    $_apAiDefault = (string)($_apAiCfg['default_model'] ?? '');
+                    if ($_apAiDefault !== '' && !in_array($_apAiDefault, $_apAiModels, true)) {
+                        array_unshift($_apAiModels, $_apAiDefault);
+                    }
+                ?><select id="ap-ai-default-model" style="font-family:monospace;font-size:12px;width:100%;"><?php
+                    if (!$_apAiModels) {
+                        echo '<option value="">'.my_htmlspecialchars($translations['ai_models_label']??'Add models above').'</option>';
+                    }
+                    foreach ($_apAiModels as $_m) {
+                        $sel = ($_m === $_apAiDefault) ? ' selected' : '';
+                        echo '<option value="'.my_htmlspecialchars($_m).'"'.$sel.'>'.my_htmlspecialchars($_m).'</option>';
+                    }
+                ?></select></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_models_label']??'Speech models (one per line)'); ?></label><textarea id="ap-ai-speech-models" rows="3" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"><?php echo my_htmlspecialchars(implode("\n", $_apAiCfg['speech_models'] ?? [])); ?></textarea><div class="ap-hint"><?php echo my_htmlspecialchars($translations['ai_speech_models_hint']??'Models used for speech recognition (transcription) and voice playback through the AI hub.'); ?></div></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_model_label']??'Speech recognition model'); ?></label><input type="text" id="ap-ai-speech-model" value="<?php echo my_htmlspecialchars($_apAiCfg['speech_model']??''); ?>" placeholder="groq/whisper-large-v3" autocomplete="off" style="font-family:monospace;font-size:12px;"></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_model_label']??'Speech recognition model'); ?></label><?php
+                    $_apSpeechModels = array_values(array_filter(array_map('strval', $_apAiCfg['speech_models'] ?? [])));
+                    $_apSpeechModel = (string)($_apAiCfg['speech_model'] ?? '');
+                    if ($_apSpeechModel !== '' && !in_array($_apSpeechModel, $_apSpeechModels, true)) {
+                        array_unshift($_apSpeechModels, $_apSpeechModel);
+                    }
+                ?><select id="ap-ai-speech-model" style="font-family:monospace;font-size:12px;width:100%;"><?php
+                    if (!$_apSpeechModels) {
+                        echo '<option value="">'.my_htmlspecialchars($translations['ai_speech_models_label']??'Add speech models above').'</option>';
+                    }
+                    foreach ($_apSpeechModels as $_m) {
+                        $sel = ($_m === $_apSpeechModel) ? ' selected' : '';
+                        echo '<option value="'.my_htmlspecialchars($_m).'"'.$sel.'>'.my_htmlspecialchars($_m).'</option>';
+                    }
+                ?></select></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['newApiKey']??'New API Key'); ?></label><textarea id="ap-ai-new-key" rows="2" placeholder="sk-..." autocomplete="off" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['confirmNewApiKey']??'Confirm New API Key'); ?></label><textarea id="ap-ai-confirm-key" rows="2" placeholder="sk-..." autocomplete="off" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea></div>
                 <div id="ap-ai-key-match" class="ap-hint" style="display:none;"></div>
                 <div class="ap-hint" style="color:#ffc107;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.08);padding:10px;border-radius:6px;"><?php echo my_htmlspecialchars($translations['apiKeyChangeWarning']??'Changing the API key will affect all AI assistant functionality. Make sure you have the correct key.'); ?></div>
-                <div class="ap-btn-row"><button type="button" id="ap-save-ai-config" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button></div>
+                <div class="ap-btn-row"><button type="button" id="ap-save-ai-config" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button><button type="button" id="ap-test-ai-models" class="ap-btn"><?php echo my_htmlspecialchars($translations['ai_test_models']??'Test models'); ?></button></div>
                 <div class="ap-status" id="ap-ai-config-status"></div>
             </div>
 
@@ -1957,6 +1985,58 @@ if($emailToReset){
         }
         exit;
     }
+
+    if(isset($_POST['test_ai_models']) && isset($_POST['ajax']) && $sessionIsAdmin){
+        require_once __DIR__ . '/../apps/cloud/includes/ai_config_store.php';
+        require_once __DIR__ . '/../apps/cloud/includes/ai_proxy.php';
+        header('Content-Type: application/json');
+        $cfg = cloud_ai_load_config();
+        $models = cloud_ai_parse_models_list(trim((string)($_POST['models'] ?? '')));
+        if ($models === []) {
+            $models = $cfg['models'] ?? [];
+        }
+        if ($models === []) {
+            echo json_encode(['success'=>false,'error'=>$translations['ai_models_label']??'No models configured'], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+        $a = random_int(1, 50);
+        $b = random_int(1, 50);
+        $expected = $a + $b;
+        $results = [];
+        foreach ($models as $modelId) {
+            $payload = [
+                'model' => cloud_ai_normalize_model_id((string)$modelId),
+                'messages' => [
+                    ['role' => 'user', 'content' => "Reply with only the number: {$a}+{$b}="],
+                ],
+                'max_tokens' => 16,
+                'temperature' => 0,
+                'stream' => false,
+            ];
+            $res = cloud_ai_proxy_json($cfg, (string)$cfg['api_endpoint'], $payload, 'POST', 45);
+            $answer = '';
+            $ok = false;
+            if (!empty($res['ok']) && $res['body'] !== '') {
+                $decoded = json_decode((string)$res['body'], true);
+                $answer = trim((string)($decoded['choices'][0]['message']['content'] ?? ''));
+                $ok = preg_match('/\b' . preg_quote((string)$expected, '/') . '\b/', $answer) === 1;
+            }
+            $results[] = [
+                'model' => (string)$modelId,
+                'ok' => $ok,
+                'answer' => $answer !== '' ? $answer : ($res['error'] ?: ('HTTP ' . ($res['http'] ?? 0))),
+                'expected' => $expected,
+            ];
+        }
+        $passed = count(array_filter($results, static fn($r) => !empty($r['ok'])));
+        echo json_encode([
+            'success' => $passed > 0,
+            'message' => "{$a}+{$b}={$expected}: {$passed}/" . count($results) . ' models ok',
+            'results' => $results,
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
     if(isset($_POST['save_onlyoffice_config']) && isset($_POST['ajax']) && $sessionIsAdmin){
         $onlyofficeToken = trim((string)($_POST['onlyoffice_token'] ?? ''));
         setConfig('onlyoffice_jwt_secret', $onlyofficeToken);
