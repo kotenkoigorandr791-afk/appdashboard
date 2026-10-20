@@ -1646,7 +1646,8 @@ body.group-chat-open .layout{padding-right:0}
 .storage-admin-requests{display:flex;flex-direction:column;gap:10px;margin:8px 0 18px}
 .storage-admin-users-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:6px 0 0}
 .storage-admin-toolbar{margin:10px 0}
-.storage-admin-search{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--input-bg,var(--bg));color:var(--fg);font:inherit;font-size:14px}
+.storage-admin-search-wrap{width:100%}
+.storage-admin-search{width:100%;padding:10px 12px 10px 36px;border:1px solid var(--border);border-radius:10px;background:var(--input-bg,var(--bg));color:var(--fg);font:inherit;font-size:14px}
 .storage-admin-search:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 18%,transparent)}
 .storage-admin-table-wrap{width:100%;max-width:100%;overflow-x:auto;border:1px solid var(--border);border-radius:12px}
 #storage-admin-table{display:table;width:100%;border-collapse:collapse;table-layout:fixed;margin:0}
