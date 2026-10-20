@@ -882,6 +882,10 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
           linear-gradient(160deg, color-mix(in srgb,var(--bg-color) 88%,#000) 0%, var(--bg-color) 45%, color-mix(in srgb,var(--bg-color) 82%,var(--primary-color)) 100%);
         }
         body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;}
+        #shell-home[hidden],#shell-app-frame[hidden]{display:none!important;}
+        body.shell-app-open #top-bar{display:none!important;}
+        body.shell-app-open #menu-button{display:flex!important;}
+
         body.shell-app-open::before{animation:shellLayerFadeOut 140ms ease-out both;}
         body.shell-app-open.wallpaper-custom::after{animation:shellLayerFadeOut 140ms ease-out both;}
         @keyframes shellLayerFadeOut{from{opacity:1;}to{opacity:0;}}
@@ -4326,19 +4330,22 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
 <?php $railTopApps=['immich','gitea','kanboard','dawarich','sentry','lopaka']; ?>
 <?php $edgeAppShellApps=['immich','gitea','kanboard','dawarich','sentry','x','X','lopaka']; ?>
+<?php if($path==='/main' && !$showLogin): ?>
+<script>
+window.__SHELL_APPS=<?php echo json_encode($apps, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
+window.__SHELL_RAIL_TOP_APPS=<?php echo json_encode($railTopApps); ?>;
+window.__SHELL_EDGE_APPS=<?php echo json_encode($edgeAppShellApps); ?>;
+window.__SHELL_LANG=<?php echo json_encode($language); ?>;
+window.__SHELL_THEME=<?php echo json_encode(($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink); ?>;
+window.__SHELL_COLOR=<?php echo json_encode($config['color'] ?? ''); ?>;
+window.__SHELL_USER_DATA=<?php echo json_encode($userDataForApps ? base64_encode(json_encode($userDataForApps)) : ''); ?>;
+window.__SHELL_CURRENT_APP=<?php echo json_encode($selectedApp); ?>;
+</script>
+<script src="/project/assets/shell-app-nav.js?v=1" defer></script>
+<?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
-    <?php if($showAppFrame):?>
-        <?php if($showAppRail):?>
-        <div id="app-icon-rail">
-            <div class="app-rail-scroll">
-            <a href="/main" class="app-rail-link app-rail-home" title="<?php echo my_htmlspecialchars($translations['home_tooltip'] ?? $translations['home'] ?? 'Home'); ?>"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
-            <span class="app-rail-service-name"><?php echo my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)); ?></span>
-            </div>
-        </div>
-        <?php endif;?>
-        <?php $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink; ?>
-        <iframe id="app-iframe" name="devtools-app" title="Application: <?php echo my_htmlspecialchars($selectedApp); ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($appIframeTheme); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
-    <?php elseif($path==='/main'):?>
+    <?php if($path==='/main'): ?>
+    <div id="shell-home" class="shell-home"<?php echo $showAppFrame ? ' hidden' : ''; ?>>
         <?php if(!$showTopBarTitle):?>
         <button type="button" id="notifications-btn" class="notifications-floating" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" style="position:fixed;top:10px;right:64px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 10%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
@@ -4354,7 +4361,18 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
                 <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link" data-app-desc="<?php echo my_htmlspecialchars($appData['description'] ?? ''); ?>"><div class="app-tile" style="position: relative; overflow: visible;"><?php if ($name === $mostPopularKey): ?><div class="app-popular-badge" aria-label="Popular"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#ff3b30" stroke="#fff" stroke-width="0.6" d="M12 2.5l2.47 5.01 5.53.8-4 3.9.94 5.5L12 15.9l-4.94 2.81.94-5.5-4-3.9 5.53-.8L12 2.5z"/></svg></div><?php endif; ?><div class="app-icon-wrap"><?php if(!empty($appData['icon_masked']) && !empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php elseif(($appData['icon_style']??'')==='animated' && !empty($appData['is_svg'])): ?><object class="app-icon" type="image/svg+xml" data="<?php echo my_htmlspecialchars($appData['icon']); ?>" aria-label="<?php echo my_htmlspecialchars($name); ?>"></object><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div></div></a>
             <?php endforeach; ?>
         </div>
-    <?php endif;?>
+    </div>
+    <div id="shell-app-frame" class="shell-app-frame"<?php echo $showAppFrame ? '' : ' hidden'; ?>>
+        <?php $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink; ?>
+        <div id="app-icon-rail"<?php echo $showAppRail ? '' : ' class="hidden" style="display:none"'; ?>>
+            <div class="app-rail-scroll">
+            <a href="/main" class="app-rail-link app-rail-home" title="<?php echo my_htmlspecialchars($translations['home_tooltip'] ?? $translations['home'] ?? 'Home'); ?>"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+            <span class="app-rail-service-name"><?php echo $showAppFrame ? my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)) : ''; ?></span>
+            </div>
+        </div>
+        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="<?php echo $showAppFrame ? 'apps/'.urlencode($selectedApp).'/'.($selectedApp === 'lopaka' ? '' : 'index.php').'?lang='.urlencode($language).'&theme='.urlencode($appIframeTheme).'&color='.urlencode($config['color']).($userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):'') : 'about:blank'; ?>"></iframe>
+    </div>
+    <?php endif; ?>
 </div>
 <?php $wpCatalog = ap_wallpaper_catalog(); ?>
 <div id="wallpaper-modal">
