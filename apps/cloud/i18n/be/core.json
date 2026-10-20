@@ -814,5 +814,9 @@
     "share-open-limit": "Відкрити ліміт",
     "shareGetLink": "Получаць ссылку",
     "shareSendToChat": "Паднаўленне ў чат",
-    "monacoAiPromptPlaceholder": "Што выправіць з дапамогай ШІ?"
+    "monacoAiPromptPlaceholder": "Што выправіць з дапамогай ШІ?",
+    "selectAll": "Вылучыць усё",
+    "trashRetentionLabel": "Захоўваць",
+    "trashRetentionDays": "дн.",
+    "trashRetentionSaved": "Тэрмін захоўвання кошыка захаваны"
 }

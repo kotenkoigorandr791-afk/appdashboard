@@ -87,12 +87,13 @@ if ($action === 'get_state') {
     $sync_mode = 'mtime_size';
     $sync_enabled = 0;
     $last_sync_at = 0;
+    $trash_retention_days = 7;
     if ($email) {
         $db_s = getDB();
         if ($db_s) {
             try {
                 ensureCloudUserSettingsSchema($db_s);
-                $sq = $db_s->prepare('SELECT quota_mb, session_limit_mb, hide_lang_switcher, sync_local_path, sync_interval_sec, sync_mode, sync_enabled, last_sync_at FROM cloud_user_settings WHERE email = :e');
+                $sq = $db_s->prepare('SELECT quota_mb, session_limit_mb, hide_lang_switcher, sync_local_path, sync_interval_sec, sync_mode, sync_enabled, last_sync_at, trash_retention_days FROM cloud_user_settings WHERE email = :e');
                 $sq->bindValue(':e', $email, PDO::PARAM_STR);
                 $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
                 if ($rq) {
@@ -104,6 +105,7 @@ if ($action === 'get_state') {
                     $sync_mode = (string)($rq['sync_mode'] ?? 'mtime_size');
                     $sync_enabled = ((int)($rq['sync_enabled'] ?? 0)) ? 1 : 0;
                     $last_sync_at = max(0, (int)($rq['last_sync_at'] ?? 0));
+                    $trash_retention_days = cloud_normalize_trash_retention_days((int)($rq['trash_retention_days'] ?? 7));
                 }
             } catch (Exception $e) {
                 cloud_safe_error_log("get_state quota lookup failed: " . $e->getMessage());
@@ -127,6 +129,7 @@ if ($action === 'get_state') {
         'sync_mode' => $sync_mode,
         'sync_enabled' => $sync_enabled,
         'last_sync_at' => $last_sync_at,
+        'trash_retention_days' => $trash_retention_days,
         'used_bytes'       => $used_bytes
     ]];
 
@@ -374,6 +377,16 @@ if ($action === 'empty_trash') {
     append_sync_log($email, 'trash', 'empty_trash', '', 'WARNING', 'Trash emptied');
   }
   json_out(['ok' => true, 'removed' => $removed]);
+}
+
+if ($action === 'set_trash_retention') {
+  $user = get_current_user_from_sessions();
+  if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
+  $email = get_session_email();
+  if (!$email) json_out(['error' => 'not authenticated'], 401);
+  $days = cloud_normalize_trash_retention_days((int)($_POST['days'] ?? $_GET['days'] ?? 7));
+  $days = cloud_set_trash_retention_days($email, $days);
+  json_out(['ok' => true, 'trash_retention_days' => $days, 'options' => cloud_trash_retention_options()]);
 }
 
 if ($action === 'share_file' || $action === 'share_folder') {

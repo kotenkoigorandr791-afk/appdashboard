@@ -1106,5 +1106,9 @@
   "share-open-limit": "Otwórz limit",
   "shareGetLink": "Pobierz link",
   "shareSendToChat": "Wyślij do czatu",
-  "monacoAiPromptPlaceholder": "Co AI ma zmienić?"
+  "monacoAiPromptPlaceholder": "Co AI ma zmienić?",
+  "selectAll": "Zaznacz wszystko",
+  "trashRetentionLabel": "Przechowuj",
+  "trashRetentionDays": "dni",
+  "trashRetentionSaved": "Okres przechowywania kosza zapisany"
 }

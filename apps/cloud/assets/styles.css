@@ -211,6 +211,9 @@ body.tabs-empty:not(.trash-mode) .tabs-container,body.tabs-empty:not(.trash-mode
 .trash-item-meta{display:flex;flex:0 1 auto;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);line-height:1.45;min-width:0}
 .trash-item-meta-row{display:block;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .trash-item-path{display:block;font-family:'JetBrains Mono', monospace;font-size:11px;opacity:.9;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.trash-retention-wrap{display:inline-flex;align-items:center;gap:6px;margin-right:8px;font-size:12px;color:var(--muted);white-space:nowrap}
+.trash-retention-select{padding:4px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font:inherit}
+#trash-selection-counter{margin-right:10px}
 .image-viewer-container{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track)}
 #tokens-list-container{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track)}
 #tokens-list-container::-webkit-scrollbar{width:10px}

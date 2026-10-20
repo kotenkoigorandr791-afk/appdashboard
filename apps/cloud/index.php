@@ -572,9 +572,22 @@ cloud_require_session_auth();
         <div class="file-toolbar">
           <span id="file-name" class="filename"></span>
           <div class="spacer"></div>
+          <span id="trash-selection-counter" class="selection-counter hidden"></span>
+          <label id="trash-retention-wrap" class="trash-retention-wrap hidden" for="trash-retention-days">
+            <span data-i18n="trashRetentionLabel">Keep</span>
+            <select id="trash-retention-days" class="trash-retention-select" aria-label="Trash retention">
+              <option value="1">1</option>
+              <option value="4">4</option>
+              <option value="7" selected>7</option>
+              <option value="10">10</option>
+              <option value="13">13</option>
+              <option value="15">15</option>
+            </select>
+            <span data-i18n="trashRetentionDays">days</span>
+          </label>
           <button id="btn-trash-restore-all" class="btn secondary small hidden" data-i18n="restoreAll"></button>
+          <button id="btn-trash-select-all" class="btn secondary small hidden" data-i18n="selectAll"></button>
           <button id="btn-trash-delete-selected" class="btn danger small hidden" data-i18n="deleteSelected"></button>
-          <button id="btn-trash-delete-all" class="btn danger small hidden" data-i18n="deleteAll"></button>
           <button id="btn-trash-restore-selected" class="btn primary small hidden" data-i18n="restoreSelected"></button>
           <button id="btn-ai" class="icon-btn" title="AI Assistant">
             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">

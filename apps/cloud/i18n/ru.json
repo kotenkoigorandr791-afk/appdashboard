@@ -1106,5 +1106,9 @@
   "share-open-limit": "Открыть лимит",
   "shareGetLink": "Получить ссылку",
   "shareSendToChat": "Отправить в чат",
-  "monacoAiPromptPlaceholder": "Что исправить с помощью ИИ?"
+  "monacoAiPromptPlaceholder": "Что исправить с помощью ИИ?",
+  "selectAll": "Выделить все",
+  "trashRetentionLabel": "Хранить",
+  "trashRetentionDays": "дн.",
+  "trashRetentionSaved": "Срок хранения корзины сохранён"
 }

@@ -1106,5 +1106,9 @@
   "share-open-limit": "Otevřít limit",
   "shareGetLink": "Získat odkaz",
   "shareSendToChat": "Odeslat do chatu",
-  "monacoAiPromptPlaceholder": "Co má AI změnit?"
+  "monacoAiPromptPlaceholder": "Co má AI změnit?",
+  "selectAll": "Vybrat vše",
+  "trashRetentionLabel": "Uchovat",
+  "trashRetentionDays": "dní",
+  "trashRetentionSaved": "Doba uchování koše uložena"
 }

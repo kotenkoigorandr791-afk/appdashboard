@@ -4552,7 +4552,10 @@ function bindUI(i18n) {
     document.getElementById('btn-trash-delete-selected')?.addEventListener('click', () => deleteSelectedItems());
     document.getElementById('btn-trash-restore-selected')?.addEventListener('click', () => restoreSelectedTrashItems());
     document.getElementById('btn-trash-restore-all')?.addEventListener('click', () => restoreAllTrashItems());
-    document.getElementById('btn-trash-delete-all')?.addEventListener('click', () => emptyTrashWithConfirmation());
+    document.getElementById('btn-trash-select-all')?.addEventListener('click', () => selectAllTrashItems());
+    document.getElementById('trash-retention-days')?.addEventListener('change', (e) => {
+        void setTrashRetentionDays(Number(e.target.value));
+    });
     initFileModals();
     initLangSwitcher();
     initCreateFolderModal();
@@ -7001,6 +7004,7 @@ function escapeRegex(string) {
 }
 async function refreshUsers(i18n) {
     const state = await api('get_state');
+    window.__cloudUsersState = state;
     setCurrentUser(state.active);
     const tableBody = document.getElementById('users-table-body');
     tableBody.innerHTML = '';
@@ -7045,10 +7049,14 @@ async function refreshUsers(i18n) {
 async function syncSettingsControls(state = null) {
     if (!state) {
         state = await api('get_state');
+        window.__cloudUsersState = state;
         setCurrentUser(state.active);
+    } else {
+        window.__cloudUsersState = state;
     }
     const active = state.users.find(u => u.name === state.active);
     if (!active) return;
+    syncTrashRetentionControl();
     const activeDisplayEmail = (active && active.email) || state.active_email || state.active;
     window.cloudCurrentUserDisplayEmail = activeDisplayEmail || '';
     document.getElementById('session-limit-mb').value = active.session_limit_mb || 0;
@@ -7444,13 +7452,61 @@ function updateTrashToolbarSelectionState() {
     const deleteSelectedBtn = document.getElementById('btn-trash-delete-selected');
     const restoreSelectedBtn = document.getElementById('btn-trash-restore-selected');
     const restoreAllBtn = document.getElementById('btn-trash-restore-all');
-    const deleteAllBtn = document.getElementById('btn-trash-delete-all');
+    const selectAllBtn = document.getElementById('btn-trash-select-all');
+    const counter = document.getElementById('trash-selection-counter');
     if (restoreAllBtn) restoreAllBtn.textContent = t(i18n, 'restoreAll');
-    if (deleteAllBtn) deleteAllBtn.textContent = t(i18n, 'deleteAll');
+    if (selectAllBtn) selectAllBtn.textContent = t(i18n, 'selectAll');
     if (deleteSelectedBtn) deleteSelectedBtn.textContent = t(i18n, 'deleteSelected', { count });
     if (restoreSelectedBtn) restoreSelectedBtn.textContent = t(i18n, 'restoreSelected', { count });
     if (deleteSelectedBtn) deleteSelectedBtn.disabled = count === 0;
     if (restoreSelectedBtn) restoreSelectedBtn.disabled = count === 0;
+    if (counter) {
+        if (count > 0) {
+            counter.textContent = t(i18n, 'selectedCount', { count });
+            counter.classList.remove('hidden');
+        } else {
+            counter.textContent = '';
+            counter.classList.add('hidden');
+        }
+    }
+}
+
+function getActiveTrashRetentionDays() {
+    const active = (window.__cloudUsersState?.users || []).find((u) => u.name === (window.__cloudUsersState?.active || currentUserState.user))
+        || (window.__cloudUsersState?.users || [])[0];
+    const days = Number(active?.trash_retention_days ?? 7);
+    return [1, 4, 7, 10, 13, 15].includes(days) ? days : 7;
+}
+
+function syncTrashRetentionControl() {
+    const select = document.getElementById('trash-retention-days');
+    if (!select) return;
+    select.value = String(getActiveTrashRetentionDays());
+}
+
+async function setTrashRetentionDays(days) {
+    const normalized = [1, 4, 7, 10, 13, 15].includes(Number(days)) ? Number(days) : 7;
+    try {
+        const resp = await api('set_trash_retention', { days: normalized });
+        const next = Number(resp?.trash_retention_days ?? normalized);
+        if (window.__cloudUsersState?.users) {
+            window.__cloudUsersState.users = window.__cloudUsersState.users.map((u) => ({
+                ...u,
+                trash_retention_days: next
+            }));
+        }
+        syncTrashRetentionControl();
+        flashStatus(t(i18n, 'trashRetentionSaved') || ('Retention: ' + next + 'd'));
+    } catch (err) {
+        flashStatus(err.message || 'Failed to save retention');
+        syncTrashRetentionControl();
+    }
+}
+
+function selectAllTrashItems() {
+    selectionState.active = true;
+    setTrashSelection(trashState.items.map((item) => item.path), trashState.items.length ? 0 : -1);
+    if (trashState.items.length) focusTrashItem(0);
 }
 
 function formatTrashDeletedAt(timestamp) {
@@ -7470,9 +7526,11 @@ function updateToolbarForTrashView() {
     document.querySelector('.code-actions')?.classList.add('hidden');
     document.getElementById('tabs-container')?.classList.add('hidden');
     document.getElementById('btn-trash-restore-all')?.classList.remove('hidden');
+    document.getElementById('btn-trash-select-all')?.classList.remove('hidden');
     document.getElementById('btn-trash-delete-selected')?.classList.remove('hidden');
-    document.getElementById('btn-trash-delete-all')?.classList.remove('hidden');
     document.getElementById('btn-trash-restore-selected')?.classList.remove('hidden');
+    document.getElementById('trash-retention-wrap')?.classList.remove('hidden');
+    syncTrashRetentionControl();
     updateTrashToolbarSelectionState();
 }
 
@@ -7484,9 +7542,11 @@ function restoreDefaultToolbarAfterTrash() {
     document.querySelector('.code-actions')?.classList.remove('hidden');
     document.getElementById('tabs-container')?.classList.remove('hidden');
     document.getElementById('btn-trash-restore-all')?.classList.add('hidden');
+    document.getElementById('btn-trash-select-all')?.classList.add('hidden');
     document.getElementById('btn-trash-delete-selected')?.classList.add('hidden');
-    document.getElementById('btn-trash-delete-all')?.classList.add('hidden');
     document.getElementById('btn-trash-restore-selected')?.classList.add('hidden');
+    document.getElementById('trash-retention-wrap')?.classList.add('hidden');
+    document.getElementById('trash-selection-counter')?.classList.add('hidden');
     if (activeTab) {
         updateToolbarForTab(activeTab);
     } else {
@@ -7766,17 +7826,6 @@ async function restoreAllTrashItems() {
     await restoreTrashItems(trashState.items.map((item) => item.path));
 }
 
-async function emptyTrashWithConfirmation() {
-    if (!trashState.items.length) {
-        flashStatus(t(i18n, 'trashEmpty'));
-        return;
-    }
-    const { confirmed } = await showConfirmModal(t(i18n, 'deleteAll'), t(i18n, 'emptyTrashConfirm'));
-    if (!confirmed) return;
-    await api('empty_trash', { root: 'trash' });
-    await renderTrashView();
-    flashStatus(t(i18n, 'trashEmptied'));
-}
 function deleteSelectedItems() {
     const selectedItems = Array.from(selectionState.selectedItems);
     if (selectedItems.length === 0) return;

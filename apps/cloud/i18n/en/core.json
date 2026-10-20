@@ -814,5 +814,9 @@
     "share-open-limit": "Open limit",
     "shareGetLink": "Get link",
     "shareSendToChat": "Send to chat",
-    "monacoAiPromptPlaceholder": "What should AI change?"
+    "monacoAiPromptPlaceholder": "What should AI change?",
+    "selectAll": "Select all",
+    "trashRetentionLabel": "Keep",
+    "trashRetentionDays": "days",
+    "trashRetentionSaved": "Trash retention saved"
 }
