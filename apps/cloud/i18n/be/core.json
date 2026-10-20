@@ -818,5 +818,6 @@
     "selectAll": "Вылучыць усё",
     "trashRetentionLabel": "Захоўваць",
     "trashRetentionDays": "дн.",
-    "trashRetentionSaved": "Тэрмін захоўвання кошыка захаваны"
+    "trashRetentionSaved": "Тэрмін захоўвання кошыка захаваны",
+    "storageUsageProgress": "{used} \/ {quota} ({percent}%)"
 }

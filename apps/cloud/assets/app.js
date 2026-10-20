@@ -4754,8 +4754,6 @@ function initRootToolbar(i18n) {
     document.getElementById('btn-code-actions').addEventListener('click', toggleCodeActionsMenu);
     document.getElementById('btn-apply-code-changes').addEventListener('click', applyCodeChanges);
     document.getElementById('btn-close-code-modal').addEventListener('click', closeCodeModal);
-    document.getElementById('session-limit-mb').addEventListener('change', updateSessionLimit);
-    document.getElementById('session-limit-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('btn-request-storage')?.addEventListener('click', requestMoreStorage);
     document.getElementById('btn-manage-storage')?.addEventListener('click', openStorageAdminPanel);
     document.getElementById('btn-storage-admin-close')?.addEventListener('click', closeStorageAdminPanel);
@@ -7059,7 +7057,8 @@ async function syncSettingsControls(state = null) {
     syncTrashRetentionControl();
     const activeDisplayEmail = (active && active.email) || state.active_email || state.active;
     window.cloudCurrentUserDisplayEmail = activeDisplayEmail || '';
-    document.getElementById('session-limit-mb').value = active.session_limit_mb || 0;
+    const sessionLimitInput = document.getElementById('session-limit-mb');
+    if (sessionLimitInput) sessionLimitInput.value = active.session_limit_mb || 0;
     const hideLangToggle = document.getElementById('hide-lang-switcher-toggle');
     if (hideLangToggle) {
         hideLangToggle.checked = !!active.hide_lang_switcher;
@@ -9950,12 +9949,21 @@ async function refreshStorageRequestStatus(state = null) {
     const active = state ? (state.users || []).find(u => u.name === state.active) : null;
     const usedBytes = active ? (active.used_bytes || 0) : 0;
     const quotaBytes = active ? (active.quota_mb || 0) * 1024 * 1024 : 0;
+    const pct = quotaBytes > 0 ? Math.min(100, Math.round((usedBytes / quotaBytes) * 100)) : 0;
+    const fillEl = document.getElementById('settings-storage-progress-fill');
+    const labelEl = document.getElementById('settings-storage-progress-label');
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (labelEl) {
+        labelEl.textContent = t(window.i18n, 'storageUsageProgress', {
+            used: formatBytes(usedBytes),
+            quota: formatBytes(quotaBytes),
+            percent: pct
+        }) || (formatBytes(usedBytes) + ' / ' + formatBytes(quotaBytes) + ' (' + pct + '%)');
+    }
     const summaryEl = document.getElementById('storage-request-summary');
     if (summaryEl) {
-        summaryEl.textContent = t(window.i18n, 'storageRequestSummary', {
-            used: formatBytes(usedBytes),
-            quota: formatBytes(quotaBytes)
-        });
+        summaryEl.textContent = '';
+        summaryEl.classList.add('hidden');
     }
     let pending = null;
     try {
@@ -10148,11 +10156,32 @@ async function saveUserQuota(email, btnEl) {
     try {
         await api('admin_set_user_quota', { email, quota_mb: mb });
         flashStatus(t(window.i18n, 'quotaUpdated'));
-        await renderStorageAdminPanel();
+        const row = btnEl && btnEl.closest('tr');
+        if (row) {
+            const selected = input && input.querySelector('option[value="' + mb + '"]');
+            if (selected) {
+                Array.from(input.options).forEach((opt) => { opt.selected = opt.value === String(mb); });
+            } else if (input) {
+                let custom = input.querySelector('option[data-custom-quota="1"]');
+                if (!custom) {
+                    custom = document.createElement('option');
+                    custom.dataset.customQuota = '1';
+                    input.appendChild(custom);
+                }
+                custom.value = String(mb);
+                custom.textContent = mb + ' МБ';
+                custom.selected = true;
+            }
+            row.classList.add('storage-quota-updated');
+            setTimeout(() => row.classList.remove('storage-quota-updated'), 600);
+        } else {
+            await renderStorageAdminPanel(storageAdminPage);
+        }
         await refreshUsers(window.i18n);
     } catch (err) {
-        if (btnEl) btnEl.disabled = false;
         flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+    } finally {
+        if (btnEl) btnEl.disabled = false;
     }
 }
 async function resolveStorageRequestFromPanel(requestId, approve) {

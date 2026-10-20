@@ -818,5 +818,6 @@
     "selectAll": "Zaznacz wszystko",
     "trashRetentionLabel": "Przechowuj",
     "trashRetentionDays": "dni",
-    "trashRetentionSaved": "Okres przechowywania kosza zapisany"
+    "trashRetentionSaved": "Okres przechowywania kosza zapisany",
+    "storageUsageProgress": "{used} \/ {quota} ({percent}%)"
 }

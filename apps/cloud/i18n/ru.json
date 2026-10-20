@@ -1110,5 +1110,6 @@
   "selectAll": "Выделить все",
   "trashRetentionLabel": "Хранить",
   "trashRetentionDays": "дн.",
-  "trashRetentionSaved": "Срок хранения корзины сохранён"
+  "trashRetentionSaved": "Срок хранения корзины сохранён",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

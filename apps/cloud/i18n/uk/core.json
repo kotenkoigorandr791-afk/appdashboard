@@ -818,5 +818,6 @@
     "selectAll": "Виділити все",
     "trashRetentionLabel": "Зберігати",
     "trashRetentionDays": "дн.",
-    "trashRetentionSaved": "Термін зберігання кошика збережено"
+    "trashRetentionSaved": "Термін зберігання кошика збережено",
+    "storageUsageProgress": "{used} \/ {quota} ({percent}%)"
 }

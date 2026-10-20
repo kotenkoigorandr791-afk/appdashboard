@@ -374,21 +374,12 @@ cloud_require_session_auth();
           </div>
         </section>
 
-        <section class="settings-group">
-          <h4 class="settings-group-title" data-i18n="sessionLimit">Session Limit</h4>
-          <label class="settings-row" for="session-limit-mb">
-            <span class="settings-row-text">
-              <span class="settings-row-label" data-i18n="setSessionLimit">Set session limit</span>
-            </span>
-            <span class="settings-number-field">
-              <input type="number" id="session-limit-mb" min="0" step="1" />
-              <span>MB</span>
-            </span>
-          </label>
-        </section>
-
         <section class="settings-group hidden" id="settings-storage-request">
           <h4 class="settings-group-title" data-i18n="storageRequestSection">Storage</h4>
+          <div class="settings-storage-progress" id="settings-storage-progress" aria-live="polite">
+            <div class="progress-bar"><div class="progress-fill" id="settings-storage-progress-fill" style="width:0%"></div></div>
+            <p class="settings-row-text" id="settings-storage-progress-label" style="margin:8px 0 0;line-height:1.5;"></p>
+          </div>
           <p class="settings-row-text" id="storage-request-summary" style="margin:0;line-height:1.5;"></p>
           <p class="settings-row-text hidden" id="storage-request-pending" style="margin:0;line-height:1.5;color:var(--accent);"></p>
           <div class="settings-actions">
@@ -1709,7 +1700,13 @@ cloud_require_session_auth();
             <button type="button" data-mode="extension" data-i18n="searchByExtension">By extension:</button>
           </div>
           <div class="search-mode-panel" data-search-panel="name">
-            <input type="text" id="search-name" data-i18n-placeholder="searchNamePlaceholder" placeholder="*partial* or exact name" class="search-input">
+            <div class="search-field-with-icon">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="search-name" data-i18n-placeholder="searchNamePlaceholder" placeholder="*partial* or exact name" class="search-input">
+            </div>
           </div>
           <div class="search-mode-panel hidden" data-search-panel="extension">
             <div class="search-extension-autocomplete">
@@ -2130,7 +2127,13 @@ cloud_require_session_auth();
         <span id="storage-admin-count" class="user-quota-used"></span>
       </div>
       <div class="storage-admin-toolbar">
-        <input type="search" id="storage-admin-search" class="storage-admin-search" placeholder="Search by email or name" data-i18n-placeholder="storageSearchPlaceholder" autocomplete="off">
+        <div class="search-field-with-icon storage-admin-search-wrap">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="search" id="storage-admin-search" class="storage-admin-search search-input" placeholder="Search by email or name" data-i18n-placeholder="storageSearchPlaceholder" autocomplete="off">
+        </div>
       </div>
       <div class="storage-admin-table-wrap">
         <table class="storage-admin-table" id="storage-admin-table">

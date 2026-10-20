@@ -1693,3 +1693,12 @@ body.group-chat-open .layout{padding-right:0}
   .storage-analytics-chart-row{gap:16px}
   #storage-analytics-canvas{width:240px;height:240px}
 }
+
+.settings-storage-progress{display:flex;flex-direction:column;gap:0;margin-bottom:12px}
+.settings-storage-progress .progress-bar{height:10px;border-radius:999px}
+.storage-quota-updated{animation:storageQuotaFlash .6s ease}
+@keyframes storageQuotaFlash{0%{background:color-mix(in srgb,var(--accent) 22%,transparent)}100%{background:transparent}}
+.search-icon{display:block;opacity:1}
+.search-field-with-icon{position:relative}
+.search-field-with-icon .search-icon{left:12px}
+.search-field-with-icon .search-input{padding-left:36px;width:100%;box-sizing:border-box}

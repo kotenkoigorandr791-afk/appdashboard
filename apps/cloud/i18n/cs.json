@@ -1110,5 +1110,6 @@
   "selectAll": "Vybrat vše",
   "trashRetentionLabel": "Uchovat",
   "trashRetentionDays": "dní",
-  "trashRetentionSaved": "Doba uchování koše uložena"
+  "trashRetentionSaved": "Doba uchování koše uložena",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

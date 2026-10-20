@@ -818,5 +818,6 @@
     "selectAll": "Select all",
     "trashRetentionLabel": "Keep",
     "trashRetentionDays": "days",
-    "trashRetentionSaved": "Trash retention saved"
+    "trashRetentionSaved": "Trash retention saved",
+    "storageUsageProgress": "{used} \/ {quota} ({percent}%)"
 }
