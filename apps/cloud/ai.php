@@ -69,6 +69,7 @@ if ($action === 'ai_completions' || $action === 'ai_models') {
         cloud_ai_proxy_models($config);
         exit;
     }
+    cloud_ai_require_rate_limit((string)$email, 'chat');
     $raw = file_get_contents('php://input');
     $payload = json_decode($raw ?: '', true);
     if (!is_array($payload)) {
@@ -155,6 +156,8 @@ if ($action === 'ai_chat_append') {
     ));
     exit;
 } elseif ($action === 'ai_run_start') {
+    $emailRl = getCurrentUserEmailFromMainAPI();
+    if ($emailRl) cloud_ai_require_rate_limit((string)$emailRl, 'chat');
     echo json_encode(aiRunStart($_POST));
     exit;
 } elseif ($action === 'ai_run_status') {

@@ -245,6 +245,10 @@ if ($action === 'start_transcription') {
         echo json_encode(['success' => false, 'error' => 'No audio path provided']);
         exit;
     }
+    $rlEmail = get_session_email() ?: (string)$user;
+    if (function_exists('cloud_ai_require_rate_limit')) {
+        cloud_ai_require_rate_limit((string)$rlEmail, 'speech');
+    }
 
     // The AI hub must be configured: the transcription is done by its saved
     // speech model, there is no local fallback any more.

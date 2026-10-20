@@ -104,6 +104,8 @@ function getDB() {
 }
 }
 
+require_once __DIR__ . '/includes/ai_proxy.php';
+
 function get_session_email() {
     if (session_status() === PHP_SESSION_NONE) {
         require_once __DIR__ . '/includes/session.php';
@@ -335,6 +337,10 @@ if ($action === 'generate_tts') {
     if (!$text) {
         echo json_encode(['success' => false, 'error' => 'No text provided']);
         exit;
+    }
+    $rlEmail = get_session_email() ?: (string)$user;
+    if (function_exists('cloud_ai_require_rate_limit')) {
+        cloud_ai_require_rate_limit((string)$rlEmail, 'speech');
     }
 
     $pythonPath = python_bin();
