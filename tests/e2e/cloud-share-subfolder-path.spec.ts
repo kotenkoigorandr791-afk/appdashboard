@@ -141,6 +141,27 @@ test.describe('cloud share path resolution from any folder', () => {
     await guestContext.close();
   });
 
+
+  test('share works when API root differs from browsed folder', async ({ page }) => {
+    test.setTimeout(180000);
+    await loginAs(page);
+    await openCloud(page);
+
+    const stamp = Date.now();
+    const path = `share-tab-root-${stamp}.txt`;
+    expect((await cloudApi(page, 'create_file', { path, root: 'main' })).error).toBeUndefined();
+    expect((await cloudApi(page, 'save_file', { path, content: `tab-root-${stamp}`, root: 'main' })).error).toBeUndefined();
+
+    // Wrong root (simulates navigating away from the file's root) must fail for a bare relative path.
+    const wrong = await cloudApi(page, 'share_file', { path, root: 'documents', expires_option: 'never' });
+    expect(wrong.key, 'wrong root must not share a main file via relative path').toBeFalsy();
+
+    // Correct tab root must succeed even if the user later browses another root.
+    const ok = await cloudApi(page, 'share_file', { path, root: 'main', expires_option: 'never' });
+    expect(ok.error, 'tab root share must succeed').toBeUndefined();
+    expect(ok.key).toBeTruthy();
+  });
+
   test('group root cannot be escaped with a hidden root prefix', async ({ page }) => {
     test.setTimeout(180000);
     await loginAs(page);

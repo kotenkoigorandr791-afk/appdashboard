@@ -1025,10 +1025,7 @@ function initLassoSelection() {
                 if (!selectionState.active && lassoState.container !== 'trash') {
                     selectionState.active = true;
                     selectionState.mode = 'select';
-                    document.querySelectorAll('#tree .node, #tree .advanced-search-result').forEach(node => {
-                        addCheckboxToNode(node);
-                    });
-                    tree?.classList.add('selection-mode');
+                    tree?.classList.add('selection-mode', 'selection-mode-active');
                     syncAllTreeNodeDragHandles();
                 }
                 if (lassoState.container === 'trash') {
@@ -1127,47 +1124,15 @@ function initLassoSelection() {
 }
 function processElementsInLasso(lassoRect, mode) {
     if (!selectionState.active) return;
-    
     const elementsInRect = getTreeElementsInRect(lassoRect);
-    
     elementsInRect.forEach(node => {
         const path = node.dataset.path;
         const type = node.dataset.type;
-        
+        if (!path) return;
         if (mode === 'toggle') {
-            // Toggle mode: if selected - deselect, if not - select
-            if (selectionState.selectedItems.has(path)) {
-                selectionState.selectedItems.delete(path);
-                node.classList.remove('selected');
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) checkbox.checked = false;
-            } else {
-                selectionState.selectedItems.add(path);
-                node.classList.add('selected');
-                
-                // Add a checkbox if missing
-                if (!node.querySelector('.selection-checkbox')) {
-                    addCheckboxToNode(node);
-                }
-                
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) checkbox.checked = true;
-            }
-        } else {
-            // Normal mode: select all in the rectangle
-            if (!selectionState.selectedItems.has(path)) {
-                selectionState.selectedItems.add(path);
-                
-                // Add a checkbox if missing
-                if (!node.querySelector('.selection-checkbox')) {
-                    addCheckboxToNode(node);
-                }
-                
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) checkbox.checked = true;
-                
-                node.classList.add('selected');
-            }
+            handleItemSelection(path, type, !selectionState.selectedItems.has(path), node.dataset.root || null);
+        } else if (!selectionState.selectedItems.has(path)) {
+            handleItemSelection(path, type, true, node.dataset.root || null);
         }
     });
 }
@@ -1178,9 +1143,11 @@ function formatShareExpiryText(expiresAt, expiresOption) {
     if (Number.isNaN(d.getTime())) return t(window.i18n, 'shareLinkExpiryUnknown');
     return `${t(window.i18n, 'shareLinkExpiresAt')}: ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
-async function generateShareKey(filePath, expiresOption = 'never') {
+async function generateShareKey(filePath, expiresOption = 'never', root = null) {
+    const shareRoot = root || (document.getElementById('viewer')?.dataset?.tabRoot) || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
     const response = await api('share_file', {
         path: filePath,
+        root: shareRoot,
         expires_option: expiresOption,
         password: shareState.currentRestrictions.password || '',
         view_only: shareState.currentRestrictions.view_only ? 1 : 0,
@@ -1203,8 +1170,8 @@ function buildCloudShareUrl(shareData) {
     shareUrl.search = '';
     return shareUrl.toString();
 }
-window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never') {
-    const shareData = await generateShareKey(filePath, expiresOption);
+window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never', root = null) {
+    const shareData = await generateShareKey(filePath, expiresOption, root);
     return buildCloudShareUrl(shareData);
 };
 async function ensureQrCodeStyling() {
@@ -1226,7 +1193,7 @@ async function ensureQrCodeStyling() {
     if (typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
     return QRCodeStyling;
 }
-async function renderShareModalForPath(filePath, displayName, expiresOption = 'never') {
+async function renderShareModalForPath(filePath, displayName, expiresOption = 'never', root = null) {
     const modal = document.getElementById('share-modal');
     const select = document.getElementById('share-expires-select');
     const expiresInfo = document.getElementById('share-expires-at');
@@ -1239,12 +1206,13 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     if (!modal || !select) throw new Error('Share modal is unavailable');
 
     shareState.currentPath = filePath;
+    shareState.currentRoot = root || document.getElementById('viewer')?.dataset?.tabRoot || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
     shareState.currentExpiresOption = expiresOption || 'never';
     select.value = shareState.currentExpiresOption;
     const currentPasswordValue = shareState.currentRestrictions?.password || '';
 
     flashStatus(t(i18n, 'generatingLink'));
-    const shareData = await generateShareKey(filePath, shareState.currentExpiresOption);
+    const shareData = await generateShareKey(filePath, shareState.currentExpiresOption, shareState.currentRoot);
     shareState.currentKey = shareData.key;
     shareState.currentRestrictions = {
         password: currentPasswordValue,
@@ -1359,7 +1327,8 @@ async function openShareModal() {
     const sharePath = typeof toMainTreePath === 'function' ? toMainTreePath(filePath, root) : filePath;
     try {
         viewer.dataset.lastSharedPath = sharePath;
-        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never');
+        viewer.dataset.lastSharedRoot = root;
+        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never', root);
         return true;
     } catch (err) {
         flashStatus(t(i18n, 'shareError') + ': ' + err.message);
@@ -1507,7 +1476,7 @@ function initShareFeature() {
         shareState.currentExpiresOption = nextOption;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), nextOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), nextOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1518,7 +1487,7 @@ function initShareFeature() {
         shareState.currentRestrictions.disable_copy = mode === 'disable_copy' ? 1 : 0;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1532,7 +1501,7 @@ function initShareFeature() {
         shareState.currentRestrictions.password = String(e.target.value || '');
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1541,7 +1510,7 @@ function initShareFeature() {
         shareState.currentRestrictions.max_views = Math.max(0, Number(e.target.value || 0));
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1623,15 +1592,8 @@ function applyTheme(theme, color) {
       border-bottom-color: transparent;
     }
     .tab.active::after {
-      content: '';
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      bottom: -1px;
-      height: 4px;
-      background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 72%, #000 28%) 0%, color-mix(in srgb, var(--accent) 45%, var(--bg) 55%) 55%, color-mix(in srgb, var(--accent) 10%, var(--bg) 90%) 100%);
-      border-radius: 2px;
-      pointer-events: none;
+      content: none;
+      display: none;
     }
     #viewer {
       position: relative !important;
@@ -4365,17 +4327,14 @@ function displaySearchResults(results, query) {
         </div>
       </div>
     `;
-    if (selectionState.active && typeof addCheckboxToNode === 'function') addCheckboxToNode(node);
+    // selection mode uses highlight only (no checkboxes)
     syncNodeDragHandle(node);
     node.addEventListener('click', (e) => {
       if (selectionState.active) {
         e.preventDefault();
         e.stopPropagation();
-        const checkbox = node.querySelector('.selection-checkbox');
-        if (checkbox) {
-          checkbox.checked = !checkbox.checked;
-          handleItemSelection(resolved.localPath, item.type, checkbox.checked, resolved.root);
-        }
+        const next = !selectionState.selectedItems.has(resolved.localPath);
+        handleItemSelection(resolved.localPath, item.type, next, resolved.root);
         return;
       }
       if (item.type === 'dir') {
@@ -4945,38 +4904,23 @@ function toggleSelectionMode() {
     
     if (selectionState.active) {
         selectionState.mode = 'select';
-        document.querySelectorAll('#tree .node, #tree .advanced-search-result').forEach(node => {
-            addCheckboxToNode(node);
-        });
-
-        // Add a class to change the cursor
-        document.getElementById('tree').classList.add('selection-mode');
+        const treeEl = document.getElementById('tree');
+        if (treeEl) treeEl.classList.add('selection-mode', 'selection-mode-active');
         syncAllTreeNodeDragHandles();
         flashStatus(t(i18n, 'selectionModeActive'));
     } else {
         clearSelection();
-        
-        // Remove the cursor class
         const tree = document.getElementById('tree');
         if (tree) {
-            tree.classList.remove('selection-mode');
-            // Force reset the cursor
+            tree.classList.remove('selection-mode', 'selection-mode-active');
             tree.style.cursor = '';
         }
-        
-        // Hide the lasso if active
         if (lassoState.element) {
             lassoState.element.style.display = 'none';
         }
-        
-        // Reset lasso state
         lassoState.active = false;
         lassoState.mode = null;
-        
-        // Restore text selection
         document.body.style.userSelect = '';
-        
-        // Remove all checkboxes
         document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
             checkbox.remove();
         });
@@ -5268,26 +5212,50 @@ function handleItemSelection(path, type, selected, root = null) {
         return;
     }
     const p = String(path || '');
-    const esc = CSS.escape(p);
-    if (selected) {
-        selectionState.selectedItems.add(p);
-        const nodeForRoot = document.querySelector(`#tree .advanced-search-result[data-path="${esc}"], #tree .node[data-path="${esc}"]`);
-        selectionState.selectedRoots.set(p, root || nodeForRoot?.dataset.root || getCurrentCloudRoot());
-        
-        // Animate the addition
-        const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
-        if (node) {
-            node.classList.add('selected');
-            node.style.animation = 'none';
-            node.offsetHeight; // Trigger reflow
-            node.style.animation = 'nodeHighlight 0.3s ease-out';
+    const resolvedRoot = root || document.querySelector(`#tree .node[data-path="${CSS.escape(p)}"], #tree .advanced-search-result[data-path="${CSS.escape(p)}"]`)?.dataset.root || getCurrentCloudRoot();
+    const applyOne = (itemPath, isSelected) => {
+        const ip = String(itemPath || '');
+        if (!ip) return;
+        const esc = CSS.escape(ip);
+        if (isSelected) {
+            selectionState.selectedItems.add(ip);
+            selectionState.selectedRoots.set(ip, resolvedRoot);
+            const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
+            if (node) {
+                node.classList.add('selected');
+                node.style.animation = 'none';
+                node.offsetHeight;
+                node.style.animation = 'nodeHighlight 0.3s ease-out';
+            }
+        } else {
+            selectionState.selectedItems.delete(ip);
+            selectionState.selectedRoots.delete(ip);
+            const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
+            if (node) node.classList.remove('selected');
         }
-    } else {
-        selectionState.selectedItems.delete(p);
-        selectionState.selectedRoots.delete(p);
-        const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
-        if (node) {
-            node.classList.remove('selected');
+    };
+    applyOne(p, selected);
+    if (type === 'dir' || type === 'folder') {
+        // Select/deselect all currently rendered descendants
+        document.querySelectorAll('#tree .node[data-path], #tree .advanced-search-result[data-path]').forEach((node) => {
+            const childPath = node.dataset.path || '';
+            if (childPath !== p && childPath.startsWith(p + '/')) {
+                applyOne(childPath, selected);
+            }
+        });
+        // Also pull full folder contents from the API so unloaded children are included
+        if (selected && typeof getAllFilesRecursive === 'function') {
+            getAllFilesRecursive(p).then((items) => {
+                (items || []).forEach((item) => {
+                    if (item && item.path) applyOne(item.path, true);
+                });
+                updateSelectionUI();
+            }).catch(() => {});
+        } else if (!selected) {
+            const prefix = p + '/';
+            Array.from(selectionState.selectedItems).forEach((itemPath) => {
+                if (itemPath.startsWith(prefix)) applyOne(itemPath, false);
+            });
         }
     }
     updateSelectionUI();
@@ -5570,40 +5538,10 @@ function checkAndFixLastWord(lang, element) {
   }
 }
 function transliterateWord(word, lang) {
-  const translitTables = {
-    'ru': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ъ',
-      'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'э', "''": 'э',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ъ',
-      'A': 'Ф', 'S': 'Ы', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Э','""': 'Э',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    },
-    'uk': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ї',
-      'a': 'ф', 's': 'і', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'є',"''": 'є',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ї',
-      'A': 'Ф', 'S': 'І', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Є','""': 'Є',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    }
-  };
-  const table = translitTables[lang];
-  if (!table) return word;
-  let result = '';
-  for (let i = 0; i < word.length; i++) {
-    const char = word[i];
-    result += table[char] || char;
+  if (window.CloudTransliteration && typeof window.CloudTransliteration.transliterateWord === 'function') {
+    return window.CloudTransliteration.transliterateWord(word, lang);
   }
-  return result;
+  return word;
 }
 function applyTransliterationToAll(lang) {
   const focusedElement = document.activeElement;
@@ -5636,39 +5574,13 @@ function applyTransliterationToAll(lang) {
   }
 }
 function transliterateLastChar(lang, element) {
-  const translitTables = {
-    'ru': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ъ',
-      'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'э', "''": 'э',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ъ',
-      'A': 'Ф', 'S': 'Ы', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Э', '""': 'Э',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    },
-    'uk': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ї',
-      'a': 'ф', 's': 'і', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'є', "''": 'є',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ї',
-      'A': 'Ф', 'S': 'І', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Є', '""': 'Є',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    }
-  };
-  const table = translitTables[lang];
+  if (!element || !lang || lang === 'en' || lang === 'off') return;
+  const table = window.CloudTransliteration?.getTable?.(lang);
   if (!table) return;
-  let currentText, selectionStart, selectionEnd, setTextFunction;
-  if (element.tagName === 'TEXTAREA') {
+  let currentText, selectionStart, setTextFunction;
+  if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
     currentText = element.value;
     selectionStart = element.selectionStart;
-    selectionEnd = element.selectionEnd;
     setTextFunction = (text) => { element.value = text; };
   } else {
     const cmEditor = element.CodeMirror || window.cmEditor || element.closest('.CodeMirror')?.CodeMirror;
@@ -5676,7 +5588,6 @@ function transliterateLastChar(lang, element) {
       currentText = cmEditor.getValue();
       const cursor = cmEditor.getCursor();
       selectionStart = cmEditor.indexFromPos(cursor);
-      selectionEnd = selectionStart;
       setTextFunction = (text) => { cmEditor.setValue(text); cmEditor.setCursor(cursor); };
     } else {
       return;
@@ -5686,11 +5597,9 @@ function transliterateLastChar(lang, element) {
     const lastChar = currentText[selectionStart - 1];
     const transliterated = table[lastChar];
     if (transliterated && transliterated !== lastChar) {
-      const newText = currentText.substring(0, selectionStart - 1) + 
-                     transliterated + 
-                     currentText.substring(selectionStart);
+      const newText = currentText.substring(0, selectionStart - 1) + transliterated + currentText.substring(selectionStart);
       setTextFunction(newText);
-      if (element.tagName === 'TEXTAREA') {
+      if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
         element.selectionStart = element.selectionEnd = selectionStart - 1 + transliterated.length;
       } else {
         const cmEditor = element.CodeMirror || window.cmEditor;
@@ -8596,7 +8505,7 @@ function renderNodes(items, basePath = '', depth = 0) {
         label.textContent = item.name;
         label.title = item.name;
         node.append(toggle, label);
-        if (selectionState.active) addCheckboxToNode(node);
+        // selection mode: highlight only
         syncNodeDragHandle(node);
         node.setAttribute('tabindex', '0');
         
@@ -8623,16 +8532,8 @@ function renderNodes(items, basePath = '', depth = 0) {
             
             // In selection mode - select the item instead of opening
             if (selectionState.active) {
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) {
-                    checkbox.checked = !checkbox.checked;
-                    handleItemSelection(item.path, item.type, checkbox.checked);
-                    if (checkbox.checked) {
-                        node.classList.add('selected');
-                    } else {
-                        node.classList.remove('selected');
-                    }
-                }
+                const next = !selectionState.selectedItems.has(item.path);
+                handleItemSelection(item.path, item.type, next);
                 return;
             }
             
@@ -10582,12 +10483,7 @@ async function uploadFile(path, file) {
       }
 
       // 4. Update the selection state (if active)
-      if (selectionState.active) {
-        const node = document.querySelector(`.node[data-path="${uploadedPath}"]`);
-        if (node && !node.querySelector('.selection-checkbox')) {
-          addCheckboxToNode(node);
-        }
-      }
+      // selection mode uses highlight only
     }
   } catch (err) {
     flashStatus(t(i18n, 'uploadError'));

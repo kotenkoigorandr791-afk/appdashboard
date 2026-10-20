@@ -447,6 +447,7 @@ function startInlineTreeRename(path) {
   input.value = originalName;
   input.setAttribute('aria-label', t(i18n, 'rename') || 'Rename');
   guardFilenameInput(input);
+  if (window.CloudTransliteration?.attachToInput) window.CloudTransliteration.attachToInput(input);
   label.classList.add('hidden');
   node.classList.add('tree-renaming');
   node.insertBefore(input, label.nextSibling);
@@ -1554,7 +1555,7 @@ async function shareItem(path, type, root) {
         if (typeof renderShareModalForPath === 'function') {
             await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
         } else {
-            const result = await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            const result = await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
         }
     } catch (err) {
@@ -1676,8 +1677,8 @@ function sendCloudShareToChat(path, type, root) {
         status.textContent = cloudActionText('generatingLink', 'Generating link...');
         try {
             const shareData = typeof window.generateShareKey === 'function'
-                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never')
-                : await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never', root || getCurrentCloudRoot())
+                : await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!shareData?.key) throw new Error('Failed to generate share key');
             let metadata = {};
             try {
