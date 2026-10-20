@@ -1204,7 +1204,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .modal-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border-color);}
         .modal-header-left h2{margin:0;font-size:18px;font-weight:600;}
         #profile-content,#qr-content,#email-form,#users-content{padding:0;display:flex;flex-direction:column;}
-        #profile-content .modal-scroll-body{padding:30px;margin:0 20px 20px 0;}
+        #profile-content .modal-scroll-body{padding:30px;}
         #qr-content .modal-scroll-body{padding:30px;}
         #qr-content .modal-scroll-body:first-child{padding-top:10px;}
         #email-form .modal-scroll-body{padding:40px 20px 20px;}
