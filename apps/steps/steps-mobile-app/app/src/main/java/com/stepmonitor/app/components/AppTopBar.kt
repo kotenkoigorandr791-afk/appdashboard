@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -84,11 +85,14 @@ fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            val isConnected = prefs.isUserConnected()
             val avatarFile = localAvatarFile(context)
-            val avatarModel = when {
-                avatarFile.exists() -> avatarFile.absolutePath
-                else -> cachedProfilePhotoUrl(context)
-            }
+            val avatarModel = if (isConnected) {
+                when {
+                    avatarFile.exists() -> avatarFile.absolutePath
+                    else -> cachedProfilePhotoUrl(context)
+                }
+            } else null
             if (avatarModel != null) {
                 AsyncImage(
                     model = avatarModel,
@@ -101,13 +105,13 @@ fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier
                 )
             } else {
                 Icon(
-                    Icons.Filled.AccountCircle,
+                    if (isConnected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
                     contentDescription = stringResource(R.string.nav_about),
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
                         .clickable(onClick = onProfileClick),
-                    tint = MaterialTheme.colorScheme.primary
+                    tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
             Spacer(Modifier.weight(1f))

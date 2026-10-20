@@ -197,6 +197,7 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
                                         syncMessage = when (syncResult) {
                                             is SyncResult.NoData -> context.getString(R.string.manual_sync_no_data)
                                             is SyncResult.NoMatchingData -> context.getString(R.string.manual_sync_no_matching_data)
+                                            is SyncResult.AlreadyRunning -> context.getString(R.string.manual_sync_in_progress)
                                             is SyncResult.Success -> {
                                                 val parts = syncResult.syncCounts.map { (type, count) ->
                                                     "$count ${context.getString(type.nameResId).lowercase()}"

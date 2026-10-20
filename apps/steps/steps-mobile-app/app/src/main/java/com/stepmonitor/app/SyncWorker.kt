@@ -23,6 +23,13 @@ class SyncWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         try {
+            val prefs = PreferencesManager(applicationContext)
+            if (prefs.hasAuthError()) {
+                // The server rejected our token (401/403). Retrying on every interval
+                // only produces a request storm (401 -> 429 -> Cloudflare 529) and can
+                // never succeed until the user re-pairs the app.
+                return@withContext Result.success()
+            }
             val syncResult = syncManager.performSync(syncType = "auto")
             if (syncResult.isSuccess) {
                 Result.success()

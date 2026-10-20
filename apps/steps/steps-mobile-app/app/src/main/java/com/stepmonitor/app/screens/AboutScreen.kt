@@ -28,6 +28,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Download
@@ -132,7 +133,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var link by remember { mutableStateOf("") }
-    var status by remember { mutableStateOf(if (configs.any { it.isEnabled }) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting)) }
+    var status by remember { mutableStateOf(if (prefs.isUserConnected()) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting)) }
     var testingConn by remember { mutableStateOf(false) }
     var connResult by remember { mutableStateOf<Boolean?>(null) }
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
@@ -224,7 +225,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (profilePhotoModel != null) {
+                    if (prefs.isUserConnected() && profilePhotoModel != null) {
                         key(profilePhotoModel) {
                             AsyncImage(
                                 model = profilePhotoModel,
@@ -234,11 +235,12 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             )
                         }
                     } else {
+                        val connected = prefs.isUserConnected()
                         Icon(
-                            Icons.Filled.AccountCircle,
+                            if (connected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
                             contentDescription = null,
                             modifier = Modifier.size(56.dp).clip(CircleShape),
-                            tint = MaterialTheme.colorScheme.primary
+                            tint = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Column(Modifier.weight(1f)) {
@@ -259,7 +261,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                                 scope.launch {
                                     testingConn = true
                                     connResult = null
-                                    connResult = testConnection(configs.firstOrNull { it.isEnabled })
+                                    connResult = testConnection(configs.firstOrNull { it.isEnabled }, prefs)
                                     testingConn = false
                                 }
                             },
@@ -848,7 +850,9 @@ private suspend fun fetchProfile(config: WebhookConfig?, prefs: PreferencesManag
         val profileUrl = config.url.trimEnd('/') + "/profile"
         val builder = Request.Builder().url(profileUrl)
         config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+        builder.addHeader("X-Device-Id", prefs.getDeviceId())
         OkHttpClient().newCall(builder.build()).execute().use { response ->
+            if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
             if (!response.isSuccessful) error("HTTP ${response.code}")
             val profile = JSONObject(response.body?.string().orEmpty()).optJSONObject("profile") ?: JSONObject()
             val result = ServerProfile(
@@ -857,17 +861,23 @@ private suspend fun fetchProfile(config: WebhookConfig?, prefs: PreferencesManag
                 photo = absoluteProfileUrl(config.url, profile.optString("photo"))
             )
             prefs.setProfileCache(JSONObject().put("name", result.name).put("email", result.email).put("photo", result.photo).toString())
+            // A successful profile fetch is proof that the pairing is alive, even
+            // when there is no new health data to upload.
+            prefs.markSyncSuccess()
             result
         }
     }.getOrElse { ServerProfile(error = it.message) }
 }
-private suspend fun testConnection(config: WebhookConfig?): Boolean = withContext(Dispatchers.IO) {
+private suspend fun testConnection(config: WebhookConfig?, prefs: PreferencesManager): Boolean = withContext(Dispatchers.IO) {
     if (config == null) return@withContext false
     runCatching {
         val builder = Request.Builder().url(config.url.trimEnd('/') + "/profile")
         config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+        builder.addHeader("X-Device-Id", prefs.getDeviceId())
         OkHttpClient().newCall(builder.build()).execute().use { response ->
+            if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
             if (!response.isSuccessful) error("HTTP ${response.code}")
+            prefs.markSyncSuccess()
             true
         }
     }.getOrDefault(false)
