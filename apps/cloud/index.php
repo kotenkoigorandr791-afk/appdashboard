@@ -81,7 +81,8 @@ cloud_require_session_auth();
   <style>
 :root{--menu-button-reserve:<?php echo (int)$menuBtnReserve; ?>px;--menu-button-mobile-reserve:<?php echo (int)$menuBtnMobileReserve; ?>px;--menu-button-clear-top:<?php echo (int)$menuBtnClearTop; ?>px;--menu-button-toolbar-top:<?php echo (int)$menuBtnToolbarTop; ?>px;--menu-button-mobile-toolbar-top:<?php echo (int)$menuBtnMobileToolbarTop; ?>px;}
 .hide-lang-switcher .lang-switcher{display:none!important;}
-.settings-menu,.dropdown-menu,.context-menu,.tab-preview,.search-panel{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
+.dropdown-menu,.context-menu,.tab-preview,.search-panel{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
+.settings-menu{background:color-mix(in srgb,var(--panel) 92%,var(--bg))!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
 .modal-content{background:color-mix(in srgb,var(--panel) 88%,var(--bg));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
 .root-toolbar{width:50px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 7px;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:opacity 0.3s ease,transform 0.3s ease}
 .root-toolbar.hidden-by-sidebar{opacity:0;transform:translateX(-100%);pointer-events:none;position:absolute;height:100%;z-index:-1}
@@ -180,11 +181,6 @@ cloud_require_session_auth();
   } catch (e) {}
 </script>
 
-  <link rel="stylesheet" 
-        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" 
-        integrity="sha512-rO+olRTkcf304DQBxSWxln8JXCzTHlKnIdnMUwYvQa9/Jd4cQaNkItIUj6Z4nvW1dqK0SKXLbn9h4KwZTNtAyw==" 
-        crossorigin="anonymous" 
-        referrerpolicy="no-referrer" />
   <script defer 
           src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" 
           integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" 
@@ -550,11 +546,11 @@ cloud_require_session_auth();
           </div>
           <div class="tab-search-dropdown" id="tab-search-dropdown">
               <div class="tab-search-section">
-                  <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
+                  <div class="tab-search-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="12" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"></path></svg><span data-i18n="openTabs">Open Tabs</span></div>
                   <div id="tab-search-open-list"></div>
               </div>
               <div class="tab-search-section">
-                  <div class="tab-search-title" data-i18n="recentFiles">Recent files</div>
+                  <div class="tab-search-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg><span data-i18n="recentFiles">Recent files</span></div>
                   <div id="tab-search-recent-list"></div>
               </div>
           </div>

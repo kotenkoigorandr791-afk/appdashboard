@@ -3698,11 +3698,11 @@ function renderTabs() {
             </div>
             <div class="tab-search-dropdown" id="tab-search-dropdown">
                 <div class="tab-search-section">
-                    <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
+                    <div class="tab-search-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="12" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"></path></svg><span data-i18n="openTabs">Open Tabs</span></div>
                     <div id="tab-search-open-list"></div>
                 </div>
                 <div class="tab-search-section">
-                    <div class="tab-search-title" data-i18n="recentFiles">Recent files</div>
+                    <div class="tab-search-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg><span data-i18n="recentFiles">Recent files</span></div>
                     <div id="tab-search-recent-list"></div>
                 </div>
             </div>
@@ -9502,6 +9502,12 @@ async function saveFile() {
         return false;
     }
 }
+function clearEditorStatusSlot() {
+    const slot = document.getElementById('status-editor-slot');
+    if (!slot) return;
+    slot.replaceChildren();
+    slot.classList.add('hidden');
+}
 function closeViewer() {
     clearAutoSaveTimer();
     document.getElementById('file-view').classList.remove('hidden');
@@ -9522,6 +9528,7 @@ function closeViewer() {
     document.getElementById('btn-monaco-redo').classList.add('hidden');
 
     const hasTabs = tabsState.tabs.length > 0;
+    if (!hasTabs) clearEditorStatusSlot();
     document.body.classList.toggle('tabs-open', hasTabs);
     document.body.classList.toggle('tabs-empty', !hasTabs);
     renderViewerEmptyState();

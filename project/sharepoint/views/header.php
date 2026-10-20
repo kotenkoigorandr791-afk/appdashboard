@@ -24,6 +24,7 @@ if (!function_exists('sp_public_shell')) {
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
 <title>' . sp_h($title) . ' · SharePoint</title>
+<link rel="icon" type="image/svg+xml" href="' . sp_h(sp_asset('icon.svg')) . '">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">

@@ -19,10 +19,12 @@
   function positionMenu(button, menu) {
     var rect = button.getBoundingClientRect();
     var gap = 6;
-    var width = Math.max(rect.width, 160);
+    var minWidth = parseInt(menu.dataset.minWidth, 10) || 160;
+    var width = Math.min(Math.max(rect.width, minWidth), window.innerWidth - 16);
     var left = Math.min(rect.left, window.innerWidth - width - 8);
     if (left < 8) left = 8;
     menu.style.width = width + 'px';
+    menu.style.minWidth = width + 'px';
     menu.style.left = left + 'px';
     menu.style.top = (rect.bottom + gap) + 'px';
     var menuRect = menu.getBoundingClientRect();
@@ -62,6 +64,8 @@
     menu.className = 'ui-select-menu';
     menu.setAttribute('role', 'listbox');
     menu.hidden = true;
+    var menuMinWidth = parseInt(select.getAttribute('data-ui-menu-min-width'), 10);
+    if (menuMinWidth > 0) menu.dataset.minWidth = String(menuMinWidth);
     document.body.appendChild(menu);
 
     function syncLabel() {

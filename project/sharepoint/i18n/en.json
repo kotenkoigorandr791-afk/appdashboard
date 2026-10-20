@@ -179,5 +179,10 @@
   "error_resource_unavailable": "The shared resource is no longer available",
   "csv": "CSV",
   "json": "JSON",
-  "png": "PNG"
+  "png": "PNG",
+  "page": "Page",
+  "previous_page": "Previous page",
+  "next_page": "Next page",
+  "fit_width": "Fit width",
+  "pdf_tools": "PDF tools"
 }

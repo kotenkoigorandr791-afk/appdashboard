@@ -62,6 +62,11 @@ const drawToggle = document.getElementById('draw-toggle');
 const drawControls = document.getElementById('draw-controls');
 const drawColor = document.getElementById('draw-color');
 const drawSize = document.getElementById('draw-size');
+// Reflect the initial slider value into the Material fill gradient.
+(function initDrawSizeFill(){
+    const pct = ((Number(drawSize.value) - Number(drawSize.min)) / (Number(drawSize.max) - Number(drawSize.min))) * 100;
+    drawSize.style.setProperty('--draw-pct', pct + '%');
+})();
 const drawUndo = document.getElementById('draw-undo');
 const drawClear = document.getElementById('draw-clear');
 
@@ -385,6 +390,8 @@ document.querySelectorAll('[data-tooltip]').forEach(btn => {
 });
 drawSize.addEventListener('input', (e) => {
     currentSize = parseInt(e.target.value);
+    const pct = ((Number(drawSize.value) - Number(drawSize.min)) / (Number(drawSize.max) - Number(drawSize.min))) * 100;
+    drawSize.style.setProperty('--draw-pct', pct + '%');
 });
 
 drawUndo.addEventListener('click', () => {

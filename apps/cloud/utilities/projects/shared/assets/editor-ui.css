@@ -35,6 +35,7 @@ button:not(.ui-select-btn),
   display: inline-flex;
   align-items: center;
   min-width: 0;
+  max-width: 100%;
   /* Neutralise styles the page applies to the original <select> so the
      wrapper does not double-box the pill button. */
   background: none !important;
@@ -87,15 +88,19 @@ button:not(.ui-select-btn),
 .ui-select-menu {
   position: fixed;
   z-index: 40000;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
   max-height: min(280px, 60vh);
   overflow-y: auto;
   min-width: 160px;
   padding: 5px;
   border: 1px solid var(--ui-border);
-  border-radius: 8px;
+  border-radius: 10px;
   background: var(--ui-panel);
   color: var(--ui-fg);
   box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
   scrollbar-width: thin;
   scrollbar-color: var(--ui-border) transparent;
 }

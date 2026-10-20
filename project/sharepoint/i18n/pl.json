@@ -179,5 +179,10 @@
   "error_resource_unavailable": "Udostępniony zasób nie jest już dostępny",
   "csv": "CSV",
   "json": "JSON",
-  "png": "PNG"
+  "png": "PNG",
+  "page": "Strona",
+  "previous_page": "Poprzednia strona",
+  "next_page": "Następna strona",
+  "fit_width": "Dopasuj do szerokości",
+  "pdf_tools": "Narzędzia PDF"
 }

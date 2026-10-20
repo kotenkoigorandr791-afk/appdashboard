@@ -4282,15 +4282,15 @@ if (typeof window.define !== 'undefined') delete window.define.amd;
     function patchOpenFileInTab() {
         if (typeof openFileInTab !== 'function' || openFileInTab.__cloudTreePatched) return;
         const original = openFileInTab;
-        openFileInTab = function(path, editMode = false) {
+        openFileInTab = function(path, editMode = false, root = null) {
             if (editMode === false && typeof opensDirectInEditor === 'function' && opensDirectInEditor(path)) {
                 if (typeof openFileFromTree === 'function') {
-                    openFileFromTree(path);
+                    openFileFromTree(path, root);
                     return;
                 }
             }
-            if (editMode === false && isPlainTextTreeFile(path)) return original(path, true);
-            return original(path, editMode);
+            if (editMode === false && isPlainTextTreeFile(path)) return original(path, true, root);
+            return original(path, editMode, root);
         };
         openFileInTab.__cloudTreePatched = true;
         window.openFileInTab = openFileInTab;

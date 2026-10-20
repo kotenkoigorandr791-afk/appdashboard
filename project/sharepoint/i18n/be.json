@@ -179,5 +179,10 @@
   "error_resource_unavailable": "Агульны рэсурс больш недаступны",
   "csv": "CSV",
   "json": "JSON",
-  "png": "PNG"
+  "png": "PNG",
+  "page": "Старонка",
+  "previous_page": "Папярэдняя старонка",
+  "next_page": "Наступная старонка",
+  "fit_width": "Па шырыні",
+  "pdf_tools": "Інструменты PDF"
 }

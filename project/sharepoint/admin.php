@@ -81,6 +81,7 @@ $html = '<!DOCTYPE html>
 <meta name="robots" content="noindex, nofollow">
 <meta name="sp-csrf" content="' . sp_h(sp_csrf_token()) . '">
 <title>Shared links · SharePoint</title>
+<link rel="icon" type="image/svg+xml" href="' . sp_h(sp_asset('icon.svg')) . '">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-tokens.css')) . '">

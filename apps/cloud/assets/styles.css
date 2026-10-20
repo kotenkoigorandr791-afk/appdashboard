@@ -1,6 +1,6 @@
-:root{--bg:#ffffff;--fg:#111111;--muted:#666666;--panel:#f4f6f8;--accent:#929292;--danger:#e74c3c;--border:#e0e3e7;--tree-guide-color:color-mix(in srgb,#eb9a05 50%,transparent);--code-bg:#a9a9a9;--scrollbar-track:#f1f1f1;--scrollbar-thumb:#c1c1c1;--scrollbar-thumb-hover:#a8a8a8;--terminal-bg:#dfdfdf;--terminal-fg:#00ff00;--terminal-cursor:#00ff00;--ai-ok-text:#1f6b32;--ai-ok-accent:#3f6d0a;--ai-err-text:#a6261c;--ai-err-icon-bg:#b42318;--topbar-height:48px;--statusbar-height:28px;--glass-panel:color-mix(in srgb,var(--panel) 21%,transparent);--glass-bg:color-mix(in srgb,var(--panel) 19%,transparent);--ui-border:var(--border)}
+:root{--bg:#ffffff;--fg:#111111;--muted:#666666;--panel:#f4f6f8;--accent:#929292;--danger:#e74c3c;--border:#e0e3e7;--tree-guide-color:color-mix(in srgb,#eb9a05 50%,transparent);--code-bg:#f6f8fa;--scrollbar-track:#f1f1f1;--scrollbar-thumb:#c1c1c1;--scrollbar-thumb-hover:#a8a8a8;--terminal-bg:#dfdfdf;--terminal-fg:#00ff00;--terminal-cursor:#00ff00;--ai-ok-text:#1f6b32;--ai-ok-accent:#3f6d0a;--ai-err-text:#a6261c;--ai-err-icon-bg:#b42318;--topbar-height:48px;--statusbar-height:28px;--glass-panel:color-mix(in srgb,var(--panel) 21%,transparent);--glass-bg:color-mix(in srgb,var(--panel) 19%,transparent);--ui-border:var(--border)}
 body[data-theme="light"]{--bg:#eceef1;--border:#b0b8c1;--ui-border:#a8b0b9;--muted:#3d4550;--panel:#dfe3e8;--glass-panel:color-mix(in srgb,var(--panel) 27%,transparent);--glass-bg:color-mix(in srgb,var(--panel) 25%,transparent)}
-body[data-theme="dark"]{--bg:#1a1a1a;--fg:#e6e6e6;--muted:#a0a3a8;--panel:#2a2a2a;--accent:#7e7e7e;--danger:#ff6b6b;--border:#3a3a3a;--code-bg:#454545;--scrollbar-track:#2a2a2a;--scrollbar-thumb:#555;--scrollbar-thumb-hover:#666;--terminal-bg:#bdbdbd;--terminal-fg:#50fa7b;--terminal-cursor:#50fa7b;--ai-ok-text:#9fe870;--ai-ok-accent:#85b503;--ai-err-text:#ff8a8a;--ai-err-icon-bg:#d14a4a}
+body[data-theme="dark"]{--bg:#1a1a1a;--fg:#e6e6e6;--muted:#a0a3a8;--panel:#2a2a2a;--accent:#7e7e7e;--danger:#ff6b6b;--border:#3a3a3a;--code-bg:#2d2d2d;--scrollbar-track:#2a2a2a;--scrollbar-thumb:#555;--scrollbar-thumb-hover:#666;--terminal-bg:#bdbdbd;--terminal-fg:#50fa7b;--terminal-cursor:#50fa7b;--ai-ok-text:#9fe870;--ai-ok-accent:#85b503;--ai-err-text:#ff8a8a;--ai-err-icon-bg:#d14a4a}
 *{box-sizing:border-box}
 html,body{height:100%;margin:0;overflow:hidden}
 html{background:#eceef1}
@@ -30,6 +30,11 @@ body.tabs-open::before{opacity:0.45;transition:opacity 0.3s ease}
 .btn.hidden{display:none}
 .icon-btn{padding:6px 8px;font-size:14px;display:flex;align-items:center}
 .icon-btn.close-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:999px}
+.icon-btn.minimize-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:999px;flex:0 0 auto}
+.upload-modal-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
+.upload-modal-actions .icon-btn{flex:0 0 auto}
+.upload-modal-actions .minimize-btn{opacity:0;visibility:hidden;pointer-events:none;transform:scale(.9);transition:opacity .3s ease,transform .3s ease,visibility 0s linear .3s}
+.upload-modal-actions .minimize-btn.is-visible{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .3s ease,transform .3s ease,visibility 0s}
 .success-check-active{color:#22c55e!important;border-color:#22c55e!important;background:color-mix(in srgb,#22c55e 16%,var(--bg))!important;transition:all .2s ease}
 .success-check-icon{color:#22c55e;animation:successCheckPop .28s ease}
 @keyframes successCheckPop{0%{transform:scale(.6);opacity:.4}100%{transform:scale(1);opacity:1}}
@@ -301,7 +306,7 @@ body[data-theme="light"] .statusbar{background:color-mix(in srgb,#c5ccd4 63%,tra
 .tab.modified .tab-content::after{content:" •";color:var(--accent);font-weight:bold}
 .tab.modified .tab-title-text::after{content:none}
 .tab-content .app-file-icon{width:16px;height:16px;flex-shrink:0;border-radius:4px}
-.tab-search-dropdown{position:absolute;top:52px;left:8px;width:380px;max-width:calc(100vw - 32px);background:color-mix(in srgb,var(--panel) 96%,var(--bg));border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);padding:8px;box-sizing:border-box;display:none;flex-direction:column;z-index:35000!important;opacity:0;transform:translateY(-10px);transition:opacity .2s ease,transform .2s ease}
+.tab-search-dropdown{position:absolute;top:52px;left:8px;width:380px;max-width:calc(100vw - 32px);max-height:33vh;max-height:33dvh;overflow-y:auto;overscroll-behavior:contain;background:color-mix(in srgb,var(--panel) 96%,var(--bg));border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);padding:8px;box-sizing:border-box;display:none;flex-direction:column;z-index:35000!important;opacity:0;transform:translateY(-10px);transition:opacity .2s ease,transform .2s ease}
 .tab-search-dropdown.show{display:flex;opacity:1;transform:translateY(0)}
 .tab-search-header{display:flex;align-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent);border-radius:20px;padding:8px 12px;margin-bottom:8px}
 .tab-search-header svg{width:16px;height:16px;fill:var(--muted);margin-right:8px;flex-shrink:0}
@@ -309,7 +314,8 @@ body[data-theme="light"] .statusbar{background:color-mix(in srgb,#c5ccd4 63%,tra
 .tab-search-header input::placeholder{color:var(--muted)}
 .tab-search-section{margin-bottom:8px}
 .tab-search-section:last-child{margin-bottom:0}
-.tab-search-title{font-size:11px;color:var(--muted);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.03em}
+.tab-search-title{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted);padding:8px 12px 4px;text-transform:uppercase;letter-spacing:.03em}
+.tab-search-title svg{width:14px;height:14px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tab-search-item{display:flex;align-items:center;padding:8px 12px;border-radius:6px;cursor:pointer;position:relative;transition:background-color .15s ease;text-align:left;width:100%;border:0;background:transparent;color:var(--fg)}
 .tab-search-item:hover{background:color-mix(in srgb,var(--fg) 10%,transparent)}
 .tab-search-item-icon{width:24px;height:24px;border-radius:4px;margin-right:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}

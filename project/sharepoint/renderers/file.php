@@ -145,7 +145,41 @@ final class FileRenderer extends BaseRenderer
 
     private function renderPdf(): string
     {
-        return '<iframe class="sp-pdf" src="' . sp_h($this->contentUrl) . '#toolbar=0" title="' . sp_h($this->name) . '"></iframe>';
+        $prev = sp_h(sp_t('previous_page'));
+        $next = sp_h(sp_t('next_page'));
+        $zoomIn = sp_h(sp_t('zoom_in'));
+        $zoomOut = sp_h(sp_t('zoom_out'));
+        $fit = sp_h(sp_t('fit_width'));
+        $fullscreen = sp_h(sp_t('fullscreen'));
+        $pageLabel = sp_h(sp_t('page'));
+        $base = sp_h($this->contentUrl);
+        return '<div class="sp-pdf-shell" data-sp-pdf>
+  <div class="sp-pdf-toolbar" role="toolbar" aria-label="' . sp_h(sp_t('pdf_tools')) . '">
+    <div class="sp-pdf-toolbar__group">
+      <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-prev aria-label="' . $prev . '" title="' . $prev . '"><span class="material-symbols-outlined">chevron_left</span></button>
+      <label class="sp-pdf-page">
+        <input type="number" min="1" step="1" value="1" inputmode="numeric" data-sp-pdf-page aria-label="' . $pageLabel . '" title="' . $pageLabel . '">
+        <span class="sp-pdf-page__total-wrap" data-sp-pdf-total-wrap hidden>
+          <span class="sp-pdf-page__sep" aria-hidden="true">/</span>
+          <span class="sp-pdf-page__total" data-sp-pdf-total aria-live="polite"></span>
+        </span>
+      </label>
+      <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-next aria-label="' . $next . '" title="' . $next . '"><span class="material-symbols-outlined">chevron_right</span></button>
+    </div>
+    <span class="sp-pdf-toolbar__divider" aria-hidden="true"></span>
+    <div class="sp-pdf-toolbar__group">
+      <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-zoom-out aria-label="' . $zoomOut . '" title="' . $zoomOut . '"><span class="material-symbols-outlined">remove</span></button>
+      <span class="sp-pdf-zoom" data-sp-pdf-zoom aria-live="polite">100%</span>
+      <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-zoom-in aria-label="' . $zoomIn . '" title="' . $zoomIn . '"><span class="material-symbols-outlined">add</span></button>
+      <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-fit aria-label="' . $fit . '" title="' . $fit . '"><span class="material-symbols-outlined">fit_screen</span></button>
+    </div>
+    <span class="sp-pdf-toolbar__spacer" aria-hidden="true"></span>
+    <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-fullscreen aria-label="' . $fullscreen . '" title="' . $fullscreen . '"><span class="material-symbols-outlined">fullscreen</span></button>
+  </div>
+  <div class="sp-pdf-stage">
+    <iframe class="sp-pdf" src="' . $base . '#toolbar=0&amp;navpanes=0" title="' . sp_h($this->name) . '"></iframe>
+  </div>
+</div>';
     }
 
     private function renderText(int $size): string

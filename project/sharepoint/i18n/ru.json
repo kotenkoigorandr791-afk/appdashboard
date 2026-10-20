@@ -179,5 +179,10 @@
   "error_resource_unavailable": "Общий ресурс больше недоступен",
   "csv": "CSV",
   "json": "JSON",
-  "png": "PNG"
+  "png": "PNG",
+  "page": "Страница",
+  "previous_page": "Предыдущая страница",
+  "next_page": "Следующая страница",
+  "fit_width": "По ширине",
+  "pdf_tools": "Инструменты PDF"
 }

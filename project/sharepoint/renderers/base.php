@@ -96,12 +96,6 @@ abstract class BaseRenderer
     </div>
   </div>
   <div class="sp-top-bar__actions">
-    <button class="md3-btn md3-btn--icon md3-btn--text sp-header-action" data-sp-copy="' . sp_h(sp_public_url($this->share->token)) . '" aria-label="' . sp_h(sp_t('copy_link')) . '" title="' . sp_h(sp_t('copy_link')) . '">
-      <span class="material-symbols-outlined">content_copy</span>
-    </button>
-    <button class="md3-btn md3-btn--icon md3-btn--text sp-header-action" data-sp-qr aria-label="' . sp_h(sp_t('qr_code')) . '" title="' . sp_h(sp_t('qr_code')) . '">
-      <span class="material-symbols-outlined">qr_code_2</span>
-    </button>
     <button class="md3-btn md3-btn--icon md3-btn--text sp-header-action" data-sp-theme-cycle aria-label="' . sp_h(sp_t('theme')) . '" title="' . sp_h(sp_t('theme')) . '">
       <span class="material-symbols-outlined">contrast</span>
     </button>
@@ -130,7 +124,6 @@ abstract class BaseRenderer
     <div class="md3-dialog__header"><h2 class="md3-dialog__title" id="sp-qr-title">' . sp_h(sp_t('qr_code')) . '</h2></div>
     <div class="md3-dialog__content sp-qr-dialog__content">
       <div id="sp-qr-canvas" class="sp-qr-canvas" data-sp-qr-value="' . sp_h(sp_public_url($this->share->token)) . '"></div>
-      <p class="md3-typescale-body-medium sp-qr-url">' . sp_h(sp_public_url($this->share->token)) . '</p>
     </div>
     <div class="md3-dialog__actions">
       <button class="md3-btn md3-btn--text" data-md3-dialog-close>' . sp_h(sp_t('close')) . '</button>
@@ -173,6 +166,7 @@ abstract class BaseRenderer
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <meta name="sp-csrf" content="' . sp_h(sp_csrf_token()) . '">
 <title>' . sp_h($title) . ' · SharePoint</title>
+<link rel="icon" type="image/svg+xml" href="' . sp_h(sp_asset('icon.svg')) . '">
 <meta name="description" content="' . sp_h($description) . '">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

@@ -707,6 +707,7 @@
 
   function reinitContent() {
     initImageViewer();
+    initPdfViewer();
     initVideoPlayers();
     initRecipe();
     initExpenseChart();
@@ -849,6 +850,115 @@
     });
   }
 
+  /* PDF viewer — custom toolbar driving the native PDF frame via URL fragments. */
+  function initPdfViewer() {
+    $$('[data-sp-pdf]').forEach(function (shell) {
+      if (shell.dataset.spPdfReady === '1') return;
+      shell.dataset.spPdfReady = '1';
+      const frame = $('iframe.sp-pdf', shell);
+      if (!frame) return;
+
+      const base = (frame.getAttribute('src') || '').split('#')[0];
+      const state = { page: 1, zoom: 100, fit: false, total: 0 };
+      const steps = [50, 75, 90, 100, 110, 125, 150, 175, 200, 250, 300];
+      const pageInput = $('[data-sp-pdf-page]', shell);
+      const totalEl = $('[data-sp-pdf-total]', shell);
+      const totalWrap = $('[data-sp-pdf-total-wrap]', shell);
+      const zoomEl = $('[data-sp-pdf-zoom]', shell);
+      const prevBtn = $('[data-sp-pdf-prev]', shell);
+      const nextBtn = $('[data-sp-pdf-next]', shell);
+      const zoomInBtn = $('[data-sp-pdf-zoom-in]', shell);
+      const zoomOutBtn = $('[data-sp-pdf-zoom-out]', shell);
+      const fitBtn = $('[data-sp-pdf-fit]', shell);
+      const fsBtn = $('[data-sp-pdf-fullscreen]', shell);
+
+      function apply() {
+        const params = ['toolbar=0', 'navpanes=0'];
+        if (state.page > 1) params.push('page=' + state.page);
+        params.push(state.fit ? 'zoom=page-width' : 'zoom=' + state.zoom);
+        const src = base + '#' + params.join('&');
+        if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+        if (zoomEl) zoomEl.textContent = state.fit ? spT('fit_width', 'Fit') : state.zoom + '%';
+        if (fitBtn) fitBtn.setAttribute('aria-pressed', state.fit ? 'true' : 'false');
+        if (pageInput && String(state.page) !== pageInput.value) pageInput.value = String(state.page);
+      }
+
+      function setPage(value) {
+        let page = parseInt(value, 10);
+        if (!isFinite(page) || page < 1) page = 1;
+        if (state.total && page > state.total) page = state.total;
+        state.page = page;
+        apply();
+      }
+
+      function zoomTo(direction) {
+        state.fit = false;
+        let index = 0;
+        let best = Infinity;
+        steps.forEach(function (step, i) {
+          const distance = Math.abs(step - state.zoom);
+          if (distance < best) { best = distance; index = i; }
+        });
+        index = Math.max(0, Math.min(steps.length - 1, index + direction));
+        state.zoom = steps[index];
+        apply();
+      }
+
+      if (prevBtn) prevBtn.addEventListener('click', function () { if (state.page > 1) { state.page--; apply(); } });
+      if (nextBtn) nextBtn.addEventListener('click', function () {
+        if (!state.total || state.page < state.total) { state.page++; apply(); }
+      });
+      if (zoomInBtn) zoomInBtn.addEventListener('click', function () { zoomTo(1); });
+      if (zoomOutBtn) zoomOutBtn.addEventListener('click', function () { zoomTo(-1); });
+      if (fitBtn) fitBtn.addEventListener('click', function () { state.fit = !state.fit; apply(); });
+      if (pageInput) {
+        pageInput.addEventListener('change', function () { setPage(pageInput.value); });
+        pageInput.addEventListener('keydown', function (event) {
+          if (event.key === 'Enter') { event.preventDefault(); setPage(pageInput.value); pageInput.blur(); }
+        });
+      }
+
+      function updateFullscreenIcon() {
+        if (!fsBtn) return;
+        const active = document.fullscreenElement === shell;
+        const icon = fsBtn.querySelector('.material-symbols-outlined');
+        if (icon) icon.textContent = active ? 'fullscreen_exit' : 'fullscreen';
+        const label = spT(active ? 'exit_fullscreen' : 'fullscreen', active ? 'Exit fullscreen' : 'Fullscreen');
+        fsBtn.setAttribute('aria-label', label);
+        fsBtn.setAttribute('title', label);
+      }
+      if (fsBtn) {
+        fsBtn.addEventListener('click', function () {
+          if (document.fullscreenElement === shell) {
+            if (document.exitFullscreen) document.exitFullscreen();
+          } else if (shell.requestFullscreen) {
+            shell.requestFullscreen().catch(function () {});
+          }
+        });
+        document.addEventListener('fullscreenchange', updateFullscreenIcon);
+      }
+
+      apply();
+
+      // Best-effort page count: count page objects in the served PDF.
+      fetch(base, { credentials: 'same-origin' }).then(function (response) {
+        if (!response.ok) return null;
+        const length = Number(response.headers.get('content-length') || 0);
+        if (length > 15 * 1024 * 1024) return null;
+        return response.arrayBuffer();
+      }).then(function (buffer) {
+        if (!buffer) return;
+        const text = new TextDecoder('latin1').decode(new Uint8Array(buffer));
+        const matches = text.match(/\/Type\s*\/Page(?![s])/g);
+        if (!matches || !matches.length) return;
+        state.total = matches.length;
+        if (totalEl) totalEl.textContent = String(state.total);
+        if (totalWrap) totalWrap.hidden = false;
+        if (state.page > state.total) setPage(state.total);
+      }).catch(function () {});
+    });
+  }
+
   /* Global bindings */
   function init() {
     applyStoredTheme();
@@ -881,6 +991,7 @@
       }
     });
     initImageViewer();
+    initPdfViewer();
     initVideoPlayers();
     initRecipe();
     initExpenseChart();

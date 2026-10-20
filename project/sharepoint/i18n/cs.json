@@ -179,5 +179,10 @@
   "error_resource_unavailable": "Sdílený prostředek již není dostupný",
   "csv": "CSV",
   "json": "JSON",
-  "png": "PNG"
+  "png": "PNG",
+  "page": "Stránka",
+  "previous_page": "Předchozí stránka",
+  "next_page": "Další stránka",
+  "fit_width": "Přizpůsobit šířce",
+  "pdf_tools": "Nástroje PDF"
 }

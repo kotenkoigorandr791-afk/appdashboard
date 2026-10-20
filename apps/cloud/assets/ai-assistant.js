@@ -775,6 +775,35 @@
                 transform: translateY(-50%) !important;
                 opacity: .75 !important;
             }
+            .ai-chat-menu-search-wrap {
+                position: relative !important;
+                display: flex !important;
+                align-items: center !important;
+                margin: 8px 10px 6px !important;
+                flex: 0 0 auto !important;
+            }
+            .ai-chat-menu-search-wrap svg {
+                position: absolute !important;
+                left: 12px !important;
+                width: 16px !important;
+                height: 16px !important;
+                color: var(--muted) !important;
+                pointer-events: none !important;
+            }
+            .ai-chat-menu-search {
+                width: 100% !important;
+                padding: 8px 12px 8px 34px !important;
+                border: 1px solid var(--border) !important;
+                border-radius: 999px !important;
+                background: var(--bg) !important;
+                color: var(--fg) !important;
+                font-size: 13px !important;
+                outline: none !important;
+            }
+            .ai-chat-menu-search:focus {
+                border-color: var(--accent) !important;
+                box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
+            }
             .ai-model-dropdown-menu {
                 position: absolute !important;
                 top: calc(100% + 6px) !important;
@@ -1013,7 +1042,8 @@
                 justify-content: flex-end !important;
                 position: fixed !important;
                 inset: 0 !important;
-                width: 100vw !important;
+                width: 100% !important;
+                max-width: 100% !important;
                 height: 100vh !important;
                 height: 100dvh !important;
                 min-height: 100vh !important;
@@ -1021,6 +1051,7 @@
                 max-height: 100vh !important;
                 max-height: 100dvh !important;
                 padding: 0 !important;
+                overflow: hidden !important;
                 background: rgba(0, 0, 0, 0.35) !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
@@ -2447,6 +2478,48 @@
                 line-height: 1.5 !important;
             }
             
+            /* Restrained, GitHub-like token palette: readable and low contrast */
+            .code-block pre code.hljs .hljs-comment,
+            .code-block pre code.hljs .hljs-quote { color: #6e7781 !important; font-style: italic !important; }
+            .code-block pre code.hljs .hljs-keyword,
+            .code-block pre code.hljs .hljs-selector-tag,
+            .code-block pre code.hljs .hljs-literal,
+            .code-block pre code.hljs .hljs-type,
+            .code-block pre code.hljs .hljs-built_in { color: #cf222e !important; }
+            .code-block pre code.hljs .hljs-string,
+            .code-block pre code.hljs .hljs-attr,
+            .code-block pre code.hljs .hljs-template-tag,
+            .code-block pre code.hljs .hljs-template-variable { color: #0a3069 !important; }
+            .code-block pre code.hljs .hljs-number,
+            .code-block pre code.hljs .hljs-symbol,
+            .code-block pre code.hljs .hljs-bullet,
+            .code-block pre code.hljs .hljs-variable,
+            .code-block pre code.hljs .hljs-params { color: #0550ae !important; }
+            .code-block pre code.hljs .hljs-title,
+            .code-block pre code.hljs .hljs-section,
+            .code-block pre code.hljs .hljs-name { color: #8250df !important; }
+            .code-block pre code.hljs .hljs-meta { color: #953800 !important; }
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-comment,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-quote { color: #8b949e !important; }
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-keyword,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-selector-tag,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-literal,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-type,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-built_in { color: #ff7b72 !important; }
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-string,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-attr,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-template-tag,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-template-variable { color: #a5d6ff !important; }
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-number,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-symbol,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-bullet,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-variable,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-params { color: #79c0ff !important; }
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-title,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-section,
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-name { color: #d2a8ff !important; }
+            body[data-theme="dark"] .code-block pre code.hljs .hljs-meta { color: #ffa657 !important; }
+
             /* Math styles */
             .math-inline {
                 font-family: 'Times New Roman', serif;
@@ -2484,15 +2557,20 @@
 
     // Load highlight.js from CDN
     function loadHighlightJS() {
-        if (window.hljs) return;
-        const link = document.createElement('link');
-        link.rel = 'stylesheet';
-        link.id = 'hljs-theme-link';
-        link.href = getHljsThemeUrl();
-        document.head.appendChild(link);
+        if (!document.getElementById('hljs-theme-link')) {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.id = 'hljs-theme-link';
+            link.href = getHljsThemeUrl();
+            document.head.appendChild(link);
 
-        const themeObserver = new MutationObserver(updateHljsTheme);
-        themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+            const themeObserver = new MutationObserver(updateHljsTheme);
+            themeObserver.observe(document.body, { attributes: true, attributeFilter: ['data-theme'] });
+        }
+        if (window.hljs) {
+            window._hljsReady = true;
+            return;
+        }
 
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js';
@@ -6955,7 +7033,11 @@
         search.value = filterQuery || '';
         search.addEventListener('input', () => renderAiChatSessions(search.value));
         search.addEventListener('click', (e) => e.stopPropagation());
-        menu.appendChild(search);
+        const searchWrap = document.createElement('div');
+        searchWrap.className = 'ai-chat-menu-search-wrap';
+        searchWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>';
+        searchWrap.appendChild(search);
+        menu.appendChild(searchWrap);
         const q = String(filterQuery || '').trim().toLowerCase();
         const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
         const PREVIEW_LIMIT = 8;
