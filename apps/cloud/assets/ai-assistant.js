@@ -9499,12 +9499,17 @@
                 completionNotify.outcome = 'error';
                 console.error('AI error:', err);
                 if (shouldMarkModelUnavailable(err?.message || '')) markModelUnavailable(resolveModelForRequest());
-                
+                const rawMsg = String(err?.message || err || 'Unknown error');
+                const isNetwork = /failed to fetch|networkerror|network error|load failed|err_network|aborted|timeout|timed out/i.test(rawMsg)
+                    || err?.name === 'TypeError';
+                const displayMsg = isNetwork
+                    ? tr('aiNetworkError', 'Network error. Check your connection and try again.')
+                    : rawMsg;
+                flashStatus(displayMsg);
                 const errorId = addMessageToUI('assistant', 
-                    `${window.i18n?.errorPrefix || 'Error: '}${err.message}`, 
+                    `${window.i18n?.errorPrefix || 'Error: '}${displayMsg}`, 
                     false
                 );
-                
                 addRetryButton(errorId, message);
             }
         } finally {
@@ -9514,8 +9519,11 @@
             setInputState(false);
             setSendButtonGenerating(false);
             if (options.cleanupAttachments !== false) removeAllExternalAttachments();
-            
-            flashStatus(tr('aiResponseReady', 'AI response is ready'));
+            if (completionNotify.outcome === 'error') {
+                // Keep the error flash / message already shown — never claim "AI ready".
+            } else if (!completionNotify.skip) {
+                flashStatus(tr('aiResponseReady', 'AI response is ready'));
+            }
             maybeShowAiCompletionNotification(completionNotify);
         }
     }
