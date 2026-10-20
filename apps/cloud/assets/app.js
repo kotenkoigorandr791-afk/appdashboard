@@ -118,7 +118,29 @@ function ensureCloudDeviceId() {
   }
   return value;
 }
+function syncShellMenuForModals() {
+    const anyOpen = Array.from(document.querySelectorAll('.modal')).some((modal) => !modal.classList.contains('hidden'));
+    document.body.classList.toggle('shell-menu-hidden', anyOpen);
+}
+function initShellModalWatcher() {
+    const observeModal = (node) => {
+        if (node.nodeType !== 1) return;
+        if (node.classList?.contains('modal')) {
+            new MutationObserver(syncShellMenuForModals).observe(node, { attributes: true, attributeFilter: ['class'] });
+        }
+        node.querySelectorAll?.('.modal').forEach((modal) => {
+            new MutationObserver(syncShellMenuForModals).observe(modal, { attributes: true, attributeFilter: ['class'] });
+        });
+    };
+    document.querySelectorAll('.modal').forEach(observeModal);
+    new MutationObserver((mutations) => {
+        mutations.forEach((mutation) => mutation.addedNodes.forEach(observeModal));
+        syncShellMenuForModals();
+    }).observe(document.body, { childList: true, subtree: true });
+    syncShellMenuForModals();
+}
 document.addEventListener('DOMContentLoaded', async function() {
+    initShellModalWatcher();
     //comment
   await waitForAPP_CONFIG();
   await waitForStylesheetsReady();
@@ -959,6 +981,10 @@ function canStartTreeLasso(e) {
     if (!treeTarget && !trashTarget) return false;
     if (isLassoBlockedTarget(el)) return false;
     if (isLassoDragHandle(el)) return false;
+    // Rubber-band selection may only be entered from empty tree space. Dragging
+    // from a file/folder row (icon, name, or row background) keeps its normal
+    // behaviour; selection mode is still available from the context menu.
+    if (treeTarget && !selectionState.active && el.closest('.node, .advanced-search-result')) return false;
     return true;
 }
 function initLassoSelection() {
@@ -999,10 +1025,7 @@ function initLassoSelection() {
                 if (!selectionState.active && lassoState.container !== 'trash') {
                     selectionState.active = true;
                     selectionState.mode = 'select';
-                    document.querySelectorAll('#tree .node, #tree .advanced-search-result').forEach(node => {
-                        addCheckboxToNode(node);
-                    });
-                    tree?.classList.add('selection-mode');
+                    tree?.classList.add('selection-mode', 'selection-mode-active');
                     syncAllTreeNodeDragHandles();
                 }
                 if (lassoState.container === 'trash') {
@@ -1088,6 +1111,10 @@ function initLassoSelection() {
             return;
         }
         if (typeof getTopModal === 'function' && getTopModal()) return;
+        // The assistant modal is the topmost layer: let it handle Escape first and
+        // only clear the tree selection on the next Escape press.
+        const aiModal = document.getElementById('ai-modal');
+        if (aiModal && !aiModal.classList.contains('hidden')) return;
         if (document.getElementById('context-menu')) return;
         if (!selectionState.active) return;
         clearSelection();
@@ -1097,47 +1124,15 @@ function initLassoSelection() {
 }
 function processElementsInLasso(lassoRect, mode) {
     if (!selectionState.active) return;
-    
     const elementsInRect = getTreeElementsInRect(lassoRect);
-    
     elementsInRect.forEach(node => {
         const path = node.dataset.path;
         const type = node.dataset.type;
-        
+        if (!path) return;
         if (mode === 'toggle') {
-            // Toggle mode: if selected - deselect, if not - select
-            if (selectionState.selectedItems.has(path)) {
-                selectionState.selectedItems.delete(path);
-                node.classList.remove('selected');
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) checkbox.checked = false;
-            } else {
-                selectionState.selectedItems.add(path);
-                node.classList.add('selected');
-                
-                // Add a checkbox if missing
-                if (!node.querySelector('.selection-checkbox')) {
-                    addCheckboxToNode(node);
-                }
-                
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) checkbox.checked = true;
-            }
-        } else {
-            // Normal mode: select all in the rectangle
-            if (!selectionState.selectedItems.has(path)) {
-                selectionState.selectedItems.add(path);
-                
-                // Add a checkbox if missing
-                if (!node.querySelector('.selection-checkbox')) {
-                    addCheckboxToNode(node);
-                }
-                
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) checkbox.checked = true;
-                
-                node.classList.add('selected');
-            }
+            handleItemSelection(path, type, !selectionState.selectedItems.has(path), node.dataset.root || null);
+        } else if (!selectionState.selectedItems.has(path)) {
+            handleItemSelection(path, type, true, node.dataset.root || null);
         }
     });
 }
@@ -1148,9 +1143,11 @@ function formatShareExpiryText(expiresAt, expiresOption) {
     if (Number.isNaN(d.getTime())) return t(window.i18n, 'shareLinkExpiryUnknown');
     return `${t(window.i18n, 'shareLinkExpiresAt')}: ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
-async function generateShareKey(filePath, expiresOption = 'never') {
+async function generateShareKey(filePath, expiresOption = 'never', root = null) {
+    const shareRoot = root || (document.getElementById('viewer')?.dataset?.tabRoot) || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
     const response = await api('share_file', {
         path: filePath,
+        root: shareRoot,
         expires_option: expiresOption,
         password: shareState.currentRestrictions.password || '',
         view_only: shareState.currentRestrictions.view_only ? 1 : 0,
@@ -1165,23 +1162,16 @@ async function generateShareKey(filePath, expiresOption = 'never') {
 }
 window.generateShareKey = generateShareKey;
 function buildCloudShareUrl(shareData) {
-    const currentUrl = new URL(window.location.href);
-    const currentParams = currentUrl.searchParams;
-    let color = currentParams.get('color');
-    if (!color) {
-        color = window.APP_CONFIG.color.replace('#', '%23');
+    if (shareData && shareData.link) {
+        return shareData.link;
     }
     const shareUrl = new URL(window.location.href);
-    shareUrl.pathname = '/';
+    shareUrl.pathname = '/s/' + encodeURIComponent((shareData && shareData.key) || '');
     shareUrl.search = '';
-    shareUrl.searchParams.set('sharedFile', shareData.key);
-    shareUrl.searchParams.set('theme', currentParams.get('theme') || window.APP_CONFIG.theme);
-    shareUrl.searchParams.set('lang', currentParams.get('lang') || window.APP_CONFIG.lang);
-    shareUrl.searchParams.set('color', color);
     return shareUrl.toString();
 }
-window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never') {
-    const shareData = await generateShareKey(filePath, expiresOption);
+window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never', root = null) {
+    const shareData = await generateShareKey(filePath, expiresOption, root);
     return buildCloudShareUrl(shareData);
 };
 async function ensureQrCodeStyling() {
@@ -1203,7 +1193,7 @@ async function ensureQrCodeStyling() {
     if (typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
     return QRCodeStyling;
 }
-async function renderShareModalForPath(filePath, displayName, expiresOption = 'never') {
+async function renderShareModalForPath(filePath, displayName, expiresOption = 'never', root = null) {
     const modal = document.getElementById('share-modal');
     const select = document.getElementById('share-expires-select');
     const expiresInfo = document.getElementById('share-expires-at');
@@ -1216,12 +1206,13 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     if (!modal || !select) throw new Error('Share modal is unavailable');
 
     shareState.currentPath = filePath;
+    shareState.currentRoot = root || document.getElementById('viewer')?.dataset?.tabRoot || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
     shareState.currentExpiresOption = expiresOption || 'never';
     select.value = shareState.currentExpiresOption;
     const currentPasswordValue = shareState.currentRestrictions?.password || '';
 
     flashStatus(t(i18n, 'generatingLink'));
-    const shareData = await generateShareKey(filePath, shareState.currentExpiresOption);
+    const shareData = await generateShareKey(filePath, shareState.currentExpiresOption, shareState.currentRoot);
     shareState.currentKey = shareData.key;
     shareState.currentRestrictions = {
         password: currentPasswordValue,
@@ -1336,7 +1327,8 @@ async function openShareModal() {
     const sharePath = typeof toMainTreePath === 'function' ? toMainTreePath(filePath, root) : filePath;
     try {
         viewer.dataset.lastSharedPath = sharePath;
-        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never');
+        viewer.dataset.lastSharedRoot = root;
+        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never', root);
         return true;
     } catch (err) {
         flashStatus(t(i18n, 'shareError') + ': ' + err.message);
@@ -1390,6 +1382,18 @@ function openShareChoiceMenu(anchor, getLinkAction, sendAction) {
     setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
 }
 function initShareFeature() {
+    const shareModal = document.getElementById('share-modal');
+    if (shareModal) {
+        // The shell menu button sits above the app iframe. On phones the share
+        // sheet covers the whole viewport, so mirror its state into modal-open;
+        // on desktop the button stays visible as before.
+        const syncShareMenuLock = () => {
+            const open = !shareModal.classList.contains('hidden') && window.matchMedia('(max-width: 768px)').matches;
+            document.body.classList.toggle('modal-open', open);
+        };
+        new MutationObserver(syncShareMenuLock).observe(shareModal, { attributes: true, attributeFilter: ['class'] });
+        syncShareMenuLock();
+    }
     document.getElementById('btn-share').addEventListener('click', () => {
         const button = document.getElementById('btn-share');
         openShareChoiceMenu(button, async () => {
@@ -1472,7 +1476,7 @@ function initShareFeature() {
         shareState.currentExpiresOption = nextOption;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), nextOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), nextOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1483,7 +1487,7 @@ function initShareFeature() {
         shareState.currentRestrictions.disable_copy = mode === 'disable_copy' ? 1 : 0;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1497,7 +1501,7 @@ function initShareFeature() {
         shareState.currentRestrictions.password = String(e.target.value || '');
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1506,7 +1510,7 @@ function initShareFeature() {
         shareState.currentRestrictions.max_views = Math.max(0, Number(e.target.value || 0));
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1588,15 +1592,8 @@ function applyTheme(theme, color) {
       border-bottom-color: transparent;
     }
     .tab.active::after {
-      content: '';
-      position: absolute;
-      left: 8px;
-      right: 8px;
-      bottom: -1px;
-      height: 4px;
-      background: linear-gradient(to bottom, color-mix(in srgb, var(--accent) 72%, #000 28%) 0%, color-mix(in srgb, var(--accent) 45%, var(--bg) 55%) 55%, color-mix(in srgb, var(--accent) 10%, var(--bg) 90%) 100%);
-      border-radius: 2px;
-      pointer-events: none;
+      content: none;
+      display: none;
     }
     #viewer {
       position: relative !important;
@@ -2537,6 +2534,15 @@ window.addEventListener('message', function(event) {
     if (event.data.type === 'transcriptionSaved') {
         flashStatus(t(i18n, 'transcriptionSaved'));
     }
+    if (event.data.type === 'editorSaveResult') {
+        const saveButton = document.getElementById('btn-save');
+        if (event.data.ok) {
+            flashStatus(t(i18n, 'fileSaved'));
+            if (saveButton) showSuccessCheck(saveButton);
+        } else if (event.data.message) {
+            flashStatus(event.data.message);
+        }
+    }
     if (event.data.type === 'closeTranscriptionEditor') {
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
         if (activeTab && activeTab.transcriptionEditor) {
@@ -2666,9 +2672,10 @@ window.addEventListener('message', function(event) {
     }
 });
 function updateToolbarForMarkdownEditor() {
-    const saveBtn = document.getElementById('btn-save');
     const codeActionsBtn = document.getElementById('btn-code-actions');
-    saveBtn.classList.add('hidden');
+    // The save button lives in the shell toolbar; the editor asks its own
+    // iframe to save via postMessage.
+    document.getElementById('btn-save')?.classList.remove('hidden');
     codeActionsBtn.classList.add('hidden');
 }
 function openHtmlEditor(filePath, root = null) {
@@ -3339,9 +3346,16 @@ function updateToolbarForTab(tab) {
     const copyBtn = document.getElementById('btn-copy');
     const undoBtn = document.getElementById('btn-monaco-undo');
     const redoBtn = document.getElementById('btn-monaco-redo');
-    if (tab.photoEditor || tab.latexEditor || tab.transcriptionEditor || 
-        tab.onlyOfficeEditor || tab.markdownEditor || tab.htmlEditor || tab.zipViewer) {
+    if (tab.photoEditor || tab.latexEditor || tab.onlyOfficeEditor || tab.zipViewer) {
         saveBtn.classList.add('hidden');
+        codeActionsBtn.classList.add('hidden');
+        if (copyBtn) copyBtn.classList.add('hidden');
+        undoBtn?.classList.add('hidden');
+        redoBtn?.classList.add('hidden');
+    } else if (tab.transcriptionEditor || tab.ttsEditor || tab.markdownEditor || tab.htmlEditor) {
+        // Saving happens inside the embedded editor; the toolbar button asks it
+        // to save via postMessage instead of carrying a second save button.
+        saveBtn.classList.remove('hidden');
         codeActionsBtn.classList.add('hidden');
         if (copyBtn) copyBtn.classList.add('hidden');
         undoBtn?.classList.add('hidden');
@@ -4313,17 +4327,14 @@ function displaySearchResults(results, query) {
         </div>
       </div>
     `;
-    if (selectionState.active && typeof addCheckboxToNode === 'function') addCheckboxToNode(node);
+    // selection mode uses highlight only (no checkboxes)
     syncNodeDragHandle(node);
     node.addEventListener('click', (e) => {
       if (selectionState.active) {
         e.preventDefault();
         e.stopPropagation();
-        const checkbox = node.querySelector('.selection-checkbox');
-        if (checkbox) {
-          checkbox.checked = !checkbox.checked;
-          handleItemSelection(resolved.localPath, item.type, checkbox.checked, resolved.root);
-        }
+        const next = !selectionState.selectedItems.has(resolved.localPath);
+        handleItemSelection(resolved.localPath, item.type, next, resolved.root);
         return;
       }
       if (item.type === 'dir') {
@@ -4500,7 +4511,10 @@ function bindUI(i18n) {
     document.getElementById('btn-trash-delete-selected')?.addEventListener('click', () => deleteSelectedItems());
     document.getElementById('btn-trash-restore-selected')?.addEventListener('click', () => restoreSelectedTrashItems());
     document.getElementById('btn-trash-restore-all')?.addEventListener('click', () => restoreAllTrashItems());
-    document.getElementById('btn-trash-delete-all')?.addEventListener('click', () => emptyTrashWithConfirmation());
+    document.getElementById('btn-trash-select-all')?.addEventListener('click', () => selectAllTrashItems());
+    document.getElementById('trash-retention-days')?.addEventListener('change', (e) => {
+        void setTrashRetentionDays(Number(e.target.value));
+    });
     initFileModals();
     initLangSwitcher();
     initCreateFolderModal();
@@ -4699,8 +4713,6 @@ function initRootToolbar(i18n) {
     document.getElementById('btn-code-actions').addEventListener('click', toggleCodeActionsMenu);
     document.getElementById('btn-apply-code-changes').addEventListener('click', applyCodeChanges);
     document.getElementById('btn-close-code-modal').addEventListener('click', closeCodeModal);
-    document.getElementById('session-limit-mb').addEventListener('change', updateSessionLimit);
-    document.getElementById('session-limit-mb').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.target.blur(); } });
     document.getElementById('btn-request-storage')?.addEventListener('click', requestMoreStorage);
     document.getElementById('btn-manage-storage')?.addEventListener('click', openStorageAdminPanel);
     document.getElementById('btn-storage-admin-close')?.addEventListener('click', closeStorageAdminPanel);
@@ -4892,38 +4904,23 @@ function toggleSelectionMode() {
     
     if (selectionState.active) {
         selectionState.mode = 'select';
-        document.querySelectorAll('#tree .node, #tree .advanced-search-result').forEach(node => {
-            addCheckboxToNode(node);
-        });
-
-        // Add a class to change the cursor
-        document.getElementById('tree').classList.add('selection-mode');
+        const treeEl = document.getElementById('tree');
+        if (treeEl) treeEl.classList.add('selection-mode', 'selection-mode-active');
         syncAllTreeNodeDragHandles();
         flashStatus(t(i18n, 'selectionModeActive'));
     } else {
         clearSelection();
-        
-        // Remove the cursor class
         const tree = document.getElementById('tree');
         if (tree) {
-            tree.classList.remove('selection-mode');
-            // Force reset the cursor
+            tree.classList.remove('selection-mode', 'selection-mode-active');
             tree.style.cursor = '';
         }
-        
-        // Hide the lasso if active
         if (lassoState.element) {
             lassoState.element.style.display = 'none';
         }
-        
-        // Reset lasso state
         lassoState.active = false;
         lassoState.mode = null;
-        
-        // Restore text selection
         document.body.style.userSelect = '';
-        
-        // Remove all checkboxes
         document.querySelectorAll('.selection-checkbox').forEach(checkbox => {
             checkbox.remove();
         });
@@ -5215,26 +5212,50 @@ function handleItemSelection(path, type, selected, root = null) {
         return;
     }
     const p = String(path || '');
-    const esc = CSS.escape(p);
-    if (selected) {
-        selectionState.selectedItems.add(p);
-        const nodeForRoot = document.querySelector(`#tree .advanced-search-result[data-path="${esc}"], #tree .node[data-path="${esc}"]`);
-        selectionState.selectedRoots.set(p, root || nodeForRoot?.dataset.root || getCurrentCloudRoot());
-        
-        // Animate the addition
-        const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
-        if (node) {
-            node.classList.add('selected');
-            node.style.animation = 'none';
-            node.offsetHeight; // Trigger reflow
-            node.style.animation = 'nodeHighlight 0.3s ease-out';
+    const resolvedRoot = root || document.querySelector(`#tree .node[data-path="${CSS.escape(p)}"], #tree .advanced-search-result[data-path="${CSS.escape(p)}"]`)?.dataset.root || getCurrentCloudRoot();
+    const applyOne = (itemPath, isSelected) => {
+        const ip = String(itemPath || '');
+        if (!ip) return;
+        const esc = CSS.escape(ip);
+        if (isSelected) {
+            selectionState.selectedItems.add(ip);
+            selectionState.selectedRoots.set(ip, resolvedRoot);
+            const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
+            if (node) {
+                node.classList.add('selected');
+                node.style.animation = 'none';
+                node.offsetHeight;
+                node.style.animation = 'nodeHighlight 0.3s ease-out';
+            }
+        } else {
+            selectionState.selectedItems.delete(ip);
+            selectionState.selectedRoots.delete(ip);
+            const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
+            if (node) node.classList.remove('selected');
         }
-    } else {
-        selectionState.selectedItems.delete(p);
-        selectionState.selectedRoots.delete(p);
-        const node = document.querySelector(`#tree .node[data-path="${esc}"], #tree .advanced-search-result[data-path="${esc}"]`);
-        if (node) {
-            node.classList.remove('selected');
+    };
+    applyOne(p, selected);
+    if (type === 'dir' || type === 'folder') {
+        // Select/deselect all currently rendered descendants
+        document.querySelectorAll('#tree .node[data-path], #tree .advanced-search-result[data-path]').forEach((node) => {
+            const childPath = node.dataset.path || '';
+            if (childPath !== p && childPath.startsWith(p + '/')) {
+                applyOne(childPath, selected);
+            }
+        });
+        // Also pull full folder contents from the API so unloaded children are included
+        if (selected && typeof getAllFilesRecursive === 'function') {
+            getAllFilesRecursive(p).then((items) => {
+                (items || []).forEach((item) => {
+                    if (item && item.path) applyOne(item.path, true);
+                });
+                updateSelectionUI();
+            }).catch(() => {});
+        } else if (!selected) {
+            const prefix = p + '/';
+            Array.from(selectionState.selectedItems).forEach((itemPath) => {
+                if (itemPath.startsWith(prefix)) applyOne(itemPath, false);
+            });
         }
     }
     updateSelectionUI();
@@ -5517,40 +5538,10 @@ function checkAndFixLastWord(lang, element) {
   }
 }
 function transliterateWord(word, lang) {
-  const translitTables = {
-    'ru': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ъ',
-      'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'э', "''": 'э',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ъ',
-      'A': 'Ф', 'S': 'Ы', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Э','""': 'Э',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    },
-    'uk': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ї',
-      'a': 'ф', 's': 'і', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'є',"''": 'є',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ї',
-      'A': 'Ф', 'S': 'І', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Є','""': 'Є',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    }
-  };
-  const table = translitTables[lang];
-  if (!table) return word;
-  let result = '';
-  for (let i = 0; i < word.length; i++) {
-    const char = word[i];
-    result += table[char] || char;
+  if (window.CloudTransliteration && typeof window.CloudTransliteration.transliterateWord === 'function') {
+    return window.CloudTransliteration.transliterateWord(word, lang);
   }
-  return result;
+  return word;
 }
 function applyTransliterationToAll(lang) {
   const focusedElement = document.activeElement;
@@ -5583,39 +5574,13 @@ function applyTransliterationToAll(lang) {
   }
 }
 function transliterateLastChar(lang, element) {
-  const translitTables = {
-    'ru': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ъ',
-      'a': 'ф', 's': 'ы', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'э', "''": 'э',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ъ',
-      'A': 'Ф', 'S': 'Ы', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Э', '""': 'Э',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    },
-    'uk': {
-      'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з', 
-      '[': 'х', ']': 'ї',
-      'a': 'ф', 's': 'і', 'd': 'в', 'f': 'а', 'g': 'п', 'h': 'р', 'j': 'о', 'k': 'л', 'l': 'д', ';': 'ж', 
-      "'": 'є', "''": 'є',
-      'z': 'я', 'x': 'ч', 'c': 'с', 'v': 'м', 'b': 'и', 'n': 'т', 'm': 'ь', ',': 'б', '.': 'ю', '/': '.',
-      'Q': 'Й', 'W': 'Ц', 'E': 'У', 'R': 'К', 'T': 'Е', 'Y': 'Н', 'U': 'Г', 'I': 'Ш', 'O': 'Щ', 'P': 'З',
-      '{': 'Х', '}': 'Ї',
-      'A': 'Ф', 'S': 'І', 'D': 'В', 'F': 'А', 'G': 'П', 'H': 'Р', 'J': 'О', 'K': 'Л', 'L': 'Д', ':': 'Ж',
-      '"': 'Є', '""': 'Є',
-      'Z': 'Я', 'X': 'Ч', 'C': 'С', 'V': 'М', 'B': 'И', 'N': 'Т', 'M': 'Ь', '<': 'Б', '>': 'Ю', '?': ','
-    }
-  };
-  const table = translitTables[lang];
+  if (!element || !lang || lang === 'en' || lang === 'off') return;
+  const table = window.CloudTransliteration?.getTable?.(lang);
   if (!table) return;
-  let currentText, selectionStart, selectionEnd, setTextFunction;
-  if (element.tagName === 'TEXTAREA') {
+  let currentText, selectionStart, setTextFunction;
+  if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
     currentText = element.value;
     selectionStart = element.selectionStart;
-    selectionEnd = element.selectionEnd;
     setTextFunction = (text) => { element.value = text; };
   } else {
     const cmEditor = element.CodeMirror || window.cmEditor || element.closest('.CodeMirror')?.CodeMirror;
@@ -5623,7 +5588,6 @@ function transliterateLastChar(lang, element) {
       currentText = cmEditor.getValue();
       const cursor = cmEditor.getCursor();
       selectionStart = cmEditor.indexFromPos(cursor);
-      selectionEnd = selectionStart;
       setTextFunction = (text) => { cmEditor.setValue(text); cmEditor.setCursor(cursor); };
     } else {
       return;
@@ -5633,11 +5597,9 @@ function transliterateLastChar(lang, element) {
     const lastChar = currentText[selectionStart - 1];
     const transliterated = table[lastChar];
     if (transliterated && transliterated !== lastChar) {
-      const newText = currentText.substring(0, selectionStart - 1) + 
-                     transliterated + 
-                     currentText.substring(selectionStart);
+      const newText = currentText.substring(0, selectionStart - 1) + transliterated + currentText.substring(selectionStart);
       setTextFunction(newText);
-      if (element.tagName === 'TEXTAREA') {
+      if (element.tagName === 'TEXTAREA' || element.tagName === 'INPUT') {
         element.selectionStart = element.selectionEnd = selectionStart - 1 + transliterated.length;
       } else {
         const cmEditor = element.CodeMirror || window.cmEditor;
@@ -6949,6 +6911,7 @@ function escapeRegex(string) {
 }
 async function refreshUsers(i18n) {
     const state = await api('get_state');
+    window.__cloudUsersState = state;
     setCurrentUser(state.active);
     const tableBody = document.getElementById('users-table-body');
     tableBody.innerHTML = '';
@@ -6993,13 +6956,18 @@ async function refreshUsers(i18n) {
 async function syncSettingsControls(state = null) {
     if (!state) {
         state = await api('get_state');
+        window.__cloudUsersState = state;
         setCurrentUser(state.active);
+    } else {
+        window.__cloudUsersState = state;
     }
     const active = state.users.find(u => u.name === state.active);
     if (!active) return;
+    syncTrashRetentionControl();
     const activeDisplayEmail = (active && active.email) || state.active_email || state.active;
     window.cloudCurrentUserDisplayEmail = activeDisplayEmail || '';
-    document.getElementById('session-limit-mb').value = active.session_limit_mb || 0;
+    const sessionLimitInput = document.getElementById('session-limit-mb');
+    if (sessionLimitInput) sessionLimitInput.value = active.session_limit_mb || 0;
     const hideLangToggle = document.getElementById('hide-lang-switcher-toggle');
     if (hideLangToggle) {
         hideLangToggle.checked = !!active.hide_lang_switcher;
@@ -7392,13 +7360,61 @@ function updateTrashToolbarSelectionState() {
     const deleteSelectedBtn = document.getElementById('btn-trash-delete-selected');
     const restoreSelectedBtn = document.getElementById('btn-trash-restore-selected');
     const restoreAllBtn = document.getElementById('btn-trash-restore-all');
-    const deleteAllBtn = document.getElementById('btn-trash-delete-all');
+    const selectAllBtn = document.getElementById('btn-trash-select-all');
+    const counter = document.getElementById('trash-selection-counter');
     if (restoreAllBtn) restoreAllBtn.textContent = t(i18n, 'restoreAll');
-    if (deleteAllBtn) deleteAllBtn.textContent = t(i18n, 'deleteAll');
+    if (selectAllBtn) selectAllBtn.textContent = t(i18n, 'selectAll');
     if (deleteSelectedBtn) deleteSelectedBtn.textContent = t(i18n, 'deleteSelected', { count });
     if (restoreSelectedBtn) restoreSelectedBtn.textContent = t(i18n, 'restoreSelected', { count });
     if (deleteSelectedBtn) deleteSelectedBtn.disabled = count === 0;
     if (restoreSelectedBtn) restoreSelectedBtn.disabled = count === 0;
+    if (counter) {
+        if (count > 0) {
+            counter.textContent = t(i18n, 'selectedCount', { count });
+            counter.classList.remove('hidden');
+        } else {
+            counter.textContent = '';
+            counter.classList.add('hidden');
+        }
+    }
+}
+
+function getActiveTrashRetentionDays() {
+    const active = (window.__cloudUsersState?.users || []).find((u) => u.name === (window.__cloudUsersState?.active || currentUserState.user))
+        || (window.__cloudUsersState?.users || [])[0];
+    const days = Number(active?.trash_retention_days ?? 7);
+    return [1, 4, 7, 10, 13, 15].includes(days) ? days : 7;
+}
+
+function syncTrashRetentionControl() {
+    const select = document.getElementById('trash-retention-days');
+    if (!select) return;
+    select.value = String(getActiveTrashRetentionDays());
+}
+
+async function setTrashRetentionDays(days) {
+    const normalized = [1, 4, 7, 10, 13, 15].includes(Number(days)) ? Number(days) : 7;
+    try {
+        const resp = await api('set_trash_retention', { days: normalized });
+        const next = Number(resp?.trash_retention_days ?? normalized);
+        if (window.__cloudUsersState?.users) {
+            window.__cloudUsersState.users = window.__cloudUsersState.users.map((u) => ({
+                ...u,
+                trash_retention_days: next
+            }));
+        }
+        syncTrashRetentionControl();
+        flashStatus(t(i18n, 'trashRetentionSaved') || ('Retention: ' + next + 'd'));
+    } catch (err) {
+        flashStatus(err.message || 'Failed to save retention');
+        syncTrashRetentionControl();
+    }
+}
+
+function selectAllTrashItems() {
+    selectionState.active = true;
+    setTrashSelection(trashState.items.map((item) => item.path), trashState.items.length ? 0 : -1);
+    if (trashState.items.length) focusTrashItem(0);
 }
 
 function formatTrashDeletedAt(timestamp) {
@@ -7418,9 +7434,11 @@ function updateToolbarForTrashView() {
     document.querySelector('.code-actions')?.classList.add('hidden');
     document.getElementById('tabs-container')?.classList.add('hidden');
     document.getElementById('btn-trash-restore-all')?.classList.remove('hidden');
+    document.getElementById('btn-trash-select-all')?.classList.remove('hidden');
     document.getElementById('btn-trash-delete-selected')?.classList.remove('hidden');
-    document.getElementById('btn-trash-delete-all')?.classList.remove('hidden');
     document.getElementById('btn-trash-restore-selected')?.classList.remove('hidden');
+    document.getElementById('trash-retention-wrap')?.classList.remove('hidden');
+    syncTrashRetentionControl();
     updateTrashToolbarSelectionState();
 }
 
@@ -7432,9 +7450,11 @@ function restoreDefaultToolbarAfterTrash() {
     document.querySelector('.code-actions')?.classList.remove('hidden');
     document.getElementById('tabs-container')?.classList.remove('hidden');
     document.getElementById('btn-trash-restore-all')?.classList.add('hidden');
+    document.getElementById('btn-trash-select-all')?.classList.add('hidden');
     document.getElementById('btn-trash-delete-selected')?.classList.add('hidden');
-    document.getElementById('btn-trash-delete-all')?.classList.add('hidden');
     document.getElementById('btn-trash-restore-selected')?.classList.add('hidden');
+    document.getElementById('trash-retention-wrap')?.classList.add('hidden');
+    document.getElementById('trash-selection-counter')?.classList.add('hidden');
     if (activeTab) {
         updateToolbarForTab(activeTab);
     } else {
@@ -7714,17 +7734,6 @@ async function restoreAllTrashItems() {
     await restoreTrashItems(trashState.items.map((item) => item.path));
 }
 
-async function emptyTrashWithConfirmation() {
-    if (!trashState.items.length) {
-        flashStatus(t(i18n, 'trashEmpty'));
-        return;
-    }
-    const { confirmed } = await showConfirmModal(t(i18n, 'deleteAll'), t(i18n, 'emptyTrashConfirm'));
-    if (!confirmed) return;
-    await api('empty_trash', { root: 'trash' });
-    await renderTrashView();
-    flashStatus(t(i18n, 'trashEmptied'));
-}
 function deleteSelectedItems() {
     const selectedItems = Array.from(selectionState.selectedItems);
     if (selectedItems.length === 0) return;
@@ -8496,7 +8505,7 @@ function renderNodes(items, basePath = '', depth = 0) {
         label.textContent = item.name;
         label.title = item.name;
         node.append(toggle, label);
-        if (selectionState.active) addCheckboxToNode(node);
+        // selection mode: highlight only
         syncNodeDragHandle(node);
         node.setAttribute('tabindex', '0');
         
@@ -8523,16 +8532,8 @@ function renderNodes(items, basePath = '', depth = 0) {
             
             // In selection mode - select the item instead of opening
             if (selectionState.active) {
-                const checkbox = node.querySelector('.selection-checkbox');
-                if (checkbox) {
-                    checkbox.checked = !checkbox.checked;
-                    handleItemSelection(item.path, item.type, checkbox.checked);
-                    if (checkbox.checked) {
-                        node.classList.add('selected');
-                    } else {
-                        node.classList.remove('selected');
-                    }
-                }
+                const next = !selectionState.selectedItems.has(item.path);
+                handleItemSelection(item.path, item.type, next);
                 return;
             }
             
@@ -9450,6 +9451,16 @@ async function saveFile() {
         return false;
     }
 
+    if (activeTab.transcriptionEditor || activeTab.ttsEditor || activeTab.markdownEditor || activeTab.htmlEditor) {
+        const iframe = document.querySelector(`iframe[data-tab-id="${activeTab.id}"]`) || tabsState.iframeCache.get(activeTab.id);
+        if (!iframe || !iframe.contentWindow) {
+            flashStatus(t(i18n, 'noFileToSave'));
+            return false;
+        }
+        iframe.contentWindow.postMessage({ type: 'editor:save' }, '*');
+        return false;
+    }
+
     const path = activeTab.path;
     let content = '';
     const viewer = document.getElementById('viewer');
@@ -9839,12 +9850,21 @@ async function refreshStorageRequestStatus(state = null) {
     const active = state ? (state.users || []).find(u => u.name === state.active) : null;
     const usedBytes = active ? (active.used_bytes || 0) : 0;
     const quotaBytes = active ? (active.quota_mb || 0) * 1024 * 1024 : 0;
+    const pct = quotaBytes > 0 ? Math.min(100, Math.round((usedBytes / quotaBytes) * 100)) : 0;
+    const fillEl = document.getElementById('settings-storage-progress-fill');
+    const labelEl = document.getElementById('settings-storage-progress-label');
+    if (fillEl) fillEl.style.width = pct + '%';
+    if (labelEl) {
+        labelEl.textContent = t(window.i18n, 'storageUsageProgress', {
+            used: formatBytes(usedBytes),
+            quota: formatBytes(quotaBytes),
+            percent: pct
+        }) || (formatBytes(usedBytes) + ' / ' + formatBytes(quotaBytes) + ' (' + pct + '%)');
+    }
     const summaryEl = document.getElementById('storage-request-summary');
     if (summaryEl) {
-        summaryEl.textContent = t(window.i18n, 'storageRequestSummary', {
-            used: formatBytes(usedBytes),
-            quota: formatBytes(quotaBytes)
-        });
+        summaryEl.textContent = '';
+        summaryEl.classList.add('hidden');
     }
     let pending = null;
     try {
@@ -10037,11 +10057,32 @@ async function saveUserQuota(email, btnEl) {
     try {
         await api('admin_set_user_quota', { email, quota_mb: mb });
         flashStatus(t(window.i18n, 'quotaUpdated'));
-        await renderStorageAdminPanel();
+        const row = btnEl && btnEl.closest('tr');
+        if (row) {
+            const selected = input && input.querySelector('option[value="' + mb + '"]');
+            if (selected) {
+                Array.from(input.options).forEach((opt) => { opt.selected = opt.value === String(mb); });
+            } else if (input) {
+                let custom = input.querySelector('option[data-custom-quota="1"]');
+                if (!custom) {
+                    custom = document.createElement('option');
+                    custom.dataset.customQuota = '1';
+                    input.appendChild(custom);
+                }
+                custom.value = String(mb);
+                custom.textContent = mb + ' МБ';
+                custom.selected = true;
+            }
+            row.classList.add('storage-quota-updated');
+            setTimeout(() => row.classList.remove('storage-quota-updated'), 600);
+        } else {
+            await renderStorageAdminPanel(storageAdminPage);
+        }
         await refreshUsers(window.i18n);
     } catch (err) {
-        if (btnEl) btnEl.disabled = false;
         flashStatus(t(window.i18n, 'errorPrefix') + err.message);
+    } finally {
+        if (btnEl) btnEl.disabled = false;
     }
 }
 async function resolveStorageRequestFromPanel(requestId, approve) {
@@ -10442,12 +10483,7 @@ async function uploadFile(path, file) {
       }
 
       // 4. Update the selection state (if active)
-      if (selectionState.active) {
-        const node = document.querySelector(`.node[data-path="${uploadedPath}"]`);
-        if (node && !node.querySelector('.selection-checkbox')) {
-          addCheckboxToNode(node);
-        }
-      }
+      // selection mode uses highlight only
     }
   } catch (err) {
     flashStatus(t(i18n, 'uploadError'));

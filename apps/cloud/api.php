@@ -3108,6 +3108,7 @@ function ensureCloudUserSettingsSchema($db): void {
         sync_enabled INTEGER NOT NULL DEFAULT 0,
         last_sync_at INTEGER NOT NULL DEFAULT 0,
         sync_log_json TEXT NOT NULL DEFAULT '[]',
+        trash_retention_days INTEGER NOT NULL DEFAULT 7,
         updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
     $hasHideLangSwitcher = false;
@@ -3117,6 +3118,7 @@ function ensureCloudUserSettingsSchema($db): void {
     $hasSyncEnabled = false;
     $hasLastSyncAt = false;
     $hasSyncLogJson = false;
+    $hasTrashRetentionDays = false;
     $cols = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='cloud_user_settings'");
     while ($cols && ($col = $cols->fetch(PDO::FETCH_ASSOC))) {
         if (($col['name'] ?? '') === 'hide_lang_switcher') $hasHideLangSwitcher = true;
@@ -3126,6 +3128,7 @@ function ensureCloudUserSettingsSchema($db): void {
         if (($col['name'] ?? '') === 'sync_enabled') $hasSyncEnabled = true;
         if (($col['name'] ?? '') === 'last_sync_at') $hasLastSyncAt = true;
         if (($col['name'] ?? '') === 'sync_log_json') $hasSyncLogJson = true;
+        if (($col['name'] ?? '') === 'trash_retention_days') $hasTrashRetentionDays = true;
     }
     if (!$hasHideLangSwitcher) {
         $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN hide_lang_switcher INTEGER NOT NULL DEFAULT 0");
@@ -3136,6 +3139,105 @@ function ensureCloudUserSettingsSchema($db): void {
     if (!$hasSyncEnabled) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0");
     if (!$hasLastSyncAt) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN last_sync_at INTEGER NOT NULL DEFAULT 0");
     if (!$hasSyncLogJson) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_log_json TEXT NOT NULL DEFAULT '[]'");
+    if (!$hasTrashRetentionDays) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN trash_retention_days INTEGER NOT NULL DEFAULT 7");
+}
+
+function cloud_trash_retention_options(): array {
+    return [1, 4, 7, 10, 13, 15];
+}
+
+function cloud_normalize_trash_retention_days(int $days): int {
+    $allowed = cloud_trash_retention_options();
+    if (in_array($days, $allowed, true)) return $days;
+    return 7;
+}
+
+function cloud_get_trash_retention_days(string $email): int {
+    $email = strtolower(trim($email));
+    if ($email === '') return 7;
+    $db = getDB();
+    if (!$db) return 7;
+    try {
+        ensureCloudUserSettingsSchema($db);
+        $stmt = $db->prepare('SELECT trash_retention_days FROM cloud_user_settings WHERE email = :e LIMIT 1');
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($row) return cloud_normalize_trash_retention_days((int)($row['trash_retention_days'] ?? 7));
+    } catch (Throwable $e) {
+        cloud_safe_error_log('cloud_get_trash_retention_days: ' . $e->getMessage());
+    }
+    return 7;
+}
+
+function cloud_set_trash_retention_days(string $email, int $days): int {
+    $email = strtolower(trim($email));
+    $days = cloud_normalize_trash_retention_days($days);
+    if ($email === '') return $days;
+    $db = getDB();
+    if (!$db) return $days;
+    try {
+        ensureCloudUserSettingsSchema($db);
+        $stmt = $db->prepare("INSERT INTO cloud_user_settings (email, quota_mb, session_limit_mb, hide_lang_switcher, trash_retention_days, updated_at)
+            VALUES (:e, " . cloud_storage_default_quota_mb() . ", 0, 0, :d, extract(epoch from now())::bigint)
+            ON CONFLICT(email) DO UPDATE SET trash_retention_days = excluded.trash_retention_days, updated_at = excluded.updated_at");
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $stmt->bindValue(':d', $days, PDO::PARAM_INT);
+        $stmt->execute();
+    } catch (Throwable $e) {
+        cloud_safe_error_log('cloud_set_trash_retention_days: ' . $e->getMessage());
+    }
+    return $days;
+}
+
+function cloud_purge_expired_trash_for_user(string $user, int $retentionDays): int {
+    $retentionDays = cloud_normalize_trash_retention_days($retentionDays);
+    $cutoff = time() - ($retentionDays * 86400);
+    $trashBase = user_root($user, 'trash');
+    if (!is_dir($trashBase)) return 0;
+    $meta = load_trash_metadata($user);
+    $removed = 0;
+    foreach ($meta as $id => $item) {
+        $deletedAt = (int)($item['deleted_at'] ?? 0);
+        if ($deletedAt <= 0 || $deletedAt > $cutoff) continue;
+        $target = $trashBase . '/' . $id;
+        if (file_exists($target)) remove_path_recursive($target);
+        unset($meta[$id]);
+        $removed++;
+    }
+    if ($removed > 0) save_trash_metadata($user, $meta);
+    return $removed;
+}
+
+function cloud_purge_expired_trash_all_users(): array {
+    $db = getDB();
+    $emails = [];
+    if ($db) {
+        try {
+            ensureCloudUserSettingsSchema($db);
+            $res = $db->query('SELECT email, trash_retention_days FROM cloud_user_settings ORDER BY email ASC');
+            while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
+                $email = strtolower(trim((string)($row['email'] ?? '')));
+                if ($email === '') continue;
+                $emails[$email] = cloud_normalize_trash_retention_days((int)($row['trash_retention_days'] ?? 7));
+            }
+            $users = $db->query('SELECT email FROM users ORDER BY email ASC');
+            while ($users && ($row = $users->fetch(PDO::FETCH_ASSOC))) {
+                $email = strtolower(trim((string)($row['email'] ?? '')));
+                if ($email === '' || isset($emails[$email])) continue;
+                $emails[$email] = 7;
+            }
+        } catch (Throwable $e) {
+            cloud_safe_error_log('cloud_purge_expired_trash_all_users: ' . $e->getMessage());
+        }
+    }
+    $stats = ['users' => 0, 'removed' => 0];
+    foreach ($emails as $email => $days) {
+        $user = email_to_cloud_username($email);
+        $removed = cloud_purge_expired_trash_for_user($user, $days);
+        $stats['users']++;
+        $stats['removed'] += $removed;
+    }
+    return $stats;
 }
 
 function resolve_cloud_user_email_from_legacy_name(AppDatabase $db, string $name): ?string {

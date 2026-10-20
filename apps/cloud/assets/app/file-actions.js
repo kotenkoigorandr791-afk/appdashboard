@@ -447,6 +447,7 @@ function startInlineTreeRename(path) {
   input.value = originalName;
   input.setAttribute('aria-label', t(i18n, 'rename') || 'Rename');
   guardFilenameInput(input);
+  if (window.CloudTransliteration?.attachToInput) window.CloudTransliteration.attachToInput(input);
   label.classList.add('hidden');
   node.classList.add('tree-renaming');
   node.insertBefore(input, label.nextSibling);
@@ -918,6 +919,13 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
     }
     if (type === 'file' && path.toLowerCase().endsWith('.txt')) {
         options.push({ label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) });
+    }
+    if (type === 'file' && typeof isEditableAudio === 'function' && isEditableAudio(path)) {
+        options.push({
+            label: (window.i18n && window.i18n.transcribeAudio) || 'Transcribe audio',
+            icon: 'speech',
+            action: () => openTranscriptionEditor(path)
+        });
     }
     if (type === 'file' && isZipFile(path)) {
         options.push({ label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') });
@@ -1547,7 +1555,7 @@ async function shareItem(path, type, root) {
         if (typeof renderShareModalForPath === 'function') {
             await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
         } else {
-            const result = await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            const result = await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
         }
     } catch (err) {
@@ -1669,8 +1677,8 @@ function sendCloudShareToChat(path, type, root) {
         status.textContent = cloudActionText('generatingLink', 'Generating link...');
         try {
             const shareData = typeof window.generateShareKey === 'function'
-                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never')
-                : await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never', root || getCurrentCloudRoot())
+                : await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!shareData?.key) throw new Error('Failed to generate share key');
             let metadata = {};
             try {
@@ -2491,6 +2499,11 @@ function switchToPrevTab() {
     switchToTab(prevTab.id);
     flashStatus(t(i18n, 'switchedToTab', { title: prevTab.title }));
 }
+function isAssistantOverlayOpen() {
+  const modal = document.getElementById('ai-modal');
+  return !!(modal && !modal.classList.contains('hidden'));
+}
+
 function handleHotkeys(e, i18n) {
   const mac = navigator.platform.toUpperCase().includes('MAC');
   const mod = mac ? e.metaKey : e.ctrlKey;
@@ -2513,6 +2526,10 @@ function handleHotkeys(e, i18n) {
   if (isInput && !isCodeMirror && !isGlobalHotkey) {
     return;
   }
+
+  // The assistant modal is the topmost layer: Escape must close it first, even
+  // when a tree selection or lasso is active underneath.
+  if (e.key === 'Escape' && isAssistantOverlayOpen()) return;
 
   if (isTrashRoot()) {
     if (mod && e.key.toLowerCase() === 'a') {

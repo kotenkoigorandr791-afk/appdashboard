@@ -1,6 +1,13 @@
 <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
+<script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+<script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
 <script>
+function shareFilm(id, title) {
+  if (!window.openShareModal) return;
+  window.openShareModal('films', 'app', id, { title: title || '', defaultPermissions: ['view'], apiUrl: '/apps/films/api/share.php' });
+}
 const currentLang = '<?php echo $lang; ?>';
 const currentTheme = '<?php echo $theme; ?>';
 const currentColor = '<?php echo $color; ?>';
@@ -1203,6 +1210,8 @@ function createMovieCard(movie) {
     card.className = 'movie-card';
     const isLocal = movie.is_local && movie.file_path;
     const displayTitle = movie.title[currentLang] || movie.title.en;
+    const idArg = escapeAttr(JSON.stringify(String(movie.id)));
+    const titleArg = escapeAttr(JSON.stringify(String(displayTitle)));
 
     card.innerHTML = `
         <div class="content-type-icon" title="${isLocal ? getTranslation('local_file') : getTranslation('online_link')}">
@@ -1246,11 +1255,15 @@ function createMovieCard(movie) {
                     </svg>
                  </button>`
             }
-            <button class="comments-btn" onclick="showComments('${movie.id}', '${escapeHtml(displayTitle)}')">
+            <button class="comments-btn" onclick="showComments(${idArg}, ${titleArg})">
                 <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 4px;">
                     <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
                 </svg>
                 ${getTranslation('comments') || 'Comments'}
+            </button>
+            <button class="comments-btn" onclick="shareFilm(${idArg}, ${titleArg})">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 4px;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11A2.99 2.99 0 1 0 15 5c0 .24.04.47.09.7L8.04 9.81A3 3 0 1 0 8.04 14.19l7.12 4.16c-.05.21-.08.43-.08.65A2.92 2.92 0 1 0 18 16.08z"/></svg>
+                ${getTranslation('share') || 'Share'}
             </button>
         </div>
     `;
@@ -1261,6 +1274,14 @@ function escapeHtml(text) {
     const div = document.createElement('div'); 
     div.textContent = text; 
     return div.innerHTML; 
+}
+
+function escapeAttr(text) {
+    return String(text)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
 }
 
 window.addEventListener('DOMContentLoaded', async () => {

@@ -32,6 +32,6 @@
 | **[25_appdashboard_mcp.md](25_appdashboard_mcp.md)** | MCP server integration |
 | **[26_telegram_bot.md](26_telegram_bot.md)** | Telegram bot integration |
 | **[27_public_api.md](27_public_api.md)** | Public API |
-| **[28_share_file_utils.md](28_share_file_utils.md)** | Share file utilities |
+| **[28_sharepoint.md](28_sharepoint.md)** | Universal SharePoint (files, folders, apps) |
 | **[29_waf.md](29_waf.md)** | WAF |
 | **[30_storage_usage_collector.md](30_storage_usage_collector.md)** | Per-user disk usage collector and chart |

@@ -6,6 +6,7 @@ import android.net.NetworkCapabilities
 import android.content.pm.PackageManager
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -107,7 +108,18 @@ class SyncManager(private val context: Context) {
         }
     }
 
-    suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> = withContext(Dispatchers.IO) {
+    suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> {
+        if (!syncMutex.tryLock()) {
+            return Result.success(SyncResult.AlreadyRunning)
+        }
+        return try {
+            performSyncInternal(timeRangeDays, start, end, syncType, targetWebhooks, autoResolveConflict)
+        } finally {
+            syncMutex.unlock()
+        }
+    }
+
+    private suspend fun performSyncInternal(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> = withContext(Dispatchers.IO) {
         /*
         Supports two modes:
         - timeRangeDays: the amount of days in the past to sync.
@@ -302,8 +314,15 @@ class SyncManager(private val context: Context) {
                     return@withContext Result.success(SyncResult.NoMatchingData)
                 }
                 if (!atLeastOneSuccess) {
-                    return@withContext Result.failure(lastFailure ?: Exception("Failed to post to webhooks"))
+                    val failure = lastFailure
+                    if (failure is AuthException) {
+                        preferencesManager.markAuthError(failure.statusCode)
+                    } else if (failure != null) {
+                        preferencesManager.markSyncFailure()
+                    }
+                    return@withContext Result.failure(failure ?: Exception("Failed to post to webhooks"))
                 }
+                preferencesManager.markSyncSuccess()
             }
 
             // Update last sync timestamps
@@ -1116,6 +1135,13 @@ class SyncManager(private val context: Context) {
 
     companion object {
         /**
+         * Guards against overlapping syncs: WorkManager periodic work, exact-alarm
+         * one-shot workers and the manual "Sync now" button can all fire at once.
+         * A concurrent sync used to hammer the server with duplicate POSTs (401/429/529).
+         */
+        private val syncMutex = Mutex()
+
+        /**
          * Soft cap before JSON encode. Full-resolution heart rate over 48h can
          * exceed this and OOMs mid-tier devices while building JsonObject trees.
          */
@@ -1154,5 +1180,6 @@ class SyncManager(private val context: Context) {
 sealed class SyncResult {
     object NoData : SyncResult()
     object NoMatchingData : SyncResult()
+    object AlreadyRunning : SyncResult()
     data class Success(val syncCounts: Map<HealthDataType, Int>) : SyncResult()
 }

@@ -1384,7 +1384,7 @@
                 background: rgba(209,74,74,.22) !important;
             }
             .ai-agent-inline-add {
-                color: #85b503 !important;
+                color: var(--ai-ok-accent, #85b503) !important;
                 background: rgba(133,181,3,.16) !important;
             }
             .ai-agent-patch-preview {
@@ -1458,8 +1458,8 @@
                 overflow-wrap: anywhere !important;
             }
             .ai-agent-patch-row.eq { color: var(--fg) !important; }
-            .ai-agent-patch-row.rm { background: rgba(209,74,74,.18) !important; color: #ff8a8a !important; }
-            .ai-agent-patch-row.add { background: rgba(133,181,3,.16) !important; color: #9fe870 !important; }
+            .ai-agent-patch-row.rm { background: rgba(209,74,74,.18) !important; color: var(--ai-err-text, #ff8a8a) !important; }
+            .ai-agent-patch-row.add { background: rgba(133,181,3,.16) !important; color: var(--ai-ok-text, #9fe870) !important; }
             #ai-agent-activity { display: none !important; }
             .ai-agent-plan {
                 border: 1px solid var(--border) !important;
@@ -1550,7 +1550,7 @@
             }
             .ai-agent-plan-step.running .ai-agent-plan-icon { background: var(--accent) !important; color: #fff !important; }
             .ai-agent-plan-step.done .ai-agent-plan-icon { background: #85b503 !important; color: #111 !important; }
-            .ai-agent-plan-step.error .ai-agent-plan-icon { background: #d14a4a !important; color: #fff !important; }
+            .ai-agent-plan-step.error .ai-agent-plan-icon { background: var(--ai-err-icon-bg, #d14a4a) !important; color: #fff !important; }
             .ai-agent-plan-label {
                 display: inline-flex !important;
                 align-items: center !important;
@@ -1643,8 +1643,8 @@
                 -webkit-line-clamp: 2 !important;
                 overflow: hidden !important;
             }
-            .ai-agent-plan-step.error .ai-agent-plan-result-body { color: #ff8a8a !important; }
-            .ai-agent-plan-step.done .ai-agent-plan-result-body { color: #9fe870 !important; }
+            .ai-agent-plan-step.error .ai-agent-plan-result-body { color: var(--ai-err-text, #ff8a8a) !important; }
+            .ai-agent-plan-step.done .ai-agent-plan-result-body { color: var(--ai-ok-text, #9fe870) !important; }
             .ai-agent-plan-result-expand {
                 display: none !important;
                 margin-top: 4px !important;
@@ -1653,14 +1653,14 @@
                 background: none !important;
                 font-size: 10px !important;
                 color: var(--muted) !important;
-                opacity: .55 !important;
+                opacity: .95 !important;
                 cursor: pointer !important;
                 text-decoration: underline !important;
                 text-underline-offset: 2px !important;
             }
             .ai-agent-plan-result-expand.visible { display: inline-block !important; }
-            .ai-agent-plan-step.error .ai-agent-plan-result { color: #ff8a8a !important; }
-            .ai-agent-plan-step.done .ai-agent-plan-result { color: #9fe870 !important; }
+            .ai-agent-plan-step.error .ai-agent-plan-result { color: var(--ai-err-text, #ff8a8a) !important; }
+            .ai-agent-plan-step.done .ai-agent-plan-result { color: var(--ai-ok-text, #9fe870) !important; }
             .ai-agent-patch-row.skip {
                 color: var(--muted) !important;
                 font-style: italic !important;
@@ -3060,13 +3060,24 @@
             }
             const confirmBtnClicked = e.target.closest('.ai-agent-confirm-btn');
             if (confirmBtnClicked) {
+                e.preventDefault();
+                e.stopPropagation();
                 const msg = confirmBtnClicked.closest('.message');
-                const patchId = msg?.dataset.agentPatchId;
-                if (!patchId) return;
+                const patchId = msg?.dataset.agentPatchId || msg?.id || '';
+                if (!msg) return;
+                if (confirmBtnClicked.dataset.applying === '1') return;
+                confirmBtnClicked.dataset.applying = '1';
+                confirmBtnClicked.disabled = true;
                 try {
+                    const undoSnapshot = snapshotAgentPatchesForUndo();
                     if (Object.keys(aiState.pendingAgentPatches).length > 0) {
-                        await applyAllPendingAgentChanges();
-                    } else if (aiState.pendingAgentPatch && aiState.pendingAgentPatch.id === patchId) {
+                        const paths = await applyAllPendingAgentChanges();
+                        await refreshFileTreeAfterAgent(paths);
+                        if (Object.keys(undoSnapshot).length) {
+                            aiState.lastAgentUndo = { messageId: patchId || msg.id, paths: undoSnapshot };
+                            attachAgentUndoFooter(msg, patchId || msg.id);
+                        }
+                    } else if (aiState.pendingAgentPatch && (!patchId || aiState.pendingAgentPatch.id === patchId)) {
                         const beforeText = String(aiState.pendingAgentPatch.beforeText || '');
                         const applied = applyOpsToText(beforeText, aiState.pendingAgentPatch.ops);
                         if (!applied) {
@@ -3078,20 +3089,28 @@
                             flashStatus(tr('aiAgentNoActiveEditor', 'No active editor for patch apply'));
                             return;
                         }
-                        if (typeof window.saveFile === 'function') {
-                            try { await window.saveFile(); } catch (e) { logAiError('Agent apply: saveFile', e); }
-                        } else {
-                            try { await sendIframeMonacoAiAction('save'); } catch (e) { logAiError('Agent apply: iframe save', e); }
+                        const saved = await saveActiveEditorToServer();
+                        if (!saved && typeof window.saveFile === 'function') {
+                            try { await window.saveFile(); } catch (err) { logAiError('Agent apply: saveFile', err); }
                         }
                         clearEditorHighlights();
                         aiState.lastAppliedAgentPatch = { beforeText, afterText: applied.text, id: patchId };
                         aiState.pendingAgentPatch = null;
+                        removeAgentActionFooter(msg);
+                    } else {
+                        flashStatus(tr('aiAgentPatchApplyFailed', 'Could not apply agent patch'));
+                        return;
                     }
-                    removeAgentActionFooter(msg);
+                    msg.querySelector('.ai-agent-apply-footer')?.remove();
+                    delete msg.dataset.agentPatchId;
+                    delete msg.dataset.agentApplied;
                     flashStatus(tr('aiAgentChangesApplied', 'Agent changes applied'));
                 } catch (err) {
                     logAiError('Agent patch apply', err);
                     flashStatus(err.message || tr('aiAgentApplyFailed', 'Apply failed'));
+                } finally {
+                    confirmBtnClicked.dataset.applying = '0';
+                    confirmBtnClicked.disabled = false;
                 }
                 return;
             }
@@ -4837,6 +4856,24 @@
     function hideAgentStreamShell() {
         setAgentStreamText('');
     }
+    function finalizeToolRunAnswer(messageId, answerText, { includeStagedSummary = false } = {}) {
+        stopAgentRunTimer();
+        hideAgentStreamShell();
+        const msgEl = messageId ? document.getElementById(messageId) : getAgentPlanMessageEl();
+        if (!msgEl) return null;
+        applyToolRunRoleToMessage(msgEl.id);
+        ensureAgentPlanContainer(msgEl);
+        hideAgentStreamShell();
+        const answerHost = msgEl.querySelector('.ai-agent-final-answer') || msgEl.querySelector('.message-content');
+        if (answerHost) {
+            answerHost.replaceChildren();
+            answerHost.appendChild(formatResponseInner(answerText || tr('aiEmptyResponse', 'Empty response')));
+            renderMath(answerHost);
+            if (includeStagedSummary) renderAgentStagedSummary(answerHost);
+        }
+        renderAgentPlanInMessage();
+        return msgEl;
+    }
     function formatAgentElapsed(ms) {
         const sec = Math.max(0, Math.floor(ms / 1000));
         if (sec < 60) return `${sec}s`;
@@ -5093,6 +5130,14 @@
         const result = step?.rawResult || {};
         const items = Array.isArray(result.results) ? result.results.slice(0, 6) : [];
         if (!items.length || !['web_search', 'image_search'].includes(step.tool)) return;
+        const details = document.createElement('details');
+        details.className = 'ai-agent-resource-details';
+        details.open = false;
+        const summary = document.createElement('summary');
+        summary.className = 'ai-agent-resource-summary';
+        summary.textContent = step.tool === 'image_search'
+            ? tr('aiImageSearchResults', 'Image results ({count})').replace('{count}', String(items.length))
+            : tr('aiWebSearchResults', 'Search results ({count})').replace('{count}', String(items.length));
         const wrap = document.createElement('div');
         wrap.className = step.tool === 'image_search' ? 'ai-agent-resource-grid' : 'ai-agent-resource-list';
         items.forEach((item) => {
@@ -5112,7 +5157,8 @@
             link.appendChild(title);
             wrap.appendChild(link);
         });
-        host.appendChild(wrap);
+        details.append(summary, wrap);
+        host.appendChild(details);
     }
     function planLabelFromStoredStep(step) {
         if (!step) return '';
@@ -5300,7 +5346,10 @@
     }
     function removeAgentActionFooter(msg) {
         if (!msg) return;
-        msg.querySelector('.message-footer')?.remove();
+        msg.querySelectorAll('.ai-agent-apply-footer, .ai-agent-undo-last-footer').forEach((el) => el.remove());
+        msg.querySelectorAll('.message-footer').forEach((el) => {
+            if (el.querySelector('.ai-agent-confirm-btn, .ai-agent-undo-btn')) el.remove();
+        });
         delete msg.dataset.agentPatchId;
         delete msg.dataset.agentApplied;
     }
@@ -5311,7 +5360,11 @@
         return found ? found[1].after : null;
     }
     function findStagedPatchForOpenFile() {
-        const openFile = normalizeAgentPath(aiState.currentFileName);
+        const openFile = normalizeAgentPath(
+            aiState.currentFileName
+            || window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId)?.path
+            || ''
+        );
         if (!openFile) return null;
         if (aiState.pendingAgentPatches[openFile]) return aiState.pendingAgentPatches[openFile];
         const found = Object.entries(aiState.pendingAgentPatches).find(([p]) => pathsMatchAgent(openFile, p));
@@ -5320,17 +5373,20 @@
     function stageAgentFileChange(filePath, beforeText, afterText, meta = {}) {
         const norm = normalizeAgentPath(filePath);
         if (!norm) return;
+        const activePath = normalizeAgentPath(
+            aiState.currentFileName
+            || window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId)?.path
+            || ''
+        );
         aiState.pendingAgentPatches[norm] = {
             before: String(beforeText ?? ''),
             after: String(afterText ?? ''),
             tool: meta.tool || '',
-            root: meta.root || getRootForAgentPath(norm) || ''
+            root: meta.root || getRootForAgentPath(norm) || getRootForFileContext() || ''
         };
-        const openName = normalizeAgentPath(aiState.currentFileName);
-        if (openName && pathsMatchAgent(openName, norm)) {
+        if (activePath && pathsMatchAgent(activePath, norm)) {
             showAgentPreviewInEditor(aiState.pendingAgentPatches[norm].before, aiState.pendingAgentPatches[norm].after);
         }
-        void persistSingleStagedAgentChange(norm).catch((err) => flashStatus(err.message || 'Save failed'));
     }
     async function persistSingleStagedAgentChange(path) {
         const patch = aiState.pendingAgentPatches[normalizeAgentPath(path)];
@@ -5353,12 +5409,13 @@
     }
     async function applyAllPendingAgentChanges() {
         const entries = Object.entries(aiState.pendingAgentPatches);
+        if (!entries.length) throw new Error(tr('aiAgentPatchApplyFailed', 'Could not apply agent patch'));
         for (const [path, patch] of entries) {
             const body = new URLSearchParams({
                 action: 'ai_agent_tool',
                 tool: 'write_file',
                 args: JSON.stringify({ path, content: patch.after, persist: true }),
-                root: patch.root || getRootForAgentPath(path) || ''
+                root: patch.root || getRootForAgentPath(path) || getRootForFileContext() || ''
             });
             const res = await fetch(AI_CONFIG.fileApiEndpoint, {
                 method: 'POST',
@@ -5368,12 +5425,16 @@
             });
             const data = await res.json().catch(() => ({}));
             if (!res.ok || !data.ok) throw new Error(data.error || `Failed to apply changes: ${path}`);
+            void highlightNewFilesInTree([{ path: data.path || path, type: 'file', root: data.root || patch.root || '' }]);
         }
         const openPatch = findStagedPatchForOpenFile();
         if (openPatch) {
             setActiveEditorContent(openPatch.after, []);
+            const saved = await saveActiveEditorToServer();
+            if (!saved) {
+                // Disk write already succeeded; keep editor content even if tab save helper failed.
+            }
         }
-        await saveActiveEditorToServer();
         clearEditorHighlights();
         const paths = entries.map(([p]) => p);
         aiState.pendingAgentPatches = {};
@@ -5633,15 +5694,18 @@
         host.appendChild(bar);
     }
     function attachAgentConfirmFooter(messageDiv, messageId) {
-        if (!messageDiv || messageDiv.querySelector('.ai-agent-confirm-btn')) return;
+        if (!messageDiv) return;
+        messageDiv.querySelectorAll('.ai-agent-confirm-btn').forEach((btn) => btn.closest('.message-footer')?.remove());
         const footer = document.createElement('div');
-        footer.className = 'message-footer';
+        footer.className = 'message-footer ai-agent-apply-footer';
         const actions = document.createElement('div');
         actions.className = 'message-actions';
         const confirmBtn = document.createElement('button');
+        confirmBtn.type = 'button';
         confirmBtn.className = 'action-button ai-agent-confirm-btn';
-        confirmBtn.textContent = tr('ok', 'OK');
+        confirmBtn.textContent = tr('apply', 'Apply');
         const undoBtn = document.createElement('button');
+        undoBtn.type = 'button';
         undoBtn.className = 'action-button ai-agent-undo-btn';
         undoBtn.textContent = tr('undo', 'Undo');
         actions.appendChild(confirmBtn);
@@ -6267,6 +6331,8 @@
         setMobilePageScrollLocked(true);
         scheduleModalViewportHeightSync();
         elements.modal.classList.remove('hidden');
+        // Keep page scrollbars from flashing while the assistant slides in.
+        document.documentElement.classList.add('ai-modal-open');
         elements.modal.classList.remove('ai-open');
         requestAnimationFrame(() => {
             requestAnimationFrame(() => {
@@ -6310,6 +6376,7 @@
         }
 
         elements.modal.classList.remove('ai-open');
+        document.documentElement.classList.remove('ai-modal-open');
         elements.settingsModal?.classList.add('hidden');
         stopModalResize();
         setMobilePageScrollLocked(false);
@@ -6317,6 +6384,7 @@
         if (aiModalCloseTimer) clearTimeout(aiModalCloseTimer);
         aiModalCloseTimer = setTimeout(() => {
             elements.modal.classList.add('hidden');
+            document.documentElement.classList.remove('ai-modal-open');
             aiModalCloseTimer = null;
         }, 280);
     }
@@ -6780,7 +6848,95 @@
         bindChatSessionControls();
     }
 
-    function renderAiChatSessions() {
+    function chatDayKey(ts) {
+        const d = new Date(Number(ts || 0) * 1000);
+        if (Number.isNaN(d.getTime())) return '';
+        return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function chatWeekKey(ts) {
+        const d = new Date(Number(ts || 0) * 1000);
+        if (Number.isNaN(d.getTime())) return '';
+        const day = (d.getDay() + 6) % 7;
+        d.setHours(0, 0, 0, 0);
+        d.setDate(d.getDate() - day);
+        return 'w:' + d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+    }
+    function buildChatDividerNodes(chats) {
+        const byDay = new Map();
+        chats.forEach((chat) => {
+            const key = chatDayKey(chat.updated_at);
+            if (!byDay.has(key)) byDay.set(key, []);
+            byDay.get(key).push(chat);
+        });
+        const useDaily = Array.from(byDay.values()).some((list) => list.length > 2);
+        const nodes = [];
+        let lastKey = null;
+        chats.forEach((chat) => {
+            const key = useDaily ? chatDayKey(chat.updated_at) : chatWeekKey(chat.updated_at);
+            if (key && key !== lastKey) {
+                lastKey = key;
+                const divider = document.createElement('div');
+                divider.className = 'ai-chat-menu-divider';
+                const labelDate = chat.updated_at ? new Date(Number(chat.updated_at) * 1000) : null;
+                divider.textContent = labelDate
+                    ? (useDaily ? labelDate.toLocaleDateString() : (tr('aiChatWeekOf', 'Week of') + ' ' + labelDate.toLocaleDateString()))
+                    : '';
+                nodes.push(divider);
+            }
+            nodes.push(chat);
+        });
+        return nodes;
+    }
+    function openAiChatManager() {
+        let modal = document.getElementById('ai-chat-manager-modal');
+        if (!modal) {
+            modal = document.createElement('div');
+            modal.id = 'ai-chat-manager-modal';
+            modal.className = 'modal hidden';
+            modal.innerHTML = '<div class="modal-content ai-chat-manager-content"><div class="modal-header"><h3></h3><button type="button" class="icon-btn close-btn" aria-label="Close">×</button></div><div class="modal-body"><input type="search" class="ai-chat-manager-search" /><div class="ai-chat-manager-list"></div><p class="ai-chat-retention-note"></p></div></div>';
+            document.body.appendChild(modal);
+            modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
+            modal.querySelector('.ai-chat-manager-search').addEventListener('input', () => renderAiChatManagerList());
+        }
+        modal.querySelector('h3').textContent = tr('aiManageChats', 'Manage chats');
+        modal.querySelector('.ai-chat-manager-search').placeholder = tr('aiSearchChats', 'Search chats');
+        modal.querySelector('.ai-chat-retention-note').textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
+        modal.classList.remove('hidden');
+        renderAiChatManagerList();
+    }
+    function renderAiChatManagerList() {
+        const modal = document.getElementById('ai-chat-manager-modal');
+        if (!modal) return;
+        const list = modal.querySelector('.ai-chat-manager-list');
+        const q = String(modal.querySelector('.ai-chat-manager-search')?.value || '').trim().toLowerCase();
+        const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
+        list.replaceChildren();
+        buildChatDividerNodes(chats).forEach((node) => {
+            if (node && node.className === 'ai-chat-menu-divider') {
+                list.appendChild(node);
+                return;
+            }
+            const chat = node;
+            const row = document.createElement('button');
+            row.type = 'button';
+            row.className = 'ai-chat-menu-item';
+            row.innerHTML = '<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="' + escapeHtml(tr('aiDeleteChat', 'Delete chat')) + '">×</span>';
+            row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
+            row.querySelector('.ai-chat-menu-date').textContent = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleString() : '';
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.ai-chat-menu-delete')) {
+                    e.stopPropagation();
+                    deleteAiChat(chat.id).then(() => renderAiChatManagerList());
+                    return;
+                }
+                modal.classList.add('hidden');
+                switchAiChat(chat.id);
+            });
+            list.appendChild(row);
+        });
+    }
+    function renderAiChatSessions(filterQuery) {
         if (!elements.chatSelect) return;
         const titleEl = elements.chatSelect.querySelector('.ai-chat-current-title');
         const menu = document.getElementById('ai-chat-menu');
@@ -6788,7 +6944,28 @@
         menu.replaceChildren();
         const active = aiState.chatSessions.find((chat) => String(chat.id) === String(aiState.activeChatId)) || aiState.chatSessions[0] || null;
         if (titleEl) titleEl.textContent = active?.title || 'New chat';
-        aiState.chatSessions.forEach((chat) => {
+        const notice = document.createElement('div');
+        notice.className = 'ai-chat-retention-note';
+        notice.textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
+        menu.appendChild(notice);
+        const search = document.createElement('input');
+        search.type = 'search';
+        search.className = 'ai-chat-menu-search';
+        search.placeholder = tr('aiSearchChats', 'Search chats');
+        search.value = filterQuery || '';
+        search.addEventListener('input', () => renderAiChatSessions(search.value));
+        search.addEventListener('click', (e) => e.stopPropagation());
+        menu.appendChild(search);
+        const q = String(filterQuery || '').trim().toLowerCase();
+        const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
+        const PREVIEW_LIMIT = 8;
+        const preview = chats.slice(0, PREVIEW_LIMIT);
+        buildChatDividerNodes(preview).forEach((node) => {
+            if (node && node.className === 'ai-chat-menu-divider') {
+                menu.appendChild(node);
+                return;
+            }
+            const chat = node;
             const row = document.createElement('button');
             row.type = 'button';
             row.className = 'ai-chat-menu-item' + (String(chat.id) === String(aiState.activeChatId) ? ' active' : '');
@@ -6808,6 +6985,25 @@
             });
             menu.appendChild(row);
         });
+        if (chats.length > PREVIEW_LIMIT) {
+            const manage = document.createElement('button');
+            manage.type = 'button';
+            manage.className = 'ai-chat-menu-manage';
+            manage.textContent = tr('aiManageChats', 'Manage chats');
+            manage.addEventListener('click', (e) => {
+                e.stopPropagation();
+                menu.classList.add('hidden');
+                openAiChatManager();
+            });
+            menu.appendChild(manage);
+        }
+        if (search.value) {
+            requestAnimationFrame(() => {
+                search.focus();
+                const len = search.value.length;
+                try { search.setSelectionRange(len, len); } catch (_) {}
+            });
+        }
     }
 
     async function loadAiChatSessions() {
@@ -7002,7 +7198,7 @@
             }
 
             if (!prepend) {
-                aiState.chatHistory = aiState.chatHistory.concat(newMsgs);
+                aiState.chatHistory = offset === 0 ? newMsgs : aiState.chatHistory.concat(newMsgs);
                 renderChatHistory();
                 setTimeout(setupStickyCodeHeaders, 100);
                 scrollChatToBottom();
@@ -8487,7 +8683,18 @@
                     payload.tool_choice = tool_choice || 'auto';
                 }
                 return fetchAgentCompletionStream(payload, aiState.abortController?.signal, (partial) => {
-                    if (partial && partial.trim()) setAgentStreamText(partial);
+                    if (!(partial && partial.trim())) return;
+                    if (forceAnswerOnly) {
+                        stopAgentRunTimer();
+                        hideAgentStreamShell();
+                        const host = getAgentPlanMessageEl()?.querySelector('.ai-agent-final-answer');
+                        if (host) {
+                            host.replaceChildren();
+                            host.appendChild(formatResponseInner(partial));
+                            return;
+                        }
+                    }
+                    setAgentStreamText(partial);
                 });
             },
             hooks: {
@@ -8613,7 +8820,18 @@
                     payload.tool_choice = tool_choice || 'auto';
                 }
                 return fetchAgentCompletionStream(payload, aiState.abortController?.signal, (partial) => {
-                    if (partial && partial.trim()) setAgentStreamText(partial);
+                    if (!(partial && partial.trim())) return;
+                    if (forceAnswerOnly) {
+                        stopAgentRunTimer();
+                        hideAgentStreamShell();
+                        const host = getAgentPlanMessageEl()?.querySelector('.ai-agent-final-answer');
+                        if (host) {
+                            host.replaceChildren();
+                            host.appendChild(formatResponseInner(partial));
+                            return;
+                        }
+                    }
+                    setAgentStreamText(partial);
                 });
             },
             hooks: {
@@ -8852,21 +9070,14 @@
                     const agentText = String(agentResult?.content || '').trim();
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, agentResult?.usage, agentText, messageWithMentions);
-                    const msgEl = document.getElementById(agentMessageId);
+                    const msgEl = finalizeToolRunAnswer(agentMessageId, agentText, { includeStagedSummary: true });
+                    const metaJson = buildAgentMetaJson(agentText, attachmentsForRequest, mentionedFilesForRequest);
                     if (msgEl) {
-                        applyToolRunRoleToMessage(agentMessageId);
-                        const answerHost = msgEl.querySelector('.ai-agent-final-answer') || msgEl.querySelector('.message-content');
-                        if (answerHost) {
-                            answerHost.replaceChildren();
-                            answerHost.appendChild(formatResponseInner(agentText || tr('aiEmptyResponse', 'Empty response')));
-                            renderMath(answerHost);
-                            renderAgentStagedSummary(answerHost);
-                        }
-                        renderAgentPlanInMessage();
                         appendMessageStatsFooter(msgEl, stats, agentText);
                         const hadStaged = Object.keys(aiState.pendingAgentPatches).length > 0;
                         if (hadStaged) {
                             const undoSnapshot = snapshotAgentPatchesForUndo();
+                            attachAgentConfirmFooter(msgEl, agentMessageId);
                             try {
                                 await persistAgentWorkAfterRun();
                                 aiState.lastAgentUndo = { messageId: agentMessageId, paths: undoSnapshot };
@@ -8877,6 +9088,9 @@
                                     result: tr('aiAgentSavedShort', 'Saved')
                                 });
                                 renderAgentPlanInMessage();
+                                msgEl.querySelector('.ai-agent-apply-footer')?.remove();
+                                delete msgEl.dataset.agentPatchId;
+                                delete msgEl.dataset.agentApplied;
                                 attachAgentUndoFooter(msgEl, agentMessageId);
                                 flashStatus(tr('aiAgentSaved', 'Agent changes saved to disk'));
                             } catch (saveErr) {
@@ -8886,31 +9100,14 @@
                                     status: 'error',
                                     result: saveErr.message || 'Save failed'
                                 });
+                                renderAgentPlanInMessage();
                                 attachAgentConfirmFooter(msgEl, agentMessageId);
-                                setTimeout(async () => {
-                                    if (!Object.keys(aiState.pendingAgentPatches).length || isConfirmDialogOpen()) return;
-                                    const ok = await showConfirmDialog(
-                                        escapeHtml(tr('aiAgentConfirmTitle', 'Apply assistant changes?')),
-                                        escapeHtml(saveErr.message || tr('aiAgentConfirmMessage', 'The assistant staged file changes but could not save them automatically. Apply them now?'))
-                                    );
-                                    if (ok && Object.keys(aiState.pendingAgentPatches).length > 0) {
-                                        try {
-                                            await persistAgentWorkAfterRun();
-                                            aiState.lastAgentUndo = { messageId: agentMessageId, paths: undoSnapshot };
-                                            attachAgentUndoFooter(msgEl, agentMessageId);
-                                        } catch (e) {
-                                            flashStatus(e.message || 'Save failed');
-                                        }
-                                    }
-                                }, 0);
+                                flashStatus(saveErr.message || tr('aiAgentConfirmMessage', 'The assistant staged file changes but could not save them automatically. Apply them now?'));
                             }
                         }
-                        hideAgentStreamShell();
-                        renderAgentPlanInMessage();
                     } else {
                         addMessageToUI('assistant', agentText || tr('aiEmptyResponse', 'Empty response'));
                     }
-                    const metaJson = buildAgentMetaJson(agentText, attachmentsForRequest, mentionedFilesForRequest);
                     const agentMeta = parseAgentMetaJson(metaJson);
                     const currentFile = document.getElementById('viewer')?.dataset.path || fileData?.name || '';
                     await appendChatPairToDb(userFacingMessage, agentText, requestModel, currentFile, stats, metaJson);
@@ -8973,19 +9170,9 @@
                     }
                     const elapsed = (Date.now() - startTime) / 1000;
                     const stats = buildAgentStats(elapsed, chatResult?.usage, chatText, messageWithMentions);
-                    const msgEl = document.getElementById(chatMessageId);
+                    const msgEl = finalizeToolRunAnswer(chatMessageId, chatText);
                     if (msgEl) {
-                        applyToolRunRoleToMessage(chatMessageId);
-                        const answerHost = msgEl.querySelector('.ai-agent-final-answer') || msgEl.querySelector('.message-content');
-                        if (answerHost) {
-                            answerHost.replaceChildren();
-                            answerHost.appendChild(formatResponseInner(chatText || tr('aiEmptyResponse', 'Empty response')));
-                            renderMath(answerHost);
-                        }
-                        renderAgentPlanInMessage();
                         appendMessageStatsFooter(msgEl, stats, chatText);
-                        hideAgentStreamShell();
-                        renderAgentPlanInMessage();
                     } else {
                         addMessageToUI('assistant', chatText || tr('aiEmptyResponse', 'Empty response'));
                     }
@@ -9187,11 +9374,13 @@
                     const actions = document.createElement('div');
                     actions.className = 'message-actions';
                     const confirmBtn = document.createElement('button');
+                    confirmBtn.type = 'button';
                     confirmBtn.className = 'action-button ai-agent-confirm-btn';
-                    confirmBtn.textContent = 'Confirm';
+                    confirmBtn.textContent = tr('apply', 'Apply');
                     const undoBtn = document.createElement('button');
+                    undoBtn.type = 'button';
                     undoBtn.className = 'action-button ai-agent-undo-btn';
-                    undoBtn.textContent = 'Undo';
+                    undoBtn.textContent = tr('undo', 'Undo');
                     undoBtn.disabled = !appliedPreview;
                     actions.appendChild(confirmBtn);
                     actions.appendChild(undoBtn);
@@ -9310,12 +9499,17 @@
                 completionNotify.outcome = 'error';
                 console.error('AI error:', err);
                 if (shouldMarkModelUnavailable(err?.message || '')) markModelUnavailable(resolveModelForRequest());
-                
+                const rawMsg = String(err?.message || err || 'Unknown error');
+                const isNetwork = /failed to fetch|networkerror|network error|load failed|err_network|aborted|timeout|timed out/i.test(rawMsg)
+                    || err?.name === 'TypeError';
+                const displayMsg = isNetwork
+                    ? tr('aiNetworkError', 'Network error. Check your connection and try again.')
+                    : rawMsg;
+                flashStatus(displayMsg);
                 const errorId = addMessageToUI('assistant', 
-                    `${window.i18n?.errorPrefix || 'Error: '}${err.message}`, 
+                    `${window.i18n?.errorPrefix || 'Error: '}${displayMsg}`, 
                     false
                 );
-                
                 addRetryButton(errorId, message);
             }
         } finally {
@@ -9325,8 +9519,11 @@
             setInputState(false);
             setSendButtonGenerating(false);
             if (options.cleanupAttachments !== false) removeAllExternalAttachments();
-            
-            flashStatus(tr('aiResponseReady', 'AI response is ready'));
+            if (completionNotify.outcome === 'error') {
+                // Keep the error flash / message already shown — never claim "AI ready".
+            } else if (!completionNotify.skip) {
+                flashStatus(tr('aiResponseReady', 'AI response is ready'));
+            }
             maybeShowAiCompletionNotification(completionNotify);
         }
     }

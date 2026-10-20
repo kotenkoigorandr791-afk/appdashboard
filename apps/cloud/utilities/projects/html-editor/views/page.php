@@ -76,6 +76,8 @@
             .preview-actions-mobile{display:flex !important;gap:4px;flex-shrink:0;}
         }
     </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style>#saveBtn{display:none!important}</style>
 </head>
 <body class="<?php echo $theme === 'light' ? 'light-theme' : ''; ?>">
     <div class="container">
@@ -139,7 +141,7 @@
         </div>
     </div>
     <div class="status-message" id="statusMessage"></div>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=2"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=1"></script>
@@ -147,5 +149,6 @@
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

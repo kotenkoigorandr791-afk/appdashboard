@@ -5,8 +5,9 @@ ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
 require_once dirname(__DIR__, 2) . '/storage_helper.php';
-require_once dirname(__DIR__, 2) . '/lib/py_sidecar.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
+require_once __DIR__ . '/includes/transcription_jobs.php';
+require_once __DIR__ . '/includes/ai_speech.php';
 
 function app_path($relativePath = '') {
     $baseDir = realpath(__DIR__);
@@ -14,16 +15,18 @@ function app_path($relativePath = '') {
     if ($relativePath === '') return $baseDir;
     return $baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath);
 }
-function python_bin() {
-    $candidates = ['/usr/bin/python3', 'python3', 'python'];
-    foreach ($candidates as $bin) {
-        if (strpos($bin, '/') !== false && is_executable($bin)) return $bin;
-        if (strpos($bin, ':\\') !== false && file_exists($bin)) return $bin;
-        $path = trim((string)shell_exec('which ' . escapeshellarg($bin) . ' 2>/dev/null'));
-        if ($path !== '') return $path;
+
+// PHP CLI binary used to start the background transcription worker. PHP_BINARY
+// points at php-fpm when this endpoint runs inside FPM, so the CLI has to be
+// looked up separately.
+function transcription_php_bin(): string {
+    foreach (['/usr/local/bin/php', '/usr/bin/php'] as $candidate) {
+        if (is_executable($candidate)) return $candidate;
     }
-    return 'python3';
+    $which = trim((string)@shell_exec('which php 2>/dev/null'));
+    return $which !== '' ? $which : 'php';
 }
+
 function transcription_split_root_path(string $relativePath): array {
     $path = ltrim(str_replace('\\', '/', trim($relativePath)), '/');
     $map = ['.archive' => 'archive', '.temp_files' => 'temp', '.documents' => 'documents', '.photos' => 'photos', '.pdf' => 'pdf', '.trash' => 'trash'];
@@ -116,30 +119,46 @@ function invalidate_file_tree($email) {
     }
 }
 
-function bridge_call($action, $payload = []) {
-    $python = python_bin();
-    $script = app_path('transcription_db_bridge.py');
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $b64 = 'b64:' . base64_encode($json);
+function transcription_worker_dir(string $progressId, bool $create = false): string {
+    $uploadDir = app_path('transcription_uploads');
+    $dir = $uploadDir . DIRECTORY_SEPARATOR . $progressId;
+    if ($create) {
+        if (!is_dir($uploadDir)) @mkdir($uploadDir, 0777, true);
+        if (!is_dir($dir)) @mkdir($dir, 0777, true);
+    }
+    return $dir;
+}
 
-    // Create temp file for output to preserve UTF-8
-    $tempFile = tempnam(sys_get_temp_dir(), 'bridge_');
-    $command = escapeshellarg($python) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($action) . ' ' . escapeshellarg($b64) . ' > ' . escapeshellarg($tempFile) . ' 2>&1';
+function transcription_start_worker(string $progressId, string $filePath, string $language): bool {
+    $worker = app_path('transcription_worker.php');
+    if (!is_file($worker)) return false;
 
-    exec($command, $output, $code);
+    $jobDir = transcription_worker_dir($progressId, true);
+    $fallbackDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'cloud_transcription_uploads' . DIRECTORY_SEPARATOR . $progressId;
+    if (!is_dir($jobDir) || !is_writable($jobDir)) {
+        if (!is_dir($fallbackDir)) @mkdir($fallbackDir, 0777, true);
+        $jobDir = $fallbackDir;
+    }
+    $logFile = $jobDir . DIRECTORY_SEPARATOR . 'worker.log';
 
-    // Read output from temp file
-    $raw = '';
-    if (file_exists($tempFile)) {
-        $raw = file_get_contents($tempFile);
-        unlink($tempFile);
+    $command = escapeshellarg(transcription_php_bin())
+        . ' ' . escapeshellarg($worker)
+        . ' ' . escapeshellarg($progressId)
+        . ' ' . escapeshellarg($filePath)
+        . ' ' . escapeshellarg($language);
+
+    if (substr(php_uname(), 0, 7) === 'Windows') {
+        $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($logFile) . ' 2>&1');
+        @pclose(@popen($runCommand, 'r'));
+        return true;
     }
 
-    $raw = trim($raw);
-    $decoded = json_decode($raw, true);
-    if (is_array($decoded)) return $decoded;
-    return ['success' => false, 'error' => 'Bridge call failed', 'raw' => $raw, 'code' => $code];
+    // nohup keeps the worker alive after the HTTP request that started it ends.
+    $line = 'nohup ' . $command . ' > ' . escapeshellarg($logFile) . ' 2>&1 < /dev/null &';
+    @exec($line, $output, $returnCode);
+    return $returnCode === 0;
 }
+
 function handle_sse_stream() {
     $progressId = $_GET['progress_id'] ?? '';
     if (!$progressId) {
@@ -149,6 +168,7 @@ function handle_sse_stream() {
         echo json_encode(['error' => 'No progress_id provided']);
         exit;
     }
+    $progressId = preg_replace('/^progress_/', '', (string)$progressId);
     while (ob_get_level()) ob_end_clean();
     header('Content-Type: text/event-stream');
     header('Cache-Control: no-cache');
@@ -160,7 +180,7 @@ function handle_sse_stream() {
     $maxTime = 600;
     $startTime = time();
     while ((time() - $startTime) < $maxTime) {
-        $data = bridge_call('get_progress', ['progress_id' => $progressId]);
+        $data = transcription_jobs_get($progressId);
         if (($data['found'] ?? false) !== true) {
             if ($lastProgress === -1) {
                 echo "data: " . json_encode(['error' => 'Progress session not found']) . "\n\n";
@@ -171,14 +191,14 @@ function handle_sse_stream() {
             $progress = (int)$data['percentage'];
             $message = transcription_safe_message((string)$data['message']);
             $data['message'] = $message;
-            if (isset($data['error_text'])) $data['error_text'] = transcription_safe_message((string)$data['error_text']);
+            if (isset($data['error'])) $data['error'] = transcription_safe_message((string)$data['error']);
             $isHeartbeatTick = (time() - $lastSentTime) >= 5;
             if ($lastProgress === -1 || $progress !== $lastProgress || $isHeartbeatTick) {
                 echo "data: " . json_encode($data) . "\n\n";
                 flush();
                 $lastProgress = $progress;
                 $lastSentTime = time();
-                if ($progress >= 100 || stripos($message, 'Error:') !== false || ($data['status'] ?? '') === 'error') break;
+                if ($progress >= 100 || ($data['status'] ?? '') === 'stopped' || ($data['status'] ?? '') === 'error' || stripos($message, 'Error:') !== false) break;
                 if ($progress === 0 && ((int)($data['stale_seconds'] ?? 0)) >= 45) {
                     echo "data: " . json_encode(['error' => 'Transcription process appears to be stuck at startup']) . "\n\n";
                     flush();
@@ -192,12 +212,12 @@ function handle_sse_stream() {
     flush();
     exit;
 }
-$ensure = bridge_call('ensure_tables', []);
-if (($ensure['success'] ?? false) !== true) {
+
+if (transcription_jobs_db() === null) {
     if (!headers_sent()) {
         header('Content-Type: application/json; charset=utf-8');
     }
-    echo json_encode(['success' => false, 'error' => 'Database bridge unavailable', 'debug' => $ensure]);
+    echo json_encode(['success' => false, 'error' => 'Database unavailable']);
     exit;
 }
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
@@ -225,111 +245,81 @@ if ($action === 'start_transcription') {
         echo json_encode(['success' => false, 'error' => 'No audio path provided']);
         exit;
     }
-    $pythonPath = python_bin();
-    $ffmpegPath = trim(shell_exec('which ffmpeg 2>/dev/null') ?: '/usr/bin/ffmpeg');
-    $uploadDir = app_path('transcription_uploads');
-    $cacheDir = $uploadDir . DIRECTORY_SEPARATOR . '.cache';
-    $normalizedProgressId = uniqid();
-    if (!is_dir($uploadDir)) mkdir($uploadDir, 0777, true);
-    if (!is_dir($cacheDir)) mkdir($cacheDir, 0777, true);
-    @chmod($uploadDir, 0777);
-    @chmod($cacheDir, 0777);
-    $uploadJobDir = $uploadDir . DIRECTORY_SEPARATOR . $normalizedProgressId;
-    if (!is_dir($uploadJobDir)) mkdir($uploadJobDir, 0777, true);
-    @chmod($uploadJobDir, 0777);
+    $rlEmail = get_session_email() ?: (string)$user;
+    if (function_exists('cloud_ai_require_rate_limit')) {
+        cloud_ai_require_rate_limit((string)$rlEmail, 'speech');
+    }
+
+    // The AI hub must be configured: the transcription is done by its saved
+    // speech model, there is no local fallback any more.
+    $aiConfig = cloud_ai_load_config();
+    if (trim((string)($aiConfig['api_key'] ?? '')) === '') {
+        echo json_encode([
+            'success' => false,
+            'error' => 'AI hub API key is not configured (Admin Panel → Settings → AI Assistant)',
+        ]);
+        exit;
+    }
+
     $sourcePath = resolve_user_file_path($user, $audioPath, $root);
     if (!$sourcePath || !file_exists($sourcePath)) {
-        echo json_encode(['success' => false,'error' => 'Source audio file not found']);
+        echo json_encode(['success' => false, 'error' => 'Source audio file not found']);
         exit;
     }
     if (!is_file($sourcePath)) {
-        echo json_encode(['success' => false,'error' => 'Source audio path is not a file']);
+        echo json_encode(['success' => false, 'error' => 'Source audio path is not a file']);
         exit;
     }
     if (!is_readable($sourcePath)) @chmod($sourcePath, 0644);
-    $fileName = uniqid() . '_' . basename($audioPath);
-    $filePath = $uploadJobDir . DIRECTORY_SEPARATOR . $fileName;
-    if (!copy($sourcePath, $filePath)) {
-        $fallbackDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'cloud_transcription_uploads' . DIRECTORY_SEPARATOR . $normalizedProgressId;
-        if (!is_dir($fallbackDir)) mkdir($fallbackDir, 0777, true);
-        @chmod(dirname($fallbackDir), 0777);
-        @chmod($fallbackDir, 0777);
-        $filePath = $fallbackDir . DIRECTORY_SEPARATOR . $fileName;
-        if (!copy($sourcePath, $filePath)) {
-            echo json_encode(['success' => false,'error' => is_readable($sourcePath) ? 'Temporary upload directory is not writable' : 'Source audio file is not readable']);
-            exit;
-        }
-    }
-    // Verify the copied file exists and is readable
-    if (!file_exists($filePath) || !is_readable($filePath)) {
-        echo json_encode(['success' => false,'error' => 'Copied file is not accessible']);
+    if (!is_readable($sourcePath)) {
+        echo json_encode(['success' => false, 'error' => 'Source audio file is not readable']);
         exit;
     }
-    // Use realpath to get absolute path, keep Windows backslashes
-    $filePath = realpath($filePath);
-    $ins = bridge_call('start_job', ['progress_id' => $normalizedProgressId, 'user' => $user, 'audio_path' => $audioPath, 'language' => $language]);
-    if (($ins['success'] ?? false) !== true) {
+
+    $progressId = uniqid();
+    $job = transcription_jobs_create($progressId, (string)$user, (string)$audioPath, (string)$language);
+    if (!$job) {
         echo json_encode(['success' => false, 'error' => 'Failed to create transcription job']);
         exit;
     }
-    $pythonLogFile = dirname($filePath) . DIRECTORY_SEPARATOR . 'python.log';
-    $success = false;
-    if (py_sidecar_enabled()) {
-        $res = py_sidecar('transcribe', [
-            'input_file' => $filePath,
-            'language' => $language,
-            'progress_id' => $normalizedProgressId,
-            'user' => $user,
-            'audio_path' => $audioPath,
-            'log_file' => $pythonLogFile,
-        ], null, 'file', 30);
-        $success = $res['code'] >= 200 && $res['code'] < 300 && (($res['body']['success'] ?? false) === true);
-    } else {
-        $pythonScript = app_path('transcribe.py');
-        if (!file_exists($pythonScript)) {
-            echo json_encode(['success' => false,'error' => 'Python script not found']);
-            exit;
-        }
-        if (!file_exists($ffmpegPath)) {
-            echo json_encode(['success' => false,'error' => 'FFmpeg not found']);
-            exit;
-        }
-        exec("\"$ffmpegPath\" -version 2>&1", $ffmpegOutput, $ffmpegReturn);
-        if ($ffmpegReturn !== 0) {
-            echo json_encode(['success' => false,'error' => 'FFmpeg not working: ' . implode("\n", $ffmpegOutput)]);
-            exit;
-        }
-        $command = escapeshellarg($pythonPath) . ' ' . escapeshellarg($pythonScript) . ' ' . escapeshellarg($filePath) . ' ' . escapeshellarg($language) . ' ' . escapeshellarg($normalizedProgressId) . ' ' . escapeshellarg($user) . ' ' . escapeshellarg($audioPath);
-        if (substr(php_uname(), 0, 7) === "Windows") {
-            $runCommand = 'start "" /B cmd /C ' . escapeshellarg($command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1');
-            pclose(popen($runCommand, "r"));
-            $success = true;
-        } else {
-            $env = 'HOME=' . escapeshellarg($cacheDir) . ' XDG_CACHE_HOME=' . escapeshellarg($cacheDir) . ' MPLCONFIGDIR=' . escapeshellarg($cacheDir) . ' TORCH_HOME=' . escapeshellarg($cacheDir) . ' PYTHONUNBUFFERED=1 ';
-            exec($env . $command . ' > ' . escapeshellarg($pythonLogFile) . ' 2>&1 &', $output, $returnCode);
-            $success = ($returnCode === 0);
-        }
+
+    if (!transcription_start_worker($progressId, $sourcePath, (string)$language)) {
+        transcription_jobs_update($progressId, 0, 'Error: Failed to start transcription worker', '', 'error', 'Failed to start transcription worker');
+        echo json_encode(['success' => false, 'error' => 'Failed to start transcription process']);
+        exit;
     }
-    if ($success) {
-        echo json_encode(['success' => true,'message' => 'Transcription started','transcription_file' => 'db:' . $normalizedProgressId,'progress_id' => $normalizedProgressId]);
-    } else {
-        echo json_encode(['success' => false,'error' => 'Failed to start transcription process']);
-    }
+
+    echo json_encode([
+        'success' => true,
+        'message' => 'Transcription started',
+        'transcription_file' => 'db:' . $progressId,
+        'progress_id' => $progressId,
+    ]);
     exit;
 }
 if ($action === 'get_progress') {
     $progressId = preg_replace('/^progress_/', '', ($_POST['progress_id'] ?? ''));
-    $data = bridge_call('get_progress', ['progress_id' => $progressId]);
+    $data = transcription_jobs_get((string)$progressId);
     if (($data['found'] ?? false) !== true) {
         echo json_encode(['progress' => 0,'message' => '','transcription' => '','isProcessing' => false,'isActive' => false,'timestamp' => 0,'stale_seconds' => 0]);
         exit;
     }
-    echo json_encode(['progress' => (int)$data['progress'],'message' => transcription_safe_message((string)$data['message']),'transcription' => (string)$data['transcription'],'isProcessing' => (bool)$data['isProcessing'],'isActive' => (bool)$data['isActive'],'timestamp' => (int)$data['timestamp'],'stale_seconds' => (int)$data['stale_seconds']]);
+    echo json_encode([
+        'progress' => (int)$data['progress'],
+        'message' => transcription_safe_message((string)$data['message']),
+        'transcription' => (string)$data['transcription'],
+        'isProcessing' => (bool)$data['isProcessing'],
+        'isActive' => (bool)$data['isActive'],
+        'timestamp' => (int)$data['timestamp'],
+        'stale_seconds' => (int)$data['stale_seconds'],
+        'status' => (string)$data['status'],
+        'error' => transcription_safe_message((string)($data['error'] ?? '')),
+    ]);
     exit;
 }
 if ($action === 'find_active_progress') {
     $user = $_POST['user'] ?? 'default';
-    echo json_encode(bridge_call('find_active', ['user' => $user]));
+    echo json_encode(transcription_jobs_find_active((string)$user));
     exit;
 }
 if ($action === 'stream_progress') {
@@ -376,30 +366,27 @@ if ($action === 'save_transcription_to_server') {
     exit;
 }
 if ($action === 'stop_transcription') {
-    $progressId = $_POST['progress_id'] ?? '';
+    $progressId = preg_replace('/^progress_/', '', (string)($_POST['progress_id'] ?? ''));
     if (!$progressId) {
         echo json_encode(['success' => false, 'error' => 'No progress_id provided']);
         exit;
     }
-    // Kill all Python processes related to transcription
-    if (substr(php_uname(), 0, 7) === "Windows") {
-        exec('taskkill /F /IM python.exe /FI "WINDOWTITLE eq transcribe*" 2>&1', $output, $returnCode);
-    } else {
-        exec('pkill -f "transcribe.py" 2>&1', $output, $returnCode);
+    transcription_jobs_stop($progressId);
+    // The worker notices the stopped status on its next progress tick; killing it
+    // by its own progress id additionally releases the HTTP request immediately.
+    if (PHP_OS_FAMILY !== 'Windows') {
+        @exec('pkill -f ' . escapeshellarg('transcription_worker.php ' . $progressId) . ' 2>/dev/null');
     }
-    // Update job status to stopped
-    $result = bridge_call('stop_job', ['progress_id' => $progressId]);
     echo json_encode(['success' => true, 'message' => 'Transcription stopped']);
     exit;
 }
 if ($action === 'delete_temp_file') {
-    $progressId = $_POST['progress_id'] ?? '';
+    $progressId = preg_replace('/^progress_/', '', (string)($_POST['progress_id'] ?? ''));
     if (!$progressId) {
         echo json_encode(['success' => false, 'error' => 'No progress_id provided']);
         exit;
     }
-    $uploadDir = app_path('transcription_uploads');
-    $uploadJobDir = $uploadDir . DIRECTORY_SEPARATOR . $progressId;
+    $uploadJobDir = transcription_worker_dir($progressId);
     $fallbackJobDir = rtrim(sys_get_temp_dir(), '/\\') . DIRECTORY_SEPARATOR . 'cloud_transcription_uploads' . DIRECTORY_SEPARATOR . $progressId;
 
     $deleted = false;
@@ -420,4 +407,3 @@ if ($action === 'delete_temp_file') {
     exit;
 }
 echo json_encode(['success' => false, 'error' => 'Invalid action']);
-?>

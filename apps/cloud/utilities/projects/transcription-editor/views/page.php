@@ -671,6 +671,8 @@
             }
         }
     </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style>#btn-save-server,#btn-save{display:none!important}</style>
 </head>
 <body data-theme="<?php echo htmlspecialchars($theme, ENT_QUOTES, 'UTF-8'); ?>" data-accent-color="<?php echo htmlspecialchars($accentColor, ENT_QUOTES, 'UTF-8'); ?>">
     <div class="editor-container">
@@ -707,13 +709,6 @@
                     <span>Save</span>
                 </button>
                 <div class="toolbar-spacer"></div>
-                <?php if ($canViewDebugLog): ?>
-                <button class="debug-toggle-btn" id="debug-toggle-btn" title="<?php echo $t['debug_information']; ?>" aria-label="<?php echo $t['debug_information']; ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
-                    </svg>
-                </button>
-                <?php endif; ?>
             </div>
         </div>
         
@@ -722,7 +717,6 @@
                 <h3><?php echo $t['audio_file']; ?></h3>
                 <div class="file-info" id="file-info">
                     <?php if ($sourcePath && file_exists($sourcePath)): ?>
-                        <div class="debug-info" style="color: green;"><?php echo $t['file_exists']; ?> (<?php echo formatFileSize(filesize($sourcePath)); ?>)</div>
                         <div class="debug-info">Format: <?php echo strtoupper(pathinfo($sourcePath, PATHINFO_EXTENSION)); ?> (<?php echo $audioMimeType; ?>)</div>
                     <?php else: ?>
                         <div class="debug-info" style="color: red;"><?php echo $t['file_not_found']; ?></div>
@@ -764,5 +758,6 @@
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script1.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

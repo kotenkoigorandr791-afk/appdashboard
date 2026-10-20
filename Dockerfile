@@ -94,6 +94,7 @@ COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
 RUN cp -a /var/www/AppDashboard/apps/lopaka /usr/local/share/lopaka
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
+# restic powers the integrated backup manager (replaces the Duplicati service).
 ARG RESTIC_VERSION=0.18.1
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \

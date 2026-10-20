@@ -349,7 +349,7 @@
   "enableCaptions": "Povolit titulky",
   "encryptArchive": "Zašifrovat archiv",
   "encryptedFolderWarningText": "Složka <strong>Documents</strong> používá k ochraně vašich souborů šifrování. Zde uložené soubory jsou zašifrovány na serveru a můžete k nim přistupovat pouze vy. Poznámka: Pokud ztratíte přístup ke svému účtu, soubory v této složce nelze obnovit.",
-  "english": "ENG",
+  "english": "off",
   "enterFileName": "Název souboru:",
   "enterFolderName": "Název složky:",
   "enterFullscreen": "Vstupte na celou obrazovku",
@@ -894,6 +894,7 @@
   "shareExpiryLabel": "Vypršení platnosti odkazu",
   "shareExpiryNever": "Nikdy",
   "shareFile": "Sdílet soubor",
+  "shareLinkSettings": "Nastavení odkazu",
   "shareLinkCopied": "Odkaz zkopírován do schránky!",
   "shareLinkCopiedFallback": "Odkaz zkopírován (záložní metoda)",
   "shareLinkExpiresAt": "Platí do",
@@ -991,6 +992,7 @@
   "totalSize": "Celková velikost",
   "totalUploadSize": "Celková velikost: {size}",
   "transcription": "Přepis",
+  "transcribeAudio": "Přepsat zvuk",
   "transcriptionCleanupFailed": "Přepisy se nepodařilo vyčistit",
   "transcriptionSaved": "Přepis byl úspěšně uložen",
   "trashEmptied": "Koš vyprázdněn",
@@ -1103,5 +1105,11 @@
   "share-access-disable-copy": "Zakázat kopírování",
   "share-open-limit": "Otevřít limit",
   "shareGetLink": "Získat odkaz",
-  "shareSendToChat": "Odeslat do chatu"
+  "shareSendToChat": "Odeslat do chatu",
+  "monacoAiPromptPlaceholder": "Co má AI změnit?",
+  "selectAll": "Vybrat vše",
+  "trashRetentionLabel": "Uchovat",
+  "trashRetentionDays": "dní",
+  "trashRetentionSaved": "Doba uchování koše uložena",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

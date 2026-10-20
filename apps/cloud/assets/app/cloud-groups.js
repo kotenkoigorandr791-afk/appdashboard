@@ -73,6 +73,8 @@
         if (!isGroupRoot(root) || state.groups.length < 2) {
             select.classList.add('hidden');
             select.innerHTML = '';
+            const wrap = select.closest('.group-switcher-ui');
+            if (wrap) wrap.classList.add('hidden');
             return;
         }
         const currentId = groupIdFromRoot(root);
@@ -83,7 +85,104 @@
             select.dataset.bound = '1';
             select.addEventListener('change', () => switchToGroup(select.value));
         }
+        upgradeGroupSwitcher(select);
     }
+    // Renders the group switcher as the same custom pill dropdown used elsewhere
+    // (#ai-chat-select) instead of a native <select>. The native select stays in
+    // the DOM as the value source so the existing change/switchToGroup wiring and
+    // server round-trips keep working unchanged.
+    let groupSwitcherMenu = null;
+    let groupSwitcherBtn = null;
+    function upgradeGroupSwitcher(select) {
+        if (!select || select.dataset.customSwitcher !== '1') {
+            if (!select) return;
+            select.dataset.customSwitcher = '1';
+            const wrap = document.createElement('span');
+            wrap.className = 'group-switcher-ui';
+            select.parentNode.insertBefore(wrap, select);
+            wrap.appendChild(select);
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'group-switcher-btn';
+            btn.setAttribute('aria-haspopup', 'listbox');
+            btn.setAttribute('aria-expanded', 'false');
+            const label = document.createElement('span');
+            label.className = 'group-switcher-btn-label';
+            btn.appendChild(label);
+            btn.insertAdjacentHTML('beforeend', '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>');
+            wrap.appendChild(btn);
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                toggleGroupSwitcherMenu(btn, select);
+            });
+            select._customSwitcherBtn = btn;
+            select._customSwitcherLabel = label;
+            // Other code toggles the native select's .hidden class directly (e.g.
+            // tree browse mode); mirror it onto the wrapper automatically.
+            new MutationObserver(() => {
+                wrap.classList.toggle('hidden', select.classList.contains('hidden'));
+            }).observe(select, { attributes: true, attributeFilter: ['class'] });
+        }
+        const btn = select._customSwitcherBtn;
+        const label = select._customSwitcherLabel;
+        const selected = select.options[select.selectedIndex];
+        if (label) label.textContent = selected ? selected.textContent.trim() : '';
+        // Mirror the native visibility (.hidden) onto the custom wrapper.
+        const wrap = select.closest('.group-switcher-ui');
+        if (wrap) wrap.classList.toggle('hidden', select.classList.contains('hidden'));
+        // Keep the trigger reference fresh for the open menu rebuild.
+        groupSwitcherBtn = btn;
+    }
+    function closeGroupSwitcherMenu() {
+        if (groupSwitcherMenu) { groupSwitcherMenu.remove(); groupSwitcherMenu = null; }
+        if (groupSwitcherBtn) groupSwitcherBtn.setAttribute('aria-expanded', 'false');
+        groupSwitcherBtn = null;
+    }
+    function toggleGroupSwitcherMenu(btn, select) {
+        if (groupSwitcherBtn === btn && groupSwitcherMenu) { closeGroupSwitcherMenu(); return; }
+        closeGroupSwitcherMenu();
+        groupSwitcherBtn = btn;
+        const menu = document.createElement('div');
+        menu.className = 'group-switcher-menu';
+        menu.setAttribute('role', 'listbox');
+        Array.prototype.forEach.call(select.options, (option) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'group-switcher-item';
+            item.setAttribute('role', 'option');
+            item.setAttribute('aria-selected', option.value === select.value ? 'true' : 'false');
+            item.textContent = option.textContent.trim();
+            item.addEventListener('click', () => {
+                select.value = option.value;
+                select.dispatchEvent(new Event('change', { bubbles: true }));
+                closeGroupSwitcherMenu();
+            });
+            menu.appendChild(item);
+        });
+        document.body.appendChild(menu);
+        const rect = btn.getBoundingClientRect();
+        const width = Math.max(rect.width, menu.offsetWidth || 160);
+        const left = Math.min(rect.left, window.innerWidth - width - 8);
+        menu.style.width = width + 'px';
+        menu.style.left = (left < 8 ? 8 : left) + 'px';
+        menu.style.top = (rect.bottom + 6) + 'px';
+        const menuHeight = menu.getBoundingClientRect().height;
+        if (rect.bottom + 6 + menuHeight > window.innerHeight - 8) {
+            const above = rect.top - 6 - menuHeight;
+            menu.style.top = (above >= 8 ? above : Math.max(8, window.innerHeight - menuHeight - 8)) + 'px';
+        }
+        groupSwitcherMenu = menu;
+        btn.setAttribute('aria-expanded', 'true');
+    }
+    document.addEventListener('click', (e) => {
+        if (!groupSwitcherMenu) return;
+        if (groupSwitcherMenu.contains(e.target)) return;
+        if (groupSwitcherBtn && groupSwitcherBtn.contains(e.target)) return;
+        closeGroupSwitcherMenu();
+    });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeGroupSwitcherMenu(); });
+    window.addEventListener('resize', closeGroupSwitcherMenu);
+    window.addEventListener('scroll', closeGroupSwitcherMenu, true);
     function escapeHtml(s) {
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
     }
@@ -102,7 +201,10 @@
                 window.cloudGroupChat.onGroupsLoaded();
             }
         } catch (e) {
-            console.error('groups_list failed', e);
+            // groups_list can fail transiently (server restart, 502 from the
+            // proxy). The empty group list is rendered either way, so keep this
+            // out of the application-error channel.
+            console.warn('groups_list failed', e && e.message ? e.message : e);
         }
     }
     async function switchToGroup(groupId) {

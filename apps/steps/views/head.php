@@ -570,7 +570,7 @@
         .goal-summary-label { display: block; color: var(--muted-text); font-size: 12px; font-weight: 800; text-transform: uppercase; }
         .goal-summary-value { display: block; margin-top: 4px; font-size: 20px; font-weight: 850; color: var(--text-color); }
 
-        #info-button, #settings-button, #add-steps-button, #stats-button, #stepmonitor-apk-button {
+        #info-button, #settings-button, #add-steps-button, #stats-button, #stepmonitor-apk-button, #sharepoint-share-button {
             position: static;
             background: rgba(127,127,127,0.08);
             border: 1px solid transparent;
@@ -585,7 +585,7 @@
             border-radius: var(--radius-sm);
             transition: background-color 0.2s, border-color 0.2s;
         }
-        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active, #stepmonitor-apk-button:hover {
+        #info-button:hover, #settings-button:hover, #add-steps-button:hover, #stats-button:hover, #stats-button.active, #stepmonitor-apk-button:hover, #sharepoint-share-button:hover {
             background: color-mix(in srgb, var(--primary-color) 14%, transparent);
             border-color: color-mix(in srgb, var(--primary-color) 34%, transparent);
         }
@@ -2455,7 +2455,7 @@
                 display: none;
             }
 
-            #info-button, #settings-button, #add-steps-button, #stats-button {
+            #info-button, #settings-button, #add-steps-button, #stats-button, #sharepoint-share-button, #stepmonitor-apk-button {
                 font-size: 20px;
                 width: 35px;
                 height: 35px;

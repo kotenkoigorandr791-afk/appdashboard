@@ -133,6 +133,7 @@ svg{width:18px;height:18px;}
 button{padding:6px;min-width:36px;}
 }
 </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
 </head>
 <body>
 <div id="progress-container">
@@ -256,5 +257,6 @@ button{padding:6px;min-width:36px;}
 })();
 </script>
 
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

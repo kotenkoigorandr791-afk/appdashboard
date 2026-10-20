@@ -4,6 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.util.Log
+import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import com.stepmonitor.app.updates.AppUpdateManager
@@ -33,7 +34,7 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                 val scheduleId = intent.getStringExtra(ScheduledSyncManager.EXTRA_SCHEDULE_ID)
                 Log.d(TAG, "Delegating scheduled sync to WorkManager (scheduleId=$scheduleId)")
                 rescheduleNext(context, scheduleId)
-                WorkManager.getInstance(context).enqueue(OneTimeWorkRequestBuilder<SyncWorker>().build())
+                WorkManager.getInstance(context).enqueueUniqueWork("steps-sync-once", ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<SyncWorker>().build())
             }
 
             Intent.ACTION_BOOT_COMPLETED,

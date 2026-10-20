@@ -60,7 +60,7 @@ function oauthClearCsrfCookie(): void {
     ]);
 }
 
-function oauthCreateState(string $provider, string $mode = 'login'): string {
+function oauthCreateState(string $provider, string $mode = 'login', bool $rememberMe = false): string {
     oauthNormalizeProvider($provider);
     if (!in_array($mode, ['login', 'link', 'admin_gate'], true)) {
         throw new InvalidArgumentException('Invalid OAuth mode');
@@ -71,6 +71,7 @@ function oauthCreateState(string $provider, string $mode = 'login'): string {
         'provider' => $provider,
         'mode' => $mode,
         'created_at' => $createdAt,
+        'remember_me' => $rememberMe,
     ];
     oauthSetCsrfCookie($csrf);
     return base64_encode(json_encode([
@@ -78,6 +79,7 @@ function oauthCreateState(string $provider, string $mode = 'login'): string {
         'provider' => $provider,
         'mode' => $mode,
         'ts' => $createdAt,
+        'remember_me' => $rememberMe ? 1 : 0,
     ], JSON_UNESCAPED_SLASHES));
 }
 
@@ -92,6 +94,7 @@ function oauthConsumeState(string $stateRaw): ?array {
     unset($_SESSION[$key]);
     if (is_array($stored) && (time() - (int)($stored['created_at'] ?? 0)) <= $ttl) {
         oauthClearCsrfCookie();
+        $stored['remember_me'] = !empty($stored['remember_me']);
         return $stored;
     }
     $cookieCsrf = (string)($_COOKIE['oauth_csrf'] ?? '');
@@ -106,16 +109,17 @@ function oauthConsumeState(string $stateRaw): ?array {
             'provider' => (string)$payload['provider'],
             'mode' => (string)($payload['mode'] ?? 'login'),
             'created_at' => $createdAt,
+            'remember_me' => !empty($payload['remember_me']),
         ];
     }
     return null;
 }
 
-function oauthStartUrl(string $provider, string $mode = 'login'): string {
+function oauthStartUrl(string $provider, string $mode = 'login', bool $rememberMe = false): string {
     global $authConfig;
     $provider = oauthNormalizeProvider($provider);
     $redirectUri = oauthLoginRedirectUri();
-    $state = oauthCreateState($provider, $mode);
+    $state = oauthCreateState($provider, $mode, $rememberMe);
     if ($provider === 'google') {
         $clientId = trim((string)($authConfig['google_client_id'] ?? ''));
         if ($clientId === '') {
@@ -328,14 +332,18 @@ function oauthFetchProfile(string $provider, string $code): array {
     return oauthFetchGitHubProfile($code);
 }
 
-function oauthCompleteLogin(string $email, array $users): bool {
+function oauthCompleteLogin(string $email, array $users, bool $rememberMe = false): bool {
     if (adminIsAdminUser($users[$email] ?? null) && adminIpAllowlist() !== [] && !adminIpAllowed()) {
         return false;
     }
     resetFailedAttempts(getClientIp(), 'login');
     clearTrustedDeviceLogoutSuppression();
     adminEstablishSession($email, $users[$email]);
-    scheduleTrustedDevicePromptIfNeeded($email);
+    if ($rememberMe && $email !== 'root@root') {
+        rememberCurrentTrustedDevice($email, getClientIp());
+    } else {
+        scheduleTrustedDevicePromptIfNeeded($email);
+    }
     if (adminIsAdminUser($users[$email] ?? null)) {
         adminAuditLog('admin_oauth_login', $email, 'ok');
     }
@@ -352,7 +360,9 @@ function oauthHandleLoginFlow(array $profile): void {
     }
     linkOAuthConnection($email, $profile);
     if (isset($users[$email]) && !empty($users[$email]['verified']) && !userNeedsPasswordSet($users[$email]) && empty($users[$email]['must_change_password'])) {
-        if (!oauthCompleteLogin($email, $users)) {
+        $rememberMe = !empty($_SESSION['oauth_remember_me']);
+        unset($_SESSION['oauth_remember_me']);
+        if (!oauthCompleteLogin($email, $users, $rememberMe)) {
             header('Location: /login?error=admin_ip_forbidden');
             exit;
         }
@@ -430,6 +440,7 @@ function oauthHandleAdminGateFlow(array $profile): void {
 function oauthHandleCallback(string $provider, string $code, ?string $stateRaw, string $modeFallback = 'login'): void {
     global $authError, $translations;
     $mode = $modeFallback;
+    $rememberMe = !empty($_SESSION['oauth_remember_me']);
     if ($stateRaw !== null && $stateRaw !== '') {
         $state = oauthConsumeState($stateRaw);
         if ($state === null) {
@@ -443,11 +454,13 @@ function oauthHandleCallback(string $provider, string $code, ?string $stateRaw, 
             $provider = $stateProvider;
         }
         $mode = (string)($state['mode'] ?? 'login');
+        $rememberMe = !empty($state['remember_me']) || $rememberMe;
     }
     if ($provider === '') {
         throw new RuntimeException($translations['oauth_state_invalid'] ?? 'OAuth session expired. Please try again.');
     }
     $provider = oauthNormalizeProvider($provider);
+    $_SESSION['oauth_remember_me'] = $rememberMe;
     $profile = oauthFetchProfile($provider, $code);
     if ($mode === 'link') {
         oauthHandleLinkFlow($profile);

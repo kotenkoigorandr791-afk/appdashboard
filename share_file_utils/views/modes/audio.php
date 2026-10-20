@@ -1,1 +1,0 @@
-<div class="audio-viewer"><audio controls preload="metadata" src="<?php echo htmlspecialchars($fileDisplayUrl); ?>" onerror="handleMediaError(this)"><?php echo htmlspecialchars($translations['file_not_accessible']); ?></audio></div>

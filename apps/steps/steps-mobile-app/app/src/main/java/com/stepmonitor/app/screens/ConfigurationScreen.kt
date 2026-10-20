@@ -49,9 +49,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.stepmonitor.app.BuildConfig
 import com.stepmonitor.app.HealthDataType
+import com.stepmonitor.app.MockPayloadBuilder
 import com.stepmonitor.app.PreferencesManager
 import com.stepmonitor.app.R
 import com.stepmonitor.app.WebhookConfig
+import com.stepmonitor.app.WebhookManager
 import com.stepmonitor.app.components.ManualSyncCard
 import com.stepmonitor.app.components.computeNextSyncInfo
 import com.stepmonitor.app.components.formatSyncCountdown
@@ -78,6 +80,8 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
     val connected = prefs.getWebhookConfigs().any { it.isEnabled }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<ConnectionTestResult?>(null) }
+    var sendingTestPayload by remember { mutableStateOf(false) }
+    var testPayloadMessage by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.LaunchedEffect(connected) {
         if (connected && prefs.getEnabledDataTypes().isEmpty()) {
             prefs.setEnabledDataTypes(HealthDataType.values().toSet())
@@ -90,13 +94,14 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.home_title), style = MaterialTheme.typography.titleLarge)
-                Text(if (connected) stringResource(R.string.auth_connected) else stringResource(R.string.auth_waiting), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val userConnected = prefs.isUserConnected()
+                Text(if (userConnected) stringResource(R.string.auth_connected) else stringResource(R.string.auth_waiting), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Button(
                     onClick = {
                         scope.launch {
                             testing = true
                             testResult = null
-                            testResult = testConnection(prefs.getWebhookConfigs().firstOrNull { it.isEnabled })
+                            testResult = testConnection(context, prefs.getWebhookConfigs().firstOrNull { it.isEnabled })
                             testing = false
                         }
                     },
@@ -118,6 +123,50 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
                         Icon(Icons.Filled.CloudDone, contentDescription = null)
                         Text(stringResource(R.string.settings_test_connection_home), modifier = Modifier.padding(start = 8.dp))
                     }
+                }
+                FilledTonalButton(
+                    onClick = {
+                        scope.launch {
+                            sendingTestPayload = true
+                            testPayloadMessage = null
+                            val payload = MockPayloadBuilder.build(
+                                prefs.getEnabledDataTypes().map { it.name }.toSet(),
+                                BuildConfig.VERSION_NAME
+                            )
+                            val configs = prefs.getWebhookConfigs().filter { it.isEnabled }
+                            val result = WebhookManager(
+                                webhookConfigs = configs,
+                                context = context
+                            ).postData(payload)
+                            testPayloadMessage = if (result.isSuccess) {
+                                prefs.markSyncSuccess()
+                                context.getString(R.string.webhooks_test_success, configs.size.toString())
+                            } else {
+                                (result.exceptionOrNull() as? com.stepmonitor.app.AuthException)?.let {
+                                    prefs.markAuthError(it.statusCode)
+                                }
+                                context.getString(
+                                    R.string.webhooks_test_failed,
+                                    result.exceptionOrNull()?.let { it.message ?: it.javaClass.simpleName }
+                                        ?: "unknown error"
+                                )
+                            }
+                            sendingTestPayload = false
+                        }
+                    },
+                    enabled = connected && !sendingTestPayload,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (sendingTestPayload) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(R.string.settings_test_connection_progress))
+                    } else {
+                        Text(stringResource(R.string.webhooks_action_test))
+                    }
+                }
+                testPayloadMessage?.let { message ->
+                    Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
                 }
             }
         }
@@ -338,13 +387,20 @@ private fun NextSyncCard(prefs: PreferencesManager) {
     }
 }
 
-private suspend fun testConnection(config: WebhookConfig?): ConnectionTestResult = withContext(Dispatchers.IO) {
+private suspend fun testConnection(context: android.content.Context, config: WebhookConfig?): ConnectionTestResult = withContext(Dispatchers.IO) {
     if (config == null) return@withContext ConnectionTestResult.FAILURE
     runCatching {
+        val prefs = PreferencesManager(context)
         val builder = Request.Builder().url(config.url.trimEnd('/') + "/profile")
         config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+        builder.addHeader("Accept", "application/json")
+        if (config.headers.keys.none { it.equals("X-Device-Id", ignoreCase = true) }) {
+            builder.addHeader("X-Device-Id", prefs.getDeviceId())
+        }
         OkHttpClient().newCall(builder.build()).execute().use { response ->
+            if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
             if (!response.isSuccessful) error("HTTP ${response.code}")
+            prefs.markSyncSuccess()
             ConnectionTestResult.SUCCESS
         }
     }.getOrDefault(ConnectionTestResult.FAILURE)

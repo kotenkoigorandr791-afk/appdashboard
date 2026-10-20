@@ -5,6 +5,13 @@ require_once __DIR__ . '/core.php';
 $requestUri = $_SERVER['REQUEST_URI'];
 $path = oauthRequestPath($requestUri);
 
+// Public SharePoint links are standalone pages: never let them fall through to
+// the login/registration guards when routes.php is loaded by a legacy entrypoint.
+require_once __DIR__ . '/sharepoint/dispatch.php';
+if (sharepoint_dispatch_path($path)) {
+    exit;
+}
+
 if ($path === '/csrf' && strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET') {
     while (ob_get_level() > 1) ob_end_clean();
     header('Content-Type: application/json; charset=utf-8');
@@ -17,6 +24,12 @@ if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 
     try {
         $provider = (string)($_GET['provider'] ?? '');
         $mode = (string)($_GET['mode'] ?? 'login');
+        $rememberMe = $mode === 'login' && !empty($_GET['remember_me']);
+        if ($rememberMe) {
+            $_SESSION['oauth_remember_me'] = true;
+        } elseif ($mode === 'login') {
+            unset($_SESSION['oauth_remember_me']);
+        }
         if (($mode === 'link' || $mode === 'admin_gate') && !isset($_SESSION['user']['email'])) {
             header('Location: /login');
             exit;
@@ -25,7 +38,7 @@ if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 
             header('Location: /main');
             exit;
         }
-        header('Location: ' . oauthStartUrl($provider, $mode));
+        header('Location: ' . oauthStartUrl($provider, $mode, $rememberMe));
         exit;
     } catch (Throwable $e) {
         error_log('OAuth start error: ' . $e->getMessage());

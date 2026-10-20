@@ -10,7 +10,6 @@ from fastapi.responses import JSONResponse, Response
 
 APP_ROOT = Path(__file__).resolve().parent
 SCRIPTS = {
-    "transcribe": APP_ROOT / "apps" / "cloud" / "transcribe.py",
     "tts": APP_ROOT / "apps" / "cloud" / "tts_generate.py",
     "bg_remove": APP_ROOT / "apps" / "recipes" / "bg_remove.py",
     "parser": APP_ROOT / "apps" / "spends" / "utils" / "parser_bridge.py",
@@ -64,33 +63,6 @@ def _run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
 @app.get("/health")
 def health():
     return {"status": "ok"}
-
-
-@app.post("/transcribe")
-async def transcribe(
-    input_file: str = Form(...),
-    language: str = Form("pl"),
-    progress_id: str = Form(...),
-    user: str = Form(""),
-    audio_path: str = Form(""),
-    log_file: str = Form(""),
-):
-    script = SCRIPTS["transcribe"]
-    if not script.is_file():
-        raise HTTPException(500, "transcribe script missing")
-    if not os.path.isfile(input_file):
-        raise HTTPException(400, "input_file not found")
-    cmd = [
-        "python3",
-        str(script),
-        input_file,
-        language,
-        progress_id,
-        user,
-        audio_path,
-    ]
-    _spawn(cmd, log_file or None)
-    return {"success": True, "started": True}
 
 
 @app.post("/tts")

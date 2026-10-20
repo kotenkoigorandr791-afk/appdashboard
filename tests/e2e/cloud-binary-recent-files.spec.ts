@@ -31,14 +31,20 @@ test.describe('Cloud binary file + recent files', () => {
     skipWithoutAuth();
     const frame = await openCloud(page);
 
-    // Seed a binary file
+    // Seed a binary file. save_file only writes existing files, so create the
+    // entry first, then fill it with the binary payload.
     await frame.locator('body').evaluate(async (_el, { name, content }: any) => {
       const api = (window as any).api;
       try {
-        await api('save_file', { path: name, content, root: 'temp' });
+        await api('create_file', { path: name, root: 'temp' }, 'POST');
       } catch (e) {
-        console.error(e);
+        // An already existing file is fine; anything else must fail loudly
+        // instead of surfacing as an application console error.
+        if (!String((e as Error)?.message || e).includes('exists')) {
+          throw e;
+        }
       }
+      await api('save_file', { path: name, content, root: 'temp' }, 'POST');
       await api('invalidate_file_tree', {}, 'POST');
     }, { name: FILE_NAME, content: binaryContent() });
 

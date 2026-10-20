@@ -77,6 +77,7 @@ $metricButtons = [
         <div class="app-topbar">
             <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
             <div class="app-topbar-actions">
+                <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><i class="fas fa-share-nodes"></i></button>
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>

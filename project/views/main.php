@@ -881,7 +881,36 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
           radial-gradient(ellipse at 70% 88%, color-mix(in srgb,var(--primary-color) 16%,transparent) 0%, transparent 45%),
           linear-gradient(160deg, color-mix(in srgb,var(--bg-color) 88%,#000) 0%, var(--bg-color) 45%, color-mix(in srgb,var(--bg-color) 82%,var(--primary-color)) 100%);
         }
-        body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;}
+        body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;background-image:none!important;background-color:#05070a!important;}
+        #shell-home[hidden],#shell-app-frame[hidden]{display:none!important;}
+        body.shell-app-open #top-bar{display:none!important;}
+        #shell-app-menu-host{position:fixed;inset:0;width:0;height:0;overflow:visible;pointer-events:none;z-index:1002;}
+        body.shell-app-open #shell-app-menu-host{width:auto;height:auto;}
+        body.shell-app-open #home-root-button{display:none!important;}
+        body.shell-app-open #menu-button{
+          display:flex!important;
+          position:fixed!important;
+          pointer-events:auto;
+          visibility:visible!important;
+          opacity:1!important;
+          z-index:1003!important;
+          top:var(--shell-menu-button-top)!important;
+          left:var(--shell-menu-button-left)!important;
+          width:var(--shell-menu-button-width)!important;
+          height:var(--shell-menu-button-height)!important;
+          margin:0!important;
+          transform:none;
+        }
+        @media (max-width:768px){
+          body.shell-app-open #menu-button{
+            top:var(--shell-menu-button-mobile-top)!important;
+            left:var(--shell-menu-button-mobile-left)!important;
+            width:var(--shell-menu-button-mobile-width)!important;
+            height:var(--shell-menu-button-mobile-height)!important;
+          }
+        }
+        body.shell-app-open.app-modal-open #menu-button{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}
+
         body.shell-app-open::before{animation:shellLayerFadeOut 140ms ease-out both;}
         body.shell-app-open.wallpaper-custom::after{animation:shellLayerFadeOut 140ms ease-out both;}
         @keyframes shellLayerFadeOut{from{opacity:1;}to{opacity:0;}}
@@ -908,33 +937,30 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
 	        <?php if(!empty($selectedAppMenuButtonScroll)): ?>#menu-button{position:absolute;}<?php endif; ?>
 	        <?php foreach(($selectedAppMenuButtonStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
 	        #menu-button .menu-button-glyph{display:flex;align-items:center;justify-content:center;line-height:1;}
-        <?php if($isHomeDashboard): ?>
-        #top-bar{justify-content:flex-start;}
-        #top-bar-title{flex:0 0 auto;margin-left:12px;}
-        #menu-button{position:static;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transform:none;}
+        body:not(.shell-app-open) #top-bar{justify-content:flex-start;}
+        body:not(.shell-app-open) #top-bar-title{flex:0 0 auto;margin-left:12px;}
+        body:not(.shell-app-open) #menu-button{position:static;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 22%,transparent) 0%,color-mix(in srgb,var(--primary-color) 10%,transparent) 100%);color:var(--primary-color);border:1px solid color-mix(in srgb,var(--primary-color) 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 18%,transparent);display:flex;align-items:center;justify-content:center;transition:opacity 0.15s ease,visibility 0.15s ease,transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);transform:none;}
         #home-root-button{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--primary-color);text-decoration:none;background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 28%,transparent) 0%,color-mix(in srgb,var(--primary-color) 14%,transparent) 100%);flex:0 0 auto;border:1px solid color-mix(in srgb,var(--primary-color) 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,var(--primary-color) 22%,transparent);transition:transform 0.2s,box-shadow 0.2s,background 0.2s;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);}
         body.light-theme #home-root-button{color:var(--text-color) !important;}
         #home-root-button svg{width:22px;height:22px;}
         #home-root-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 30%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 40%,transparent) 0%,color-mix(in srgb,var(--primary-color) 22%,transparent) 100%);}
-        #menu-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
+        body:not(.shell-app-open) #menu-button:hover{transform:scale(1.06);box-shadow:0 4px 14px color-mix(in srgb,var(--primary-color) 26%,transparent);background:linear-gradient(135deg,color-mix(in srgb,var(--primary-color) 34%,transparent) 0%,color-mix(in srgb,var(--primary-color) 18%,transparent) 100%);}
         #top-bar #support-chat-btn{position:absolute;right:16px;top:8px;margin-left:0;}
         #top-bar #notifications-btn{position:absolute;right:64px;top:8px;margin-left:0;}
-        #menu-button .menu-button-glyph{width:auto;height:auto;}
-        #menu-button .menu-button-glyph svg{width:22px;height:22px;}
-        <?php else: ?>
-        #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
-        #menu-button .menu-button-glyph{width:100%;height:100%;}
-        #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-height) * 0.5);height:calc(var(--shell-menu-button-height) * 0.5);}
-	        @media (max-width:768px){
-            #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
-            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>#menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
-            #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
+        body:not(.shell-app-open) #menu-button .menu-button-glyph{width:auto;height:auto;}
+        body:not(.shell-app-open) #menu-button .menu-button-glyph svg{width:22px;height:22px;}
+        body.shell-app-open #menu-button{width:var(--shell-menu-button-width);height:var(--shell-menu-button-height);display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent);border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.1);backdrop-filter:blur(16px) saturate(140%);-webkit-backdrop-filter:blur(16px) saturate(140%);transform:none;}
+        body.shell-app-open #menu-button .menu-button-glyph{width:100%;height:100%;}
+        body.shell-app-open #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-height) * 0.5);height:calc(var(--shell-menu-button-height) * 0.5);}
+        @media (max-width:768px){
+            body.shell-app-open #menu-button{top:var(--shell-menu-button-mobile-top);left:var(--shell-menu-button-mobile-left);width:var(--shell-menu-button-mobile-width);height:var(--shell-menu-button-mobile-height);}
+            <?php foreach(($selectedAppMenuButtonMobileStyle??[]) as $prop=>$value): ?>body.shell-app-open #menu-button{<?php echo my_htmlspecialchars((string)$prop); ?>:<?php echo my_htmlspecialchars((string)$value); ?>;}<?php endforeach; ?>
+            body.shell-app-open #menu-button .menu-button-glyph svg{width:calc(var(--shell-menu-button-mobile-height) * 0.5);height:calc(var(--shell-menu-button-mobile-height) * 0.5);}
         }
-        <?php endif; ?>
         #sidebar{position:fixed;top:54px;left:0;width:320px;height:calc(100% - 54px);background:var(--sidebar-bg);transform:translateX(-100%);transition:transform 0.3s cubic-bezier(.2,.8,.2,1);padding:20px;box-sizing:border-box;display:flex;flex-direction:column;z-index:999;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);border-left:none;box-shadow:var(--glass-shadow);will-change:transform;}
-        <?php if(!$isHomeDashboard): ?>
-        #sidebar{top:0;height:100%;border-top-right-radius:var(--casa-radius);border-bottom-right-radius:var(--casa-radius);display:flex;flex-direction:column;}
-        <?php endif; ?>
+        body.shell-app-open #sidebar{top:0;height:100%;border-top-right-radius:var(--casa-radius);border-bottom-right-radius:var(--casa-radius);}
+        body:not(.shell-app-open) #sidebarWeatherWidget{display:none!important;}
+        body:not(.shell-app-open) #bottom-bar #support-chat-btn.app-page-chat{display:none!important;}
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:62px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
@@ -1204,7 +1230,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .modal-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border-color);}
         .modal-header-left h2{margin:0;font-size:18px;font-weight:600;}
         #profile-content,#qr-content,#email-form,#users-content{padding:0;display:flex;flex-direction:column;}
-        #profile-content .modal-scroll-body{padding:30px;margin:0 20px 20px 0;}
+        #profile-content .modal-scroll-body{padding:30px;}
         #qr-content .modal-scroll-body{padding:30px;}
         #qr-content .modal-scroll-body:first-child{padding-top:10px;}
         #email-form .modal-scroll-body{padding:40px 20px 20px;}
@@ -1360,6 +1386,32 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #refresh-shared-files{width:40px;padding:0;}
         .delete-filtered-btn{background:#ff9800;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;display:none;align-items:center;gap:5px;}
         .delete-filtered-btn:hover{background:#f57c00;}
+        .share-links-group{margin:0 0 14px;}
+        .share-links-group__head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 4px 6px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.72;}
+        .share-links-group__head h3{margin:0;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+        .share-links-group__head span{min-width:24px;padding:2px 7px;text-align:center;border-radius:999px;background:var(--group-block-bg);font-size:11px;}
+        .share-link-row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border-color);border-radius:12px;background:color-mix(in srgb,var(--modal-bg) 76%,transparent);transition:background .12s ease,border-color .12s ease;}
+        .share-link-row:hover{background:var(--group-block-bg);border-color:color-mix(in srgb,var(--primary-color) 34%,var(--border-color));}
+        .share-link-row__main{display:flex;align-items:center;gap:11px;min-width:0;flex:1;}
+        .share-link-row__app{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:var(--group-block-bg);font-size:18px;}
+        .share-link-row__text{min-width:0;flex:1;}
+        .share-link-row__title{display:block;font-size:14px;font-weight:700;color:var(--text-color);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .share-link-row__title:hover{color:var(--primary-color);}
+        .share-link-row__meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px;font-size:11px;opacity:.66;white-space:nowrap;}
+        .share-link-chip{padding:2px 7px;border-radius:999px;background:color-mix(in srgb,var(--primary-color) 12%,transparent);color:var(--primary-color);font-weight:700;opacity:1;}
+        .share-link-row__side{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+        .share-status{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 8px;border-radius:999px;}
+        .share-status.is-active{color:#1b7f4d;background:rgba(34,197,94,.14);}
+        .share-status.is-expired{color:#9a6700;background:rgba(245,158,11,.14);}
+        .share-status.is-revoked{color:#c0392b;background:rgba(239,68,68,.14);}
+        .share-link-row__actions{display:flex;gap:2px;}
+        .share-icon-btn{width:30px;height:30px;display:grid;place-items:center;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text-color);cursor:pointer;font-size:14px;opacity:.7;}
+        .share-icon-btn:hover{opacity:1;background:var(--group-block-bg);border-color:var(--border-color);}
+        .share-icon-btn.is-danger:hover{color:#fff;background:#d64545;border-color:#d64545;}
+        .share-links-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:44px 16px;text-align:center;opacity:.6;}
+        .share-links-empty span{font-size:30px;}
+        .share-links-empty p{margin:0;font-size:13px;}
+        @media(max-width:640px){.share-link-row{align-items:flex-start;flex-direction:column;}.share-link-row__side{width:100%;justify-content:space-between;padding-left:47px;}}
         #sessions-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #sessions-content{background:var(--modal-bg);padding:0;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:80vh;max-width:800px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #close-sessions{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -2879,11 +2931,9 @@ $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
 </script>
 <?php endif; ?>
 <?php if($showTopBarTitle): ?>
-<div id="top-bar">
-    <?php if($isHomeDashboard): ?>
+<div id="top-bar"<?php echo !empty($shellAppOpen) ? ' hidden' : ''; ?>>
     <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
-    <a id="home-root-button" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
-    <?php endif; ?>
+    <a id="home-root-button" class="shell-home-link" href="/main" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
     <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'Shell Application'); ?></div>
     <div class="weather-widget weather-widget-instance" id="weatherWidget">
         <span class="weather-icon"></span>
@@ -2894,16 +2944,14 @@ $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
         <span class="weather-wind"></span>
         <span class="weather-perm" style="display:none"><?php echo my_htmlspecialchars($translations['weather_perm_denied'] ?? 'Please allow location access'); ?></span>
     </div>
-    <?php if($path==='/main'&&!($selectedApp&&in_array($selectedApp,array_map(function($appData){return $appData['folder'];},$apps)))):?>
-        <button type="button" id="notifications-btn" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
-            <span id="notifications-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
-        </button>
-        <button type="button" id="support-chat-btn" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-            <span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
-        </button>
-    <?php endif; ?>
+    <button type="button" id="notifications-btn" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
+        <span id="notifications-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
+    </button>
+    <button type="button" id="support-chat-btn" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>">
+        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
+        <span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
+    </button>
 </div>
 <?php endif; ?>
 <?php if(isset($showOtpPage)&&$showOtpPage):
@@ -3962,6 +4010,7 @@ endif; // showOtpPage
                     <option value="name_asc"><?php echo my_htmlspecialchars($translations['ap_sort_name'] ?? 'Name'); ?> A-Z</option>
                 </select>
                 <select id="shared-files-group">
+                    <option value="app" selected><?php echo my_htmlspecialchars($translations['share_sort_group_app'] ?? 'Group by application'); ?></option>
                     <option value="none"><?php echo my_htmlspecialchars($translations['share_sort_no_grouping'] ?? 'No grouping'); ?></option>
                     <option value="user"><?php echo my_htmlspecialchars($translations['share_sort_group_user'] ?? 'Group by user'); ?></option>
                 </select>
@@ -4054,9 +4103,7 @@ endif; // showOtpPage
     </div>
 </div>
 <?php if($path!=='/login'&&$path!=='/register'):?>
-    <?php if(!$isHomeDashboard): ?><button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button><?php endif; ?>
     <div id="sidebar">
-        <?php if(!$isHomeDashboard): ?>
         <div class="weather-widget weather-widget-instance" id="sidebarWeatherWidget">
             <span class="weather-icon"></span>
             <span class="weather-temp">--°C</span>
@@ -4066,7 +4113,6 @@ endif; // showOtpPage
             <span class="weather-wind"></span>
             <span class="weather-perm" style="display:none"><?php echo my_htmlspecialchars($translations['weather_perm_denied'] ?? 'Please allow location access'); ?></span>
         </div>
-        <?php endif; ?>
         <div id="app-list-container">
             <ul id="app-list">
                 <?php foreach($groupedApps as $letter=>$group):?><div class="group-letter"><?php echo my_htmlspecialchars($letter); ?></div><div class="group-block"><ul><?php foreach($group as $name=>$appData):?><li data-tooltip="<?php echo my_htmlspecialchars($translations['open_app_tooltip'].' '.$name); ?>"><a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link"><span class="sidebar-app-name"><?php echo my_htmlspecialchars($name); ?></span><span class="sidebar-app-icon-wrap"><?php if(!empty($appData['icon_masked']) && !empty($appData['is_svg'])): ?><span class="sidebar-app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');" aria-hidden="true"></span><?php elseif(($appData['icon_style']??'')==='animated' && !empty($appData['is_svg'])): ?><object class="sidebar-app-icon" type="image/svg+xml" data="<?php echo my_htmlspecialchars($appData['icon']); ?>" aria-hidden="true"></object><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="" class="sidebar-app-icon"><?php endif; ?></span></a><span class="tooltip"></span></li><?php endforeach;?></ul></div><?php endforeach;?>
@@ -4080,7 +4126,7 @@ endif; // showOtpPage
             </div>
             <?php if(!$isHomeDashboard&&isset($_SESSION['user'])):?><button type="button" id="support-chat-btn" class="sidebar-button app-page-chat" title="<?php echo my_htmlspecialchars($translations['chat'] ?? 'Chat'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['chat'] ?? 'Chat'); ?>"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg><span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span></button><?php endif;?>
             <div class="bottom-bar-actions">
-                <?php if(!$isHomeDashboard): ?><a href="/main" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a><?php endif; ?>
+                <a href="/main" class="sidebar-button shell-home-link" data-tooltip="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home']); ?>"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
                 <button id="settings-button" class="sidebar-button" data-tooltip="<?php echo my_htmlspecialchars($translations['settings_title']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg></button>
                 <?php if(isset($_SESSION['user'])):?><div class="user-profile" id="user-profile"><img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo']??'default_avatar.png')); ?>" alt="User Avatar" class="user-avatar"><div class="user-name"><?php echo my_htmlspecialchars($_SESSION['user']['name']); ?></div></div><?php endif;?>
             </div>
@@ -4299,35 +4345,39 @@ $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
 <?php $railTopApps=['immich','gitea','kanboard','dawarich','sentry','lopaka']; ?>
 <?php $edgeAppShellApps=['immich','gitea','kanboard','dawarich','sentry','x','X','lopaka']; ?>
+<?php if($path==='/main' && !$showLogin): ?>
+<script>
+window.__SHELL_APPS=<?php echo json_encode($apps, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
+window.__SHELL_RAIL_TOP_APPS=<?php echo json_encode($railTopApps); ?>;
+window.__SHELL_EDGE_APPS=<?php echo json_encode($edgeAppShellApps); ?>;
+window.__SHELL_LANG=<?php echo json_encode($language); ?>;
+window.__SHELL_THEME=<?php echo json_encode(($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink); ?>;
+window.__SHELL_COLOR=<?php echo json_encode($config['color'] ?? ''); ?>;
+window.__SHELL_USER_DATA=<?php echo json_encode($userDataForApps ? base64_encode(json_encode($userDataForApps)) : ''); ?>;
+window.__SHELL_CURRENT_APP=<?php echo json_encode($selectedApp); ?>;
+</script>
+<script src="/project/assets/shell-app-nav.js?v=4" defer></script>
+<?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
-    <?php if($showAppFrame):?>
-        <?php if($showAppRail):?>
-        <div id="app-icon-rail">
-            <div class="app-rail-scroll">
-            <a href="/main" class="app-rail-link app-rail-home" title="<?php echo my_htmlspecialchars($translations['home_tooltip'] ?? $translations['home'] ?? 'Home'); ?>"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
-            <span class="app-rail-service-name"><?php echo my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)); ?></span>
-            </div>
-        </div>
-        <?php endif;?>
-        <?php $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink; ?>
-        <iframe id="app-iframe" name="devtools-app" title="Application: <?php echo my_htmlspecialchars($selectedApp); ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="apps/<?php echo urlencode($selectedApp); ?>/<?php echo $selectedApp === 'lopaka' ? '' : 'index.php'; ?>?lang=<?php echo urlencode($language); ?>&theme=<?php echo urlencode($appIframeTheme); ?>&color=<?php echo urlencode($config['color']); ?><?php echo $userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):''; ?>"></iframe>
-    <?php elseif($path==='/main'):?>
-        <?php if(!$showTopBarTitle):?>
-        <button type="button" id="notifications-btn" class="notifications-floating" title="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>" style="position:fixed;top:10px;right:64px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 10%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 32%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 18%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;" aria-label="<?php echo my_htmlspecialchars($translations['notifications'] ?? 'Notifications'); ?>">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.268 21a2 2 0 0 0 3.464 0"/><path d="M3.262 15.326A1 1 0 0 0 4 17h16a1 1 0 0 0 .74-1.673C19.41 13.956 18 12.499 18 8a6 6 0 0 0-12 0c0 4.499-1.411 5.956-2.738 7.326"/></svg>
-            <span id="notifications-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
-        </button>
-        <button type="button" id="support-chat-btn" class="support-chat-floating" title="<?php echo my_htmlspecialchars($translations['support_chat'] ?? 'Support Chat'); ?>" style="position:fixed;top:10px;right:16px;z-index:9999;width:40px;height:40px;border-radius:50%;background:linear-gradient(135deg,color-mix(in srgb,<?php echo $config['color']; ?> 28%,transparent) 0%,color-mix(in srgb,<?php echo $config['color']; ?> 14%,transparent) 100%);color:<?php echo $config['color']; ?>;border:1px solid color-mix(in srgb,<?php echo $config['color']; ?> 35%,transparent);box-shadow:0 2px 10px color-mix(in srgb,<?php echo $config['color']; ?> 22%,transparent);cursor:pointer;display:flex;align-items:center;justify-content:center;">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.992 16.342a2 2 0 0 1 .094 1.167l-1.065 3.29a1 1 0 0 0 1.236 1.168l3.413-.998a2 2 0 0 1 1.099.092 10 10 0 1 0-4.777-4.719"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></svg>
-            <span id="chat-unread-badge" style="display:none;position:absolute;top:-4px;right:-4px;background:#ef4444;color:white;border-radius:12px;padding:2px 6px;font-size:11px;font-weight:700;min-width:18px;text-align:center;box-shadow:0 2px 8px rgba(239,68,68,0.5);"></span>
-        </button>
-        <?php endif; ?>
+    <?php if($path==='/main'): ?>
+    <div id="shell-home" class="shell-home"<?php echo $showAppFrame ? ' hidden' : ''; ?>>
         <div id="app-grid">
                         <?php $mostPopularKey=''; $maxVisits=-1; foreach($apps as $n=>$d){if($d['visits']>$maxVisits){$maxVisits=$d['visits'];$mostPopularKey=$n;}} foreach($apps as $name=>$appData): $_ga=mt_rand(110,165);$_ghx=mt_rand(18,40);$_ghy=mt_rand(14,34);$_gl=mt_rand(24,44);$_gf=mt_rand(46,66);$_gs=mt_rand(48,66);$_gm=mt_rand(38,62);$_ge=mt_rand(50,74); ?>
                 <a href="<?php echo my_htmlspecialchars($appData['href']); ?>" target="<?php echo my_htmlspecialchars($appData['target']); ?>" rel="noopener" class="app-tile-link" data-app-desc="<?php echo my_htmlspecialchars($appData['description'] ?? ''); ?>"><div class="app-tile" style="position: relative; overflow: visible;"><?php if ($name === $mostPopularKey): ?><div class="app-popular-badge" aria-label="Popular"><svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#ff3b30" stroke="#fff" stroke-width="0.6" d="M12 2.5l2.47 5.01 5.53.8-4 3.9.94 5.5L12 15.9l-4.94 2.81.94-5.5-4-3.9 5.53-.8L12 2.5z"/></svg></div><?php endif; ?><div class="app-icon-wrap"><?php if(!empty($appData['icon_masked']) && !empty($appData['is_svg'])): ?><span class="app-icon-svg" style="--icon-src:url('<?php echo my_htmlspecialchars($appData['icon']); ?>');--g-angle:<?php echo $_ga; ?>deg;--g-hx:<?php echo $_ghx; ?>%;--g-hy:<?php echo $_ghy; ?>%;--g-light:<?php echo $_gl; ?>%;--g-fade:<?php echo $_gf; ?>%;--g-start:<?php echo $_gs; ?>%;--g-mid:<?php echo $_gm; ?>%;--g-end:<?php echo $_ge; ?>%;" aria-label="<?php echo my_htmlspecialchars($name); ?>" role="img"></span><?php elseif(($appData['icon_style']??'')==='animated' && !empty($appData['is_svg'])): ?><object class="app-icon" type="image/svg+xml" data="<?php echo my_htmlspecialchars($appData['icon']); ?>" aria-label="<?php echo my_htmlspecialchars($name); ?>"></object><?php else: ?><img src="<?php echo my_htmlspecialchars($appData['icon']); ?>" alt="<?php echo my_htmlspecialchars($name); ?>" class="app-icon"><?php endif; ?></div><div class="app-name"><?php echo my_htmlspecialchars($name); ?></div></div></a>
             <?php endforeach; ?>
         </div>
-    <?php endif;?>
+    </div>
+    <div id="shell-app-frame" class="shell-app-frame"<?php echo $showAppFrame ? '' : ' hidden'; ?>>
+        <?php $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink; ?>
+        <div id="app-icon-rail"<?php echo $showAppRail ? '' : ' class="hidden" style="display:none"'; ?>>
+            <div class="app-rail-scroll">
+            <a href="/main" class="app-rail-link app-rail-home shell-home-link" title="<?php echo my_htmlspecialchars($translations['home_tooltip'] ?? $translations['home'] ?? 'Home'); ?>"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+            <span class="app-rail-service-name"><?php echo $showAppFrame ? my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)) : ''; ?></span>
+            </div>
+        </div>
+        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="<?php echo $showAppFrame ? 'apps/'.urlencode($selectedApp).'/'.($selectedApp === 'lopaka' ? '' : 'index.php').'?lang='.urlencode($language).'&theme='.urlencode($appIframeTheme).'&color='.urlencode($config['color']).($userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):'') : 'about:blank'; ?>"></iframe>
+    </div>
+    <?php endif; ?>
 </div>
 <?php $wpCatalog = ap_wallpaper_catalog(); ?>
 <div id="wallpaper-modal">
@@ -4887,7 +4937,10 @@ var T=<?php echo json_encode([
                     const win=iframe.contentWindow;
                     const iframeRect=iframe.getBoundingClientRect();
                     const menuRect=menuButton.getBoundingClientRect();
-                    bodyLocked=doc.body.classList.contains('modal-open');
+                    bodyLocked=doc.body.classList.contains('modal-open')||(
+                        doc.body.classList.contains('sp-share-open')&&
+                        (!doc.body.classList.contains('sp-share-app-cloud')||win.innerWidth<=768)
+                    );
                     hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
                         if(!isVisibleLayer(el,win))return false;
                         if(el.closest('.drawer,.drawer-overlay,[class*="Drawer"],[class*="drawer"]'))return false;
@@ -4919,8 +4972,41 @@ var T=<?php echo json_encode([
             }
             iframe.addEventListener('load',attach);
             attach();
+            document.addEventListener('visibilitychange',function(){ if(!document.hidden) scheduleSync(); });
+            window.addEventListener('focus',scheduleSync);
         }
         bindAppModalMenuLayer();
+        (function guardShellChrome(){
+            const settingsModal=document.getElementById('settings-modal');
+            function clearStuckModalChrome(){
+                if(document.body.classList.contains('app-modal-open')){
+                    const iframe=document.getElementById('app-iframe');
+                    let stillOpen=false;
+                    try{
+                        if(iframe&&iframe.contentDocument){
+                            const doc=iframe.contentDocument;
+                            stillOpen=!!doc.querySelector('dialog[open],[aria-modal="true"].is-open,.modal.open,.modal.is-open,.overlay.open');
+                        }
+                    }catch(e){}
+                    if(!stillOpen && !(settingsModal && settingsModal.style.display==='flex')){
+                        document.body.classList.remove('app-modal-open');
+                    }
+                }
+                const topBar=document.getElementById('top-bar');
+                if(topBar && !document.body.classList.contains('shell-app-open')){
+                    topBar.hidden=false;
+                    topBar.style.removeProperty('display');
+                }
+            }
+            if(settingsModal){
+                const mo=new MutationObserver(clearStuckModalChrome);
+                mo.observe(settingsModal,{attributes:true,attributeFilter:['style','class']});
+                settingsModal.addEventListener('click',function(e){ if(e.target===settingsModal) setTimeout(clearStuckModalChrome,0); });
+            }
+            const closeSettings=document.getElementById('close-settings');
+            if(closeSettings) closeSettings.addEventListener('click',function(){ setTimeout(clearStuckModalChrome,0); });
+            document.addEventListener('keydown',function(e){ if(e.key==='Escape') setTimeout(clearStuckModalChrome,0); });
+        })();
         const settingsButton=document.getElementById('settings-button');
         const settingsModal=document.getElementById('settings-modal');
         const searchBar=document.getElementById('search-bar');
@@ -4940,20 +5026,45 @@ var T=<?php echo json_encode([
             var emailInput=loginContent.querySelector('input[name="email"]');
             var rememberLabel=loginContent.querySelector('label.checkbox-label');
             if(!emailInput||!rememberLabel)return;
+            function rememberChecked(){
+                var cb=rememberLabel.querySelector('input[name="remember_me"]');
+                if(!cb)return false;
+                if(emailInput.value.trim().toLowerCase()==='root@root')return false;
+                return !!cb.checked && cb.value==='1';
+            }
             function syncRememberMe(){
                 if(emailInput.value.trim().toLowerCase()==='root@root'){
                     rememberLabel.classList.add('remember-hidden');
                     var cb=rememberLabel.querySelector('input[name="remember_me"]');
-                    if(cb)cb.value='';
+                    if(cb){cb.value='';cb.checked=false;}
                 }else{
                     rememberLabel.classList.remove('remember-hidden');
                     var cb2=rememberLabel.querySelector('input[name="remember_me"]');
                     if(cb2)cb2.value='1';
                 }
             }
+            function syncOAuthRememberLinks(){
+                var want=rememberChecked();
+                loginContent.querySelectorAll('a.oauth-provider-btn[href*="/login/oauth/start"]').forEach(function(a){
+                    try{
+                        var url=new URL(a.getAttribute('href'), window.location.origin);
+                        if(url.searchParams.get('mode') && url.searchParams.get('mode')!=='login')return;
+                        if(want)url.searchParams.set('remember_me','1');
+                        else url.searchParams.delete('remember_me');
+                        a.setAttribute('href', url.pathname + url.search + url.hash);
+                    }catch(e){}
+                });
+            }
             emailInput.addEventListener('input',syncRememberMe);
             emailInput.addEventListener('change',syncRememberMe);
+            rememberLabel.addEventListener('change',syncOAuthRememberLinks);
+            loginContent.addEventListener('click',function(e){
+                var a=e.target&&e.target.closest?e.target.closest('a.oauth-provider-btn'):null;
+                if(!a||!loginContent.contains(a))return;
+                syncOAuthRememberLinks();
+            },true);
             syncRememberMe();
+            syncOAuthRememberLinks();
         })();
         const showForgotLink=document.getElementById('show-forgot');
         const qrButton=document.getElementById('qr-button');
@@ -4999,7 +5110,7 @@ var T=<?php echo json_encode([
 
         let currentStatsData = <?php echo json_encode($visitStats, JSON_HEX_TAG); ?>;
         let currentFilteredFileIds = [];
-        const isHomeDashboard = <?php echo $isHomeDashboard ? 'true' : 'false'; ?>;
+        const isHomeDashboard = <?php echo $isHomeDashboard ? 'true' : 'false'; ?> || !!(window.__SHELL_ON_HOME);
         const isAdminUser = <?php echo $isAdmin ? 'true' : 'false'; ?>;
         const appGrid=document.getElementById('app-grid');
         const searchContainer=document.querySelector('.search-container');
@@ -5841,11 +5952,135 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         function loadSharedFilesList(){
             const refreshButton=document.getElementById('refresh-shared-files');
             if(refreshButton){ refreshButton.disabled=true; refreshButton.style.opacity='0.6'; }
-            const fd=new FormData(); fd.append('get_shared_files','1'); fd.append('ajax','1');
+            const fd=new FormData(); fd.append('get_sharepoint_links','1'); fd.append('ajax','1');
             fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-                if(d.success) renderSharedFilesTable(d.files||{});
+                if(d.success) renderSharepointLinks(d.shares||[]);
+                else showTempNotification(d.error||'Error','error');
                 if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; }
             }).catch(function(){ if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; } });
+        }
+
+        const SHARED_APP_META = {
+            cloud: { icon: '☁', label: 'Cloud' },
+            recipes: { icon: '🍲', label: 'Recipes' },
+            spends: { icon: '📊', label: 'Spends' },
+            steps: { icon: '👟', label: 'Steps' },
+            films: { icon: '🎬', label: 'Films' },
+            smart_home: { icon: '🏠', label: 'Smart Home' }
+        };
+        let sharedLinkRows = [];
+
+        // SharePoint returns ISO-like timestamps; formatDate() expects seconds.
+        function shareTimestamp(value){
+            if(!value) return 0;
+            // PostgreSQL may return "2026-10-19 20:34:38.280345+00"; browsers
+            // need the timezone offset in +HH:MM form.
+            const normalized = String(value).trim().replace(' ','T').replace(/([+-]\d{2})$/, '$1:00');
+            const parsed = new Date(normalized).getTime();
+            return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
+        }
+
+        function shareStatusMeta(status){
+            if (status === 'revoked') return { label: 'Revoked', cls: 'is-revoked' };
+            if (status === 'expired') return { label: 'Expired', cls: 'is-expired' };
+            return { label: 'Active', cls: 'is-active' };
+        }
+
+        function renderSharepointLinks(shares){
+            const container = document.getElementById('shared-files-list-container');
+            if(!container) return;
+            sharedLinkRows = Array.isArray(shares) ? shares : [];
+            const groupBy = (document.getElementById('shared-files-group')||{}).value || 'app';
+            const sortBy = (document.getElementById('shared-files-sort')||{}).value || 'created_desc';
+            if(sharedLinkRows.length === 0){
+                container.innerHTML = '<div class="share-links-empty"><span>🔗</span><p>' + <?php echo json_encode(my_htmlspecialchars($translations['no_shared_files'])); ?> + '</p></div>';
+                return;
+            }
+            const rows = sharedLinkRows.slice().sort(function(a,b){
+                if (sortBy === 'name_asc') return String(a.title||'').localeCompare(String(b.title||''));
+                return String(b.created_at||'').localeCompare(String(a.created_at||''));
+            });
+            const groups = [];
+            const index = {};
+            rows.forEach(function(item){
+                const key = groupBy === 'app' ? (item.resource_app || 'cloud')
+                    : groupBy === 'user' ? (item.owner_email || '') : 'all';
+                if (!index[key]) { index[key] = { key: key, items: [] }; groups.push(index[key]); }
+                index[key].items.push(item);
+            });
+            container.innerHTML = groups.map(function(group){
+                const meta = SHARED_APP_META[group.key] || { icon: '🔗', label: group.key };
+                const heading = groupBy === 'all' ? 'All shared links'
+                    : groupBy === 'user' ? (group.key || 'Unknown user')
+                    : meta.icon + ' ' + meta.label;
+                const body = group.items.map(function(item){
+                    const appMeta = SHARED_APP_META[item.resource_app] || { icon: '🔗', label: item.resource_app };
+                    const status = shareStatusMeta(item.status);
+                    const expires = item.expires_at ? formatDate(shareTimestamp(item.expires_at)) : SHARE_EXPIRY_NEVER_TEXT;
+                    const created = formatDate(shareTimestamp(item.created_at));
+                    return '<article class="share-link-row" data-title="' + sharedFileText(item.title||'') + '" data-app="' + sharedFileText(item.resource_app||'') + '" data-owner="' + sharedFileText(item.owner_email||'') + '">' +
+                        '<div class="share-link-row__main">' +
+                            '<span class="share-link-row__app" aria-hidden="true">' + appMeta.icon + '</span>' +
+                            '<div class="share-link-row__text">' +
+                                '<a class="share-link-row__title" href="' + sharedFileText(item.link||'') + '" target="_blank" rel="noopener">' + sharedFileText(item.title || '(untitled)') + '</a>' +
+                                '<div class="share-link-row__meta"><span class="share-link-chip">' + sharedFileText(item.entity_label || item.resource_type) + '</span><span>' + sharedFileText(item.owner_email) + '</span><span>' + created + '</span><span>' + (item.expires_at ? 'until ' + expires : 'never expires') + '</span></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="share-link-row__side">' +
+                            '<span class="share-status ' + status.cls + '">' + status.label + '</span>' +
+                            '<div class="share-link-row__actions">' +
+                                '<button type="button" class="share-icon-btn" data-link-copy="' + sharedFileText(item.link||'') + '" title="Copy link">⧉</button>' +
+                                (item.status === 'active' ? '<button type="button" class="share-icon-btn" data-link-act="revoke" data-id="' + item.id + '" title="Revoke">⛔</button>' : '') +
+                                '<button type="button" class="share-icon-btn is-danger" data-link-act="delete" data-id="' + item.id + '" title="Delete">🗑</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</article>';
+                }).join('');
+                return '<section class="share-links-group"><header class="share-links-group__head"><h3>' + sharedFileText(heading) + '</h3><span>' + group.items.length + '</span></header>' + body + '</section>';
+            }).join('');
+            bindSharepointLinkEvents();
+        }
+
+        function bindSharepointLinkEvents(){
+            const container = document.getElementById('shared-files-list-container');
+            if(!container) return;
+            container.querySelectorAll('[data-link-copy]').forEach(function(button){
+                button.addEventListener('click', function(){
+                    const link = this.dataset.linkCopy;
+                    const done = function(){ showTempNotification('Link copied','success'); };
+                    if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(link).then(done).catch(function(){ showTempNotification('Copy failed','error'); });
+                    else { const input=document.createElement('textarea'); input.value=link; document.body.appendChild(input); input.select(); try{document.execCommand('copy');done();}catch(e){} input.remove(); }
+                });
+            });
+            container.querySelectorAll('[data-link-act]').forEach(function(button){
+                button.addEventListener('click', function(){
+                    const op = this.dataset.linkAct;
+                    const id = Number(this.dataset.id);
+                    if(!id) return;
+                    const ask = op === 'delete' ? 'Delete this shared link permanently?' : 'Revoke this shared link?';
+                    sfConfirm(ask, function(){
+                        const fd = new FormData();
+                        fd.append('sharepoint_action','1'); fd.append('ajax','1'); fd.append('op',op); fd.append('ids',JSON.stringify([id]));
+                        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+                            if(d.success){ showTempNotification(op === 'delete' ? 'Deleted' : 'Revoked','success'); loadSharedFilesList(); }
+                            else showTempNotification(d.error||'Error','error');
+                        }).catch(function(){ showTempNotification('Error','error'); });
+                    });
+                });
+            });
+            const src = document.getElementById('shared-files-search');
+            if(src){
+                const handler = function(){
+                    const q = src.value.toLowerCase();
+                    container.querySelectorAll('.share-link-row').forEach(function(row){
+                        const hay = (row.dataset.title + ' ' + row.dataset.app + ' ' + row.dataset.owner).toLowerCase();
+                        row.style.display = hay.indexOf(q) !== -1 ? '' : 'none';
+                    });
+                };
+                src.removeEventListener('input', src._sfHandler);
+                src._sfHandler = handler;
+                src.addEventListener('input', handler);
+            }
         }
 
         /* sfConfirm — modal instead of alert/confirm */
@@ -7089,7 +7324,9 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 window.openMcpSetupModal();
                 return;
             }
-            if(!isHomeDashboard) return;
+            if(document.body.classList.contains('shell-app-open')) return;
+            var shellHome=document.getElementById('shell-home');
+            if(!(isHomeDashboard || document.body.classList.contains('shell-home') || (shellHome && !shellHome.hidden))) return;
             if(code === 'ArrowLeft' || code === 'ArrowRight' || code === 'ArrowUp' || code === 'ArrowDown'){
                 e.preventDefault();
                 const directionMap = {

@@ -425,7 +425,7 @@
             const src = el.dataset.audioSrc;
             if (!src || typeof CustomAudioPlayer !== 'function') return;
             try {
-                const player = new CustomAudioPlayer(el, src, { showVolume: false, variant: 'voice', barCount: 64 });
+                const player = new CustomAudioPlayer(el, src, { showVolume: false, variant: 'voice', barCount: 64, title: el.dataset.audioTitle || '' });
                 el.dataset.audioBound = '1';
                 state.audioPlayers.push(player);
             } catch (_) {}
@@ -491,7 +491,8 @@
                 } else if (msg.media_url && msg.media_type === 'video') {
                     body += '<div class="group-chat-media group-chat-media--video"><button type="button" class="group-chat-video-thumb" data-url="' + escAttr(msg.media_url) + '" aria-label="Play video"><video class="group-chat-media-preview" muted playsinline preload="metadata" src="' + escAttr(msg.media_url) + '#t=0.1"></video><span class="group-chat-media-play" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></button></div>';
                 } else if (msg.media_url && msg.media_type === 'audio') {
-                    body += '<div class="group-chat-media group-chat-media--audio" data-audio-src="' + escAttr(msg.media_url) + '"></div>';
+                    const voiceTitle = String(msg.sender_email || '').split('@')[0] || '';
+                    body += '<div class="group-chat-media group-chat-media--audio" data-audio-src="' + escAttr(msg.media_url) + '" data-audio-title="' + escAttr(voiceTitle) + '"></div>';
                 } else if (msg.media_url && msg.media_type === 'text') {
                     body += '<a class="group-chat-text-file" href="' + escAttr(msg.media_url) + '" target="_blank" rel="noopener">' + esc(msg.media_file || 'file') + '</a>';
                 }

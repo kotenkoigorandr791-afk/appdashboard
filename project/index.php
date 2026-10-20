@@ -8,6 +8,15 @@ if (getcwd() !== APP_ROOT) {
     chdir(APP_ROOT);
 }
 
+// Universal SharePoint routes: /s/{token}[/unlock|content|download|actions].
+// Dispatched before any shell bootstrap so public links never hit the auth
+// guards that live in routes.php.
+$__sharePath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+require_once APP_ROOT . '/project/sharepoint/dispatch.php';
+if (sharepoint_dispatch_path((string)$__sharePath)) {
+    exit;
+}
+
 // Handle sharedFile parameter (lightweight entry for public shared-file links).
 // Load the same bootstrap chain as the normal flow so routes.php has access
 // to db.php helpers (parseTrustedDeviceHintCookie, getConfig, ...), the session,
@@ -88,7 +97,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             exit;
         }
     }
-    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/onboarding/') || str_starts_with($__pathLower, '/project/icon')) {
+    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/sharepoint/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/onboarding/') || str_starts_with($__pathLower, '/project/icon')) {
         $__relative = ltrim(rawurldecode($__path), '/');
         if (str_starts_with($__pathLower, '/home/')) {
             $__relative = 'project/' . $__relative;

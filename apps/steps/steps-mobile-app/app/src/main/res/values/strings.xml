@@ -144,6 +144,7 @@
     <string name="err_permissions_required">Permissions required for sync.</string>
     <string name="manual_sync_progress">Syncing data from %1$s to %2$s...</string>
     <string name="manual_sync_no_data">No new data to sync</string>
+    <string name="manual_sync_in_progress">A sync is already running, please wait</string>
     <string name="manual_sync_no_matching_data">No data matched the StepMonitor service filters</string>
     <string name="manual_sync_success_empty">Sync completed successfully</string>
     <string name="manual_sync_success_items">Synced %1$s</string>
