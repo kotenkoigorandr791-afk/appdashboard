@@ -349,7 +349,7 @@
   "enableCaptions": "Enable captions",
   "encryptArchive": "Encrypt archive",
   "encryptedFolderWarningText": "The <strong>Documents</strong> folder uses encryption to protect your files. Files stored here are encrypted on the server and can only be accessed by you. Please note: if you lose access to your account, files in this folder cannot be recovered.",
-  "english": "ENG",
+  "english": "off",
   "enterFileName": "File name:",
   "enterFolderName": "Folder name:",
   "enterFullscreen": "Enter fullscreen",

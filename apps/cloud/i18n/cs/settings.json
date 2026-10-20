@@ -1,7 +1,7 @@
 {
     "apiEndpoint": "API koncový bod",
     "colorType": "Typ barvy",
-    "english": "ENG",
+    "english": "off",
     "hideLanguageSwitcherOnMainPage": "Skrýt přepínač jazyků na hlavní stránce",
     "quota": "Kvóta",
     "quotaUpdated": "Kvóta byla úspěšně aktualizována",

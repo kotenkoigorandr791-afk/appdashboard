@@ -1,7 +1,7 @@
 {
     "apiEndpoint": "API Endpoint",
     "colorType": "Color Type",
-    "english": "ENG",
+    "english": "off",
     "hideLanguageSwitcherOnMainPage": "Hide language switcher on main page",
     "quota": "Quota",
     "quotaUpdated": "Quota updated successfully",

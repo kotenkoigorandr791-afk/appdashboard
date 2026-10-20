@@ -1,7 +1,7 @@
 {
     "apiEndpoint": "API Endpoint",
     "colorType": "Тип кольору",
-    "english": "АНГЛ",
+    "english": "off",
     "hideLanguageSwitcherOnMainPage": "Приховати перемикач мов на головній сторінці",
     "quota": "Призначено",
     "quotaUpdated": "Квота успішно оновлена",

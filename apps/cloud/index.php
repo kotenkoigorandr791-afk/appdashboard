@@ -227,14 +227,15 @@ cloud_require_session_auth();
 
 
 
+<script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=47"></script>
+<script defer src="assets/app.js?v=48"></script>
 <script defer src="assets/app/editors-and-tree.js?v=15"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
 <script defer src="assets/app/file-viewers.js?v=4"></script>
-<script defer src="assets/app/file-actions.js?v=12"></script>
+<script defer src="assets/app/file-actions.js?v=13"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=9"></script>
 <script defer src="assets/audio-player.js?v=4"></script>
@@ -247,7 +248,7 @@ cloud_require_session_auth();
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
-<script defer src="assets/ai-assistant.js?v=42"></script>
+<script defer src="assets/ai-assistant.js?v=43"></script>
 <script defer src="assets/monaco-shared.js?v=3"></script>
 <script defer src="assets/monaco-editor.js?v=21"></script>
 

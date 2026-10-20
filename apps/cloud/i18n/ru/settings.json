@@ -1,7 +1,7 @@
 {
     "apiEndpoint": "API Endpoint",
     "colorType": "Тип цвета",
-    "english": "АНГЛ",
+    "english": "off",
     "hideLanguageSwitcherOnMainPage": "Скрыть переключатель языков на мобильных устройствах",
     "quota": "Выделено",
     "quotaUpdated": "Квота успешно обновлена",

@@ -63,7 +63,9 @@
     // ',' is the key that types б, '.' types ю, '/' types '.' and '?' (Shift+/) types
     // ',' - exactly like the real layout. Characters that arrive already as Cyrillic
     // (a real Russian/Ukrainian layout) are passed through untouched.
-    const TRANSLIT_TABLES = {
+    const TRANSLIT_TABLES = (typeof window !== 'undefined' && window.CloudTransliteration && window.CloudTransliteration.TABLES)
+        ? window.CloudTransliteration.TABLES
+        : {
         ru: {
             '`': 'ё', '~': 'Ё',
             'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з',

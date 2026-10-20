@@ -1,7 +1,7 @@
 {
     "apiEndpoint": "Punkt końcowy API",
     "colorType": "Typ koloru",
-    "english": "ANG",
+    "english": "off",
     "hideLanguageSwitcherOnMainPage": "Ukryj przełącznik języków na stronie głównej",
     "quota": "Limit",
     "quotaUpdated": "Limit został pomyślnie zaktualizowany",
