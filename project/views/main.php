@@ -4988,20 +4988,45 @@ var T=<?php echo json_encode([
             var emailInput=loginContent.querySelector('input[name="email"]');
             var rememberLabel=loginContent.querySelector('label.checkbox-label');
             if(!emailInput||!rememberLabel)return;
+            function rememberChecked(){
+                var cb=rememberLabel.querySelector('input[name="remember_me"]');
+                if(!cb)return false;
+                if(emailInput.value.trim().toLowerCase()==='root@root')return false;
+                return !!cb.checked && cb.value==='1';
+            }
             function syncRememberMe(){
                 if(emailInput.value.trim().toLowerCase()==='root@root'){
                     rememberLabel.classList.add('remember-hidden');
                     var cb=rememberLabel.querySelector('input[name="remember_me"]');
-                    if(cb)cb.value='';
+                    if(cb){cb.value='';cb.checked=false;}
                 }else{
                     rememberLabel.classList.remove('remember-hidden');
                     var cb2=rememberLabel.querySelector('input[name="remember_me"]');
                     if(cb2)cb2.value='1';
                 }
             }
+            function syncOAuthRememberLinks(){
+                var want=rememberChecked();
+                loginContent.querySelectorAll('a.oauth-provider-btn[href*="/login/oauth/start"]').forEach(function(a){
+                    try{
+                        var url=new URL(a.getAttribute('href'), window.location.origin);
+                        if(url.searchParams.get('mode') && url.searchParams.get('mode')!=='login')return;
+                        if(want)url.searchParams.set('remember_me','1');
+                        else url.searchParams.delete('remember_me');
+                        a.setAttribute('href', url.pathname + url.search + url.hash);
+                    }catch(e){}
+                });
+            }
             emailInput.addEventListener('input',syncRememberMe);
             emailInput.addEventListener('change',syncRememberMe);
+            rememberLabel.addEventListener('change',syncOAuthRememberLinks);
+            loginContent.addEventListener('click',function(e){
+                var a=e.target&&e.target.closest?e.target.closest('a.oauth-provider-btn'):null;
+                if(!a||!loginContent.contains(a))return;
+                syncOAuthRememberLinks();
+            },true);
             syncRememberMe();
+            syncOAuthRememberLinks();
         })();
         const showForgotLink=document.getElementById('show-forgot');
         const qrButton=document.getElementById('qr-button');

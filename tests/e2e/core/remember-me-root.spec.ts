@@ -51,6 +51,29 @@ test.describe('remember-me hidden for root@root on login', () => {
     await expect(page.locator('#login-content input[name="remember_me"]')).toHaveValue('');
   });
 
+
+  test('oauth start link carries remember_me when checkbox is checked', async ({ page }) => {
+    await page.goto('/login?lang=en', { waitUntil: 'domcontentloaded' });
+    await autoAcceptCookies(page);
+    const email = page.locator('#login-content input[name="email"]');
+    await email.fill(OTHER_EMAIL);
+    const checkbox = page.locator('#login-content input[name="remember_me"]');
+    await expect(checkbox).toHaveValue('1');
+    const oauthLink = page.locator('#login-content a.oauth-provider-btn').first();
+    if (await oauthLink.count() === 0) {
+      test.skip(true, 'OAuth provider buttons not configured');
+      return;
+    }
+    // Native input is display:none; toggle via the visible label.
+    const label = page.locator('#login-content label.checkbox-label');
+    await label.click();
+    await expect(checkbox).toBeChecked();
+    await expect(oauthLink).toHaveAttribute('href', /remember_me=1/);
+    await label.click();
+    await expect(checkbox).not.toBeChecked();
+    await expect(oauthLink).not.toHaveAttribute('href', /remember_me=1/);
+  });
+
   test('root password login with remember_me still works but sets no trusted-device cookie', async ({ page }) => {
     await page.goto('/login?lang=en', { waitUntil: 'domcontentloaded' });
     await autoAcceptCookies(page);

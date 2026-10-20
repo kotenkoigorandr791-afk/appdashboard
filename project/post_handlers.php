@@ -349,7 +349,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 resetFailedAttempts(getClientIp(),'login');
                 clearTrustedDeviceLogoutSuppression();
                 adminEstablishSession($email, $users[$email]);
-                scheduleTrustedDevicePromptIfNeeded($email);
+                $rememberOAuth = !empty($_SESSION['oauth_remember_me']);
+                unset($_SESSION['oauth_remember_me']);
+                if ($rememberOAuth && $email !== 'root@root') {
+                    rememberCurrentTrustedDevice($email, getClientIp());
+                } else {
+                    scheduleTrustedDevicePromptIfNeeded($email);
+                }
                 header('Location: '.takePostLoginRedirect('/main'));
                 exit;
                 }
@@ -1269,7 +1275,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 <div id="ap-topbar">
     <div class="ap-brand">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/></svg>
-        <?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?>
+        <span class="ap-brand-title"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?></span>
     </div>
     <div class="ap-user-info">
         <img src="<?php echo my_htmlspecialchars(app_avatar_src($_SESSION['user']['photo'] ?? 'default_avatar.png'), ENT_QUOTES, 'UTF-8'); ?>" alt="avatar" style="width:32px;height:32px;border-radius:50%;border:2px solid var(--border-color);object-fit:cover;">

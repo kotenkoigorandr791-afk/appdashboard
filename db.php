@@ -1790,6 +1790,9 @@ function applyTrustedDeviceSessionRestore(array $restore): void {
     setTrustedDeviceHintCookie($email, getDeviceFingerprint());
     if (!empty($restore['legacy_cookie'])) clearTrustedDeviceCookie();
     clearTrustedDeviceLogoutSuppression();
+    if (function_exists('app_session_refresh_cookie')) {
+        app_session_refresh_cookie(365 * 24 * 3600);
+    }
 }
 
 function ensureAuthenticatedSession(): bool {
@@ -3338,15 +3341,33 @@ function setUserTrustedDevices(string $email, array $devices): void {
 }
 
 function isTrustedDevice(string $email, string $fingerprint): bool {
-    if ($fingerprint === '') return false;
+    if ($email === '' || $fingerprint === '') return false;
     if ($redis = app_redis()) {
-        return (bool)$redis->exists(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+        if ($redis->exists(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint))) {
+            return true;
+        }
+        // Redis miss: fall through to durable DB copy (Redis may have been flushed).
     }
     $db = getDB();
+    ensureTrustedDevicesSchema($db);
     $stmt = $db->prepare("SELECT 1 FROM trusted_devices WHERE email = :e AND fingerprint = :f LIMIT 1");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
-    return (bool)$stmt->execute()->fetch(PDO::FETCH_NUM);
+    $found = (bool)$stmt->execute()->fetch(PDO::FETCH_NUM);
+    if ($found && ($redis = app_redis())) {
+        // Re-hydrate Redis from DB so subsequent checks stay fast.
+        $rowStmt = $db->prepare("SELECT * FROM trusted_devices WHERE email = :e AND fingerprint = :f LIMIT 1");
+        $rowStmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $rowStmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+        $row = $rowStmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if (is_array($row)) {
+            try {
+                $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+            } catch (Throwable $e) {}
+        }
+    }
+    return $found;
 }
 
 function trustedDeviceExistsForHint(string $email, string $fingerprint): bool {
@@ -3384,27 +3405,14 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     $deviceToken = bin2hex(random_bytes(32));
     $encryptedToken = encryptTrustedDeviceToken($deviceToken);
     $ipLocation = sessionLookupIpLocation($ip);
-    if ($redis = app_redis()) {
-        $now = time();
-        if ($fingerprint === '') $fingerprint = hash('sha256', $email . '|' . $ip . '|' . ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' . $now);
-        $row = [
-            'email' => $email,
-            'fingerprint' => $fingerprint,
-            'ip' => $ip,
-            'ip_location' => $ipLocation,
-            'device_name' => $deviceName,
-            'device_token_hash' => hash('sha256', $encryptedToken),
-            'device_token' => $encryptedToken,
-            'added_at' => $now,
-            'last_seen' => $now,
-        ];
-        $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
-        return ['token' => $deviceToken, 'encrypted_token' => $encryptedToken];
+    $now = time();
+    if ($fingerprint === '') {
+        $fingerprint = hash('sha256', $email . '|' . $ip . '|' . ($_SERVER['HTTP_USER_AGENT'] ?? '') . '|' . $now);
     }
+    $tokenHash = hash('sha256', $encryptedToken);
+    // Always persist to PostgreSQL so Redis flushes / restarts do not erase trust.
     $db = getDB();
     ensureTrustedDevicesSchema($db);
-    $now = time();
     $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen)
         VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen)
         ON CONFLICT(email, fingerprint) DO UPDATE SET
@@ -3418,14 +3426,34 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     $stmt->bindValue(':ip', $ip, PDO::PARAM_STR);
     $stmt->bindValue(':ip_location', $ipLocation, PDO::PARAM_STR);
     $stmt->bindValue(':device_name', $deviceName, PDO::PARAM_STR);
-    $stmt->bindValue(':device_token_hash', hash('sha256', $encryptedToken), PDO::PARAM_STR);
+    $stmt->bindValue(':device_token_hash', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':added_at', $now, PDO::PARAM_INT);
     $stmt->bindValue(':last_seen', $now, PDO::PARAM_INT);
     $stmt->execute();
+    if ($redis = app_redis()) {
+        $row = [
+            'email' => $email,
+            'fingerprint' => $fingerprint,
+            'ip' => $ip,
+            'ip_location' => $ipLocation,
+            'device_name' => $deviceName,
+            'device_token_hash' => $tokenHash,
+            'device_token' => $encryptedToken,
+            'added_at' => $now,
+            'last_seen' => $now,
+        ];
+        try {
+            $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+        } catch (Throwable $e) {}
+    }
     return ['token' => $deviceToken, 'encrypted_token' => $encryptedToken];
 }
 
 function rememberCurrentTrustedDevice(string $email, string $ip, string $deviceName = ''): array {
+    // Stable per-browser id must exist before fingerprinting, otherwise trust
+    // is bound to a legacy UA hash that changes across browsers/OS updates.
+    ensureTrustedBrowserDeviceIdCookie();
     $fp = getDeviceFingerprint();
     if ($deviceName === '') {
         $session = getUserFromActiveSessions(session_id());
@@ -3441,6 +3469,9 @@ function rememberCurrentTrustedDevice(string $email, string $ip, string $deviceN
     setTrustedDeviceHintCookie($email, $fp);
     if (isset($_SESSION['user']['email']) && (string)$_SESSION['user']['email'] === $email) {
         addUserToActiveSessions($email, session_id(), $_SESSION['user']);
+    }
+    if (function_exists('app_session_refresh_cookie')) {
+        app_session_refresh_cookie(365 * 24 * 3600);
     }
     return $tokenData + ['device_name' => $deviceName, 'fingerprint' => $fp];
 }
@@ -3529,25 +3560,13 @@ function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
     $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_trusted_device_cookies_email_fp ON trusted_device_cookies(email, fingerprint)");
 }
 function createTrustedDeviceCookie(string $email, string $fingerprint, string $deviceName = ''): string {
-    if ($redis = app_redis()) {
-        $rawCookie = bin2hex(random_bytes(32));
-        $cookieHash = hash('sha256', $rawCookie);
-        $now = time();
-        $expiresAt = $now + (365 * 24 * 3600);
-        $row = ['cookie_hash' => $cookieHash, 'email' => $email, 'ip' => getClientIp(), 'fingerprint' => $fingerprint, 'device_name' => $deviceName, 'created_at' => $now, 'last_used_at' => $now, 'expires_at' => $expiresAt];
-        $oldHash = (string)$redis->get(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint));
-        if ($oldHash !== '') $redis->del(app_redis_key('trusted_cookie:' . $oldHash));
-        $redis->setex(app_redis_key('trusted_cookie:' . $cookieHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $cookieHash);
-        return $rawCookie;
-    }
-    $db = getDB();
-    ensureTrustedDeviceCookiesSchema($db);
     $rawCookie = bin2hex(random_bytes(32));
     $cookieHash = hash('sha256', $rawCookie);
     $now = time();
     $expiresAt = $now + (365 * 24 * 3600);
     $ip = getClientIp();
+    $db = getDB();
+    ensureTrustedDeviceCookiesSchema($db);
     $stmt = $db->prepare("INSERT INTO trusted_device_cookies(cookie_hash,email,ip,fingerprint,device_name,created_at,last_used_at,expires_at)
         VALUES(:h,:e,:i,:f,:n,:c,:u,:x)
         ON CONFLICT(email, fingerprint) DO UPDATE SET
@@ -3565,6 +3584,15 @@ function createTrustedDeviceCookie(string $email, string $fingerprint, string $d
     $stmt->bindValue(':u', $now, PDO::PARAM_INT);
     $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);
     $stmt->execute();
+    if ($redis = app_redis()) {
+        $row = ['cookie_hash' => $cookieHash, 'email' => $email, 'ip' => $ip, 'fingerprint' => $fingerprint, 'device_name' => $deviceName, 'created_at' => $now, 'last_used_at' => $now, 'expires_at' => $expiresAt];
+        try {
+            $oldHash = (string)$redis->get(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint));
+            if ($oldHash !== '') $redis->del(app_redis_key('trusted_cookie:' . $oldHash));
+            $redis->setex(app_redis_key('trusted_cookie:' . $cookieHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+            $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $cookieHash);
+        } catch (Throwable $e) {}
+    }
     return $rawCookie;
 }
 
@@ -3579,53 +3607,54 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
             }
         }
         $raw = $redis->get(app_redis_key('trusted_cookie:' . $cookieHash));
-        if (!$raw) return null;
-        $row = json_decode((string)$raw, true);
-        if (!is_array($row) || (int)($row['expires_at'] ?? 0) < time()) {
-            $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
-            return null;
-        }
-        $email = (string)($row['email'] ?? '');
-        $fingerprint = (string)($row['fingerprint'] ?? '');
-        $currentFingerprint = getDeviceFingerprint();
-        if ($currentFingerprint !== '' && $currentFingerprint !== $fingerprint) {
-            $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
-            if ($deviceRaw) {
-                $device = json_decode((string)$deviceRaw, true);
-                if (is_array($device)) {
-                    $device['fingerprint'] = $currentFingerprint;
-                    $device['last_seen'] = time();
-                    $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $currentFingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-                    $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $currentFingerprint);
-                    $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
-                    $redis->sRem(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+        if ($raw) {
+            $row = json_decode((string)$raw, true);
+            if (!is_array($row) || (int)($row['expires_at'] ?? 0) < time()) {
+                $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
+            } else {
+                $email = (string)($row['email'] ?? '');
+                $fingerprint = (string)($row['fingerprint'] ?? '');
+                $currentFingerprint = getDeviceFingerprint();
+                if ($currentFingerprint !== '' && $currentFingerprint !== $fingerprint) {
+                    $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+                    if ($deviceRaw) {
+                        $device = json_decode((string)$deviceRaw, true);
+                        if (is_array($device)) {
+                            $device['fingerprint'] = $currentFingerprint;
+                            $device['last_seen'] = time();
+                            $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $currentFingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                            $redis->sAdd(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $currentFingerprint);
+                            $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+                            $redis->sRem(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
+                        }
+                    }
+                    $fingerprint = $currentFingerprint;
                 }
+                if ($email !== '' && $fingerprint !== '' && isTrustedDevice($email, $fingerprint)) {
+                    $newRawCookie = bin2hex(random_bytes(32));
+                    $newHash = hash('sha256', $newRawCookie);
+                    $now = time();
+                    $row['cookie_hash'] = $newHash;
+                    $row['fingerprint'] = $fingerprint;
+                    $row['last_used_at'] = $now;
+                    $row['expires_at'] = $now + (365 * 24 * 3600);
+                    $redis->expire(app_redis_key('trusted_cookie:' . $cookieHash), 120);
+                    $redis->setex(app_redis_key('trusted_cookie_grace:' . $cookieHash), 120, json_encode(['email' => $email, 'new_token' => $newRawCookie], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                    $redis->setex(app_redis_key('trusted_cookie:' . $newHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                    $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $newHash);
+                    $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
+                    $device = $deviceRaw ? json_decode((string)$deviceRaw, true) : null;
+                    if (is_array($device)) {
+                        $device['last_seen'] = $now;
+                        $device['ip'] = getClientIp();
+                        $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                    }
+                    return ['email' => $email, 'new_token' => $newRawCookie];
+                }
+                $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
             }
-            $fingerprint = $currentFingerprint;
         }
-        if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint)) {
-            $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
-            return null;
-        }
-        $newRawCookie = bin2hex(random_bytes(32));
-        $newHash = hash('sha256', $newRawCookie);
-        $now = time();
-        $row['cookie_hash'] = $newHash;
-        $row['fingerprint'] = $fingerprint;
-        $row['last_used_at'] = $now;
-        $row['expires_at'] = $now + (365 * 24 * 3600);
-        $redis->expire(app_redis_key('trusted_cookie:' . $cookieHash), 120);
-        $redis->setex(app_redis_key('trusted_cookie_grace:' . $cookieHash), 120, json_encode(['email' => $email, 'new_token' => $newRawCookie], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $redis->setex(app_redis_key('trusted_cookie:' . $newHash), 365 * 24 * 3600, json_encode($row, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        $redis->setex(app_redis_key('trusted_cookie_by_email_fp:' . strtolower($email) . ':' . $fingerprint), 365 * 24 * 3600, $newHash);
-        $deviceRaw = $redis->get(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
-        $device = $deviceRaw ? json_decode((string)$deviceRaw, true) : null;
-        if (is_array($device)) {
-            $device['last_seen'] = $now;
-            $device['ip'] = getClientIp();
-            $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
-        }
-        return ['email' => $email, 'new_token' => $newRawCookie];
+        // Redis miss / expired: fall through to durable DB cookie store.
     }
     $db = getDB();
     ensureTrustedDeviceCookiesSchema($db);

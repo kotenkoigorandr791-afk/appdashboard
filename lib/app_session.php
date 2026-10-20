@@ -23,3 +23,29 @@ function app_session_start(): void {
     ini_set('session.use_only_cookies', '1');
     session_start();
 }
+
+/**
+ * Re-emit the PHP session cookie. lifetime=0 keeps a browser-session cookie;
+ * a positive lifetime (e.g. 365 days) is required for "remember me"/trusted devices
+ * so closing the browser does not drop the session id on every platform.
+ */
+function app_session_refresh_cookie(int $lifetimeSeconds = 0): void {
+    if (PHP_SAPI === 'cli' || session_status() !== PHP_SESSION_ACTIVE) return;
+    $params = app_session_cookie_params();
+    $lifetimeSeconds = max(0, $lifetimeSeconds);
+    $params['lifetime'] = $lifetimeSeconds;
+    if ($lifetimeSeconds > 0) {
+        $gc = (int)ini_get('session.gc_maxlifetime');
+        if ($gc < $lifetimeSeconds) {
+            ini_set('session.gc_maxlifetime', (string)$lifetimeSeconds);
+        }
+    }
+    $expires = $lifetimeSeconds > 0 ? time() + $lifetimeSeconds : 0;
+    setcookie(session_name(), session_id(), [
+        'expires' => $expires,
+        'path' => $params['path'],
+        'secure' => !empty($params['secure']),
+        'httponly' => !empty($params['httponly']),
+        'samesite' => (string)($params['samesite'] ?? 'Lax'),
+    ]);
+}

@@ -24,6 +24,12 @@ if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 
     try {
         $provider = (string)($_GET['provider'] ?? '');
         $mode = (string)($_GET['mode'] ?? 'login');
+        $rememberMe = $mode === 'login' && !empty($_GET['remember_me']);
+        if ($rememberMe) {
+            $_SESSION['oauth_remember_me'] = true;
+        } elseif ($mode === 'login') {
+            unset($_SESSION['oauth_remember_me']);
+        }
         if (($mode === 'link' || $mode === 'admin_gate') && !isset($_SESSION['user']['email'])) {
             header('Location: /login');
             exit;
@@ -32,7 +38,7 @@ if ($path === '/login/oauth/start' && ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 
             header('Location: /main');
             exit;
         }
-        header('Location: ' . oauthStartUrl($provider, $mode));
+        header('Location: ' . oauthStartUrl($provider, $mode, $rememberMe));
         exit;
     } catch (Throwable $e) {
         error_log('OAuth start error: ' . $e->getMessage());

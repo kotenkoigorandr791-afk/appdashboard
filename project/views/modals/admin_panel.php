@@ -261,23 +261,34 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 8px;
     padding: 0 16px;
     background: var(--bg2);
     border-bottom: 1px solid var(--border-color);
     height: 60px;
+    min-height: 60px;
+    box-sizing: border-box;
 }
 @media (max-width: 768px) {
     #ap-topbar {
         padding: 0 6px;
+        gap: 4px;
+        height: auto;
+        min-height: 52px;
+        padding-top: 6px;
+        padding-bottom: 6px;
     }
     #ap-topbar .ap-brand {
-        flex: 0 0 auto;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: calc(100% - 120px);
     }
     #ap-topbar .ap-user-info {
         margin-left: auto;
         display: flex;
         align-items: center;
         gap: 8px;
+        flex: 0 0 auto;
     }
 }
 #ap-topbar .ap-brand {
@@ -289,41 +300,74 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     letter-spacing: 1px;
     color: var(--text-color);
     text-transform: uppercase;
+    min-width: 0;
+}
+#ap-topbar .ap-brand-title {
+    display: block;
+    line-height: 1.15;
+    white-space: nowrap;
 }
 @media (max-width: 768px) {
     #ap-topbar .ap-brand {
-        font-size: 12px;
-        gap: 2px;
+        font-size: 11px;
+        gap: 4px;
+        letter-spacing: 0.3px;
+    }
+    #ap-topbar .ap-brand svg {
+        width: 16px;
+        height: 16px;
+        flex-shrink: 0;
+    }
+    #ap-topbar .ap-brand-title {
+        white-space: normal;
+        overflow-wrap: break-word;
+        word-break: normal;
+        hyphens: auto;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+        overflow: hidden;
+        max-width: 100%;
     }
     #ap-topbar {
-        padding: 0 6px;
+        padding-left: 6px;
+        padding-right: 6px;
     }
     #ap-topbar .ap-user-info {
         gap: 2px;
     }
     #ap-topbar .ap-user-info img {
         margin-left: auto;
+        flex-shrink: 0;
     }
     #ap-topbar .ap-user-name {
         font-size: 9px;
+        max-width: 72px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
     #ap-topbar .ap-user-role {
         font-size: 7px;
         padding: 1px 3px;
         border-radius: 5px;
+        white-space: nowrap;
     }
     #ap-close-btn {
         width: 26px;
         height: 26px;
         font-size: 16px;
         margin-left: 2px;
+        flex-shrink: 0;
     }
 }
-#ap-topbar .ap-brand svg { color: var(--primary-color); }
+#ap-topbar .ap-brand svg { color: var(--primary-color); flex-shrink: 0; }
 #ap-topbar .ap-user-info {
     display: flex;
     align-items: center;
     gap: 10px;
+    flex-shrink: 0;
 }
 #ap-topbar .ap-user-info img {
     width: 32px;
