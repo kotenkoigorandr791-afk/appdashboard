@@ -1217,6 +1217,7 @@ function monacoIsTxtFile(filePath) {
 // Ordered-list continuation for prose files. The behaviour lives in
 // assets/monaco-shared.js so that every Monaco editor shares it.
 function monacoSetupTxtNumberedListContinuation(editor, filePath) {
+    if (!window.cloudMonacoShared?.installNumberedListContinuation) return;
     monacoAddEditorDisposable(
         editor,
         window.cloudMonacoShared.installNumberedListContinuation({ editor, monaco, filePath })
@@ -3071,7 +3072,11 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
 
         // Ctrl+S - save the file (instead of the browser 'Save page')
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
-            if (typeof saveFile === 'function') saveFile();
+            if (typeof saveFile === 'function') {
+                saveFile().then((ok) => {
+                    if (ok && typeof showSuccessCheck === 'function') showSuccessCheck(document.getElementById('btn-save'));
+                });
+            }
         });
 
         // F9 - switch input language

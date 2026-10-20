@@ -351,14 +351,14 @@ function pollVideoGeneration(modal, jobId) {
   };
   tick();
 }
-async function deletePath(path, type = 'file', name = '') {
-    if (path !== null && typeof path === 'object') { type = path.type || type; name = path.name || name; path = path.path || ''; }
+async function deletePath(path, type = 'file', name = '', root = null) {
+    if (path !== null && typeof path === 'object') { root = path.root || root; type = path.type || type; name = path.name || name; path = path.path || ''; }
     path = String(path || '');
     if (!path) return;
     if (!name) {
         name = path.split('/').pop();
     }
-    showDeleteModal(path, type, name);
+    showDeleteModal(path, type, name, root || getCurrentCloudRoot());
     clearSelection(); 
 }
 let inlineRenameState = null;
@@ -985,7 +985,7 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
         options.push({
             label: t(window.i18n, 'delete'),
             icon: 'delete',
-            action: () => (opts.tabId != null ? deletePath(path, 'file', opts.tabTitle) : deletePath(path))
+            action: () => deletePath(path, 'file', opts.tabId != null ? opts.tabTitle : '', opts.root || getCurrentCloudRoot())
         });
     }
     return options;
@@ -2246,13 +2246,13 @@ function initDeleteModal() {
         }
     });
 }
-function showDeleteModal(path, type, name) {
+function showDeleteModal(path, type, name, root = null) {
     const inTrash = isTrashRoot();
     const permanentCheckbox = document.getElementById('delete-permanently-checkbox');
     const permanentOption = document.getElementById('delete-permanent-option');
     const warningText = document.getElementById('delete-warning-text');
     const permanent = inTrash;
-    deleteState = { path, type, name, permanent };
+    deleteState = { path, type, name, root: root || getCurrentCloudRoot(), permanent };
     const modal = document.getElementById('delete-modal');
     const title = document.getElementById('delete-modal-title');
     const text = document.getElementById('delete-confirmation-text');
@@ -2278,10 +2278,10 @@ function showDeleteModal(path, type, name) {
 }
 function closeDeleteModal() {
     document.getElementById('delete-modal').classList.add('hidden');
-    deleteState = { path: '', type: '', name: '', permanent: false };
+    deleteState = { path: '', type: '', name: '', root: '', permanent: false };
 }
 async function confirmDelete() {
-    const { path, type, permanent } = deleteState;
+    const { path, type, root, permanent } = deleteState;
     if (!path) {
         closeDeleteModal();
         return;
@@ -2292,10 +2292,10 @@ async function confirmDelete() {
         confirmBtn.textContent = t(i18n, 'deleting');
         confirmBtn.disabled = true;
         if (isTrashRoot() || permanent) {
-            await api('delete', { path });
+            await api('delete', { path, root });
             await cleanupDeletedAudioTranscriptions([path]);
         } else {
-            await api('move_to_trash', { path });
+            await api('move_to_trash', { path, root });
         }
         closeTabsByPath(path);
         if (type === 'file') {
@@ -2673,7 +2673,9 @@ function handleHotkeys(e, i18n) {
   if (mod && e.key.toLowerCase() === 's') {
     e.preventDefault();
     e.stopPropagation();
-    saveFile();
+    saveFile().then((ok) => {
+      if (ok) showSuccessCheck(document.getElementById('btn-save'));
+    });
     return;
   }
   if (e.key === 'Escape' && searchState.active) {

@@ -470,6 +470,7 @@ let deleteState = {
     path: '',
     type: '',
     name: '',
+    root: '',
     permanent: false
 };
 let selectionState = {
@@ -1111,9 +1112,14 @@ function initLassoSelection() {
             return;
         }
         if (typeof getTopModal === 'function' && getTopModal()) return;
-        // The assistant modal is the topmost layer: let it handle Escape first and
-        // only clear the tree selection on the next Escape press.
         const aiModal = document.getElementById('ai-modal');
+        if (aiModal && !aiModal.classList.contains('hidden') && selectionState.active) {
+            clearSelection();
+            updateSelectionMenuItem();
+            e.preventDefault();
+            e.stopImmediatePropagation();
+            return;
+        }
         if (aiModal && !aiModal.classList.contains('hidden')) return;
         if (document.getElementById('context-menu')) return;
         if (!selectionState.active) return;
@@ -2018,11 +2024,15 @@ function updateRecentFilesSelection() {
         item.setAttribute('aria-selected', Number(item.dataset.index) === recentFilesSelection ? 'true' : 'false');
     });
 }
-function openRecentFile(index = recentFilesSelection) {
+async function openRecentFile(index = recentFilesSelection) {
     const rows = loadRecentFiles();
     const row = rows[index];
     if (!row) return;
-    openFileInTab(row.path, false, row.root || 'main');
+    const root = row.root || 'main';
+    if (root !== getCurrentCloudRoot() && typeof switchCloudRoot === 'function') {
+        await switchCloudRoot(root, { silent: true, keepSelection: true });
+    }
+    openFileInTab(row.path, false, root);
 }
 function initRecentFilesKeyboard() {
     if (window.recentFilesKeyboardInitialized) return;
@@ -2537,7 +2547,6 @@ window.addEventListener('message', function(event) {
     if (event.data.type === 'editorSaveResult') {
         const saveButton = document.getElementById('btn-save');
         if (event.data.ok) {
-            flashStatus(t(i18n, 'fileSaved'));
             if (saveButton) showSuccessCheck(saveButton);
         } else if (event.data.message) {
             flashStatus(event.data.message);
@@ -3603,8 +3612,12 @@ function renderTabDropdownRecent() {
         btn.type = 'button';
         btn.className = 'tab-search-item';
         btn.innerHTML = `<span class="tab-search-item-icon">${getFileIconMarkup(row.title || row.path, 'app-file-icon')}</span><span class="tab-search-item-info"><span class="tab-search-item-title">${escapeHtml(row.title || row.path)}</span><span class="tab-search-item-url">${escapeHtml(formatDisplayPath(row.path))}</span></span>`;
-        btn.addEventListener('click', () => {
-            openFileInTab(row.path, false, row.root || 'main');
+        btn.addEventListener('click', async () => {
+            const root = row.root || 'main';
+            if (root !== getCurrentCloudRoot() && typeof switchCloudRoot === 'function') {
+                await switchCloudRoot(root, { silent: true, keepSelection: true });
+            }
+            openFileInTab(row.path, false, root);
             closeTabDropdown();
         });
         list.appendChild(btn);
@@ -7938,10 +7951,10 @@ async function performMultipleDelete(selectedItems, options = {}) {
     for (const path of selectedItems) {
         try {
             if (permanent || fromTrash) {
-                await api('delete', { path });
+                await api('delete', { path, root: getCurrentCloudRoot() });
                 await cleanupDeletedAudioTranscriptions([path]);
             } else {
-                await api('move_to_trash', { path });
+                await api('move_to_trash', { path, root: getCurrentCloudRoot() });
             }
             successCount++;
             deletedPaths.push(path);
@@ -9491,7 +9504,6 @@ async function saveFile() {
             collabSession.lastPushedContent = content;
             pushMonacoCollabSnapshot(activeTab.id, content, true);
         }
-        flashStatus(t(i18n, 'fileSaved'));
         markTabAsModified(activeTab.id, false);
         activeTab.content = content;
         saveTabsState();

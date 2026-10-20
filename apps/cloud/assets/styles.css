@@ -55,7 +55,8 @@ body.tabs-open::before{opacity:0.45;transition:opacity 0.3s ease}
 .icon-btn:active,.btn:active,.icon-btn.is-pressed,.btn.is-pressed{transform:translateY(1px)}
 .icon-btn:focus-visible,.btn:focus-visible{outline:none}
 button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scroll-btn):not(.search-clear):not(.file-toolbar *):not(#desktop-root-toolbar-footer *):not(#btn-sort-filter):not(#btn-toggle-sidebar):not(.token-item){border-radius:999px!important}
-.topbar .btn,.topbar .icon-btn,.file-toolbar .btn,.file-toolbar .icon-btn,#btn-sort-filter,#desktop-root-toolbar-footer button{border-radius:8px!important}
+.topbar .btn,.topbar .icon-btn,.file-toolbar .btn,.file-toolbar .icon-btn,#desktop-root-toolbar-footer button{border-radius:8px!important}
+#btn-sort-filter{border-radius:999px!important}
 .topbar #btn-advanced-search,.topbar .search-clear{border-radius:50%!important}
 .topbar #btn-toggle-sidebar{border-radius:0 10px 10px 0!important}
 #btn-toggle-sidebar{display:flex;padding:3px 5px;width:28px;height:28px}
@@ -167,7 +168,11 @@ button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scrol
 .tree.is-empty::before:hover{color:var(--accent)}
 .btn:disabled,.icon-btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
 body.shell-menu-hidden #btn-toggle-sidebar{display:none!important}
-html.ai-modal-open,html.ai-modal-open body{overflow:hidden}
+html.ai-modal-open,html.ai-modal-open body{overflow:hidden!important;scrollbar-gutter:stable}
+#ai-modal{overflow:hidden!important}
+#ai-modal .ai-modal-content{overflow:hidden!important}
+#ai-modal .ai-chat{scrollbar-width:none}
+#ai-modal .ai-chat::-webkit-scrollbar{width:0;height:0}
 .tree-browse-folder .tree-browse-rename-input{flex:1;min-width:0;height:26px;font-size:13px;width:auto}
 .tree-browse-bar{display:flex;align-items:center;gap:8px;padding:8px 12px;border-bottom:1px solid color-mix(in srgb,var(--ui-border) 70%,transparent);background:color-mix(in srgb,var(--panel) 40%,transparent);flex-shrink:0}
 .tree-browse-bar.hidden{display:none}
@@ -306,7 +311,7 @@ body[data-theme="light"] .statusbar{background:color-mix(in srgb,#c5ccd4 63%,tra
 .tab.modified .tab-content::after{content:" •";color:var(--accent);font-weight:bold}
 .tab.modified .tab-title-text::after{content:none}
 .tab-content .app-file-icon{width:16px;height:16px;flex-shrink:0;border-radius:4px}
-.tab-search-dropdown{position:absolute;top:52px;left:8px;width:380px;max-width:calc(100vw - 32px);max-height:33vh;max-height:33dvh;overflow-y:auto;overscroll-behavior:contain;background:color-mix(in srgb,var(--panel) 96%,var(--bg));border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);padding:8px;box-sizing:border-box;display:none;flex-direction:column;z-index:35000!important;opacity:0;transform:translateY(-10px);transition:opacity .2s ease,transform .2s ease}
+.tab-search-dropdown{position:absolute;top:52px;left:8px;width:380px;max-width:calc(100vw - 32px);height:auto;max-height:33vh!important;max-height:33dvh!important;overflow-y:auto;overscroll-behavior:contain;background:color-mix(in srgb,var(--panel) 96%,var(--bg));border:1px solid var(--border);border-radius:14px;box-shadow:0 6px 24px rgba(0,0,0,.35);padding:8px;box-sizing:border-box;display:none;flex-direction:column;z-index:35000!important;opacity:0;transform:translateY(-10px);transition:opacity .2s ease,transform .2s ease}
 .tab-search-dropdown.show{display:flex;opacity:1;transform:translateY(0)}
 .tab-search-header{display:flex;align-items:center;background:color-mix(in srgb,var(--bg) 70%,transparent);border-radius:20px;padding:8px 12px;margin-bottom:8px}
 .tab-search-header svg{width:16px;height:16px;fill:var(--muted);margin-right:8px;flex-shrink:0}
@@ -318,8 +323,8 @@ body[data-theme="light"] .statusbar{background:color-mix(in srgb,#c5ccd4 63%,tra
 .tab-search-title svg{width:14px;height:14px;flex:0 0 auto;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
 .tab-search-item{display:flex;align-items:center;padding:8px 12px;border-radius:6px;cursor:pointer;position:relative;transition:background-color .15s ease;text-align:left;width:100%;border:0;background:transparent;color:var(--fg)}
 .tab-search-item:hover{background:color-mix(in srgb,var(--fg) 10%,transparent)}
-.tab-search-item-icon{width:24px;height:24px;border-radius:4px;margin-right:12px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
-.tab-search-item-icon img{width:24px;height:24px;object-fit:contain}
+.tab-search-item-icon{width:20px;height:20px;border-radius:4px;margin-right:10px;flex-shrink:0;display:flex;align-items:center;justify-content:center;overflow:hidden}
+.tab-search-item-icon .app-file-icon,.tab-search-item-icon img,.tab-search-item-icon svg{width:20px;height:20px;object-fit:contain}
 .tab-search-item-info{display:flex;flex-direction:column;overflow:hidden;flex-grow:1;min-width:0}
 .tab-search-item-title{font-size:13px;color:var(--fg);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px}
 .tab-search-item-url{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -1580,6 +1585,10 @@ body.group-chat-open .layout{padding-right:0}
 .group-chat-title{font-weight:600;font-size:14px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .group-chat-group-select.hidden{display:none}
 .group-chat-group-select{flex:1;min-width:0;padding:6px 8px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--fg);font-size:13px}
+.group-chat-group-select-wrap{position:relative;display:flex;flex:1;min-width:0}
+.group-chat-group-select-wrap>select{display:none!important}
+.group-chat-group-select-wrap .group-switcher-btn{width:100%;font-size:13px;font-weight:400}
+.group-chat-group-select-wrap.hidden{display:none!important}
 .group-chat-header-actions{display:flex;gap:4px;flex-shrink:0;align-items:center}
 .group-chat-icon-btn{width:30px;height:30px;padding:0;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
 .group-chat-icon-btn svg{display:block}

@@ -3256,6 +3256,13 @@
         
         document.addEventListener('keydown', (e) => {
             if (e.key !== 'Escape') return;
+            if (elements.modal && !elements.modal.classList.contains('hidden') && typeof selectionState !== 'undefined' && selectionState.active) {
+                clearSelection();
+                updateSelectionMenuItem();
+                e.preventDefault();
+                e.stopImmediatePropagation();
+                return;
+            }
             const ocrModal = document.getElementById('ai-ocr-edit-modal');
             if (ocrModal && !ocrModal.classList.contains('hidden')) {
                 e.preventDefault();
@@ -6129,7 +6136,7 @@
         }
         return { success: true, pdf_path: pdfPath, message: savePdf ? (pdfPath || 'PDF saved') : 'Compilation succeeded' };
     }
-    async function fetchAgentCompletionStream(payload, signal, onContentDelta) {
+    async function fetchAgentCompletionStream(payload, signal, onContentDelta, attempt = 0) {
         const res = await fetchAiCompletions({ ...payload, stream: true }, signal);
         if (!res.ok) {
             const errPayload = await res.json().catch(() => ({}));
@@ -6149,7 +6156,16 @@
         let usage = null;
         let streamError = null;
         while (true) {
-            const { done, value } = await reader.read();
+            let chunk;
+            try {
+                chunk = await reader.read();
+            } catch (err) {
+                if (err?.name === 'AbortError' || signal?.aborted || attempt >= AI_COMPLETIONS_MAX_ATTEMPTS - 1) throw err;
+                try { await reader.cancel(); } catch (e) {}
+                await waitBeforeRetry(attempt);
+                return fetchAgentCompletionStream(payload, signal, onContentDelta, attempt + 1);
+            }
+            const { done, value } = chunk;
             if (done) break;
             buffer += decoder.decode(value, { stream: true });
             const lines = buffer.split('\n');
