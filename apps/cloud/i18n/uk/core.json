@@ -813,5 +813,6 @@
     "share-access-disable-copy": "Вимкнути копіювання",
     "share-open-limit": "Відкрити ліміт",
     "shareGetLink": "Отримати посилання",
-    "shareSendToChat": "Надіслати в чат"
+    "shareSendToChat": "Надіслати в чат",
+    "monacoAiPromptPlaceholder": "Що виправити за допомогою ШІ?"
 }

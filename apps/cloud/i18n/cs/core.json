@@ -813,5 +813,6 @@
     "share-access-disable-copy": "Zakázat kopírování",
     "share-open-limit": "Otevřít limit",
     "shareGetLink": "Získat odkaz",
-    "shareSendToChat": "Odeslat do chatu"
+    "shareSendToChat": "Odeslat do chatu",
+    "monacoAiPromptPlaceholder": "Co má AI změnit?"
 }

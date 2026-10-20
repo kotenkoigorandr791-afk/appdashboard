@@ -3649,39 +3649,11 @@ async function monacoGetAiRuntimeConfig() {
     return monacoAiRuntimeConfigPromise;
 }
 
-function monacoBuildAiPrompt(mode, text) {
+function monacoBuildAiPrompt(instruction, text) {
     const safeText = String(text ?? '');
-    const uiLang = document.documentElement.lang || window.APP_CONFIG?.lang || 'en';
-    const promptsByLang = {
-        en: {
-            fix: 'Fix spelling, punctuation, and obvious grammar errors.',
-            paraphrase: 'Paraphrase the text while preserving the original meaning.',
-            style: 'Rewrite the text in a cleaner literary style.',
-            summarize: 'Summarize the text briefly while keeping key ideas.'
-        },
-        ru: {
-            fix: 'Исправь орфографию, пунктуацию и явные грамматические ошибки.',
-            paraphrase: 'Перефразируй текст, сохранив исходный смысл.',
-            style: 'Перепиши текст в более аккуратном и литературном стиле.',
-            summarize: 'Суммаризируй текст кратко, сохранив ключевые мысли.'
-        },
-        uk: {
-            fix: 'Виправ орфографію, пунктуацію та явні граматичні помилки.',
-            paraphrase: 'Перефразуй текст, зберігши початковий зміст.',
-            style: 'Перепиши текст у акуратнішому літературному стилі.',
-            summarize: 'Сумаризуй текст коротко, зберігши ключові думки.'
-        },
-        be: {
-            fix: 'Выпраў арфаграфію, пунктуацыю і відавочныя граматычныя памылкі.',
-            paraphrase: 'Перафразуй тэкст, захоўваючы зыходны сэнс.',
-            style: 'Перапішы тэкст у больш акуратным літаратурным стылі.',
-            summarize: 'Сумарызуй тэкст каротка, захоўваючы ключавыя думкі.'
-        }
-    };
-    const prompts = promptsByLang[uiLang] || promptsByLang.en;
-    const instruction = prompts[mode] || prompts.fix;
+    const safeInstruction = String(instruction ?? '').trim() || 'Fix spelling, punctuation, and obvious grammar errors.';
     return [
-        instruction,
+        safeInstruction,
         'Верни только готовый текст для прямой замены выделения.',
         'Нельзя добавлять пояснения, кавычки, markdown, списки, вводные фразы или комментарии.',
         'Сохраняй переносы строк, если это не противоречит задаче.',
@@ -3690,7 +3662,7 @@ function monacoBuildAiPrompt(mode, text) {
     ].join('\n');
 }
 
-async function monacoRequestAiReplacement(mode, text) {
+async function monacoRequestAiReplacement(instruction, text) {
     const runtime = await monacoGetAiRuntimeConfig();
     const response = await fetch('ai.php', {
         method: 'POST',
@@ -3699,7 +3671,7 @@ async function monacoRequestAiReplacement(mode, text) {
             action: 'chat',
             role: 'general',
             model: runtime.default_model || '',
-            message: monacoBuildAiPrompt(mode, text)
+            message: monacoBuildAiPrompt(instruction, text)
         })
     });
     const data = await response.json();
@@ -3713,20 +3685,12 @@ function monacoRefreshAiActionOverlayLabels(overlay) {
     if (!overlay) return;
     const title = overlay.querySelector('[data-role="title"]');
     if (title) title.textContent = monacoT('monacoAskAi');
-    const modeEl = overlay.querySelector('[data-role="mode"]');
-    if (modeEl) {
-        const modes = [
-            ['fix', 'monacoAiFix'],
-            ['paraphrase', 'monacoAiParaphrase'],
-            ['style', 'monacoAiStyle'],
-            ['summarize', 'monacoAiSummarize']
-        ];
-        modes.forEach(([value, key], index) => {
-            if (modeEl.options[index]) {
-                modeEl.options[index].value = value;
-                modeEl.options[index].textContent = monacoT(key);
-            }
-        });
+    const promptEl = overlay.querySelector('[data-role="prompt"]');
+    if (promptEl) {
+        const placeholder = monacoT('monacoAiPromptPlaceholder');
+        promptEl.placeholder = placeholder === 'monacoAiPromptPlaceholder'
+            ? 'What should AI change?'
+            : placeholder;
     }
     const applyBtn = overlay.querySelector('[data-role="apply"]');
     if (applyBtn) applyBtn.textContent = monacoT('apply') || 'Apply';
@@ -3736,11 +3700,16 @@ function monacoRefreshAiActionOverlayLabels(overlay) {
 
 function monacoEnsureAiActionOverlay(hostContainer) {
     if (monacoAiActionOverlay && monacoAiActionOverlay.parentElement) {
-        if (hostContainer && monacoAiActionOverlay.parentElement !== hostContainer) {
-            hostContainer.appendChild(monacoAiActionOverlay);
+        if (!monacoAiActionOverlay.querySelector('[data-role="prompt"]')) {
+            monacoAiActionOverlay.remove();
+            monacoAiActionOverlay = null;
+        } else {
+            if (hostContainer && monacoAiActionOverlay.parentElement !== hostContainer) {
+                hostContainer.appendChild(monacoAiActionOverlay);
+            }
+            monacoRefreshAiActionOverlayLabels(monacoAiActionOverlay);
+            return monacoAiActionOverlay;
         }
-        monacoRefreshAiActionOverlayLabels(monacoAiActionOverlay);
-        return monacoAiActionOverlay;
     }
     const overlay = document.createElement('div');
     overlay.className = 'monaco-ai-action-overlay hidden';
@@ -3764,12 +3733,7 @@ function monacoEnsureAiActionOverlay(hostContainer) {
             <strong data-role="title" style="font-size:13px;"></strong>
             <button type="button" data-role="close" class="icon-btn" style="width:28px;height:28px;min-width:28px;cursor:pointer;">×</button>
         </div>
-        <select data-role="mode" style="width:100%;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);">
-            <option value="fix"></option>
-            <option value="paraphrase"></option>
-            <option value="style"></option>
-            <option value="summarize"></option>
-        </select>
+        <textarea data-role="prompt" rows="2" style="width:100%;min-height:52px;max-height:120px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);resize:vertical;box-sizing:border-box;font:inherit;"></textarea>
         <div data-role="status" style="min-height:18px;font-size:12px;color:var(--muted);"></div>
         <div style="display:flex;gap:8px;justify-content:flex-end;">
             <button type="button" data-role="undo" class="btn secondary small hidden"></button>
@@ -3842,7 +3806,7 @@ async function monacoOpenAiActionMenu(editor, container) {
     if (!selectedText) return;
     const overlay = monacoEnsureAiActionOverlay(container);
     monacoRefreshAiActionOverlayLabels(overlay);
-    const modeEl = overlay.querySelector('[data-role="mode"]');
+    const promptEl = overlay.querySelector('[data-role="prompt"]');
     const statusEl = overlay.querySelector('[data-role="status"]');
     const applyBtn = overlay.querySelector('[data-role="apply"]');
     const undoBtn = overlay.querySelector('[data-role="undo"]');
@@ -3857,31 +3821,28 @@ async function monacoOpenAiActionMenu(editor, container) {
     monacoPositionAiOverlay(overlay, container, anchorX, anchorY);
     statusEl.textContent = '';
     undoBtn.classList.add('hidden');
+    if (promptEl && !promptEl.value) {
+        requestAnimationFrame(() => promptEl.focus());
+    }
 
-    let lastEdit = null;
+    let canUndoAiEdit = false;
     undoBtn.onclick = () => {
-        if (!lastEdit) return;
-        editor.pushUndoStop();
-        editor.executeEdits('ai-inline-undo', [{
-            range: lastEdit.range,
-            text: lastEdit.originalText,
-            forceMoveMarkers: true
-        }]);
-        editor.pushUndoStop();
-        editor.setSelection(lastEdit.range);
-        overlay.classList.add('hidden');
-        lastEdit = null;
+        if (!canUndoAiEdit) return;
+        editor.trigger('ai-inline-undo', 'undo', null);
+        canUndoAiEdit = false;
+        undoBtn.classList.add('hidden');
+        statusEl.textContent = '';
     };
 
     applyBtn.onclick = async () => {
         const latestSelection = editor.getSelection();
         if (!latestSelection || latestSelection.isEmpty()) return;
         const originalText = monacoGetSelectedText(editor);
-        const startOffset = editor.getModel().getOffsetAt(latestSelection.getStartPosition());
+        const instruction = (promptEl?.value || '').trim();
         applyBtn.disabled = true;
         statusEl.textContent = monacoT('monacoAiProcessing');
         try {
-            const replacement = await monacoRequestAiReplacement(modeEl.value, originalText);
+            const replacement = await monacoRequestAiReplacement(instruction, originalText);
             editor.pushUndoStop();
             editor.executeEdits('ai-inline-rewrite', [{
                 range: latestSelection,
@@ -3889,13 +3850,7 @@ async function monacoOpenAiActionMenu(editor, container) {
                 forceMoveMarkers: true
             }]);
             editor.pushUndoStop();
-            const model = editor.getModel();
-            const undoStart = model.getPositionAt(startOffset);
-            const undoEnd = model.getPositionAt(startOffset + replacement.length);
-            lastEdit = {
-                range: new monaco.Range(undoStart.lineNumber, undoStart.column, undoEnd.lineNumber, undoEnd.column),
-                originalText
-            };
+            canUndoAiEdit = true;
             statusEl.textContent = monacoT('monacoAiReplaced');
             undoBtn.classList.remove('hidden');
         } catch (error) {

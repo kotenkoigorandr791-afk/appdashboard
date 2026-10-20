@@ -1105,5 +1105,6 @@
   "share-access-disable-copy": "Вимкнути копіювання",
   "share-open-limit": "Відкрити ліміт",
   "shareGetLink": "Получаць ссылку",
-  "shareSendToChat": "Паднаўленне ў чат"
+  "shareSendToChat": "Паднаўленне ў чат",
+  "monacoAiPromptPlaceholder": "Што выправіць з дапамогай ШІ?"
 }

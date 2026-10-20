@@ -1105,5 +1105,6 @@
   "share-access-disable-copy": "Disable copy",
   "share-open-limit": "Open limit",
   "shareGetLink": "Get link",
-  "shareSendToChat": "Send to chat"
+  "shareSendToChat": "Send to chat",
+  "monacoAiPromptPlaceholder": "What should AI change?"
 }

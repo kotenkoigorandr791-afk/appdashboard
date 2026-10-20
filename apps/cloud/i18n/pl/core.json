@@ -813,5 +813,6 @@
     "share-access-disable-copy": "Wyłącz kopiowanie",
     "share-open-limit": "Otwórz limit",
     "shareGetLink": "Pobierz link",
-    "shareSendToChat": "Wyślij do czatu"
+    "shareSendToChat": "Wyślij do czatu",
+    "monacoAiPromptPlaceholder": "Co AI ma zmienić?"
 }

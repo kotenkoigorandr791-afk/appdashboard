@@ -1105,5 +1105,6 @@
   "share-access-disable-copy": "Отключить копирование",
   "share-open-limit": "Открыть лимит",
   "shareGetLink": "Получить ссылку",
-  "shareSendToChat": "Отправить в чат"
+  "shareSendToChat": "Отправить в чат",
+  "monacoAiPromptPlaceholder": "Что исправить с помощью ИИ?"
 }
