@@ -711,6 +711,7 @@
     initRecipe();
     initExpenseChart();
     initSteps();
+    initFolderTreeDrawer();
   }
 
   async function navigateShare(url, pushHistory) {
@@ -765,6 +766,37 @@
     }
   }
 
+  function setFolderTreeOpen(open) {
+    document.body.classList.toggle('is-tree-open', !!open);
+    document.querySelectorAll('[data-sp-tree-toggle]').forEach(function (btn) {
+      btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    const backdrop = document.querySelector('[data-sp-tree-backdrop]');
+    if (backdrop) backdrop.hidden = !open;
+  }
+
+  function initFolderTreeDrawer() {
+    const toggle = document.querySelector('[data-sp-tree-toggle]');
+    if (!toggle || toggle.dataset.spTreeInit === '1') return;
+    toggle.dataset.spTreeInit = '1';
+    toggle.addEventListener('click', function () {
+      setFolderTreeOpen(!document.body.classList.contains('is-tree-open'));
+    });
+    document.querySelectorAll('[data-sp-tree-close], [data-sp-tree-backdrop]').forEach(function (el) {
+      el.addEventListener('click', function () { setFolderTreeOpen(false); });
+    });
+    document.querySelectorAll('.sp-tree__summary a').forEach(function (link) {
+      link.addEventListener('click', function (event) {
+        // Keep navigation, but stop <details> from toggling on link click.
+        event.preventDefault();
+        event.stopPropagation();
+        setFolderTreeOpen(false);
+        const url = new URL(link.href, window.location.href);
+        navigateShare(url.href, true);
+      });
+    });
+  }
+
   function initFolderNavigation() {
     const main = document.getElementById('sp-main');
     if (!main || main.dataset.spNavigation === '1') return;
@@ -773,18 +805,22 @@
       if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       const link = event.target.closest('a[href]');
       if (!link || link.target || link.hasAttribute('download')) return;
+      if (link.closest('.sp-tree__summary')) return;
       const raw = link.getAttribute('href') || '';
       // Folder renderer navigates with query-only links (?subpath=...&file=...).
       if (!raw.startsWith('?')) return;
       const url = new URL(link.href, window.location.href);
       if (url.origin !== window.location.origin || url.pathname !== window.location.pathname) return;
       event.preventDefault();
+      setFolderTreeOpen(false);
       navigateShare(url.href, true);
     });
     window.addEventListener('popstate', function () {
       if (!document.body.classList.contains('sp-folder-page') && !document.body.classList.contains('sp-file-page')) return;
+      setFolderTreeOpen(false);
       navigateShare(window.location.href, false);
     });
+    initFolderTreeDrawer();
   }
 
   function initLanguageDialog() {
@@ -850,6 +886,7 @@
     initExpenseChart();
     initSteps();
     initFolderNavigation();
+    initFolderTreeDrawer();
     initLanguageDialog();
   }
 

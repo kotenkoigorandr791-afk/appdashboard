@@ -27,6 +27,22 @@
     return path + '?' + q;
   }
 
+  function ensureMenuHost() {
+    var host = document.getElementById('shell-app-menu-host');
+    if (host) return host;
+    host = document.createElement('div');
+    host.id = 'shell-app-menu-host';
+    document.body.insertBefore(host, document.body.firstChild);
+    return host;
+  }
+
+  function clearMenuInlineLayout(btn) {
+    if (!btn || !btn.style) return;
+    ['position', 'top', 'left', 'right', 'bottom', 'width', 'height', 'margin', 'transform', 'display', 'visibility', 'opacity', 'z-index'].forEach(function (prop) {
+      btn.style.removeProperty(prop);
+    });
+  }
+
   function setMenuVars(app) {
     var root = document.documentElement;
     var desk = (app && app.menu_button) || { left: 20, top: 13, width: 40, height: 40 };
@@ -40,13 +56,49 @@
     root.style.setProperty('--shell-menu-button-mobile-width', (mob.width || desk.width || 40) + 'px');
     root.style.setProperty('--shell-menu-button-mobile-height', (mob.height || desk.height || 40) + 'px');
     var btn = document.getElementById('menu-button');
-    if (btn) {
-      btn.style.position = app && app.menu_button_scroll ? 'absolute' : '';
-      var styleMap = (app && app.menu_button_style) || {};
-      btn.style.cssText = btn.style.cssText.replace(/;?\s*(color|background|border|box-shadow|border-radius|z-index|opacity)\s*:[^;]*/gi, '');
-      Object.keys(styleMap).forEach(function (prop) {
-        try { btn.style.setProperty(prop, styleMap[prop]); } catch (_) {}
-      });
+    if (!btn) return;
+    clearMenuInlineLayout(btn);
+    btn.style.position = app && app.menu_button_scroll ? 'absolute' : '';
+    ['color', 'background', 'border', 'box-shadow', 'border-radius', 'opacity'].forEach(function (prop) {
+      btn.style.removeProperty(prop);
+    });
+    var styleMap = (app && app.menu_button_style) || {};
+    Object.keys(styleMap).forEach(function (prop) {
+      try { btn.style.setProperty(prop, styleMap[prop]); } catch (_) {}
+    });
+  }
+
+  function mountAppChrome() {
+    var host = ensureMenuHost();
+    var menu = document.getElementById('menu-button');
+    if (menu && menu.parentElement !== host) host.appendChild(menu);
+  }
+
+  function restoreHomeChrome() {
+    var topBar = document.getElementById('top-bar');
+    var menu = document.getElementById('menu-button');
+    var home = document.getElementById('home-root-button');
+    if (!topBar) return;
+    if (menu) {
+      clearMenuInlineLayout(menu);
+      if (!topBar.contains(menu)) {
+        var before = home && topBar.contains(home) ? home : (document.getElementById('top-bar-title') || topBar.firstChild);
+        topBar.insertBefore(menu, before);
+      }
+    }
+    if (home) {
+      clearMenuInlineLayout(home);
+      if (!topBar.contains(home)) {
+        var afterMenu = document.getElementById('menu-button');
+        if (afterMenu && topBar.contains(afterMenu) && afterMenu.nextSibling) {
+          topBar.insertBefore(home, afterMenu.nextSibling);
+        } else if (afterMenu && topBar.contains(afterMenu)) {
+          topBar.appendChild(home);
+        } else {
+          var title = document.getElementById('top-bar-title');
+          topBar.insertBefore(home, title || topBar.firstChild);
+        }
+      }
     }
   }
 
@@ -62,7 +114,7 @@
     frame.innerHTML =
       '<div id="app-icon-rail" class="hidden">' +
         '<div class="app-rail-scroll">' +
-          '<a href="/main" class="app-rail-link app-rail-home" title="Home"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>' +
+          '<a href="/main" class="app-rail-link app-rail-home shell-home-link" title="Home"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>' +
           '<span class="app-rail-service-name"></span>' +
         '</div>' +
       '</div>' +
@@ -81,16 +133,22 @@
     home = document.createElement('div');
     home.id = 'shell-home';
     home.className = 'shell-home';
-    while (grid.parentElement === content && content.firstChild !== grid) {
-      /* keep floating buttons outside if any */
-      break;
-    }
     grid.parentNode.insertBefore(home, grid);
     home.appendChild(grid);
     Array.prototype.slice.call(content.querySelectorAll('#notifications-btn.notifications-floating, #support-chat-btn.support-chat-floating')).forEach(function (el) {
       home.insertBefore(el, home.firstChild);
     });
     return home;
+  }
+
+  function contentAppClasses(folder, app) {
+    var classes = ['mobile-vv-shell', 'app-edge-' + String(folder).toLowerCase()];
+    if (app && app.app_rail) {
+      classes.push('has-app-rail');
+      if (railTopApps.indexOf(folder) !== -1) classes.push('rail-top-on-mobile');
+      if (edgeApps.indexOf(folder) !== -1) classes.push('edge-app-shell');
+    }
+    return classes.join(' ');
   }
 
   function showApp(folder, push) {
@@ -114,26 +172,17 @@
       rail.classList.toggle('hidden', !app.app_rail);
       rail.style.display = app.app_rail ? '' : 'none';
     }
-    content.className = 'mobile-vv-shell app-edge-' + String(folder).toLowerCase();
-    if (app.app_rail) content.classList.add('has-app-rail');
-    if (app.app_rail && railTopApps.indexOf(folder) !== -1) content.classList.add('rail-top-on-mobile');
-    if (app.app_rail && edgeApps.indexOf(folder) !== -1) content.classList.add('edge-app-shell');
+    content.className = contentAppClasses(folder, app);
     if (home) home.hidden = true;
     frame.hidden = false;
     document.body.classList.add('shell-app-open');
-    document.body.classList.remove('shell-home');
+    document.body.classList.remove('shell-home', 'app-modal-open');
     var topBar = document.getElementById('top-bar');
-    if (topBar) topBar.hidden = true;
-    var homeMenu = document.getElementById('menu-button');
-    var appMenuHost = document.getElementById('shell-app-menu-host');
-    if (!appMenuHost) {
-      appMenuHost = document.createElement('div');
-      appMenuHost.id = 'shell-app-menu-host';
-      document.body.insertBefore(appMenuHost, document.body.firstChild);
+    if (topBar) {
+      topBar.hidden = true;
+      topBar.style.removeProperty('display');
     }
-    if (homeMenu && homeMenu.parentElement !== appMenuHost) {
-      appMenuHost.appendChild(homeMenu);
-    }
+    mountAppChrome();
     setMenuVars(app);
     if (iframe) {
       var next = iframeSrc(folder);
@@ -161,17 +210,20 @@
       if (iframe) iframe.setAttribute('src', 'about:blank');
     }
     if (home) home.hidden = false;
-    document.body.classList.remove('shell-app-open');
+    document.body.classList.remove('shell-app-open', 'app-modal-open');
     document.body.classList.add('shell-home');
     var topBar = document.getElementById('top-bar');
-    if (topBar) topBar.hidden = false;
-    var menu = document.getElementById('menu-button');
-    if (menu && topBar && !topBar.contains(menu)) {
-      var homeRoot = document.getElementById('home-root-button');
-      if (homeRoot) topBar.insertBefore(menu, homeRoot);
-      else topBar.insertBefore(menu, topBar.firstChild);
+    if (topBar) {
+      topBar.hidden = false;
+      topBar.removeAttribute('hidden');
+      topBar.style.removeProperty('display');
+      topBar.style.removeProperty('visibility');
+      topBar.style.removeProperty('opacity');
     }
+    restoreHomeChrome();
     setMenuVars(null);
+    // Home dashboard keyboard/tile selection should work after soft-nav from ?app=
+    try { window.__SHELL_ON_HOME = true; } catch (_) {}
     currentFolder = null;
     if (push !== false) {
       var url = new URL('/main', window.location.origin);
@@ -182,11 +234,16 @@
     }
   }
 
+  function isShellHomeLink(el) {
+    return !!(el && el.closest && el.closest('a.shell-home-link, a.app-rail-home, a#home-root-button'));
+  }
+
   function onClick(e) {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
     var tile = e.target.closest && e.target.closest('a.app-tile-link');
     if (tile) {
       var href = tile.getAttribute('href') || '';
-      if (!href || tile.target === '_blank' || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      if (!href || tile.target === '_blank') return;
       var url = new URL(href, window.location.origin);
       var folder = url.searchParams.get('app');
       if (!folder) return;
@@ -194,10 +251,16 @@
       showApp(folder, true);
       return;
     }
-    var homeLink = e.target.closest && e.target.closest('a.app-rail-home, a#home-root-button');
-    if (homeLink && currentFolder) {
-      e.preventDefault();
-      showHome(true);
+    if (isShellHomeLink(e.target)) {
+      if (currentFolder || document.body.classList.contains('shell-app-open')) {
+        e.preventDefault();
+        showHome(true);
+        return;
+      }
+      var here = new URL(window.location.href);
+      if (here.pathname === '/main' && !here.searchParams.get('app')) {
+        e.preventDefault();
+      }
     }
   }
 
@@ -212,6 +275,10 @@
   if (currentFolder) {
     ensureHomeShell();
     ensureAppShell();
+    mountAppChrome();
+    setMenuVars(byFolder(currentFolder));
+    document.body.classList.add('shell-app-open');
+    document.body.classList.remove('shell-home');
     history.replaceState({ shellApp: currentFolder }, document.title, window.location.href);
   } else if (document.getElementById('app-grid')) {
     document.body.classList.add('shell-home');

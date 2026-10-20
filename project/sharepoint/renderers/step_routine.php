@@ -26,7 +26,7 @@ final class StepRoutineRenderer extends BaseRenderer implements AppRendererInter
     </div>
     <div class="sp-app-head__actions">
       <button class="md3-btn md3-btn--tonal" data-sp-export-steps><span class="material-symbols-outlined">download</span>' . sp_h(sp_t('export')) . '</button>
-      <button class="md3-btn md3-btn--text" data-sp-print><span class="material-symbols-outlined">print</span>' . sp_h(sp_t('print')) . '</button>
+      <button class="md3-btn md3-btn--outlined" data-sp-print><span class="material-symbols-outlined">print</span>' . sp_h(sp_t('print')) . '</button>
     </div>
   </section>
 

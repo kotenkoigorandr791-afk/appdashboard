@@ -316,8 +316,10 @@ if (
     $showLogin = true;
 }
 
-$showTopBarTitle = !$selectedApp && $path === '/main' && !$showLogin;
+// Top bar is always present on /main so soft-nav home can restore it even after ?app= loads.
+$showTopBarTitle = $path === '/main' && !$showLogin;
 $isHomeDashboard = $path === '/main' && !$selectedApp && !$showLogin;
+$shellAppOpen = $path === '/main' && !$showLogin && (bool)$selectedApp;
 if (!headers_sent()) {
     header('Permissions-Policy: microphone=*');
 }

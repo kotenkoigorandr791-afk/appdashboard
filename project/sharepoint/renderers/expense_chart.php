@@ -24,7 +24,7 @@ final class ExpenseChartRenderer extends BaseRenderer implements AppRendererInte
     </div>
     <div class="sp-app-head__actions">
       <button class="md3-btn md3-btn--tonal" data-sp-export-csv><span class="material-symbols-outlined">table_view</span>' . sp_h(sp_t('csv')) . '</button>
-      <button class="md3-btn md3-btn--text" data-sp-print><span class="material-symbols-outlined">print</span>' . sp_h(sp_t('print')) . '</button>
+      <button class="md3-btn md3-btn--outlined" data-sp-print><span class="material-symbols-outlined">print</span>' . sp_h(sp_t('print')) . '</button>
     </div>
   </section>
 

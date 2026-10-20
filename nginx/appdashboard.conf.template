@@ -651,7 +651,7 @@ server {
     # Internal PHP includes under /project/ must never be requested directly:
     # they rely on the bootstrap chain and would leak paths via fatal errors.
     # Legitimate public API endpoints under /project/ are allow-listed.
-    location ~ ^/project/(?!weather_settings\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$)(?!backup/index\.php$).*\.php$ {
+    location ~ ^/project/(?!weather_settings\.php$)(?!sharepoint/share_i18n\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$)(?!backup/index\.php$).*\.php$ {
         return 404;
     }
 
