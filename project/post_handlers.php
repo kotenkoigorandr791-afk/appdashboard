@@ -425,6 +425,86 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         exit;
     }
 
+    if(isset($_POST['get_sharepoint_links'])&&isset($_POST['ajax'])){
+        while(ob_get_level()>1)ob_end_clean();
+        header('Content-Type: application/json');
+        $currentUserEmail = strtolower(trim((string)($_SESSION['user']['email'] ?? '')));
+        if ($currentUserEmail === '') {
+            echo json_encode(['success'=>false,'error'=>'Not authenticated','shares'=>[]]);
+            exit;
+        }
+        require_once __DIR__ . '/sharepoint/bootstrap.php';
+        $repo = new ShareRepository();
+        $filters = [
+            'resource_app' => (string)($_POST['resource_app'] ?? 'all'),
+            'status' => (string)($_POST['status'] ?? ''),
+        ];
+        $shares = $sessionIsAdmin ? $repo->all($filters) : $repo->findByOwner($currentUserEmail, $filters);
+        $rows = [];
+        foreach ($shares as $share) {
+            $meta = ShareRegistry::appMeta($share->resource_app);
+            $entity = ShareRegistry::entityCatalog()[$share->entity_type] ?? $share->entity_type;
+            $status = $share->isRevoked() ? 'revoked' : ($share->isExpired() ? 'expired' : 'active');
+            $rows[] = [
+                'id' => (int)$share->id,
+                'token' => $share->token,
+                'title' => $share->title,
+                'link' => sp_public_url($share->token),
+                'resource_app' => $share->resource_app,
+                'resource_type' => $share->resource_type,
+                'entity_type' => $share->entity_type,
+                'entity_label' => $entity !== '' ? $entity : ucfirst($share->resource_type),
+                'app_label' => $meta['label'],
+                'app_icon' => $meta['icon'],
+                'owner_email' => $share->owner_email,
+                'created_at' => $share->created_at,
+                'expires_at' => $share->expires_at,
+                'expires_option' => $share->expires_option,
+                'status' => $status,
+                'data_mode' => $share->dataMode(),
+                'permissions' => $share->permissions,
+                'view_count' => $share->view_count,
+            ];
+        }
+        echo json_encode(['success'=>true,'shares'=>$rows]);
+        exit;
+    }
+
+    if(isset($_POST['sharepoint_action'])&&isset($_POST['ajax'])){
+        while(ob_get_level()>1)ob_end_clean();
+        header('Content-Type: application/json');
+        $currentUserEmail = strtolower(trim((string)($_SESSION['user']['email'] ?? '')));
+        if ($currentUserEmail === '') {
+            echo json_encode(['success'=>false,'error'=>'Not authenticated']);
+            exit;
+        }
+        require_once __DIR__ . '/sharepoint/bootstrap.php';
+        $repo = new ShareRepository();
+        $op = strtolower((string)($_POST['op'] ?? ''));
+        $ids = json_decode((string)($_POST['ids'] ?? '[]'), true);
+        if (!is_array($ids)) $ids = [(int)$ids];
+        $ids = array_values(array_filter(array_map('intval', $ids)));
+        if ($ids === [] || !in_array($op, ['revoke','delete'], true)) {
+            echo json_encode(['success'=>false,'error'=>'Invalid request']);
+            exit;
+        }
+        $allowed = [];
+        foreach ($ids as $id) {
+            $share = $repo->findById($id);
+            if ($share && ($sessionIsAdmin || $share->owner_email === $currentUserEmail)) {
+                $allowed[] = $id;
+            }
+        }
+        if ($allowed === []) {
+            echo json_encode(['success'=>false,'error'=>'Access denied']);
+            exit;
+        }
+        if ($op === 'revoke') $repo->bulkRevoke($allowed);
+        else $repo->bulkDelete($allowed);
+        echo json_encode(['success'=>true,'count'=>count($allowed)]);
+        exit;
+    }
+
     if(isset($_POST['delete_shared_file'])&&isset($_POST['ajax'])){
         $shareId = $_POST['share_id'] ?? '';
         $currentUserEmail = $_SESSION['user']['email'] ?? null;

@@ -376,7 +376,8 @@ if ($action === 'empty_trash') {
   json_out(['ok' => true, 'removed' => $removed]);
 }
 
-if ($action === 'share_file') {
+if ($action === 'share_file' || $action === 'share_folder') {
+    require_once dirname(__DIR__, 4) . '/project/sharepoint/bridge_legacy.php';
     $user = get_current_user_from_sessions();
     if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
 
@@ -504,7 +505,8 @@ if ($action === 'share_file') {
             $upd->bindValue(':max_views', $maxViews, PDO::PARAM_INT);
             $upd->bindValue(':share_id', $existing['share_id'], PDO::PARAM_STR);
             $upd->execute();
-            json_out(['key' => $existing['share_id'], 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
+            sharepoint_mirror_legacy_cloud($db, (string)$existing['share_id'], basename($fullPath), $normalizedPath, (bool)$isFolder, $userEmail, $expires, $expiresOption, $passwordHash, !$disableDownload, $maxViews);
+            json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
             return;
         }
 
@@ -540,7 +542,8 @@ if ($action === 'share_file') {
         $stmt->bindValue(':max_views', $maxViews, PDO::PARAM_INT);
 
         if ($stmt->execute()) {
-            json_out(['key' => $shareId, 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
+            sharepoint_mirror_legacy_cloud($db, (string)$shareId, basename($fullPath), $normalizedPath, (bool)$isFolder, $userEmail, $expires, $expiresOption, $passwordHash, !$disableDownload, $maxViews);
+            json_out(['key' => $shareId, 'link' => sharepoint_public_link((string)$shareId), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
         } else {
             json_out(['error' => 'Failed to create share record'], 500);
         }

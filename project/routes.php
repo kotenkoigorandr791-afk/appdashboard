@@ -5,6 +5,13 @@ require_once __DIR__ . '/core.php';
 $requestUri = $_SERVER['REQUEST_URI'];
 $path = oauthRequestPath($requestUri);
 
+// Public SharePoint links are standalone pages: never let them fall through to
+// the login/registration guards when routes.php is loaded by a legacy entrypoint.
+require_once __DIR__ . '/sharepoint/dispatch.php';
+if (sharepoint_dispatch_path($path)) {
+    exit;
+}
+
 if ($path === '/csrf' && strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'GET') {
     while (ob_get_level() > 1) ob_end_clean();
     header('Content-Type: application/json; charset=utf-8');

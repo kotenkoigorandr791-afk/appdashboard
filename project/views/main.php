@@ -1360,6 +1360,32 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #refresh-shared-files{width:40px;padding:0;}
         .delete-filtered-btn{background:#ff9800;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;display:none;align-items:center;gap:5px;}
         .delete-filtered-btn:hover{background:#f57c00;}
+        .share-links-group{margin:0 0 14px;}
+        .share-links-group__head{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 4px 6px;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;opacity:.72;}
+        .share-links-group__head h3{margin:0;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;}
+        .share-links-group__head span{min-width:24px;padding:2px 7px;text-align:center;border-radius:999px;background:var(--group-block-bg);font-size:11px;}
+        .share-link-row{display:flex;align-items:center;gap:12px;justify-content:space-between;padding:10px 12px;margin-bottom:6px;border:1px solid var(--border-color);border-radius:12px;background:color-mix(in srgb,var(--modal-bg) 76%,transparent);transition:background .12s ease,border-color .12s ease;}
+        .share-link-row:hover{background:var(--group-block-bg);border-color:color-mix(in srgb,var(--primary-color) 34%,var(--border-color));}
+        .share-link-row__main{display:flex;align-items:center;gap:11px;min-width:0;flex:1;}
+        .share-link-row__app{display:grid;place-items:center;flex:0 0 36px;width:36px;height:36px;border-radius:10px;background:var(--group-block-bg);font-size:18px;}
+        .share-link-row__text{min-width:0;flex:1;}
+        .share-link-row__title{display:block;font-size:14px;font-weight:700;color:var(--text-color);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+        .share-link-row__title:hover{color:var(--primary-color);}
+        .share-link-row__meta{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:3px;font-size:11px;opacity:.66;white-space:nowrap;}
+        .share-link-chip{padding:2px 7px;border-radius:999px;background:color-mix(in srgb,var(--primary-color) 12%,transparent);color:var(--primary-color);font-weight:700;opacity:1;}
+        .share-link-row__side{display:flex;align-items:center;gap:8px;flex:0 0 auto;}
+        .share-status{font-size:10px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;padding:4px 8px;border-radius:999px;}
+        .share-status.is-active{color:#1b7f4d;background:rgba(34,197,94,.14);}
+        .share-status.is-expired{color:#9a6700;background:rgba(245,158,11,.14);}
+        .share-status.is-revoked{color:#c0392b;background:rgba(239,68,68,.14);}
+        .share-link-row__actions{display:flex;gap:2px;}
+        .share-icon-btn{width:30px;height:30px;display:grid;place-items:center;border:1px solid transparent;border-radius:8px;background:transparent;color:var(--text-color);cursor:pointer;font-size:14px;opacity:.7;}
+        .share-icon-btn:hover{opacity:1;background:var(--group-block-bg);border-color:var(--border-color);}
+        .share-icon-btn.is-danger:hover{color:#fff;background:#d64545;border-color:#d64545;}
+        .share-links-empty{display:flex;flex-direction:column;align-items:center;gap:8px;padding:44px 16px;text-align:center;opacity:.6;}
+        .share-links-empty span{font-size:30px;}
+        .share-links-empty p{margin:0;font-size:13px;}
+        @media(max-width:640px){.share-link-row{align-items:flex-start;flex-direction:column;}.share-link-row__side{width:100%;justify-content:space-between;padding-left:47px;}}
         #sessions-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #sessions-content{background:var(--modal-bg);padding:0;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:80vh;max-width:800px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #close-sessions{position:absolute;top:10px;right:10px;background:none;border:none;color:#ff0000;font-size:20px;cursor:pointer;padding:5px;z-index:10002;}
@@ -3962,6 +3988,7 @@ endif; // showOtpPage
                     <option value="name_asc"><?php echo my_htmlspecialchars($translations['ap_sort_name'] ?? 'Name'); ?> A-Z</option>
                 </select>
                 <select id="shared-files-group">
+                    <option value="app" selected><?php echo my_htmlspecialchars($translations['share_sort_group_app'] ?? 'Group by application'); ?></option>
                     <option value="none"><?php echo my_htmlspecialchars($translations['share_sort_no_grouping'] ?? 'No grouping'); ?></option>
                     <option value="user"><?php echo my_htmlspecialchars($translations['share_sort_group_user'] ?? 'Group by user'); ?></option>
                 </select>
@@ -4887,7 +4914,10 @@ var T=<?php echo json_encode([
                     const win=iframe.contentWindow;
                     const iframeRect=iframe.getBoundingClientRect();
                     const menuRect=menuButton.getBoundingClientRect();
-                    bodyLocked=doc.body.classList.contains('modal-open');
+                    bodyLocked=doc.body.classList.contains('modal-open')||(
+                        doc.body.classList.contains('sp-share-open')&&
+                        (!doc.body.classList.contains('sp-share-app-cloud')||win.innerWidth<=768)
+                    );
                     hasOverlap=Array.from(doc.querySelectorAll(selectors)).some(el=>{
                         if(!isVisibleLayer(el,win))return false;
                         if(el.closest('.drawer,.drawer-overlay,[class*="Drawer"],[class*="drawer"]'))return false;
@@ -5841,11 +5871,135 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         function loadSharedFilesList(){
             const refreshButton=document.getElementById('refresh-shared-files');
             if(refreshButton){ refreshButton.disabled=true; refreshButton.style.opacity='0.6'; }
-            const fd=new FormData(); fd.append('get_shared_files','1'); fd.append('ajax','1');
+            const fd=new FormData(); fd.append('get_sharepoint_links','1'); fd.append('ajax','1');
             fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
-                if(d.success) renderSharedFilesTable(d.files||{});
+                if(d.success) renderSharepointLinks(d.shares||[]);
+                else showTempNotification(d.error||'Error','error');
                 if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; }
             }).catch(function(){ if(refreshButton){ refreshButton.disabled=false; refreshButton.style.opacity='1'; } });
+        }
+
+        const SHARED_APP_META = {
+            cloud: { icon: '☁', label: 'Cloud' },
+            recipes: { icon: '🍲', label: 'Recipes' },
+            spends: { icon: '📊', label: 'Spends' },
+            steps: { icon: '👟', label: 'Steps' },
+            films: { icon: '🎬', label: 'Films' },
+            smart_home: { icon: '🏠', label: 'Smart Home' }
+        };
+        let sharedLinkRows = [];
+
+        // SharePoint returns ISO-like timestamps; formatDate() expects seconds.
+        function shareTimestamp(value){
+            if(!value) return 0;
+            // PostgreSQL may return "2026-10-19 20:34:38.280345+00"; browsers
+            // need the timezone offset in +HH:MM form.
+            const normalized = String(value).trim().replace(' ','T').replace(/([+-]\d{2})$/, '$1:00');
+            const parsed = new Date(normalized).getTime();
+            return Number.isFinite(parsed) ? Math.floor(parsed / 1000) : 0;
+        }
+
+        function shareStatusMeta(status){
+            if (status === 'revoked') return { label: 'Revoked', cls: 'is-revoked' };
+            if (status === 'expired') return { label: 'Expired', cls: 'is-expired' };
+            return { label: 'Active', cls: 'is-active' };
+        }
+
+        function renderSharepointLinks(shares){
+            const container = document.getElementById('shared-files-list-container');
+            if(!container) return;
+            sharedLinkRows = Array.isArray(shares) ? shares : [];
+            const groupBy = (document.getElementById('shared-files-group')||{}).value || 'app';
+            const sortBy = (document.getElementById('shared-files-sort')||{}).value || 'created_desc';
+            if(sharedLinkRows.length === 0){
+                container.innerHTML = '<div class="share-links-empty"><span>🔗</span><p>' + <?php echo json_encode(my_htmlspecialchars($translations['no_shared_files'])); ?> + '</p></div>';
+                return;
+            }
+            const rows = sharedLinkRows.slice().sort(function(a,b){
+                if (sortBy === 'name_asc') return String(a.title||'').localeCompare(String(b.title||''));
+                return String(b.created_at||'').localeCompare(String(a.created_at||''));
+            });
+            const groups = [];
+            const index = {};
+            rows.forEach(function(item){
+                const key = groupBy === 'app' ? (item.resource_app || 'cloud')
+                    : groupBy === 'user' ? (item.owner_email || '') : 'all';
+                if (!index[key]) { index[key] = { key: key, items: [] }; groups.push(index[key]); }
+                index[key].items.push(item);
+            });
+            container.innerHTML = groups.map(function(group){
+                const meta = SHARED_APP_META[group.key] || { icon: '🔗', label: group.key };
+                const heading = groupBy === 'all' ? 'All shared links'
+                    : groupBy === 'user' ? (group.key || 'Unknown user')
+                    : meta.icon + ' ' + meta.label;
+                const body = group.items.map(function(item){
+                    const appMeta = SHARED_APP_META[item.resource_app] || { icon: '🔗', label: item.resource_app };
+                    const status = shareStatusMeta(item.status);
+                    const expires = item.expires_at ? formatDate(shareTimestamp(item.expires_at)) : SHARE_EXPIRY_NEVER_TEXT;
+                    const created = formatDate(shareTimestamp(item.created_at));
+                    return '<article class="share-link-row" data-title="' + sharedFileText(item.title||'') + '" data-app="' + sharedFileText(item.resource_app||'') + '" data-owner="' + sharedFileText(item.owner_email||'') + '">' +
+                        '<div class="share-link-row__main">' +
+                            '<span class="share-link-row__app" aria-hidden="true">' + appMeta.icon + '</span>' +
+                            '<div class="share-link-row__text">' +
+                                '<a class="share-link-row__title" href="' + sharedFileText(item.link||'') + '" target="_blank" rel="noopener">' + sharedFileText(item.title || '(untitled)') + '</a>' +
+                                '<div class="share-link-row__meta"><span class="share-link-chip">' + sharedFileText(item.entity_label || item.resource_type) + '</span><span>' + sharedFileText(item.owner_email) + '</span><span>' + created + '</span><span>' + (item.expires_at ? 'until ' + expires : 'never expires') + '</span></div>' +
+                            '</div>' +
+                        '</div>' +
+                        '<div class="share-link-row__side">' +
+                            '<span class="share-status ' + status.cls + '">' + status.label + '</span>' +
+                            '<div class="share-link-row__actions">' +
+                                '<button type="button" class="share-icon-btn" data-link-copy="' + sharedFileText(item.link||'') + '" title="Copy link">⧉</button>' +
+                                (item.status === 'active' ? '<button type="button" class="share-icon-btn" data-link-act="revoke" data-id="' + item.id + '" title="Revoke">⛔</button>' : '') +
+                                '<button type="button" class="share-icon-btn is-danger" data-link-act="delete" data-id="' + item.id + '" title="Delete">🗑</button>' +
+                            '</div>' +
+                        '</div>' +
+                    '</article>';
+                }).join('');
+                return '<section class="share-links-group"><header class="share-links-group__head"><h3>' + sharedFileText(heading) + '</h3><span>' + group.items.length + '</span></header>' + body + '</section>';
+            }).join('');
+            bindSharepointLinkEvents();
+        }
+
+        function bindSharepointLinkEvents(){
+            const container = document.getElementById('shared-files-list-container');
+            if(!container) return;
+            container.querySelectorAll('[data-link-copy]').forEach(function(button){
+                button.addEventListener('click', function(){
+                    const link = this.dataset.linkCopy;
+                    const done = function(){ showTempNotification('Link copied','success'); };
+                    if(navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(link).then(done).catch(function(){ showTempNotification('Copy failed','error'); });
+                    else { const input=document.createElement('textarea'); input.value=link; document.body.appendChild(input); input.select(); try{document.execCommand('copy');done();}catch(e){} input.remove(); }
+                });
+            });
+            container.querySelectorAll('[data-link-act]').forEach(function(button){
+                button.addEventListener('click', function(){
+                    const op = this.dataset.linkAct;
+                    const id = Number(this.dataset.id);
+                    if(!id) return;
+                    const ask = op === 'delete' ? 'Delete this shared link permanently?' : 'Revoke this shared link?';
+                    sfConfirm(ask, function(){
+                        const fd = new FormData();
+                        fd.append('sharepoint_action','1'); fd.append('ajax','1'); fd.append('op',op); fd.append('ids',JSON.stringify([id]));
+                        fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
+                            if(d.success){ showTempNotification(op === 'delete' ? 'Deleted' : 'Revoked','success'); loadSharedFilesList(); }
+                            else showTempNotification(d.error||'Error','error');
+                        }).catch(function(){ showTempNotification('Error','error'); });
+                    });
+                });
+            });
+            const src = document.getElementById('shared-files-search');
+            if(src){
+                const handler = function(){
+                    const q = src.value.toLowerCase();
+                    container.querySelectorAll('.share-link-row').forEach(function(row){
+                        const hay = (row.dataset.title + ' ' + row.dataset.app + ' ' + row.dataset.owner).toLowerCase();
+                        row.style.display = hay.indexOf(q) !== -1 ? '' : 'none';
+                    });
+                };
+                src.removeEventListener('input', src._sfHandler);
+                src._sfHandler = handler;
+                src.addEventListener('input', handler);
+            }
         }
 
         /* sfConfirm — modal instead of alert/confirm */

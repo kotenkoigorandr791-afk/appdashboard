@@ -53,7 +53,7 @@
 │   ├── 25_appdashboard_mcp.md
 │   ├── 26_telegram_bot.md
 │   ├── 27_public_api.md
-│   ├── 28_share_file_utils.md
+│   ├── 28_sharepoint.md
 │   └── 29_waf.md
 │
 ├── nginx/                             # Nginx configuration

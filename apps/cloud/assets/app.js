@@ -1195,19 +1195,12 @@ async function generateShareKey(filePath, expiresOption = 'never') {
 }
 window.generateShareKey = generateShareKey;
 function buildCloudShareUrl(shareData) {
-    const currentUrl = new URL(window.location.href);
-    const currentParams = currentUrl.searchParams;
-    let color = currentParams.get('color');
-    if (!color) {
-        color = window.APP_CONFIG.color.replace('#', '%23');
+    if (shareData && shareData.link) {
+        return shareData.link;
     }
     const shareUrl = new URL(window.location.href);
-    shareUrl.pathname = '/';
+    shareUrl.pathname = '/s/' + encodeURIComponent((shareData && shareData.key) || '');
     shareUrl.search = '';
-    shareUrl.searchParams.set('sharedFile', shareData.key);
-    shareUrl.searchParams.set('theme', currentParams.get('theme') || window.APP_CONFIG.theme);
-    shareUrl.searchParams.set('lang', currentParams.get('lang') || window.APP_CONFIG.lang);
-    shareUrl.searchParams.set('color', color);
     return shareUrl.toString();
 }
 window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never') {
@@ -1420,6 +1413,18 @@ function openShareChoiceMenu(anchor, getLinkAction, sendAction) {
     setTimeout(() => document.addEventListener('pointerdown', close, true), 0);
 }
 function initShareFeature() {
+    const shareModal = document.getElementById('share-modal');
+    if (shareModal) {
+        // The shell menu button sits above the app iframe. On phones the share
+        // sheet covers the whole viewport, so mirror its state into modal-open;
+        // on desktop the button stays visible as before.
+        const syncShareMenuLock = () => {
+            const open = !shareModal.classList.contains('hidden') && window.matchMedia('(max-width: 768px)').matches;
+            document.body.classList.toggle('modal-open', open);
+        };
+        new MutationObserver(syncShareMenuLock).observe(shareModal, { attributes: true, attributeFilter: ['class'] });
+        syncShareMenuLock();
+    }
     document.getElementById('btn-share').addEventListener('click', () => {
         const button = document.getElementById('btn-share');
         openShareChoiceMenu(button, async () => {

@@ -1,3 +1,6 @@
+<script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+<script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
 <script>
 <?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
 const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;
@@ -1301,6 +1304,14 @@ function renderShareChartCanvas(width,height,isMobile,titleSize){
     return {canvas,chart:inst};
 }
 function showShareModal(){
+    if(window.openShareModal){
+        window.openShareModal('spends','app','expense_chart',{
+            title: (translations.share_chart || document.title || 'Expenses'),
+            defaultPermissions: ['view','interact'],
+            apiUrl: '/apps/spends/api/share.php'
+        });
+        return;
+    }
     if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
     showModal('share-modal');
     requestAnimationFrame(()=>{
@@ -1342,23 +1353,18 @@ function dataUrlToPngFile(dataUrl){
     for(let i=0;i<bin.length;i++)bytes[i]=bin.charCodeAt(i);
     return new File([bytes],`expenses-chart-${currentChartYear}.png`,{type:'image/png'});
 }
-async function shareChartToCloud(){
-    if(!chart){showNotification(t('chart_not_available','Chart not available'),'error');return;}
-    const btn=document.getElementById('share-link-btn');
-    if(btn)btn.disabled=true;
-    try{
-        const fd=new FormData();
-        fd.append('share_chart_to_cloud','1');
-        fd.append('image',dataUrlToPngFile(chartShareDataUrl()));
-        const res=await fetch('?',{method:'POST',body:fd});
-        const data=await res.json();
-        if(data.status!=='success')throw new Error(data.message||'failed');
-        await showChartShareLinkModal(data.link);
-    }catch(e){
-        showNotification(`${t('error','Error')}: ${e.message}`,'error');
-    }finally{
-        if(btn)btn.disabled=false;
+function shareChartToCloud(){
+    // The app share dialog creates a live/snapshot link directly. It must not
+    // upload a rendered PNG (expenses-chart-*.png) into the user's Cloud storage.
+    if(window.openShareModal){
+        window.openShareModal('spends','app','expense_chart',{
+            title: (translations.share_chart || document.title || 'Expenses'),
+            defaultPermissions: ['view','interact'],
+            apiUrl: '/apps/spends/api/share.php'
+        });
+        return;
     }
+    showNotification(t('error','Error')+': '+t('share_chart','Share'),'error');
 }
 async function showChartShareLinkModal(link){
     closeModal('share-modal');

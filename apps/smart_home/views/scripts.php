@@ -1,3 +1,6 @@
+<script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+<script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
 <script>
 // ─── State ─────────────────────────────────────────────────────────────────
 // JSON_HEX_TAG keeps user-editable values from closing this <script> block.
@@ -1495,6 +1498,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Add device
   document.getElementById('addDeviceBtn').addEventListener('click', showAddDeviceForm);
+  const spShareBtn = document.getElementById('sharepoint-share-btn');
+  if (spShareBtn && window.openShareModal) {
+    spShareBtn.addEventListener('click', () => window.openShareModal('smart_home', 'app', 'smart_home_scene', {
+      title: 'Smart Home',
+      defaultPermissions: ['view'],
+      apiUrl: '/apps/smart_home/api/share.php'
+    }));
+  }
   document.getElementById('deviceTableAdd').addEventListener('click', showAddDeviceForm);
 
   // Device search

@@ -507,6 +507,50 @@ function initDB(AppDatabase $db): void {
     try { $db->exec("ALTER TABLE shared_files ADD COLUMN disable_copy INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE shared_files ADD COLUMN max_views INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE shared_files ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN is_folder INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+
+    // ── Universal shares (SharePoint) ───────────────────────────────────────
+    // One publication entity for every app. Tokens are stored hashed for lookup;
+    // migrated legacy rows keep token = old share_id until their first access.
+    $db->exec("CREATE TABLE IF NOT EXISTS shares (
+        id                  BIGSERIAL PRIMARY KEY,
+        token               TEXT NOT NULL UNIQUE,
+        token_hash          TEXT NOT NULL DEFAULT '',
+        resource_type       TEXT NOT NULL DEFAULT 'file',
+        entity_type         TEXT NOT NULL DEFAULT '',
+        resource_id         TEXT NOT NULL DEFAULT '',
+        resource_app        TEXT NOT NULL DEFAULT 'cloud',
+        resource_data       JSONB NOT NULL DEFAULT '{}'::jsonb,
+        title               TEXT NOT NULL DEFAULT '',
+        description         TEXT NOT NULL DEFAULT '',
+        owner_email         TEXT NOT NULL,
+        access_mode         TEXT NOT NULL DEFAULT 'public',
+        permissions         JSONB NOT NULL DEFAULT '[\"view\"]'::jsonb,
+        password_hash       TEXT DEFAULT NULL,
+        created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        expires_at          TIMESTAMPTZ DEFAULT NULL,
+        expires_option      TEXT NOT NULL DEFAULT '1m',
+        revoked_at          TIMESTAMPTZ DEFAULT NULL,
+        snapshot_data       JSONB DEFAULT NULL,
+        snapshot_created_at TIMESTAMPTZ DEFAULT NULL,
+        view_count          BIGINT NOT NULL DEFAULT 0,
+        max_views           BIGINT NOT NULL DEFAULT 0,
+        is_active           BOOLEAN NOT NULL DEFAULT TRUE
+    )");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_shares_token_hash ON shares(token_hash)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_shares_owner ON shares(owner_email)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_shares_resource ON shares(resource_app, resource_type, resource_id)");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_shares_expires ON shares(expires_at) WHERE expires_at IS NOT NULL");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_shares_active ON shares(is_active) WHERE is_active = TRUE");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_shares_revoked ON shares(revoked_at) WHERE revoked_at IS NOT NULL");
+    $db->exec("CREATE TABLE IF NOT EXISTS share_unlock_attempts (
+        id           BIGSERIAL PRIMARY KEY,
+        token_hash   TEXT NOT NULL,
+        ip           TEXT NOT NULL DEFAULT '',
+        attempted_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint)
+    )");
+    $db->exec("CREATE INDEX IF NOT EXISTS idx_share_unlock_attempts_lookup ON share_unlock_attempts(token_hash, ip, attempted_at)");
+    sharepoint_migrate_legacy_shares($db);
 
     // ── Password reset codes ─────────────────────────────────────────────────
     // Added FOREIGN KEY with cascading delete
@@ -1997,8 +2041,58 @@ function storageUsageConsumeRefreshRequest(): bool {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// SHARED FILES
+// SHARED FILES / SHAREPOINT MIGRATION
 // ─────────────────────────────────────────────────────────────────────────────
+/**
+ * Copy legacy `shared_files` rows into the universal `shares` table.
+ * Idempotent: legacy share_id becomes the public token; the hash is computed
+ * lazily on first access. Kept as a read-only fallback during the transition.
+ */
+function sharepoint_migrate_legacy_shares(AppDatabase $db): void {
+    try {
+        $db->exec(<<<'SQL'
+INSERT INTO shares (
+    token, token_hash, resource_type, entity_type, resource_id, resource_app,
+    resource_data, title, description, owner_email, access_mode, permissions,
+    password_hash, created_at, expires_at, expires_option, revoked_at,
+    view_count, max_views, is_active
+)
+SELECT
+    sf.share_id,
+    '',
+    CASE WHEN COALESCE(sf.is_folder, 0) = 1 THEN 'folder' ELSE 'file' END,
+    '',
+    sf.file_path,
+    'cloud',
+    jsonb_build_object(
+        'path', sf.file_path,
+        'is_folder', COALESCE(sf.is_folder, 0),
+        'name', COALESCE(sf.file_name, '')
+    ),
+    COALESCE(sf.file_name, ''),
+    '',
+    sf.user_email,
+    'public',
+    CASE WHEN COALESCE(sf.disable_download, 0) = 1
+         THEN '["view"]'::jsonb ELSE '["view", "download"]'::jsonb END,
+    NULLIF(COALESCE(sf.password_hash, ''), ''),
+    CASE WHEN COALESCE(sf.created_at, '') ~ '^[0-9]{4}-'
+         THEN sf.created_at::timestamptz ELSE NOW() END,
+    CASE WHEN sf.expires IS NULL THEN NULL ELSE to_timestamp(sf.expires) END,
+    COALESCE(NULLIF(sf.expires_option, ''), 'never'),
+    NULL,
+    COALESCE(sf.view_count, 0),
+    COALESCE(sf.max_views, 0),
+    TRUE
+FROM shared_files sf
+WHERE COALESCE(sf.user_email, '') <> ''
+  AND NOT EXISTS (SELECT 1 FROM shares s WHERE s.token = sf.share_id)
+SQL);
+    } catch (Throwable $e) {
+        error_log('sharepoint legacy migration: ' . $e->getMessage());
+    }
+}
+
 /**
  * @param string|null $userEmail      Filter by owner; ignored when $loadAllForAdmin is true
  * @param bool        $loadAllForAdmin Only for role=admin — loads entire table; never pass true from unauthenticated code

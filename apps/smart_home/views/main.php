@@ -6,7 +6,7 @@
 <title><?=sh_h($t['app_title'])?></title>
 <link rel="icon" type="image/svg+xml" href="icon.svg">
 <link rel="preload" as="image" href="<?=sh_h($theme === 'light' ? 'background_light_opt.jpg' : 'background_dark_opt.jpg')?>" fetchpriority="high">
-<link rel="stylesheet" href="assets/css/app.css?v=20260920c">
+<link rel="stylesheet" href="assets/css/app.css?v=20261019a">
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('smart_home'); ?>
 </head>
 <body class="<?= $theme === 'light' ? 'light' : '' ?>">
@@ -37,6 +37,9 @@
 
   <button class="menu-btn" id="addDeviceBtn" aria-label="Add device" title="<?=sh_h($t['add_device'])?>">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+  <button class="menu-btn" id="sharepoint-share-btn" aria-label="Share" title="Share">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.6" y1="10.7" x2="15.4" y2="6.3"/><line x1="8.6" y1="13.3" x2="15.4" y2="17.7"/></svg>
   </button>
   <button class="menu-btn" id="menuToggle" aria-label="Menu">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="24" height="24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
