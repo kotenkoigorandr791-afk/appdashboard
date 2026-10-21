@@ -44,7 +44,7 @@ jobs:
           if [ -f deploy/scripts/lopaka-needs-build.sh ]; then
             sh deploy/scripts/lopaka-needs-build.sh && sh deploy/scripts/build-lopaka.sh . || true
           fi
-          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build appdashboard
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --build --force-recreate appdashboard
           sudo -E sh /opt/docker/appdashboard/code/deploy/scripts/install-front-door.sh /opt/docker/appdashboard/code
           docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
           # Ensure public OAuth issuer uses https://$BASE_DOMAIN (never http://localhost).
