@@ -152,7 +152,7 @@ Produces `downloads/appdashboard-mcp.tgz` served at `/mcp/appdashboard-mcp.tgz`.
 | `steps_*` | Steps counter |
 | `immich_*` | Immich photo library |
 | `gitea_*` | Gitea git forge |
-| `kanboard_*` | Kanboard project management |
+| `kanboard_*` | Kanboard planning (edit project, task CRUD, stats) |
 | `news_*` | News portal (`news_delete` requires Manager+) |
 
 All `steps_*`, `immich_*`, `gitea_*`, and `kanboard_*` tools are available to any authenticated user (no Admin role required).
