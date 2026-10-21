@@ -50,7 +50,7 @@ install_wrappers() {
   fi
   chmod 0755 "$WRAP_DST" 2>/dev/null || true
   printf '%s\n' "$BINDIR" > /etc/appdashboard/tinytex-bindir
-  for eng in xelatex pdflatex latexmk lualatex; do
+  for eng in xelatex pdflatex latex latexmk lualatex; do
     if [ -f "$BINDIR/$eng" ] && [ -x "$BINDIR/$eng" ]; then
       ln -sfn "$WRAP_DST" "/usr/bin/$eng"
     fi

@@ -209,7 +209,7 @@ function latex_build_texinputs(string $compileDir, string $userRootDir): string 
 function latex_shell_env(string $cacheDir, ?string $texInputs = null): string {
     $cacheArg = escapeshellarg($cacheDir);
     $homeArg = escapeshellarg($cacheDir);
-    $path = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
+    $path = '/opt/ApplicationData/tinytex/bin/x86_64-linux:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
     $env = 'export PATH=' . escapeshellarg($path) . " HOME=$homeArg TEXMFHOME=$homeArg/texmf-home TEXMFVAR=$cacheArg TEXMFCACHE=$cacheArg";
     if ($texInputs !== null && $texInputs !== '') {
         $env .= ' TEXINPUTS=' . escapeshellarg($texInputs);
