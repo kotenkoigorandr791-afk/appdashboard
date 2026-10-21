@@ -10,6 +10,7 @@ use Kanboard\Notification\WebNotification;
 use Kanboard\Plugin\AppDashboard\Auth\DashboardAuth;
 use Kanboard\Plugin\AppDashboard\Notification\ShellNotification;
 use Kanboard\Plugin\AppDashboard\User\Avatar\ShellAvatarProvider;
+use Kanboard\Plugin\AppDashboard\User\ShellDirectoryBackendUserProvider;
 
 class Plugin extends Base
 {
@@ -17,6 +18,7 @@ class Plugin extends Base
     {
         $this->authenticationManager->register(new DashboardAuth($this->container));
         $this->avatarManager->register(new ShellAvatarProvider($this->container));
+        $this->userManager->register(new ShellDirectoryBackendUserProvider($this->container));
         $this->userNotificationTypeModel->setType(
             WebNotification::TYPE,
             'Shell',
@@ -51,6 +53,8 @@ class Plugin extends Base
         $this->template->setTemplateOverride('task_creation/show', 'appDashboard:task_creation/show');
         $this->template->setTemplateOverride('task/show', 'appDashboard:task/show');
         $this->template->setTemplateOverride('task/sidebar', 'appDashboard:task/sidebar');
+        $this->template->setTemplateOverride('project_permission/index', 'appDashboard:project_permission/index');
+        $this->template->setTemplateOverride('project_permission/users', 'appDashboard:project_permission/users');
         $this->template->setTemplateOverride('analytic/burndown', 'appDashboard:analytic/burndown');
         $this->template->setTemplateOverride('analytic/cfd', 'appDashboard:analytic/cfd');
         $this->template->setTemplateOverride('analytic/lead_cycle_time', 'appDashboard:analytic/lead_cycle_time');
@@ -64,7 +68,11 @@ class Plugin extends Base
 
         $this->projectAccessMap->add('OverviewCalendarController', 'updateDates', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('TaskQuickUpdateController', 'updateField', Role::PROJECT_MEMBER);
+        $this->projectAccessMap->add('ProjectMemberController', 'searchAssignable', Role::PROJECT_MEMBER);
+        $this->projectAccessMap->add('ProjectMemberController', 'add', Role::PROJECT_MANAGER);
+        $this->applicationAccessMap->add('ProjectMemberController', 'search', Role::APP_USER);
         $this->renameReadyColumns();
+        $this->ensurePerformanceIndexes();
 
         $admin = Role::APP_ADMIN;
         $this->applicationAccessMap->add('UserModificationController', '*', $admin);
@@ -164,7 +172,7 @@ class Plugin extends Base
 
     public function getPluginVersion()
     {
-        return '1.4.2';
+        return '1.5.1';
     }
 
     public function getCompatibleVersion()
@@ -193,6 +201,28 @@ class Plugin extends Base
                 $this->db->table(ColumnModel::TABLE)->eq('title', $title)->update(array('title' => 'todo'));
             }
             $this->configModel->save(array('appdashboard_todo_column_migrated' => '1'));
+        } catch (\Throwable $e) {
+        }
+    }
+
+    private function ensurePerformanceIndexes(): void
+    {
+        if ($this->configModel->get('appdashboard_perf_indexes_v2') === '1') {
+            return;
+        }
+        $statements = [
+            'CREATE INDEX IF NOT EXISTS users_email_lower_idx ON kanboard.users (lower(email))',
+            'CREATE INDEX IF NOT EXISTS project_has_users_user_idx ON kanboard.project_has_users (user_id)',
+            'CREATE INDEX IF NOT EXISTS tasks_owner_idx ON kanboard.tasks (owner_id)',
+            'CREATE INDEX IF NOT EXISTS tasks_column_active_idx ON kanboard.tasks (column_id, is_active)',
+            'CREATE INDEX IF NOT EXISTS tasks_swimlane_column_idx ON kanboard.tasks (swimlane_id, column_id)',
+            'CREATE INDEX IF NOT EXISTS project_has_users_project_role_idx ON kanboard.project_has_users (project_id, role)',
+        ];
+        try {
+            foreach ($statements as $sql) {
+                $this->db->getConnection()->exec($sql);
+            }
+            $this->configModel->save(['appdashboard_perf_indexes_v2' => '1']);
         } catch (\Throwable $e) {
         }
     }

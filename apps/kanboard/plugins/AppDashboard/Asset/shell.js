@@ -679,9 +679,151 @@
       else if (typeof mq.addListener === 'function') mq.addListener(onMq);
     } catch (e3) {}
   }
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', initSidebarToggle);
-  } else {
-    initSidebarToggle();
+  function tightenMemberAutocomplete() {
+    try {
+      if (!window.jQuery) return;
+      jQuery('.kb-member-email, .kb-assignee-search').each(function () {
+        var $el = jQuery(this);
+        if ($el.data('ui-autocomplete')) $el.autocomplete('option', 'minLength', 2);
+      });
+    } catch (e) {}
   }
+  function bootShellUi() {
+    initSidebarToggle();
+    setTimeout(tightenMemberAutocomplete, 0);
+    setTimeout(tightenMemberAutocomplete, 400);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootShellUi);
+  } else {
+    bootShellUi();
+  }
+
+  /* Soft navigation: keep sidebar mounted when switching projects / views */
+  var softNavBusy = false;
+  function softNavShouldHandle(a) {
+    if (!a || softNavBusy) return false;
+    if (a.target === '_blank' || a.hasAttribute('download')) return false;
+    if (a.classList.contains('js-modal-medium') || a.classList.contains('js-modal-large') || a.classList.contains('js-modal-small') || a.classList.contains('js-modal-confirm')) return false;
+    var href = a.getAttribute('href') || '';
+    if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return false;
+    if (href.indexOf('/apps/kanboard') === -1 && href.indexOf('controller=') === -1) return false;
+    if (/controller=(AuthController|UserAjaxController|TaskCreationController|ProjectCreationController|TaskFileController|CommentController)/i.test(href)) return false;
+    return /controller=(BoardViewController|DashboardController|ProjectViewController|ProjectOverviewController|TaskListController|TaskViewController|ProjectPermissionController|AnalyticController|SearchController|ActivityController)/i.test(href)
+      || a.classList.contains('kb-cycle-view-link')
+      || (a.closest && a.closest('#kb-app-sidebar'));
+  }
+  function softNavMarkActive(url) {
+    var side = document.getElementById('kb-app-sidebar');
+    if (!side) return;
+    var links = side.querySelectorAll('a[href]');
+    var u;
+    try { u = new URL(url, location.origin); } catch (e) { return; }
+    var pid = u.searchParams.get('project_id') || '';
+    for (var i = 0; i < links.length; i++) {
+      var li = links[i].closest('li');
+      if (!li) continue;
+      var hu;
+      try { hu = new URL(links[i].href, location.origin); } catch (e2) { continue; }
+      var match = false;
+      if (pid && hu.searchParams.get('project_id') === pid && /BoardViewController/i.test(hu.search)) match = true;
+      else if (!pid && hu.pathname + hu.search === u.pathname + u.search) match = true;
+      li.classList.toggle('active', match);
+    }
+  }
+  function softNavReboot(root) {
+    try {
+      if (window.jQuery) {
+        jQuery('.autocomplete, .kb-member-email, .kb-assignee-search', root || document).each(function () {
+          var $el = jQuery(this);
+          if ($el.data('ui-autocomplete')) {
+            try { $el.autocomplete('destroy'); } catch (eD) {}
+          }
+        });
+      }
+    } catch (eDestroy) {}
+    try {
+      if (window.KB && typeof KB.trigger === 'function') KB.trigger('dom.ready');
+    } catch (e0) {}
+    try {
+      if (window._KB) {
+        if (typeof _KB.datePicker === 'function') _KB.datePicker();
+        if (typeof _KB.autoComplete === 'function') _KB.autoComplete();
+        if (typeof _KB.tagAutoComplete === 'function') _KB.tagAutoComplete();
+        tightenMemberAutocomplete();
+        if (typeof _KB.execute === 'function') {
+          // refresh board controllers without rebinding global listeners
+          for (var key in _KB.controllers || {}) {
+            var c = _KB.controllers[key];
+            if (c && typeof c.onBoardRendered === 'function') {
+              try { c.onBoardRendered(); } catch (eB) {}
+            }
+          }
+        }
+      }
+    } catch (e) {}
+    try {
+      var ev = document.createEvent('Event');
+      ev.initEvent('kb:softnav', true, true);
+      document.dispatchEvent(ev);
+    } catch (e3) {}
+    try {
+      if (document.querySelector('.kb-cycle-workspace')) document.body.classList.add('kb-cycle-page');
+      else document.body.classList.remove('kb-cycle-page');
+      var canvas = document.getElementById('kb-burnup-chart');
+      if (canvas && window.Event) window.dispatchEvent(new Event('resize'));
+    } catch (e4) {}
+    try {
+      if (root && window.KB && typeof KB.render === 'function') KB.render();
+    } catch (e5) {}
+  }
+  function softNavigate(url, push) {
+    if (softNavBusy) return;
+    softNavBusy = true;
+    document.body.classList.add('kb-softnav-loading');
+    // Do not send X-Requested-With: Kanboard AJAX responses omit the layout
+    // (.kb-app-main / sidebar). Full HTML lets us swap main and keep the sidebar.
+    fetch(url, { credentials: 'same-origin', headers: { Accept: 'text/html' } })
+      .then(function (r) { return r.text().then(function (t) { return { ok: r.ok, url: r.url, text: t }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error('nav failed');
+        var doc = new DOMParser().parseFromString(res.text, 'text/html');
+        var nextMain = doc.querySelector('.kb-app-main');
+        var curMain = document.querySelector('.kb-app-main');
+        if (!nextMain || !curMain) {
+          location.href = url;
+          return;
+        }
+        var side = document.getElementById('kb-app-sidebar');
+        curMain.innerHTML = nextMain.innerHTML;
+        softNavMarkActive(res.url || url);
+        if (push !== false) {
+          try { history.pushState({ kbSoft: 1 }, '', res.url || url); } catch (e) {}
+        }
+        document.title = doc.title || document.title;
+        softNavReboot(curMain);
+        try {
+          if (side && document.getElementById('kb-app-sidebar') === side) {
+            side.setAttribute('data-kb-softnav', '1');
+          }
+        } catch (e2) {}
+      })
+      .catch(function () { location.href = url; })
+      .then(function () {
+        softNavBusy = false;
+        document.body.classList.remove('kb-softnav-loading');
+      });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var a = t.closest('a');
+    if (!softNavShouldHandle(a)) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    softNavigate(a.href, true);
+  }, true);
+  window.addEventListener('popstate', function () {
+    softNavigate(location.href, false);
+  });
 })();

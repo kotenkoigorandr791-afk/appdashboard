@@ -26,7 +26,18 @@ $columnLabel = $columns_list[$columnId] ?? reset($columns_list) ?: t('Backlog');
         <div class="kb-plane-props">
             <div class="kb-plane-prop"><?= $this->task->renderColumnField($columns_list, $values, $errors) ?></div>
             <div class="kb-plane-prop"><?= $this->task->renderPriorityField($project, $values) ?></div>
-            <div class="kb-plane-prop"><?= $this->task->renderAssigneeField($users_list, $values, $errors) ?></div>
+            <div class="kb-plane-prop kb-plane-prop-assignee">
+                <label for="kb-assignee-search"><?= t('Assignee') ?></label>
+                <?= $this->form->hidden('owner_id', $values + ['owner_id' => $values['owner_id'] ?? 0]) ?>
+                <input type="text"
+                       id="kb-assignee-search"
+                       class="autocomplete kb-assignee-search"
+                       placeholder="<?= $this->text->e(t('Type email…')) ?>"
+                       value=""
+                       data-dst-field="owner_id"
+                       data-search-url="<?= $this->url->href('ProjectMemberController', 'searchAssignable', ['plugin' => 'AppDashboard', 'project_id' => $project['id']]) ?>"
+                       autocomplete="off">
+            </div>
             <?php if (!empty($categories_list) && count($categories_list) > 1): ?>
                 <div class="kb-plane-prop"><?= $this->task->renderCategoryField($categories_list, $values, $errors) ?></div>
             <?php endif ?>

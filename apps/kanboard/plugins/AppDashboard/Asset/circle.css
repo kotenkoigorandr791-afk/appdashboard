@@ -860,6 +860,83 @@ body.kb-circle header .board-selector-container {
   display: none !important;
 }
 
+/* Permissions + member email autocomplete */
+.page-header.kb-perm-header,
+.kb-perm-header { margin: 16px 20px 10px !important; padding: 0 !important; }
+.kb-perm-table { margin: 0 20px 16px; width: calc(100% - 40px); }
+.kb-perm-empty { margin: 12px 20px; }
+.kb-perm-add {
+  margin: 12px 20px 28px !important;
+  padding: 16px 18px !important;
+  border: 1px solid var(--kb-border) !important;
+  border-radius: 10px !important;
+  background: var(--kb-panel) !important;
+}
+.kb-member-add-form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: flex-end;
+}
+.kb-member-add-form label { margin-right: 0 !important; }
+.kb-cycle-main,
+.kb-view-table-wrap,
+.kb-view-board,
+.kb-cycle-issues {
+  box-sizing: border-box;
+}
+.kb-view-table-wrap { padding: 12px 20px 28px !important; }
+.kb-view-board { padding: 12px 16px 24px !important; }
+.kb-cycle-issues { padding: 8px 12px 24px; }
+.kb-perm-user { display: flex; flex-direction: column; gap: 2px; }
+.kb-perm-email { color: var(--kb-muted); font-size: 12px; }
+.kb-member-add-form .kb-member-email,
+.kb-assignee-search {
+  min-width: 220px;
+  border: 1px solid var(--kb-border) !important;
+  border-radius: 8px !important;
+  background: var(--kb-panel) !important;
+  color: var(--kb-text) !important;
+  padding: 8px 10px !important;
+}
+.kb-plane-prop-assignee {
+  flex-direction: column !important;
+  align-items: stretch !important;
+  border-radius: 10px !important;
+  padding: 8px 10px !important;
+  min-width: 200px;
+}
+.kb-plane-prop-assignee label {
+  display: block !important;
+  margin-bottom: 4px;
+}
+.kb-plane-prop-assignee .kb-assignee-search {
+  width: 100%;
+  min-width: 0;
+}
+body.kb-softnav-loading .kb-app-main {
+  opacity: 0.72;
+  pointer-events: none;
+  transition: opacity .12s ease;
+}
+.ui-autocomplete {
+  z-index: 10050 !important;
+  max-height: 240px;
+  overflow: auto;
+  border: 1px solid var(--kb-border) !important;
+  background: var(--kb-panel) !important;
+  color: var(--kb-text) !important;
+  box-shadow: var(--kb-shadow-lg);
+}
+.ui-autocomplete .ui-menu-item-wrapper {
+  padding: 8px 10px !important;
+}
+.ui-autocomplete .ui-state-active {
+  background: var(--kb-active) !important;
+  border: 0 !important;
+  color: var(--kb-text) !important;
+}
+
 /* Plane create modal */
 body.kb-circle #modal-box:has(.kb-plane-create) {
   width: min(720px, 96vw) !important;

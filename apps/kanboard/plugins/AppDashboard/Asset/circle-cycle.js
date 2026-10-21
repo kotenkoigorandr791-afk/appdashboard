@@ -172,28 +172,30 @@
     for (var i = 0; i < rows.length; i++) tbody.appendChild(rows[i]);
   }
 
+  var tableSortState = { key: null, dir: 'asc' };
+  var tableSortBound = false;
   function initTableSort() {
-    var table = document.getElementById('kb-view-table');
-    if (!table) return;
-    var state = { key: null, dir: 'asc' };
-    var heads = table.querySelectorAll('th.is-sortable');
-    for (var i = 0; i < heads.length; i++) {
-      (function (th) {
-        th.addEventListener('click', function () {
-          var key = th.getAttribute('data-sort');
-          if (!key) return;
-          if (state.key === key) state.dir = state.dir === 'asc' ? 'desc' : 'asc';
-          else {
-            state.key = key;
-            state.dir = 'asc';
-          }
-          for (var j = 0; j < heads.length; j++) {
-            heads[j].classList.remove('sort-asc', 'sort-desc');
-          }
-          th.classList.add(state.dir === 'asc' ? 'sort-asc' : 'sort-desc');
-          sortTable(table, key, state.dir);
-        });
-      })(heads[i]);
+    if (!tableSortBound) {
+      tableSortBound = true;
+      document.addEventListener('click', function (e) {
+        var th = e.target && e.target.closest ? e.target.closest('#kb-view-table th.is-sortable') : null;
+        if (!th) return;
+        var table = document.getElementById('kb-view-table');
+        if (!table) return;
+        var key = th.getAttribute('data-sort');
+        if (!key) return;
+        if (tableSortState.key === key) tableSortState.dir = tableSortState.dir === 'asc' ? 'desc' : 'asc';
+        else {
+          tableSortState.key = key;
+          tableSortState.dir = 'asc';
+        }
+        var heads = table.querySelectorAll('th.is-sortable');
+        for (var j = 0; j < heads.length; j++) {
+          heads[j].classList.remove('sort-asc', 'sort-desc');
+        }
+        th.classList.add(tableSortState.dir === 'asc' ? 'sort-asc' : 'sort-desc');
+        sortTable(table, key, tableSortState.dir);
+      });
     }
   }
 
@@ -231,16 +233,24 @@
     }
   }
 
+  var quickSelectBound = false;
   function initQuickSelects() {
-    var url = quickUrl();
-    if (!url) return;
+    var selects = document.querySelectorAll('.kb-quick-select');
+    for (var i = 0; i < selects.length; i++) {
+      if (!selects[i].getAttribute('data-prev')) {
+        selects[i].setAttribute('data-prev', selects[i].value);
+      }
+    }
+    if (quickSelectBound) return;
+    quickSelectBound = true;
     document.addEventListener('change', function (e) {
       var t = e.target;
       if (!t || !t.classList || !t.classList.contains('kb-quick-select')) return;
       var field = t.getAttribute('data-field');
       var taskId = Number(t.getAttribute('data-task-id') || 0);
       var value = t.value;
-      if (!field || !taskId) return;
+      var url = quickUrl();
+      if (!field || !taskId || !url) return;
       var row = t.closest('tr.kb-table-row');
       var prev = t.getAttribute('data-prev') || t.defaultValue;
       t.setAttribute('data-prev', value);
@@ -249,7 +259,7 @@
         method: 'POST',
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify({ task_id: taskId, field: field, value: field === 'priority' ? Number(value) : Number(value) })
+        body: JSON.stringify({ task_id: taskId, field: field, value: Number(value) })
       })
         .then(function (r) {
           return r.json().then(function (j) {
@@ -277,10 +287,6 @@
           t.value = prev;
         });
     });
-    var selects = document.querySelectorAll('.kb-quick-select');
-    for (var i = 0; i < selects.length; i++) {
-      selects[i].setAttribute('data-prev', selects[i].value);
-    }
   }
 
   function hideBoardSelectorChrome() {
@@ -291,6 +297,8 @@
   function boot() {
     if (document.querySelector('.kb-cycle-workspace')) {
       document.body.classList.add('kb-cycle-page');
+    } else {
+      document.body.classList.remove('kb-cycle-page');
     }
     var canvas = document.getElementById('kb-burnup-chart');
     if (canvas) drawBurnup(canvas);
@@ -304,6 +312,7 @@
   } else {
     boot();
   }
+  document.addEventListener('kb:softnav', boot);
   window.addEventListener('resize', function () {
     var canvas = document.getElementById('kb-burnup-chart');
     if (canvas) drawBurnup(canvas);

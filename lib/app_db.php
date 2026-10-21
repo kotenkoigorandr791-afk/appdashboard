@@ -75,8 +75,7 @@ function app_get_weather_settings(string $email): array {
         app_weather_ensure($db);
         $st = $db->prepare("SELECT * FROM app_weather_settings WHERE user_email = :email");
         $st->bindValue(':email', $email, PDO::PARAM_STR);
-        $st->execute();
-        $result = $st->fetch(PDO::FETCH_ASSOC);
+        $result = $st->execute()->fetch(PDO::FETCH_ASSOC);
         if ($result) {
             return [
                 'use_current_location' => (bool)$result['use_current_location'],

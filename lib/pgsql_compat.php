@@ -66,6 +66,10 @@ final class AppDatabaseStatement {
         $this->db->setLastChanges($this->stmt->rowCount());
         return new AppDatabaseResult($this->stmt);
     }
+    public function fetch(int $mode = PDO::FETCH_ASSOC): ?array {
+        $row = $this->stmt->fetch($mode);
+        return $row === false ? null : $row;
+    }
 }
 final class AppDatabase {
     private static ?self $instance = null;
