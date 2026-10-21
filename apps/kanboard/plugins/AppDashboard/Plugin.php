@@ -33,7 +33,9 @@ class Plugin extends Base
         $this->template->setTemplateOverride('user_view/sidebar', 'appDashboard:user_view/sidebar');
         $this->template->setTemplateOverride('user_view/show', 'appDashboard:user_view/show');
         $this->template->setTemplateOverride('dashboard/overview', 'appDashboard:dashboard/overview');
+        $this->template->setTemplateOverride('dashboard/layout', 'appDashboard:dashboard/layout');
         $this->template->setTemplateOverride('project/dropdown', 'appDashboard:project/dropdown');
+        $this->template->setTemplateOverride('project_header/header', 'appDashboard:project_header/header');
         $this->template->setTemplateOverride('project_header/dropdown', 'appDashboard:project_header/dropdown');
         $this->template->setTemplateOverride('project_header/search', 'appDashboard:project_header/search');
         $this->template->setTemplateOverride('project_list/project_title', 'appDashboard:project_list/project_title');
@@ -43,16 +45,25 @@ class Plugin extends Base
         $this->template->setTemplateOverride('project_view/show', 'appDashboard:project_view/show');
         $this->template->setTemplateOverride('project/sidebar', 'appDashboard:project/sidebar');
         $this->template->setTemplateOverride('project_overview/show', 'appDashboard:project_overview/show');
+        $this->template->setTemplateOverride('task_list/task_title', 'appDashboard:task_list/task_title');
+        $this->template->setTemplateOverride('task_list/task_details', 'appDashboard:task_list/task_details');
+        $this->template->setTemplateOverride('board/view_private', 'appDashboard:board/view_private');
+        $this->template->setTemplateOverride('task_creation/show', 'appDashboard:task_creation/show');
+        $this->template->setTemplateOverride('task/show', 'appDashboard:task/show');
+        $this->template->setTemplateOverride('task/sidebar', 'appDashboard:task/sidebar');
         $this->template->setTemplateOverride('analytic/burndown', 'appDashboard:analytic/burndown');
         $this->template->setTemplateOverride('analytic/cfd', 'appDashboard:analytic/cfd');
         $this->template->setTemplateOverride('analytic/lead_cycle_time', 'appDashboard:analytic/lead_cycle_time');
         $this->template->setTemplateOverride('analytic/task_distribution', 'appDashboard:analytic/task_distribution');
 
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/shell.css']);
+        $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/circle.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/circle-cycle.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);
 
         $this->projectAccessMap->add('OverviewCalendarController', 'updateDates', Role::PROJECT_MEMBER);
+        $this->projectAccessMap->add('TaskQuickUpdateController', 'updateField', Role::PROJECT_MEMBER);
         $this->renameReadyColumns();
 
         $admin = Role::APP_ADMIN;
@@ -153,7 +164,7 @@ class Plugin extends Base
 
     public function getPluginVersion()
     {
-        return '1.2.0';
+        return '1.4.2';
     }
 
     public function getCompatibleVersion()
@@ -166,6 +177,7 @@ class Plugin extends Base
         return array(
             'Plugin\\AppDashboard\\Helper' => array(
                 'OverviewCalendarHelper',
+                'CircleCycleHelper',
             ),
         );
     }

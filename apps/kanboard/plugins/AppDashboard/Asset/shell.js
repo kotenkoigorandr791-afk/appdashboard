@@ -125,22 +125,30 @@
     var headers = board.querySelectorAll('tr:first-child th.board-column-header');
     var n = headers.length;
     if (!n) return;
-    var dark = document.body.classList.contains('kb-dark');
+    var dark = document.body.classList.contains('kb-dark') || document.documentElement.classList.contains('kb-dark');
+    var circle = document.body.classList.contains('kb-circle');
     for (var i = 0; i < n; i++) {
       var todo = isTodoColumn(headers[i]);
       if (todo) renameTodoColumnLabel(headers[i]);
-      var rgb = todo ? [220, 38, 38] : stageColor(n === 1 ? 1 : i / (n - 1), dark);
-      var bg = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? (todo ? '0.34' : '0.28') : (todo ? '0.22' : '0.20')) + ')';
-      var border = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.62' : '0.48') + ')';
-      var color = todo
-        ? (dark ? '#fecaca' : '#b91c1c')
-        : (dark
-          ? 'rgb(' + Math.min(255, rgb[0] + 80) + ',' + Math.min(255, rgb[1] + 80) + ',' + Math.min(255, rgb[2] + 80) + ')'
-          : 'rgb(' + Math.max(0, rgb[0] - 40) + ',' + Math.max(0, rgb[1] - 40) + ',' + Math.max(0, rgb[2] - 40) + ')');
+      if (todo) headers[i].classList.add('kb-column-todo');
+      var bg, border, color;
+      if (circle) {
+        bg = dark ? '#101011' : '#ffffff';
+        border = dark ? '#2c2c30' : '#ececee';
+        color = dark ? '#fafafa' : '#18181b';
+      } else {
+        var rgb = todo ? [220, 38, 38] : stageColor(n === 1 ? 1 : i / (n - 1), dark);
+        bg = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? (todo ? '0.34' : '0.28') : (todo ? '0.22' : '0.20')) + ')';
+        border = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.62' : '0.48') + ')';
+        color = todo
+          ? (dark ? '#fecaca' : '#b91c1c')
+          : (dark
+            ? 'rgb(' + Math.min(255, rgb[0] + 80) + ',' + Math.min(255, rgb[1] + 80) + ',' + Math.min(255, rgb[2] + 80) + ')'
+            : 'rgb(' + Math.max(0, rgb[0] - 40) + ',' + Math.max(0, rgb[1] - 40) + ',' + Math.max(0, rgb[2] - 40) + ')');
+      }
       headers[i].style.setProperty('background', bg, 'important');
       headers[i].style.setProperty('border-color', border, 'important');
       headers[i].style.setProperty('color', color, 'important');
-      if (todo) headers[i].classList.add('kb-column-todo');
       var links = headers[i].querySelectorAll('a, .board-column-title');
       for (var L = 0; L < links.length; L++) links[L].style.setProperty('color', color, 'important');
       var cells = board.querySelectorAll('tr.board-swimlane > td:nth-child(' + (i + 1) + ')');
@@ -463,6 +471,7 @@
   function enhanceSelect(select) {
     if (!select || select.getAttribute('data-kb-select') === '1') return;
     if (select.classList.contains('ui-timepicker-select')) return;
+    if (select.classList.contains('kb-quick-select')) return;
     if (select.multiple || select.size > 1) return;
     var rect = select.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
@@ -604,5 +613,75 @@
     document.addEventListener('DOMContentLoaded', scheduleEnhance);
   } else {
     scheduleEnhance();
+  }
+  function setSidebarCollapsed(collapsed) {
+    document.body.classList.toggle('kb-sidebar-collapsed', !!collapsed);
+    try {
+      localStorage.setItem('kb-sidebar-collapsed', collapsed ? '1' : '0');
+    } catch (e) {}
+  }
+  function isPhoneSidebar() {
+    try {
+      return window.matchMedia('(max-width: 640px)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+  function initSidebarToggle() {
+    var collapse = document.getElementById('kb-sidebar-collapse');
+    var fab = document.getElementById('kb-sidebar-fab');
+    var backdrop = document.getElementById('kb-sidebar-backdrop');
+    function openSidebar() { setSidebarCollapsed(false); }
+    function closeSidebar() {
+      if (!isPhoneSidebar()) return;
+      setSidebarCollapsed(true);
+    }
+    if (collapse) collapse.addEventListener('click', closeSidebar);
+    if (fab) fab.addEventListener('click', openSidebar);
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', function (e) {
+      if ((e.metaKey || e.ctrlKey) && String(e.key || '').toLowerCase() === 'b') {
+        if (!isPhoneSidebar()) return;
+        e.preventDefault();
+        setSidebarCollapsed(!document.body.classList.contains('kb-sidebar-collapsed'));
+      }
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var discard = t.closest('[data-kb-plane-discard]');
+      if (discard) {
+        e.preventDefault();
+        try { if (window.KB && KB.modal) KB.modal.close(); } catch (err) {}
+        var c = document.getElementById('modal-close-button');
+        if (c) c.click();
+      }
+    });
+    // Phone only: auto-collapse. Tablet/desktop keep sidebar visible.
+    if (isPhoneSidebar()) {
+      setSidebarCollapsed(true);
+    } else {
+      try {
+        if (localStorage.getItem('kb-sidebar-collapsed') !== '1') {
+          setSidebarCollapsed(false);
+        }
+      } catch (e2) {
+        setSidebarCollapsed(false);
+      }
+    }
+    try {
+      var mq = window.matchMedia('(max-width: 640px)');
+      var onMq = function () {
+        if (isPhoneSidebar()) setSidebarCollapsed(true);
+        else setSidebarCollapsed(false);
+      };
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onMq);
+      else if (typeof mq.addListener === 'function') mq.addListener(onMq);
+    } catch (e3) {}
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initSidebarToggle);
+  } else {
+    initSidebarToggle();
   }
 })();
