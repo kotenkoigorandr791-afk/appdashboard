@@ -70,7 +70,7 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=49" />
+  <link rel="stylesheet" href="assets/styles.css?v=53" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -81,7 +81,8 @@ cloud_require_session_auth();
   <style>
 :root{--menu-button-reserve:<?php echo (int)$menuBtnReserve; ?>px;--menu-button-mobile-reserve:<?php echo (int)$menuBtnMobileReserve; ?>px;--menu-button-clear-top:<?php echo (int)$menuBtnClearTop; ?>px;--menu-button-toolbar-top:<?php echo (int)$menuBtnToolbarTop; ?>px;--menu-button-mobile-toolbar-top:<?php echo (int)$menuBtnMobileToolbarTop; ?>px;}
 .hide-lang-switcher .lang-switcher{display:none!important;}
-.settings-menu,.dropdown-menu,.context-menu,.tab-preview,.search-panel{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
+.dropdown-menu,.context-menu,.tab-preview,.search-panel{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
+.settings-menu{background:color-mix(in srgb,var(--panel) 92%,var(--bg))!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
 .modal-content{background:color-mix(in srgb,var(--panel) 88%,var(--bg));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
 .root-toolbar{width:50px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 7px;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:opacity 0.3s ease,transform 0.3s ease}
 .root-toolbar.hidden-by-sidebar{opacity:0;transform:translateX(-100%);pointer-events:none;position:absolute;height:100%;z-index:-1}
@@ -180,11 +181,6 @@ cloud_require_session_auth();
   } catch (e) {}
 </script>
 
-  <link rel="stylesheet" 
-        href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css" 
-        integrity="sha512-rO+olRTkcf304DQBxSWxln8JXCzTHlKnIdnMUwYvQa9/Jd4cQaNkItIUj6Z4nvW1dqK0SKXLbn9h4KwZTNtAyw==" 
-        crossorigin="anonymous" 
-        referrerpolicy="no-referrer" />
   <script defer 
           src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js" 
           integrity="sha512-D9gUyxqja7hBtkWpPWGt9wfbfaMGVt9gnyCvYa+jojwwPHLCzUm5i8rpk7vD7wNee9bA35eYIjobYPaQuKS1MQ==" 
@@ -227,18 +223,19 @@ cloud_require_session_auth();
 
 
 
+<script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=45"></script>
-<script defer src="assets/app/editors-and-tree.js?v=12"></script>
+<script defer src="assets/app.js?v=48"></script>
+<script defer src="assets/app/editors-and-tree.js?v=15"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
-<script defer src="assets/app/file-viewers.js?v=3"></script>
-<script defer src="assets/app/file-actions.js?v=10"></script>
+<script defer src="assets/app/file-viewers.js?v=4"></script>
+<script defer src="assets/app/file-actions.js?v=13"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
-<script defer src="assets/app/cloud-groups.js?v=8"></script>
-<script defer src="assets/audio-player.js?v=2"></script>
-<script defer src="assets/app/cloud-group-chat.js?v=9"></script>
+<script defer src="assets/app/cloud-groups.js?v=9"></script>
+<script defer src="assets/audio-player.js?v=4"></script>
+<script defer src="assets/app/cloud-group-chat.js?v=11"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=3"></script>
 <script defer src="assets/settings/sync-modals.js?v=9"></script>
@@ -247,9 +244,9 @@ cloud_require_session_auth();
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
-<script defer src="assets/ai-assistant.js?v=40"></script>
+<script defer src="assets/ai-assistant.js?v=43"></script>
 <script defer src="assets/monaco-shared.js?v=3"></script>
-<script defer src="assets/monaco-editor.js?v=20"></script>
+<script defer src="assets/monaco-editor.js?v=21"></script>
 
 
 </head>
@@ -374,21 +371,12 @@ cloud_require_session_auth();
           </div>
         </section>
 
-        <section class="settings-group">
-          <h4 class="settings-group-title" data-i18n="sessionLimit">Session Limit</h4>
-          <label class="settings-row" for="session-limit-mb">
-            <span class="settings-row-text">
-              <span class="settings-row-label" data-i18n="setSessionLimit">Set session limit</span>
-            </span>
-            <span class="settings-number-field">
-              <input type="number" id="session-limit-mb" min="0" step="1" />
-              <span>MB</span>
-            </span>
-          </label>
-        </section>
-
         <section class="settings-group hidden" id="settings-storage-request">
           <h4 class="settings-group-title" data-i18n="storageRequestSection">Storage</h4>
+          <div class="settings-storage-progress" id="settings-storage-progress" aria-live="polite">
+            <div class="progress-bar"><div class="progress-fill" id="settings-storage-progress-fill" style="width:0%"></div></div>
+            <p class="settings-row-text" id="settings-storage-progress-label" style="margin:8px 0 0;line-height:1.5;"></p>
+          </div>
           <p class="settings-row-text" id="storage-request-summary" style="margin:0;line-height:1.5;"></p>
           <p class="settings-row-text hidden" id="storage-request-pending" style="margin:0;line-height:1.5;color:var(--accent);"></p>
           <div class="settings-actions">
@@ -558,11 +546,11 @@ cloud_require_session_auth();
           </div>
           <div class="tab-search-dropdown" id="tab-search-dropdown">
               <div class="tab-search-section">
-                  <div class="tab-search-title" data-i18n="openTabs">Open Tabs</div>
+                  <div class="tab-search-title"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="13" height="12" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-2"></path></svg><span data-i18n="openTabs">Open Tabs</span></div>
                   <div id="tab-search-open-list"></div>
               </div>
               <div class="tab-search-section">
-                  <div class="tab-search-title" data-i18n="recentFiles">Recent files</div>
+                  <div class="tab-search-title"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></svg><span data-i18n="recentFiles">Recent files</span></div>
                   <div id="tab-search-recent-list"></div>
               </div>
           </div>
@@ -572,9 +560,22 @@ cloud_require_session_auth();
         <div class="file-toolbar">
           <span id="file-name" class="filename"></span>
           <div class="spacer"></div>
+          <span id="trash-selection-counter" class="selection-counter hidden"></span>
+          <label id="trash-retention-wrap" class="trash-retention-wrap hidden" for="trash-retention-days">
+            <span data-i18n="trashRetentionLabel">Keep</span>
+            <select id="trash-retention-days" class="trash-retention-select" aria-label="Trash retention">
+              <option value="1">1</option>
+              <option value="4">4</option>
+              <option value="7" selected>7</option>
+              <option value="10">10</option>
+              <option value="13">13</option>
+              <option value="15">15</option>
+            </select>
+            <span data-i18n="trashRetentionDays">days</span>
+          </label>
           <button id="btn-trash-restore-all" class="btn secondary small hidden" data-i18n="restoreAll"></button>
+          <button id="btn-trash-select-all" class="btn secondary small hidden" data-i18n="selectAll"></button>
           <button id="btn-trash-delete-selected" class="btn danger small hidden" data-i18n="deleteSelected"></button>
-          <button id="btn-trash-delete-all" class="btn danger small hidden" data-i18n="deleteAll"></button>
           <button id="btn-trash-restore-selected" class="btn primary small hidden" data-i18n="restoreSelected"></button>
           <button id="btn-ai" class="icon-btn" title="AI Assistant">
             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
@@ -1083,9 +1084,9 @@ cloud_require_session_auth();
       <div id="qrcode-container" style="margin: 20px auto; display: inline-block;"></div>
     </div>
     <div id="share-modal-actions" class="modal-footer" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:nowrap;">
-        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; height:38px;" data-i18n="shareFile">
+        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2-icon lucide-settings-2"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
-          <span>Link settings</span>
+          <span data-i18n="shareLinkSettings">Link settings</span>
         </button>
         <button id="btn-copy-share-link" class="btn secondary" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
         <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
@@ -1696,7 +1697,13 @@ cloud_require_session_auth();
             <button type="button" data-mode="extension" data-i18n="searchByExtension">By extension:</button>
           </div>
           <div class="search-mode-panel" data-search-panel="name">
-            <input type="text" id="search-name" data-i18n-placeholder="searchNamePlaceholder" placeholder="*partial* or exact name" class="search-input">
+            <div class="search-field-with-icon">
+              <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+              <input type="text" id="search-name" data-i18n-placeholder="searchNamePlaceholder" placeholder="*partial* or exact name" class="search-input">
+            </div>
           </div>
           <div class="search-mode-panel hidden" data-search-panel="extension">
             <div class="search-extension-autocomplete">
@@ -2117,7 +2124,13 @@ cloud_require_session_auth();
         <span id="storage-admin-count" class="user-quota-used"></span>
       </div>
       <div class="storage-admin-toolbar">
-        <input type="search" id="storage-admin-search" class="storage-admin-search" placeholder="Search by email or name" data-i18n-placeholder="storageSearchPlaceholder" autocomplete="off">
+        <div class="search-field-with-icon storage-admin-search-wrap">
+          <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <circle cx="11" cy="11" r="8"></circle>
+            <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+          </svg>
+          <input type="search" id="storage-admin-search" class="storage-admin-search search-input" placeholder="Search by email or name" data-i18n-placeholder="storageSearchPlaceholder" autocomplete="off">
+        </div>
       </div>
       <div class="storage-admin-table-wrap">
         <table class="storage-admin-table" id="storage-admin-table">

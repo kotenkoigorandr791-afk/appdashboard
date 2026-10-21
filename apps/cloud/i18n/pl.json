@@ -349,7 +349,7 @@
   "enableCaptions": "Włącz napisy",
   "encryptArchive": "Zaszyfruj archiwum",
   "encryptedFolderWarningText": "Folder <strong>Documents</strong> wykorzystuje szyfrowanie w celu ochrony plików. Przechowywane tu pliki są szyfrowane na serwerze i tylko Ty możesz uzyskać do nich dostęp. Uwaga: jeśli utracisz dostęp do swojego konta, plików w tym folderze nie będzie można odzyskać.",
-  "english": "ANG",
+  "english": "off",
   "enterFileName": "Nazwa pliku:",
   "enterFolderName": "Nazwa folderu:",
   "enterFullscreen": "Wejdź na pełny ekran",
@@ -894,6 +894,7 @@
   "shareExpiryLabel": "Wygaśnięcie linku",
   "shareExpiryNever": "Nigdy",
   "shareFile": "Udostępnij plik",
+  "shareLinkSettings": "Ustawienia linku",
   "shareLinkCopied": "Link skopiowany do schowka!",
   "shareLinkCopiedFallback": "Link skopiowany (metoda awaryjna)",
   "shareLinkExpiresAt": "Ważne do",
@@ -991,6 +992,7 @@
   "totalSize": "Całkowity rozmiar",
   "totalUploadSize": "Rozmiar całkowity: {size}",
   "transcription": "Transkrypcja",
+  "transcribeAudio": "Transkrybuj",
   "transcriptionCleanupFailed": "Nie udało się wyczyścić transkrypcji",
   "transcriptionSaved": "Transkrypcja została zapisana pomyślnie",
   "trashEmptied": "Kosz został opróżniony",
@@ -1103,5 +1105,11 @@
   "share-access-disable-copy": "Wyłącz kopiowanie",
   "share-open-limit": "Otwórz limit",
   "shareGetLink": "Pobierz link",
-  "shareSendToChat": "Wyślij do czatu"
+  "shareSendToChat": "Wyślij do czatu",
+  "monacoAiPromptPlaceholder": "Co AI ma zmienić?",
+  "selectAll": "Zaznacz wszystko",
+  "trashRetentionLabel": "Przechowuj",
+  "trashRetentionDays": "dni",
+  "trashRetentionSaved": "Okres przechowywania kosza zapisany",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

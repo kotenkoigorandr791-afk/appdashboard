@@ -12,7 +12,7 @@
     "menu_button_style": {
         "background": "var(--glass-panel)",
         "border": "1px solid color-mix(in srgb,var(--border-color) 70%,transparent)",
-        "border-radius": "10px 0 0 10px",
+        "border-radius": "10px",
         "box-shadow": "none",
         "backdrop-filter": "blur(10px)",
         "-webkit-backdrop-filter": "blur(10px)"

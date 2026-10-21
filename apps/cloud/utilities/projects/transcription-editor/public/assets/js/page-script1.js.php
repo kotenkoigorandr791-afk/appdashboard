@@ -48,7 +48,6 @@
             translateBackendMessage(message) {
                 const map = {
                     'Preparing startup...': this.translations.starting_transcription,
-                    'Loading Whisper model...': this.logText('log_model_loading', 'Loading Whisper model...'),
                     'Preparing audio...': this.logText('log_audio_preparing', 'Preparing audio...'),
                     'Transcribing audio...': this.logText('log_transcribing', 'Transcribing audio...'),
                     'Saving result...': this.logText('log_saving_result', 'Saving result...'),
@@ -203,6 +202,9 @@
                 // Save button
                 if (this.elements.saveBtn) {
                     this.elements.saveBtn.addEventListener('click', () => this.saveTranscription());
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'editor:save') this.saveTranscription();
+                });
                 }
 
                 // Cleanup on page unload
@@ -228,7 +230,9 @@
                     const objUrl = URL.createObjectURL(blob);
                     this.audioPlayer = new CustomAudioPlayer(container, objUrl, {
                         autoplay: false,
-                        showVolume: true
+                        showVolume: false,
+                        variant: 'line',
+                        title: String(this.audioPath || '').split('/').pop()
                     });
                     this.fileLoadProgress.complete();
                 } catch (error) {
@@ -653,6 +657,7 @@
                     if (result.success) {
                         this.showStatus('Transcription saved', 'success');
                         this.showDebug('Transcription saved');
+                        if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
 
                         // Notify parent window to refresh file list
                         if (window.parent) {
@@ -669,6 +674,7 @@
                 } catch (error) {
                     console.error('Save error:', this.sanitizeMessage(error.message));
                     this.showStatus('Error: ' + this.sanitizeMessage(error.message), 'error');
+                    if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: 'Error: ' + this.sanitizeMessage(error.message) }, '*');
                     this.showDebug('Save error: ' + this.sanitizeMessage(error.message));
                 } finally {
                     this.elements.saveBtn.disabled = false;

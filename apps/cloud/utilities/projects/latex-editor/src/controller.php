@@ -449,15 +449,9 @@ if (isset($_POST['latex'])) {
     $compileId = uniqid();
     $userRootDir = latex_get_user_storage_root($currentUser, $root);
     $compileInUserDir = false;
-    if ($filePath && is_dir(dirname($userStoragePath)) && latex_path_is_within(dirname($userStoragePath), $userRootDir)) {
-        $dir = dirname($userStoragePath);
-        $compileInUserDir = true;
-        cleanupOldTempFiles($dir);
-    } else {
-        $dir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'latex_editor_' . md5(session_id() . $compileId);
-        if (!is_dir($dir)) @mkdir($dir, 0777, true);
-    }
-    $baseName = ($compileInUserDir ? 'temp_compile_' : 'input_') . $compileId;
+    $dir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'latex_editor_' . md5(session_id() . $compileId);
+    if (!is_dir($dir)) @mkdir($dir, 0777, true);
+    $baseName = 'input_' . $compileId;
     $texfilePath = $dir . DIRECTORY_SEPARATOR . $baseName . '.tex';
     $pdffilePath = $dir . DIRECTORY_SEPARATOR . $baseName . '.pdf';
     $logfilePath = $dir . DIRECTORY_SEPARATOR . $baseName . '.log';

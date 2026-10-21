@@ -3,26 +3,19 @@ set -eu
 
 MODELS_ROOT="${MODELS_ROOT:-/opt/ApplicationData/models}"
 export HF_HOME="${HF_HOME:-$MODELS_ROOT/huggingface}"
-export TORCH_HOME="${TORCH_HOME:-$MODELS_ROOT/torch}"
-export WHISPER_CACHE="${WHISPER_CACHE:-$MODELS_ROOT/whisper}"
 export U2NET_HOME="${U2NET_HOME:-$MODELS_ROOT/rembg}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$MODELS_ROOT/cache}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$MODELS_ROOT}"
 export HOME="${HOME:-$MODELS_ROOT/home}"
 
-mkdir -p "$HF_HOME" "$TORCH_HOME" "$WHISPER_CACHE" "$U2NET_HOME" "$XDG_CACHE_HOME" "$HOME"
+mkdir -p "$HF_HOME" "$U2NET_HOME" "$XDG_CACHE_HOME" "$HOME"
 
 prefetch_models() {
   if [ "${PREFETCH_MODELS:-1}" != "1" ]; then
     return 0
   fi
-  echo "sidecar: prefetching whisper/rembg into $MODELS_ROOT"
+  echo "sidecar: prefetching rembg into $MODELS_ROOT"
   python3 - <<'PY' || true
-import os
-cache = os.environ["WHISPER_CACHE"]
-os.makedirs(cache, exist_ok=True)
-import whisper
-whisper.load_model("tiny", download_root=cache)
 from rembg import new_session
 new_session("u2net")
 print("sidecar: models ready")

@@ -80,12 +80,13 @@
             updatePreview();
             showStatus((translations[lang] || translations.en).previewRefreshed, false, { localOnly: true });
         }
-        async function saveFile() {
+        async function saveFile(notifyParent = true) {
             if (!filePath || !editor) { showStatus('No file selected', true); return; }
             const content = editor.getValue();
             if (window.originalContent === content) {
                 showStatus((translations[lang] || translations.en).noChanges, false);
                 if (window.parent) window.parent.postMessage({ type: 'htmlEditorSaved', relativePath: filePath, success: true, message: 'No changes to save' }, '*');
+                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
                 return;
             }
             try {
@@ -105,14 +106,16 @@
                     window.parent.postMessage({ type: 'HTML_SAVED', path: filePath, timestamp: Date.now() }, '*');
                     window.parent.postMessage({ type: 'htmlEditorSaved', relativePath: filePath, success: true, message: 'File saved successfully' }, '*');
                 }
+                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
             } catch (error) {
                 showStatus(((translations[lang] || translations.en).saveError) + ': ' + error.message, true);
+                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: error.message }, '*');
                 throw error;
             }
         }
         function startAutoSaveTimer() {
             if (autoSaveTimer) clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(() => { if (hasUnsavedChanges) saveFile(); }, AUTO_SAVE_DELAY);
+            autoSaveTimer = setTimeout(() => { if (hasUnsavedChanges) saveFile(false); }, AUTO_SAVE_DELAY);
             if (window.parent && !hasUnsavedChanges) window.parent.postMessage({ type: 'htmlEditorStatus', message: (translations[lang] || translations.en).unsavedChanges, hasUnsavedChanges: true }, '*');
             hasUnsavedChanges = true;
         }
@@ -157,6 +160,9 @@
         cancelClearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'none'; });
         confirmClearBtn.addEventListener('click', () => { if (editor) { editor.setValue(''); updatePreview(); editor.focus(); } confirmClearModal.style.display = 'none'; updateButtonStates(); });
         saveBtn.addEventListener('click', saveFile);
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'editor:save') saveFile();
+        });
         window.addEventListener('click', (e) => { if (e.target === confirmClearModal) confirmClearModal.style.display = 'none'; });
         const resizer = document.querySelector('.resizer');
         const editorPanel = document.querySelector('.editor-panel');
@@ -298,7 +304,7 @@
             });
         }
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && hasUnsavedChanges && autoSaveTimer) { clearTimeout(autoSaveTimer); saveFile(); }
+            if (document.hidden && hasUnsavedChanges && autoSaveTimer) { clearTimeout(autoSaveTimer); saveFile(false); }
         });
         window.addEventListener('message', function(event) {
             if (event.data.type === 'loadHtmlContent' && event.data.content && editor) {

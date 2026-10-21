@@ -22,7 +22,7 @@ function appdata_app_base_dir(string $appKey): string {
 }
 function appdata_root_subdir(string $rootKey): string {
     $rootKey = strtolower(trim($rootKey));
-    $map = ['main' => '', 'archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash', 'clientsync' => '.clientsync'];
+    $map = ['main' => '', 'archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf', 'trash' => '.trash'];
     return $map[$rootKey] ?? '';
 }
 function appdata_normalize_relpath(string $relPath): string {
@@ -56,7 +56,7 @@ function appdata_user_root_dir(string $appKey, string $user, string $rootKey = '
     $user = preg_replace('/[^a-zA-Z0-9_\-\.]/', '_', $user);
     $base = appdata_app_base_dir($appKey) . '/' . $user;
     if ($ensure && !is_dir($base)) @mkdir($base, 0775, true);
-    foreach (['archive', 'temp', 'documents', 'photos', 'pdf', 'trash', 'clientsync'] as $rk) {
+    foreach (['archive', 'temp', 'documents', 'photos', 'pdf', 'trash'] as $rk) {
         $sub = appdata_root_subdir($rk);
         if ($sub === '') continue;
         $dir = $base . '/' . $sub;

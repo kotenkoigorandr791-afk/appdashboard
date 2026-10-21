@@ -74,11 +74,12 @@ class AppUpdateChecker(private val context: Context) {
      */
     suspend fun checkForUpdate(): UpdateCheck = withContext(Dispatchers.IO) {
         if (FlavorUtils.isPlayStore) return@withContext UpdateCheck(CheckOutcome.UP_TO_DATE)
+        if (prefs.hasAuthError()) return@withContext UpdateCheck(CheckOutcome.ERROR)
         val config = connectedConfig() ?: return@withContext UpdateCheck(CheckOutcome.NOT_CONNECTED)
         val url = apiUrl("/api/steps/version", config) ?: return@withContext UpdateCheck(CheckOutcome.ERROR)
         val token = config.headers["Authorization"].orEmpty()
         try {
-            val request = Request.Builder().url(url).header("Authorization", token).get().build()
+            val request = Request.Builder().url(url).header("Authorization", token).header("X-Device-Id", prefs.getDeviceId()).header("Accept", "application/json").get().build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext UpdateCheck(CheckOutcome.ERROR)
                 val info = json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
@@ -116,7 +117,7 @@ class AppUpdateChecker(private val context: Context) {
         if (dest.exists() && verifyHash(dest, info.hash)) return@withContext dest
         dest.delete()
         try {
-            val request = Request.Builder().url(url).header("Authorization", config.headers["Authorization"].orEmpty()).get().build()
+            val request = Request.Builder().url(url).header("Authorization", config.headers["Authorization"].orEmpty()).header("X-Device-Id", prefs.getDeviceId()).header("Accept", "application/json").get().build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
                 val body = response.body ?: return@withContext null

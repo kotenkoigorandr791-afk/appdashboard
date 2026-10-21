@@ -349,7 +349,7 @@
   "enableCaptions": "Enable captions",
   "encryptArchive": "Encrypt archive",
   "encryptedFolderWarningText": "The <strong>Documents</strong> folder uses encryption to protect your files. Files stored here are encrypted on the server and can only be accessed by you. Please note: if you lose access to your account, files in this folder cannot be recovered.",
-  "english": "ENG",
+  "english": "off",
   "enterFileName": "File name:",
   "enterFolderName": "Folder name:",
   "enterFullscreen": "Enter fullscreen",
@@ -897,6 +897,7 @@
   "shareExpiryLabel": "Link expiration",
   "shareExpiryNever": "Never",
   "shareFile": "Share File",
+  "shareLinkSettings": "Link settings",
   "shareLinkCopied": "Link copied to clipboard!",
   "shareLinkCopiedFallback": "Link copied (fallback method)",
   "shareLinkExpiresAt": "Valid until",
@@ -1024,6 +1025,7 @@
   "totalSize": "Total Size",
   "totalUploadSize": "Total size: {size}",
   "transcription": "Transcription",
+  "transcribeAudio": "Transcribe audio",
   "transcriptionCleanupFailed": "Failed to clean up transcriptions",
   "transcriptionSaved": "Transcription saved successfully",
   "trashEmptied": "Trash emptied",
@@ -1103,5 +1105,11 @@
   "share-access-disable-copy": "Disable copy",
   "share-open-limit": "Open limit",
   "shareGetLink": "Get link",
-  "shareSendToChat": "Send to chat"
+  "shareSendToChat": "Send to chat",
+  "monacoAiPromptPlaceholder": "What should AI change?",
+  "selectAll": "Select all",
+  "trashRetentionLabel": "Keep",
+  "trashRetentionDays": "days",
+  "trashRetentionSaved": "Trash retention saved",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

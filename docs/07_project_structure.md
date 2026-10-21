@@ -53,7 +53,7 @@
 │   ├── 25_appdashboard_mcp.md
 │   ├── 26_telegram_bot.md
 │   ├── 27_public_api.md
-│   ├── 28_share_file_utils.md
+│   ├── 28_sharepoint.md
 │   └── 29_waf.md
 │
 ├── nginx/                             # Nginx configuration
@@ -77,7 +77,6 @@
 │   ├── pg_*.php / pg_*.py             # PostgreSQL compatibility
 │   ├── pgsql_compat.php               # PostgreSQL SQL emulation
 │   ├── app_db.php                     # Database wrapper
-│   ├── duplicati_client.php           # Duplicati backup
 │   ├── portainer_client.php           # Portainer management
 │   ├── sentry_bootstrap.php           # Sentry error reporting
 │   ├── public_api.php                 # Public API helpers

@@ -76,6 +76,86 @@ function cloud_ai_proxy_models(array $config): void
     echo $result['body'];
 }
 
+
+function cloud_ai_rate_limit_limits(string $kind): array
+{
+    // Generous for normal work; speech is stricter (costlier upstream).
+    if ($kind === 'speech') {
+        return [12, 60]; // 12 / minute
+    }
+    return [60, 60]; // 60 chat/completions / minute
+}
+
+function cloud_ai_rate_limit_check(string $userKey, string $kind = 'chat'): array
+{
+    $userKey = strtolower(trim($userKey));
+    if ($userKey === '') {
+        return ['ok' => true, 'retry_after' => 0];
+    }
+    [$max, $windowSec] = cloud_ai_rate_limit_limits($kind);
+    $bucket = 'ai_rl:' . $kind . ':' . hash('sha256', $userKey);
+    $now = time();
+    $redisPath = dirname(__DIR__, 3) . '/lib/redis.php';
+    if (is_file($redisPath)) {
+        require_once $redisPath;
+    }
+    if (function_exists('app_redis') && ($redis = app_redis())) {
+        try {
+            $rk = function_exists('app_redis_key') ? app_redis_key($bucket) : $bucket;
+            $count = (int)$redis->incr($rk);
+            if ($count === 1) {
+                $redis->expire($rk, $windowSec);
+            }
+            $ttl = (int)$redis->ttl($rk);
+            if ($count > $max) {
+                return ['ok' => false, 'retry_after' => max(1, $ttl > 0 ? $ttl : $windowSec)];
+            }
+            return ['ok' => true, 'retry_after' => 0];
+        } catch (Throwable $e) {
+            // fall through to session counter
+        }
+    }
+    if (session_status() === PHP_SESSION_ACTIVE) {
+        if (!isset($_SESSION['_ai_rate_limit']) || !is_array($_SESSION['_ai_rate_limit'])) {
+            $_SESSION['_ai_rate_limit'] = [];
+        }
+        $entry = $_SESSION['_ai_rate_limit'][$bucket] ?? ['t' => $now, 'n' => 0];
+        if (($now - (int)$entry['t']) > $windowSec) {
+            $entry = ['t' => $now, 'n' => 0];
+        }
+        $entry['n'] = (int)$entry['n'] + 1;
+        $_SESSION['_ai_rate_limit'][$bucket] = $entry;
+        if ($entry['n'] > $max) {
+            return ['ok' => false, 'retry_after' => max(1, $windowSec - ($now - (int)$entry['t']))];
+        }
+    }
+    return ['ok' => true, 'retry_after' => 0];
+}
+
+function cloud_ai_require_rate_limit(string $userKey, string $kind = 'chat'): void
+{
+    $check = cloud_ai_rate_limit_check($userKey, $kind);
+    if (!empty($check['ok'])) {
+        return;
+    }
+    $retry = (int)($check['retry_after'] ?? 60);
+    if (!headers_sent()) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        header('Retry-After: ' . $retry);
+        header('Cache-Control: no-store');
+    }
+    echo json_encode([
+        'error' => [
+            'message' => 'Too many AI requests. Try again in ' . $retry . ' seconds.',
+            'code' => 429,
+            'retry_after' => $retry,
+        ],
+        'success' => false,
+    ], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+
 function cloud_ai_proxy_completions(array $config, array $payload): void
 {
     if (!empty($payload['model'])) {

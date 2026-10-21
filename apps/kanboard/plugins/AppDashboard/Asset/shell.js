@@ -462,6 +462,7 @@
   }
   function enhanceSelect(select) {
     if (!select || select.getAttribute('data-kb-select') === '1') return;
+    if (select.classList.contains('ui-timepicker-select')) return;
     if (select.multiple || select.size > 1) return;
     var rect = select.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;

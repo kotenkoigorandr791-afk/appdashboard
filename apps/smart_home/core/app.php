@@ -1622,6 +1622,9 @@ if ($action !== '') {
     $raw = file_get_contents('php://input');
     $jsonPayload = json_decode(is_string($raw) && $raw !== '' ? $raw : '', true);
     $payload = is_array($jsonPayload) ? $jsonPayload : $_POST;
+    foreach (['device_id', 'group_id'] as $queryKey) {
+        if (isset($_GET[$queryKey]) && !isset($payload[$queryKey])) $payload[$queryKey] = (string)$_GET[$queryKey];
+    }
 
     try {
         if ($action === 'route_maps') {

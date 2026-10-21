@@ -99,13 +99,11 @@ class CustomAudioPlayer {
         <rect x="14" y="4" width="4" height="16"/>
       </svg>
     `;
-    this.wrapper.appendChild(this.btnPlay);
 
     // Time current
     this.timeCurrent = document.createElement('span');
     this.timeCurrent.className = 'cap-time cap-time-current';
     this.timeCurrent.textContent = '0:00';
-    this.wrapper.appendChild(this.timeCurrent);
 
     // Seek bar
     this.seekContainer = document.createElement('div');
@@ -122,13 +120,11 @@ class CustomAudioPlayer {
     this.seekBar.appendChild(this.seekProgress);
     this.seekBar.appendChild(this.seekThumb);
     this.seekContainer.appendChild(this.seekBar);
-    this.wrapper.appendChild(this.seekContainer);
 
     // Time duration
     this.timeDuration = document.createElement('span');
     this.timeDuration.className = 'cap-time cap-time-duration';
     this.timeDuration.textContent = '0:00';
-    this.wrapper.appendChild(this.timeDuration);
 
     // Volume
     if (this.options.showVolume) {
@@ -147,7 +143,6 @@ class CustomAudioPlayer {
           <line x1="17" y1="9" x2="23" y2="15"/>
         </svg>
       `;
-      this.wrapper.appendChild(this.btnVolume);
 
       this.volSlider = document.createElement('div');
       this.volSlider.className = 'cap-vol-slider';
@@ -160,7 +155,59 @@ class CustomAudioPlayer {
       this.volBar.appendChild(this.volProgress);
       this.volBar.appendChild(this.volThumb);
       this.volSlider.appendChild(this.volBar);
-      this.wrapper.appendChild(this.volSlider);
+    }
+
+
+    const variant = this.options.variant;
+    if (variant === 'voice') {
+      // Voice message pill: play + waveform + (name / duration).
+      const meta = document.createElement('div');
+      meta.className = 'cap-voice-meta';
+      const title = document.createElement('span');
+      title.className = 'cap-voice-title';
+      title.textContent = this.options.title || '';
+      meta.appendChild(title);
+      meta.appendChild(this.timeDuration);
+      this.wrapper.append(this.btnPlay, this.seekContainer, meta);
+    } else if (variant === 'line') {
+      // Slim pill: play + progress line (+ speed) + name / time range.
+      this.wrapper.classList.add('cap-line-player');
+      const body = document.createElement('div');
+      body.className = 'cap-line-body';
+      const row = document.createElement('div');
+      row.className = 'cap-line-row';
+      row.appendChild(this.seekContainer);
+      this.btnSpeed = document.createElement('button');
+      this.btnSpeed.type = 'button';
+      this.btnSpeed.className = 'cap-speed-btn';
+      this.btnSpeed.textContent = '1\u00d7';
+      const rates = [1, 1.25, 1.5, 2];
+      this.btnSpeed.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const index = rates.indexOf(this.audio.playbackRate);
+        const next = rates[(index + 1) % rates.length];
+        this.audio.playbackRate = next;
+        this.btnSpeed.textContent = next + '\u00d7';
+      });
+      row.appendChild(this.btnSpeed);
+      const times = document.createElement('div');
+      times.className = 'cap-line-times';
+      const name = document.createElement('span');
+      name.className = 'cap-line-name';
+      name.textContent = this.options.title || '';
+      const range = document.createElement('span');
+      range.className = 'cap-line-range';
+      range.append(this.timeCurrent, document.createTextNode(' / '), this.timeDuration);
+      times.append(name, range);
+      body.append(row, times);
+      this.wrapper.append(this.btnPlay, body);
+    } else {
+      this.wrapper.appendChild(this.btnPlay);
+      this.wrapper.appendChild(this.timeCurrent);
+      this.wrapper.appendChild(this.seekContainer);
+      this.wrapper.appendChild(this.timeDuration);
+      if (this.btnVolume && this.options.showVolume) this.wrapper.appendChild(this.btnVolume);
+      if (this.volSlider && this.options.showVolume) this.wrapper.appendChild(this.volSlider);
     }
 
     // Loading indicator
@@ -417,113 +464,280 @@ class CustomAudioPlayer {
       }
 
       .custom-audio-player.cap-voice-message {
-        display: grid;
-        grid-template-columns: 40px minmax(0, 1fr) auto;
-        grid-template-areas: "play wave time";
-        gap: 10px;
+        --cap-pill-bg: var(--panel, #ffffff);
+        --cap-pill-fg: var(--fg, #1a1d21);
+        --cap-pill-border: var(--border, #e4e7ec);
+        display: flex;
         align-items: center;
-        min-width: 0;
-        width: 100%;
-        max-width: min(340px, 100%);
-        min-height: 52px;
-        padding: 8px 12px;
-        border: 1px solid rgba(108,99,255,0.08);
-        border-radius: 20px;
-        background: linear-gradient(135deg, rgba(20,30,54,0.95), rgba(17,24,45,0.95));
-        box-shadow:
-          0 4px 16px rgba(0,0,0,0.2),
-          inset 0 1px rgba(255,255,255,0.03);
+        gap: 10px;
+        width: auto;
+        max-width: min(320px, 100%);
+        min-height: 0;
+        padding: 8px 14px 8px 8px;
+        border-radius: 999px;
+        background: var(--cap-pill-bg);
+        color: var(--cap-pill-fg);
+        border: 1px solid var(--cap-pill-border);
+        box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
         box-sizing: border-box;
         overflow: hidden;
         animation: none;
       }
 
-      .custom-audio-player.cap-voice-message::before {
-        opacity: 0.04;
-      }
+      .custom-audio-player.cap-voice-message::before { display: none; }
 
       .custom-audio-player.cap-voice-message .cap-play-btn {
-        grid-area: play;
-        width: 38px;
-        height: 38px;
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
         border-radius: 50%;
-        background: linear-gradient(135deg, var(--cap-gradient-1), var(--cap-gradient-2));
-        color: #fff;
-        box-shadow: 0 4px 14px rgba(108,99,255,0.35);
-        flex-shrink: 0;
+        background: var(--cap-pill-fg);
+        color: var(--cap-pill-bg);
+        box-shadow: none;
+        flex: 0 0 auto;
       }
 
       .custom-audio-player.cap-voice-message .cap-play-btn:hover {
-        transform: translateY(-2px) scale(1.06);
-        box-shadow: 0 6px 22px rgba(108,99,255,0.45);
+        transform: scale(1.06);
+        box-shadow: none;
       }
 
-      .custom-audio-player.cap-voice-message .cap-time-current {
-        display: none;
-      }
-
-      .custom-audio-player.cap-voice-message .cap-time-duration {
-        grid-area: time;
-        min-width: 36px;
-        font-family: 'Inter', sans-serif;
-        font-size: 11px;
-        font-weight: 600;
-        color: rgba(255,255,255,0.4);
-        text-align: right;
-        flex-shrink: 0;
-        white-space: nowrap;
-      }
+      .custom-audio-player.cap-voice-message .cap-time-current { display: none; }
 
       .custom-audio-player.cap-voice-message .cap-seek-container {
-        grid-area: wave;
-        padding: 4px 0;
+        flex: 1 1 auto;
         min-width: 0;
-        width: 100%;
+        width: auto;
+        height: 26px;
+        padding: 0;
         overflow: hidden;
       }
 
       .custom-audio-player.cap-voice-message .cap-seek-bar {
-        height: 38px;
+        height: 26px;
         border: 0;
         border-radius: 0;
         background: transparent;
         overflow: hidden;
         width: 100%;
-        min-width: 0;
       }
 
-      .custom-audio-player.cap-voice-message .cap-seek-progress {
-        display: none;
-      }
-
-      .custom-audio-player.cap-voice-message .cap-seek-thumb {
-        width: 8px;
-        height: 8px;
-        right: -4px;
-        background: var(--cap-gradient-1);
-        box-shadow: 0 0 0 2px var(--cap-card);
-      }
+      .custom-audio-player.cap-voice-message .cap-seek-bar:hover { height: 26px; background: transparent; }
+      .custom-audio-player.cap-voice-message .cap-seek-progress,
+      .custom-audio-player.cap-voice-message .cap-seek-thumb { display: none; }
 
       .custom-audio-player.cap-voice-message .cap-waveform {
-        gap: 2px;
-        padding: 4px 0;
+        position: static;
+        inset: auto;
+        display: flex;
+        align-items: center;
+        gap: 2.5px;
+        height: 26px;
+        padding: 0;
         overflow: hidden;
         min-width: 0;
         width: 100%;
-        box-sizing: border-box;
       }
 
       .custom-audio-player.cap-voice-message .cap-wave-bar {
         flex: 1 1 0;
-        min-width: 0;
-        max-width: 100%;
-        background: rgba(255,255,255,0.18);
-        opacity: 1;
+        min-width: 3px;
+        max-width: 3px;
+        border-radius: 2px;
+        background: currentColor;
+        opacity: 0.35;
       }
 
       .custom-audio-player.cap-voice-message .cap-wave-bar.is-played {
-        background: linear-gradient(180deg, rgba(108,99,255,0.65), var(--cap-gradient-1));
+        background: currentColor;
+        opacity: 1;
       }
+
+      .custom-audio-player.cap-voice-message .cap-wave-bar.is-empty { opacity: 0.25; }
+
+      .custom-audio-player.cap-voice-message .cap-voice-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 1px;
+        align-items: flex-end;
+        margin-left: auto;
+        flex: 0 0 auto;
+        min-width: 0;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-voice-title {
+        display: block;
+        font-size: 12px;
+        font-weight: 600;
+        line-height: 1.2;
+        max-width: 110px;
+        color: inherit;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .custom-audio-player.cap-voice-message .cap-time-duration {
+        grid-area: auto;
+        min-width: 0;
+        font-size: 11px;
+        font-weight: 400;
+        color: inherit;
+        opacity: 0.6;
+        text-align: right;
+        white-space: nowrap;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .custom-audio-player.cap-line-player {
+        --cap-line-bg: var(--panel, #ffffff);
+        --cap-line-fg: var(--fg, #1a1d21);
+        --cap-line-border: var(--border, #e4e7ec);
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        max-width: min(340px, 100%);
+        padding: 8px 16px 8px 8px;
+        border-radius: 999px;
+        background: var(--cap-line-bg);
+        color: var(--cap-line-fg);
+        border: 1px solid var(--cap-line-border);
+        box-shadow: 0 2px 8px rgba(16, 24, 40, 0.06);
+        box-sizing: border-box;
+        min-height: 0;
+        animation: none;
+        overflow: visible;
+      }
+
+      .custom-audio-player.cap-line-player::before { display: none; }
+
+      .custom-audio-player.cap-line-player .cap-play-btn {
+        width: 34px;
+        height: 34px;
+        min-width: 34px;
+        border-radius: 50%;
+        background: var(--cap-line-fg);
+        color: var(--cap-line-bg);
+        box-shadow: none;
+        flex: 0 0 auto;
+      }
+
+      .custom-audio-player.cap-line-player .cap-play-btn:hover {
+        transform: scale(1.06);
+        box-shadow: none;
+      }
+
+      .custom-audio-player .cap-line-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 0;
+      }
+
+      .custom-audio-player .cap-line-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+      }
+
+      .custom-audio-player.cap-line-player .cap-seek-container {
+        flex: 1;
+        min-width: 0;
+        height: 16px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        position: relative;
+      }
+
+      .custom-audio-player.cap-line-player .cap-seek-bar {
+        width: 100%;
+        height: 3px;
+        background: var(--cap-line-border);
+        border: none;
+        border-radius: 2px;
+        overflow: visible;
+      }
+
+      .custom-audio-player.cap-line-player .cap-seek-container:hover .cap-seek-bar {
+        height: 3px;
+        background: var(--cap-line-border);
+      }
+
+      .custom-audio-player.cap-line-player .cap-waveform { display: none; }
+
+      .custom-audio-player.cap-line-player .cap-seek-progress {
+        position: absolute;
+        left: 0;
+        top: 0;
+        height: 3px;
+        border-radius: 2px;
+        background: var(--cap-line-fg);
+        opacity: 1;
+      }
+
+      .custom-audio-player.cap-line-player .cap-seek-thumb {
+        position: absolute;
+        top: 50%;
+        right: auto;
+        left: 0;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: var(--cap-line-fg);
+        border: 2px solid var(--cap-line-bg);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        transform: translate(-50%, -50%) scale(0);
+        opacity: 0;
+        transition: opacity 0.15s ease;
+      }
+
+      .custom-audio-player.cap-line-player:hover .cap-seek-thumb,
+      .custom-audio-player.cap-line-player .cap-seek-container:hover .cap-seek-thumb {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+
+      .custom-audio-player .cap-speed-btn {
+        flex: 0 0 auto;
+        border: none;
+        cursor: pointer;
+        padding: 2px 7px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--cap-line-fg) 8%, transparent);
+        color: var(--cap-line-fg);
+        font-size: 10px;
+        font-weight: 600;
+        line-height: 1.4;
+        opacity: 0.75;
+      }
+
+      .custom-audio-player .cap-speed-btn:hover { opacity: 1; }
+
+      .custom-audio-player .cap-line-times {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 10px;
+        line-height: 1.2;
+        opacity: 0.55;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .custom-audio-player .cap-line-name {
+        font-size: 11px;
+        font-weight: 600;
+        opacity: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .custom-audio-player .cap-line-range { white-space: nowrap; }
 
       .custom-audio-player .cap-vol-slider {
         display: flex;
@@ -838,7 +1052,11 @@ class CustomAudioPlayer {
 
   _updateProgress() {
     const pct = this.duration ? (this.currentTime / this.duration * 100) : 0;
-    this.seekProgress.style.width = Math.min(pct, 100) + '%';
+    const clamped = Math.min(pct, 100);
+    this.seekProgress.style.width = clamped + '%';
+    if (this.options.variant === 'line' && this.seekThumb) {
+      this.seekThumb.style.left = clamped + '%';
+    }
     this._updateWaveformProgress();
   }
 

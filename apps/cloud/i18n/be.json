@@ -349,7 +349,7 @@
   "enableCaptions": "Уключыць субтытры",
   "encryptArchive": "Зашыфраваць архіў",
   "encryptedFolderWarningText": "Папка <strong>Дакументы</strong> выкарыстоўвае шыфраванне для абароны вашых файлаў. Файлы, якія захоўваюцца тут, зашыфраваны на серверы і даступныя толькі вам. Звярніце ўвагу: калі вы страціце доступ да свайго ўліковага запісу, файлы ў гэтай папцы не могуць быць адноўлены.",
-  "english": "АНГЛ",
+  "english": "off",
   "enterFileName": "Назва файла:",
   "enterFolderName": "Назва папкі:",
   "enterFullscreen": "Поўны экран",
@@ -894,6 +894,7 @@
   "shareExpiryLabel": "Тэрмін дзеяння спасылкі",
   "shareExpiryNever": "Ніколі",
   "shareFile": "Падзяліцца файламі",
+  "shareLinkSettings": "Налады спасылкі",
   "shareLinkCopied": "Спасылка скапіявана ў буфер абмену!",
   "shareLinkCopiedFallback": "Спасылка скапіявана (рэзервовы спосаб)",
   "shareLinkExpiresAt": "Дзейнічае да",
@@ -991,6 +992,7 @@
   "totalSize": "Агульны памер",
   "totalUploadSize": "Агульны памер: {size}",
   "transcription": "Транскрыпцыя",
+  "transcribeAudio": "Транскрыбіраваць",
   "transcriptionCleanupFailed": "Не атрымалася ачысціць транскрыпцыі",
   "transcriptionSaved": "Транскрыпцыя паспяхова захавана",
   "trashEmptied": "Кошык ачышчаны",
@@ -1103,5 +1105,11 @@
   "share-access-disable-copy": "Вимкнути копіювання",
   "share-open-limit": "Відкрити ліміт",
   "shareGetLink": "Получаць ссылку",
-  "shareSendToChat": "Паднаўленне ў чат"
+  "shareSendToChat": "Паднаўленне ў чат",
+  "monacoAiPromptPlaceholder": "Што выправіць з дапамогай ШІ?",
+  "selectAll": "Вылучыць усё",
+  "trashRetentionLabel": "Захоўваць",
+  "trashRetentionDays": "дн.",
+  "trashRetentionSaved": "Тэрмін захоўвання кошыка захаваны",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

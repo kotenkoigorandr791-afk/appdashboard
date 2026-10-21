@@ -74,6 +74,11 @@ class PreferencesManager(context: Context) {
         private const val KEY_PENDING_CONFLICT_JSON = "pending_conflict_json"
         private const val KEY_CONFLICT_REMEMBER = "conflict_remember"
         private const val KEY_CONFLICT_DEFAULT_ACTION = "conflict_default_action"
+        private const val KEY_DEVICE_ID = "device_id"
+        private const val KEY_LAST_SYNC_OK_AT = "last_sync_ok_at"
+        private const val KEY_LAST_AUTH_ERROR_AT = "last_auth_error_at"
+        private const val KEY_LAST_AUTH_ERROR_CODE = "last_auth_error_code"
+        private const val CONNECTION_STALE_MS = 24L * 60 * 60 * 1000
         private const val WEEKLY_FEEDBACK_PROMPT_MS = 7L * 24 * 60 * 60 * 1000
         val MAX_LOG_OPTIONS = listOf(50, 100, 500)
         private const val DEFAULT_MAX_LOGS = 100
@@ -137,6 +142,8 @@ class PreferencesManager(context: Context) {
     fun setWebhookConfigs(configs: List<WebhookConfig>) {
         val configsJson = Json.encodeToString(configs)
         prefs.edit().putString(KEY_WEBHOOK_CONFIGS, configsJson).apply()
+        // A (re)pairing with fresh credentials means a previous auth failure is no longer relevant.
+        clearAuthError()
         
         // Also update old format for backward compatibility
         val urls = configs.map { it.url }
@@ -695,6 +702,52 @@ class PreferencesManager(context: Context) {
     fun getConflictDefaultAction(): String? = prefs.getString(KEY_CONFLICT_DEFAULT_ACTION, null)
     fun setConflictDefaultAction(action: String) {
         prefs.edit().putString(KEY_CONFLICT_DEFAULT_ACTION, action).apply()
+    }
+
+    fun getDeviceId(): String {
+        val existing = prefs.getString(KEY_DEVICE_ID, null)
+        if (!existing.isNullOrBlank()) return existing
+        val generated = java.util.UUID.randomUUID().toString().replace("-", "")
+        prefs.edit().putString(KEY_DEVICE_ID, generated).apply()
+        return generated
+    }
+
+    fun markSyncSuccess() {
+        prefs.edit().putLong(KEY_LAST_SYNC_OK_AT, System.currentTimeMillis()).apply()
+    }
+
+    fun markAuthError(code: Int) {
+        prefs.edit()
+            .putLong(KEY_LAST_AUTH_ERROR_AT, System.currentTimeMillis())
+            .putInt(KEY_LAST_AUTH_ERROR_CODE, code)
+            .apply()
+    }
+
+    fun markSyncFailure() {
+        // No-op for now; connection state is derived from success vs auth error timestamps.
+    }
+
+    fun clearAuthError() {
+        prefs.edit()
+            .remove(KEY_LAST_AUTH_ERROR_AT)
+            .remove(KEY_LAST_AUTH_ERROR_CODE)
+            .apply()
+    }
+
+    /** True while the last failure was an auth rejection (401/403) newer than the last success. */
+    fun hasAuthError(): Boolean {
+        val authErrAt = prefs.getLong(KEY_LAST_AUTH_ERROR_AT, 0L)
+        if (authErrAt == 0L) return false
+        return authErrAt > prefs.getLong(KEY_LAST_SYNC_OK_AT, 0L)
+    }
+
+    fun isUserConnected(): Boolean {
+        val lastOk = prefs.getLong(KEY_LAST_SYNC_OK_AT, 0L)
+        if (lastOk == 0L) return false
+        if (System.currentTimeMillis() - lastOk > CONNECTION_STALE_MS) return false
+        val lastAuthErr = prefs.getLong(KEY_LAST_AUTH_ERROR_AT, 0L)
+        if (lastAuthErr > lastOk) return false
+        return true
     }
 
     fun clearServerDataCache() {

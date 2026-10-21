@@ -351,14 +351,14 @@ function pollVideoGeneration(modal, jobId) {
   };
   tick();
 }
-async function deletePath(path, type = 'file', name = '') {
-    if (path !== null && typeof path === 'object') { type = path.type || type; name = path.name || name; path = path.path || ''; }
+async function deletePath(path, type = 'file', name = '', root = null) {
+    if (path !== null && typeof path === 'object') { root = path.root || root; type = path.type || type; name = path.name || name; path = path.path || ''; }
     path = String(path || '');
     if (!path) return;
     if (!name) {
         name = path.split('/').pop();
     }
-    showDeleteModal(path, type, name);
+    showDeleteModal(path, type, name, root || getCurrentCloudRoot());
     clearSelection(); 
 }
 let inlineRenameState = null;
@@ -447,6 +447,7 @@ function startInlineTreeRename(path) {
   input.value = originalName;
   input.setAttribute('aria-label', t(i18n, 'rename') || 'Rename');
   guardFilenameInput(input);
+  if (window.CloudTransliteration?.attachToInput) window.CloudTransliteration.attachToInput(input);
   label.classList.add('hidden');
   node.classList.add('tree-renaming');
   node.insertBefore(input, label.nextSibling);
@@ -919,6 +920,13 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
     if (type === 'file' && path.toLowerCase().endsWith('.txt')) {
         options.push({ label: 'Text to Speech', icon: 'speech', action: () => openTextToSpeechEditor(path) });
     }
+    if (type === 'file' && typeof isEditableAudio === 'function' && isEditableAudio(path)) {
+        options.push({
+            label: (window.i18n && window.i18n.transcribeAudio) || 'Transcribe audio',
+            icon: 'speech',
+            action: () => openTranscriptionEditor(path)
+        });
+    }
     if (type === 'file' && isZipFile(path)) {
         options.push({ label: t(window.i18n, 'extractArchive'), icon: 'extract', action: () => showExtractDialog(path), title: t(window.i18n, 'extractArchiveTooltip') });
     }
@@ -977,7 +985,7 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
         options.push({
             label: t(window.i18n, 'delete'),
             icon: 'delete',
-            action: () => (opts.tabId != null ? deletePath(path, 'file', opts.tabTitle) : deletePath(path))
+            action: () => deletePath(path, 'file', opts.tabId != null ? opts.tabTitle : '', opts.root || getCurrentCloudRoot())
         });
     }
     return options;
@@ -1547,7 +1555,7 @@ async function shareItem(path, type, root) {
         if (typeof renderShareModalForPath === 'function') {
             await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
         } else {
-            const result = await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+            const result = await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
         }
     } catch (err) {
@@ -1669,8 +1677,8 @@ function sendCloudShareToChat(path, type, root) {
         status.textContent = cloudActionText('generatingLink', 'Generating link...');
         try {
             const shareData = typeof window.generateShareKey === 'function'
-                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never')
-                : await api('share_file', { path: normalizedPath, expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
+                ? await window.generateShareKey(normalizedPath, shareState.currentExpiresOption || 'never', root || getCurrentCloudRoot())
+                : await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!shareData?.key) throw new Error('Failed to generate share key');
             let metadata = {};
             try {
@@ -2238,13 +2246,13 @@ function initDeleteModal() {
         }
     });
 }
-function showDeleteModal(path, type, name) {
+function showDeleteModal(path, type, name, root = null) {
     const inTrash = isTrashRoot();
     const permanentCheckbox = document.getElementById('delete-permanently-checkbox');
     const permanentOption = document.getElementById('delete-permanent-option');
     const warningText = document.getElementById('delete-warning-text');
     const permanent = inTrash;
-    deleteState = { path, type, name, permanent };
+    deleteState = { path, type, name, root: root || getCurrentCloudRoot(), permanent };
     const modal = document.getElementById('delete-modal');
     const title = document.getElementById('delete-modal-title');
     const text = document.getElementById('delete-confirmation-text');
@@ -2270,10 +2278,10 @@ function showDeleteModal(path, type, name) {
 }
 function closeDeleteModal() {
     document.getElementById('delete-modal').classList.add('hidden');
-    deleteState = { path: '', type: '', name: '', permanent: false };
+    deleteState = { path: '', type: '', name: '', root: '', permanent: false };
 }
 async function confirmDelete() {
-    const { path, type, permanent } = deleteState;
+    const { path, type, root, permanent } = deleteState;
     if (!path) {
         closeDeleteModal();
         return;
@@ -2284,10 +2292,10 @@ async function confirmDelete() {
         confirmBtn.textContent = t(i18n, 'deleting');
         confirmBtn.disabled = true;
         if (isTrashRoot() || permanent) {
-            await api('delete', { path });
+            await api('delete', { path, root });
             await cleanupDeletedAudioTranscriptions([path]);
         } else {
-            await api('move_to_trash', { path });
+            await api('move_to_trash', { path, root });
         }
         closeTabsByPath(path);
         if (type === 'file') {
@@ -2491,6 +2499,11 @@ function switchToPrevTab() {
     switchToTab(prevTab.id);
     flashStatus(t(i18n, 'switchedToTab', { title: prevTab.title }));
 }
+function isAssistantOverlayOpen() {
+  const modal = document.getElementById('ai-modal');
+  return !!(modal && !modal.classList.contains('hidden'));
+}
+
 function handleHotkeys(e, i18n) {
   const mac = navigator.platform.toUpperCase().includes('MAC');
   const mod = mac ? e.metaKey : e.ctrlKey;
@@ -2513,6 +2526,10 @@ function handleHotkeys(e, i18n) {
   if (isInput && !isCodeMirror && !isGlobalHotkey) {
     return;
   }
+
+  // The assistant modal is the topmost layer: Escape must close it first, even
+  // when a tree selection or lasso is active underneath.
+  if (e.key === 'Escape' && isAssistantOverlayOpen()) return;
 
   if (isTrashRoot()) {
     if (mod && e.key.toLowerCase() === 'a') {
@@ -2656,7 +2673,9 @@ function handleHotkeys(e, i18n) {
   if (mod && e.key.toLowerCase() === 's') {
     e.preventDefault();
     e.stopPropagation();
-    saveFile();
+    saveFile().then((ok) => {
+      if (ok) showSuccessCheck(document.getElementById('btn-save'));
+    });
     return;
   }
   if (e.key === 'Escape' && searchState.active) {

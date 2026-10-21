@@ -4,7 +4,7 @@ import type { ToolDef } from "./types.js";
 export const backupTools: ToolDef[] = [
   {
     name: "backup_status",
-    description: "Get Duplicati backup job status. Returns configured:false when Duplicati is not set up.",
+    description: "Get restic backup status (repository, snapshots, jobs). Returns configured:false when restic is not set up.",
     minRole: 1,
     inputSchema: { type: "object", properties: {} },
     handler: async () => {
@@ -12,8 +12,8 @@ export const backupTools: ToolDef[] = [
         return textResult(await apiGet("/public-api/backup/status"));
       } catch (err) {
         const message = err instanceof Error ? err.message : String(err);
-        if (/duplicati/i.test(message)) {
-          return textResult({ configured: false, reason: "duplicati_not_configured", message: "Duplicati is not configured on this instance; backup management unavailable." });
+        if (/restic|not configured|repository/i.test(message)) {
+          return textResult({ configured: false, reason: "restic_not_configured", message: "Restic backup is not configured on this instance; backup management unavailable." });
         }
         throw err;
       }
@@ -21,7 +21,7 @@ export const backupTools: ToolDef[] = [
   },
   {
     name: "backup_run",
-    description: "Run a Duplicati backup job (admin).",
+    description: "Start a restic backup job (admin).",
     minRole: 2,
     inputSchema: {
       type: "object",
@@ -33,7 +33,7 @@ export const backupTools: ToolDef[] = [
   },
   {
     name: "backup_logs",
-    description: "Get logs for a Duplicati backup job (admin).",
+    description: "Get logs for a restic backup job (admin).",
     minRole: 2,
     inputSchema: {
       type: "object",

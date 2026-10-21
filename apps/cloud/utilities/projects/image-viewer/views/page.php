@@ -235,6 +235,7 @@
         }
     </style>
     <script><?php echo file_get_contents(dirname(__DIR__, 4) . '/assets/file-load-progress.js'); ?></script>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
 </head>
 <body data-theme="<?= htmlspecialchars($theme) ?>"
       data-accent-color="<?= htmlspecialchars($color) ?>"
@@ -277,5 +278,6 @@
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script1.js.php'; ?>
 </script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

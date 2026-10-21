@@ -28,7 +28,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const filePath = urlParams.get('path') || '';
         const user = urlParams.get('user') || 'default';
-        const lang = urlParams.get('lang') || 'en';
+        const lang = (urlParams.get('lang') || 'en').toLowerCase().split(/[-_]/)[0];
         const root = urlParams.get('root') || 'main';
         const theme = <?php echo json_encode($theme, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
         const color = urlParams.get('color') || '#569cd6';
@@ -56,7 +56,10 @@
             }
         };
         function translatePage() {
-            const currentLang = translations[lang] || translations['en'];
+            const currentLang = Object.assign({}, translations['en'], translations[lang] || {});
+            if (window.parent && window.parent !== window && window.parent.i18n && window.parent.i18n.normal) {
+                currentLang.normalText = window.parent.i18n.normal;
+            }
             document.querySelectorAll('[data-i18n]').forEach(element => {
                 const key = element.getAttribute('data-i18n');
                 if (currentLang[key]) element.textContent = currentLang[key];
@@ -101,12 +104,13 @@
             statusEl.style.display = 'block';
             setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
         }
-        async function saveFile() {
+        async function saveFile(notifyParent = true) {
             if (!filePath || !editor) { showStatus(translations[lang]?.pdfNoPath || 'No file selected', true); return; }
             const content = editor.getValue();
             if (window.originalContent === content) {
                 showStatus(translations[lang]?.noChanges || 'No changes to save', false);
                 if (window.parent) window.parent.postMessage({ type: 'markdownEditorSaved', relativePath: filePath, success: true, message: 'No changes to save' }, '*');
+                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
                 return;
             }
             try {
@@ -132,8 +136,10 @@
                 }
                 
                 if (window.parent) window.parent.postMessage({ type: 'markdownEditorSaved', relativePath: filePath, success: true, message: 'File saved successfully' }, '*');
+                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
             } catch (error) {
                 showStatus((translations[lang]?.saveError || 'Save error') + ': ' + error.message, true);
+                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: error.message }, '*');
                 throw error;
             }
         }
@@ -195,7 +201,7 @@
         }
         function startAutoSaveTimer() {
             if (autoSaveTimer) clearTimeout(autoSaveTimer);
-            autoSaveTimer = setTimeout(() => { if (hasUnsavedChanges) saveFile(); }, AUTO_SAVE_DELAY);
+            autoSaveTimer = setTimeout(() => { if (hasUnsavedChanges) saveFile(false); }, AUTO_SAVE_DELAY);
             if (window.parent && !hasUnsavedChanges) window.parent.postMessage({ type: 'markdownEditorStatus', message: translations[lang]?.unsavedChanges || 'Unsaved changes', hasUnsavedChanges: true }, '*');
             hasUnsavedChanges = true;
         }
@@ -524,6 +530,9 @@
         cancelPdfBtn.addEventListener('click', () => { pdfModal.style.display = 'none'; });
         generatePdfBtn.addEventListener('click', exportToPDF);
         saveBtn.addEventListener('click', saveFile);
+        window.addEventListener('message', (event) => {
+            if (event.data && event.data.type === 'editor:save') saveFile();
+        });
         function openTranslationModal() {
             if (!editor) return;
             
@@ -718,6 +727,10 @@
                     monaco: monaco,
                     getLang: function () { return shared.resolveLang(lang); }
                 });
+                // Enter on "1. item" continues the list with "2. ", like the .txt editor.
+                if (shared.installNumberedListContinuation) {
+                    shared.installNumberedListContinuation({ editor: editor, monaco: monaco, filePath: filePath });
+                }
                 
                 if (window.monacoTouchSelection) {
                     window.monacoTouchSelection.enable(editor, document.getElementById('editor-container'));
@@ -796,7 +809,7 @@
             });
         }
         document.addEventListener('visibilitychange', () => {
-            if (document.hidden && hasUnsavedChanges && autoSaveTimer) { clearTimeout(autoSaveTimer); saveFile(); }
+            if (document.hidden && hasUnsavedChanges && autoSaveTimer) { clearTimeout(autoSaveTimer); saveFile(false); }
         });
         window.addEventListener('message', function(event) {
             if (event.data.type === 'loadMarkdownContent' && event.data.content) {

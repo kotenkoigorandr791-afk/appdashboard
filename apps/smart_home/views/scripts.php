@@ -1,3 +1,6 @@
+<script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+<script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
 <script>
 // ─── State ─────────────────────────────────────────────────────────────────
 // JSON_HEX_TAG keeps user-editable values from closing this <script> block.
@@ -1107,6 +1110,7 @@ function renderErrors() {
 // ─── Navigation ─────────────────────────────────────────────────────────────
 function switchPage(page) {
   state.currentPage = page;
+  updateRouteHash(true);
   document.querySelectorAll('.page-section').forEach(el => {
     el.classList.remove('active');
     el.style.display = '';
@@ -1158,6 +1162,22 @@ function switchPage(page) {
   }
   fpCheckPendingImport();
   syncViewportMode();
+}
+
+function routePageFromHash() {
+  const raw = String(window.location.hash || '').replace(/^#/, '');
+  const match = raw.match(/^(?:smart_home\/)?(home|devices|groups|statistics|errors|map|settings)$/);
+  return match ? match[1] : 'home';
+}
+
+function updateRouteHash(push) {
+  const hash = '#smart_home/' + state.currentPage;
+  if (window.location.hash !== hash) {
+    history[push ? 'pushState' : 'replaceState']({ smartHomePage: state.currentPage }, '', window.location.pathname + window.location.search + hash);
+  }
+  if (window.parent !== window) {
+    window.parent.postMessage({ type: 'appdashboard:app-route', app: 'smart_home', page: state.currentPage }, window.location.origin);
+  }
 }
 
 function syncViewportMode() {
@@ -1221,7 +1241,7 @@ function loadState() {
       FP.histIdx = 0;
     }
     renderAll();
-    if (state.currentPage === 'home') switchPage('home');
+    switchPage(routePageFromHash());
     if (FP.canvas) {
       fpRender();
       if (!FP._centeredOnce) { FP._centeredOnce = true; fpWhenLayoutReady(() => setTimeout(fpCenterMap, 80)); }
@@ -1495,6 +1515,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Add device
   document.getElementById('addDeviceBtn').addEventListener('click', showAddDeviceForm);
+  const spShareBtn = document.getElementById('sharepoint-share-btn');
+  if (spShareBtn && window.openShareModal) {
+    spShareBtn.addEventListener('click', () => window.openShareModal('smart_home', 'app', 'smart_home_scene', {
+      title: 'Smart Home',
+      defaultPermissions: ['view'],
+      apiUrl: '/apps/smart_home/api/share.php'
+    }));
+  }
   document.getElementById('deviceTableAdd').addEventListener('click', showAddDeviceForm);
 
   // Device search
@@ -3926,3 +3954,5 @@ if (document.readyState !== 'loading') {
   });
 }
 </script>
+  window.addEventListener('popstate', () => switchPage(routePageFromHash()));
+  window.addEventListener('hashchange', () => switchPage(routePageFromHash()));

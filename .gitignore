@@ -115,8 +115,10 @@ opencode.json
 /tasks/
 
 # Test artifacts
+/tests/backup/artifacts/
 /tests/tmp/
 /tests/tests/tmp/
+/tests/test-results/
 /test-results/
 appdashboard-mcp/smoke-*-results.txt
 appdashboard-mcp/tmp-*
@@ -156,6 +158,9 @@ core
 # ...but keep the Playwright core test directory
 !tests/e2e/core/
 !tests/e2e/core/**
+# ...and the steps app core helpers (real source, not build junk)
+!apps/steps/core/
+!apps/steps/core/**
 *.core
 npm-debug.log*
 yarn-error.log*

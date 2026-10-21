@@ -497,14 +497,14 @@ $dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath
     </div>
     
     <script>
-        const I18N = <?php echo json_encode($i18n[$lang] ?? $i18n['en'], JSON_UNESCAPED_UNICODE); ?>;
-        const I18N_EN = <?php echo json_encode($i18n['en'], JSON_UNESCAPED_UNICODE); ?>;
+        const I18N = <?php echo json_encode($i18n[$lang] ?? $i18n['en'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        const I18N_EN = <?php echo json_encode($i18n['en'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
         function t(key){return I18N[key] ?? I18N_EN[key] ?? key;}
         function tf(key, vars){let text=t(key);for(const n in (vars||{})){text=text.split('{'+n+'}').join(vars[n]);}return text;}
-        const sectionTitles = <?php echo json_encode(['stacks' => t('stacks'), 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')], JSON_UNESCAPED_UNICODE); ?>;
-        const startupModals = <?php echo json_encode($startupModals, JSON_UNESCAPED_UNICODE); ?>;
-        const modalIcons = <?php echo json_encode(['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')], JSON_UNESCAPED_UNICODE); ?>;
-        const modalLabels = <?php echo json_encode(['confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE); ?>;
+        const sectionTitles = <?php echo json_encode(['stacks' => t('stacks'), 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        const startupModals = <?php echo json_encode($startupModals, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        const modalIcons = <?php echo json_encode(['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        const modalLabels = <?php echo json_encode(['confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
     </script>
     <script src="<?php echo htmlspecialchars($dockerJsUrl, ENT_QUOTES, 'UTF-8'); ?>"></script>
 </body>

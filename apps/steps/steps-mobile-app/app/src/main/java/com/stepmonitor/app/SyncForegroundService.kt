@@ -68,6 +68,12 @@ class SyncForegroundService : Service() {
 
         scope.launch {
             try {
+                if (PreferencesManager(this@SyncForegroundService).hasAuthError()) {
+                    // Auth was rejected; do not hammer the server. The user must re-pair.
+                    Log.d(TAG, "Skipping scheduled sync: auth error pending re-pairing")
+                    rescheduleAlarmIfNeeded(scheduleId)
+                    return@launch
+                }
                 val syncManager = SyncManager(this@SyncForegroundService)
                 syncManager.performSync(syncType = "auto")
 

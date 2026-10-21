@@ -42,6 +42,7 @@ ENV PATH="/opt/TinyTeX/bin/x86_64-linux:/opt/TinyTeX/bin/aarch64-linux:${PATH}"
 
 COPY --from=ext-builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=ext-builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
+COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     nginx libnginx-mod-http-modsecurity modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
@@ -94,6 +95,7 @@ COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
 RUN cp -a /var/www/AppDashboard/apps/lopaka /usr/local/share/lopaka
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
+# restic powers the integrated backup manager (replaces the Duplicati service).
 ARG RESTIC_VERSION=0.18.1
 RUN set -eux; \
     arch="$(dpkg --print-architecture)"; \

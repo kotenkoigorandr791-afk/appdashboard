@@ -349,7 +349,7 @@
   "enableCaptions": "Увімкнути субтитри",
   "encryptArchive": "Зашифрувати архів",
   "encryptedFolderWarningText": "Папка <strong>Документи</strong> використовує шифрування для захисту ваших файлів. Файли, що зберігаються тут, зашифровані на сервері та доступні тільки вам. Зверніть увагу: якщо ви втратите доступ до свого облікового запису, файли в цій папці не можуть бути відновлені.",
-  "english": "АНГЛ",
+  "english": "off",
   "enterFileName": "Ім'я файлу:",
   "enterFolderName": "Ім'я папки:",
   "enterFullscreen": "Повний екран",
@@ -897,6 +897,7 @@
   "shareExpiryLabel": "Термін дії посилання",
   "shareExpiryNever": "Ніколи",
   "shareFile": "Поділитися файлом",
+  "shareLinkSettings": "Налаштування посилання",
   "shareLinkCopied": "Посилання скопійовано в буфер обміну!",
   "shareLinkCopiedFallback": "Посилання скопійовано (резервний спосіб)",
   "shareLinkExpiresAt": "Діє до",
@@ -1024,6 +1025,7 @@
   "totalSize": "Загальний розмір",
   "totalUploadSize": "Загальний розмір: {size}",
   "transcription": "Транскрипція",
+  "transcribeAudio": "Транскрибувати",
   "transcriptionCleanupFailed": "Не вдалося очистити транскрипції",
   "transcriptionSaved": "Транскрипція успішно збережена",
   "trashEmptied": "Кошик очищено",
@@ -1103,5 +1105,11 @@
   "share-access-disable-copy": "Вимкнути копіювання",
   "share-open-limit": "Відкрити ліміт",
   "shareGetLink": "Отримати посилання",
-  "shareSendToChat": "Надіслати в чат"
+  "shareSendToChat": "Надіслати в чат",
+  "monacoAiPromptPlaceholder": "Що виправити за допомогою ШІ?",
+  "selectAll": "Виділити все",
+  "trashRetentionLabel": "Зберігати",
+  "trashRetentionDays": "дн.",
+  "trashRetentionSaved": "Термін зберігання кошика збережено",
+  "storageUsageProgress": "{used} / {quota} ({percent}%)"
 }

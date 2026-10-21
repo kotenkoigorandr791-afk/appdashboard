@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <style>
-:root{--accent-solid:#<?php echo $color; ?>;--accent-soft:color-mix(in srgb,var(--accent-solid) 24%,transparent);--accent-soft-strong:color-mix(in srgb,var(--accent-solid) 34%,transparent);--accent-border:color-mix(in srgb,var(--accent-solid) 62%,transparent);--accent-text:color-mix(in srgb,var(--accent-solid) 90%,white 10%);}
+:root{--accent-solid:#<?php echo $color; ?>;--accent-soft:color-mix(in srgb,var(--accent-solid) 24%,transparent);--accent-soft-strong:color-mix(in srgb,var(--accent-solid) 34%,transparent);--accent-border:color-mix(in srgb,var(--accent-solid) 62%,transparent);--accent-text:color-mix(in srgb,var(--accent-solid) 90%,white 10%);--accent:var(--accent-solid);<?php if ($theme === 'dark'): ?>--bg:#404040;--panel:#2d2d2d;--fg:#ffffff;--muted:#aaaaaa;--border:#4a4a4a;<?php else: ?>--bg:#f5f5f5;--panel:#ffffff;--fg:#333333;--muted:#666666;--border:#cccccc;<?php endif; ?>--md-primary:<?php echo $theme === 'light' ? '#6750A4' : '#D0BCFF'; ?>;--md-secondary-container:<?php echo $theme === 'light' ? '#E8DEF8' : '#4A4458'; ?>;--md-surface:<?php echo $theme === 'light' ? '#FEF7FF' : '#2B2930'; ?>;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{height:100vh;overflow:hidden;background:<?php echo $theme === 'light' ? '#f0f0f0' : '#404040'; ?>;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;}
 #toolbar{background:<?php echo $theme === 'light' ? '#e0e0e0' : '#2d2d2d'; ?>;padding:10px 8px;display:flex;flex-direction:column;gap:10px;position:fixed;top:0;left:0;bottom:0;z-index:100;box-shadow:1px 0 4px rgba(0,0,0,0.15);overflow-y:auto;overflow-x:hidden;-webkit-overflow-scrolling:touch;scrollbar-width:thin;-ms-overflow-style:auto;justify-content:flex-start;align-items:stretch;min-height:100vh;min-height:100dvh;height:100vh;height:100dvh;width:clamp(72px,7.4vw,92px);max-width:clamp(72px,7.4vw,92px);flex-wrap:nowrap;border-radius:0;scrollbar-color:<?php echo $theme === 'light' ? '#999 #ccc' : '#fff #404040'; ?>;}
@@ -41,10 +41,11 @@ svg{width:18px;height:18px;stroke:<?php echo $theme === 'light' ? '#333' : '#fff
 .zoom-slider::-moz-range-progress{height:6px;border-radius:10px;background:#4a90e2;}
 .zoom-slider::-moz-range-thumb{width:20px;height:20px;background:#fff;border:2px solid #4a90e2;border-radius:50%;box-shadow:0 2px 6px rgba(74,144,226,0.4);cursor:grab;}
 .zoom-select-container{position:relative;display:inline-flex;align-items:center;min-width:100%;margin:0;}
-.zoom-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background:<?php echo $theme === 'light' ? '#f5f5f5' : '#404040'; ?>;border:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;border-radius:4px;color:#fff !important;font-size:11px;font-weight:600;padding:5px 22px 5px 6px;cursor:pointer;width:100%;outline:none;text-align-last:center;}
+select.zoom-select{appearance:none;-webkit-appearance:none;-moz-appearance:none;background:<?php echo $theme === 'light' ? '#f5f5f5' : '#404040'; ?>;border:1px solid <?php echo $theme === 'light' ? '#ccc' : '#4a4a4a'; ?>;border-radius:4px;color:#fff !important;font-size:11px;font-weight:600;padding:5px 22px 5px 6px;cursor:pointer;width:100%;outline:none;text-align-last:center;}
 select option{color:#333 !important;background:#fff;}
-.zoom-select:hover{background:<?php echo $theme === 'light' ? '#e8e8e8' : '#4a4a4a'; ?>;border-color:#<?php echo $color; ?>;}
-.zoom-select:focus{border-color:#<?php echo $color; ?>;box-shadow:0 0 0 2px #<?php echo $color; ?>33;}
+select.zoom-select:hover{background:<?php echo $theme === 'light' ? '#e8e8e8' : '#4a4a4a'; ?>;border-color:#<?php echo $color; ?>;}
+select.zoom-select:focus{border-color:#<?php echo $color; ?>;box-shadow:0 0 0 2px #<?php echo $color; ?>33;}
+.zoom-select-container .ui-select ~ .zoom-select-arrow{display:none!important;}
 .zoom-select-arrow{position:absolute;right:6px;top:50%;transform:translateY(-50%);width:14px;height:14px;pointer-events:none;stroke:<?php echo $theme === 'light' ? '#666' : '#aaa'; ?>;stroke-width:2;fill:none;}
 .zoom-select-container:hover .zoom-select-arrow{stroke:#<?php echo $color; ?>;}
 #viewer-container{position:fixed;top:0;left:clamp(72px,7.4vw,92px);right:0;bottom:0;overflow:auto;background:<?php echo $theme === 'light' ? '#e0e0e0' : '#404040'; ?>;-webkit-overflow-scrolling:touch;scrollbar-color:<?php echo $theme === 'light' ? '#999 #ccc' : '#fff #404040'; ?>;scrollbar-width:thin;z-index:1;touch-action:pan-x pan-y;}
@@ -84,12 +85,24 @@ select option{color:#333 !important;background:#fff;}
 #password-submit:hover{background:var(--accent-soft-strong);}
 #password-cancel{background:<?php echo $theme === 'light' ? '#e0e0e0' : '#4a4a4a'; ?>;color:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;}
 #password-error{color:#ff4444;margin-top:8px;font-size:14px;display:none;}
-.draw-controls{display:flex;flex-direction:column;align-items:stretch;gap:6px;margin-left:0;background:<?php echo $theme === 'light' ? '#fff' : '#333'; ?>;padding:8px;border-radius:8px;}
-.draw-color-picker{width:24px;height:24px;border-radius:50%;border:2px solid <?php echo $theme === 'light' ? '#333' : '#fff'; ?>;cursor:pointer;padding:0;background:<?php echo $theme === 'light' ? '#fff' : '#333'; ?>;}
-.draw-color-picker::-webkit-color-swatch-wrapper{padding:0;}
+.draw-controls{display:flex;flex-direction:column;align-items:stretch;gap:8px;margin-left:0;background:<?php echo $theme === 'light' ? '#FEF7FF' : '#1D1B20'; ?>;padding:8px;border-radius:12px;}
+/* Material 3 color swatch */
+.draw-color-picker{width:26px;height:26px;border-radius:50%;border:2px solid var(--md-primary);cursor:pointer;padding:0;background:var(--md-surface);align-self:center;flex:0 0 auto;box-sizing:border-box;box-shadow:0 1px 3px rgba(0,0,0,.24);transition:transform .15s ease,box-shadow .15s ease;-webkit-appearance:none;appearance:none;}
+.draw-color-picker:hover{transform:scale(1.1);box-shadow:0 3px 8px color-mix(in srgb,var(--md-primary) 35%,transparent);}
+.draw-color-picker:active{transform:scale(.96);}
+.draw-color-picker::-webkit-color-swatch-wrapper{padding:2px;}
 .draw-color-picker::-webkit-color-swatch{border:none;border-radius:50%;}
-.draw-size-slider{width:100%;height:4px;background:<?php echo $theme === 'light' ? '#333' : '#fff'; ?>;border-radius:2px;-webkit-appearance:none;}
-.draw-size-slider::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;background:#<?php echo $color; ?>;border-radius:50%;cursor:pointer;}
+.draw-color-picker::-moz-color-swatch{border:none;border-radius:50%;}
+/* Material 3 range slider */
+.draw-size-slider{-webkit-appearance:none;appearance:none;width:100%;height:8px;margin:0;border-radius:8px;outline:none;cursor:pointer;background:linear-gradient(to right,var(--md-primary) 0%,var(--md-primary) var(--draw-pct,15%),var(--md-secondary-container) var(--draw-pct,15%),var(--md-secondary-container) 100%);transition:background-color .2s ease;}
+.draw-size-slider::-webkit-slider-runnable-track{height:8px;border-radius:8px;background:transparent;}
+.draw-size-slider::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:18px;height:18px;margin-top:-5px;border-radius:50%;background:#fff;border:2px solid var(--md-primary);box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .15s ease,box-shadow .15s ease;}
+.draw-size-slider:hover::-webkit-slider-thumb{transform:scale(1.1);box-shadow:0 4px 8px color-mix(in srgb,var(--md-primary) 30%,transparent);}
+.draw-size-slider:active::-webkit-slider-thumb{transform:scale(1.2);}
+.draw-size-slider::-moz-range-track{height:8px;border-radius:8px;background:transparent;}
+.draw-size-slider::-moz-range-progress{height:8px;border-radius:8px;background:var(--md-primary);}
+.draw-size-slider::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--md-primary);box-shadow:0 2px 4px rgba(0,0,0,.2);transition:transform .15s ease,box-shadow .15s ease;}
+.draw-size-slider:hover::-moz-range-thumb{transform:scale(1.1);}
 @media (min-width:769px){
 #toolbar{padding:clamp(4px,0.7vh,8px) clamp(4px,0.5vw,6px);gap:clamp(6px,0.8vh,10px)}
 .toolbar-group{background:color-mix(in srgb,<?php echo $theme === 'light' ? '#ffffff' : '#1f1f1f'; ?> 82%,transparent);border:1px solid <?php echo $theme === 'light' ? 'rgba(0,0,0,0.08)' : 'rgba(255,255,255,0.08)'; ?>;border-radius:clamp(12px,1.5vh,16px);padding:clamp(6px,0.9vh,10px) clamp(4px,0.5vw,6px) clamp(8px,1.1vh,12px);box-shadow:0 10px 24px rgba(0,0,0,0.12);gap:clamp(4px,0.7vh,6px)}
@@ -101,9 +114,9 @@ select option{color:#333 !important;background:#fff;}
 #toolbar #page-input{width:clamp(22px,2.8vh,28px);font-size:clamp(10px,1.35vh,12px);padding:clamp(2px,0.25vh,3px) 2px}
 #toolbar .toolbar-label{padding:clamp(4px,0.55vh,6px) clamp(5px,0.65vw,8px);font-size:clamp(9px,1.2vh,11px)}
 #toolbar .zoom-select-container{padding:2px}
-#toolbar .zoom-select{font-size:clamp(9px,1.15vh,11px);padding:clamp(4px,0.5vh,5px) 20px clamp(4px,0.5vh,5px) 4px}
+#toolbar select.zoom-select{font-size:clamp(9px,1.15vh,11px);padding:clamp(4px,0.5vh,5px) 20px clamp(4px,0.5vh,5px) 4px}
 #toolbar .zoom-select-arrow{right:4px;width:clamp(11px,1.5vh,14px);height:clamp(11px,1.5vh,14px)}
-#toolbar .zoom-select{background:transparent;border:0;box-shadow:none}
+#toolbar select.zoom-select{background:transparent;border:0;box-shadow:none}
 #toolbar .toolbar-row{padding:0 clamp(2px,0.3vw,4px);gap:clamp(4px,0.55vw,8px)}
 }
 @media (max-width:768px){
@@ -113,7 +126,7 @@ svg{width:20px;height:20px;}
 #page-input{width:45px;padding:6px;font-size:14px;}
 #page-info{flex-direction:row;gap:2px;margin:0 2px;font-size:14px;}
 .zoom-select-container{min-width:75px;}
-.zoom-select{font-size:12px;padding:6px 24px 6px 8px;}
+select.zoom-select{font-size:12px;padding:6px 24px 6px 8px;}
 #progress-text{font-size:28px;}
 #viewer-container{top:44px;left:0;}
 #progress-container{top:44px;left:0;}
@@ -128,13 +141,25 @@ button[data-tooltip]:hover::before{margin-top:-4px;}
 @media (max-width:480px){
 .toolbar-group{padding:0 2px;}
 .zoom-select-container{min-width:65px;}
-.zoom-select{padding:5px 22px 5px 8px;font-size:13px;}
+select.zoom-select{padding:5px 22px 5px 8px;font-size:13px;}
 svg{width:18px;height:18px;}
 button{padding:6px;min-width:36px;}
 }
+/* Single-frame zoom control on desktop: the outer .zoom-select-container card is
+   the only visual frame, the custom button fills it without its own border. */
+@media (min-width:769px){
+#toolbar .zoom-select-container{padding:0;}
+#toolbar .zoom-select-container .ui-select{display:flex;width:100%;max-width:none;height:100%;border-radius:inherit;}
+#toolbar .zoom-select-container .ui-select-btn{width:100%;height:auto;min-width:0;border:0;border-radius:inherit!important;background:transparent;box-shadow:none;padding-inline:2px;gap:2px;}
+#toolbar .zoom-select-container .ui-select-chevron{width:10px;height:10px;flex:0 0 10px;}
+#toolbar .zoom-select-container .ui-select-btn:hover,
+#toolbar .zoom-select-container .ui-select-btn:focus-visible{background:color-mix(in srgb,var(--accent) 14%,transparent);}
+#toolbar .zoom-select-container .ui-select-label{flex:1;text-align:center;font-size:10px;font-weight:600;letter-spacing:0;}
+}
 </style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
 </head>
-<body>
+<body data-theme="<?php echo $theme; ?>" class="theme-<?php echo $theme; ?>">
 <div id="progress-container">
 <div id="progress-bar"></div>
 </div>
@@ -165,7 +190,7 @@ button{padding:6px;min-width:36px;}
 <div class="toolbar-label">Zoom</div>
 
 <div class="zoom-select-container">
-<select id="zoom-select" class="zoom-select">
+<select id="zoom-select" class="zoom-select" data-ui-menu-min-width="72">
 <option value="0.25">25%</option>
 <option value="0.5">50%</option>
 <option value="0.75">75%</option>
@@ -256,5 +281,6 @@ button{padding:6px;min-width:36px;}
 })();
 </script>
 
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
 </body>
 </html>

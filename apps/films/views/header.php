@@ -145,11 +145,15 @@
                         </svg>
                     </button>
                     <?php endif; ?>
-                    <button class="comments-btn" onclick="showComments('<?php echo $movie['id']; ?>', '<?php echo htmlspecialchars($movie['title'][$lang] ?? $movie['title']['en']); ?>')">
+                    <button class="comments-btn" onclick="showComments(<?php echo htmlspecialchars(json_encode((string)$movie['id']), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode((string)($movie['title'][$lang] ?? $movie['title']['en'])), ENT_QUOTES, 'UTF-8'); ?>)">
                         <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 4px;">
                             <path d="M20 2H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h14l4 4V4c0-1.1-.9-2-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
                         </svg>
                         <?php echo $t['comments'] ?? 'Comments'; ?>
+                    </button>
+                    <button class="comments-btn" onclick="shareFilm(<?php echo htmlspecialchars(json_encode((string)$movie['id']), ENT_QUOTES, 'UTF-8'); ?>, <?php echo htmlspecialchars(json_encode((string)($movie['title'][$lang] ?? $movie['title']['en'])), ENT_QUOTES, 'UTF-8'); ?>)">
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" style="margin-right: 4px;"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11A2.99 2.99 0 1 0 15 5c0 .24.04.47.09.7L8.04 9.81A3 3 0 1 0 8.04 14.19l7.12 4.16c-.05.21-.08.43-.08.65A2.92 2.92 0 1 0 18 16.08z"/></svg>
+                        <?php echo $t['share'] ?? 'Share'; ?>
                     </button>
                 </div>
             </div>

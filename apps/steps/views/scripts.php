@@ -1,4 +1,19 @@
+    <script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+    <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
+    <script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
     <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var shareButton = document.getElementById('sharepoint-share-button');
+            if (shareButton && window.openShareModal) {
+                shareButton.addEventListener('click', function () {
+                    window.openShareModal('steps', 'app', 'step_routine', {
+                        title: <?php echo json_encode($translations['steps_counter_title'] ?? 'My steps', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
+                        defaultPermissions: ['view', 'interact'],
+                        apiUrl: '/apps/steps/api/share.php'
+                    });
+                });
+            }
+        });
         let stepsData = <?php echo json_encode($stepsData, JSON_HEX_TAG); ?>,
             healthData = <?php echo json_encode($healthMetrics ?? [], JSON_HEX_TAG); ?>,
             userSettings = <?php echo json_encode($userSettings, JSON_HEX_TAG); ?>,

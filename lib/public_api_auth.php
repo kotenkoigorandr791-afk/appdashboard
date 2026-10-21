@@ -64,8 +64,26 @@ function public_api_validate_token(AppDatabase $db, string $rawToken, string $de
     if ((int)($row['expires_at'] ?? 0) < time()) return null;
     $tokenDeviceId = (string)($row['device_id'] ?? '');
     if ($deviceId !== '' && $tokenDeviceId !== '' && $tokenDeviceId !== 'mcp_external' && !hash_equals($tokenDeviceId, $deviceId)) return null;
+    $now = time();
+    // Sliding expiration: an actively used token must never surprise the client
+    // with a 401. Tokens were previously hard-expired 90 days after creation,
+    // which left the mobile app permanently unauthorized (retry storm -> 429/529).
+    $expiresAt = (int)($row['expires_at'] ?? 0);
+    $ttl = (int)(getenv('PUBLIC_API_TOKEN_TTL') ?: (90 * 24 * 3600));
+    $maxTtl = (int)(getenv('PUBLIC_API_TOKEN_TTL_MAX') ?: (365 * 24 * 3600));
+    $hardCap = (int)($row['created_at'] ?? $now) + $maxTtl;
+    $newExpiresAt = min(max($expiresAt, $now + $ttl), $hardCap);
+    if ($newExpiresAt > $expiresAt + 86400) {
+        $upd = $db->prepare("UPDATE client_auth_tokens SET last_used_at = :u, expires_at = :x WHERE token_hash = :h");
+        $upd->bindValue(':u', $now, PDO::PARAM_INT);
+        $upd->bindValue(':x', $newExpiresAt, PDO::PARAM_INT);
+        $upd->bindValue(':h', $hash, PDO::PARAM_STR);
+        $upd->execute();
+        $row['expires_at'] = $newExpiresAt;
+        return $row;
+    }
     $upd = $db->prepare("UPDATE client_auth_tokens SET last_used_at = :u WHERE token_hash = :h");
-    $upd->bindValue(':u', time(), PDO::PARAM_INT);
+    $upd->bindValue(':u', $now, PDO::PARAM_INT);
     $upd->bindValue(':h', $hash, PDO::PARAM_STR);
     $upd->execute();
     return $row;

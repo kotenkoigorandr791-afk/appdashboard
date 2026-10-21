@@ -36,6 +36,28 @@ let uploadFloatingState = {
 let uploadFloatingUIInitialized = false;
 let uploadFloatingObserver = null;
 
+// The minimize control only appears when an upload runs longer than 10 seconds.
+const MINIMIZE_REVEAL_DELAY = 10000;
+let minimizeRevealTimer = null;
+
+function resetMinimizeButton() {
+  if (minimizeRevealTimer) {
+    clearTimeout(minimizeRevealTimer);
+    minimizeRevealTimer = null;
+  }
+  const btn = document.querySelector('#upload-modal .minimize-btn');
+  if (btn) btn.classList.remove('is-visible');
+}
+
+function scheduleMinimizeReveal() {
+  resetMinimizeButton();
+  minimizeRevealTimer = setTimeout(function () {
+    minimizeRevealTimer = null;
+    const btn = document.querySelector('#upload-modal .minimize-btn');
+    if (btn && uploadState.isUploading) btn.classList.add('is-visible');
+  }, MINIMIZE_REVEAL_DELAY);
+}
+
 // Function to show the floating upload button
 function showFloatingUploadButton() {
   initFloatingUploadUI();
@@ -406,6 +428,7 @@ function showUploadModal(basePath) {
   modal.innerHTML = getUploadModalHTML();
 
   document.body.appendChild(modal);
+  resetMinimizeButton();
 
   const accentColor = getColorFromURL();
   const progressFill = modal.querySelector('#progress-fill');
@@ -433,7 +456,7 @@ function getUploadModalHTML() {
                     </svg>
                     ${i18n.uploadFiles || 'Upload Files'}
                 </h3>
-                <div style="display: flex; gap: 5px;">
+                <div class="upload-modal-actions">
                     <button class="icon-btn minimize-btn" title="Minimize">
                         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-minus-icon lucide-minus"><path d="M5 12h14"/></svg>
                     </button>
@@ -1347,6 +1370,7 @@ async function initUploadHandlers(modal, basePath) {
   async function performUpload(files, isFolderUpload) {
     uploadState.isUploading = true;
     uploadState.currentUploadController = new AbortController();
+    scheduleMinimizeReveal();
 
     // Show the floating upload button
     showFloatingUploadButton();
@@ -1385,6 +1409,7 @@ async function initUploadHandlers(modal, basePath) {
           const folderDecision = await showFolderConflictModal(conflicts);
           if (folderDecision === 'cancel') {
             uploadState.isUploading = false;
+            resetMinimizeButton();
             if (uploadState.animationFrame) {
               cancelAnimationFrame(uploadState.animationFrame);
               uploadState.animationFrame = null;
@@ -1576,6 +1601,7 @@ async function initUploadHandlers(modal, basePath) {
     }
 
     uploadState.isUploading = false;
+    resetMinimizeButton();
     cancelBtn.classList.add('hidden');
     closeBtn.classList.remove('hidden');
 

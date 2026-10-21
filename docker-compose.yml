@@ -56,8 +56,6 @@ services:
       DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
       MODELS_ROOT: /opt/ApplicationData/models
       HF_HOME: /opt/ApplicationData/models/huggingface
-      TORCH_HOME: /opt/ApplicationData/models/torch
-      WHISPER_CACHE: /opt/ApplicationData/models/whisper
       U2NET_HOME: /opt/ApplicationData/models/rembg
       XDG_CACHE_HOME: /opt/ApplicationData/models/cache
       XDG_DATA_HOME: /opt/ApplicationData/models
@@ -156,6 +154,17 @@ services:
       STORAGE_USAGE_DAWARICH_DB: "${STORAGE_USAGE_DAWARICH_DB:-dawarich_development}"
       STORAGE_USAGE_DAWARICH_DB_USER: "${STORAGE_USAGE_DAWARICH_DB_USER:-postgres}"
       STORAGE_USAGE_DAWARICH_DB_PASSWORD: "${STORAGE_USAGE_DAWARICH_DB_PASSWORD:-${DAWARICH_DB_PASSWORD:-}}"
+      # Integrated restic backup manager: host filesystem is mounted read-write
+      # so backups and restores can cover the host, not just the container.
+      RESTIC_HOST_ROOT: "/host"
+      # Docker Desktop serves /home through virtiofs, which cannot hold a restic
+      # repo (hundreds of data/ dirs exhaust the share). Bind the host home directly.
+      RESTIC_BIND_HOME: "/host-home"
+      RESTIC_BIND_HOME_PREFIX: "${HOME:-/home/ihor}"
+    # Go's copy_file_range returns EIO on Docker Desktop fakeowner mounts and
+    # restic then skips every host file. ENOSYS makes Go fall back to read().
+    security_opt:
+      - seccomp:./deploy/seccomp-restic.json
     ports:
       - "80:8080"
       - "127.0.0.1:8808:8808"
@@ -169,6 +178,8 @@ services:
       - appdashboard-logs:/var/log/bot
       - appdashboard-waf-logs:/var/log/modsecurity
       - /var/run/docker.sock:/var/run/docker.sock
+      - /:/host
+      - ${HOME:-/home/ihor}:/host-home
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "host-gateway:host-gateway"
@@ -184,18 +195,6 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - portainer-data:/data
-
-  duplicati:
-    image: duplicati/duplicati:latest
-    container_name: duplicati
-    restart: unless-stopped
-    profiles: ["duplicati"]
-    ports:
-      - "${DUPLICATI_PORT:-8200}:8200"
-    volumes:
-      - duplicati-data:/data
-      - duplicati-backups:/backups
-      - .:/source/appdashboard:ro
 
   gitea:
     image: gitea/gitea:latest
@@ -392,8 +391,6 @@ volumes:
   appdashboard-db-data:
   appdashboard-redis-data:
   portainer-data:
-  duplicati-data:
-  duplicati-backups:
   gitea-data:
   gitea-db-data:
   immich-uploads:

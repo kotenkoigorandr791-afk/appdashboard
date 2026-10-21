@@ -32,6 +32,74 @@
     const inputEl = () => document.getElementById('group-chat-input');
     const fileInput = () => document.getElementById('group-chat-file');
     const groupSelect = () => document.getElementById('group-chat-group-select');
+    let groupChatMenu = null;
+    function closeGroupChatMenu() {
+        groupChatMenu?.remove();
+        groupChatMenu = null;
+    }
+    function upgradeGroupChatSelect(sel) {
+        if (!sel || sel.dataset.customSelect === '1') return;
+        sel.dataset.customSelect = '1';
+        const wrap = document.createElement('span');
+        wrap.className = 'group-chat-group-select-wrap';
+        sel.parentNode.insertBefore(wrap, sel);
+        wrap.appendChild(sel);
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'group-switcher-btn';
+        button.setAttribute('aria-haspopup', 'listbox');
+        button.innerHTML = '<span class="group-switcher-btn-label"></span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>';
+        wrap.appendChild(button);
+        sel._customButton = button;
+        sel._customWrap = wrap;
+        button.addEventListener('click', (event) => {
+            event.stopPropagation();
+            closeGroupChatMenu();
+            if (button.getAttribute('aria-expanded') === 'true') {
+                button.setAttribute('aria-expanded', 'false');
+                return;
+            }
+            const menu = document.createElement('div');
+            menu.className = 'group-switcher-menu';
+            menu.setAttribute('role', 'listbox');
+            Array.from(sel.options).forEach((option) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'group-switcher-item';
+                item.setAttribute('role', 'option');
+                item.setAttribute('aria-selected', option.value === sel.value ? 'true' : 'false');
+                item.textContent = option.textContent.trim();
+                item.addEventListener('click', () => {
+                    sel.value = option.value;
+                    sel.dispatchEvent(new Event('change', { bubbles: true }));
+                    closeGroupChatMenu();
+                    button.setAttribute('aria-expanded', 'false');
+                });
+                menu.appendChild(item);
+            });
+            document.body.appendChild(menu);
+            const rect = button.getBoundingClientRect();
+            menu.style.width = Math.max(rect.width, 160) + 'px';
+            menu.style.left = Math.max(8, Math.min(rect.left, window.innerWidth - menu.offsetWidth - 8)) + 'px';
+            menu.style.top = rect.bottom + 6 + 'px';
+            groupChatMenu = menu;
+            button.setAttribute('aria-expanded', 'true');
+        });
+        document.addEventListener('click', (event) => {
+            if (groupChatMenu && !groupChatMenu.contains(event.target) && !button.contains(event.target)) {
+                closeGroupChatMenu();
+                button.setAttribute('aria-expanded', 'false');
+            }
+        });
+    }
+    function syncGroupChatSelect(sel) {
+        const button = sel?._customButton;
+        if (!button) return;
+        const option = sel.options[sel.selectedIndex];
+        const label = button.querySelector('.group-switcher-btn-label');
+        if (label) label.textContent = option?.textContent?.trim() || '';
+        sel._customWrap.classList.toggle('hidden', sel.classList.contains('hidden'));
+    }
     function t(key, params) {
         return typeof window.t === 'function' ? window.t(window.i18n || {}, key, params) : key;
     }
@@ -425,7 +493,7 @@
             const src = el.dataset.audioSrc;
             if (!src || typeof CustomAudioPlayer !== 'function') return;
             try {
-                const player = new CustomAudioPlayer(el, src, { showVolume: false, variant: 'voice', barCount: 64 });
+                const player = new CustomAudioPlayer(el, src, { showVolume: false, variant: 'voice', barCount: 64, title: el.dataset.audioTitle || '' });
                 el.dataset.audioBound = '1';
                 state.audioPlayers.push(player);
             } catch (_) {}
@@ -491,7 +559,8 @@
                 } else if (msg.media_url && msg.media_type === 'video') {
                     body += '<div class="group-chat-media group-chat-media--video"><button type="button" class="group-chat-video-thumb" data-url="' + escAttr(msg.media_url) + '" aria-label="Play video"><video class="group-chat-media-preview" muted playsinline preload="metadata" src="' + escAttr(msg.media_url) + '#t=0.1"></video><span class="group-chat-media-play" aria-hidden="true"><svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></span></button></div>';
                 } else if (msg.media_url && msg.media_type === 'audio') {
-                    body += '<div class="group-chat-media group-chat-media--audio" data-audio-src="' + escAttr(msg.media_url) + '"></div>';
+                    const voiceTitle = String(msg.sender_email || '').split('@')[0] || '';
+                    body += '<div class="group-chat-media group-chat-media--audio" data-audio-src="' + escAttr(msg.media_url) + '" data-audio-title="' + escAttr(voiceTitle) + '"></div>';
                 } else if (msg.media_url && msg.media_type === 'text') {
                     body += '<a class="group-chat-text-file" href="' + escAttr(msg.media_url) + '" target="_blank" rel="noopener">' + esc(msg.media_file || 'file') + '</a>';
                 }
@@ -712,6 +781,8 @@
                 '<option value="' + g.id + '"' + (g.id === gid ? ' selected' : '') + '>' + esc(g.name) + '</option>'
             ).join('');
             sel.classList.toggle('hidden', groups().length < 2);
+            upgradeGroupChatSelect(sel);
+            syncGroupChatSelect(sel);
         }
         if (title) {
             title.classList.toggle('hidden', groups().length > 1);

@@ -1,0 +1,141 @@
+/* Shared UI polish for the embedded cloud editors/viewers.
+ * Keeps buttons and dropdowns visually consistent with the main app toolbar
+ * (pill buttons + the assistant chat dropdown).
+ *
+ * Editors define their own palettes inconsistently (some use --bg/--panel,
+ * some hardcode colors), so fallback tokens below normalise them. */
+
+body {
+  --ui-bg: var(--bg, #ffffff);
+  --ui-panel: var(--panel, #f4f6f8);
+  --ui-border: var(--border, #dfe3e7);
+  --ui-fg: var(--fg, #111111);
+  --ui-muted: var(--muted, #666666);
+}
+
+body[data-theme="dark"],
+body.dark-theme,
+html[data-theme="dark"] {
+  --ui-bg: var(--bg, #1a1a1a);
+  --ui-panel: var(--panel, #2a2a2a);
+  --ui-border: var(--border, #3a3a3a);
+  --ui-fg: var(--fg, #e6e6e6);
+  --ui-muted: var(--muted, #a0a3a8);
+}
+
+button:not(.ui-select-btn),
+.btn,
+.icon-btn {
+  border-radius: 999px !important;
+}
+
+/* Custom dropdown that mirrors #ai-chat-select / #ai-chat-menu. */
+.ui-select {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-width: 0;
+  max-width: 100%;
+  /* Neutralise styles the page applies to the original <select> so the
+     wrapper does not double-box the pill button. */
+  background: none !important;
+  border: none !important;
+  padding: 0 !important;
+  height: auto !important;
+}
+
+.ui-select > select {
+  display: none !important;
+}
+
+.ui-select-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  height: 34px;
+  padding: 0 12px;
+  border: 1px solid var(--ui-border);
+  border-radius: 999px !important;
+  background: var(--ui-bg);
+  color: var(--ui-fg);
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  cursor: pointer;
+  transition: border-color .15s ease, background-color .15s ease;
+}
+
+.ui-select-btn:hover,
+.ui-select-btn:focus-visible {
+  border-color: var(--accent, currentColor);
+  outline: none;
+}
+
+.ui-select-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ui-select-chevron {
+  flex: 0 0 auto;
+  opacity: .7;
+}
+
+.ui-select-menu {
+  position: fixed;
+  z-index: 40000;
+  box-sizing: border-box;
+  max-width: calc(100vw - 16px);
+  max-height: min(280px, 60vh);
+  overflow-y: auto;
+  min-width: 160px;
+  padding: 5px;
+  border: 1px solid var(--ui-border);
+  border-radius: 10px;
+  background: var(--ui-panel);
+  color: var(--ui-fg);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .24);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  scrollbar-width: thin;
+  scrollbar-color: var(--ui-border) transparent;
+}
+
+.ui-select-menu::-webkit-scrollbar { width: 6px; }
+.ui-select-menu::-webkit-scrollbar-track { background: transparent; border-radius: 3px; margin: 6px 0; }
+.ui-select-menu::-webkit-scrollbar-thumb { background: var(--ui-border); border-radius: 3px; }
+
+.ui-select-menu[hidden] {
+  display: none !important;
+}
+
+.ui-select-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-height: 30px;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ui-fg);
+  font: inherit;
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ui-select-item:hover,
+.ui-select-item:focus-visible {
+  background: var(--ui-bg);
+  outline: none;
+}
+
+.ui-select-item[aria-selected="true"] {
+  background: color-mix(in srgb, var(--accent, #85b503) 16%, transparent);
+  font-weight: 600;
+}

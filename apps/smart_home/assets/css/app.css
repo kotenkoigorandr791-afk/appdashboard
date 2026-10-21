@@ -1076,17 +1076,20 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media(max-width:640px) {
-  .app-bar { padding:0 12px; }
+  .app-bar { padding:0 10px 0 68px; gap:8px; }
   .app-bar h1 { display:none; }
+  /* Keep the view switch in the bar's flow so it cannot cover the share
+     and menu buttons on narrow phones. */
   .app-bar .view-toggle {
-    position:absolute;
-    left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
-    z-index:1;
+    position:static;
+    transform:none;
+    flex-shrink:0;
+    z-index:auto;
   }
-  #menuToggle { order:1; }
-  #addDeviceBtn { order:2; }
+  #addDeviceBtn { order:1; }
+  #sharepoint-share-btn { order:2; }
+  #menuToggle { order:3; }
+  .app-bar .menu-btn { flex:0 0 40px; }
 
   .api-docs-md p { margin-bottom:10px; }
   .main-content { padding:12px; }
@@ -1116,6 +1119,11 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 
   .api-docs-callout { padding:12px 10px; gap:6px; }
   .api-docs-hr { margin:18px 0; }
+}
+
+@media(max-width:380px) {
+  .app-bar .view-toggle button { padding:6px 8px; }
+  .app-bar .view-toggle button span { display:none; }
 }
 
 /* ─── Floor Plan Editor ──────────────────────────────────────────────────── */

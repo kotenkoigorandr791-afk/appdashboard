@@ -172,7 +172,11 @@ class TaskHelper extends Base
     public function renderPriorityField(array $project, array $values)
     {
         $range = range($project['priority_start'], $project['priority_end']);
-        $options = array_combine($range, $range);
+        $labels = array(t('Low'), t('Normal'), t('High'), t('Urgent'));
+        $options = array();
+        foreach ($range as $priority) {
+            $options[$priority] = $labels[$priority] ?? t('Priority %d', $priority);
+        }
         $values += array('priority' => $project['priority_default']);
 
         $html = $this->helper->form->label(t('Priority'), 'priority');
@@ -186,7 +190,8 @@ class TaskHelper extends Base
         $attributes = array_merge(array('tabindex="14"'), $attributes);
 
         $html = $this->helper->form->label(t('Complexity'), 'score');
-        $html .= $this->helper->form->number('score', $values, $errors, $attributes);
+        $options = array(0 => t('None'), 1 => t('Small'), 2 => t('Medium'), 3 => t('Large'), 5 => t('Very large'));
+        $html .= $this->helper->form->select('score', $options, $values, $errors, $attributes, 'complexity-picker');
 
         return $html;
     }

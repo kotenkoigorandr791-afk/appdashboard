@@ -1,8 +1,8 @@
-        let pendingActionHref = '';
-        let liveBusy = false;
-        let monitorContainerId = '';
-        let monitorTimer = null;
-        const chartHistory = {};
+        var pendingActionHref = '';
+        var liveBusy = false;
+        var monitorContainerId = '';
+        var monitorTimer = null;
+        var chartHistory = {};
         function toBytesText(v){
             const n = Number(v||0);
             if(!Number.isFinite(n)||n<=0)return '0 B';

@@ -55,6 +55,9 @@
                 this.elements.generateBtn.addEventListener('click', () => this.generateAudio());
                 this.elements.stopBtn.addEventListener('click', () => this.stopGeneration());
                 this.elements.saveServerBtn.addEventListener('click', () => this.saveToServer());
+                window.addEventListener('message', (event) => {
+                    if (event.data && event.data.type === 'editor:save') this.saveToServer();
+                });
 
                 // Cleanup on page unload
                 window.addEventListener('beforeunload', () => {
@@ -187,7 +190,9 @@
                 }
                 this.audioPlayer = new CustomAudioPlayer(playerContainer, this.audioBlobUrl, {
                     autoplay: false,
-                    showVolume: true
+                    showVolume: false,
+                    variant: 'line',
+                    title: String(this.textPath || '').split('/').pop()
                 });
 
                 if (window.parent) {
@@ -235,6 +240,7 @@
 
                     if (result.success) {
                         this.showStatus(this.translations.audio_saved || 'Audio saved', 'success');
+                        if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
 
                         // Notify parent window to refresh file list
                         if (window.parent) {
@@ -254,6 +260,7 @@
                 } catch (error) {
                     console.error('Save error:', this.sanitizeMessage(error.message));
                     this.showStatus(this.translations.error_prefix + ': ' + error.message, 'error');
+                    if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: error.message }, '*');
                 } finally {
                     this.elements.saveServerBtn.disabled = false;
                 }

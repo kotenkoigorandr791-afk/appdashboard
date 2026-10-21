@@ -6,7 +6,7 @@
 // Every editor must load this file before its own Monaco bootstrap and use
 // cloudMonacoShared so that all of them run the same Monaco version, the same
 // theme palette, the same editor options, the same localized context menu, the
-// same transliteration rules and the same .txt numbered-list behaviour.
+// same transliteration rules and the same numbered-list behaviour.
 (function () {
     'use strict';
 
@@ -63,7 +63,9 @@
     // ',' is the key that types б, '.' types ю, '/' types '.' and '?' (Shift+/) types
     // ',' - exactly like the real layout. Characters that arrive already as Cyrillic
     // (a real Russian/Ukrainian layout) are passed through untouched.
-    const TRANSLIT_TABLES = {
+    const TRANSLIT_TABLES = (typeof window !== 'undefined' && window.CloudTransliteration && window.CloudTransliteration.TABLES)
+        ? window.CloudTransliteration.TABLES
+        : {
         ru: {
             '`': 'ё', '~': 'Ё',
             'q': 'й', 'w': 'ц', 'e': 'у', 'r': 'к', 't': 'е', 'y': 'н', 'u': 'г', 'i': 'ш', 'o': 'щ', 'p': 'з',
@@ -396,16 +398,30 @@
     // Counter for the per-editor context keys used by the list continuation below.
     let txtListMarkerKeySeq = 0;
 
-    // Ordered-list continuation for .txt files: Enter on "1. foo" writes "2. " on the
-    // next line, keeping the indentation, the delimiter and the spacing. Enter on a
-    // marker without text removes the marker so the list can be ended. Backspace right
-    // after the auto inserted marker removes the whole marker in one press, the way
-    // Word drops the automatic numbering. Returns a disposable.
-    function installTxtNumberedListContinuation(options) {
+    // Markdown fenced code blocks hold literal text: a line that happens to start
+    // with "1. " there is code, not a list, so Enter must not add the next number.
+    function isInsideFencedCodeBlock(model, lineNumber) {
+        let fence = null;
+        for (let i = 1; i < lineNumber; i++) {
+            const match = /^\s*(`{3,}|~{3,})/.exec(model.getLineContent(i));
+            if (!match) continue;
+            if (!fence) fence = match[1].charAt(0);
+            else if (match[1].charAt(0) === fence) fence = null;
+        }
+        return fence !== null;
+    }
+
+    // Ordered-list continuation for prose editors (.txt and Markdown): Enter on
+    // "1. foo" writes "2. " on the next line, keeping the indentation, the delimiter
+    // and the spacing. Enter on a marker without text removes the marker so the list
+    // can be ended. Backspace right after the auto inserted marker removes the whole
+    // marker in one press, the way Word drops the automatic numbering. The caller
+    // decides which editors get it (only editors that hold running text). Returns a
+    // disposable.
+    function installNumberedListContinuation(options) {
         const editor = options.editor;
         const monacoRef = options.monaco;
-        const filePath = options.filePath;
-        if (!editor || !monacoRef || !isTxtFile(filePath)) return { dispose: function () {} };
+        if (!editor || !monacoRef) return { dispose: function () {} };
 
         const markerPattern = /^(\s*)(\d+)([.)])([ \t]+)(.*)$/;
         // The marker the previous Enter added ("2. "), so Backspace can tell it apart
@@ -478,6 +494,8 @@
             if (!model) return;
 
             const position = selection.getStartPosition();
+            if (typeof model.getLanguageId === 'function' && model.getLanguageId() === 'markdown'
+                && isInsideFencedCodeBlock(model, position.lineNumber)) return;
             const linePrefix = model.getValueInRange(
                 new monacoRef.Range(position.lineNumber, 1, position.lineNumber, position.column)
             );
@@ -547,6 +565,8 @@
         isTxtFile: isTxtFile,
         resolveLang: resolveLang,
         installTransliteration: installTransliteration,
-        installTxtNumberedListContinuation: installTxtNumberedListContinuation
+        installNumberedListContinuation: installNumberedListContinuation,
+        // Kept for pages that still cache the previous bundle version.
+        installTxtNumberedListContinuation: installNumberedListContinuation
     };
 })();

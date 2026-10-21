@@ -47,6 +47,9 @@
       input.focus();
       document.execCommand('insertText', false, clean);
     });
+    if (window.CloudTransliteration && typeof window.CloudTransliteration.attachToInput === 'function') {
+      window.CloudTransliteration.attachToInput(input);
+    }
   }
   window.CloudFilenameGuard = { sanitize, validate, attach };
 })();

@@ -8,6 +8,7 @@ require_once dirname(__DIR__, 2) . '/includes/ai_code_security.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_syntax_check.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_sandbox.php';
 require_once __DIR__ . '/ai_tools_speech.php';
+require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
 
 const CLOUD_AI_FETCH_MAX_BYTES = 20971520;
 const CLOUD_AI_FETCH_MAX_CHARS = 120000;
@@ -1721,6 +1722,14 @@ if ($action === 'ai_agent_tool') {
     }
 
     if ($tool === 'generate_speech') {
+        $rlEmail = get_session_email() ?: get_current_user_from_sessions();
+        if (function_exists('cloud_ai_rate_limit_check')) {
+            $rl = cloud_ai_rate_limit_check((string)$rlEmail, 'speech');
+            if (empty($rl['ok'])) {
+                json_out(['ok' => false, 'error' => 'Too many AI requests', 'code' => 429, 'retry_after' => (int)($rl['retry_after'] ?? 60)], 429);
+            }
+        }
+
         $text = (string)($args['text'] ?? '');
         $language = (string)($args['language'] ?? 'en');
         $speed = (float)($args['speed'] ?? 1.0);
@@ -1741,6 +1750,14 @@ if ($action === 'ai_agent_tool') {
     }
 
     if ($tool === 'transcribe_audio') {
+        $rlEmail = get_session_email() ?: get_current_user_from_sessions();
+        if (function_exists('cloud_ai_rate_limit_check')) {
+            $rl = cloud_ai_rate_limit_check((string)$rlEmail, 'speech');
+            if (empty($rl['ok'])) {
+                json_out(['ok' => false, 'error' => 'Too many AI requests', 'code' => 429, 'retry_after' => (int)($rl['retry_after'] ?? 60)], 429);
+            }
+        }
+
         $audioPath = (string)($args['audio_path'] ?? '');
         $language = (string)($args['language'] ?? 'pl');
         $result = cloud_ai_tool_transcribe_audio($audioPath, $language);

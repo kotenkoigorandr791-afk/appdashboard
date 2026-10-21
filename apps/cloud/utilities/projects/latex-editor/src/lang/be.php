@@ -211,4 +211,5 @@ return array (
   'font_ttfamily' => 'Манашырынны',
   'font_rmfamily' => 'Рымскі',
   'font_sffamily' => 'Sans Serif',
+  'search' => 'Пошук',
 );

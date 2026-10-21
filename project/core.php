@@ -373,6 +373,9 @@ function scheduleTrustedDevicePromptIfNeeded(string $email): void {
     if ($isTrusted && getTrustedDeviceCookieForEmail($email) !== '') {
         rememberTrustedDeviceBrowserAccount($email);
         setTrustedDeviceHintCookie($email, $fp);
+        if (function_exists('app_session_refresh_cookie')) {
+            app_session_refresh_cookie(365 * 24 * 3600);
+        }
     }
     if (!$isTrusted) {
         $_SESSION['new_device_login'] = true;

@@ -271,7 +271,6 @@ validateOneTimePin(string $email, string $pin, string $purpose): bool
 - pg_*: PostgreSQL compatibility helpers
 - pgsql_compat.php: PostgreSQL SQL function emulation
 - app_db.php: Database wrapper functions
-- duplicati_client.php: Duplicati backup integration
 - portainer_client.php: Portainer container management
 - sentry_bootstrap.php: Error reporting initialization
 

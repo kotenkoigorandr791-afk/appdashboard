@@ -4,7 +4,7 @@ $textPath = $_GET['path'] ?? '';
 $user = $_GET['user'] ?? 'default';
 $root = $_GET['root'] ?? 'main';
 $lang = $_GET['lang'] ?? 'en';
-$theme = $_GET['theme'] ?? 'dark';
+$theme = $_GET['theme'] ?? 'light';
 $color = $_GET['color'] ?? '%2385b503';
 $ttsApiUrl = cloud_url('tts_api.php');
 
