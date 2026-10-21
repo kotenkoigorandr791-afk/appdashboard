@@ -210,12 +210,38 @@ function latex_shell_env(string $cacheDir, ?string $texInputs = null): string {
     $cacheArg = escapeshellarg($cacheDir);
     $homeArg = escapeshellarg($cacheDir);
     $path = '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-    $env = 'export PATH=' . escapeshellarg($path) . " HOME=$homeArg TEXMFVAR=$cacheArg TEXMFCACHE=$cacheArg";
+    $env = 'export PATH=' . escapeshellarg($path) . " HOME=$homeArg TEXMFHOME=$homeArg/texmf-home TEXMFVAR=$cacheArg TEXMFCACHE=$cacheArg";
     if ($texInputs !== null && $texInputs !== '') {
         $env .= ' TEXINPUTS=' . escapeshellarg($texInputs);
         $env .= ' BIBINPUTS=' . escapeshellarg($texInputs);
     }
     return $env;
+}
+
+function latex_install_missing_packages(string $output, string $cacheDir): bool {
+    if (!preg_match_all('/(?:File `([^`]+)` not found|Unknown option [\'\"]([^\'\"]+)[\'\"])/i', $output, $matches, PREG_SET_ORDER)) return false;
+    $packages = [];
+    foreach ($matches as $match) {
+        $name = $match[1] !== '' ? pathinfo($match[1], PATHINFO_FILENAME) : $match[2];
+        if (strcasecmp($name, 'polish') === 0) $packages[] = 'babel-polish';
+        elseif ($name !== '') $packages[] = $name;
+    }
+    $packages = array_values(array_unique($packages));
+    if (!$packages) return false;
+    $tlmgr = null;
+    foreach (['/opt/ApplicationData/tinytex/bin/x86_64-linux/tlmgr', '/usr/bin/tlmgr'] as $candidate) {
+        if (is_executable($candidate)) { $tlmgr = $candidate; break; }
+    }
+    if ($tlmgr === null) return false;
+    $home = rtrim($cacheDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'texmf-home';
+    if (!is_dir($home) && !@mkdir($home, 0700, true) && !is_dir($home)) return false;
+    $env = latex_shell_env($cacheDir);
+    $packageArg = implode(' ', array_map('escapeshellarg', $packages));
+    $cmd = "$env $tlmgr init-usertree 2>&1; $env $tlmgr install --usermode $packageArg 2>&1";
+    $installOutput = [];
+    $ret = 1;
+    exec($cmd, $installOutput, $ret);
+    return $ret === 0;
 }
 
 function latex_is_error_line(string $line): bool {
@@ -366,13 +392,21 @@ function latex_run_compile(string $texfilePath, string $dir, ?string $texInputs 
     $ret = 1;
     if (!$needsLua && is_executable($pdflatexPath)) {
         $cmd = "$env && cd $dirArg && $pdflatexPath -interaction=nonstopmode -halt-on-error -file-line-error $texArg 2>&1";
-        exec($cmd, $output, $ret);
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $output = [];
+            exec($cmd, $output, $ret);
+            if ($ret === 0 || $attempt === 1 || !latex_install_missing_packages(implode("\n", $output), $cacheDir)) break;
+        }
         return ['output' => $output, 'return_code' => $ret, 'engine' => 'pdflatex'];
     }
     if ($needsLua && is_executable($latexmkPath)) {
         $lualatexRule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
         $cmd = "$env && cd $dirArg && $latexmkPath -e $lualatexRule -lualatex -interaction=nonstopmode -file-line-error $texArg 2>&1";
-        exec($cmd, $output, $ret);
+        for ($attempt = 0; $attempt < 2; $attempt++) {
+            $output = [];
+            exec($cmd, $output, $ret);
+            if ($ret === 0 || $attempt === 1 || !latex_install_missing_packages(implode("\n", $output), $cacheDir)) break;
+        }
         return ['output' => $output, 'return_code' => $ret, 'engine' => 'latexmk-lualatex'];
     }
     if ($needsLua && !is_executable($lualatexPath)) {
