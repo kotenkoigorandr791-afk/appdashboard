@@ -139,7 +139,7 @@ $shellProject = isset($project) && is_array($project) ? $project : [];
                 </section>
             </div>
         </div>
-        <?= $this->hook->render('template:layout:bottom') ?>
     <?php endif ?>
+    <?= $this->hook->render('template:layout:bottom') ?>
     </body>
 </html>

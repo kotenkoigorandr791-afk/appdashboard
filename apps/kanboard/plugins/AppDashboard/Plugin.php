@@ -66,9 +66,12 @@ class Plugin extends Base
 
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/shell.css']);
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/circle.css']);
+        $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/circle-cycle.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);
+        $this->hook->on('template:layout:bottom', ['template' => 'appDashboard:mobile/pairing_modal']);
 
         $this->projectAccessMap->add('OverviewCalendarController', 'updateDates', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('TaskQuickUpdateController', 'updateField', Role::PROJECT_MEMBER);

@@ -165,3 +165,18 @@ core
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Kanboard Android client (kanboard-android-app)
+/kanboard-android-app/.gradle/
+/kanboard-android-app/build/
+/kanboard-android-app/app/build/
+/kanboard-android-app/local.properties
+/kanboard-android-app/captures/
+/kanboard-android-app/.cxx/
+/kanboard-android-app/.idea/
+/kanboard-android-app/**/build/
+/downloads/kanboard-mobile.apk
+/downloads/kanboard-mobile.json
+/downloads/kanboard-mobile-build.sha256
+/kanboard-android-app/**/*.apk
+/kanboard-android-app/**/*.aab

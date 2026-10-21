@@ -219,7 +219,7 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
-    if ($appId === 'steps') {
+    if ($appId === 'steps' || $appId === 'kanboard') {
         $existing = $db->prepare("SELECT token_plain, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC LIMIT 1");
         $existing->bindValue(':e', $email, PDO::PARAM_STR);
         $existing->bindValue(':a', $appId, PDO::PARAM_STR);

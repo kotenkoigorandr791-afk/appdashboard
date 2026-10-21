@@ -176,32 +176,79 @@ function kb_api_stats(string $email, int $projectId): array
     [$colMap, $colList] = kb_api_columns($email, $projectId);
     $open = (array) kb_api_rpc($email, 'getAllTasks', ['project_id' => $projectId, 'status_id' => 1]);
     $closed = (array) kb_api_rpc($email, 'getAllTasks', ['project_id' => $projectId, 'status_id' => 0]);
+    $all = array_merge($open, $closed);
     $byColumn = [];
     foreach ($colList as $c) {
-        $byColumn[$c['id']] = ['column_id' => $c['id'], 'column' => $c['title'], 'open' => 0];
+        $byColumn[$c['id']] = ['column_id' => $c['id'], 'column' => $c['title'], 'open' => 0, 'total' => 0];
     }
     $overdue = 0;
     $unassigned = 0;
+    $byPriority = [];
+    $byAssignee = [];
     $now = time();
-    foreach ($open as $t) {
+    foreach ($all as $t) {
         $cid = (int) ($t['column_id'] ?? 0);
         if (!isset($byColumn[$cid])) {
-            $byColumn[$cid] = ['column_id' => $cid, 'column' => $colMap[$cid] ?? null, 'open' => 0];
+            $byColumn[$cid] = ['column_id' => $cid, 'column' => $colMap[$cid] ?? null, 'open' => 0, 'total' => 0];
         }
-        $byColumn[$cid]['open']++;
-        if ((int) ($t['owner_id'] ?? 0) === 0) {
+        $byColumn[$cid]['total']++;
+        $isOpen = (int) ($t['is_active'] ?? 1) === 1;
+        if ($isOpen) {
+            $byColumn[$cid]['open']++;
+        }
+        $prio = (int) ($t['priority'] ?? 0);
+        if (!isset($byPriority[$prio])) {
+            $byPriority[$prio] = ['priority' => $prio, 'count' => 0];
+        }
+        $byPriority[$prio]['count']++;
+        $assignee = trim((string) ($t['assignee_name'] ?? $t['assignee_username'] ?? ''));
+        if ($assignee === '') {
+            $assignee = 'Unassigned';
+        }
+        if (!isset($byAssignee[$assignee])) {
+            $byAssignee[$assignee] = ['name' => $assignee, 'count' => 0];
+        }
+        $byAssignee[$assignee]['count']++;
+        if ($isOpen && (int) ($t['owner_id'] ?? 0) === 0) {
             $unassigned++;
         }
         $due = (int) ($t['date_due'] ?? 0);
-        if ($due > 0 && $due < $now) {
+        if ($isOpen && $due > 0 && $due < $now) {
             $overdue++;
         }
     }
+    $totalTasks = count($all);
+    $taskDistribution = [];
+    foreach ($byColumn as $row) {
+        $nb = (int) ($row['total'] ?? 0);
+        $taskDistribution[] = [
+            'column_title' => $row['column'],
+            'nb_tasks' => $nb,
+            'percentage' => $totalTasks > 0 ? round(($nb * 100) / $totalTasks, 2) : 0,
+        ];
+    }
+    $userTotal = array_sum(array_column($byAssignee, 'count')) ?: 1;
+    $userDistribution = [];
+    foreach ($byAssignee as $row) {
+        $userDistribution[] = [
+            'user' => $row['name'],
+            'nb_tasks' => $row['count'],
+            'percentage' => round(($row['count'] * 100) / $userTotal, 2),
+        ];
+    }
+    usort($userDistribution, static fn($a, $b) => $b['nb_tasks'] <=> $a['nb_tasks']);
+    ksort($byPriority);
     $members = [];
     try {
         $members = (array) kb_api_rpc($email, 'getProjectUsers', ['project_id' => $projectId]);
     } catch (Throwable $e) {
         $members = [];
+    }
+    $colors = [];
+    try {
+        $colors = (array) kb_api_rpc($email, 'getColorList');
+    } catch (Throwable $e) {
+        $colors = [];
     }
     return [
         'project_id' => $projectId,
@@ -212,6 +259,10 @@ function kb_api_stats(string $email, int $projectId): array
         'members' => count($members),
         'columns' => $colList,
         'by_column' => array_values($byColumn),
+        'by_priority' => array_values($byPriority),
+        'task_distribution' => $taskDistribution,
+        'user_distribution' => $userDistribution,
+        'colors' => $colors,
     ];
 }
 

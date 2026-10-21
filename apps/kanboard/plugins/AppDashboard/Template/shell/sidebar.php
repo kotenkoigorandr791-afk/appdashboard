@@ -100,6 +100,12 @@ $initial = mb_strtoupper(mb_substr($fullname !== '' ? $fullname : 'U', 0, 1));
                 <?php endif ?>
             </ul>
         </div>
+        <div class="kb-nav-group" style="margin-top:auto;padding:8px 10px 12px;">
+            <button type="button" class="kb-sidebar-mobile-btn" id="kb-open-mobile-app">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="2" width="14" height="20" rx="2"/><path d="M12 18h.01"/></svg>
+                <span><?= t('Mobile app') ?></span>
+            </button>
+        </div>
     </nav>
 </aside>
 <button type="button" class="kb-sidebar-backdrop" id="kb-sidebar-backdrop" aria-hidden="true" tabindex="-1"></button>
