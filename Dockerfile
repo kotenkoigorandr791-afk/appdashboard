@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1.7
 
 # --- Build PHP extensions (build-essential / *-dev stay out of the runtime image)
-FROM php:8.5-fpm-bookworm AS ext-builder
+FROM php:8.5.12-fpm-bookworm AS ext-builder
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     $PHPIZE_DEPS \
@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /tmp/pear /var/lib/apt/lists/*
 
 # --- Composer vendor trees
-FROM php:8.5-fpm-bookworm AS app-builder
+FROM php:8.5.12-fpm-bookworm AS app-builder
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git unzip \
@@ -31,7 +31,7 @@ RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --opt
     && rm -rf /root/.composer /tmp/*
 
 # --- Runtime: no compiler toolchain; TinyTeX lives on volume (ensure-tinytex.sh)
-FROM php:8.5-fpm-bookworm
+FROM php:8.5.12-fpm-bookworm
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
 ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
