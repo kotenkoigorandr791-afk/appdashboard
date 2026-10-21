@@ -1076,7 +1076,7 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */
 @media(max-width:640px) {
-  .app-bar { padding:0 12px; }
+  .app-bar { padding:0 10px 0 68px; gap:8px; }
   .app-bar h1 { display:none; }
   /* Keep the view switch in the bar's flow so it cannot cover the share
      and menu buttons on narrow phones. */
@@ -1089,6 +1089,7 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
   #addDeviceBtn { order:1; }
   #sharepoint-share-btn { order:2; }
   #menuToggle { order:3; }
+  .app-bar .menu-btn { flex:0 0 40px; }
 
   .api-docs-md p { margin-bottom:10px; }
   .main-content { padding:12px; }

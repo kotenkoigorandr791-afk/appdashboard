@@ -25,7 +25,9 @@
     var activeTheme = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : (document.body.classList.contains('light-theme') || document.body.classList.contains('theme-light') ? 'light' : theme);
     var q = 'lang=' + encodeURIComponent(lang) + '&theme=' + encodeURIComponent(activeTheme) + '&color=' + encodeURIComponent(color);
     if (userData) q += '&user_data=' + encodeURIComponent(userData);
-    return path + '?' + q;
+    var routeHash = folder === 'smart_home' && /^#smart_home\/(home|devices|groups|statistics|errors|map|settings)$/.test(window.location.hash)
+      ? window.location.hash : '';
+    return path + '?' + q + routeHash;
   }
 
   function ensureMenuHost() {
@@ -235,6 +237,18 @@
     }
   }
 
+  window.addEventListener('message', function (event) {
+    if (event.origin !== window.location.origin) return;
+    var data = event.data || {};
+    if (data.type !== 'appdashboard:app-route' || data.app !== 'smart_home') return;
+    if (currentFolder !== 'smart_home') return;
+    var page = String(data.page || 'home');
+    if (!/^(home|devices|groups|statistics|errors|map|settings)$/.test(page)) return;
+    var hash = '#smart_home/' + page;
+    if (window.location.hash === hash) return;
+    history.replaceState({ shellApp: currentFolder, smartHomePage: page }, document.title, window.location.pathname + window.location.search + hash);
+  });
+
   function isShellHomeLink(el) {
     return !!(el && el.closest && el.closest('a.shell-home-link, a.app-rail-home, a#home-root-button'));
   }
@@ -278,6 +292,9 @@
     ensureAppShell();
     mountAppChrome();
     setMenuVars(byFolder(currentFolder));
+    var initialFrame = document.getElementById('app-iframe');
+    var initialFrameSrc = iframeSrc(currentFolder);
+    if (initialFrame && initialFrame.getAttribute('src') !== initialFrameSrc) initialFrame.setAttribute('src', initialFrameSrc);
     document.body.classList.add('shell-app-open');
     document.body.classList.remove('shell-home');
     history.replaceState({ shellApp: currentFolder }, document.title, window.location.href);
