@@ -480,6 +480,18 @@ if (isset($_POST['latex'])) {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();
     }
+    if (!$savePdf && getenv('PY_SIDECAR_URL')) {
+        require_once dirname(__DIR__, 4) . '/lib/py_sidecar.php';
+        $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex'], null, null, 300);
+        if (($sidecar['body']['success'] ?? false) && !empty($sidecar['body']['pdf'])) {
+            header('Content-Type: application/pdf');
+            echo base64_decode($sidecar['body']['pdf']);
+            exit;
+        }
+        if (($sidecar['body']['output'] ?? '') !== '') {
+            latex_respond_compile_error((string)$sidecar['body']['output'], false);
+        }
+    }
     $compileId = uniqid();
     $userRootDir = latex_get_user_storage_root($currentUser, $root);
     $compileInUserDir = false;

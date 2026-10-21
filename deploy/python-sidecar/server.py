@@ -2,6 +2,7 @@
 import os
 import subprocess
 import tempfile
+import base64
 from pathlib import Path
 from typing import Optional
 
@@ -63,6 +64,17 @@ def _run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+@app.post("/latex")
+async def latex_compile(latex: str = Form(...), engine: str = Form("pdflatex")):
+    selected = "lualatex" if engine == "lualatex" else "pdflatex"
+    with tempfile.TemporaryDirectory() as tmp:
+        source = Path(tmp) / "document.tex"
+        source.write_text(latex, encoding="utf-8")
+        mode = "-lualatex" if selected == "lualatex" else "-pdf"
+        proc = _run(["latexmk", mode, "-interaction=nonstopmode", "-halt-on-error", source.name], timeout=300)
+        pdf = Path(tmp) / "document.pdf"
+        return {"success": proc.returncode == 0 and pdf.is_file(), "pdf": base64.b64encode(pdf.read_bytes()).decode("ascii") if pdf.is_file() else "", "output": (proc.stdout or "")[-12000:]}
 
 
 @app.post("/tts")
