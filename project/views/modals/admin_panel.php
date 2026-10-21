@@ -1717,7 +1717,7 @@ function ensureOmniRouteSw(frame){
     if(!navigator.serviceWorker) return;
     if(frame.dataset.swStarted!=='1'){
         frame.dataset.swStarted='1';
-        navigator.serviceWorker.register('/admin-omniroute/embed-sw.js',{scope:'/admin-omniroute/'}).catch(function(){});
+        navigator.serviceWorker.register('/admin-omniroute/embed-sw.js?v=2',{scope:'/admin-omniroute/'}).catch(function(){});
     }
     if(frame.dataset.swReload==='1') return;
     navigator.serviceWorker.ready.then(function(){

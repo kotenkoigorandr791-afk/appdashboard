@@ -15,20 +15,67 @@ function botBackupDecryptPayload(string $json): ?string {
     $pt = openssl_decrypt($ct, 'aes-256-gcm', botBackupCryptKeyBinary(), OPENSSL_RAW_DATA, $iv, $tag, '');
     return $pt === false ? null : $pt;
 }
-function botBackupCredentials(): array {
-    $row = getConfig('dup_backup_secrets_enc', '');
-    if ($row === '') return ['host' => '', 'token' => ''];
-    $inner = botBackupDecryptPayload($row);
-    $obj = is_string($inner) ? json_decode($inner, true) : null;
-    if (!is_array($obj)) return ['host' => '', 'token' => ''];
+function botResticStatus(): array {
+    require_once dirname(__DIR__) . '/project/backup/i18n.php';
+    backup_boot_i18n('en');
+    require_once dirname(__DIR__) . '/project/backup/api.php';
+    $cfg = resticLoadConfig();
+    $profiles = [];
+    foreach ((array)($cfg['backups'] ?? []) as $profile) {
+        if (!is_array($profile)) continue;
+        $id = (string)($profile['id'] ?? '');
+        $repo = resticRepoConfig($cfg, $id);
+        $item = [
+            'id' => $id,
+            'name' => (string)($profile['name'] ?? 'Unnamed'),
+            'repository' => (string)($repo['repository'] ?? ''),
+            'sources' => array_values((array)($profile['sources'] ?? [])),
+            'enabled' => !empty($profile['enabled']),
+            'schedule' => (array)($profile['schedule'] ?? []),
+            'snapshots' => 0,
+            'last_snapshot' => '',
+            'error' => '',
+        ];
+        if ((string)($repo['repository'] ?? '') !== '' && (string)($repo['password'] ?? '') !== '') {
+            try {
+                $snaps = resticSnapshots($repo);
+                $item['snapshots'] = count($snaps);
+                $item['last_snapshot'] = (string)(($snaps[0]['time'] ?? '') ?: '');
+            } catch (Throwable $e) {
+                $item['error'] = $e->getMessage();
+            }
+        }
+        $profiles[] = $item;
+    }
+    $state = resticLoadScheduleState();
+    $jobs = [];
+    foreach (resticJobs(10) as $job) {
+        if (!is_array($job)) continue;
+        $jobs[] = [
+            'id' => (string)($job['id'] ?? ''),
+            'type' => (string)($job['type'] ?? ''),
+            'status' => (string)($job['status'] ?? ''),
+            'started_at' => backupSafeInt($job['started_at'] ?? 0),
+            'finished_at' => backupSafeInt($job['finished_at'] ?? 0),
+        ];
+    }
     return [
-        'host' => rtrim((string)($obj['host'] ?? ''), '/'),
-        'token' => trim((string)($obj['token'] ?? '')),
+        'engine' => 'restic',
+        'configured' => (string)($cfg['repository'] ?? '') !== '' || $profiles !== [],
+        'repository' => (string)($cfg['repository'] ?? ''),
+        'profiles' => $profiles,
+        'jobs' => $jobs,
+        'schedule_state' => $state,
+        'restic_version' => resticVersion(),
     ];
 }
 $cmd = (string)($argv[1] ?? '');
 if ($cmd === 'backup-credentials') {
-    echo json_encode(botBackupCredentials(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    echo json_encode(['engine' => 'restic', 'host' => 'restic://local', 'token' => ''], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    exit;
+}
+if ($cmd === 'backup-status') {
+    echo json_encode(botResticStatus(), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit;
 }
 if ($cmd === 'docker-config') {
