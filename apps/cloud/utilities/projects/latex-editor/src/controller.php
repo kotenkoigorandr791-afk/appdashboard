@@ -481,7 +481,7 @@ if (isset($_POST['latex'])) {
         session_write_close();
     }
     if (!$savePdf && getenv('PY_SIDECAR_URL')) {
-        require_once dirname(__DIR__, 4) . '/lib/py_sidecar.php';
+        require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
         $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex'], null, null, 300);
         if (($sidecar['body']['success'] ?? false) && !empty($sidecar['body']['pdf'])) {
             header('Content-Type: application/pdf');
