@@ -28,7 +28,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const filePath = urlParams.get('path') || '';
         const user = urlParams.get('user') || 'default';
-        const lang = urlParams.get('lang') || 'en';
+        const lang = (urlParams.get('lang') || 'en').toLowerCase().split(/[-_]/)[0];
         const root = urlParams.get('root') || 'main';
         const theme = <?php echo json_encode($theme, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE); ?>;
         const color = urlParams.get('color') || '#569cd6';
@@ -56,7 +56,10 @@
             }
         };
         function translatePage() {
-            const currentLang = translations[lang] || translations['en'];
+            const currentLang = Object.assign({}, translations['en'], translations[lang] || {});
+            if (window.parent && window.parent !== window && window.parent.i18n && window.parent.i18n.normal) {
+                currentLang.normalText = window.parent.i18n.normal;
+            }
             document.querySelectorAll('[data-i18n]').forEach(element => {
                 const key = element.getAttribute('data-i18n');
                 if (currentLang[key]) element.textContent = currentLang[key];
