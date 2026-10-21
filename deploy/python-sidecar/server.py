@@ -49,7 +49,7 @@ def _spawn(cmd: list[str], log_path: Optional[str] = None) -> None:
         log_fh.close()
 
 
-def _run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
+def _run(cmd: list[str], timeout: int = 300, cwd: Optional[str] = None) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd,
         env=_env(),
@@ -57,6 +57,7 @@ def _run(cmd: list[str], timeout: int = 300) -> subprocess.CompletedProcess:
         stderr=subprocess.STDOUT,
         text=True,
         timeout=timeout,
+        cwd=cwd,
         check=False,
     )
 
@@ -72,7 +73,7 @@ async def latex_compile(latex: str = Form(...), engine: str = Form("pdflatex")):
         source = Path(tmp) / "document.tex"
         source.write_text(latex, encoding="utf-8")
         mode = "-lualatex" if selected == "lualatex" else "-pdf"
-        proc = _run(["latexmk", mode, "-interaction=nonstopmode", "-halt-on-error", source.name], timeout=300)
+        proc = _run(["latexmk", mode, "-interaction=nonstopmode", "-halt-on-error", source.name], timeout=300, cwd=tmp)
         pdf = Path(tmp) / "document.pdf"
         return {"success": proc.returncode == 0 and pdf.is_file(), "pdf": base64.b64encode(pdf.read_bytes()).decode("ascii") if pdf.is_file() else "", "output": (proc.stdout or "")[-12000:]}
 
