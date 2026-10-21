@@ -42,7 +42,7 @@ services:
     build:
       context: .
       dockerfile: deploy/python-sidecar/Dockerfile
-    image: appdashboard-py:latest
+    image: ${APPDASHBOARD_PY_IMAGE:-ihorkotenko/appdashboard-py:latest}
     container_name: appdashboard-py
     restart: unless-stopped
     logging:
@@ -84,7 +84,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: appdashboard:latest
+    image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
     container_name: appdashboard
     entrypoint: ["/var/www/AppDashboard/docker-entrypoint.sh"]
     command: ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

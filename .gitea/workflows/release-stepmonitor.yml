@@ -1,0 +1,43 @@
+name: Release StepMonitor
+on:
+  workflow_dispatch:
+    inputs:
+      app:
+        description: Application to release
+        required: true
+        default: steps
+        type: choice
+        options:
+          - steps
+      notes:
+        description: Release notes
+        required: false
+        default: StepMonitor mobile application release
+        type: string
+jobs:
+  release:
+    runs-on: appdashboard-build
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Build and publish StepMonitor release
+        if: inputs.app == 'steps'
+        run: |
+          set -euo pipefail
+          version="$(sed -n 's/^val appVersionMajor = \([0-9][0-9]*\)$/\1/p' apps/steps/steps-mobile-app/app/build.gradle.kts).$(sed -n 's/^val appVersionMinor = \([0-9][0-9]*\)$/\1/p' apps/steps/steps-mobile-app/app/build.gradle.kts).$(sed -n 's/^val appVersionPatch = \([0-9][0-9]*\)$/\1/p' apps/steps/steps-mobile-app/app/build.gradle.kts)"
+          tag="steps-v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Release tag already exists: $tag" >&2
+            exit 1
+          fi
+          bash deploy/scripts/build-stepmonitor-apk.sh "$PWD"
+          test "$(jq -r .version downloads/stepmonitor.json)" = "$version"
+          git config user.name "Gitea Actions"
+          git config user.email "actions@serverkherson.xyz"
+          git tag -a "$tag" -m "Release StepMonitor $version"
+          git push origin "$tag"
+          payload="$(jq -n --arg tag "$tag" --arg name "StepMonitor $version" --arg body "app: steps\n\n${{ inputs.notes }}" '{tag_name:$tag,name:$name,body:$body,target_commitish:"main"}')"
+          release="$(curl -fsS -X POST -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" -H 'Content-Type: application/json' -d "$payload" 'https://git.serverkherson.xyz/api/v1/repos/kotenkoigorandr791/apps-dashboard/releases')"
+          release_id="$(printf '%s' "$release" | jq -r .id)"
+          curl -fsS -X POST -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" -H 'Content-Type: application/octet-stream' --data-binary @downloads/stepmonitor.apk "https://git.serverkherson.xyz/api/v1/repos/kotenkoigorandr791/apps-dashboard/releases/$release_id/assets?name=stepmonitor.apk"
+          curl -fsS -X POST -H "Authorization: token ${{ secrets.GITEA_TOKEN }}" -H 'Content-Type: application/json' --data-binary @downloads/stepmonitor.json "https://git.serverkherson.xyz/api/v1/repos/kotenkoigorandr791/apps-dashboard/releases/$release_id/assets?name=stepmonitor.json"

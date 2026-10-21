@@ -12,7 +12,7 @@ object ReleaseNotesFormatter {
     }
 
     fun normalizeTag(tag: String): String =
-        tag.removePrefix("v").removePrefix("V").trim()
+        tag.removePrefix("steps-v").removePrefix("steps-V").removePrefix("v").removePrefix("V").trim()
 
     fun matchesVersion(tag: String, versionName: String): Boolean =
         normalizeTag(tag) == versionName.trim()

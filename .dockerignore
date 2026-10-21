@@ -55,6 +55,8 @@ apps/steps/upload_sessions
 apps/steps/users
 apps/viewer/history.json
 downloads/*.apk
+!downloads/stepmonitor.apk
+!downloads/stepmonitor.json
 downloads/*.tgz
 *.zip
 *.tar

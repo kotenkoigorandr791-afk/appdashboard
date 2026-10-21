@@ -84,6 +84,7 @@ RUN mkdir -p /etc/nginx/modsecurity /var/log/modsecurity \
     && chmod 0775 /var/log/modsecurity
 
 COPY nginx/appdashboard.conf /etc/nginx/sites-available/appdashboard.conf
+COPY nginx/appdashboard.conf.template /etc/nginx/templates/appdashboard.conf.template
 COPY deploy/waf/appdashboard-modsecurity.conf /etc/nginx/modsecurity/appdashboard.conf
 COPY deploy/waf/appdashboard-crs-exclusions.conf /etc/nginx/modsecurity/appdashboard-crs-exclusions.conf
 COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
