@@ -12,9 +12,7 @@ ENV XDG_DATA_HOME=/opt/ApplicationData/models
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libgl1 libglib2.0-0 fonts-dejavu-core curl \
-    texlive-latex-base texlive-latex-recommended texlive-latex-extra \
-    texlive-lang-polish texlive-luatex texlive-xetex texlive-fonts-recommended \
-    texlive-bibtex-extra latexmk \
+    texlive-full latexmk \
     tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-ukr tesseract-ocr-bel \
     && rm -rf /var/lib/apt/lists/*
 
