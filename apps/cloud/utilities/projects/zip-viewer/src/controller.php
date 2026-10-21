@@ -158,6 +158,21 @@ function zip_viewer_archive_requires_password(string $archivePath): bool {
     return false;
 }
 function zip_viewer_list_archive(string $archivePath, string $password = ''): array {
+    if (zip_viewer_archive_format($archivePath) === 'zip' && class_exists('ZipArchive')) {
+        $zip = new ZipArchive();
+        if ($zip->open($archivePath) === true) {
+            if ($password !== '') $zip->setPassword($password);
+            $items = [];
+            for ($i = 0; $i < $zip->numFiles; $i++) {
+                $name = $zip->getNameIndex($i);
+                if ($name === false) continue;
+                $stat = $zip->statIndex($i) ?: [];
+                $items[] = ['name' => str_replace('\\', '/', $name), 'is_dir' => str_ends_with($name, '/'), 'stat' => ['size' => (int)($stat['size'] ?? 0), 'mtime' => (int)($stat['mtime'] ?? time())]];
+            }
+            $zip->close();
+            return $items;
+        }
+    }
     if (zip_viewer_archive_format($archivePath) === 'zip' && zip_viewer_command_exists('unzip')) {
         $cmd = [zip_viewer_command_path('unzip'), '-Z', '-l'];
         if ($password !== '') array_push($cmd, '-P', $password);

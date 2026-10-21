@@ -2936,6 +2936,20 @@ function cloud_archive_extract_file(string $archivePath, string $extractPath, st
             throw new RuntimeException('Archive contains unsafe paths');
         }
     }
+    if ($format === 'zip' && class_exists('ZipArchive')) {
+        $zip = new ZipArchive();
+        if ($zip->open($archivePath) === true) {
+            if ($password !== '') $zip->setPassword($password);
+            $beforeCount = iterator_count(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($extractPath, RecursiveDirectoryIterator::SKIP_DOTS)));
+            if (!$zip->extractTo($extractPath)) {
+                $zip->close();
+                throw new RuntimeException('Failed to extract archive');
+            }
+            $zip->close();
+            $afterCount = iterator_count(new RecursiveIteratorIterator(new RecursiveDirectoryIterator($extractPath, RecursiveDirectoryIterator::SKIP_DOTS)));
+            return max(0, $afterCount - $beforeCount);
+        }
+    }
     $before = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($extractPath, RecursiveDirectoryIterator::SKIP_DOTS));
     $beforeCount = iterator_count($before);
     if (in_array($format, ['zip', '7z', 'rar'], true)) {
@@ -2965,8 +2979,21 @@ function cloud_archive_extract_file(string $archivePath, string $extractPath, st
 }
 function cloud_archive_list_paths(string $archivePath, string $format, string $password = ''): array {
     if (in_array($format, ['zip', '7z', 'rar'], true)) {
+        if ($format === 'zip' && class_exists('ZipArchive')) {
+            $zip = new ZipArchive();
+            if ($zip->open($archivePath) === true) {
+                if ($password !== '') $zip->setPassword($password);
+                $paths = [];
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $name = $zip->getNameIndex($i);
+                    if ($name !== false) $paths[] = $name;
+                }
+                $zip->close();
+                return $paths;
+            }
+        }
         if ($format === 'zip' && cloud_archive_command_exists('unzip')) {
-            $cmd = [cloud_archive_command_path('unzip'), '-Z', '-1'];
+            $cmd = [cloud_archive_command_path('unzip'), '-Z1'];
             if ($password !== '') array_push($cmd, '-P', $password);
             $cmd[] = $archivePath;
             [$code, $stdout, $stderr] = cloud_archive_run($cmd);
