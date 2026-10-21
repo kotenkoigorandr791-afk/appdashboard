@@ -287,6 +287,8 @@ function latex_ensure_cache_dir(string $dir): string {
 
 function latex_prepare_source_for_lualatex(string $latex): string {
     $latex = latex_escape_texttt($latex);
+    $latex = preg_replace('/\\usepackage(\[[^\]]*\])?\{caption\}\s*/i', '', $latex) ?? $latex;
+    $latex = preg_replace('/(\\usepackage\[)[^\]]*\bpolish\b([^\]]*\]\{babel\})/i', '$1english$2', $latex) ?? $latex;
     if (preg_match('/\\\\usepackage(\[[^\]]*\])?\{fontspec\}/', $latex)) return $latex;
     $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{inputenc\}\s*\r?\n/m', '', $latex);
     $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{fontenc\}\s*\r?\n/m', '', $latex);
@@ -316,6 +318,8 @@ function latex_needs_lualatex(string $latex): bool {
 
 function latex_prepare_source_for_pdflatex(string $latex): string {
     $latex = latex_escape_texttt($latex);
+    $latex = preg_replace('/\\usepackage(\[[^\]]*\])?\{caption\}\s*/i', '', $latex) ?? $latex;
+    $latex = preg_replace('/(\\usepackage\[)[^\]]*\bpolish\b([^\]]*\]\{babel\})/i', '$1english$2', $latex) ?? $latex;
     $latex = latex_replace_unicode_text_symbols($latex);
     if (!latex_needs_lualatex($latex)
         && preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{babel\}/', $latex)
