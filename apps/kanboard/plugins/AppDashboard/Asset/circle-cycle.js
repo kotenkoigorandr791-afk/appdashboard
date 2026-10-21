@@ -233,6 +233,126 @@
     }
   }
 
+  function postQuickUpdate(taskId, field, value) {
+    var url = quickUrl();
+    if (!url) {
+      var sum = document.querySelector('.kb-task-summary[data-quick-url]');
+      if (sum) url = sum.getAttribute('data-quick-url') || '';
+    }
+    if (!url) return Promise.reject(new Error('no_url'));
+    return fetch(url, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
+      body: JSON.stringify({ task_id: taskId, field: field, value: Number(value) })
+    }).then(function (r) {
+      return r.json().then(function (j) {
+        return { ok: r.ok && j && j.ok, json: j };
+      });
+    });
+  }
+
+  function enhanceIconSelect(select) {
+    if (!select || select.getAttribute('data-kb-icon-select') === '1') return;
+    select.setAttribute('data-kb-icon-select', '1');
+    var wrap = select.closest('.kb-inline-select') || select.parentNode;
+    if (!wrap) return;
+    select.classList.add('kb-select-native', 'kb-quick-select-native');
+    var btn = wrap.querySelector('.kb-icon-select-trigger');
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'kb-icon-select-trigger';
+      btn.setAttribute('aria-haspopup', 'listbox');
+      wrap.insertBefore(btn, select);
+    }
+    function currentIcon() {
+      var opt = select.options[select.selectedIndex];
+      var sk = opt ? opt.getAttribute('data-status-key') : '';
+      if (select.getAttribute('data-field') === 'column_id') return STATUS_ICONS[sk] || STATUS_ICONS.todo;
+      if (select.getAttribute('data-field') === 'priority') {
+        var min = select.options.length ? Number(select.options[0].value) : 0;
+        var max = select.options.length ? Number(select.options[select.options.length - 1].value) : 3;
+        return prioIconSvg(Number(select.value || 0), min, max);
+      }
+      return '';
+    }
+    function sync() {
+      var opt = select.options[select.selectedIndex];
+      var label = opt ? opt.textContent.replace(/\s+/g, ' ').trim() : '';
+      btn.innerHTML = '<span class="kb-icon-select-ico">' + currentIcon() + '</span><span class="kb-icon-select-label">' + label + '</span><span class="kb-select-caret"></span>';
+      var iconWrap = wrap.querySelector('.kb-inline-icon');
+      if (iconWrap && select.getAttribute('data-field') === 'column_id') {
+        var sk = opt ? opt.getAttribute('data-status-key') || 'todo' : 'todo';
+        iconWrap.innerHTML = STATUS_ICONS[sk] || STATUS_ICONS.todo;
+      }
+    }
+    var menu = null;
+    function close() {
+      if (menu) {
+        menu.remove();
+        menu = null;
+      }
+      wrap.classList.remove('open');
+    }
+    function open() {
+      if (menu) {
+        close();
+        return;
+      }
+      menu = document.createElement('ul');
+      menu.className = 'kb-menu kb-menu-select kb-icon-select-menu';
+      menu.setAttribute('role', 'listbox');
+      for (var i = 0; i < select.options.length; i++) {
+        (function (opt) {
+          var li = document.createElement('li');
+          li.className = 'kb-menu-item' + (opt.selected ? ' kb-menu-selected' : '');
+          li.setAttribute('role', 'option');
+          var sk = opt.getAttribute('data-status-key') || '';
+          var ico =
+            select.getAttribute('data-field') === 'column_id'
+              ? STATUS_ICONS[sk] || STATUS_ICONS.todo
+              : select.getAttribute('data-field') === 'priority'
+                ? prioIconSvg(Number(opt.value), Number(select.options[0].value), Number(select.options[select.options.length - 1].value))
+                : '';
+          li.innerHTML = '<span class="kb-icon-select-ico">' + ico + '</span><span>' + opt.textContent.replace(/\s+/g, ' ').trim() + '</span>';
+          li.addEventListener('mousedown', function (e) {
+            e.preventDefault();
+          });
+          li.addEventListener('click', function (e) {
+            e.preventDefault();
+            select.value = opt.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            sync();
+            close();
+          });
+          menu.appendChild(li);
+        })(select.options[i]);
+      }
+      document.body.appendChild(menu);
+      wrap.classList.add('open');
+      var r = btn.getBoundingClientRect();
+      menu.style.left = Math.round(r.left) + 'px';
+      menu.style.top = Math.round(r.bottom + 6) + 'px';
+      menu.style.minWidth = Math.max(160, Math.round(r.width)) + 'px';
+      setTimeout(function () {
+        document.addEventListener('mousedown', onDoc, true);
+      }, 0);
+      function onDoc(ev) {
+        if (!menu.contains(ev.target) && ev.target !== btn && !btn.contains(ev.target)) {
+          close();
+          document.removeEventListener('mousedown', onDoc, true);
+        }
+      }
+    }
+    btn.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      open();
+    });
+    sync();
+  }
+
   var quickSelectBound = false;
   function initQuickSelects() {
     var selects = document.querySelectorAll('.kb-quick-select');
@@ -240,6 +360,9 @@
       if (!selects[i].getAttribute('data-prev')) {
         selects[i].setAttribute('data-prev', selects[i].value);
       }
+      try {
+        enhanceIconSelect(selects[i]);
+      } catch (e0) {}
     }
     if (quickSelectBound) return;
     quickSelectBound = true;
@@ -249,27 +372,19 @@
       var field = t.getAttribute('data-field');
       var taskId = Number(t.getAttribute('data-task-id') || 0);
       var value = t.value;
-      var url = quickUrl();
-      if (!field || !taskId || !url) return;
+      if (!field || !taskId) return;
       var row = t.closest('tr.kb-table-row');
       var prev = t.getAttribute('data-prev') || t.defaultValue;
       t.setAttribute('data-prev', value);
       t.disabled = true;
-      fetch(url, {
-        method: 'POST',
-        credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'X-Requested-With': 'XMLHttpRequest' },
-        body: JSON.stringify({ task_id: taskId, field: field, value: Number(value) })
-      })
-        .then(function (r) {
-          return r.json().then(function (j) {
-            return { ok: r.ok && j && j.ok, json: j };
-          });
-        })
+      postQuickUpdate(taskId, field, value)
         .then(function (res) {
           t.disabled = false;
           if (!res.ok) {
             t.value = prev;
+            try {
+              enhanceIconSelect(t);
+            } catch (e1) {}
             return;
           }
           if (field === 'column_id' && row) {
@@ -281,6 +396,19 @@
           if (field === 'priority' && row) {
             updateRowPriority(row, Number(value));
           }
+          if (field === 'column_id' && !row) {
+            var iconWrap = t.closest('.kb-inline-select');
+            if (iconWrap) {
+              var ic = iconWrap.querySelector('.kb-inline-icon');
+              var o2 = t.options[t.selectedIndex];
+              var sk2 = o2 ? o2.getAttribute('data-status-key') || 'todo' : 'todo';
+              if (ic) ic.innerHTML = STATUS_ICONS[sk2] || STATUS_ICONS.todo;
+            }
+          }
+          try {
+            t.removeAttribute('data-kb-icon-select');
+            enhanceIconSelect(t);
+          } catch (e2) {}
         })
         .catch(function () {
           t.disabled = false;
@@ -289,9 +417,189 @@
     });
   }
 
+  var listDnDBound = false;
+  function moveTaskDomToGroup(row, targetRows, statusKey, columnId) {
+    var empty = targetRows.querySelector('.kb-issue-empty');
+    if (empty) empty.remove();
+    targetRows.appendChild(row);
+    row.setAttribute('data-column-id', String(columnId));
+    row.classList.toggle('is-done', statusKey === 'done');
+    var st = row.querySelector('.kb-issue-status');
+    if (st) st.innerHTML = STATUS_ICONS[statusKey] || STATUS_ICONS.todo;
+    var group = targetRows.closest('.kb-issue-group');
+    if (group) {
+      var countEl = group.querySelector('.kb-issue-group-count');
+      if (countEl) countEl.textContent = String(targetRows.querySelectorAll('.kb-issue-row').length);
+    }
+    document.querySelectorAll('#kb-cycle-issues .kb-issue-group').forEach(function (g) {
+      var rows = g.querySelector('.kb-issue-rows');
+      var c = g.querySelector('.kb-issue-group-count');
+      if (rows && c) c.textContent = String(rows.querySelectorAll('.kb-issue-row').length);
+      if (rows && !rows.querySelector('.kb-issue-row') && !rows.querySelector('.kb-issue-empty')) {
+        var hint = document.createElement('div');
+        hint.className = 'kb-issue-empty kb-drop-hint';
+        hint.textContent = 'Drop tasks here';
+        rows.appendChild(hint);
+      }
+    });
+  }
+
+  function initListDnD() {
+    var root = document.getElementById('kb-cycle-issues');
+    if (!root || root.getAttribute('data-can-edit') !== '1') return;
+    if (!listDnDBound) {
+      listDnDBound = true;
+      var dragRow = null;
+      document.addEventListener('dragstart', function (e) {
+        var row = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-row[draggable="true"]') : null;
+        if (!row) return;
+        dragRow = row;
+        row.classList.add('is-dragging');
+        try {
+          e.dataTransfer.setData('text/plain', row.getAttribute('data-task-id') || '');
+          e.dataTransfer.effectAllowed = 'move';
+        } catch (err) {}
+      });
+      document.addEventListener('dragend', function () {
+        if (dragRow) dragRow.classList.remove('is-dragging');
+        dragRow = null;
+        document.querySelectorAll('.kb-issue-rows.is-drop-target').forEach(function (el) {
+          el.classList.remove('is-drop-target');
+        });
+      });
+      document.addEventListener('dragover', function (e) {
+        var zone = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-rows') : null;
+        if (!zone || !dragRow) return;
+        e.preventDefault();
+        zone.classList.add('is-drop-target');
+      });
+      document.addEventListener('dragleave', function (e) {
+        var zone = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-rows') : null;
+        if (zone) zone.classList.remove('is-drop-target');
+      });
+      document.addEventListener('drop', function (e) {
+        var zone = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-rows') : null;
+        if (!zone || !dragRow) return;
+        e.preventDefault();
+        zone.classList.remove('is-drop-target');
+        var columnId = Number(zone.getAttribute('data-column-id') || 0);
+        var statusKey = zone.getAttribute('data-status-key') || 'todo';
+        var taskId = Number(dragRow.getAttribute('data-task-id') || 0);
+        var fromCol = Number(dragRow.getAttribute('data-column-id') || 0);
+        if (!taskId || !columnId || columnId === fromCol) return;
+        var row = dragRow;
+        moveTaskDomToGroup(row, zone, statusKey, columnId);
+        postQuickUpdate(taskId, 'column_id', columnId).then(function (res) {
+          if (!res.ok) location.reload();
+        }).catch(function () {
+          location.reload();
+        });
+      });
+    }
+  }
+
+  var tableDnDBound = false;
+  function initTableDnD() {
+    var table = document.getElementById('kb-view-table');
+    if (!table) return;
+    if (!tableDnDBound) {
+      tableDnDBound = true;
+      var dragRow = null;
+      document.addEventListener('dragstart', function (e) {
+        var row = e.target && e.target.closest ? e.target.closest('#kb-view-table tr.kb-table-row[draggable="true"]') : null;
+        if (!row) return;
+        dragRow = row;
+        row.classList.add('is-dragging');
+        try {
+          e.dataTransfer.setData('text/plain', row.getAttribute('data-task-id') || '');
+          e.dataTransfer.effectAllowed = 'move';
+        } catch (err) {}
+      });
+      document.addEventListener('dragend', function () {
+        if (dragRow) dragRow.classList.remove('is-dragging');
+        dragRow = null;
+        document.querySelectorAll('#kb-view-table tr.is-drop-target').forEach(function (el) {
+          el.classList.remove('is-drop-target');
+        });
+      });
+      document.addEventListener('dragover', function (e) {
+        var row = e.target && e.target.closest ? e.target.closest('#kb-view-table tr.kb-table-row') : null;
+        if (!row || !dragRow || row === dragRow) return;
+        e.preventDefault();
+        row.classList.add('is-drop-target');
+      });
+      document.addEventListener('dragleave', function (e) {
+        var row = e.target && e.target.closest ? e.target.closest('#kb-view-table tr.kb-table-row') : null;
+        if (row) row.classList.remove('is-drop-target');
+      });
+      document.addEventListener('drop', function (e) {
+        var row = e.target && e.target.closest ? e.target.closest('#kb-view-table tr.kb-table-row') : null;
+        if (!row || !dragRow || row === dragRow) return;
+        e.preventDefault();
+        row.classList.remove('is-drop-target');
+        var columnId = Number(row.getAttribute('data-column-id') || 0);
+        var statusKey = row.getAttribute('data-status-key') || 'todo';
+        var statusTitle = row.getAttribute('data-status') || statusKey;
+        var taskId = Number(dragRow.getAttribute('data-task-id') || 0);
+        var fromCol = Number(dragRow.getAttribute('data-column-id') || 0);
+        if (!taskId || !columnId || columnId === fromCol) return;
+        updateRowStatus(dragRow, statusKey, statusTitle, columnId);
+        var sel = dragRow.querySelector('select.kb-quick-select[data-field="column_id"]');
+        if (sel) {
+          sel.value = String(columnId);
+          sel.setAttribute('data-prev', String(columnId));
+          sel.removeAttribute('data-kb-icon-select');
+          try {
+            enhanceIconSelect(sel);
+          } catch (e3) {}
+        }
+        postQuickUpdate(taskId, 'column_id', columnId).then(function (res) {
+          if (!res.ok) location.reload();
+        }).catch(function () {
+          location.reload();
+        });
+      });
+    }
+  }
+
+  function initProjectTiles() {
+    var root = document.getElementById('kb-project-tiles');
+    if (!root || root.getAttribute('data-bound') === '1') return;
+    root.setAttribute('data-bound', '1');
+    root.addEventListener('click', function (e) {
+      var btn = e.target && e.target.closest ? e.target.closest('.kb-project-tile-head') : null;
+      if (!btn) return;
+      var tile = btn.closest('.kb-project-tile');
+      if (!tile) return;
+      var body = tile.querySelector('.kb-project-tile-body');
+      var open = btn.getAttribute('aria-expanded') === 'true';
+      btn.setAttribute('aria-expanded', open ? 'false' : 'true');
+      tile.classList.toggle('is-open', !open);
+      if (body) body.hidden = open;
+    });
+  }
+
   function hideBoardSelectorChrome() {
     var box = document.querySelector('header .board-selector-container');
     if (box) box.style.display = 'none';
+  }
+
+  function reinitBoardSortable() {
+    try {
+      if (window.jQuery && jQuery.fn && jQuery.fn.sortable) {
+        var lists = jQuery('#kb-view-board .board-task-list');
+        if (lists.length) {
+          lists.each(function () {
+            var $el = jQuery(this);
+            if ($el.hasClass('ui-sortable')) {
+              try {
+                $el.sortable('refresh');
+              } catch (e0) {}
+            }
+          });
+        }
+      }
+    } catch (e) {}
   }
 
   function boot() {
@@ -305,7 +613,11 @@
     applyBoardTints();
     initTableSort();
     initQuickSelects();
+    initListDnD();
+    initTableDnD();
+    initProjectTiles();
     hideBoardSelectorChrome();
+    reinitBoardSortable();
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', boot);

@@ -142,6 +142,26 @@ class CircleCycleHelper extends Base
         return mb_strtoupper(mb_substr($name, 0, 2));
     }
 
+    public function columnsWithStatus(int $projectId): array
+    {
+        $columns = $this->columnModel->getAll($projectId);
+        $total = max(1, count($columns));
+        $out = [];
+        foreach ($columns as $column) {
+            $out[] = [
+                'id' => (int) ($column['id'] ?? 0),
+                'title' => (string) ($column['title'] ?? ''),
+                'status_key' => $this->statusKey((string) ($column['title'] ?? ''), (int) ($column['position'] ?? 0), $total),
+            ];
+        }
+        return $out;
+    }
+
+    public function statusKeyPublic(string $title, int $position = 0, int $total = 1): string
+    {
+        return $this->statusKey($title, $position, $total);
+    }
+
     private function cycleName(array $project): string
     {
         $id = (int) ($project['id'] ?? 0);

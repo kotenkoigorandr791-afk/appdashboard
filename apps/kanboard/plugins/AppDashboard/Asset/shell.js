@@ -471,7 +471,7 @@
   function enhanceSelect(select) {
     if (!select || select.getAttribute('data-kb-select') === '1') return;
     if (select.classList.contains('ui-timepicker-select')) return;
-    if (select.classList.contains('kb-quick-select')) return;
+    if (select.classList.contains('kb-quick-select') || select.classList.contains('kb-quick-select-native')) return;
     if (select.multiple || select.size > 1) return;
     var rect = select.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
@@ -709,9 +709,9 @@
     if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return false;
     if (href.indexOf('/apps/kanboard') === -1 && href.indexOf('controller=') === -1) return false;
     if (/controller=(AuthController|UserAjaxController|TaskCreationController|ProjectCreationController|TaskFileController|CommentController)/i.test(href)) return false;
-    return /controller=(BoardViewController|DashboardController|ProjectViewController|ProjectOverviewController|TaskListController|TaskViewController|ProjectPermissionController|AnalyticController|SearchController|ActivityController)/i.test(href)
+    return /controller=(BoardViewController|DashboardController|ProjectViewController|ProjectOverviewController|TaskListController|TaskViewController|ProjectPermissionController|AnalyticController|SearchController)/i.test(href)
       || a.classList.contains('kb-cycle-view-link')
-      || (a.closest && a.closest('#kb-app-sidebar'));
+      || (a.closest && a.closest('#kb-app-sidebar') && !a.classList.contains('js-modal-medium') && !a.classList.contains('js-modal-large'));
   }
   function softNavMarkActive(url) {
     var side = document.getElementById('kb-app-sidebar');

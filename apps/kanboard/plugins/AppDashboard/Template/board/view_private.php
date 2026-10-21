@@ -172,8 +172,9 @@ foreach ($cycle['groups'] as $g) {
                                         data-assignee="<?= $this->text->e($assignee) ?>"
                                         data-priority="<?= $prio ?>"
                                         data-due="<?= $dueTs ?>"
-                                        data-column-id="<?= $colId ?>">
-                                        <td class="kb-mono" data-value="<?= (int) $task['id'] ?>">#<?= (int) $task['id'] ?></td>
+                                        data-column-id="<?= $colId ?>"
+                                        <?= $canEdit && $colId > 0 ? 'draggable="true"' : '' ?>>
+                                        <td class="kb-mono" data-value="<?= (int) $task['id'] ?>"><span class="kb-issue-grip" aria-hidden="true"></span>#<?= (int) $task['id'] ?></td>
                                         <td data-value="<?= $this->text->e(mb_strtolower($task['title'])) ?>">
                                             <a href="<?= $this->url->href('TaskViewController', 'show', ['task_id' => $task['id']]) ?>">
                                                 <?= $this->text->e($task['title']) ?>
@@ -224,10 +225,10 @@ foreach ($cycle['groups'] as $g) {
                     </table>
                 </div>
             <?php else: ?>
-                <div class="kb-cycle-issues" id="kb-cycle-issues">
+                <div class="kb-cycle-issues" id="kb-cycle-issues" data-can-edit="<?= $canEdit ? '1' : '0' ?>">
                     <?php foreach ($cycle['groups'] as $group): ?>
-                        <?php if ((int) $group['count'] === 0) continue; ?>
-                        <section class="kb-issue-group kb-tint-<?= $this->text->e($group['status_key']) ?>" data-status="<?= $this->text->e($group['status_key']) ?>">
+                        <?php if ((int) $group['id'] <= 0 && (int) $group['count'] === 0) continue; ?>
+                        <section class="kb-issue-group kb-tint-<?= $this->text->e($group['status_key']) ?>" data-status="<?= $this->text->e($group['status_key']) ?>" data-column-id="<?= (int) $group['id'] ?>">
                             <div class="kb-issue-group-head">
                                 <div class="kb-issue-group-title">
                                     <?= $statusIcons[$group['status_key']] ?? $statusIcons['todo'] ?>
@@ -238,7 +239,10 @@ foreach ($cycle['groups'] as $g) {
                                     <a class="js-modal-large kb-issue-group-add" href="<?= $this->url->href('TaskCreationController', 'show', ['project_id' => $project['id'], 'column_id' => $group['id']]) ?>" title="<?= t('New task') ?>">+</a>
                                 <?php endif ?>
                             </div>
-                            <div class="kb-issue-rows">
+                            <div class="kb-issue-rows" data-column-id="<?= (int) $group['id'] ?>" data-status-key="<?= $this->text->e($group['status_key']) ?>">
+                                <?php if (empty($group['tasks'])): ?>
+                                    <div class="kb-issue-empty kb-drop-hint"><?= t('Drop tasks here') ?></div>
+                                <?php endif ?>
                                 <?php foreach ($group['tasks'] as $task): ?>
                                     <?php
                                     $due = $this->CircleCycleHelper->formatDue(!empty($task['date_due']) ? (int) $task['date_due'] : null);
@@ -246,7 +250,8 @@ foreach ($cycle['groups'] as $g) {
                                     $tags = $task['tags'] ?? [];
                                     $category = trim((string) ($task['category_name'] ?? ''));
                                     ?>
-                                    <div class="kb-issue-row <?= ((int) ($task['is_active'] ?? 1) === 0 || $group['status_key'] === 'done') ? 'is-done' : '' ?>" data-task-id="<?= (int) $task['id'] ?>">
+                                    <div class="kb-issue-row <?= ((int) ($task['is_active'] ?? 1) === 0 || $group['status_key'] === 'done') ? 'is-done' : '' ?>" data-task-id="<?= (int) $task['id'] ?>" data-column-id="<?= (int) $group['id'] ?>"<?= $canEdit && (int) $group['id'] > 0 ? ' draggable="true"' : '' ?>>
+                                        <span class="kb-issue-grip" aria-hidden="true"></span>
                                         <span class="kb-issue-status">
                                             <?= $statusIcons[$group['status_key']] ?? $statusIcons['todo'] ?>
                                         </span>

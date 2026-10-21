@@ -13,9 +13,6 @@
         <li><a href="#" class="filter-helper" data-filter="status:open assignee:nobody"><i class="fa fa-user-times fa-fw" aria-hidden="true"></i><?= t('Not assigned') ?></a></li>
         <li><a href="#" class="filter-helper" data-filter="status:open assignee:anybody"><i class="fa fa-users fa-fw" aria-hidden="true"></i><?= t('Assigned') ?></a></li>
         <li><a href="#" class="filter-helper" data-filter="status:open category:none"><i class="fa fa-tag fa-fw" aria-hidden="true"></i><?= t('No category') ?></a></li>
-        <li>
-            <?= $this->url->doc(t('View advanced search syntax'), 'search') ?>
-        </li>
     </ul>
 </div>
 <?= $this->hook->render('template:app:filters-helper:after', isset($project) ? array('project' => $project) : array()) ?>

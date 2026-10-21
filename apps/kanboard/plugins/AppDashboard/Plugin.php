@@ -59,6 +59,10 @@ class Plugin extends Base
         $this->template->setTemplateOverride('analytic/cfd', 'appDashboard:analytic/cfd');
         $this->template->setTemplateOverride('analytic/lead_cycle_time', 'appDashboard:analytic/lead_cycle_time');
         $this->template->setTemplateOverride('analytic/task_distribution', 'appDashboard:analytic/task_distribution');
+        $this->template->setTemplateOverride('search/index', 'appDashboard:search/index');
+        $this->template->setTemplateOverride('search/activity', 'appDashboard:search/activity');
+        $this->template->setTemplateOverride('activity/user', 'appDashboard:activity/user');
+        $this->template->setTemplateOverride('task/details', 'appDashboard:task/details');
 
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/shell.css']);
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/circle.css']);
@@ -186,6 +190,7 @@ class Plugin extends Base
             'Plugin\\AppDashboard\\Helper' => array(
                 'OverviewCalendarHelper',
                 'CircleCycleHelper',
+                'ProjectTilesHelper',
             ),
         );
     }
