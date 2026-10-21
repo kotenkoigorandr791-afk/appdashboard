@@ -883,6 +883,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         }
         body.shell-app-open{animation:shellAppBackgroundFade 140ms ease-out both;background-image:none!important;background-color:#05070a!important;}
         #shell-home[hidden],#shell-app-frame[hidden]{display:none!important;}
+        #shell-home{height:100%;min-height:0;overflow:hidden;}
         body.shell-app-open #top-bar{display:none!important;}
         #shell-app-menu-host{position:fixed;inset:0;width:0;height:0;overflow:visible;pointer-events:none;z-index:1002;}
         body.shell-app-open #shell-app-menu-host{width:auto;height:auto;}
@@ -1588,7 +1589,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             #content{padding-top:0;height:100dvh;min-height:100dvh;max-height:100dvh;}
             #app-iframe{height:100dvh;min-height:100dvh;max-height:100dvh;}
             #profile-content{width:95%;height:90%;padding:0;margin:5% auto;}
-            #app-grid{padding-top:calc(70px + 12px);grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;height:100%;max-height:100%;padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));}
+            #shell-home{height:100%;min-height:0;overflow:hidden;}
+            #app-grid{padding-top:calc(70px + 12px);grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;height:100%;min-height:0;max-height:100%;padding-bottom:max(48px,calc(28px + env(safe-area-inset-bottom,0px)));overflow-y:auto;touch-action:pan-y;}
             #bottom-bar{gap:5px;}
             .search-container:hover{width:100px;}
             .notification{bottom:20px;right:20px;left:20px;max-width:none;width:auto;}
