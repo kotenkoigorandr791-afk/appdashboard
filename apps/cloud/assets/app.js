@@ -2131,7 +2131,8 @@ function stashTabView(tab) {
             cacheData.scrollTop = container.scrollTop || 0;
             const iframe = container.querySelector('iframe');
             if (iframe) {
-                cacheData.iframeSrc = iframe.src;
+                cacheData.type = 'iframe';
+                cacheData.src = iframe.src;
                 tabsState.iframeCache.set(tab.id, iframe);
             }
         } else if (editorIframe) {
@@ -3241,8 +3242,13 @@ function restoreCachedContent(tab, cacheData) {
             if (cacheData.onlyOfficeEditor) tab.onlyOfficeEditor = true;
             if (cacheData.zipViewer) tab.zipViewer = true;
 
-            if (cacheData.path !== tab.path) {
-                createEditorIframe(tab);
+            const cachedIframe = tabsState.iframeCache.get(tab.id);
+            if (cachedIframe && !tab.photoEditor && !tab.latexEditor && !tab.transcriptionEditor && !tab.ttsEditor && !tab.onlyOfficeEditor && !tab.zipViewer && !tab.markdownEditor && !tab.htmlEditor) {
+                const container = getOrCreateFileContainer(tab.id);
+                container.appendChild(cachedIframe);
+                container.style.display = 'block';
+                applyFullScreenStyles(cachedIframe);
+                cachedIframe.style.display = 'block';
             } else {
                 createEditorIframe(tab);
             }

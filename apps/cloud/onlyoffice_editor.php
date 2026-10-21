@@ -335,8 +335,8 @@ function jwtEncode($payload, $secret) {
 $host = $_SERVER['HTTP_HOST'];
 $scriptName = $_SERVER['PHP_SELF'];
 
-// Build URL with forced HTTPS
-$baseUrl = "https://$host$scriptName";
+// Build URLs using the externally visible scheme/host from the reverse proxy.
+$baseUrl = cloud_onlyoffice_public_origin() . $scriptName;
 
 // Create download URL for file (with rootKey for decryption)
 $docDownloadUser = $user;
