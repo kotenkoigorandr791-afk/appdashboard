@@ -2,7 +2,8 @@
 # Auto-install missing TinyTeX packages / TFMs, then retry the real engine.
 set -eu
 
-ENGINE="$(basename "$0")"
+ENGINE="${LATEX_ENGINE:-$(basename "$0")}" 
+[ "$ENGINE" = "latex-engine-wrap.sh" ] && ENGINE=pdflatex
 BINDIR_FILE="${TINYTEX_BINDIR_FILE:-/etc/appdashboard/tinytex-bindir}"
 if [ -f "$BINDIR_FILE" ]; then
   BINDIR="$(cat "$BINDIR_FILE")"
@@ -27,6 +28,7 @@ case " $* " in
 esac
 
 extract_missing_files() {
+  set +e
   grep -Eho "File \`[^']+\.(sty|cls|tex|def|fd|cfg|clo|ldf|bbx|cbx|lbx|bst)' not found" \
     | sed -E "s/^File \`//; s/'\. not found$//; s/' not found$//" \
     | sort -u
@@ -34,6 +36,9 @@ extract_missing_files() {
     | sed -E "s/^I can't find file \`//; s/'$//" \
     | grep -E '\.(sty|cls|tex|def|fd|cfg|clo|ldf)$' \
     | sort -u
+  if grep -qi "Unknown option 'polish'"; then
+    echo babel-polish
+  fi
 }
 
 extract_missing_tfms() {
@@ -94,12 +99,20 @@ while [ "$try" -lt "$MAX_TRIES" ]; do
   fi
 
   missing="$(extract_missing_files <"$LOG" || true)"
+  if grep -qi "Unknown option 'polish'" "$LOG"; then
+    missing="$missing babel-polish"
+  fi
   if [ -n "$missing" ] && [ -x "$TLMGR" ]; then
+    "$TLMGR" init-usertree >/dev/null 2>&1 || true
     for file in $missing; do
-      pkg="$(resolve_package "$file")"
+      pkg="$file"
+      case "$file" in
+        *.sty|*.cls|*.tex|*.def|*.fd|*.cfg|*.clo|*.ldf|*.bbx|*.cbx|*.lbx|*.bst) pkg="$(resolve_package "$file")" ;;
+      esac
       [ -n "$pkg" ] || continue
       echo "latex-engine-wrap: missing $file -> tlmgr install $pkg" >&2
-      if "$TLMGR" install --no-depends-at-all "$pkg" >/dev/null 2>&1 \
+      if "$TLMGR" install --usermode "$pkg" >/dev/null 2>&1 \
+        || "$TLMGR" install --no-depends-at-all "$pkg" >/dev/null 2>&1 \
         || "$TLMGR" install "$pkg" >/dev/null 2>&1; then
         fixed=1
       else

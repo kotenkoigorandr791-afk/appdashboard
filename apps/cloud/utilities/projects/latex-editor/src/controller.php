@@ -391,7 +391,7 @@ function latex_run_compile(string $texfilePath, string $dir, ?string $texInputs 
     $output = [];
     $ret = 1;
     if (!$needsLua && is_executable($pdflatexPath)) {
-        $cmd = "$env && cd $dirArg && $pdflatexPath -interaction=nonstopmode -halt-on-error -file-line-error $texArg 2>&1";
+        $cmd = "$env && cd $dirArg && LATEX_ENGINE=pdflatex $pdflatexPath -interaction=nonstopmode -halt-on-error -file-line-error $texArg 2>&1";
         for ($attempt = 0; $attempt < 2; $attempt++) {
             $output = [];
             exec($cmd, $output, $ret);
@@ -401,7 +401,7 @@ function latex_run_compile(string $texfilePath, string $dir, ?string $texInputs 
     }
     if ($needsLua && is_executable($latexmkPath)) {
         $lualatexRule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
-        $cmd = "$env && cd $dirArg && $latexmkPath -e $lualatexRule -lualatex -interaction=nonstopmode -file-line-error $texArg 2>&1";
+        $cmd = "$env && cd $dirArg && LATEX_ENGINE=latexmk $latexmkPath -e $lualatexRule -lualatex -interaction=nonstopmode -file-line-error $texArg 2>&1";
         for ($attempt = 0; $attempt < 2; $attempt++) {
             $output = [];
             exec($cmd, $output, $ret);
@@ -415,7 +415,7 @@ function latex_run_compile(string $texfilePath, string $dir, ?string $texInputs 
     if (!$needsLua && !is_executable($pdflatexPath)) {
         return ['output' => ['pdfLaTeX is required for this document but is not available.'], 'return_code' => 127, 'engine' => 'missing'];
     }
-    $cmd = "$env && cd $dirArg && $lualatexPath -interaction=nonstopmode -file-line-error $texArg 2>&1";
+    $cmd = "$env && cd $dirArg && LATEX_ENGINE=lualatex $lualatexPath -interaction=nonstopmode -file-line-error $texArg 2>&1";
     for ($i = 0; $i < 2; $i++) {
         $output = [];
         exec($cmd, $output, $ret);
