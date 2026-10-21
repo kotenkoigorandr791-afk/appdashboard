@@ -494,31 +494,35 @@ function resticSanitizeRuntimeDirs(): void {
         }
     }
     $cache = $base . '/cache';
-    if (!is_dir($cache)) return;
+    if (!is_dir($cache) || !is_readable($cache)) return;
     $uid = function_exists('posix_geteuid') ? (int)posix_geteuid() : -1;
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($cache, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST
-    );
-    foreach ($iterator as $node) {
-        /** @var SplFileInfo $node */
-        $path = $node->getPathname();
-        if ($uid >= 0 && function_exists('fileowner')) {
-            $owner = @fileowner($path);
-            if ($owner !== false && (int)$owner !== $uid) {
-                if ($node->isDir()) {
-                    @exec('rm -rf ' . escapeshellarg($path));
-                } else {
-                    @unlink($path);
+    try {
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($cache, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($iterator as $node) {
+            /** @var SplFileInfo $node */
+            $path = $node->getPathname();
+            if ($uid >= 0 && function_exists('fileowner')) {
+                $owner = @fileowner($path);
+                if ($owner !== false && (int)$owner !== $uid) {
+                    if ($node->isDir()) {
+                        @exec('rm -rf ' . escapeshellarg($path));
+                    } else {
+                        @unlink($path);
+                    }
+                    continue;
                 }
-                continue;
+            }
+            if ($node->isDir() && !is_writable($path)) {
+                @exec('rm -rf ' . escapeshellarg($path));
+            } elseif ($node->isFile() && !is_writable($path)) {
+                @unlink($path);
             }
         }
-        if ($node->isDir() && !is_writable($path)) {
-            @exec('rm -rf ' . escapeshellarg($path));
-        } elseif ($node->isFile() && !is_writable($path)) {
-            @unlink($path);
-        }
+    } catch (Throwable $e) {
+        // Cache may contain root-owned leftovers from privileged init; skip cleanup.
     }
 }
 

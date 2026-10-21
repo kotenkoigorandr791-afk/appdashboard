@@ -669,95 +669,76 @@ def _run_command_lines(cmd: list[str], timeout: int = 15) -> list[str]:
     return [line.rstrip('\n') for line in out.splitlines()]
 
 
-def _php_backup_credentials() -> dict:
+def _php_backup_status() -> dict:
     try:
-        out = subprocess.check_output(['php', BOT_SERVICE_PHP, 'backup-credentials'], text=True, timeout=10)
+        out = subprocess.check_output(['php', BOT_SERVICE_PHP, 'backup-status'], text=True, timeout=60)
         data = json.loads(out.strip() or '{}')
         if isinstance(data, dict):
-            return {'host': str(data.get('host') or ''), 'token': str(data.get('token') or '')}
+            return data
     except Exception as e:
-        log.warning('backup credentials read failed: %s', e)
-    return {'host': '', 'token': ''}
+        log.warning('backup status read failed: %s', e)
+    return {}
 
 
 def get_backup_monitor_data() -> dict:
-    creds = _php_backup_credentials()
-    host = creds.get('host') or 'http://localhost:8200'
-    token = creds.get('token') or ''
+    status = _php_backup_status()
+    profiles = status.get('profiles') if isinstance(status.get('profiles'), list) else []
+    jobs = status.get('jobs') if isinstance(status.get('jobs'), list) else []
     result = {
-        'configured': bool(token),
-        'host': host,
-        'server_state': None,
-        'backups': [],
+        'configured': bool(status.get('configured')),
+        'engine': str(status.get('engine') or 'restic'),
+        'host': str(status.get('repository') or 'restic://local'),
+        'restic_version': str(status.get('restic_version') or ''),
+        'profiles': profiles,
+        'jobs': jobs,
+        'schedule_state': status.get('schedule_state') or {},
+        'backups': profiles,
+        'server_state': {
+            'ProgramState': 'Running' if any(str(j.get('status') or '') in ('running', 'queued') for j in jobs) else 'Idle',
+            'SuggestedStatusIcon': 'restic',
+            'HasWarning': any(str(p.get('error') or '') for p in profiles),
+            'HasError': any(str(p.get('error') or '') for p in profiles),
+        },
         'error': '',
     }
-    if not token:
-        result['error'] = 'Duplicati token is not configured.'
-        return result
-    headers = {
-        'Authorization': f'Bearer {token}',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-    }
-    try:
-        state_resp = requests.get(f'{host}/api/v1/serverstate', headers=headers, timeout=10)
-        state_resp.raise_for_status()
-        result['server_state'] = state_resp.json()
-        backups_resp = requests.get(f'{host}/api/v1/backups', headers=headers, timeout=15)
-        backups_resp.raise_for_status()
-        payload = backups_resp.json()
-        if isinstance(payload, list):
-            result['backups'] = payload
-        else:
-            result['error'] = 'Unexpected Duplicati /backups response.'
-    except Exception as e:
-        result['error'] = str(e)
+    if not result['configured']:
+        result['error'] = 'Restic backup is not configured.'
     return result
 
 
 def build_backup_monitor_message(data: dict) -> str:
     lines = ['<b>💾 Backup Monitor</b>', '<code>────────────────────────</code>', '']
-    lines.append(f'<b>Host:</b> <code>{_esc(str(data.get("host") or "—"))}</code>')
+    lines.append(f'<b>Engine:</b> <code>{_esc(str(data.get("engine") or "restic"))}</code>')
+    lines.append(f'<b>Repo:</b> <code>{_esc(str(data.get("host") or "—"))}</code>')
+    if data.get('restic_version'):
+        lines.append(f'<b>Version:</b> <code>{_esc(str(data.get("restic_version")))}</code>')
     if not data.get('configured'):
-        lines += ['', '<i>Duplicati API token is not configured.</i>']
+        lines += ['', '<i>Restic backup is not configured.</i>']
         return '\n'.join(lines)
-    state = data.get('server_state') or {}
-    if state:
-        program_state = _esc(str(state.get('ProgramState') or '—'))
-        icon = _esc(str(state.get('SuggestedStatusIcon') or '—'))
-        warning = 'yes' if state.get('HasWarning') else 'no'
-        error = 'yes' if state.get('HasError') else 'no'
-        lines += [
-            f'<b>State:</b> <code>{program_state}</code>',
-            f'<b>Icon:</b> <code>{icon}</code>',
-            f'<b>Warnings:</b> <code>{warning}</code> · <b>Errors:</b> <code>{error}</code>',
-        ]
     if data.get('error'):
-        lines += ['', f'<i>Could not load backup jobs: {_esc(str(data["error"])[:250])}</i>']
+        lines += ['', f'<i>Could not load backups: {_esc(str(data["error"])[:250])}</i>']
         return '\n'.join(lines)
-    backups = data.get('backups') or []
-    lines += ['', f'<b>Jobs:</b> <code>{len(backups)}</code>']
-    if not backups:
-        lines += ['', '<i>No backup jobs found in Duplicati.</i>']
+    profiles = data.get('profiles') or data.get('backups') or []
+    jobs = data.get('jobs') or []
+    active = sum(1 for j in jobs if str(j.get('status') or '') in ('running', 'queued'))
+    lines += ['', f'<b>Profiles:</b> <code>{len(profiles)}</code>', f'<b>Active jobs:</b> <code>{active}</code>', '']
+    if not profiles:
+        lines += ['<i>No restic backup profiles configured.</i>']
         return '\n'.join(lines)
-    active = 0
-    for item in backups:
-        if item.get('ActiveRunId') is not None:
-            active += 1
-    lines.append(f'<b>Active now:</b> <code>{active}</code>')
-    lines.append('')
-    for item in backups[:10]:
-        backup = item.get('Backup') or {}
-        meta = backup.get('Metadata') or {}
-        name = _esc(str(backup.get('Name') or 'Unnamed'))
-        target = _esc(str(backup.get('TargetURL') or '—')[:54])
-        status = 'Running' if item.get('ActiveRunId') is not None else _strip_emoji_prefix(str(meta.get('LastResult') or meta.get('ParsedResult') or 'Idle'))
-        schedule = item.get('Schedule') or {}
-        repeat = _esc(str(schedule.get('Repeat') or 'manual'))
-        last_run = _esc(_fmt_datetime(meta.get('LastBackupDate') or meta.get('LastBackupStarted')))
+    for profile in profiles[:10]:
+        name = _esc(str(profile.get('name') or 'Unnamed'))
+        snaps = _esc(str(profile.get('snapshots') if profile.get('snapshots') is not None else '—'))
+        last = _esc(str(profile.get('last_snapshot') or 'never')[:32])
+        sched = profile.get('schedule') or {}
+        freq = _esc(str(sched.get('frequency') or 'manual'))
+        enabled = 'on' if sched.get('enabled') else 'off'
+        err = str(profile.get('error') or '')
+        status = 'Error' if err else ('Enabled' if profile.get('enabled') else 'Disabled')
         lines.append(f'<b>{name}</b> · <code>{_esc(status)}</code>')
-        lines.append(f'<code>{target}</code>')
-        lines.append(f'<i>schedule {repeat} · last {last_run}</i>')
+        lines.append(f'<code>snapshots {snaps} · last {last}</code>')
+        lines.append(f'<i>schedule {freq} ({enabled})</i>')
+        if err:
+            lines.append(f'<i>{_esc(err[:180])}</i>')
         lines.append('')
     return '\n'.join(lines).rstrip()
 
@@ -853,29 +834,45 @@ def render_backup_report_png(data: dict) -> Optional[str]:
         draw.text((32, 230), 'Could not load backup jobs', fill='#f87171', font=head_font)
         _text(draw, (32, 266), str(data.get('error')), font, '#fecaca', width - 64)
     elif not backups:
-        draw.text((32, 240), 'No backup jobs found in Duplicati.', fill='#cbd5e1', font=head_font)
+        draw.text((32, 240), 'No restic backup profiles configured.', fill='#cbd5e1', font=head_font)
     else:
         y = 230
         for item in backups[:10]:
-            backup = item.get('Backup') or {}
-            meta = backup.get('Metadata') or {}
-            schedule = item.get('Schedule') or {}
-            name = str(backup.get('Name') or 'Unnamed')
-            status = 'Running' if item.get('ActiveRunId') is not None else _strip_emoji_prefix(str(meta.get('LastResult') or meta.get('ParsedResult') or 'Idle'))
-            color = '#22c55e' if status.lower() in ('success', 'idle') else '#f59e0b'
+            if item.get('Backup'):
+                backup = item.get('Backup') or {}
+                meta = backup.get('Metadata') or {}
+                schedule = item.get('Schedule') or {}
+                name = str(backup.get('Name') or 'Unnamed')
+                status = 'Running' if item.get('ActiveRunId') is not None else _strip_emoji_prefix(str(meta.get('LastResult') or meta.get('ParsedResult') or 'Idle'))
+            else:
+                backup = item
+                meta = {}
+                schedule = item.get('schedule') or {}
+                name = str(item.get('name') or 'Unnamed')
+                status = 'Error' if item.get('error') else ('Enabled' if item.get('enabled') else 'Disabled')
+            color = '#22c55e' if status.lower() in ('success', 'idle', 'enabled') else '#f59e0b'
             if 'fail' in status.lower() or 'error' in status.lower():
                 color = '#ef4444'
             draw.rounded_rectangle((32, y, width - 32, y + 196), radius=10, fill='#151b22', outline='#263241')
             draw.ellipse((52, y + 24, 68, y + 40), fill=color)
             draw.text((82, y + 17), name[:70], fill='#f3f4f6', font=head_font)
             draw.text((width - 245, y + 20), status[:22], fill=color, font=font)
-            rows = [
-                ('Target', str(backup.get('TargetURL') or '—')),
-                ('Sources', _backup_sources(backup)),
-                ('Schedule', str(schedule.get('Repeat') or 'manual')),
-                ('Last backup', _fmt_datetime(meta.get('LastBackupDate') or meta.get('LastBackupStarted'))),
-                ('Next run', _fmt_datetime(schedule.get('NextRun') or item.get('NextRun') or meta.get('NextBackupDate'))),
-            ]
+            if item.get('Backup'):
+                rows = [
+                    ('Target', str(backup.get('TargetURL') or '—')),
+                    ('Sources', _backup_sources(backup)),
+                    ('Schedule', str(schedule.get('Repeat') or 'manual')),
+                    ('Last backup', _fmt_datetime(meta.get('LastBackupDate') or meta.get('LastBackupStarted'))),
+                    ('Next run', _fmt_datetime(schedule.get('NextRun') or item.get('NextRun') or meta.get('NextBackupDate'))),
+                ]
+            else:
+                rows = [
+                    ('Repo', str(item.get('repository') or '—')),
+                    ('Sources', '; '.join(str(s) for s in (item.get('sources') or []) if str(s).strip()) or '—'),
+                    ('Schedule', str(schedule.get('frequency') or 'manual') + (' on' if schedule.get('enabled') else ' off')),
+                    ('Snapshots', str(item.get('snapshots') if item.get('snapshots') is not None else '—')),
+                    ('Last snapshot', str(item.get('last_snapshot') or 'never')[:40]),
+                ]
             yy = y + 58
             for label, value in rows:
                 draw.text((54, yy), label + ':', fill='#94a3b8', font=small)

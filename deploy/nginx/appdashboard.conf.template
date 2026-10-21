@@ -458,17 +458,14 @@ server {
         proxy_hide_header X-Frame-Options;
     }
 
-    location ^~ /providers/ {
-        proxy_pass __OMNIROUTE_UPSTREAM__/providers/;
-        proxy_http_version 1.1;
-        proxy_ssl_server_name on;
-        proxy_set_header Host __AI_HOST__;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_hide_header Content-Security-Policy;
-        proxy_hide_header X-Frame-Options;
+    location = /admin-omniroute/embed-sw.js {
+        alias /var/www/AppDashboard/project/omniroute-embed-sw.js;
+        default_type application/javascript;
+        add_header Cache-Control "no-store";
+        add_header Service-Worker-Allowed "/admin-omniroute/";
     }
 
-    location = /sw.js {
+    location ^~ /admin-omniroute/sw.js {
         proxy_pass __OMNIROUTE_UPSTREAM__/sw.js;
         proxy_http_version 1.1;
         proxy_ssl_server_name on;
@@ -478,16 +475,8 @@ server {
         proxy_hide_header X-Frame-Options;
     }
 
-    location /portainer/ {
-        proxy_pass http://127.0.0.1:9000/;
-        proxy_http_version 1.1;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection $connection_upgrade;
-        proxy_read_timeout 86400;
+    location ^~ /_next/ {
+        rewrite ^/_next/(.*)$ /admin-omniroute/_next/$1 last;
     }
 
     location /ssh-ws {

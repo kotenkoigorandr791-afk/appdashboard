@@ -1342,21 +1342,33 @@ function oauth_route_bridge(): void {
 
 function omniroute_jwt_secret(): string {
     static $cache = null;
-    if ($cache !== null) {
+    if (is_string($cache) && $cache !== '') {
         return $cache;
     }
-    $envFile = '/opt/docker/omniroute/omniroute_data/server.env';
-    if (!is_readable($envFile)) {
-        $cache = '';
-        return $cache;
+    foreach ([getenv('OMNIROUTE_JWT_SECRET'), getenv('JWT_SECRET')] as $fromEnv) {
+        if (is_string($fromEnv) && trim($fromEnv) !== '') {
+            $cache = trim($fromEnv);
+            return $cache;
+        }
     }
-    $content = (string)file_get_contents($envFile);
-    if (preg_match('/^JWT_SECRET=(.+)$/m', $content, $m)) {
-        $cache = trim($m[1]);
-        return $cache;
+    $candidates = [
+        '/opt/docker/omniroute/omniroute_data/server.env',
+        '/opt/AppDashboard/data/omniroute_jwt.env',
+    ];
+    foreach ($candidates as $envFile) {
+        if (!is_readable($envFile)) {
+            continue;
+        }
+        $content = (string)@file_get_contents($envFile);
+        if ($content !== '' && preg_match('/^JWT_SECRET=(.+)$/m', $content, $m)) {
+            $secret = trim($m[1]);
+            if ($secret !== '') {
+                $cache = $secret;
+                return $cache;
+            }
+        }
     }
-    $cache = '';
-    return $cache;
+    return '';
 }
 
 function omniroute_issue_auth_token(): ?string {
@@ -1365,7 +1377,20 @@ function omniroute_issue_auth_token(): ?string {
         return null;
     }
     $now = time();
-    return JWT::encode(['authenticated' => true, 'iat' => $now, 'exp' => $now + 86400 * 30], $secret, 'HS256');
+    $jti = sprintf(
+        '%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
+        random_int(0, 0xffff), random_int(0, 0xffff),
+        random_int(0, 0xffff),
+        random_int(0, 0x0fff) | 0x4000,
+        random_int(0, 0x3fff) | 0x8000,
+        random_int(0, 0xffff), random_int(0, 0xffff), random_int(0, 0xffff)
+    );
+    return JWT::encode([
+        'authenticated' => true,
+        'iat' => $now,
+        'exp' => $now + 86400 * 30,
+        'jti' => $jti,
+    ], $secret, 'HS256');
 }
 
 function oauth_route_omniroute_bridge(): void {
@@ -1392,13 +1417,15 @@ function oauth_route_omniroute_bridge(): void {
     }
     $https = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
         || (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https');
-    setcookie('auth_token', $token, [
+    $cookieOpts = [
         'expires' => time() + 86400 * 30,
-        'path' => '/',
         'secure' => $https,
         'httponly' => true,
         'samesite' => 'Lax',
-    ]);
+    ];
+    setcookie('auth_token', $token, $cookieOpts + ['path' => '/']);
+    setcookie('auth_token', $token, $cookieOpts + ['path' => '/admin-omniroute']);
+    setcookie('auth_token', $token, $cookieOpts + ['path' => '/admin-omniroute/']);
     $next = trim((string)($_GET['next'] ?? '/admin-omniroute/home'));
     if (!str_starts_with($next, '/admin-omniroute/')) {
         $next = '/admin-omniroute/home';

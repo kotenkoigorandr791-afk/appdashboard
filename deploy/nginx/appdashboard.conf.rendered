@@ -1,0 +1,596 @@
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    ''      close;
+}
+
+map "$scheme:$http_x_forwarded_proto" $is_secure_conn {
+    https:         1;
+    https:https    1;
+    http:https     1;
+    default        0;
+}
+map $is_secure_conn $hsts_header {
+    1 "max-age=31536000; includeSubDomains";
+    default "";
+}
+map $is_secure_conn $uir_token {
+    1 "upgrade-insecure-requests";
+    default "";
+}
+limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
+limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
+limit_req_status 429;
+
+
+
+server {
+    listen 127.0.0.1:8080;
+    server_name ai.example.com;
+    include /opt/docker/appdashboard/nginx/cloudflare-realip.conf;
+    client_max_body_size 64m;
+    access_log /var/log/nginx/omniroute_access.log;
+    error_log /var/log/nginx/omniroute_error.log warn;
+    location / {
+        proxy_pass http://127.0.0.1:20128;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto https;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 3600;
+        proxy_send_timeout 3600;
+    }
+}
+
+server {
+    listen 127.0.0.1:8080 default_server;
+    server_name _;
+
+    root /var/www/AppDashboard;
+    index index.php index.html;
+
+    client_max_body_size 8m;
+
+    gzip on;
+    gzip_vary on;
+    gzip_comp_level 5;
+    gzip_min_length 1024;
+    gzip_proxied any;
+    gzip_types text/css application/javascript application/json image/svg+xml
+               text/plain text/xml application/xml font/ttf font/otf application/wasm;
+
+    access_log /var/log/nginx/appdashboard_access.log;
+    error_log  /var/log/nginx/appdashboard_error.log;
+
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    add_header Permissions-Policy "geolocation=(self), microphone=(), camera=(self), usb=(), clipboard-write=*, clipboard-read=*, unload=*" always;
+    add_header Strict-Transport-Security "$hsts_header" always;
+
+    if ($request_uri ~* "^(.*/)index\.(php|html?)$") {
+        return 301 $1;
+    }
+
+    location = /google7cb515c0a41e4548.html { }
+
+    location ~ ^/(uploads|apps/cloud/storage|apps/cloud/temp|apps/cloud/temp_convert|apps/cloud/transcription_uploads|apps/cloud/tts_output|apps/cloud/upload_sessions|apps/cloud/data|apps/films/comments|apps/spends/backups|apps/steps/users|apps/spends/users|apps/kanboard/data)/.*\.(php|php3|php4|php5|php7|php8|phtml|phar|phps|pht|phtm|inc|cgi|pl|py|rb|jsp|asp|aspx)$ {
+        return 403;
+    }
+
+    location ~ ^/(\.git|\.svn|\.hg|\.cursor|\.venv|\.Trash-1000|\.security_backups)(/|$) {
+        return 403;
+    }
+
+    location ~ /vendor/ { return 403; }
+    location ~ /node_modules/ { return 403; }
+
+    location ~ \.(sqlite|sqlite3|db|db3|sqlitedb)$ { return 403; }
+    location ~ ^/data/.*\.sqlite3$ { return 403; }
+    location ~ ^/db/.*\.sqlite3$ { return 403; }
+    location ~ ^/database/.*\.sqlite3$ { return 403; }
+
+    location ^~ /data/.ssh/ { deny all; }
+
+    location ^~ /.well-known/ {
+        try_files $uri $uri/ /index.php$is_args$args;
+    }
+
+    location ~ ^/(login/oauth/authorize|login/oauth/access_token|api/v1/user|api/v1/user/emails|plane-oauth/login/oauth/authorize|plane-oauth/login/oauth/access_token|plane-oauth/api/v1/user|plane-oauth/api/v1/user/emails)$ {
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param REQUEST_URI $request_uri;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location = /webdav {
+        client_max_body_size 0;
+        fastcgi_request_buffering off;
+        gzip off;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_read_timeout 86400;
+        fastcgi_send_timeout 86400;
+        fastcgi_param SCRIPT_FILENAME $document_root/apps/cloud/webdav.php;
+        fastcgi_param SCRIPT_NAME /webdav;
+        fastcgi_param REQUEST_URI $request_uri;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location ^~ /webdav/ {
+        client_max_body_size 0;
+        fastcgi_request_buffering off;
+        gzip off;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_read_timeout 86400;
+        fastcgi_send_timeout 86400;
+        fastcgi_param SCRIPT_FILENAME $document_root/apps/cloud/webdav.php;
+        fastcgi_param SCRIPT_NAME /webdav;
+        fastcgi_param REQUEST_URI $request_uri;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location ~ /\. { deny all; }
+
+    location ~* \.(htaccess|htpasswd|ini|log|sh|bak|sql|env|zip|tar|gz|tgz|7z|bz2|rar|swp|swo|orig|backup|old|dist|lock|yml|yaml)$ {
+        deny all;
+    }
+
+    location = /cpp_solver.zip { }
+    location = /v13.54.34.z1.zip { }
+    location ^~ /mcp/ {
+        try_files $uri /index.php$is_args$args;
+    }
+
+    location ^~ /mcp-api/ {
+        proxy_pass http://127.0.0.1:8808/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_send_timeout 86400;
+    }
+
+    location ~ ^/performance/(cpu|mem|memswap|diskio|network|uptime)/?$ {
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/project/performance/server_monitor.php;
+        fastcgi_param QUERY_STRING endpoint=$1&$query_string;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location = /terms {
+        rewrite ^ /terms.html last;
+    }
+    location = /privacy {
+        rewrite ^ /privacy.html last;
+    }
+    location = /main {
+        limit_req zone=appdashboard_admin burst=40 nodelay;
+        rewrite ^ /index.php last;
+    }
+    location = /login {
+        limit_req zone=appdashboard_auth burst=20 nodelay;
+        rewrite ^ /index.php last;
+    }
+    location ^~ /login/oauth/ {
+        rewrite ^ /index.php last;
+    }
+    location = /register {
+        limit_req zone=appdashboard_auth burst=20 nodelay;
+        rewrite ^ /index.php last;
+    }
+    location = /api/client-auth {
+        rewrite ^ /index.php?api=client_auth last;
+    }
+
+    location ^~ /public-api/ {
+        limit_req zone=appdashboard_api burst=120 nodelay;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/public-api/index.php;
+        fastcgi_param REQUEST_URI $request_uri;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location ~ ^/(photos|explore|map|sharing|search|favorites|archive|utilities|locked|trash|albums|settings|user-settings|partners|admin-system-settings)(/|$) {
+        absolute_redirect off;
+        return 302 /embed/photo$uri$is_args$args;
+    }
+
+    location = /embed/git {
+        return 302 /embed/git/;
+    }
+
+    location = /embed/git/authorize {
+        absolute_redirect off;
+        return 302 /authorize$is_args$args;
+    }
+
+    location ^~ /embed/git/ {
+        absolute_redirect off;
+        proxy_pass http://host.docker.internal:3000/;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host git.serverkherson.xyz;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_redirect ~^https?://[^/]+(/.*)$ /embed/git$1;
+        proxy_cookie_path / /embed/git/;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self'" always;
+        sub_filter_once off;
+        sub_filter_types text/css application/javascript application/json text/javascript;
+        sub_filter '<head>' '<head><base href="/embed/git/"><script>(function(){var p="/embed/git",a=["/explore","/user","/login","/notifications","/issues","/pulls","/milestones","/avatar","/repo","/api/v1","/assets","/css","/js","/serviceworker.js","/.well-known","/favicon","/manifest.json","/sw.js","/v2","/git-lfs","/oauth"];function m(u){for(var i=0;i<a.length;i++){var v=a[i];if(u===v||u.indexOf(v+"/")===0||u.indexOf(v+"?")===0)return true}return false}function r(u){if(typeof u!=="string"||u==="")return u;if(u===p||u.indexOf(p+"/")===0)return u;if(u.indexOf(location.origin)===0)u=u.slice(location.origin.length);if(u==="/"||u==="")return p+"/";if(m(u))return p+u;return u}var f=window.fetch;if(f)window.fetch=function(i,n){if(typeof i==="string")i=r(i);else if(i&&typeof Request!=="undefined"&&i instanceof Request){var x=new URL(i.url,location.href),u=r(x.pathname+x.search);if(u!==(x.pathname+x.search))i=new Request(u,i)}return f.call(this,i,n)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(mth,u){arguments[1]=r(u);return o.apply(this,arguments)};var ps=history.pushState;history.pushState=function(s,t,u){return ps.call(this,s,t,typeof u==="string"?r(u):u)};var rs=history.replaceState;history.replaceState=function(s,t,u){return rs.call(this,s,t,typeof u==="string"?r(u):u)};document.addEventListener("click",function(e){var a=e.target&&e.target.closest?e.target.closest("a[href]"):null;if(!a)return;var href=a.getAttribute("href");if(!href||href.charAt(0)==="#"||href.indexOf("javascript:")===0)return;try{var x=new URL(href,location.href);if(x.origin!==location.origin)return;var nu=r(x.pathname+x.search+x.hash);if(nu!==(x.pathname+x.search+x.hash)){e.preventDefault();location.href=nu}}catch(err){}},true);if(m(location.pathname)&&location.pathname.indexOf(p)!==0){rs.call(history,history.state,document.title,r(location.pathname+location.search+location.hash))}})();</script>';
+        sub_filter 'href="/explore' 'href="/embed/git/explore';
+        sub_filter 'href="/user/' 'href="/embed/git/user/';
+        sub_filter 'href="/assets/' 'href="/embed/git/assets/';
+        sub_filter 'src="/assets/' 'src="/embed/git/assets/';
+        sub_filter 'href="/css/' 'href="/embed/git/css/';
+        sub_filter 'src="/js/' 'src="/embed/git/js/';
+        sub_filter '"/api/v1/' '"/embed/git/api/v1/';
+    }
+
+    location = /embed/photo {
+        return 302 /embed/photo/;
+    }
+
+    location = /embed/photo/authorize {
+        absolute_redirect off;
+        return 302 /authorize$is_args$args;
+    }
+
+    location ^~ /embed/photo/ {
+        absolute_redirect off;
+        proxy_pass http://host.docker.internal:2283/;
+        proxy_http_version 1.1;
+        proxy_ssl_server_name on;
+        proxy_set_header Host photo.serverkherson.xyz;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_redirect ~^https?://[^/]+(/.*)$ /embed/photo$1;
+        proxy_cookie_path / /embed/photo/;
+        proxy_hide_header X-Frame-Options;
+        proxy_hide_header Content-Security-Policy;
+        add_header Content-Security-Policy "frame-ancestors 'self'" always;
+        sub_filter_once off;
+        sub_filter_types text/css application/javascript application/json text/javascript;
+        sub_filter '<head>' '<head><base href="/embed/photo/"><script>(function(){var p="/embed/photo",a=["/api","/auth","/_app","/.well-known","/favicon","/manifest","/service-worker","/photos","/explore","/map","/sharing","/search","/albums","/settings","/user-settings","/archive","/favorites","/trash","/utilities","/locked","/partners","/admin-system-settings"];function m(u){for(var i=0;i<a.length;i++){var v=a[i];if(u===v||u.indexOf(v+"/")===0||u.indexOf(v+"?")===0)return true}return false}function r(u){if(typeof u!=="string"||u==="")return u;if(u===p||u.indexOf(p+"/")===0)return u;if(u.indexOf(location.origin)===0)u=u.slice(location.origin.length);if(m(u))return p+u;return u}var f=window.fetch;if(f)window.fetch=function(i,n){if(typeof i==="string")i=r(i);else if(i&&typeof Request!=="undefined"&&i instanceof Request){var x=new URL(i.url,location.href),u=r(x.pathname+x.search);if(u!==(x.pathname+x.search))i=new Request(u,i)}return f.call(this,i,n)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(mth,u){arguments[1]=r(u);return o.apply(this,arguments)};var ps=history.pushState;history.pushState=function(s,t,u){return ps.call(this,s,t,typeof u==="string"?r(u):u)};var rs=history.replaceState;history.replaceState=function(s,t,u){return rs.call(this,s,t,typeof u==="string"?r(u):u)};if(m(location.pathname)&&location.pathname.indexOf(p)!==0){rs.call(history,history.state,document.title,r(location.pathname+location.search+location.hash))}})();</script>';
+        sub_filter '"/_app/' '"/embed/photo/_app/';
+        sub_filter "'/_app/" "'/embed/photo/_app/";
+        sub_filter 'href="/_app/' 'href="/embed/photo/_app/';
+        sub_filter 'src="/_app/' 'src="/embed/photo/_app/';
+        sub_filter '"/api/' '"/embed/photo/api/';
+        sub_filter "'/api/" "'/embed/photo/api/";
+        sub_filter '"/auth/' '"/embed/photo/auth/';
+        sub_filter "'/auth/" "'/embed/photo/auth/";
+        sub_filter '"/.well-known/' '"/embed/photo/.well-known/';
+        sub_filter '"/favicon' '"/embed/photo/favicon';
+        sub_filter '"/manifest' '"/embed/photo/manifest';
+        sub_filter '"/service-worker' '"/embed/photo/service-worker';
+    }
+
+    location ^~ /_next/ {
+        proxy_pass http://127.0.0.1:20128/_next/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location ^~ /api/steps {
+        rewrite ^/api(/.*)$ /public-api$1 break;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/public-api/index.php;
+        fastcgi_param REQUEST_URI $uri$is_args$args;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
+    location ^~ /api/ {
+        proxy_pass http://127.0.0.1:20128/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location ^~ /v1/ {
+        proxy_pass http://127.0.0.1:20128/v1/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location ^~ /home/ {
+        alias /var/www/AppDashboard/project/home/;
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    location ~ ^/(home|dashboard|offline|a2a|chat)(/|$) {
+        proxy_pass http://127.0.0.1:20128$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location ~ ^/(manifest\.webmanifest|sw\.js|favicon\.ico|favicon\.svg|apple-touch-icon\.png|icon-[^/]+\.png)$ {
+        proxy_pass http://127.0.0.1:20128$request_uri;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location = /admin-omniroute {
+        return 302 /admin-omniroute/;
+    }
+
+    location ^~ /admin-omniroute/ {
+        absolute_redirect off;
+        proxy_pass http://127.0.0.1:20128/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header Accept-Encoding "";
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+        proxy_redirect ~^https?://ai\.example\.com(/.*)$ /admin-omniroute$1;
+        proxy_redirect ~^(/.*)$ /admin-omniroute$1;
+        proxy_cookie_path / /admin-omniroute/;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: ws: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* https://static.cloudflareinsights.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" always;
+        sub_filter_once off;
+        sub_filter_types *;
+        sub_filter '<head>' '<head><base href="/admin-omniroute/"><script>(function(){var p="/admin-omniroute",a=["/api","/v1","/dashboard","/home","/login","/offline","/manifest.webmanifest","/sw.js","/a2a","/chat"];function m(u){for(var i=0;i<a.length;i++){var v=a[i];if(u===v||u.indexOf(v+"/")===0||u.indexOf(v+"?")===0)return true}return false}function r(u){if(typeof u!=="string")return u;if(u.indexOf(p+"/")===0)return u;if(u.indexOf(location.origin)===0)u=u.slice(location.origin.length);if(m(u))return p+u;return u}var f=window.fetch;if(f)window.fetch=function(i,n){if(typeof i==="string")i=r(i);else if(i instanceof Request){var x=new URL(i.url,location.href),u=r(x.origin===location.origin?x.pathname+x.search:i.url);if(u!==i.url&&u!==x.pathname+x.search)i=new Request(u,i)}return f.call(this,i,n)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(m,u){arguments[1]=r(u);return o.apply(this,arguments)}})();</script>';
+        sub_filter '"/_next/' '"/admin-omniroute/_next/';
+        sub_filter "'/_next/" "'/admin-omniroute/_next/";
+        sub_filter '"/api/' '"/admin-omniroute/api/';
+        sub_filter '"/dashboard' '"/admin-omniroute/dashboard';
+        sub_filter '"/home' '"/admin-omniroute/home';
+        sub_filter '"/login"' '"/admin-omniroute/login"';
+        sub_filter '"/offline"' '"/admin-omniroute/offline"';
+        sub_filter '"/manifest.webmanifest"' '"/admin-omniroute/manifest.webmanifest"';
+        sub_filter '"/apple-touch-icon' '"/admin-omniroute/apple-touch-icon';
+        sub_filter '"/favicon' '"/admin-omniroute/favicon';
+        sub_filter '"/icon-' '"/admin-omniroute/icon-';
+        sub_filter '"/sw.js' '"/admin-omniroute/sw.js';
+        sub_filter '"/a2a' '"/admin-omniroute/a2a';
+        sub_filter '"/chat/' '"/admin-omniroute/chat/';
+        sub_filter 'http://example.com/home/' 'https://example.com/admin-omniroute/home/';
+        sub_filter 'http://example.com/home' 'https://example.com/admin-omniroute/home';
+        sub_filter 'url=/home' 'url=/admin-omniroute/home';
+        sub_filter '  "/",' '  "/admin-omniroute/",';
+    }
+
+    location ^~ /admin-omniroute/_next/ {
+        proxy_pass http://127.0.0.1:20128/_next/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location ^~ /admin-omniroute/api/ {
+        proxy_pass http://127.0.0.1:20128/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Host ai.example.com;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_hide_header Content-Security-Policy;
+        proxy_hide_header X-Frame-Options;
+    }
+
+    location /portainer/ {
+        proxy_pass http://127.0.0.1:9000/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+
+    location /ssh-ws {
+        limit_req zone=appdashboard_admin burst=20 nodelay;
+        proxy_pass http://127.0.0.1:8765;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+
+    location /smart-home-ws {
+        proxy_pass http://127.0.0.1:8766;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+
+    location /cloud-collab-ws {
+        proxy_pass http://127.0.0.1:8767;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+
+    location /cloud-sync-ws {
+        proxy_pass http://127.0.0.1:8770;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+        proxy_read_timeout 86400;
+    }
+
+    location ^~ /apps/films/comments/ {
+        set $deny_protected 1;
+        if ($arg_sharedFile != "") { set $deny_protected 0; }
+        if ($arg_download != "") { set $deny_protected 0; }
+        if ($arg_display != "") { set $deny_protected 0; }
+        if ($deny_protected = 1) { return 403; }
+        try_files $uri =404;
+    }
+
+    location ^~ /project/performance/chache/ {
+        set $deny_protected 1;
+        if ($arg_sharedFile != "") { set $deny_protected 0; }
+        if ($arg_download != "") { set $deny_protected 0; }
+        if ($arg_display != "") { set $deny_protected 0; }
+        if ($deny_protected = 1) { return 403; }
+        try_files $uri =404;
+    }
+
+    location ~ ^/project/performance/(style\.css|icon\.(png|svg))$ {
+        try_files $uri =404;
+        access_log off;
+        expires 1h;
+    }
+
+    location ~ ^/apps/steps/users/[^/]+/.*\.csv$ {
+        set $deny_protected 1;
+        if ($arg_sharedFile != "") { set $deny_protected 0; }
+        if ($arg_download != "") { set $deny_protected 0; }
+        if ($arg_display != "") { set $deny_protected 0; }
+        if ($deny_protected = 1) { return 403; }
+        try_files $uri =404;
+    }
+
+    location ~ ^/apps/steps/users/[^/]+/.*\.json$ {
+        set $deny_protected 1;
+        if ($arg_sharedFile != "") { set $deny_protected 0; }
+        if ($arg_download != "") { set $deny_protected 0; }
+        if ($arg_display != "") { set $deny_protected 0; }
+        if ($deny_protected = 1) { return 403; }
+        try_files $uri =404;
+    }
+
+    location ~ ^/apps/spends/users/[^/]+/.*\.csv$ {
+        set $deny_protected 1;
+        if ($arg_sharedFile != "") { set $deny_protected 0; }
+        if ($arg_download != "") { set $deny_protected 0; }
+        if ($arg_display != "") { set $deny_protected 0; }
+        if ($deny_protected = 1) { return 403; }
+        try_files $uri =404;
+    }
+
+    location ^~ /apps/spends/backups/ {
+        set $deny_protected 1;
+        if ($arg_sharedFile != "") { set $deny_protected 0; }
+        if ($arg_download != "") { set $deny_protected 0; }
+        if ($arg_display != "") { set $deny_protected 0; }
+        if ($deny_protected = 1) { return 403; }
+        try_files $uri =404;
+    }
+
+    location ^~ /project/assets/ {
+        try_files $uri =404;
+        expires 1d;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
+    location ^~ /project/onboarding/ {
+        try_files $uri =404;
+        expires 1d;
+        add_header Cache-Control "public, max-age=86400";
+    }
+
+    location ^~ /preview/ {
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+    }
+
+    location ~* \.(?:png|jpe?g|gif|svg|ico|woff2?|ttf|otf|eot)$ {
+        try_files $uri =404;
+        expires 7d;
+        add_header Cache-Control "public, max-age=604800";
+        access_log off;
+    }
+
+    location / {
+        try_files $uri $uri/ /index.php$is_args$args;
+    }
+
+    location ~ \.phps$ {
+        deny all;
+    }
+
+    location = /apps/cloud/ai.php {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+        fastcgi_read_timeout 900;
+        fastcgi_buffering off;
+        gzip off;
+    }
+
+    location ~ \.php$ {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+}
