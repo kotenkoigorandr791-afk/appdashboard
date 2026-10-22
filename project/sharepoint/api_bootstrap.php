@@ -1,4 +1,7 @@
 <?php
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__, 2));
+}
 require_once __DIR__ . '/bootstrap.php';
 
 if (!function_exists('sharepoint_api_owner')) {
@@ -16,6 +19,10 @@ if (!function_exists('sharepoint_api_owner')) {
 if (!function_exists('sharepoint_api_handle')) {
     function sharepoint_api_handle(string $appId): void
     {
+        if (defined('APP_ROOT')) {
+            require_once APP_ROOT . '/lib/sentry_bootstrap.php';
+            app_sentry_bootstrap($appId . '-share');
+        }
         if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
             sp_json_response(['success' => false, 'error' => 'method_not_allowed'], 405);
         }
