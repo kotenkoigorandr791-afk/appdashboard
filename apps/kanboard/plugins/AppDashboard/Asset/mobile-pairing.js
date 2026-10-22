@@ -15,8 +15,10 @@
     var hintBtn = document.getElementById('kb-mobile-manual-hint');
     var closeBtn = document.getElementById('kb-mobile-app-close');
     var openBtn = document.getElementById('kb-open-mobile-app');
+    var settingsBtn = document.getElementById('kb-open-settings');
 
-    var lanEndpoint = window.__kbMobileLanEndpoint || '';
+    var lanEndpoint = modal.getAttribute('data-endpoint') || '';
+    var accountEmail = modal.getAttribute('data-account') || '';
     var currentHost = window.location.hostname;
     var endpoint =
       lanEndpoint && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === '::1')
@@ -40,6 +42,33 @@
       el.setAttribute('aria-hidden', 'false');
       document.body.classList.add('modal-open');
     }
+    function activateTab(name) {
+      var tabs = document.querySelectorAll('.kb-settings-tab');
+      var panels = document.querySelectorAll('.kb-settings-panel');
+      if (!tabs.length) return;
+      var known = false;
+      tabs.forEach(function (tab) {
+        var active = tab.getAttribute('data-kb-settings-tab') === name;
+        if (active) known = true;
+        tab.classList.toggle('is-active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      if (!known) name = 'profile';
+      panels.forEach(function (panel) {
+        panel.classList.toggle('is-active', panel.id === 'kb-settings-panel-' + name);
+      });
+    }
+    function openSettings(tab) {
+      refreshConnectionFields();
+      activateTab(tab || 'profile');
+      openModal(modal);
+    }
+    function refreshConnectionFields() {
+      var endpointEl = document.getElementById('kb-connection-endpoint');
+      if (endpointEl) endpointEl.textContent = endpoint;
+      var accountEl = document.getElementById('kb-connection-account');
+      if (accountEl && accountEmail) accountEl.textContent = accountEmail;
+    }
     function closeModal(el) {
       if (!el) return;
       el.style.display = 'none';
@@ -60,7 +89,33 @@
       openModal(hintModal);
     }
 
-    openBtn && openBtn.addEventListener('click', function () { openModal(modal); });
+    openBtn && openBtn.addEventListener('click', function () { openSettings('mobile'); });
+    settingsBtn && settingsBtn.addEventListener('click', function () { openSettings('profile'); });
+    document.querySelectorAll('.kb-settings-tab').forEach(function (tab) {
+      tab.addEventListener('click', function () {
+        activateTab(tab.getAttribute('data-kb-settings-tab') || 'profile');
+      });
+    });
+    document.querySelectorAll('[data-kb-open-tab]').forEach(function (trigger) {
+      trigger.addEventListener('click', function () {
+        activateTab(trigger.getAttribute('data-kb-open-tab') || 'profile');
+      });
+    });
+    var connectionManual = document.getElementById('kb-connection-manual');
+    connectionManual && connectionManual.addEventListener('click', openHint);
+    var connectionRevoke = document.getElementById('kb-connection-revoke');
+    connectionRevoke && connectionRevoke.addEventListener('click', async function () {
+      if (connectionRevoke.disabled) return;
+      connectionRevoke.disabled = true;
+      try {
+        await revokeToken();
+        markTokensRevoked();
+      } catch (e) {
+        console.error('Pairing token revoke error:', e);
+      } finally {
+        connectionRevoke.disabled = false;
+      }
+    });
     closeBtn && closeBtn.addEventListener('click', function () { closeModal(modal); });
     modal.addEventListener('click', function (e) { if (e.target === modal) closeModal(modal); });
     hintBtn && hintBtn.addEventListener('click', openHint);
@@ -84,58 +139,15 @@
       }
     }
 
-    async function ensureQrCodeStyling() {
-      if (typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
-      var url = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
-      var res = await fetch(url, { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var code = await res.text();
-      var prevDefine = typeof define !== 'undefined' ? define : undefined;
+    function renderPairingQr(hostEl, data) {
       try {
-        if (typeof window !== 'undefined') window.define = undefined;
-        if (typeof self !== 'undefined') self.define = undefined;
-        (0, eval)(code);
-      } finally {
-        if (typeof window !== 'undefined' && typeof prevDefine !== 'undefined') window.define = prevDefine;
-        if (typeof self !== 'undefined' && typeof prevDefine !== 'undefined') self.define = prevDefine;
-      }
-      if (typeof window !== 'undefined' && typeof window.QRCodeStyling !== 'undefined') return window.QRCodeStyling;
-      if (typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
-      return QRCodeStyling;
-    }
-
-    async function renderPairingQr(hostEl, data) {
-      try {
-        var QRCodeStylingCtor = await ensureQrCodeStyling();
-        if (typeof QRCodeStylingCtor === 'undefined') {
-          hostEl.innerHTML = '<p style="color:#121212;padding:12px;">QR code unavailable</p>';
-          return;
-        }
-        hostEl.innerHTML = '';
-        var qr = new QRCodeStylingCtor({
-          width: 220,
-          height: 220,
-          type: 'svg',
-          data: data,
-          margin: 0,
-          qrOptions: { errorCorrectionLevel: 'H' },
-          dotsOptions: {
-            type: 'rounded',
-            gradient: {
-              type: 'linear',
-              rotation: Math.PI / 4,
-              colorStops: [
-                { offset: 0, color: '#6366f1' },
-                { offset: 0.5, color: '#818cf8' },
-                { offset: 1, color: '#22d3ee' },
-              ],
-            },
-          },
-          cornersSquareOptions: { type: 'extra-rounded', color: '#6366f1' },
-          cornersDotOptions: { type: 'dot', color: '#818cf8' },
-          backgroundOptions: { color: 'rgba(255,255,255,0)' },
-        });
-        qr.append(hostEl);
+        // Bundled qrcode-generator (MIT). Rendering locally keeps the QR working
+        // under the Kanboard CSP, which blocks remote scripts.
+        if (typeof qrcode !== 'function') throw new Error('QR generator not loaded');
+        var qr = qrcode(0, 'M');
+        qr.addData(data);
+        qr.make();
+        hostEl.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
       } catch (error) {
         console.error('Pairing QR error:', error);
         hostEl.innerHTML = '<p style="color:#121212;padding:12px;">QR code unavailable</p>';
@@ -191,7 +203,7 @@
         if (qrFrame) {
           qrFrame.style.display = 'flex';
           qrFrame.innerHTML = '';
-          await renderPairingQr(qrFrame, pairing.link);
+          renderPairingQr(qrFrame, pairing.link);
         }
         if (genBtn) genBtn.style.display = 'none';
         if (revokeBtn) revokeBtn.style.display = '';
@@ -200,6 +212,17 @@
         console.error('Pairing QR error:', e);
         showErr(String(e && e.message ? e.message : e));
       }
+    }
+
+    function markTokensRevoked() {
+      var devices = document.querySelector('.kb-connection-devices');
+      if (devices) {
+        devices.innerHTML = '<li class="kb-connection-empty">No phones connected yet.</li>';
+      }
+      var status = document.querySelector('.kb-connection-status strong');
+      if (status) status.textContent = 'No phones connected yet';
+      var note = document.querySelector('.kb-connection-status small');
+      if (note) note.textContent = 'Generate a pairing code to connect the Android app.';
     }
 
     async function revokeToken() {

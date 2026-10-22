@@ -69,6 +69,7 @@ class Plugin extends Base
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/circle-cycle.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/qr-generator.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);
         $this->hook->on('template:layout:bottom', ['template' => 'appDashboard:mobile/pairing_modal']);
@@ -194,6 +195,7 @@ class Plugin extends Base
                 'OverviewCalendarHelper',
                 'CircleCycleHelper',
                 'ProjectTilesHelper',
+                'MobilePairingHelper',
             ),
         );
     }

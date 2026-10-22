@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="app_name">Tasks</string>
-    <string name="widget_title">Open tasks</string>
-    <string name="widget_description">Shows open tasks for the selected project. Tap Refresh to sync.</string>
-    <string name="widget_refresh">Refresh</string>
-    <string name="widget_empty">No open tasks</string>
-</resources>

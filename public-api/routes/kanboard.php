@@ -32,6 +32,20 @@ function kb_api_rpc(string $email, string $rpcMethod, $params = [])
     return $out['result'];
 }
 
+/**
+ * Optional RPC: returns null instead of aborting the whole request.
+ * public_api_json() exits, so kb_api_fail() inside a try/catch can never be
+ * caught — optional calls must use this helper to stay non-fatal.
+ */
+function kb_api_try(string $email, string $rpcMethod, $params = [])
+{
+    $out = kanboard_client_call($email, $rpcMethod, $params);
+    if (empty($out['ok'])) {
+        return null;
+    }
+    return $out['result'] ?? null;
+}
+
 function kb_api_iso($ts): ?string
 {
     $n = (int) $ts;
@@ -238,18 +252,9 @@ function kb_api_stats(string $email, int $projectId): array
     }
     usort($userDistribution, static fn($a, $b) => $b['nb_tasks'] <=> $a['nb_tasks']);
     ksort($byPriority);
-    $members = [];
-    try {
-        $members = (array) kb_api_rpc($email, 'getProjectUsers', ['project_id' => $projectId]);
-    } catch (Throwable $e) {
-        $members = [];
-    }
-    $colors = [];
-    try {
-        $colors = (array) kb_api_rpc($email, 'getColorList');
-    } catch (Throwable $e) {
-        $colors = [];
-    }
+    // Optional enrichments: a failure here must not drop the whole stats payload.
+    $members = (array) kb_api_try($email, 'getProjectUsers', ['project_id' => $projectId]);
+    $colors = (array) kb_api_try($email, 'getColorList');
     return [
         'project_id' => $projectId,
         'open' => count($open),
