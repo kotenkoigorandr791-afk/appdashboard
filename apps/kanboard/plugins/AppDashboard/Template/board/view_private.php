@@ -119,9 +119,9 @@ foreach ($cycle['groups'] as $g) {
                         <span><?= (int) $stats['percent'] ?>%</span>
                     </div>
                     <div class="kb-cycle-views" role="tablist">
-                        <a href="<?= $listUrl ?>" class="kb-cycle-view-link<?= $view === 'list' ? ' is-active' : '' ?>"><?= t('List') ?></a>
-                        <a href="<?= $boardUrl ?>" class="kb-cycle-view-link<?= $view === 'board' ? ' is-active' : '' ?>"><?= t('Board') ?></a>
-                        <a href="<?= $tableUrl ?>" class="kb-cycle-view-link<?= $view === 'table' ? ' is-active' : '' ?>"><?= t('Table') ?></a>
+                        <a href="<?= $listUrl ?>" class="kb-cycle-view-link<?= $view === 'list' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12M2 8h12M2 13h12"/></svg><?= t('List') ?></a>
+                        <a href="<?= $boardUrl ?>" class="kb-cycle-view-link<?= $view === 'board' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg><?= t('Board') ?></a>
+                        <a href="<?= $tableUrl ?>" class="kb-cycle-view-link<?= $view === 'table' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 6h12M2 10h12M6 2v12M10 2v12"/></svg><?= t('Table') ?></a>
                     </div>
                     <?php if ($this->user->hasProjectAccess('TaskCreationController', 'show', $project['id'])): ?>
                         <?= $this->url->link('<span class="kb-plus">+</span> '.t('New task'), 'TaskCreationController', 'show', ['project_id' => $project['id']], false, 'js-modal-large kb-cycle-new-task') ?>

@@ -67,7 +67,7 @@
             </li>
         <?php endif ?>
         <li>
-            <?= $this->url->icon('folder', t('Manage projects'), 'ProjectListController', 'show') ?>
+            <?= $this->url->icon('folder', t('Manage projects'), 'ProjectListController', 'show', array(), false, 'js-modal-large') ?>
         </li>
     </ul>
 </div>

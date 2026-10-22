@@ -16,6 +16,13 @@ class Plugin extends Base
 {
     public function initialize()
     {
+        $this->setContentSecurityPolicy([
+            'default-src' => "'self'",
+            'script-src' => "'self' 'unsafe-inline' https://browser.sentry-cdn.com",
+            'style-src' => "'self' 'unsafe-inline'",
+            'img-src' => "* data:",
+            'connect-src' => "'self' https://sentry.serverkherson.xyz https://browser.sentry-cdn.com",
+        ]);
         $this->authenticationManager->register(new DashboardAuth($this->container));
         $this->avatarManager->register(new ShellAvatarProvider($this->container));
         $this->userManager->register(new ShellDirectoryBackendUserProvider($this->container));

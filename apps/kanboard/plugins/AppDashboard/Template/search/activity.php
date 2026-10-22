@@ -24,6 +24,7 @@
             <?php foreach ($tiles as $tile): ?>
                 <article class="kb-project-tile" data-project-id="<?= (int) $tile['id'] ?>">
                     <button type="button" class="kb-project-tile-head" aria-expanded="false">
+                        <span class="kb-project-tile-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3.5 7.5a2 2 0 0 1 2-2h5l2 2h6a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/></svg></span>
                         <span class="kb-project-tile-name"><?= $this->text->e($tile['name']) ?></span>
                         <span class="kb-project-tile-meta"><?= (int) $tile['open'] ?> <?= t('Open tasks') ?></span>
                         <span class="kb-project-tile-caret" aria-hidden="true"></span>
@@ -32,6 +33,7 @@
                         <?php foreach ($tile['groups'] as $group): ?>
                             <div class="kb-project-tile-group">
                                 <div class="kb-project-tile-group-title">
+                                    <span class="kb-project-tile-group-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg></span>
                                     <span><?= $this->text->e($group['title']) ?></span>
                                     <span class="kb-issue-group-count"><?= (int) $group['count'] ?></span>
                                 </div>

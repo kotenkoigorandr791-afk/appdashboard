@@ -424,8 +424,12 @@
     targetRows.appendChild(row);
     row.setAttribute('data-column-id', String(columnId));
     row.classList.toggle('is-done', statusKey === 'done');
+    row.removeAttribute('data-status-changing');
     var st = row.querySelector('.kb-issue-status');
-    if (st) st.innerHTML = STATUS_ICONS[statusKey] || STATUS_ICONS.todo;
+    if (st) {
+      st.classList.remove('is-changing');
+      st.innerHTML = STATUS_ICONS[statusKey] || STATUS_ICONS.todo;
+    }
     var group = targetRows.closest('.kb-issue-group');
     if (group) {
       var countEl = group.querySelector('.kb-issue-group-count');
@@ -496,6 +500,45 @@
         });
       });
     }
+  }
+
+  var statusClickBound = false;
+  function initStatusClick() {
+    if (!document.getElementById('kb-cycle-issues') || statusClickBound) return;
+    statusClickBound = true;
+    document.addEventListener('click', function (e) {
+      var status = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-status') : null;
+      if (!status) return;
+      var root = document.getElementById('kb-cycle-issues');
+      if (!root) return;
+      var row = status.closest('.kb-issue-row');
+      if (!row || row.getAttribute('data-status-changing') === '1') return;
+      var groups = Array.prototype.slice.call(root.querySelectorAll('.kb-issue-group[data-column-id]')).filter(function (group) {
+        return Number(group.getAttribute('data-column-id') || 0) > 0;
+      });
+      var currentId = Number(row.getAttribute('data-column-id') || 0);
+      var currentIndex = groups.findIndex(function (group) {
+        return Number(group.getAttribute('data-column-id') || 0) === currentId;
+      });
+      if (!groups.length || currentIndex < 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      var targetGroup = groups[(currentIndex + 1) % groups.length];
+      var targetRows = targetGroup.querySelector('.kb-issue-rows');
+      var taskId = Number(row.getAttribute('data-task-id') || 0);
+      var columnId = Number(targetGroup.getAttribute('data-column-id') || 0);
+      var statusKey = targetGroup.getAttribute('data-status') || 'todo';
+      if (!targetRows || !taskId || !columnId || columnId === currentId) return;
+      row.setAttribute('data-status-changing', '1');
+      status.classList.add('is-changing');
+      postQuickUpdate(taskId, 'column_id', columnId).then(function (res) {
+        if (!res.ok) throw new Error('status_update_failed');
+        moveTaskDomToGroup(row, targetRows, statusKey, columnId);
+      }).catch(function () {
+        row.removeAttribute('data-status-changing');
+        status.classList.remove('is-changing');
+      });
+    });
   }
 
   var tableDnDBound = false;
@@ -614,6 +657,7 @@
     initTableSort();
     initQuickSelects();
     initListDnD();
+    initStatusClick();
     initTableDnD();
     initProjectTiles();
     hideBoardSelectorChrome();

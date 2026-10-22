@@ -34,7 +34,9 @@
     var regenBtn = document.getElementById('kb-manual-pair-regenerate');
     var regenLabel = regenBtn ? regenBtn.innerHTML : '';
     var revokeLabel = revokeBtn ? revokeBtn.innerHTML : '';
-    var noTokenMsg = 'Generate a QR code first.';
+    var noTokenMsg = modal.getAttribute('data-no-token-msg') || 'Generate a QR code first.';
+    var noPhonesMsg = modal.getAttribute('data-no-phones-msg') || 'No phones connected yet';
+    var noPhonesNote = modal.getAttribute('data-no-phones-note') || 'Generate a pairing code to connect the Android app.';
 
     function openModal(el) {
       if (!el) return;
@@ -217,12 +219,12 @@
     function markTokensRevoked() {
       var devices = document.querySelector('.kb-connection-devices');
       if (devices) {
-        devices.innerHTML = '<li class="kb-connection-empty">No phones connected yet.</li>';
+        devices.innerHTML = '<li class="kb-connection-empty">' + noPhonesMsg + '</li>';
       }
       var status = document.querySelector('.kb-connection-status strong');
-      if (status) status.textContent = 'No phones connected yet';
+      if (status) status.textContent = noPhonesMsg;
       var note = document.querySelector('.kb-connection-status small');
-      if (note) note.textContent = 'Generate a pairing code to connect the Android app.';
+      if (note) note.textContent = noPhonesNote;
     }
 
     async function revokeToken() {

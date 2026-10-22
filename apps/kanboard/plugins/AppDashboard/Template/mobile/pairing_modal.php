@@ -46,7 +46,10 @@ $tokens = $this->MobilePairingHelper->tokens();
 ?>
 <div id="kb-mobile-app-modal" class="kb-mobile-modal" style="display:none;" aria-hidden="true"
      data-endpoint="<?= $this->text->e($lanEndpoint) ?>"
-     data-account="<?= $this->text->e($accountEmail) ?>">
+     data-account="<?= $this->text->e($accountEmail) ?>"
+     data-no-token-msg="<?= $this->text->e(t('Generate a QR code first.')) ?>"
+     data-no-phones-msg="<?= $this->text->e(t('No phones connected yet')) ?>"
+     data-no-phones-note="<?= $this->text->e(t('Generate a pairing code to connect the Android app.')) ?>">
     <div class="kb-settings-content">
         <button type="button" class="kb-mobile-close" id="kb-mobile-app-close" aria-label="<?= t('Close') ?>">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -72,7 +75,7 @@ $tokens = $this->MobilePairingHelper->tokens();
 
         <div class="kb-settings-panel is-active" id="kb-settings-panel-profile" role="tabpanel">
             <div class="kb-settings-profile">
-                <span class="kb-settings-avatar" aria-hidden="true"><?= $this->text->e($initial) ?></span>
+                <span class="kb-settings-avatar" aria-hidden="true"><?= $this->avatar->currentUserSmall('avatar-inline') ?></span>
                 <div class="kb-settings-profile-meta">
                     <strong><?= $this->text->e($displayName) ?></strong>
                     <span><?= $this->text->e($accountEmail) ?></span>
@@ -129,8 +132,10 @@ $tokens = $this->MobilePairingHelper->tokens();
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
                             <?= t('Generate') ?>
                         </button>
-                        <button type="button" id="kb-mobile-token-revoke" class="kb-ma-qr-generate" style="display:none;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                    </div>
+                    <div class="kb-ma-action-buttons">
+                        <button type="button" id="kb-mobile-token-revoke" class="kb-ma-btn kb-ma-btn-danger" style="display:none;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
                             <?= t('Revoke token') ?>
                         </button>
                     </div>
@@ -287,7 +292,10 @@ $tokens = $this->MobilePairingHelper->tokens();
             </div>
         </div>
         <div class="kb-manual-pair-footer">
-            <button type="button" id="kb-manual-pair-regenerate" class="kb-manual-pair-regen-btn"><?= t('Regenerate') ?></button>
+            <button type="button" id="kb-manual-pair-regenerate" class="kb-manual-pair-regen-btn">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><polyline points="21 3 21 9 15 9"></polyline></svg>
+                <?= t('Regenerate') ?>
+            </button>
         </div>
     </div>
 </div>

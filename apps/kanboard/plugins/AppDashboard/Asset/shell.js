@@ -174,12 +174,23 @@
     var board = document.getElementById('board');
     var container = document.getElementById('board-container');
     if (!board || !container) return;
+    var view = document.getElementById('kb-view-board') || container.parentElement;
     var lists = board.querySelectorAll('.board-task-list.board-column-expanded');
     var top = container.getBoundingClientRect().top + window.scrollY;
-    var h = Math.max(280, window.innerHeight - top - 16);
+    // Account for the view paddings so the board never spills past the viewport.
+    var bottomPad = 0;
+    if (view) {
+      var vs = window.getComputedStyle(view);
+      bottomPad = (parseFloat(vs.paddingBottom) || 0) + (parseFloat(vs.borderBottomWidth) || 0);
+    }
+    var h = Math.max(280, window.innerHeight - top - bottomPad);
     setBoardHeight(board, container, lists, h);
-    var over = document.documentElement.scrollHeight - window.innerHeight;
-    if (over > 0) setBoardHeight(board, container, lists, Math.max(280, h - over));
+    for (var pass = 0; pass < 3; pass++) {
+      var over = document.documentElement.scrollHeight - window.innerHeight;
+      if (over <= 0) break;
+      h = Math.max(280, h - over);
+      setBoardHeight(board, container, lists, h);
+    }
     var needsScroll = false;
     for (var i = 0; i < lists.length; i++) {
       if (lists[i].scrollHeight > lists[i].clientHeight + 2) needsScroll = true;
@@ -190,6 +201,12 @@
     container.classList.toggle('kb-board-fit', !needsX && !needsScroll);
     for (var j = 0; j < lists.length; j++) {
       lists[j].style.overflowY = needsScroll ? 'auto' : 'hidden';
+    }
+    // Hide the outer scrollbar as well when the whole board already fits.
+    if (view) {
+      var needsViewY = view.scrollHeight > view.clientHeight + 2;
+      view.style.overflowY = needsViewY ? 'auto' : 'hidden';
+      view.style.overflowX = view.scrollWidth > view.clientWidth + 2 ? 'auto' : 'hidden';
     }
   }
   function paintColumnStats() {
@@ -277,9 +294,28 @@
       }
     }
     polishModalTitle(content);
+    polishActivityDates(content);
     buildModalTopbar(box, content);
     polishUploadModal(box, content);
     mergeAttachZones(content);
+  }
+  function polishActivityDates(content) {
+    var events = content.querySelectorAll('.activity-event');
+    for (var i = 0; i < events.length; i++) {
+      var event = events[i];
+      var date = event.querySelector('.activity-title .activity-date');
+      var description = event.querySelector('.activity-description');
+      if (!date || !description) continue;
+      var row = description.querySelector('.kb-activity-meta-row');
+      if (!row) {
+        row = document.createElement('div');
+        row.className = 'kb-activity-meta-row';
+        description.insertBefore(row, description.firstChild);
+        var taskTitle = description.querySelector('.activity-task-title');
+        if (taskTitle) row.appendChild(taskTitle);
+      }
+      row.appendChild(date);
+    }
   }
   function polishUploadModal(box, content) {
     var drop = content.querySelector('#file-dropzone');
@@ -599,6 +635,17 @@
   document.addEventListener('click', function (ev) {
     var t = ev.target;
     if (!t) return;
+    var modalLink = t.closest && t.closest('a.js-modal-medium, a.js-modal-large, a.js-modal-small, a.js-modal-confirm');
+    if (modalLink && t.closest('svg') && window.KB && KB.modal) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      var modalUrl = modalLink.getAttribute('href');
+      var modalSize = modalLink.classList.contains('js-modal-large') ? 'large' : (modalLink.classList.contains('js-modal-small') ? 'small' : 'medium');
+      if (modalLink.classList.contains('js-modal-confirm')) modalSize = 'small';
+      if (modalLink.classList.contains('js-modal-medium') && KB.modal.isOpen()) KB.modal.replace(modalUrl);
+      else KB.modal.open(modalUrl, modalSize, modalLink.classList.contains('js-modal-confirm'));
+      return;
+    }
     if (t.closest && t.closest('.js-modal-medium, .js-modal-large, .js-modal-small, .js-modal-confirm, a[href*="ProjectCreation"], .btn-blue')) {
       setTimeout(onModalRendered, 120);
       setTimeout(onModalRendered, 400);
