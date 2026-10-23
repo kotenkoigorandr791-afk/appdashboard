@@ -872,12 +872,18 @@
       const fitBtn = $('[data-sp-pdf-fit]', shell);
       const fsBtn = $('[data-sp-pdf-fullscreen]', shell);
 
+      var initialized = false;
       function apply() {
         const params = ['toolbar=0', 'navpanes=0'];
         if (state.page > 1) params.push('page=' + state.page);
         params.push(state.fit ? 'zoom=page-width' : 'zoom=' + state.zoom);
         const src = base + '#' + params.join('&');
-        if (frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+        // Skip the src update on the very first apply() call: the iframe already
+        // carries the correct fragment from the server-rendered HTML.  Changing
+        // it immediately triggers a cancel-and-reload cycle that can leave the
+        // PDF blank in some browsers.
+        if (initialized && frame.getAttribute('src') !== src) frame.setAttribute('src', src);
+        initialized = true;
         if (zoomEl) zoomEl.textContent = state.fit ? spT('fit_width', 'Fit') : state.zoom + '%';
         if (fitBtn) fitBtn.setAttribute('aria-pressed', state.fit ? 'true' : 'false');
         if (pageInput && String(state.page) !== pageInput.value) pageInput.value = String(state.page);

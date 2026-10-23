@@ -177,7 +177,7 @@ final class FileRenderer extends BaseRenderer
     <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-fullscreen aria-label="' . $fullscreen . '" title="' . $fullscreen . '"><span class="material-symbols-outlined">fullscreen</span></button>
   </div>
   <div class="sp-pdf-stage">
-    <iframe class="sp-pdf" src="' . $base . '#toolbar=0&amp;navpanes=0" title="' . sp_h($this->name) . '"></iframe>
+    <iframe class="sp-pdf" src="' . $base . '#toolbar=0&amp;navpanes=0&amp;zoom=100" title="' . sp_h($this->name) . '"></iframe>
   </div>
 </div>';
     }
