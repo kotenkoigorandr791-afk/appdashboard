@@ -145,7 +145,10 @@ if(is_dir($appsFsDir)){
                 $iconMasked=false;
             }
             $totalVisits=$visitStatsTotals[$folder]??0;
-            $appRailApps=['gitea','immich','kanboard','dawarich','sentry','x','X','lopaka'];
+            // Rail bar (home + service name) is only for external services with
+            // their own full UI. Locally integrated apps (kanboard, lopaka,
+            // cloud, ...) bring their own menu, so the rail is not rendered.
+            $appRailApps=['gitea','immich','dawarich','sentry','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
             $descFile=$subdir.'/description.json';
             $description='';

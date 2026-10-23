@@ -4,8 +4,8 @@
   window.__shellAppNavInit = 1;
 
   var catalog = window.__SHELL_APPS || {};
-  var railTopApps = window.__SHELL_RAIL_TOP_APPS || ['immich', 'gitea', 'kanboard', 'dawarich', 'sentry', 'lopaka'];
-  var edgeApps = window.__SHELL_EDGE_APPS || ['immich', 'gitea', 'kanboard', 'dawarich', 'sentry', 'x', 'X', 'lopaka'];
+  var railTopApps = window.__SHELL_RAIL_TOP_APPS || ['immich', 'gitea', 'dawarich', 'sentry'];
+  var edgeApps = window.__SHELL_EDGE_APPS || ['immich', 'gitea', 'dawarich', 'sentry', 'x', 'X'];
   var lang = window.__SHELL_LANG || 'en';
   var theme = window.__SHELL_THEME || 'light';
   var color = window.__SHELL_COLOR || '';
@@ -180,6 +180,7 @@
     frame.hidden = false;
     document.body.classList.add('shell-app-open');
     document.body.classList.remove('shell-home', 'app-modal-open');
+    document.body.classList.toggle('shell-local-app', !(app && app.app_rail));
     var topBar = document.getElementById('top-bar');
     if (topBar) {
       topBar.hidden = true;
@@ -213,7 +214,7 @@
       if (iframe) iframe.setAttribute('src', 'about:blank');
     }
     if (home) home.hidden = false;
-    document.body.classList.remove('shell-app-open', 'app-modal-open');
+    document.body.classList.remove('shell-app-open', 'app-modal-open', 'shell-local-app');
     document.body.classList.add('shell-home');
     var topBar = document.getElementById('top-bar');
     if (topBar) {
@@ -297,6 +298,7 @@
     if (initialFrame && initialFrame.getAttribute('src') !== initialFrameSrc) initialFrame.setAttribute('src', initialFrameSrc);
     document.body.classList.add('shell-app-open');
     document.body.classList.remove('shell-home');
+    document.body.classList.toggle('shell-local-app', !(byFolder(currentFolder) && byFolder(currentFolder).app_rail));
     history.replaceState({ shellApp: currentFolder }, document.title, window.location.href);
   } else if (document.getElementById('app-grid')) {
     document.body.classList.add('shell-home');

@@ -1310,6 +1310,9 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .app-rail-service-name{display:none;}
         @media (max-width:768px){
             #content.has-app-rail{--rail-w:40px;}
+            /* Locally integrated apps ship their own menu button: hide the shell
+               hamburger on phones so it does not sit on top of the app's one. */
+            body.shell-local-app #menu-button{display:none!important;}
             #app-icon-rail{--rail-w:40px;--rail-icon:24px;gap:4px;padding-top:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) + 8px);padding-bottom:8px;padding-left:3px;padding-right:3px;}
             #content.has-app-rail.rail-top-on-mobile{--rail-h:48px;--rail-w:0px;}
             #content.has-app-rail.rail-top-on-mobile #app-iframe{left:0!important;width:100%!important;top:var(--rail-h);height:calc(100% - var(--rail-h));}
@@ -2762,7 +2765,15 @@ $_guideEnabled = !empty($_guideCfg['enabled'])
 $_wp = $savedWallpaper ?? ($config['wallpaper'] ?? 'default');
 $_wpUrl = ap_wallpaper_asset_url($_wp);
 $_bodyClasses = [];
-if ($path === '/main' && $selectedApp && in_array($selectedApp, array_map(function($appData){return $appData['folder'];}, $apps), true)) { $_bodyClasses[] = 'shell-app-open'; }
+if ($path === '/main' && $selectedApp && in_array($selectedApp, array_map(function($appData){return $appData['folder'];}, $apps), true)) {
+    $_bodyClasses[] = 'shell-app-open';
+    // Locally integrated apps (no rail / not an external service) have their own
+    // menu button, so the shell hamburger is hidden on phones for them.
+    $_selectedAppData = null;
+    foreach ($apps as $_appData) { if ($_appData['folder'] === $selectedApp) { $_selectedAppData = $_appData; break; } }
+    if ($_selectedAppData === null || empty($_selectedAppData['app_rail'])) { $_bodyClasses[] = 'shell-local-app'; }
+    unset($_selectedAppData, $_appData);
+}
 $_bodyClasses[] = ($_wp === 'default') ? 'wallpaper-default' : 'wallpaper-custom';
 $_bodyClasses[] = ($config['theme'] === 'dark') ? 'theme-dark' : 'theme-light';
 $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
@@ -4393,8 +4404,8 @@ if($selectedApp){foreach($apps as $appData){if($appData['folder']===$selectedApp
 $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
-<?php $railTopApps=['immich','gitea','kanboard','dawarich','sentry','lopaka']; ?>
-<?php $edgeAppShellApps=['immich','gitea','kanboard','dawarich','sentry','x','X','lopaka']; ?>
+<?php $railTopApps=['immich','gitea','dawarich','sentry']; ?>
+<?php $edgeAppShellApps=['immich','gitea','dawarich','sentry','x','X']; ?>
 <?php if($path==='/main' && !$showLogin): ?>
 <script>
 window.__SHELL_APPS=<?php echo json_encode($apps, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
@@ -4406,7 +4417,7 @@ window.__SHELL_COLOR=<?php echo json_encode($config['color'] ?? ''); ?>;
 window.__SHELL_USER_DATA=<?php echo json_encode($userDataForApps ? base64_encode(json_encode($userDataForApps)) : ''); ?>;
 window.__SHELL_CURRENT_APP=<?php echo json_encode($selectedApp); ?>;
 </script>
-<script src="/project/assets/shell-app-nav.js?v=4" defer></script>
+<script src="/project/assets/shell-app-nav.js?v=6" defer></script>
 <?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($path==='/main'): ?>
