@@ -819,7 +819,7 @@ function cloud_sync_logs_insert(AppDatabase $db, string $email, int $ts, string 
     $stmt->bindValue(':m', $message, PDO::PARAM_STR);
     $stmt->execute();
 }
-function cloud_sync_logs_prune(AppDatabase $db, string $email, int $max = 500): void {
+function cloud_sync_logs_prune(AppDatabase $db, string $email, int $max = 1000): void {
     $stmt = $db->prepare("DELETE FROM cloud_sync_logs WHERE email = :e AND id NOT IN (SELECT id FROM cloud_sync_logs WHERE email = :e2 ORDER BY ts DESC, id DESC LIMIT :lim)");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':e2', $email, PDO::PARAM_STR);

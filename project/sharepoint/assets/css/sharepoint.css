@@ -28,6 +28,14 @@ html { background: var(--md-sys-color-background); }
 .sp-top-bar__subtitle { font: var(--md-sys-typescale-body-small); color: var(--md-sys-color-on-surface-variant); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sp-top-bar__actions { display: flex; align-items: center; gap: var(--md-sys-spacing-1); flex: 0 0 auto; }
 .sp-header-action { color: var(--md-sys-color-on-surface-variant); }
+.sp-theme-icon { width: 24px; height: 24px; }
+.sp-theme-icon--sun { display: none; }
+[data-theme="dark"] .sp-theme-icon--sun { display: block; }
+[data-theme="dark"] .sp-theme-icon--moon { display: none; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .sp-theme-icon--sun { display: block; }
+  :root:not([data-theme="light"]) .sp-theme-icon--moon { display: none; }
+}
 .sp-header-action:hover { background: color-mix(in srgb, var(--md-sys-color-on-surface) 8%, transparent); color: var(--md-sys-color-on-surface); }
 .sp-app-head__actions .md3-btn--tonal,
 .sp-app-head__actions .md3-btn--filled,
