@@ -22,6 +22,7 @@ map $is_secure_conn $uir_token {
 limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=120r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
+limit_req_zone $binary_remote_addr zone=appdashboard_heavy:10m rate=60r/m;
 limit_req_status 429;
 
 map $http_x_forwarded_for $sh_client_ip {
@@ -87,6 +88,8 @@ server {
         return 403;
     }
 
+    location ~ ^/(graphify-out|tasks|docs|instructions|deploy|nginx|tests|scripts|bot|appdashboard-mcp|lib|tmp|temp|webssh)(/|$) { return 404; }
+    location ~ ^/(AGENTS\.md|README[^/]*\.md|Dockerfile|composer\.(json|lock|phar)|package(-lock)?\.json|supervisord\.conf|docker-entrypoint\.sh|VERSION|db\.php|storage_helper\.php|smart_log(_boot)?\.php)$ { return 404; }
     location ~ /vendor/ { return 403; }
     location ~ /node_modules/ { return 403; }
 
@@ -661,11 +664,22 @@ server {
         gzip off;
     }
 
+    location ~ ^/apps/(cloud/(compile|transcription_api|tts_api|translate_api_simple|format_code|de_format_code|remove_comments)|recipes/(remove_background|recipes_ai|translate_api))\.php$ {
+        limit_req zone=appdashboard_heavy burst=30 nodelay;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_read_timeout 600;
+        fastcgi_send_timeout 600;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
     location ~ \.php$ {
         include snippets/fastcgi-php.conf;
         fastcgi_pass unix:/run/php/php-fpm.sock;
-        fastcgi_read_timeout 1800;
-        fastcgi_send_timeout 1800;
+        fastcgi_read_timeout 300;
+        fastcgi_send_timeout 300;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         fastcgi_param HTTP_AUTHORIZATION $http_authorization;
         fastcgi_hide_header X-Powered-By;

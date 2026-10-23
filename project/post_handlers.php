@@ -345,6 +345,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $clearPasswordRequirement->bindValue(':password',$users[$email]['password']);
                 $clearPasswordRequirement->bindValue(':email',$email);
                 $clearPasswordRequirement->execute();
+                usersCache(null, true);
                 unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
                 resetFailedAttempts(getClientIp(),'login');
                 clearTrustedDeviceLogoutSuppression();

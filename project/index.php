@@ -65,8 +65,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
         header('Content-Type: text/html; charset=UTF-8');
         // Проверяем сессию на сервере: залогиненным пользователям промо/виджеты
         // на домашней странице не показываются вовсе (флаг читается в home.js).
-        require_once __DIR__ . '/bootstrap.php';
-        $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
+        $__skHomeLoggedIn = false;
+        if (!empty($_COOKIE[session_name()])) {
+            require_once __DIR__ . '/bootstrap.php';
+            $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
+        }
         $__homeHtml = file_get_contents(APP_ROOT . '/project/views/home.html');
         if ($__homeHtml !== false) {
             $__cssVersion = is_file(APP_ROOT . '/project/home/home.css') ? (string)filemtime(APP_ROOT . '/project/home/home.css') : '1';

@@ -217,7 +217,7 @@ if($selectedApp){
     }
 }
 $userDataForApps=isset($_SESSION['user'])?['name'=>$_SESSION['user']['name'],'email'=>$_SESSION['user']['email'],'photo'=>$_SESSION['user']['photo']??'default_avatar.png','role'=>$_SESSION['user']['role']??0]:null;
-$usersList=loadUsers();
+$usersList=(int)($_SESSION['user']['role']??0)>=2?loadUsers():[];
 $isRootUser=isset($_SESSION['user']['email'])&&$_SESSION['user']['email']==='root@root';
 $isAdmin = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
 $activeSessions=[];

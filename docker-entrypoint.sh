@@ -50,10 +50,10 @@ sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/
 [ -d /var/www/AppDashboard/apps/cloud/temp_convert ] || rm -f /var/www/AppDashboard/apps/cloud/temp_convert
 if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   sed -i 's/^pm = .*/pm = dynamic/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-25}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-6}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-3}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-10}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-50}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-10}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-5}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-20}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   if grep -q '^;request_terminate_timeout' /usr/local/etc/php-fpm.d/www.conf; then
     sed -i 's/^;request_terminate_timeout = .*/request_terminate_timeout = '"${PHP_FPM_REQUEST_TERMINATE_TIMEOUT:-30}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   elif grep -q '^request_terminate_timeout' /usr/local/etc/php-fpm.d/www.conf; then

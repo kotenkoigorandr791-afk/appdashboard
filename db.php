@@ -164,14 +164,14 @@ function ensureSupportChatSchema(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_support_chat_recipient ON support_chat(recipient_email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_email ON users(lower(email))");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_users_lower_name ON users(lower(name))");
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN media_path TEXT"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN media_type TEXT"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN recipient_email TEXT"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN chat_type TEXT NOT NULL DEFAULT 'support'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_deleted INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_edited INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN is_read INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE support_chat ADD COLUMN edited_at INTEGER"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS media_path TEXT"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS media_type TEXT"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS recipient_email TEXT"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS chat_type TEXT NOT NULL DEFAULT 'support'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS is_deleted INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS is_edited INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS is_read INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE support_chat ADD COLUMN IF NOT EXISTS edited_at INTEGER"); } catch (Exception $e) {}
     $db->exec("CREATE TABLE IF NOT EXISTS chat_blocks (
         blocker_email TEXT NOT NULL,
         blocked_email TEXT NOT NULL,
@@ -205,10 +205,10 @@ function ensureTelegramBotSchema(AppDatabase $db): void {
             used_chat_id TEXT NOT NULL DEFAULT ''
         )");
         foreach ([
-            "ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE tg_bot_link_tokens ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_at BIGINT",
-            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_chat_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_sessions ADD COLUMN IF NOT EXISTS telegram_user_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN IF NOT EXISTS used_at BIGINT",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN IF NOT EXISTS used_chat_id TEXT NOT NULL DEFAULT ''",
         ] as $sql) {
             try { $db->exec($sql); } catch (Throwable $e) {}
         }
@@ -220,7 +220,7 @@ function ensureTelegramBotSchema(AppDatabase $db): void {
             telegram_user_id TEXT NOT NULL DEFAULT '',
             FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
         )");
-        try { $db->exec("ALTER TABLE tg_bot_sessions ADD COLUMN telegram_user_id TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+        try { $db->exec("ALTER TABLE tg_bot_sessions ADD COLUMN IF NOT EXISTS telegram_user_id TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
         $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_link_tokens (
             token_hash TEXT PRIMARY KEY,
             email TEXT NOT NULL,
@@ -232,9 +232,9 @@ function ensureTelegramBotSchema(AppDatabase $db): void {
             FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
         )");
         foreach ([
-            "ALTER TABLE tg_bot_link_tokens ADD COLUMN created_by TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_at INTEGER",
-            "ALTER TABLE tg_bot_link_tokens ADD COLUMN used_chat_id TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN IF NOT EXISTS created_by TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN IF NOT EXISTS used_at INTEGER",
+            "ALTER TABLE tg_bot_link_tokens ADD COLUMN IF NOT EXISTS used_chat_id TEXT NOT NULL DEFAULT ''",
         ] as $sql) {
             try { $db->exec($sql); } catch (Throwable $e) {}
         }
@@ -304,11 +304,11 @@ function ensureNotificationsSchema(AppDatabase $db): void {
             created_at BIGINT NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )");
         foreach ([
-            "ALTER TABLE app_notifications ADD COLUMN event_type TEXT NOT NULL DEFAULT ''",
-            "ALTER TABLE app_notifications ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'",
-            "ALTER TABLE app_notification_settings ADD COLUMN browser_enabled INTEGER NOT NULL DEFAULT 0",
-            "ALTER TABLE app_notification_settings ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 1",
-            "ALTER TABLE app_metrics ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE app_notifications ADD COLUMN IF NOT EXISTS event_type TEXT NOT NULL DEFAULT ''",
+            "ALTER TABLE app_notifications ADD COLUMN IF NOT EXISTS context_json TEXT NOT NULL DEFAULT '{}'",
+            "ALTER TABLE app_notification_settings ADD COLUMN IF NOT EXISTS browser_enabled INTEGER NOT NULL DEFAULT 0",
+            "ALTER TABLE app_notification_settings ADD COLUMN IF NOT EXISTS telegram_enabled INTEGER NOT NULL DEFAULT 1",
+            "ALTER TABLE app_metrics ADD COLUMN IF NOT EXISTS unit TEXT NOT NULL DEFAULT ''",
         ] as $sql) {
             try { $db->exec($sql); } catch (Throwable $e) {}
         }
@@ -349,11 +349,11 @@ function ensureNotificationsSchema(AppDatabase $db): void {
         created_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
     foreach ([
-        "ALTER TABLE app_notifications ADD COLUMN event_type TEXT NOT NULL DEFAULT ''",
-        "ALTER TABLE app_notifications ADD COLUMN context_json TEXT NOT NULL DEFAULT '{}'",
-        "ALTER TABLE app_notification_settings ADD COLUMN browser_enabled INTEGER NOT NULL DEFAULT 0",
-        "ALTER TABLE app_notification_settings ADD COLUMN telegram_enabled INTEGER NOT NULL DEFAULT 1",
-        "ALTER TABLE app_metrics ADD COLUMN unit TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE app_notifications ADD COLUMN IF NOT EXISTS event_type TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE app_notifications ADD COLUMN IF NOT EXISTS context_json TEXT NOT NULL DEFAULT '{}'",
+        "ALTER TABLE app_notification_settings ADD COLUMN IF NOT EXISTS browser_enabled INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE app_notification_settings ADD COLUMN IF NOT EXISTS telegram_enabled INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE app_metrics ADD COLUMN IF NOT EXISTS unit TEXT NOT NULL DEFAULT ''",
     ] as $sql) {
         try { $db->exec($sql); } catch (Throwable $e) {}
     }
@@ -414,11 +414,11 @@ function initDB(AppDatabase $db): void {
         created_at      TEXT NOT NULL DEFAULT ''
     )");
     app_db_ensure_unique_index($db, 'users', ['email'], 'idx_users_email_unique');
-    try { $db->exec("ALTER TABLE users ADD COLUMN trusted_devices TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE users ADD COLUMN must_change_password INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS trusted_devices TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS icon_sort_order TEXT NOT NULL DEFAULT 'alpha'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS icon_style TEXT NOT NULL DEFAULT 'animated'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS wallpaper TEXT NOT NULL DEFAULT 'default'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS must_change_password INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     $rootStmt = $db->prepare("INSERT INTO users (email,name,password,photo,role,verified,language,theme,color,trusted_devices,icon_sort_order,icon_style,wallpaper,must_change_password,created_at)
         VALUES('root@root','Root Administrator',:password,'default_avatar.png',2,1,'en','light','#007bff','[]','alpha','animated','default',1,:created_at)
         ON CONFLICT (email) DO NOTHING");
@@ -454,7 +454,7 @@ function initDB(AppDatabase $db): void {
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_sessions_email ON active_sessions(email)");
-    try { $db->exec("ALTER TABLE active_sessions ADD COLUMN ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
+    try { $db->exec("ALTER TABLE active_sessions ADD COLUMN IF NOT EXISTS ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
 
     // ── Visit statistics ─────────────────────────────────────────────────────
     $db->exec("CREATE TABLE IF NOT EXISTS visit_stats (
@@ -500,14 +500,14 @@ function initDB(AppDatabase $db): void {
         FOREIGN KEY (user_email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_shared_files_user ON shared_files(user_email)");
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN expires_option TEXT NOT NULL DEFAULT 'never'"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN password_hash TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN view_only INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN disable_download INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN disable_copy INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN max_views INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE shared_files ADD COLUMN is_folder INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS expires_option TEXT NOT NULL DEFAULT 'never'"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS password_hash TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS view_only INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS disable_download INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS disable_copy INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS max_views INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS view_count INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE shared_files ADD COLUMN IF NOT EXISTS is_folder INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
 
     // ── Universal shares (SharePoint) ───────────────────────────────────────
     // One publication entity for every app. Tokens are stored hashed for lookup;
@@ -773,7 +773,7 @@ function initDB(AppDatabase $db): void {
         UNIQUE(device_token_hash),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
-    try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
+    try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN IF NOT EXISTS ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
     app_db_ensure_unique_index($db, 'trusted_devices', ['email', 'fingerprint'], 'idx_trusted_devices_email_fingerprint_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_email ON trusted_devices(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_fingerprint ON trusted_devices(fingerprint)");
@@ -980,11 +980,11 @@ function initDB(AppDatabase $db): void {
         while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) {
             $cols[] = $row['name'] ?? '';
         }
-        if (!in_array('sync_local_path', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_local_path TEXT NOT NULL DEFAULT ''");
-        if (!in_array('sync_interval_sec', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_interval_sec INTEGER NOT NULL DEFAULT 300");
-        if (!in_array('sync_mode', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'mtime_size'");
-        if (!in_array('sync_enabled', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0");
-        if (!in_array('last_sync_at', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN last_sync_at INTEGER NOT NULL DEFAULT 0");
+        if (!in_array('sync_local_path', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN IF NOT EXISTS sync_local_path TEXT NOT NULL DEFAULT ''");
+        if (!in_array('sync_interval_sec', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN IF NOT EXISTS sync_interval_sec INTEGER NOT NULL DEFAULT 300");
+        if (!in_array('sync_mode', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN IF NOT EXISTS sync_mode TEXT NOT NULL DEFAULT 'mtime_size'");
+        if (!in_array('sync_enabled', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN IF NOT EXISTS sync_enabled INTEGER NOT NULL DEFAULT 0");
+        if (!in_array('last_sync_at', $cols, true)) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN IF NOT EXISTS last_sync_at INTEGER NOT NULL DEFAULT 0");
         monitorRetentionSetMeta($db, 'cloud_user_settings_v2', '1');
     }
 
@@ -1048,21 +1048,45 @@ function initDB(AppDatabase $db): void {
 // ─────────────────────────────────────────────────────────────────────────────
 // USERS
 // ─────────────────────────────────────────────────────────────────────────────
-function loadUsers(): array {
-    $db = getDB();
-    $result = $db->query("SELECT * FROM users");
-    $users = [];
-    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-        $email = $row['email'];
-        $row['verified'] = (bool)$row['verified'];
-        $users[$email] = $row;
+function appRootHasDefaultPassword(string $hash): bool {
+    if ($hash === '') return false;
+    $redis = app_redis();
+    $key = app_redis_key('root_default_pw:' . md5($hash));
+    if ($redis) {
+        try {
+            $v = $redis->get($key);
+            if ($v !== false) return $v === '1';
+        } catch (Throwable $e) {
+        }
     }
+    $res = appPasswordVerify('root', $hash);
+    if ($redis) {
+        try { $redis->set($key, $res ? '1' : '0', ['EX' => 86400]); } catch (Throwable $e) {}
+    }
+    return $res;
+}
+function usersEnsureAdminCapsColumn(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    app_schema_once('users_admin_caps', __FILE__, function () use ($db) {
+        try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+    });
+}
+function usersRowHash(array $u): string {
+    return md5(serialize($u));
+}
+function usersSnapshot(?array $set = null): array {
+    static $snap = [];
+    if ($set !== null) $snap = $set;
+    return $snap;
+}
+function usersEnsureRootDefaults(AppDatabase $db, array &$users): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    $created = false;
     if (!isset($users['root@root'])) {
-        $rootPw = '';
         upsertUser('root@root', [
             'email'      => 'root@root',
             'name'       => 'Root Administrator',
-            'password'   => $rootPw,
+            'password'   => '',
             'photo'      => 'default_avatar.png',
             'role'       => 2,
             'verified'   => true,
@@ -1075,23 +1099,54 @@ function loadUsers(): array {
             'created_at' => date('Y-m-d H:i:s'),
         ]);
         $users['root@root'] = getUserByEmail('root@root') ?? [];
-    } elseif (empty($users['root@root']['must_change_password']) && appPasswordVerify('root', (string)($users['root@root']['password'] ?? ''))) {
-        $users['root@root']['must_change_password'] = 1;
-        upsertUser('root@root', $users['root@root']);
+        return;
     }
+    if (empty($users['root@root']['must_change_password'])) {
+        $pw = (string)($users['root@root']['password'] ?? '');
+        if (appRootHasDefaultPassword($pw)) {
+            $users['root@root']['must_change_password'] = 1;
+            upsertUser('root@root', $users['root@root']);
+        }
+    }
+}
+function usersCache(?array $set = null, bool $reset = false): ?array {
+    static $cache = null;
+    if ($reset) $cache = null;
+    if ($set !== null) $cache = $set;
+    return $cache;
+}
+function loadUsers(): array {
+    $cached = usersCache();
+    if ($cached !== null) return $cached;
+    $db = getDB();
+    $result = $db->query("SELECT * FROM users");
+    $users = [];
+    while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+        $email = $row['email'];
+        $row['verified'] = (bool)$row['verified'];
+        $users[$email] = $row;
+    }
+    usersEnsureRootDefaults($db, $users);
     $users['root@root']['role']     = 2;
     $users['root@root']['verified'] = true;
+    $snap = [];
+    foreach ($users as $email => $u) $snap[$email] = usersRowHash($u);
+    usersSnapshot($snap);
+    usersCache($users);
     return $users;
 }
 
 function saveUsers(array $users): void {
     $db = getDB();
-    try { $db->exec("ALTER TABLE users ADD COLUMN admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+    usersEnsureAdminCapsColumn($db);
+    $snap = usersSnapshot();
+    usersCache(null, true);
     if (isset($users['root@root'])) {
         $users['root@root']['role'] = 2;
         $users['root@root']['verified'] = true;
     }
     foreach ($users as $email => $u) {
+        if (isset($snap[$email]) && $snap[$email] === usersRowHash($u)) continue;
         $checkStmt = $db->prepare("SELECT COUNT(*) FROM users WHERE email = :email");
         $checkStmt->bindValue(':email', $email);
         $exists = (int)$checkStmt->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
@@ -1148,7 +1203,8 @@ function getUserByEmail(string $email): ?array {
 
 function upsertUser(string $email, array $fields): void {
     $db      = getDB();
-    try { $db->exec("ALTER TABLE users ADD COLUMN admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+    usersEnsureAdminCapsColumn($db);
+    usersCache(null, true);
     $current = getUserByEmail($email) ?? [];
     $merged  = array_merge([
         'name'       => '',
@@ -1228,6 +1284,7 @@ function deleteUser(string $email): void {
     $stmt = $db->prepare("DELETE FROM users WHERE email=:e");
     $stmt->bindValue(':e', $email);
     $stmt->execute();
+    usersCache(null, true);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1720,9 +1777,8 @@ function cleanupAllExpiredSessions(?int $authTimeout = null): int {
 }
 
 function activeSessionTtlSeconds(string $email): int {
-    $users = null;
-    try { $users = loadUsers(); } catch (Throwable $e) { $users = []; }
-    $role = (int)(($users[$email]['role'] ?? 0));
+    $role = 0;
+    try { $role = (int)((getUserByEmail($email)['role'] ?? 0)); } catch (Throwable $e) {}
     $adminIdle = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : appAuthTimeoutSeconds();
     if ($email === 'root@root' || $role >= 2) {
         // Admins used to get a much shorter idle timeout than regular users,
@@ -3537,8 +3593,8 @@ function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
         last_used_at INTEGER NOT NULL DEFAULT 0,
         expires_at   INTEGER NOT NULL
     )");
-    try { $db->exec("ALTER TABLE trusted_device_cookies ADD COLUMN fingerprint TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
-    try { $db->exec("ALTER TABLE trusted_device_cookies ADD COLUMN last_used_at INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE trusted_device_cookies ADD COLUMN IF NOT EXISTS fingerprint TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE trusted_device_cookies ADD COLUMN IF NOT EXISTS last_used_at INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
     try {
         if (app_db_is_pgsql()) {
             $db->exec("DELETE FROM trusted_device_cookies t

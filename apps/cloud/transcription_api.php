@@ -178,7 +178,6 @@ function handle_sse_stream() {
     header('Cache-Control: no-cache');
     header('Connection: keep-alive');
     header('X-Accel-Buffering: no');
-    header('Access-Control-Allow-Origin: *');
     $lastProgress = -1;
     $lastSentTime = 0;
     $maxTime = 600;
