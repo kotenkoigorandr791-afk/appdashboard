@@ -8,6 +8,8 @@ header('Content-Type: application/json; charset=utf-8');
 require_once __DIR__ . '/../../auth_common.php';
 require_once __DIR__ . '/fit_takeout_state.php';
 require_once __DIR__ . '/../import_worker_common.php';
+steps_require_auth_json();
+
 $safeName = get_current_user_folder();
 define('FIT_USER_DIR', __DIR__ . '/../../users/' . $safeName);
 define('FIT_JOBS_DIR', FIT_USER_DIR . '/fit_takeout_jobs/');
@@ -122,9 +124,8 @@ function fit_spawn_worker(string $jobPath): bool {
 }
 require_once __DIR__ . '/../../core/db_helpers.php';
 function fit_takeout_job_cfg(string $jobId): array {
-    $email = get_current_user_email() ?: ('folder_' . basename(FIT_USER_DIR));
+    $email = get_current_user_email();
     return [
-        'user_schema' => app_user_schema_id('steps', $email),
         'user_email' => $email,
         'job_id' => $jobId,
         'conflict_mode' => 'ask',

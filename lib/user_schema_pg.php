@@ -36,12 +36,6 @@ function app_user_schema_ensure(AppDatabase $db, string $appPrefix, string $sche
         $db->exec("CREATE TABLE IF NOT EXISTS $s.table_settings (key TEXT PRIMARY KEY, value TEXT)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_{$idx}_expenses_date ON $s.expenses(date)");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_{$idx}_expenses_store ON $s.expenses(store)");
-    } elseif ($appPrefix === 'steps') {
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.steps (date TEXT PRIMARY KEY, steps BIGINT NOT NULL DEFAULT 0)");
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.settings (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')");
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.video_jobs (job_id TEXT PRIMARY KEY, state_json TEXT NOT NULL DEFAULT '{}', updated_at BIGINT NOT NULL DEFAULT 0)");
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.fit_takeout_jobs (job_id TEXT PRIMARY KEY, state_json TEXT NOT NULL DEFAULT '{}', updated_at BIGINT NOT NULL DEFAULT 0)");
-        $db->exec("CREATE INDEX IF NOT EXISTS idx_{$idx}_steps_date ON $s.steps(date)");
     } elseif ($appPrefix === 'tft') {
         $db->exec("CREATE TABLE IF NOT EXISTS $s.config (key TEXT PRIMARY KEY, value TEXT)");
         $db->exec("CREATE TABLE IF NOT EXISTS $s.canvas (key TEXT PRIMARY KEY, value TEXT)");

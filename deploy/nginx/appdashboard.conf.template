@@ -574,22 +574,12 @@ server {
         expires 1h;
     }
 
-    location ~ ^/apps/steps/users/[^/]+/.*\.csv$ {
-        set $deny_protected 1;
-        if ($arg_sharedFile != "") { set $deny_protected 0; }
-        if ($arg_download != "") { set $deny_protected 0; }
-        if ($arg_display != "") { set $deny_protected 0; }
-        if ($deny_protected = 1) { return 403; }
-        try_files $uri =404;
+    location ~ ^/apps/steps/(steps-mobile-app|upload_sessions)(/|$) {
+        return 404;
     }
 
-    location ~ ^/apps/steps/users/[^/]+/.*\.json$ {
-        set $deny_protected 1;
-        if ($arg_sharedFile != "") { set $deny_protected 0; }
-        if ($arg_download != "") { set $deny_protected 0; }
-        if ($arg_display != "") { set $deny_protected 0; }
-        if ($deny_protected = 1) { return 403; }
-        try_files $uri =404;
+    location ~ ^/apps/steps/users/[^/]+/(?!profile\.jpg$).+ {
+        return 404;
     }
 
     location ~ ^/apps/spends/users/[^/]+/.*\.csv$ {

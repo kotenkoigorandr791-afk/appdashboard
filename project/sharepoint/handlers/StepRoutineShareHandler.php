@@ -36,7 +36,9 @@ final class StepRoutineShareHandler extends BaseAppHandler
         $days = max(7, min(180, (int)($filters['days'] ?? $resource->get('days', 30))));
         $settings = [];
         try {
-            $result = $udb->query('SELECT key, value FROM settings');
+            $st = $udb->prepare('SELECT key, value FROM steps_settings WHERE user_email = :u');
+            $st->bindValue(':u', strtolower($owner), PDO::PARAM_STR);
+            $result = $st->execute();
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $settings[(string)$row['key']] = (string)$row['value'];
             }
@@ -44,7 +46,8 @@ final class StepRoutineShareHandler extends BaseAppHandler
         }
         $rows = [];
         try {
-            $stmt = $udb->prepare('SELECT date, steps FROM steps ORDER BY date DESC LIMIT :limit');
+            $stmt = $udb->prepare('SELECT date, steps FROM steps_days WHERE user_email = :u ORDER BY date DESC LIMIT :limit');
+            $stmt->bindValue(':u', strtolower($owner), PDO::PARAM_STR);
             $stmt->bindValue(':limit', $days, PDO::PARAM_INT);
             $result = $stmt->execute();
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
@@ -70,8 +73,15 @@ final class StepRoutineShareHandler extends BaseAppHandler
 
     private function userDb(string $ownerEmail): AppDatabase
     {
-        require_once dirname(__DIR__, 3) . '/lib/user_schema_pg.php';
-        return app_user_db_connect('steps', strtolower($ownerEmail));
+        require_once dirname(__DIR__, 3) . '/lib/app_db.php';
+        $root = dirname(__DIR__, 3);
+        require_once $root . '/apps/steps/auth_common.php';
+        require_once $root . '/apps/steps/core/store.php';
+        $db = app_main_db();
+        steps_store_ensure($db);
+        steps_user($ownerEmail);
+        steps_user_bootstrap($db, steps_user(), $root . '/apps/steps/users/' . emailToFolderName($ownerEmail));
+        return $db;
     }
 
     protected function getRendererClass(): ?string

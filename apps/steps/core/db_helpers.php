@@ -1,50 +1,24 @@
 <?php
-require_once __DIR__ . '/../../../lib/user_schema_pg.php';
+require_once __DIR__ . '/store.php';
 require_once __DIR__ . '/../auth_common.php';
 require_once __DIR__ . '/../video_job_sqlite.php';
 require_once __DIR__ . '/../utils/google_fit_takeout/fit_takeout_state.php';
+require_once __DIR__ . '/../utils/zeep_life/zeep_state.php';
 function getUserDB(string $userDir): ?AppDatabase {
-    static $cache = [];
-    $email = get_current_user_email() ?: ('folder_' . basename($userDir));
-    if (isset($cache[$email])) return $cache[$email];
+    static $ready = false;
+    $email = get_current_user_email();
+    if (!$email) return null;
     try {
-        $userDb = app_user_db_connect('steps', $email);
-        app_steps_migrate_sqlite_file($email, $userDir, $userDb);
-        video_job_ensure_schema($userDb);
-        fit_takeout_ensure_schema($userDb);
-        require_once __DIR__ . '/../utils/zeep_life/zeep_state.php';
-        zeep_job_ensure_schema($userDb);
-        $cache[$email] = $userDb;
-        return $userDb;
+        $db = app_main_db();
+        steps_user($email);
+        if (!$ready) {
+            steps_store_ensure($db);
+            steps_user_bootstrap($db, $email, $userDir);
+            $ready = true;
+        }
+        return $db;
     } catch (Exception $e) {
         error_log('User DB init failed: ' . $e->getMessage());
         return null;
-    }
-}
-function app_steps_migrate_sqlite_file(string $email, string $userDir, AppDatabase $db): void {
-    $path = "$userDir/user_data.sqlite3";
-    if (!is_file($path)) return;
-    $cnt = (int)$db->querySingle('SELECT COUNT(*) FROM steps');
-    if ($cnt > 0) return;
-    try {
-        $sqlite = new SQLite3($path);
-        $sqlite->enableExceptions(true);
-        $res = $sqlite->query('SELECT date, steps FROM steps');
-        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            $st = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d,:s) ON CONFLICT (date) DO UPDATE SET steps=EXCLUDED.steps');
-            $st->bindValue(':d', (string)$row['date'], PDO::PARAM_STR);
-            $st->bindValue(':s', (int)$row['steps'], PDO::PARAM_INT);
-            $st->execute();
-        }
-        $res = $sqlite->query('SELECT key, value FROM settings');
-        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            $st = $db->prepare('INSERT INTO settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value');
-            $st->bindValue(':k', (string)$row['key'], PDO::PARAM_STR);
-            $st->bindValue(':v', (string)$row['value'], PDO::PARAM_STR);
-            $st->execute();
-        }
-        $sqlite->close();
-    } catch (Throwable $e) {
-        error_log('steps sqlite migrate ' . $email . ': ' . $e->getMessage());
     }
 }
