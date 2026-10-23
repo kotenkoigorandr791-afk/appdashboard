@@ -10,6 +10,7 @@ if ($__APP_DEBUG) {
 }
 error_reporting($__APP_DEBUG ? E_ALL : 0);
 require_once APP_ROOT . '/lib/sentry_bootstrap.php';
+require_once APP_ROOT . '/lib/app_version.php';
 app_sentry_bootstrap('dashboard');
 require_once APP_ROOT . '/lib/app_session.php';
 require_once APP_ROOT . '/storage_helper.php';

@@ -32,6 +32,10 @@ RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --opt
 
 # --- Runtime: no compiler toolchain; TinyTeX lives on volume (ensure-tinytex.sh)
 FROM php:8.5.12-fpm-bookworm
+ARG APP_VERSION=dev
+ARG APP_GIT_COMMIT=
+ARG APP_BUILD_DATE=
+ENV APP_VERSION=${APP_VERSION} APP_GIT_COMMIT=${APP_GIT_COMMIT} APP_BUILD_DATE=${APP_BUILD_DATE}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
 ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip

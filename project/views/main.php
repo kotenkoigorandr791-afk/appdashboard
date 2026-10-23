@@ -1346,6 +1346,13 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .app-tile iframe{width:100%;height:150px;border:none;border-radius:4px;pointer-events:none;}
         button,input[type="submit"]{background-color:var(--primary-color);color:#fff;border:none;padding:10px;cursor:pointer;border-radius:4px;}
         input.settings-save-btn{background-color:var(--primary-color);color:#fff;border:none;padding:12px 24px;cursor:pointer;border-radius:50px;font-weight:600;display:block;margin-left:auto;}
+.settings-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:4px;}
+.settings-footer input.settings-save-btn{margin-left:auto;}
+.settings-version{display:inline-flex;align-items:baseline;gap:5px;font-size:12px;line-height:1.2;opacity:.65;color:var(--text-color);white-space:nowrap;cursor:help;user-select:text;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.settings-version-label{opacity:.8;}
+.settings-version-value{font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums;}
+.settings-version-date{opacity:.7;}
+@media(max-width:480px){.settings-footer{gap:8px;}.settings-version{font-size:11px;}}
         button:hover,input[type="submit"]:hover{opacity:0.8;}
         .notification{position:fixed;bottom:24px;right:20px;padding:10px 14px 10px 16px;border-radius:8px;color:var(--text-color);font-weight:400;z-index:101200;opacity:0;transform:translateX(30px);transition:all 0.25s ease;max-width:320px;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,0.18);display:flex;align-items:flex-start;gap:10px;border-left:4px solid var(--primary-color);background:var(--modal-bg);}
         .notification.show{opacity:1;transform:translateX(0);}
@@ -4295,7 +4302,47 @@ endif; // showOtpPage
             </div>
         </div>
         <input type="hidden" name="current_app" value="<?php echo my_htmlspecialchars($selectedApp); ?>">
+<?php
+$versionInfo = function_exists('appdashboard_version_info') ? appdashboard_version_info() : ['label' => '', 'source' => 'unknown'];
+$versionLabel = $versionInfo['label'] ?? '';
+$versionDate = '';
+if ($versionLabel !== '') {
+    $versionDate = ($versionInfo['source'] ?? '') === 'env'
+        ? ($versionInfo['build_date_human'] ?? '')
+        : ($versionInfo['updated_at_human'] ?? '');
+}
+$versionTooltip = '';
+if ($versionLabel !== '') {
+    $ttParts = [];
+    $branchVal = $versionInfo['branch'] ?? '';
+    if ($branchVal !== '') {
+        $ttParts[] = ($translations['version_branch'] ?? 'Branch') . ': ' . $branchVal;
+    }
+    $fullVal = $versionInfo['full'] ?? '';
+    if ($fullVal !== '') {
+        $ttParts[] = ($translations['version_commit'] ?? 'Commit') . ': ' . $fullVal;
+    }
+    $updatedVal = $versionInfo['updated_at'] ?? '';
+    if ($updatedVal !== '') {
+        $ttParts[] = ($translations['version_updated'] ?? 'Code updated') . ': ' . $updatedVal;
+    }
+    $bdVal = $versionInfo['build_date'] ?? '';
+    if ($bdVal !== '') {
+        $ttParts[] = ($translations['version_build_date'] ?? 'Image build') . ': ' . $bdVal;
+    }
+    $versionTooltip = implode("\n", $ttParts);
+}
+?>
+<div class="settings-footer">
+<?php if ($versionLabel !== ''): ?>
+    <span class="settings-version" title="<?php echo my_htmlspecialchars($versionTooltip); ?>">
+        <span class="settings-version-label"><?php echo my_htmlspecialchars($translations['version_label'] ?? 'Version'); ?>:</span>
+        <span class="settings-version-value"><?php echo my_htmlspecialchars($versionLabel); ?></span>
+        <?php if ($versionDate !== ''): ?><span class="settings-version-date">· <?php echo my_htmlspecialchars($versionDate); ?></span><?php endif; ?>
+    </span>
+<?php endif; ?>
         <input type="submit" name="settings" value="<?php echo my_htmlspecialchars($translations['save']); ?>" class="settings-save-btn">
+</div>
 
         </div><!-- /.modal-scroll-body -->
 </form>
