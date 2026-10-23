@@ -641,7 +641,7 @@
   "share_expiration_never": "Никогда",
   "share_id": "ID общего доступа",
   "shared_files_management": "Управление общими файлами",
-  "shell_application": "Оболочка (Shell Application)",
+  "shell_application": "ServerKherson",
   "show_hide_password": "Показать/скрыть пароль",
   "show_password": "Показать пароль",
   "smtp_host": "SMTP Хост",
@@ -1128,5 +1128,7 @@
   "backup_view_log": "Показать журнал",
   "backup_warning": "Предупреждение",
   "backup_weekday": "День недели",
-  "backup_wizard": "Мастер резервного копирования"
+  "backup_wizard": "Мастер резервного копирования",
+  "opening_app": "Открытие…",
+  "opening_app_named": "Открытие «{name}»…"
 }

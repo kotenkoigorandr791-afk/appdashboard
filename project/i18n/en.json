@@ -418,7 +418,7 @@
   "hide_panel": "Click the row again to hide the panel. Logs, inspect and resources open here.",
   "hide_password": "Hide password",
   "home": "Home",
-  "home_tooltip": "Return to main page",
+  "home_tooltip": "Return to home page",
   "icon_sort": "Icon order",
   "icon_sort_alpha": "Alphabetical",
   "icon_sort_popular": "By popularity",
@@ -646,7 +646,7 @@
   "share_sort_no_grouping": "No grouping",
   "share_sort_smallest": "smallest",
   "shared_files_management": "Shared Files Management",
-  "shell_application": "Shell Application",
+  "shell_application": "ServerKherson",
   "show_hide_password": "Show/hide password",
   "show_password": "Show password",
   "smtp_host": "SMTP Host",
@@ -1117,5 +1117,7 @@
   "backup_view_log": "View log",
   "backup_warning": "Warning",
   "backup_weekday": "Day of week",
-  "backup_wizard": "Backup wizard"
+  "backup_wizard": "Backup wizard",
+  "opening_app": "Opening…",
+  "opening_app_named": "Opening {name}…"
 }

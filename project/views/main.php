@@ -1266,6 +1266,21 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #stats-controls button.active{background:var(--primary-color);opacity:1;font-weight:bold;}
         .stats-edit-button{margin-left:auto;}
         #app-iframe{width:100%;height:100vh;border:none;position:fixed;top:0;left:0;z-index:1;box-sizing:border-box;}
+        #app-iframe.shell-iframe-loading{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}
+        .shell-app-loading-overlay{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(7,17,30,0.55);backdrop-filter:blur(10px) brightness(0.55);-webkit-backdrop-filter:blur(10px) brightness(0.55);color:#fff;animation:shellLoadFadeIn .2s ease;}
+        body.light-theme .shell-app-loading-overlay,body.theme-light .shell-app-loading-overlay{background:rgba(237,244,251,0.55);backdrop-filter:blur(10px) brightness(0.85);-webkit-backdrop-filter:blur(10px) brightness(0.85);color:#1a2b38;}
+        body.wallpaper-custom .shell-app-loading-overlay{background:rgba(8,12,18,0.35);}
+        .shell-app-loading-box{background:rgba(30,30,30,0.5);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);padding:40px 60px;border-radius:20px;display:flex;flex-direction:column;align-items:center;border:1px solid rgba(255,255,255,0.1);text-align:center;color:inherit;}
+        body.light-theme .shell-app-loading-box,body.theme-light .shell-app-loading-box{background:rgba(255,255,255,0.55);border-color:rgba(26,43,51,0.12);}
+        .shell-app-loading-logo{width:80px;height:80px;margin-bottom:20px;object-fit:contain;animation:shellLoadPulse 2s ease-in-out infinite;}
+        .shell-app-loading-title{margin:0;font-size:22px;font-weight:700;letter-spacing:0.02em;}
+        .shell-app-loading-sub{margin:8px 0 0;font-size:14px;font-weight:500;opacity:0.78;}
+        .shell-app-loading-bar{width:200px;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:18px;}
+        body.light-theme .shell-app-loading-bar,body.theme-light .shell-app-loading-bar{background:rgba(26,43,51,0.12);}
+        .shell-app-loading-bar::after{content:'';display:block;width:40%;height:100%;background:var(--primary-color,#00a8ff);box-shadow:0 0 10px color-mix(in srgb,var(--primary-color,#00a8ff) 80%,transparent);animation:shellLoadBar 2s infinite ease-in-out;}
+        @keyframes shellLoadFadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes shellLoadPulse{50%{transform:scale(1.1)}}
+        @keyframes shellLoadBar{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
         #content{padding-top:0;position:fixed;left:0;width:100%;height:100vh;box-sizing:border-box;overflow:hidden;}
         #content.has-app-rail{--rail-w:48px;--rail-full-w:48px;--rail-peek:4px;}
         #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
@@ -1942,13 +1957,20 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             width: 92%;
             max-width: 680px;
             max-height: 90vh;
-            overflow: auto;
+            overflow: hidden;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             color: var(--text-color);
             display: flex;
             flex-direction: column;
+        }
+        #weatherModalContent {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
         .weather-modal-close {
             position: absolute;
@@ -2036,35 +2058,45 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .weather-modal-body {
             padding: 20px 24px;
             flex: 1;
+            min-height: 0;
+            overflow-x: hidden;
             overflow-y: auto;
+            overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: var(--border-color) var(--modal-bg);
+            scrollbar-color: var(--border-color) transparent;
+            border-radius: 0 0 30px 30px;
         }
         .weather-modal-body::-webkit-scrollbar {
             width: 8px;
         }
         .weather-modal-body::-webkit-scrollbar-track {
-            background: var(--modal-bg);
+            background: transparent;
+            margin: 8px 0 16px;
         }
         .weather-modal-body::-webkit-scrollbar-thumb {
             background: var(--border-color);
             border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
         }
         .weather-modal-body::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--border-color) 70%, var(--text-color));
+            background-clip: padding-box;
         }
         .weather-settings-modal {
             position: relative;
             width: 92%;
             max-width: 720px;
             max-height: 90vh;
-            overflow: auto;
+            overflow: hidden;
             background: var(--modal-bg);
             border-radius: 30px;
             padding: 0;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             border: 0;
             color: var(--text-color);
+            display: flex;
+            flex-direction: column;
         }
         #weatherSettingsModalContent {
             display: flex;
@@ -2539,7 +2571,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             }
         }
         .weather-modal-body {
-            padding: 20px 24px 0;
+            padding: 20px 24px 24px;
         }
         .weather-weekly {
             display: flex;
@@ -2695,14 +2727,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             stroke: currentColor;
         }
         .weather-modal::-webkit-scrollbar {
-            width: 6px;
-        }
-        .weather-modal::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .weather-modal::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 3px;
+            width: 0;
+            height: 0;
         }
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -2954,8 +2980,8 @@ $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
 <?php if($showTopBarTitle): ?>
 <div id="top-bar"<?php echo !empty($shellAppOpen) ? ' hidden' : ''; ?>>
     <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
-    <a id="home-root-button" class="shell-home-link" href="/main" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
-    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'Shell Application'); ?></div>
+    <a id="home-root-button" class="shell-home-link" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'ServerKherson'); ?></div>
     <div class="weather-widget weather-widget-instance" id="weatherWidget">
         <span class="weather-icon"></span>
         <span class="weather-temp">--°C</span>
@@ -4416,8 +4442,13 @@ window.__SHELL_THEME=<?php echo json_encode(($selectedApp === 'kanboard' && in_a
 window.__SHELL_COLOR=<?php echo json_encode($config['color'] ?? ''); ?>;
 window.__SHELL_USER_DATA=<?php echo json_encode($userDataForApps ? base64_encode(json_encode($userDataForApps)) : ''); ?>;
 window.__SHELL_CURRENT_APP=<?php echo json_encode($selectedApp); ?>;
+window.__SHELL_I18N=<?php echo json_encode([
+    'shell_application' => $translations['shell_application'] ?? 'ServerKherson',
+    'opening_app' => $translations['opening_app'] ?? 'Opening…',
+    'opening_app_named' => $translations['opening_app_named'] ?? 'Opening {name}…',
+], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<script src="/project/assets/shell-app-nav.js?v=6" defer></script>
+<script src="/project/assets/shell-app-nav.js?v=7" defer></script>
 <?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($path==='/main'): ?>

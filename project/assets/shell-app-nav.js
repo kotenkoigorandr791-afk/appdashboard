@@ -11,6 +11,8 @@
   var color = window.__SHELL_COLOR || '';
   var userData = window.__SHELL_USER_DATA || '';
   var currentFolder = window.__SHELL_CURRENT_APP || null;
+  var loadGen = 0;
+  var i18n = window.__SHELL_I18N || {};
 
   function byFolder(folder) {
     var keys = Object.keys(catalog);
@@ -154,6 +156,77 @@
     return classes.join(' ');
   }
 
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function hideAppLoading() {
+    var ol = document.getElementById('shellAppLoading');
+    if (ol) ol.remove();
+    document.body.classList.remove('shell-app-loading');
+    var iframe = document.getElementById('app-iframe');
+    if (iframe) {
+      iframe.classList.remove('shell-iframe-loading');
+      iframe.style.removeProperty('opacity');
+      iframe.style.removeProperty('visibility');
+      iframe.style.removeProperty('pointer-events');
+    }
+  }
+
+  function showAppLoading(app) {
+    hideAppLoading();
+    var title = i18n.shell_application || 'ServerKherson';
+    var sub = i18n.opening_app || 'Opening…';
+    if (app && (app.name || app.folder)) {
+      sub = (i18n.opening_app_named || 'Opening {name}…').replace('{name}', app.name || app.folder);
+    }
+    var ol = document.createElement('div');
+    ol.id = 'shellAppLoading';
+    ol.className = 'shell-app-loading-overlay';
+    ol.setAttribute('role', 'status');
+    ol.setAttribute('aria-live', 'polite');
+    ol.innerHTML =
+      '<div class="shell-app-loading-box">' +
+        '<img class="shell-app-loading-logo" src="/home/icon.png" alt="">' +
+        '<h2 class="shell-app-loading-title">' + esc(title) + '</h2>' +
+        '<p class="shell-app-loading-sub">' + esc(sub) + '</p>' +
+        '<div class="shell-app-loading-bar" aria-hidden="true"></div>' +
+      '</div>';
+    document.body.appendChild(ol);
+    document.body.classList.add('shell-app-loading');
+    var iframe = document.getElementById('app-iframe');
+    if (iframe) {
+      iframe.classList.add('shell-iframe-loading');
+      iframe.style.opacity = '0';
+      iframe.style.visibility = 'hidden';
+      iframe.style.pointerEvents = 'none';
+    }
+  }
+
+  function waitIframeLoad(iframe, token) {
+    if (!iframe) {
+      if (token === loadGen) hideAppLoading();
+      return;
+    }
+    var done = false;
+    function finish() {
+      if (done || token !== loadGen) return;
+      done = true;
+      hideAppLoading();
+    }
+    iframe.addEventListener('load', finish, { once: true });
+    try {
+      var src = iframe.getAttribute('src') || '';
+      var doc = iframe.contentDocument;
+      if (src && src !== 'about:blank' && doc && doc.readyState === 'complete') finish();
+    } catch (_) {}
+    setTimeout(finish, 45000);
+  }
+
   function showApp(folder, push) {
     var app = byFolder(folder);
     if (!app) {
@@ -190,8 +263,14 @@
     setMenuVars(app);
     if (iframe) {
       var next = iframeSrc(folder);
-      if (iframe.getAttribute('src') !== next) iframe.setAttribute('src', next);
+      var needLoad = iframe.getAttribute('src') !== next;
       iframe.title = 'Application: ' + folder;
+      if (needLoad) {
+        var token = ++loadGen;
+        showAppLoading(app);
+        iframe.setAttribute('src', next);
+        waitIframeLoad(iframe, token);
+      }
     }
     currentFolder = folder;
     var url = new URL(app.href, window.location.origin);
@@ -204,6 +283,8 @@
   }
 
   function showHome(push) {
+    loadGen++;
+    hideAppLoading();
     var content = document.getElementById('content');
     var home = ensureHomeShell() || document.getElementById('shell-home') || document.getElementById('app-grid');
     var frame = document.getElementById('shell-app-frame');
@@ -226,7 +307,6 @@
     }
     restoreHomeChrome();
     setMenuVars(null);
-    // Home dashboard keyboard/tile selection should work after soft-nav from ?app=
     try { window.__SHELL_ON_HOME = true; } catch (_) {}
     currentFolder = null;
     if (push !== false) {
@@ -267,6 +347,12 @@
       showApp(folder, true);
       return;
     }
+    var homeRoot = e.target.closest && e.target.closest('#home-root-button');
+    if (homeRoot) {
+      e.preventDefault();
+      window.location.href = '/';
+      return;
+    }
     if (isShellHomeLink(e.target)) {
       if (currentFolder || document.body.classList.contains('shell-app-open')) {
         e.preventDefault();
@@ -281,6 +367,7 @@
   }
 
   function onPopState(e) {
+    hideAppLoading();
     var folder = (e.state && e.state.shellApp) || new URL(window.location.href).searchParams.get('app');
     if (folder) showApp(folder, false);
     else showHome(false);
@@ -294,11 +381,19 @@
     mountAppChrome();
     setMenuVars(byFolder(currentFolder));
     var initialFrame = document.getElementById('app-iframe');
+    var initialApp = byFolder(currentFolder);
     var initialFrameSrc = iframeSrc(currentFolder);
-    if (initialFrame && initialFrame.getAttribute('src') !== initialFrameSrc) initialFrame.setAttribute('src', initialFrameSrc);
+    var token = ++loadGen;
+    showAppLoading(initialApp || { name: currentFolder, folder: currentFolder });
+    if (initialFrame) {
+      if (initialFrame.getAttribute('src') !== initialFrameSrc) initialFrame.setAttribute('src', initialFrameSrc);
+      waitIframeLoad(initialFrame, token);
+    } else {
+      hideAppLoading();
+    }
     document.body.classList.add('shell-app-open');
     document.body.classList.remove('shell-home');
-    document.body.classList.toggle('shell-local-app', !(byFolder(currentFolder) && byFolder(currentFolder).app_rail));
+    document.body.classList.toggle('shell-local-app', !(initialApp && initialApp.app_rail));
     history.replaceState({ shellApp: currentFolder }, document.title, window.location.href);
   } else if (document.getElementById('app-grid')) {
     document.body.classList.add('shell-home');

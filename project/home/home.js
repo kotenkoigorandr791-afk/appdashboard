@@ -4,7 +4,9 @@ en: {
       hero_title: 'Secure Cloud Shell Access',
       hero_desc1: 'ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.',
       hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, interactive maps, photo backup, movie collections, recipe management, expense tracking, health tracking, and development tools — all accessible through a single account.',
-      loading_app: 'Opening app...',
+      loading_app: 'Opening…',
+      loading_title: 'ServerKherson',
+      loading_sub: 'Opening…',
       signin: 'Sign in', register: 'Register', otp_button: 'One Time PIN',
       features_title: 'Server applications overview', apps_heading: 'Installed applications',
       promo_title: 'Unlock every app — free',
@@ -85,7 +87,9 @@ uk: {
       hero_title: 'Безпечний доступ до хмарної консолі',
       hero_desc1: 'ServerKherson — це веб-застосунок для безпечного доступу та керування серверами.',
       hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю. Платформа пропонує різноманітні застосунки: хмарне керування файлами, інтерактивні мапи, бекап фото, фільмотеку, рецепти, облік витрат, трекер активності та інструменти розробника — все доступне через єдиний обліковий запис.',
-      loading_app: 'Відкриття застосунку...',
+      loading_app: 'Відкриття…',
+      loading_title: 'ServerKherson',
+      loading_sub: 'Відкриття…',
       signin: 'Увійти', register: 'Реєстрація', otp_button: 'Одноразовий PIN',
       features_title: 'Огляд серверних застосунків', apps_heading: 'Окремі застосунки',
       promo_title: 'Увесь потенціал — безкоштовно',
@@ -166,7 +170,9 @@ uk: {
       hero_title: 'Безопасный доступ к облачной консоли',
       hero_desc1: 'ServerKherson — это веб-приложение для безопасного доступа и управления серверами.',
       hero_desc2: 'Мы используем Google OAuth для защиты аккаунтов. Запрашивается только базовая информация профиля. Платформа предлагает разнообразные приложения: облачное управление файлами, интерактивные карты, бекап фото, фільмотеку, рецепты, учёт расходов, трекер активности и инструменты разработчика — всё доступно через единую учётную запись.',
-      loading_app: 'Открытие приложения...',
+      loading_app: 'Открытие…',
+      loading_title: 'ServerKherson',
+      loading_sub: 'Открытие…',
       signin: 'Войти', register: 'Регистрация', otp_button: 'Одноразовый PIN',
       features_title: 'Обзор серверных приложений', apps_heading: 'Отдельные приложения',
       promo_title: 'Весь потенциал — бесплатно',
@@ -247,7 +253,9 @@ uk: {
       hero_title: 'Бяспечны доступ да хмарнай кансолі',
       hero_desc1: 'ServerKherson — гэта вэб-праграма для бяспечнага доступу да сервераў.',
       hero_desc2: 'Мы выкарыстоўваем Google OAuth для абароны ўліковых запісаў. Запытваецца толькі базавая інфармацыя профілю. Платформа прапануе разнастайныя прыкладанні: воблачнае кіраванне файламі, інтерактыўныя мапы, бэкап фота, фільматэка, рэцэпты, улік выдаткаў, трэкер актыўнасці і інструменты распрацоўшчыка — усё даступна праз адзіны ўліковы запіс.',
-      loading_app: 'Адкрыццё прыкладання...',
+      loading_app: 'Адкрыццё…',
+      loading_title: 'ServerKherson',
+      loading_sub: 'Адкрыццё…',
       signin: 'Увайсці', register: 'Рэгістрацыя', otp_button: 'Аднаразовы PIN',
       features_title: 'Агляд серверных прыкладанняў', apps_heading: 'Асобныя прыкладанні',
       promo_title: 'Увесь патэнцыял — бясплатна',
@@ -327,7 +335,9 @@ uk: {
       hero_title: 'Bezpieczny dostęp do powłoki chmurowej',
       hero_desc1: 'ServerKherson to aplikacja webowa umożliwiająca bezpieczny dostęp do zdalnych serwerów.',
       hero_desc2: 'Używamy Google OAuth do ochrony kont. Pobierane są tylko podstawowe dane profilu. Platforma oferuje różnorodne aplikacje: zarządzanie plikami w chmurze, interaktywne mapy, kopie zapasowe zdjęć, kolekcje filmów, przepisy, śledzenie wydatków, tracker aktywności i narzędzia deweloperskie — wszystko dostępne przez jedno konto.',
-      loading_app: 'Otwieranie aplikacji...',
+      loading_app: 'Otwieranie…',
+      loading_title: 'ServerKherson',
+      loading_sub: 'Otwieranie…',
       signin: 'Zaloguj się', register: 'Rejestracja', otp_button: 'Jednorazowy PIN',
       features_title: 'Przegląd aplikacji serwerowych', apps_heading: 'Zainstalowane aplikacje',
       promo_title: 'Pełny potencjał — za darmo',
@@ -407,7 +417,9 @@ uk: {
       hero_title: 'Bezpečný přístup ke cloudovému shellu',
       hero_desc1: 'ServerKherson je webová aplikace umožňující bezpečný přístup ke vzdáleným serverům.',
       hero_desc2: 'Pro ochranu účtů používáme Google OAuth. Jsou vyžadovány pouze základní informace z profilu. Platforma nabízí různé aplikace: cloudovou správu souborů, interaktivní mapy, zálohu fotek, filmové sbírky, recepty, sledování výdajů, tracker aktivity a vývojářské nástroje — vše dostupné přes jeden účet.',
-      loading_app: 'Otevírání aplikace...',
+      loading_app: 'Otevírání…',
+      loading_title: 'ServerKherson',
+      loading_sub: 'Otevírání…',
       signin: 'Přihlásit se', register: 'Registrace', otp_button: 'Jednorázový PIN',
       features_title: 'Přehled serverových aplikací', apps_heading: 'Nainstalované aplikace',
       promo_title: 'Plný potenciál — zdarma',
@@ -1436,37 +1448,61 @@ function handleAppMouseEnter(e, card, name, desc) {
     if (instructionsOpen) renderInstructions();
   }
 
-  function loadingOverlay(t) {
-    const existing = $('pageLoadingOverlay');
-    if (existing) existing.remove();
-    const overlay = document.createElement('div');
-    overlay.id = 'pageLoadingOverlay'; overlay.className = 'loading-overlay';
-    overlay.textContent = t; document.body.appendChild(overlay);
+  function clearLoadingOverlay() {
+    const ol = $('pageLoadingOverlay');
+    if (ol) ol.remove();
+    ['loginLink', 'registerLink', 'otpLink', 'drawerLoginLink', 'drawerRegisterLink', 'drawerOtpLink', 'termsLink', 'privacyLink'].forEach(id => {
+      const el = $(id);
+      if (!el) return;
+      if (el._skLoadTimer) { clearTimeout(el._skLoadTimer); el._skLoadTimer = null; }
+      if (!el.dataset.skOrigText) return;
+      el.textContent = el.dataset.skOrigText;
+      el.style.pointerEvents = '';
+      el.style.opacity = '';
+      delete el.dataset.skOrigText;
+    });
   }
 
-function bindAuthLink(el) {
-     if (!el) return;
-     el.addEventListener('click', e => {
-         e.preventDefault();
-         const t = I18N[lang] || I18N.en;
-         el.textContent = t.waiting_btn || 'Waiting...';
-         el.style.pointerEvents = 'none';
-         el.style.opacity = '0.7';
-         const timer = setTimeout(() => loadingOverlay(t.loading_app || 'Opening app...'), 500);
-         const url = new URL(el.href, location.origin);
-         url.searchParams.set('lang', lang);
-         url.searchParams.set('theme', theme);
-         location.href = url.toString();
-     });
-     
-     // Add tooltip for register link
-     if (el.id === 'registerLink' || el.id === 'drawerRegisterLink') {
-         el.addEventListener('pointerenter', handleRegisterMouseEnter);
-         el.addEventListener('focusin', handleRegisterMouseEnter);
-         el.addEventListener('pointerleave', hideRegisterTooltip);
-         el.addEventListener('focusout', hideRegisterTooltip);
-     }
- }
+  function loadingOverlay(sub) {
+    const existing = $('pageLoadingOverlay');
+    if (existing) existing.remove();
+    const t = I18N[lang] || I18N.en;
+    const overlay = document.createElement('div');
+    overlay.id = 'pageLoadingOverlay';
+    overlay.className = 'loading-overlay';
+    overlay.innerHTML = `<div class="loading-overlay-box"><img class="loading-overlay-logo" src="/home/icon.png" alt=""><h2 class="loading-overlay-title">${escH(t.loading_title || 'ServerKherson')}</h2><p class="loading-overlay-sub">${escH(sub || t.loading_sub || t.loading_app || 'Opening…')}</p><div class="loading-overlay-bar" aria-hidden="true"></div></div>`;
+    document.body.appendChild(overlay);
+  }
+
+  function bindAuthLink(el) {
+    if (!el) return;
+    el.addEventListener('click', e => {
+      e.preventDefault();
+      const t = I18N[lang] || I18N.en;
+      if (!el.dataset.skOrigText) el.dataset.skOrigText = el.textContent;
+      el.textContent = t.waiting_btn || 'Waiting...';
+      el.style.pointerEvents = 'none';
+      el.style.opacity = '0.7';
+      const timer = setTimeout(() => loadingOverlay(t.loading_sub || t.loading_app || 'Opening…'), 500);
+      el._skLoadTimer = timer;
+      const url = new URL(el.href, location.origin);
+      url.searchParams.set('lang', lang);
+      url.searchParams.set('theme', theme);
+      location.href = url.toString();
+    });
+    if (el.id === 'registerLink' || el.id === 'drawerRegisterLink') {
+      el.addEventListener('pointerenter', handleRegisterMouseEnter);
+      el.addEventListener('focusin', handleRegisterMouseEnter);
+      el.addEventListener('pointerleave', hideRegisterTooltip);
+      el.addEventListener('focusout', hideRegisterTooltip);
+    }
+  }
+
+  window.addEventListener('pageshow', () => clearLoadingOverlay());
+  window.addEventListener('popstate', () => clearLoadingOverlay());
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') clearLoadingOverlay();
+  });
 
   function scheduleRuNotify() {
     if (ruNotifyTimer) clearTimeout(ruNotifyTimer);

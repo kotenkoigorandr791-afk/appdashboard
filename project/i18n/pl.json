@@ -659,7 +659,7 @@
   "share_sort_no_grouping": "Bez grupowania",
   "share_sort_smallest": "najmniejszy",
   "shared_files_management": "Zarządzanie udostępnionymi plikami",
-  "shell_application": "Aplikacja Shell",
+  "shell_application": "ServerKherson",
   "shortcut_admin_panel": "Otwórz panel administracyjny",
   "shortcut_arrows": "Przesuwanie między kafelkami",
   "shortcut_enter": "Otwórz wybraną aplikację",
@@ -1152,5 +1152,7 @@
   "backup_view_log": "Pokaż log",
   "backup_warning": "Ostrzeżenie",
   "backup_weekday": "Dzień tygodnia",
-  "backup_wizard": "Kreator kopii zapasowych"
+  "backup_wizard": "Kreator kopii zapasowych",
+  "opening_app": "Otwieranie…",
+  "opening_app_named": "Otwieranie {name}…"
 }

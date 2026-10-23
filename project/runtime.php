@@ -180,7 +180,7 @@ if(is_dir($appsFsDir)){
 $currentDomain=(isset($_SERVER['HTTPS'])&&$_SERVER['HTTPS']==='on'?"https":"http")."://".$_SERVER['HTTP_HOST'];
 $selectedApp=isset($_GET['app'])?$_GET['app']:null;
 
-$pageTitle="Shell Application";
+$pageTitle="ServerKherson";
 $selectedAppMenuButton=$defaultMenuButton;
 $selectedAppMenuButtonMobile=$defaultMenuButton;
 $selectedAppMenuButtonScroll=false;
