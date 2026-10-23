@@ -695,6 +695,7 @@ function initTreeDragMoveHandlers() {
 
 let shareState = {
     currentKey: null,
+    passwordSet: false,
     currentPath: '',
     currentExpiresOption: 'never',
     currentRestrictions: {
@@ -1152,17 +1153,20 @@ function formatShareExpiryText(expiresAt, expiresOption) {
     if (Number.isNaN(d.getTime())) return t(window.i18n, 'shareLinkExpiryUnknown');
     return `${t(window.i18n, 'shareLinkExpiresAt')}: ${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
-async function generateShareKey(filePath, expiresOption = 'never', root = null) {
+async function generateShareKey(filePath, expiresOption = 'never', root = null, update = false) {
     const shareRoot = root || (document.getElementById('viewer')?.dataset?.tabRoot) || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
+    const restrictions = update ? shareState.currentRestrictions : { password: '', view_only: 0, disable_download: 0, disable_copy: 0, max_views: 0 };
     const response = await api('share_file', {
         path: filePath,
         root: shareRoot,
         expires_option: expiresOption,
-        password: shareState.currentRestrictions.password || '',
-        view_only: shareState.currentRestrictions.view_only ? 1 : 0,
-        disable_download: shareState.currentRestrictions.disable_download ? 1 : 0,
-        disable_copy: shareState.currentRestrictions.disable_copy ? 1 : 0,
-        max_views: Number(shareState.currentRestrictions.max_views || 0)
+        password: restrictions.password || '',
+        keep_password: update && shareState.passwordSet ? 1 : 0,
+        reuse_existing: update ? 0 : 1,
+        view_only: restrictions.view_only ? 1 : 0,
+        disable_download: restrictions.disable_download ? 1 : 0,
+        disable_copy: restrictions.disable_copy ? 1 : 0,
+        max_views: Number(restrictions.max_views || 0)
     }, 'POST');
     if (response && response.key) {
         return response;
@@ -1202,7 +1206,7 @@ async function ensureQrCodeStyling() {
     if (typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
     return QRCodeStyling;
 }
-async function renderShareModalForPath(filePath, displayName, expiresOption = 'never', root = null) {
+async function renderShareModalForPath(filePath, displayName, expiresOption = 'never', root = null, update = false) {
     const modal = document.getElementById('share-modal');
     const select = document.getElementById('share-expires-select');
     const expiresInfo = document.getElementById('share-expires-at');
@@ -1217,14 +1221,15 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     shareState.currentPath = filePath;
     shareState.currentRoot = root || document.getElementById('viewer')?.dataset?.tabRoot || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
     shareState.currentExpiresOption = expiresOption || 'never';
-    select.value = shareState.currentExpiresOption;
-    const currentPasswordValue = shareState.currentRestrictions?.password || '';
-
+    if (!update) shareState.currentRestrictions.password = '';
     flashStatus(t(i18n, 'generatingLink'));
-    const shareData = await generateShareKey(filePath, shareState.currentExpiresOption, shareState.currentRoot);
+    const shareData = await generateShareKey(filePath, shareState.currentExpiresOption, shareState.currentRoot, update);
     shareState.currentKey = shareData.key;
+    shareState.currentExpiresOption = shareData.expires_option || shareState.currentExpiresOption;
+    select.value = shareState.currentExpiresOption;
+    shareState.passwordSet = !!shareData.has_password;
     shareState.currentRestrictions = {
-        password: currentPasswordValue,
+        password: '',
         view_only: Number(shareData.view_only || 0),
         disable_download: Number(shareData.disable_download || 0),
         disable_copy: Number(shareData.disable_copy || 0),
@@ -1235,7 +1240,12 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
     if (modeViewOnlyInput) modeViewOnlyInput.checked = modeValue === 'view_only';
     if (modeDisableDownloadInput) modeDisableDownloadInput.checked = modeValue === 'disable_download';
     if (modeDisableCopyInput) modeDisableCopyInput.checked = modeValue === 'disable_copy';
-    if (passwordInput) passwordInput.value = currentPasswordValue;
+    if (passwordInput) {
+        passwordInput.value = '';
+        passwordInput.placeholder = shareState.passwordSet
+            ? cloudShareText('sharePasswordSetPlaceholder', 'Password is set. Enter a new one to replace it')
+            : t(i18n, 'password_optional');
+    }
     if (openLimitInput) openLimitInput.value = String(shareState.currentRestrictions.max_views || 0);
 
     const finalUrl = buildCloudShareUrl(shareData);
@@ -1337,7 +1347,7 @@ async function openShareModal() {
     try {
         viewer.dataset.lastSharedPath = sharePath;
         viewer.dataset.lastSharedRoot = root;
-        await renderShareModalForPath(sharePath, filePath.split('/').pop(), shareState.currentExpiresOption || 'never', root);
+        await renderShareModalForPath(sharePath, filePath.split('/').pop(), 'never', root);
         return true;
     } catch (err) {
         flashStatus(t(i18n, 'shareError') + ': ' + err.message);
@@ -1485,7 +1495,7 @@ function initShareFeature() {
         shareState.currentExpiresOption = nextOption;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), nextOption, shareState.currentRoot);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), nextOption, shareState.currentRoot, true);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1496,7 +1506,7 @@ function initShareFeature() {
         shareState.currentRestrictions.disable_copy = mode === 'disable_copy' ? 1 : 0;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot, true);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1508,9 +1518,10 @@ function initShareFeature() {
     });
     document.getElementById('share-password')?.addEventListener('change', async (e) => {
         shareState.currentRestrictions.password = String(e.target.value || '');
+        if (!shareState.currentRestrictions.password) return;
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot, true);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1519,7 +1530,7 @@ function initShareFeature() {
         shareState.currentRestrictions.max_views = Math.max(0, Number(e.target.value || 0));
         if (!shareState.currentPath) return;
         try {
-            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot);
+            await renderShareModalForPath(shareState.currentPath, shareState.currentPath.split('/').pop(), shareState.currentExpiresOption, shareState.currentRoot, true);
         } catch (err) {
             flashStatus(t(i18n, 'shareError') + ': ' + err.message);
         }
@@ -1538,7 +1549,7 @@ async function loadLocale(lang) {
   const map = { en:'en', ru:'ru', uk:'uk', be:'be', pl:'pl', cs:'cs' };
   const code = map[lang] || 'en';
   try {
-    const res = await fetch(`i18n/load.php?lang=${encodeURIComponent(code)}&v=3`);
+    const res = await fetch(`i18n/load.php?lang=${encodeURIComponent(code)}&v=5`);
     if (res.ok) return res.json();
   } catch (e) {}
   const res = await fetch(`i18n/${code}.json?v=2`);
@@ -2623,12 +2634,6 @@ window.addEventListener('message', function(event) {
             flashStatus(event.data.message);
         }
     }
-    if (event.data.type === 'markdownEditorSaved') {
-        const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
-        if (activeTab && activeTab.markdownEditor) {
-            flashStatus(t(i18n, 'fileSaved'));
-        }
-    }
     if (event.data.type === 'closeMarkdownEditor') {
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
         if (activeTab && activeTab.markdownEditor) {
@@ -2657,12 +2662,6 @@ window.addEventListener('message', function(event) {
     if (event.data.type === 'htmlEditorStatus') {
         if (event.data.fromShowStatus && event.data.message) {
             flashStatus(event.data.message);
-        }
-    }
-    if (event.data.type === 'htmlEditorSaved') {
-        const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
-        if (activeTab && activeTab.htmlEditor) {
-            flashStatus(t(i18n, 'fileSaved'));
         }
     }
     if (event.data.type === 'closeHtmlEditor') {
@@ -3632,6 +3631,26 @@ function renderTabDropdownRecent() {
         list.appendChild(btn);
     });
 }
+function fitTabDropdownItems(dropdown) {
+    const items = Array.from(dropdown.querySelectorAll('.tab-search-item'));
+    const sections = Array.from(dropdown.querySelectorAll('.tab-search-section'));
+    items.forEach((item) => { item.style.display = 'none'; });
+    sections.forEach((section) => { section.style.display = ''; });
+    let full = false;
+    items.forEach((item) => {
+        if (full) return;
+        item.style.display = '';
+        if (dropdown.scrollHeight > dropdown.clientHeight) {
+            item.style.display = 'none';
+            full = true;
+        }
+    });
+    sections.forEach((section) => {
+        const hasItems = section.querySelector('.tab-search-item');
+        const hasVisible = Array.from(section.querySelectorAll('.tab-search-item')).some((item) => item.style.display !== 'none');
+        if (hasItems && !hasVisible) section.style.display = 'none';
+    });
+}
 function openTabDropdown() {
     const dropdown = document.getElementById('tab-search-dropdown');
     const toggle = document.getElementById('tab-strip-toggle');
@@ -3639,6 +3658,7 @@ function openTabDropdown() {
     renderTabDropdownOpenTabs();
     renderTabDropdownRecent();
     dropdown.classList.add('show');
+    fitTabDropdownItems(dropdown);
     if (toggle) toggle.classList.add('active');
 }
 function closeTabDropdown() {
@@ -9210,7 +9230,7 @@ async function autoSaveFile(editor, filePath, tabId = null) {
             }
             saveTabsState();
         }
-        flashStatus(t(i18n, 'autoSaved'));
+        if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showSuccessCheck(document.getElementById('btn-save'));
     } catch (err) {
         flashStatus(t(i18n, 'autoSaveFailed') + err.message);
     } finally {
@@ -9508,7 +9528,7 @@ async function saveFile() {
         content = activeTab.content;
     }
 
-    if (!editorsMap.has(activeTab.id) && content === '' && !activeTab.content) {
+    if (!editorsMap.has(activeTab.id) && content === '' && !activeTab.content && activeTab.content !== '') {
         flashStatus(t(i18n, 'noContentToSave'));
         return false;
     }

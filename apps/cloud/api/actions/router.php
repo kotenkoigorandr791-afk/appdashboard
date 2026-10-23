@@ -499,13 +499,24 @@ if ($action === 'share_file' || $action === 'share_folder') {
         }
 
         // Check if an active link already exists for this file/folder from this user
-        $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE file_path = :file_path AND user_email = :user_email');
+        $stmt = $db->prepare('SELECT share_id, expires, expires_option, password_hash, view_only, disable_download, disable_copy, max_views FROM shared_files WHERE file_path = :file_path AND user_email = :user_email');
         $stmt->bindValue(':file_path', $normalizedPath, PDO::PARAM_STR);
         $stmt->bindValue(':user_email', $userEmail, PDO::PARAM_STR);
         $result = $stmt->execute();
         $existing = $result->fetch(PDO::FETCH_ASSOC);
 
         if ($existing && isset($existing['share_id'])) {
+            $existingExpires = ($existing['expires'] ?? null) === null ? null : (int)$existing['expires'];
+            if (!empty($_POST['reuse_existing'])) {
+                json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $existingExpires, 'expires_option' => (string)$existing['expires_option'], 'view_only' => (int)$existing['view_only'], 'disable_download' => (int)$existing['disable_download'], 'disable_copy' => (int)$existing['disable_copy'], 'max_views' => (int)$existing['max_views'], 'has_password' => (string)$existing['password_hash'] !== '']);
+                return;
+            }
+            if ($plainPassword === '' && !empty($_POST['keep_password'])) {
+                $passwordHash = (string)$existing['password_hash'];
+            }
+            if ($expiresOption === (string)$existing['expires_option']) {
+                $expires = $existingExpires;
+            }
             $upd = $db->prepare('UPDATE shared_files SET is_folder = :is_folder, expires = :expires, expires_option = :expires_option, password_hash = :password_hash, view_only = :view_only, disable_download = :disable_download, disable_copy = :disable_copy, max_views = :max_views WHERE share_id = :share_id');
             $upd->bindValue(':is_folder', $isFolder, PDO::PARAM_INT);
             if ($expires === null) $upd->bindValue(':expires', null, PDO::PARAM_NULL);
@@ -519,7 +530,7 @@ if ($action === 'share_file' || $action === 'share_folder') {
             $upd->bindValue(':share_id', $existing['share_id'], PDO::PARAM_STR);
             $upd->execute();
             sharepoint_mirror_legacy_cloud($db, (string)$existing['share_id'], basename($fullPath), $normalizedPath, (bool)$isFolder, $userEmail, $expires, $expiresOption, $passwordHash, !$disableDownload, $maxViews);
-            json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
+            json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews, 'has_password' => $passwordHash !== '']);
             return;
         }
 
@@ -556,7 +567,7 @@ if ($action === 'share_file' || $action === 'share_folder') {
 
         if ($stmt->execute()) {
             sharepoint_mirror_legacy_cloud($db, (string)$shareId, basename($fullPath), $normalizedPath, (bool)$isFolder, $userEmail, $expires, $expiresOption, $passwordHash, !$disableDownload, $maxViews);
-            json_out(['key' => $shareId, 'link' => sharepoint_public_link((string)$shareId), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
+            json_out(['key' => $shareId, 'link' => sharepoint_public_link((string)$shareId), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews, 'has_password' => $passwordHash !== '']);
         } else {
             json_out(['error' => 'Failed to create share record'], 500);
         }

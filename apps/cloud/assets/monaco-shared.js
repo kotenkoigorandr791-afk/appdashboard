@@ -423,7 +423,7 @@
         const monacoRef = options.monaco;
         if (!editor || !monacoRef) return { dispose: function () {} };
 
-        const markerPattern = /^(\s*)(\d+)([.)])([ \t]+)(.*)$/;
+        const markerPattern = /^(\s*)(?:(\d+)([.)])|([-*+\u2022\u2013\u2014]))([ \t]+)(.*)$/;
         // The marker the previous Enter added ("2. "), so Backspace can tell it apart
         // from a number the user typed by hand.
         let autoMarker = null;
@@ -505,8 +505,9 @@
             const indent = match[1];
             const digits = match[2];
             const delimiter = match[3];
-            const spacing = match[4];
-            const itemText = match[5];
+            const bullet = match[4];
+            const spacing = match[5];
+            const itemText = match[6];
             const restOfLine = model.getValueInRange(new monacoRef.Range(
                 position.lineNumber,
                 position.column,
@@ -527,7 +528,7 @@
                 return;
             }
 
-            const nextMarker = indent + (Number(digits) + 1) + delimiter + spacing;
+            const nextMarker = indent + (bullet || (Number(digits) + 1) + delimiter) + spacing;
             editor.executeEdits('txt-list-continue', [{
                 range: new monacoRef.Range(position.lineNumber, position.column, position.lineNumber, position.column),
                 text: '\n' + nextMarker

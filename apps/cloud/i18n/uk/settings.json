@@ -1,7 +1,8 @@
 {
     "apiEndpoint": "API Endpoint",
     "colorType": "Тип кольору",
-    "english": "off",
+    "english": "Вимк",
+    "sharePasswordSetPlaceholder": "Пароль задано. Введіть новий, щоб замінити",
     "hideLanguageSwitcherOnMainPage": "Приховати перемикач мов на головній сторінці",
     "quota": "Призначено",
     "quotaUpdated": "Квота успішно оновлена",

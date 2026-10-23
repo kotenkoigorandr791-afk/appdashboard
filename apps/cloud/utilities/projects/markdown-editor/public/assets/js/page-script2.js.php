@@ -108,13 +108,11 @@
             if (!filePath || !editor) { showStatus(translations[lang]?.pdfNoPath || 'No file selected', true); return; }
             const content = editor.getValue();
             if (window.originalContent === content) {
-                showStatus(translations[lang]?.noChanges || 'No changes to save', false);
                 if (window.parent) window.parent.postMessage({ type: 'markdownEditorSaved', relativePath: filePath, success: true, message: 'No changes to save' }, '*');
-                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
+                if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
                 return;
             }
             try {
-                showStatus(translations[lang]?.saving || 'Saving...', false);
                 const response = await fetch('<?= htmlspecialchars($apiUrl) ?>', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -136,7 +134,7 @@
                 }
                 
                 if (window.parent) window.parent.postMessage({ type: 'markdownEditorSaved', relativePath: filePath, success: true, message: 'File saved successfully' }, '*');
-                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
+                if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
             } catch (error) {
                 showStatus((translations[lang]?.saveError || 'Save error') + ': ' + error.message, true);
                 if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: error.message }, '*');

@@ -73,7 +73,7 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=53" />
+  <link rel="stylesheet" href="assets/styles.css?v=55" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -229,7 +229,7 @@ cloud_require_session_auth();
 <script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=49"></script>
+<script defer src="assets/app.js?v=53"></script>
 <script defer src="assets/app/editors-and-tree.js?v=15"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -248,8 +248,8 @@ cloud_require_session_auth();
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=43"></script>
-<script defer src="assets/monaco-shared.js?v=3"></script>
-<script defer src="assets/monaco-editor.js?v=21"></script>
+<script defer src="assets/monaco-shared.js?v=4"></script>
+<script defer src="assets/monaco-editor.js?v=22"></script>
 
 
 </head>

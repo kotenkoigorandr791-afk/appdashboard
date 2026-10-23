@@ -3181,8 +3181,11 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
-        if (!readOnly && language === 'plaintext') {
+        if (!readOnly && (language === 'plaintext' || language === 'markdown')) {
             monacoSetupTxtNumberedListContinuation(editor, filePath);
+        }
+
+        if (!readOnly && language === 'plaintext') {
 
             let isApplyingAutoCase = false;
             const autoSentenceCaseDisposable = editor.onDidChangeModelContent((event) => {
