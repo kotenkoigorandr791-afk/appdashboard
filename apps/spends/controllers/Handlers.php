@@ -33,8 +33,8 @@ if (isset($_GET['get_ocr_stats'])) {
     $year = (int)($_GET['year'] ?? 0);
     $yearWhere = $year > 0 ? " AND date LIKE '" . AppDatabase::escapeString((string)$year) . "-%'" : '';
     $stores = [];
-    $sr = $udb->query("SELECT DISTINCT store FROM expenses ORDER BY store ASC");
-    while ($row = $sr->fetch(PDO::FETCH_ASSOC)) if (!empty($row['store'])) $stores[] = $row['store'];
+    $sr = $udb->query("SELECT name FROM stores ORDER BY name ASC");
+    while ($row = $sr->fetch(PDO::FETCH_ASSOC)) if (!empty($row['name'])) $stores[] = $row['name'];
     $daily = [];
     $monthly = [];
     $storeSummary = [];
@@ -102,7 +102,10 @@ if (isset($_GET['get_available_years'])) {
 
 // Exchange Rates API
 if (isset($_GET['get_exchange_rates'])) {
-    $base = $_GET['base'] ?? 'USD';
+    $base = strtoupper(trim((string)($_GET['base'] ?? 'USD')));
+    if (!preg_match('/^[A-Z]{3}$/', $base)) exit(json_encode(['status' => 'error', 'message' => 'invalid_base']));
+    $cached = spendsCacheGet('rates:' . $base);
+    if ($cached !== null) exit($cached);
     try {
         $rates = [];
         // Try multiple sources
@@ -132,12 +135,14 @@ if (isset($_GET['get_exchange_rates'])) {
             }
         }
         
-        exit(json_encode([
+        $payload = json_encode([
             'status' => 'success',
             'base' => $base,
             'rates' => $rates,
             'timestamp' => time()
-        ]));
+        ]);
+        if (!empty($rates)) spendsCacheSet('rates:' . $base, $payload, 3600);
+        exit($payload);
     } catch (Exception $e) {
         exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
     }
@@ -149,6 +154,13 @@ if (isset($_GET['get_exchange_history'])) {
     $currencies = array_values(array_unique(array_merge(['EUR', 'USD', 'UAH', 'PLN', 'BYN'], $currencies)));
     $days = min(30, max(2, (int)($_GET['days'] ?? 14)));
     $base = strtoupper(trim($_GET['base'] ?? 'EUR'));
+    if (!preg_match('/^[A-Z]{3}$/', $base)) exit(json_encode(['status' => 'error', 'message' => 'invalid_base']));
+    $histKey = 'history:' . md5($base . '|' . $days . '|' . implode(',', $currencies) . '|' . date('Y-m-d'));
+    $cachedHistory = spendsCacheGet($histKey);
+    if ($cachedHistory !== null) {
+        header('Content-Type: application/json; charset=utf-8');
+        exit($cachedHistory);
+    }
 
     $dates = [];
     for ($i = $days - 1; $i >= 0; $i--) {
@@ -265,14 +277,16 @@ if (isset($_GET['get_exchange_history'])) {
     }
 
     header('Content-Type: application/json; charset=utf-8');
-    exit(json_encode([
+    $payload = json_encode([
         'status' => 'success',
         'base' => $base,
         'days' => $days,
         'dates' => $dates,
         'history' => $history,
         'timestamp' => time(),
-    ]));
+    ]);
+    if (!empty(array_filter($history))) spendsCacheSet($histKey, $payload, 3600);
+    exit($payload);
 }
 
 // ─── Chat: search users for the send-to-chat picker ─────────────────────────
@@ -395,6 +409,12 @@ if (isset($_POST['chat_send_message'])) {
     $db = getDB();
     if (!$db) exit(json_encode(['status' => 'error', 'message' => 'db unavailable']));
     try {
+        $exists = $db->prepare('SELECT 1 FROM users WHERE LOWER(email) = :e LIMIT 1');
+        $exists->bindValue(':e', $recipient, PDO::PARAM_STR);
+        if (!$exists->execute()->fetch(PDO::FETCH_NUM)) exit(json_encode(['status' => 'error', 'message' => 'invalid recipient']));
+        $rl = spendsCacheGet('chat_rl:' . $me);
+        if ((int)$rl >= 30) exit(json_encode(['status' => 'error', 'message' => 'rate_limited']));
+        spendsCacheSet('chat_rl:' . $me, (string)((int)$rl + 1), 60);
         // Same conversation key layout as the core messenger (peer chats)
         $pair = [$me, $recipient];
         sort($pair);
@@ -441,6 +461,13 @@ if (isset($_GET['get_expenses_page'])) {
     if (strcmp($rangeStart, $rangeEnd) > 0) {
         exit(json_encode(['status' => 'success', 'rows' => [], 'dates' => [], 'total' => 0, 'totalPages' => 1]));
     }
+    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $rangeStart) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $rangeEnd)) {
+        exit(json_encode(['status' => 'error', 'message' => $__t('invalid_date_format')]));
+    }
+    $maxSpanDays = 800;
+    if ((strtotime($rangeEnd) - strtotime($rangeStart)) / 86400 > $maxSpanDays) {
+        $rangeEnd = date('Y-m-d', strtotime($rangeStart . " +$maxSpanDays days"));
+    }
     $allDays = listCalendarDaysInclusive($rangeStart, $rangeEnd);
     if ($sort === 'date_desc') {
         $allDays = array_reverse($allDays);
@@ -448,9 +475,8 @@ if (isset($_GET['get_expenses_page'])) {
     $rows = [];
     $incomes = [];
     if (!empty($allDays)) {
-        $inDates = implode(',', array_map(fn($d) => "'" . AppDatabase::escapeString($d) . "'", $allDays));
-        $expWhere = "date IN ($inDates)";
-        $expParams = [];
+        $expWhere = "date >= :ra AND date <= :rb";
+        $expParams = [':ra' => $rangeStart, ':rb' => $rangeEnd];
         if ($search !== '') {
             $expWhere .= " AND (date LIKE :s OR store LIKE :s2 OR CAST(amount AS TEXT) LIKE :s3)";
             $expParams[':s']  = "%$search%";
@@ -462,8 +488,8 @@ if (isset($_GET['get_expenses_page'])) {
         $expRes = $expSt->execute();
         while ($r = $expRes->fetch(PDO::FETCH_ASSOC)) $rows[] = $r;
 
-        $incWhere = "date IN ($inDates)";
-        $incParams = [];
+        $incWhere = "date >= :ra AND date <= :rb";
+        $incParams = [':ra' => $rangeStart, ':rb' => $rangeEnd];
         if ($search !== '') {
             $incWhere .= " AND (date LIKE :s OR CAST(amount AS TEXT) LIKE :s2)";
             $incParams[':s']  = "%$search%";
@@ -522,23 +548,6 @@ if (isset($_GET['year_data'])) {
 if (isset($_POST['add_date_ajax'])) {
     $date = $_POST['date'] ?? '';
     if ($date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && strtotime($date)) {
-        $st = $udb->prepare('SELECT COUNT(*) FROM expenses WHERE date=:d');
-        $st->bindValue(':d', $date);
-        $exists = (int)$st->execute()->fetch(PDO::FETCH_NUM)[0] > 0;
-        if ($exists) exit(json_encode(['status'=>'error','message'=>$__t('msg_date_exists')]));
-
-        $stores = dbGetStores($udb);
-        $udb->exec('BEGIN');
-        foreach ($stores as $s) {
-            $ist = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
-            $ist->bindValue(':d', $date);
-            $ist->bindValue(':s', $s['name']);
-            $ist->execute();
-        }
-        $inc = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
-        $inc->bindValue(':d', $date);
-        $inc->execute();
-        $udb->exec('COMMIT');
         exit(json_encode(['status'=>'success','message'=>$__t('date_added'),'date'=>$date]));
     }
     exit(json_encode(['status'=>'error','message'=>$__t('invalid_date_format')]));
@@ -576,21 +585,12 @@ if (isset($_POST['add_edit_store'])) {
         }
     } else {
         $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
-        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,:c) ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category');
+        $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,:c) ON CONFLICT (user_id,id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category');
         $st->bindValue(':id', $storeId);
         $st->bindValue(':n',  $storeName);
         $st->bindValue(':o',  $maxOrd, PDO::PARAM_INT);
         $st->bindValue(':c',  $storeCategory);
         $st->execute();
-        $dRes = $udb->query("SELECT DISTINCT date FROM expenses");
-        $udb->exec('BEGIN');
-        while ($dRow = $dRes->fetch(PDO::FETCH_ASSOC)) {
-            $ist = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
-            $ist->bindValue(':d', $dRow['date']);
-            $ist->bindValue(':s', $storeName);
-            $ist->execute();
-        }
-        $udb->exec('COMMIT');
     }
 
     if (isset($_FILES['store_photo']) && $_FILES['store_photo']['error'] === UPLOAD_ERR_OK) {
@@ -686,10 +686,11 @@ if (isset($_POST['update_expense'])) {
     $store  = $_POST['store']  ?? '';
     $amount = filter_var($_POST['amount'] ?? 0, FILTER_VALIDATE_FLOAT);
     if ($date && $store && $amount !== false) {
-        $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO UPDATE SET amount=excluded.amount,entry_source='manual',ocr_raw_store=NULL");
+        $isZero = abs($amount) < 0.005;
+        $st = $udb->prepare($isZero ? 'DELETE FROM expenses WHERE date=:d AND store=:s' : "INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount,entry_source='manual',ocr_raw_store=NULL");
         $st->bindValue(':d', $date);
         $st->bindValue(':s', $store);
-        $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        if (!$isZero) $st->bindValue(':a', $amount, PDO::PARAM_STR);
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
@@ -699,9 +700,10 @@ if (isset($_POST['update_income'])) {
     $date = $_POST['date'] ?? '';
     $amount = filter_var($_POST['amount'] ?? 0, FILTER_VALIDATE_FLOAT);
     if ($date && $amount !== false) {
-        $st = $udb->prepare("INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO UPDATE SET amount=excluded.amount");
+        $isZero = abs($amount) < 0.005;
+        $st = $udb->prepare($isZero ? 'DELETE FROM incomes WHERE date=:d' : "INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=excluded.amount");
         $st->bindValue(':d', $date);
-        $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        if (!$isZero) $st->bindValue(':a', $amount, PDO::PARAM_STR);
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
@@ -737,11 +739,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
         $_SESSION['bank_csv_sessions'] = [];
     }
     $cut = time() - 7200;
+    foreach (glob($tmpDir . '/*') ?: [] as $stale) {
+        if (is_file($stale) && filemtime($stale) < $cut) @unlink($stale);
+    }
     foreach ($_SESSION['bank_csv_sessions'] as $tk => $meta) {
         if (($meta['ts'] ?? 0) < $cut && !empty($meta['path']) && is_file($meta['path'])) {
             @unlink($meta['path']);
             unset($_SESSION['bank_csv_sessions'][$tk]);
         }
+    }
+    $slotUser = 'bank_user:' . md5($currentUser);
+    if (!spendsSlotAcquire($slotUser, 1, 120)) {
+        @unlink($dest);
+        exit(json_encode(['status' => 'error', 'message' => 'busy']));
+    }
+    if (!spendsSlotAcquire('bank_global', 6, 120)) {
+        spendsSlotRelease($slotUser);
+        @unlink($dest);
+        exit(json_encode(['status' => 'error', 'message' => 'busy']));
     }
     try {
         $storeNames = array_map(static fn ($s) => (string) ($s['name'] ?? ''), $userSettings['stores'] ?? []);
@@ -753,11 +768,39 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
         // Pre-computed DB duplicates for the analysis view.
         $res['duplicate_count'] = bankImportMarkDuplicates($udb, $res['transactions']);
         $res['conflict_dates'] = bankImportConflictDates($udb, $res['transactions']);
+        spendsSlotRelease($slotUser);
+        spendsSlotRelease('bank_global');
         exit(json_encode($res));
     } catch (Throwable $e) {
+        spendsSlotRelease($slotUser);
+        spendsSlotRelease('bank_global');
         @unlink($dest);
         exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
     }
+}
+
+function bankImportDbRowsByDate(AppDatabase $udb, array $tx): array
+{
+    $dates = [];
+    foreach ($tx as $t) {
+        $dates[(string) $t['date']] = true;
+    }
+    if ($dates === []) {
+        return [];
+    }
+    $keys = array_keys($dates);
+    sort($keys);
+    $st = $udb->prepare('SELECT date, store, ROUND(amount::numeric,2) AS a FROM expenses WHERE date >= :a AND date <= :b AND ABS(amount)>0.0001');
+    $st->bindValue(':a', $keys[0]);
+    $st->bindValue(':b', $keys[count($keys) - 1]);
+    $r = $st->execute();
+    $byDate = [];
+    while ($row = $r->fetch(PDO::FETCH_ASSOC)) {
+        if (isset($dates[(string) $row['date']])) {
+            $byDate[(string) $row['date']][] = [(string) $row['store'], (float) $row['a']];
+        }
+    }
+    return $byDate;
 }
 
 /**
@@ -768,47 +811,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
  */
 function bankImportConflictDates(AppDatabase $udb, array $tx): array
 {
-    $dbByDate = [];
-    $stAll = $udb->query("SELECT DISTINCT date FROM expenses WHERE ABS(amount)>0.0001");
-    while ($row = $stAll->fetch(PDO::FETCH_ASSOC)) {
-        $dbByDate[(string) $row['date']] = true;
-    }
+    $dbByDate = bankImportDbRowsByDate($udb, $tx);
     if ($dbByDate === []) {
         return [];
     }
-
-    $datesSeen = [];
+    $imByDate = [];
     foreach ($tx as $t) {
-        $datesSeen[(string) $t['date']] = true;
+        $d = (string) $t['date'];
+        if (!isset($dbByDate[$d]) || !empty($t['income']) || !empty($t['duplicate'])) {
+            continue;
+        }
+        $store = (string) ($t['store_default'] ?? $t['merchant_raw']);
+        $imByDate[$d][] = mb_strtolower(trim($store), 'UTF-8') . '|' . number_format((float) $t['amount'], 2, '.', '');
     }
-
     $conflicts = [];
-    foreach (array_keys($datesSeen) as $d) {
-        if (!isset($dbByDate[$d])) {
-            continue;
-        }
-        $st = $udb->prepare('SELECT store, ROUND(amount::numeric,2) AS a FROM expenses WHERE date=:d AND ABS(amount)>0.0001');
-        $st->bindValue(':d', $d);
-        $r = $st->execute();
-        $dbList = [];
-        while ($row = $r->fetch(PDO::FETCH_ASSOC)) {
-            $dbList[] = mb_strtolower(trim((string) $row['store']), 'UTF-8') . '|' . number_format((float) $row['a'], 2, '.', '');
-        }
+    foreach ($imByDate as $d => $imList) {
+        $dbList = array_map(static fn ($p) => mb_strtolower(trim($p[0]), 'UTF-8') . '|' . number_format($p[1], 2, '.', ''), $dbByDate[$d]);
         sort($dbList);
-
-        $imList = [];
-        foreach ($tx as $t) {
-            if ($t['date'] !== $d || !empty($t['income']) || !empty($t['duplicate'])) {
-                continue;
-            }
-            $store = (string) ($t['store_default'] ?? $t['merchant_raw']);
-            $imList[] = mb_strtolower(trim($store), 'UTF-8') . '|' . number_format((float) $t['amount'], 2, '.', '');
-        }
         sort($imList);
-        if ($imList === [] || $imList === $dbList) {
-            continue;
+        if ($imList !== $dbList) {
+            $conflicts[] = $d;
         }
-        $conflicts[] = $d;
     }
     return $conflicts;
 }
@@ -819,19 +842,19 @@ function bankImportConflictDates(AppDatabase $udb, array $tx): array
  */
 function bankImportMarkDuplicates(AppDatabase $udb, array &$tx): int
 {
+    $dbByDate = bankImportDbRowsByDate($udb, $tx);
     $dup = 0;
     foreach ($tx as &$t) {
         $t['duplicate'] = false;
         if (!empty($t['income'])) {
             continue;
         }
-        $chk = $udb->prepare('SELECT 1 FROM expenses WHERE date=:d AND store=:s AND ABS(ROUND(amount::numeric,2)-:a)<0.02 LIMIT 1');
-        $chk->bindValue(':d', $t['date']);
-        $chk->bindValue(':s', $t['store_default']);
-        $chk->bindValue(':a', $t['amount'], PDO::PARAM_STR);
-        if ($chk->execute()->fetch()) {
-            $t['duplicate'] = true;
-            $dup++;
+        foreach ($dbByDate[(string) $t['date']] ?? [] as [$store, $amt]) {
+            if ($store === (string) $t['store_default'] && abs($amt - (float) $t['amount']) < 0.02) {
+                $t['duplicate'] = true;
+                $dup++;
+                break;
+            }
         }
     }
     unset($t);
@@ -897,9 +920,9 @@ function bankImportApply(AppDatabase $udb, array $tx, array $excludeGroupKeys, a
                 }
                 bankImportEnsureStore($udb, $store);
                 if (isset($replaceDays[$d])) {
-                    $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO NOTHING");
+                    $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT (user_id,date,store) DO NOTHING");
                 } else {
-                    $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2),entry_source='manual',ocr_raw_store=NULL");
+                    $ins = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2),entry_source='manual',ocr_raw_store=NULL");
                 }
                 $ins->bindValue(':d', $d);
                 $ins->bindValue(':s', $store);
@@ -919,9 +942,9 @@ function bankImportApply(AppDatabase $udb, array $tx, array $excludeGroupKeys, a
                 $deli = $udb->prepare('DELETE FROM incomes WHERE date=:d');
                 $deli->bindValue(':d', $d);
                 $deli->execute();
-                $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO NOTHING');
+                $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO NOTHING');
             } else {
-                $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT(date) DO UPDATE SET amount=ROUND((incomes.amount+excluded.amount)::numeric,2)');
+                $ins = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=ROUND((incomes.amount+excluded.amount)::numeric,2)');
             }
             $ins->bindValue(':d', $d);
             $ins->bindValue(':a', $sum, PDO::PARAM_STR);
@@ -947,7 +970,7 @@ function bankImportEnsureStore(AppDatabase $udb, string $name): void
     }
     $maxOrd = (int) $udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
     $id = 's_' . bin2hex(random_bytes(8));
-    $st = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (id) DO NOTHING");
+    $st = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (user_id,id) DO NOTHING");
     $st->bindValue(':id', $id);
     $st->bindValue(':n', $name);
     $st->bindValue(':o', $maxOrd, PDO::PARAM_INT);
@@ -1101,17 +1124,22 @@ if (isset($_POST['backup_action'])) {
     }
     elseif ($action === 'organize') {
         $csv = exportExpensesToCSV($udb, $allStores);
-        $_SESSION['organized_data'] = $csv;
+        file_put_contents("$userBackupDir/.organized.tmp", $csv);
         exit(json_encode(['status'=>'success','message'=>$__t('msg_organized_ok')]));
     }
     elseif ($action === 'save' && isset($_POST['backup_name'])) {
         $name       = preg_replace('/[^a-zA-Z0-9_-]/', '_', $_POST['backup_name']);
         $backupPath = "$userBackupDir/$name.csv";
-        $csv = $_SESSION['organized_data'] ?? null;
+        $organizedFile = "$userBackupDir/.organized.tmp";
+        $csv = is_file($organizedFile) ? (string)file_get_contents($organizedFile) : null;
         if ($csv === null || $csv === '') {
             $csv = exportExpensesToCSV($udb, $allStores);
         } else {
-            unset($_SESSION['organized_data']);
+            @unlink($organizedFile);
+        }
+        $maxBackups = 30;
+        if (!is_file($backupPath) && count(glob("$userBackupDir/*.csv") ?: []) >= $maxBackups) {
+            exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
         }
         if ($csv === null || $csv === '') {
             exit(json_encode(['status'=>'error','message'=>$__t('msg_no_organized_data')]));
@@ -1134,7 +1162,7 @@ if (isset($_POST['backup_action'])) {
             $chk->bindValue(':n', $sn);
             if (!$chk->execute()->fetch(PDO::FETCH_ASSOC)) {
                 $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
-                    $ist = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category");
+                    $ist = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (user_id,id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category");
                 $ist->bindValue(':id', (string)time().rand(100,999));
                 $ist->bindValue(':n', $sn);
                 $ist->bindValue(':o', $maxOrd, PDO::PARAM_INT);
@@ -1143,6 +1171,8 @@ if (isset($_POST['backup_action'])) {
         }
 
         $udb->exec('BEGIN');
+        $restoreUpsert = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,:a) ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount');
+        $restoreDelete = $udb->prepare('DELETE FROM expenses WHERE date=:d AND store=:s');
         while ($row = fgetcsv($fh)) {
             if (empty($row[0])) continue;
             $date = $row[0];
@@ -1153,8 +1183,9 @@ if (isset($_POST['backup_action'])) {
                 $sn  = $csvStores[$i-1] ?? '';
                 $amt = is_numeric($row[$i]) ? (float)$row[$i] : 0;
                 if (!$sn) continue;
-                $st = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,:a) ON CONFLICT (date,store) DO UPDATE SET amount=excluded.amount');
-                $st->bindValue(':d', $date); $st->bindValue(':s', $sn); $st->bindValue(':a', $amt, PDO::PARAM_STR);
+                $st = abs($amt) < 0.005 ? $restoreDelete : $restoreUpsert;
+                $st->bindValue(':d', $date); $st->bindValue(':s', $sn);
+                if ($st === $restoreUpsert) $st->bindValue(':a', $amt, PDO::PARAM_STR);
                 $st->execute();
             }
         }
@@ -1182,6 +1213,9 @@ if (isset($_POST['backup_action'])) {
         if ($uploaded['error'] !== UPLOAD_ERR_OK) exit(json_encode(['status'=>'error','message'=>$__t('upload_error')]));
         $fn   = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($uploaded['name']));
         $ftype= mime_content_type($uploaded['tmp_name']);
+        if (($uploaded['size'] ?? 0) > 16 * 1024 * 1024 || (!is_file("$userBackupDir/$fn") && count(glob("$userBackupDir/*.csv") ?: []) >= 30)) {
+            exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
+        }
         if ($ftype === 'text/csv' || $ftype === 'text/plain' || str_contains($fn, '.csv')) {
             if (move_uploaded_file($uploaded['tmp_name'], "$userBackupDir/$fn"))
                 exit(json_encode(['status'=>'success','message'=>$__t('backup_uploaded')]));
@@ -1215,25 +1249,6 @@ $storeNames = array_map(fn($s) => $s['name'], $userSettings['stores']);
 $visibleStoreNames = array_map(fn($s) => $s['name'], $visibleStores);
 
 $today = date('Y-m-d');
-$lastYearStart = date('Y-m-d', strtotime('-1 year'));
-
-$daysToEnsure = listCalendarDaysInclusive($lastYearStart, $today);
-if (!empty($daysToEnsure)) {
-    $udb->exec('BEGIN');
-    $expenseInsert = $udb->prepare('INSERT INTO expenses (date,store,amount) VALUES (:d,:s,0) ON CONFLICT (date,store) DO NOTHING');
-    $incomeInsert = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,0) ON CONFLICT (date) DO NOTHING');
-    foreach ($daysToEnsure as $currentDate) {
-        foreach ($storeNames as $sn) {
-            $expenseInsert->bindValue(':d', $currentDate);
-            $expenseInsert->bindValue(':s', $sn);
-            $expenseInsert->execute();
-        }
-        $incomeInsert->bindValue(':d', $currentDate);
-        $incomeInsert->execute();
-    }
-    $udb->exec('COMMIT');
-}
-$udb->exec("INSERT INTO incomes(date,amount) SELECT DISTINCT date,0 FROM expenses ON CONFLICT (date) DO NOTHING");
 
 $startDateForTable = trim($tableSettings['start_date'] ?? '');
 
@@ -1255,15 +1270,20 @@ if (strcmp($rangeStart, $rangeEnd) <= 0) {
         $allTableDays = array_reverse($allTableDays);
     }
     $totalRows = count($allTableDays);
+    $tableAmounts = [];
+    if (!empty($visibleStoreNames)) {
+        $tableSt = $udb->prepare('SELECT date, store, amount FROM expenses WHERE date >= :a AND date <= :b');
+        $tableSt->bindValue(':a', $rangeStart);
+        $tableSt->bindValue(':b', $rangeEnd);
+        $tableRes = $tableSt->execute();
+        $visibleSet = array_flip($visibleStoreNames);
+        while ($r = $tableRes->fetch(PDO::FETCH_ASSOC)) {
+            if (isset($visibleSet[$r['store']])) $tableAmounts[$r['date']][$r['store']] = (float)$r['amount'];
+        }
+    }
     foreach ($allTableDays as $d) {
         $rowData = [];
-        foreach ($visibleStoreNames as $sn) {
-            $st = $udb->prepare('SELECT amount FROM expenses WHERE date=:d AND store=:s');
-            $st->bindValue(':d', $d);
-            $st->bindValue(':s', $sn);
-            $amt = $st->execute()->fetch(PDO::FETCH_NUM);
-            $rowData[$sn] = $amt ? (float)$amt[0] : 0;
-        }
+        foreach ($visibleStoreNames as $sn) $rowData[$sn] = $tableAmounts[$d][$sn] ?? 0;
         $firstPageRows[$d] = $rowData;
     }
 }

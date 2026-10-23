@@ -582,7 +582,7 @@ def ocr_signature(date,store,amount,raw):
     payload=f"{date}|{normalize_space(store).lower()}|{amount:.2f}|{normalize_space(raw).lower()}"
     return hashlib.sha1(payload.encode("utf-8")).hexdigest()
 def register_ocr_entry(conn,signature,date,store,amount,raw,image_name):
-    cur=conn.execute("INSERT INTO ocr_entries(signature,date,store,amount,ocr_raw_store,image_name,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT (signature) DO NOTHING RETURNING signature",(signature,date,store,amount,raw,image_name,now_iso()))
+    cur=conn.execute("INSERT INTO ocr_entries(signature,date,store,amount,ocr_raw_store,image_name,created_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT (user_id,signature) DO NOTHING RETURNING signature",(signature,date,store,amount,raw,image_name,now_iso()))
     return cur.fetchone() is not None
 def store_match_tokens(value):
     text=canonical_merchant(value)
@@ -669,21 +669,29 @@ def queue_position(job_dir):
         return jobs.index(job_dir)+1
     except ValueError:
         return 1
+def ocr_slot_count():
+    try:
+        return max(1,int(os.environ.get("SPENDS_OCR_WORKERS","4")))
+    except ValueError:
+        return 4
 def lock_ocr_worker(job_dir,status_path,base_status,check_cancel):
-    lock_path=job_dir.parent.parent/"expense_ocr_worker.lock"
-    lock_file=open(lock_path,"w")
     import fcntl
+    root=job_dir.parent.parent
+    slots=ocr_slot_count()
     while True:
         check_cancel()
-        try:
-            fcntl.flock(lock_file,fcntl.LOCK_EX|fcntl.LOCK_NB)
-            return lock_file
-        except BlockingIOError:
-            pos=queue_position(job_dir)
-            payload=dict(base_status)
-            payload.update({"state":"queued","phase":"queued","queue_position":pos,"message":"queued","updated_at":now_iso()})
-            write_status(status_path,payload)
-            time.sleep(2)
+        for i in range(slots):
+            lock_file=open(root/f"expense_ocr_worker_{i}.lock","w")
+            try:
+                fcntl.flock(lock_file,fcntl.LOCK_EX|fcntl.LOCK_NB)
+                return lock_file
+            except BlockingIOError:
+                lock_file.close()
+        pos=queue_position(job_dir)
+        payload=dict(base_status)
+        payload.update({"state":"queued","phase":"queued","queue_position":pos,"message":"queued","updated_at":now_iso()})
+        write_status(status_path,payload)
+        time.sleep(2)
 def process(job_dir,user_email,base_currency):
     uploads=sorted((job_dir/"uploads").glob("*"))
     status_path=job_dir/"status.json"
@@ -812,12 +820,13 @@ def process(job_dir,user_email,base_currency):
     check_cancel()
     for (date,merchant),amount in grouped.items():
         raw=" | ".join(sorted(x for x in grouped_raw.get((date,merchant),set()) if x))
-        conn.execute("INSERT INTO expenses(date,store,amount,entry_source,ocr_raw_store) VALUES(?,?,?,?,?) ON CONFLICT(date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='ocr',ocr_raw_store=CASE WHEN COALESCE(expenses.ocr_raw_store,'')='' THEN excluded.ocr_raw_store WHEN COALESCE(excluded.ocr_raw_store,'')='' THEN expenses.ocr_raw_store ELSE expenses.ocr_raw_store||' | '||excluded.ocr_raw_store END",(date,merchant,amount,"ocr",raw))
+        conn.execute("INSERT INTO expenses(date,store,amount,entry_source,ocr_raw_store) VALUES(?,?,?,?,?) ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND(amount+excluded.amount,2),entry_source='ocr',ocr_raw_store=CASE WHEN COALESCE(expenses.ocr_raw_store,'')='' THEN excluded.ocr_raw_store WHEN COALESCE(excluded.ocr_raw_store,'')='' THEN expenses.ocr_raw_store ELSE expenses.ocr_raw_store||' | '||excluded.ocr_raw_store END",(date,merchant,amount,"ocr",raw))
         records.append({"date":date,"store":merchant,"amount":amount,"currency":base_currency})
     conn.commit()
     conn.close()
     records.sort(key=lambda x:(x["date"],x.get("store","")))
-    final={"state":"done","progress":{"total":len(uploads),"processed":len(uploads),"percent":100},"base_currency":base_currency,"warnings":warnings,"records":records,"recognized":recognized,"unresolved":unresolved,"added_count":added_count,"duplicate_count":duplicate_count,"timings":timings,"ocr_text":"\n\n".join(ocr_chunks),"updated_at":now_iso()}
+    final={"state":"done","progress":{"total":len(uploads),"processed":len(uploads),"percent":100},"base_currency":base_currency,"warnings":warnings,"records":records,"recognized":recognized,"unresolved":unresolved,"added_count":added_count,"duplicate_count":duplicate_count,"timings":timings,"updated_at":now_iso()}
+    (job_dir/"ocr_text.txt").write_text("\n\n".join(ocr_chunks),encoding="utf-8")
     write_status(status_path,final)
 def main():
     parser=argparse.ArgumentParser()

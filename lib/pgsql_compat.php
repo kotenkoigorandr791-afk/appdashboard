@@ -73,16 +73,19 @@ final class AppDatabase {
     private static array $userInstances = [];
     private PDO $pdo;
     private ?string $schemaSql;
+    private array $initSql = [];
     private int $lastChanges = 0;
     private bool $exceptions = true;
-    private function __construct(PDO $pdo, ?string $schemaSql = null) {
+    private function __construct(PDO $pdo, ?string $schemaSql = null, array $initSql = []) {
         $this->pdo = $pdo;
         $this->schemaSql = $schemaSql;
+        $this->initSql = $initSql;
     }
     public function reconnect(): void {
         $this->pdo = app_pdo_connect(true);
         if ($this->schemaSql !== null) {
             $this->pdo->exec('SET search_path TO ' . $this->schemaSql . ', public');
+            foreach ($this->initSql as $q) $this->pdo->exec($q);
         }
     }
     public static function connect(): self {
@@ -98,13 +101,15 @@ final class AppDatabase {
         }
         return self::$instance;
     }
-    public static function connectUserSchema(string $schemaSql): self {
-        if (!isset(self::$userInstances[$schemaSql])) {
+    public static function connectUserSchema(string $schemaSql, array $initSql = []): self {
+        $key = $schemaSql . '|' . implode(';', $initSql);
+        if (!isset(self::$userInstances[$key])) {
             $pdo = app_pdo_connect(true);
             $pdo->exec('SET search_path TO ' . $schemaSql . ', public');
-            self::$userInstances[$schemaSql] = new self($pdo, $schemaSql);
+            foreach ($initSql as $q) $pdo->exec($q);
+            self::$userInstances[$key] = new self($pdo, $schemaSql, $initSql);
         }
-        return self::$userInstances[$schemaSql];
+        return self::$userInstances[$key];
     }
     public static function escapeString(string $value): string {
         return str_replace("'", "''", $value);

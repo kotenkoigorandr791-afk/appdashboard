@@ -18,7 +18,7 @@ final class BankStatementParser
     /** Preferred interpreter inside the parser venv (if present). */
     private const VENV_PYTHON = __DIR__ . '/.venv-parser/bin/python3';
 
-    public const MAX_BYTES = 67108864; // 64MB
+    public const MAX_BYTES = 16777216;
 
     /**
      * Resolve the Python interpreter used for parsing.
@@ -55,7 +55,7 @@ final class BankStatementParser
             require_once $sidecarHelper;
         }
         if (function_exists('py_sidecar_enabled') && py_sidecar_enabled()) {
-            $res = py_sidecar('parse-bank-statement', [], $filePath, 'file', 180);
+            $res = py_sidecar('parse-bank-statement', [], $filePath, 'file', 90);
             if ($res['code'] < 200 || $res['code'] >= 300 || !is_array($res['body'])) {
                 $detail = is_array($res['body']) ? json_encode($res['body']) : ($res['error'] ?: $res['raw']);
                 throw new RuntimeException('Parser failed: ' . substr((string)$detail, 0, 500));
