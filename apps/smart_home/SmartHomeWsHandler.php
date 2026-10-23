@@ -3,12 +3,18 @@
 use Ratchet\ConnectionInterface;
 use Ratchet\MessageComponentInterface;
 
+require_once __DIR__ . '/core/perf.php';
+
 class SmartHomeWsHandler implements MessageComponentInterface
 {
     private string $appDir;
     private \SplObjectStorage $clients;
     private bool $startupReconcileDone = false;
     private float $lastReconcileAt = 0.0;
+    private bool $ddlDone = false;
+    private array $persistSig = [];
+    private float $lastQueuePollAt = 0.0;
+    private float $lastTokenPurgeAt = 0.0;
 
     public function __construct(string $appDir)
     {
@@ -22,35 +28,40 @@ class SmartHomeWsHandler implements MessageComponentInterface
         require_once dirname($this->appDir, 2) . '/lib/app_db.php';
         $db = app_main_db();
         $db->enableExceptions(true);
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_ws_tokens (
-            token TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
-            expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_queue (
-            id TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
-            control_id TEXT NOT NULL, value_json TEXT NOT NULL, created_at REAL NOT NULL, expires_at REAL NOT NULL
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_results (
-            id TEXT PRIMARY KEY, result_json TEXT NOT NULL, updated_at REAL NOT NULL
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_monitor_logs (
-            id BIGSERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL,
-            device_id TEXT,
-            event_type TEXT NOT NULL,
-            event_data TEXT NOT NULL DEFAULT '{}',
-            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_errors (
-            id BIGSERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL DEFAULT '',
-            device_id TEXT NOT NULL DEFAULT '',
-            device_name TEXT NOT NULL DEFAULT '',
-            source TEXT NOT NULL DEFAULT '',
-            message TEXT NOT NULL,
-            context_json TEXT NOT NULL DEFAULT '{}',
-            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
-        )");
+        if (!$this->ddlDone) {
+            $this->ddlDone = true;
+            if (!shp_schema_ready()) {
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_ws_tokens (
+                token TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
+                expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_queue (
+                id TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
+                control_id TEXT NOT NULL, value_json TEXT NOT NULL, created_at REAL NOT NULL, expires_at REAL NOT NULL
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_results (
+                id TEXT PRIMARY KEY, result_json TEXT NOT NULL, updated_at REAL NOT NULL
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_monitor_logs (
+                id BIGSERIAL PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                device_id TEXT,
+                event_type TEXT NOT NULL,
+                event_data TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_errors (
+                id BIGSERIAL PRIMARY KEY,
+                user_email TEXT NOT NULL DEFAULT '',
+                device_id TEXT NOT NULL DEFAULT '',
+                device_name TEXT NOT NULL DEFAULT '',
+                source TEXT NOT NULL DEFAULT '',
+                message TEXT NOT NULL,
+                context_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+            )");
+            }
+        }
         return $db;
     }
 
@@ -207,27 +218,21 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     private function monitorPurge(AppDatabase $db): void
     {
-        try {
-            $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
-        } catch (\Throwable $e) {
-            error_log('WS monitorPurge logs: ' . $e->getMessage());
-        }
+        shp_purge_if_due($db);
     }
 
     private function errorPurge(AppDatabase $db): void
     {
-        try {
-            $db->exec("DELETE FROM smarthome_errors WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
-        } catch (\Throwable $e) {
-            error_log('WS monitorPurge errors: ' . $e->getMessage());
-        }
+        shp_purge_if_due($db);
     }
 
     private function monitorLog(string $email, ?string $deviceId, string $eventType, array $data): void
     {
         try {
+            if (!shp_rate_ok('ml:' . shp_user_hash($email), 300)) {
+                return;
+            }
             $db = $this->db();
-            $this->monitorPurge($db);
             if ($deviceId && empty($data['device_name'])) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -250,8 +255,11 @@ class SmartHomeWsHandler implements MessageComponentInterface
     private function logError(string $email, ?string $deviceId, string $deviceName, string $source, string $message, array $context = []): void
     {
         try {
+            if (!shp_event_dedupe('err', $email, (string)$deviceId, $source, $message) || !shp_rate_ok('err:' . shp_user_hash($email), 120)) {
+                return;
+            }
+            $message = shp_clip($message, 2000);
             $db = $this->db();
-            $this->errorPurge($db);
             if ($deviceName === '' && $deviceId) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -351,8 +359,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
     {
         try {
             $db = $this->db();
-            $db->exec('DELETE FROM smarthome_ws_tokens WHERE expires_at < ' . time());
-            $db->exec('DELETE FROM smarthome_control_queue WHERE expires_at < ' . microtime(true));
+            shp_purge_if_due($db);
             $this->processControlQueue();
             $this->heartbeatTick();
             if (!$this->startupReconcileDone) {
@@ -778,14 +785,14 @@ class SmartHomeWsHandler implements MessageComponentInterface
     private function reconcileTunnelStatus(bool $force): void
     {
         $now = microtime(true);
-        if (!$force && ($now - $this->lastReconcileAt) < 30.0) {
+        if (!$force && ($now - $this->lastReconcileAt) < 60.0) {
             return;
         }
         $this->lastReconcileAt = $now;
         $connected = $this->connectedDeviceKeys();
         try {
             $db = $this->db();
-            $res = $db->query("SELECT id, user_email, status, params FROM smarthome_devices");
+            $res = $db->query("SELECT id, user_email, params FROM smarthome_devices WHERE params LIKE '%online%'");
             while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 $userEmail = (string)($row['user_email'] ?? '');
                 $deviceId = (string)($row['id'] ?? '');
@@ -803,6 +810,14 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     private function persistDevice(array $device): void
     {
+        $id = (string)($device['id'] ?? '');
+        $sig = md5(json_encode([$device['name'] ?? '', $device['room'] ?? '', $device['type'] ?? '', $device['status'] ?? '', $device['local_url'] ?? '', $device['server_domain'] ?? '', $device['ap_domain'] ?? '', $device['mqtt_topic'] ?? '', $device['device_token'] ?? '', $device['notes'] ?? '', $device['icon'] ?? '', $device['controls'] ?? [], $device['params'] ?? [], $device['files'] ?? []]));
+        $now = microtime(true);
+        $prev = $this->persistSig[$id] ?? null;
+        if ($prev && $prev[0] === $sig && ($now - $prev[1]) < 30.0) {
+            return;
+        }
+        $this->persistSig[$id] = [$sig, $now];
         try {
             $db = $this->db();
             $stmt = $db->prepare("UPDATE smarthome_devices SET
@@ -923,15 +938,23 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     private function processControlQueue(): void
     {
+        $now = microtime(true);
+        $dirty = shp_flag_take('cq');
+        if (!$dirty && ($now - $this->lastQueuePollAt) < (shp_redis() ? 5.0 : 1.0)) {
+            return;
+        }
+        $this->lastQueuePollAt = $now;
         try {
             $db = $this->db();
-        $now = microtime(true);
         $items = [];
-        $res = $db->query('SELECT * FROM smarthome_control_queue');
+        $res = $db->query('SELECT * FROM smarthome_control_queue WHERE expires_at > ' . ($now - 30) . ' ORDER BY created_at LIMIT 200');
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $items[] = $row;
         }
         unset($res);
+        if ($items) {
+            shp_flag_set('cq', 2);
+        }
 
         foreach ($items as $item) {
             $requestId = (string)$item['id'];

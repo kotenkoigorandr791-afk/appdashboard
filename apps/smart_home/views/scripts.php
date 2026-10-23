@@ -528,7 +528,7 @@ function startRealtimeSync() {
       if (state.currentPage === 'statistics') renderStatistics();
       if (state.currentPage === 'devices') renderDevicesTable();
     }).catch(() => {});
-  }, 8000);
+  }, 15000);
 }
 
 function renderModalMeta(d) {

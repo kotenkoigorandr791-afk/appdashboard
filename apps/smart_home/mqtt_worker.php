@@ -6,11 +6,15 @@ require_once dirname(__DIR__, 2) . '/vendor/autoload.php';
 require_once dirname(__DIR__, 2) . '/lib/sentry_bootstrap.php';
 app_sentry_bootstrap('smart_home_mqtt');
 require_once dirname(__DIR__, 2) . '/lib/app_db.php';
+require_once __DIR__ . '/core/perf.php';
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;
 function shmw_db(): AppDatabase {
     $db = app_main_db();
     $db->enableExceptions(true);
+    static $ddlDone = false;
+    if ($ddlDone || shp_schema_ready()) return $db;
+    $ddlDone = true;
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_devices (
         id TEXT PRIMARY KEY,
         user_email TEXT NOT NULL,
@@ -90,10 +94,11 @@ function shmw_record_history(AppDatabase $db, string $deviceId, array $params, a
         if (!is_array($param)) continue;
         $id = (string)($param['id'] ?? '');
         if ($id === '' || !array_key_exists($id, $telemetry) || is_array($telemetry[$id])) continue;
+        if (!shp_history_should_write($deviceId, $id, shp_clip((string)$telemetry[$id], 500))) continue;
         $ins->bindValue(':did', $deviceId, PDO::PARAM_STR);
         $ins->bindValue(':pid', $id, PDO::PARAM_STR);
         $ins->bindValue(':lbl', (string)($param['label'] ?? $id), PDO::PARAM_STR);
-        $ins->bindValue(':val', (string)$telemetry[$id], PDO::PARAM_STR);
+        $ins->bindValue(':val', shp_clip((string)$telemetry[$id], 500), PDO::PARAM_STR);
         $ins->execute();
     }
 }
@@ -101,9 +106,16 @@ function shmw_handle_state(string $deviceId, string $message): void {
     $payload = json_decode($message, true);
     if (!is_array($payload)) return;
     $db = shmw_db();
-    $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id LIMIT 1');
-    $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
-    $device = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    static $cache = [];
+    $now = microtime(true);
+    if (isset($cache[$deviceId]) && ($now - $cache[$deviceId][0]) < 2.0) {
+        $device = $cache[$deviceId][1];
+    } else {
+        $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id LIMIT 1');
+        $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+        $device = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if (count($cache) > 20000) $cache = [];
+    }
     if (!$device) return;
     $controls = shmw_json_array($device['controls'] ?? '[]');
     $params = shmw_json_array($device['params'] ?? '[]');
@@ -125,6 +137,17 @@ function shmw_handle_state(string $deviceId, string $message): void {
         unset($param);
         shmw_record_history($db, $deviceId, $params, $payload['telemetry']);
     }
+    static $sigs = [];
+    $localUrl = trim((string)($payload['local_url'] ?? ''));
+    $controlsJson = json_encode($controls, JSON_UNESCAPED_UNICODE);
+    $paramsJson = json_encode($params, JSON_UNESCAPED_UNICODE);
+    $sig = md5($localUrl . $controlsJson . $paramsJson);
+    $device['controls'] = $controlsJson;
+    $device['params'] = $paramsJson;
+    $cache[$deviceId] = [$now, $device];
+    if (isset($sigs[$deviceId]) && $sigs[$deviceId][0] === $sig && ($now - $sigs[$deviceId][1]) < 30.0) return;
+    if (count($sigs) > 20000) $sigs = [];
+    $sigs[$deviceId] = [$sig, $now];
     $upd = $db->prepare("UPDATE smarthome_devices SET status='online', local_url=COALESCE(NULLIF(:local,''), local_url), controls=:controls, params=:params, updated_at=CURRENT_TIMESTAMP WHERE id=:id");
     $upd->bindValue(':local', trim((string)($payload['local_url'] ?? '')), PDO::PARAM_STR);
     $upd->bindValue(':controls', json_encode($controls, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
@@ -162,11 +185,15 @@ while (true) {
         $mqtt->connect($settings, false);
         $mqtt->subscribe('home/+/state', function (string $topic, string $message) {
             $parts = explode('/', $topic);
-            if (count($parts) === 3) shmw_handle_state($parts[1], $message);
+            if (count($parts) === 3) {
+                try { shmw_handle_state($parts[1], $message); } catch (Throwable $e) { fwrite(STDERR, 'mqtt_worker state: ' . $e->getMessage() . PHP_EOL); }
+            }
         }, 1);
         $mqtt->subscribe('home/+/status', function (string $topic, string $message) {
             $parts = explode('/', $topic);
-            if (count($parts) === 3) shmw_handle_status($parts[1], $message);
+            if (count($parts) === 3) {
+                try { shmw_handle_status($parts[1], $message); } catch (Throwable $e) { fwrite(STDERR, 'mqtt_worker status: ' . $e->getMessage() . PHP_EOL); }
+            }
         }, 1);
         $mqtt->loop(true);
         $mqtt->disconnect();

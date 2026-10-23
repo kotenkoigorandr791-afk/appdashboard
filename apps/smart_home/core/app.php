@@ -20,6 +20,7 @@ require_once dirname(SH_APP_DIR, 2) . '/lib/app_domains.php';
 function sh_default_domain(): string { return function_exists('app_base_domain') ? app_base_domain() : 'localhost'; }
 
 require_once dirname(SH_APP_DIR, 2) . '/lib/redis.php';
+require_once __DIR__ . '/perf.php';
 function sh_db(): AppDatabase {
     static $db = null;
     if ($db === null) {
@@ -31,6 +32,13 @@ function sh_db(): AppDatabase {
 }
 
 function sh_init_tables(AppDatabase $db): void {
+    if (shp_schema_ready()) return;
+    sh_init_tables_run($db);
+    shp_migrate($db);
+    shp_schema_mark();
+}
+
+function sh_init_tables_run(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS smarthome_settings (
         user_email TEXT PRIMARY KEY,
         server_domain TEXT NOT NULL DEFAULT 'localhost',
@@ -423,7 +431,10 @@ function sh_store_dashboard_ws_token(string $userEmail, string $deviceId): array
     $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
     $stmt->bindValue(':exp', $exp, PDO::PARAM_INT);
     $stmt->execute();
-    $db->exec("DELETE FROM smarthome_ws_tokens WHERE expires_at < " . time());
+    $cap = $db->prepare('DELETE FROM smarthome_ws_tokens WHERE token IN (SELECT token FROM smarthome_ws_tokens WHERE user_email = :em ORDER BY expires_at DESC OFFSET 20)');
+    $cap->bindValue(':em', $userEmail, PDO::PARAM_STR);
+    $cap->execute();
+    shp_purge_if_due($db);
     return [
         'token' => $token,
         'ws_url' => 'wss://'.($_SERVER['HTTP_HOST']??sh_default_domain()).'/smart-home-ws',
@@ -443,7 +454,8 @@ function sh_enqueue_control_request(string $userEmail, string $deviceId, string 
     $stmt->bindValue(':ca', $now, PDO::PARAM_STR);
     $stmt->bindValue(':exp', $now + 120.0, PDO::PARAM_STR);
     $stmt->execute();
-    $db->exec('DELETE FROM smarthome_control_queue WHERE expires_at < ' . $now);
+    shp_flag_set('cq', 130);
+    shp_purge_if_due($db);
     return $requestId;
 }
 
@@ -582,11 +594,9 @@ function sh_apply_stale_device_status(array $row): array {
 }
 
 function sh_persist_stale_devices(AppDatabase $db): void {
-    static $done = false;
-    if ($done) return;
-    $done = true;
+    if (!shp_throttle('stale', 15)) return;
     try {
-        $stmt = $db->prepare("SELECT id, params FROM smarthome_devices WHERE status = 'online' AND COALESCE(transport, 'ws') <> 'mqtt' AND updated_at::timestamptz < CURRENT_TIMESTAMP - (:sec || ' seconds')::interval");
+        $stmt = $db->prepare("SELECT id, params FROM smarthome_devices WHERE status = 'online' AND COALESCE(transport, 'ws') <> 'mqtt' AND updated_at::timestamptz < CURRENT_TIMESTAMP - (:sec || ' seconds')::interval LIMIT 500");
         $stmt->bindValue(':sec', (string)sh_device_stale_seconds(), PDO::PARAM_STR);
         $res = $stmt->execute();
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
@@ -810,9 +820,9 @@ function sh_push_local_control(array $device, string $controlId, mixed $value): 
         $path = '/GP_click?' . rawurlencode($hw) . '=' . rawurlencode($encoded);
     }
     $url = $localUrl . $path;
-    for ($attempt = 1; $attempt <= 3; $attempt++) {
+    for ($attempt = 1; $attempt <= 2; $attempt++) {
         $ctx = stream_context_create(['http' => [
-            'timeout' => 4,
+            'timeout' => 2,
             'ignore_errors' => true,
             'method' => $body !== '' ? 'POST' : 'GET',
             'header' => ($body !== '' ? "Content-Type: application/x-www-form-urlencoded\r\n" : '') . "Connection: close\r\n",
@@ -823,7 +833,7 @@ function sh_push_local_control(array $device, string $controlId, mixed $value): 
         if (is_string($resp) && str_contains($resp, '"ok":true')) {
             return true;
         }
-        usleep(150000);
+        usleep(100000);
     }
     return false;
 }
@@ -1627,6 +1637,7 @@ if ($action !== '') {
     }
 
     try {
+        if (!in_array($action, ['state', 'monitor_stats', 'route_maps', 'route_map_file'], true)) shp_bust_user($userEmail);
         if ($action === 'route_maps') {
             $deviceId = trim((string)($_GET['device_id'] ?? $payload['device_id'] ?? ''));
             $row = sh_device_row_for_user($db, $deviceId, $userEmail);
@@ -1689,6 +1700,9 @@ if ($action !== '') {
         }
 
         if ($action === 'state') {
+            $stateCacheKey = 'state:' . shp_user_hash($userEmail);
+            $cachedState = shp_cache_get($stateCacheKey);
+            if ($cachedState !== null) { echo $cachedState; exit; }
             $settings = sh_load_user_settings($db, $userEmail);
             $homeCtx = sh_resolve_home_context($db, $userEmail, $settings);
             $devices = sh_fetch_scoped_devices($db, $userEmail, $homeCtx);
@@ -1709,7 +1723,7 @@ if ($action !== '') {
                 }
             }
             $groups = sh_enrich_groups_list($db, $groups, $userEmail);
-            echo json_encode([
+            $stateOut = json_encode([
                 'ok'=>true,
                 'settings'=>$settings,
                 'devices'=>$devices,
@@ -1723,6 +1737,8 @@ if ($action !== '') {
                 'service_role'=>sh_user_service_role(),
                 'api_docs'=>sh_api_docs_markdown((string)($_SERVER['HTTP_HOST']??sh_default_domain())),
             ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            shp_cache_set($stateCacheKey, (string)$stateOut, 3);
+            echo $stateOut;
             exit;
         }
 
@@ -2228,7 +2244,10 @@ if ($action !== '') {
 
         // ─── Monitor / Stats API ──────────────────────────────────────────────────
         if ($action === 'monitor_stats') {
-            $period = (int)($payload['period'] ?? 24); // hours
+            $period = max(1, min(720, (int)($payload['period'] ?? 24)));
+            $statsKey = 'stats:' . shp_user_hash($userEmail) . ':' . $period;
+            $cachedStats = shp_cache_get($statsKey);
+            if ($cachedStats !== null) { echo $cachedStats; exit; }
             $devices = [];
             $r = $db->prepare('SELECT * FROM smarthome_devices WHERE user_email = :em');
             $r->bindValue(':em', $userEmail, PDO::PARAM_STR);
@@ -2237,11 +2256,10 @@ if ($action !== '') {
                 $row['params'] = json_decode($row['params'] ?: '[]', true) ?: [];
                 $devices[] = $row;
             }
-            // Get recent events
             $events = [];
-            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 2000");
+            $estmt = $db->prepare("SELECT id, user_email, device_id, event_type, event_data, created_at FROM smarthome_monitor_logs WHERE user_email = :em AND created_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 2000");
             $estmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
-            $estmt->bindValue(':period', $period, PDO::PARAM_STR);
+            $estmt->bindValue(':period', (string)$period, PDO::PARAM_STR);
             $eres = $estmt->execute();
             while ($erow = $eres->fetch(PDO::FETCH_ASSOC)) {
                 $edata = json_decode($erow['event_data'] ?? '{}', true) ?: [];
@@ -2249,16 +2267,18 @@ if ($action !== '') {
                 $erow['event_label'] = sh_event_label((string)($erow['event_type'] ?? ''), $edata);
                 $events[] = $erow;
             }
-            // Get param history for devices
             $paramHistory = [];
-            foreach ($devices as $d) {
-                $ph = $db->prepare("SELECT * FROM smarthome_params_history WHERE device_id = :did AND recorded_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY recorded_at DESC LIMIT 100");
-                $ph->bindValue(':did', $d['id'], PDO::PARAM_STR);
-                $ph->bindValue(':period', $period, PDO::PARAM_STR);
+            $ids = array_slice(array_map(fn($d) => (string)$d['id'], $devices), 0, 200);
+            if ($ids) {
+                $ph = $db->prepare("SELECT id, device_id, param_id, param_label, param_value, recorded_at FROM (SELECT *, row_number() OVER (PARTITION BY device_id ORDER BY recorded_at DESC) AS rn FROM smarthome_params_history WHERE device_id IN (" . implode(',', array_map(fn($i) => ':d' . $i, array_keys($ids))) . ") AND recorded_at >= CURRENT_TIMESTAMP - (:period || ' hours')::interval) t WHERE rn <= 100 ORDER BY recorded_at DESC");
+                foreach ($ids as $i => $id) $ph->bindValue(':d' . $i, $id, PDO::PARAM_STR);
+                $ph->bindValue(':period', (string)$period, PDO::PARAM_STR);
                 $phres = $ph->execute();
                 while ($phrow = $phres->fetch(PDO::FETCH_ASSOC)) $paramHistory[] = $phrow;
             }
-            echo json_encode(['ok'=>true, 'devices'=>$devices, 'events'=>$events, 'paramHistory'=>$paramHistory], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            $statsOut = json_encode(['ok'=>true, 'devices'=>$devices, 'events'=>$events, 'paramHistory'=>$paramHistory], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
+            shp_cache_set($statsKey, (string)$statsOut, 5);
+            echo $statsOut;
             exit;
         }
 
@@ -2278,14 +2298,19 @@ if ($action !== '') {
 
         if ($action === 'record_param_history') {
             $deviceId = trim((string)($payload['device_id'] ?? ''));
-            foreach (($payload['params'] ?? []) as $p) {
-                if (!is_array($p) || is_array($p['value'] ?? null)) continue;
+            if (!sh_device_row_for_user($db, $deviceId, $userEmail)) { http_response_code(404); echo json_encode(['ok'=>false,'error'=>'Device not found']); exit; }
+            if (shp_rate_ok('hist:' . $deviceId, 30)) {
                 $stmt = $db->prepare('INSERT INTO smarthome_params_history (device_id, param_id, param_label, param_value) VALUES (:did, :pid, :pl, :pv)');
-                $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
-                $stmt->bindValue(':pid', $p['id'], PDO::PARAM_STR);
-                $stmt->bindValue(':pl', $p['label'], PDO::PARAM_STR);
-                $stmt->bindValue(':pv', $p['value'], PDO::PARAM_STR);
-                $stmt->execute();
+                foreach (array_slice((array)($payload['params'] ?? []), 0, 50) as $p) {
+                    if (!is_array($p) || is_array($p['value'] ?? null) || !isset($p['id'])) continue;
+                    $val = shp_clip((string)($p['value'] ?? ''), 500);
+                    if (!shp_history_should_write($deviceId, (string)$p['id'], $val)) continue;
+                    $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
+                    $stmt->bindValue(':pid', shp_clip((string)$p['id'], 100), PDO::PARAM_STR);
+                    $stmt->bindValue(':pl', shp_clip((string)($p['label'] ?? $p['id']), 200), PDO::PARAM_STR);
+                    $stmt->bindValue(':pv', $val, PDO::PARAM_STR);
+                    $stmt->execute();
+                }
             }
             echo json_encode(['ok'=>true], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES);
             exit;
@@ -2302,17 +2327,13 @@ if ($action !== '') {
 }
 
 function sh_monitor_purge(): void {
-    try {
-        $db = sh_db();
-        $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
-        $db->exec("DELETE FROM smarthome_errors WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
-    } catch (Throwable $e) {
-        error_log('sh_monitor_purge: ' . $e->getMessage());
-    }
+    shp_purge_if_due(sh_db());
 }
 
 function sh_log_error(string $email, ?string $deviceId, string $deviceName, string $source, string $message, array $context = []): void {
     try {
+        if (!shp_event_dedupe('err', $email, (string)$deviceId, $source, $message) || !shp_rate_ok('err:' . shp_user_hash($email), 120)) return;
+        $message = shp_clip($message, 2000);
         $db = sh_db();
         if ($deviceName === '' && $deviceId) {
             $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
@@ -2326,7 +2347,7 @@ function sh_log_error(string $email, ?string $deviceId, string $deviceName, stri
         $stmt->bindValue(':dn', $deviceName, PDO::PARAM_STR);
         $stmt->bindValue(':src', $source, PDO::PARAM_STR);
         $stmt->bindValue(':msg', $message, PDO::PARAM_STR);
-        $stmt->bindValue(':ctx', json_encode($context, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+        $stmt->bindValue(':ctx', shp_clip((string)json_encode($context, JSON_UNESCAPED_UNICODE), 4000), PDO::PARAM_STR);
         $stmt->execute();
     } catch (Throwable $e) {
         error_log('sh_log_error: ' . $e->getMessage());
@@ -2410,7 +2431,8 @@ function sh_record_device_events(AppDatabase $db, string $userEmail, string $dev
 
 function sh_monitor_log(string $email, ?string $deviceId, string $eventType, array $data): void {
     try {
-        sh_monitor_purge();
+        if (!shp_rate_ok('ml:' . shp_user_hash($email), 300)) return;
+        shp_purge_if_due(sh_db());
         if ($deviceId && empty($data['device_name'])) {
             $db = sh_db();
             $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
@@ -2423,7 +2445,7 @@ function sh_monitor_log(string $email, ?string $deviceId, string $eventType, arr
         $stmt->bindValue(':em', $email, PDO::PARAM_STR);
         $stmt->bindValue(':did', $deviceId ?? '', PDO::PARAM_STR);
         $stmt->bindValue(':et', $eventType, PDO::PARAM_STR);
-        $stmt->bindValue(':ed', json_encode($data, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
+        $stmt->bindValue(':ed', shp_clip((string)json_encode($data, JSON_UNESCAPED_UNICODE), 4000), PDO::PARAM_STR);
         $stmt->execute();
     } catch (Throwable $e) { error_log('sh_monitor_log: '.$e->getMessage()); }
 }
