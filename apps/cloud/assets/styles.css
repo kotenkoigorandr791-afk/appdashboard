@@ -168,7 +168,7 @@ button:not(.root-toolbar-btn):not(.move-root-btn):not(.tab-close):not(.tab-scrol
 .tree.is-empty::before:hover{color:var(--accent)}
 .btn:disabled,.icon-btn:disabled{opacity:.5;cursor:not-allowed;pointer-events:none}
 body.shell-menu-hidden #btn-toggle-sidebar{display:none!important}
-html.ai-modal-open,html.ai-modal-open body{overflow:hidden!important;scrollbar-gutter:stable}
+html.ai-modal-open,html.ai-modal-open body{overflow:hidden!important}
 #ai-modal{overflow:hidden!important}
 #ai-modal .ai-modal-content{overflow:hidden!important}
 #ai-modal .ai-chat{scrollbar-width:none}
