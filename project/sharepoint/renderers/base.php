@@ -209,6 +209,8 @@ abstract class BaseRenderer
             'not_found' => ['icon' => 'link_off', 'title' => sp_t('not_found'), 'text' => sp_t('not_found')],
             'max_views_exceeded' => ['icon' => 'visibility_off', 'title' => sp_t('views_exceeded'), 'text' => sp_t('views_exceeded')],
             'resource_unavailable' => ['icon' => 'cloud_off', 'title' => sp_t('resource_unavailable'), 'text' => sp_t('resource_unavailable')],
+            'login_required' => ['icon' => 'lock', 'title' => sp_t('login_required'), 'text' => sp_t('login_required')],
+            'user_not_allowed' => ['icon' => 'block', 'title' => sp_t('user_not_allowed'), 'text' => sp_t('user_not_allowed')],
         ];
         $view = $config[$reason] ?? ['icon' => 'error', 'title' => sp_t('not_found'), 'text' => sp_t('not_found')];
         $content = '<section class="sp-empty md3-card md3-card--outlined" role="alert">

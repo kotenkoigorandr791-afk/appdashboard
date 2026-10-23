@@ -2239,7 +2239,7 @@ if ($action !== '') {
             }
             // Get recent events
             $events = [];
-            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 200");
+            $estmt = $db->prepare("SELECT * FROM smarthome_monitor_logs WHERE user_email = :em AND created_at::timestamptz >= CURRENT_TIMESTAMP - (:period || ' hours')::interval ORDER BY created_at DESC LIMIT 2000");
             $estmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $estmt->bindValue(':period', $period, PDO::PARAM_STR);
             $eres = $estmt->execute();

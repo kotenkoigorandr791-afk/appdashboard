@@ -132,7 +132,7 @@ $html = '<!DOCTYPE html>
     <button class="md3-menu__item" data-admin-delete-app="spends"><span class="material-symbols-outlined">pie_chart</span>Delete all spends shares</button>
     <button class="md3-menu__item" data-admin-delete-app="steps"><span class="material-symbols-outlined">directions_walk</span>Delete all steps shares</button>
     <button class="md3-menu__item" data-admin-delete-app="films"><span class="material-symbols-outlined">movie</span>Delete all film shares</button>
-    <button class="md3-menu__item" data-admin-delete-app="smart_home"><span class="material-symbols-outlined">home_automation</span>Delete all smart home shares</button>
+    <button class="md3-menu__item" data-admin-delete-app="smart_home"><span class="material-symbols-outlined">home</span>Delete all smart home shares</button>
   </nav>
 
   <section class="md3-card md3-card--outlined sp-admin-filters">

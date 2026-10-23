@@ -7,13 +7,17 @@
 html { background: var(--md-sys-color-background); }
 .sp-body {
   min-height: 100vh;
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   font: var(--md-sys-typescale-body-large);
   color: var(--md-sys-color-on-background);
   background: var(--sp-page-bg);
   -webkit-font-smoothing: antialiased;
 }
-.sp-main { width: 100%; max-width: 1280px; margin: 0 auto; padding: var(--md-sys-spacing-5) var(--md-sys-spacing-4) var(--md-sys-spacing-10); }
+.sp-main { width: 100%; max-width: 1280px; margin: 0 auto; flex: 1 0 auto; box-sizing: border-box; padding: var(--md-sys-spacing-5) var(--md-sys-spacing-4); }
+.sp-footer { flex: 0 0 auto; }
 .sp-app-page-body .sp-main { padding-top: var(--md-sys-spacing-4); }
 
 /* Top bar */
