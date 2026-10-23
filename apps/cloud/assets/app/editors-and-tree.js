@@ -1097,6 +1097,15 @@ window.updateTreeBrowseHeader = updateTreeBrowseHeader;
 // ─── Full file-tree cache helpers ─────────────────────────────────────────────
 // cachedFileTree: flat array from api('get_file_tree'), null = not loaded yet.
 let cachedFileTree = null;
+let cachedFileTreeHash = '';
+function ensureTreeFolderRendered(childrenEl) {
+    if (!childrenEl || typeof childrenEl._renderLazy !== 'function') return;
+    const render = childrenEl._renderLazy;
+    childrenEl._renderLazy = null;
+    delete childrenEl.dataset.lazy;
+    render();
+}
+window.ensureTreeFolderRendered = ensureTreeFolderRendered;
 
 /** Mark server-side tree cache invalid (call after every write op). */
 async function invalidateTreeCache() {
@@ -1114,6 +1123,7 @@ async function fetchFileTree() {
         const data = await api('get_file_tree', {}, 'GET');
         if (data && data.ok && Array.isArray(data.items)) {
             cachedFileTree = typeof dedupeTreeItemsByPath === 'function' ? dedupeTreeItemsByPath(data.items) : data.items;
+            cachedFileTreeHash = data.hash || '';
             return cachedFileTree;
         }
     } catch (err) {
@@ -1258,6 +1268,9 @@ function getTreeInsertContainer(parentPath, options = {}) {
     if (!parentNode) return null;
     const childrenWrap = parentNode.nextElementSibling;
     if (!childrenWrap || !childrenWrap.classList.contains('children')) return null;
+    if (childrenWrap.style.display === 'none' && (options.allowHiddenParent || options.openParents !== false)) {
+        ensureTreeFolderRendered(childrenWrap);
+    }
     if (childrenWrap.style.display === 'none') {
         if (options.allowHiddenParent) {
             // Keep subtree collapsed, but allow hidden DOM updates so new items
@@ -1532,23 +1545,35 @@ function buildTreeFromFlatItems(flatItems) {
     if (savedSort) sortState.currentSort = savedSort;
     flatItems = typeof dedupeTreeItemsByPath === 'function' ? dedupeTreeItemsByPath(flatItems) : flatItems;
 
-    // Group by parent path
-    const childrenOf = {};
-    for (const item of flatItems) {
-        const parts = item.path.split('/');
-        const parentPath = parts.length > 1 ? parts.slice(0, -1).join('/') : '';
-        if (!childrenOf[parentPath]) childrenOf[parentPath] = [];
-        childrenOf[parentPath].push(item);
-    }
-    for (const key of Object.keys(childrenOf)) {
-        childrenOf[key] = sortItems(childrenOf[key], sortState.currentSort);
-    }
+    let childrenOf = {};
+    let sortedOf = {};
+    const groupByParent = (items) => {
+        const grouped = {};
+        for (const item of items) {
+            const slash = item.path.lastIndexOf('/');
+            const parentPath = slash > 0 ? item.path.slice(0, slash) : '';
+            if (!grouped[parentPath]) grouped[parentPath] = [];
+            grouped[parentPath].push(item);
+        }
+        return grouped;
+    };
+    const getSortedSiblings = (parentPath) => {
+        if (!sortedOf[parentPath]) sortedOf[parentPath] = sortItems(childrenOf[parentPath] || [], sortState.currentSort);
+        return sortedOf[parentPath];
+    };
+    const refreshGroupingFromCache = () => {
+        if (!Array.isArray(cachedFileTree)) return;
+        const live = typeof dedupeTreeItemsByPath === 'function' ? dedupeTreeItemsByPath(cachedFileTree) : cachedFileTree;
+        childrenOf = groupByParent(live);
+        sortedOf = {};
+    };
+    childrenOf = groupByParent(flatItems);
 
     function renderLevel(parentPath, depth) {
         const container = document.createElement('div');
         container.className = 'tree-container';
-        const siblings = childrenOf[parentPath] || [];
-        siblings.forEach((item, siblingIndex) => {
+        const siblings = getSortedSiblings(parentPath);
+        const renderItem = (item, siblingIndex) => {
             const node = document.createElement('div');
             node.className = 'node';
             if (selectionState.selectedItems.has(item.path)) node.classList.add('selected');
@@ -1599,8 +1624,15 @@ function buildTreeFromFlatItems(flatItems) {
                 childContainer.style.display = isOpen ? 'block' : 'none';
                 if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(toggle, isOpen);
 
-                const inner = renderLevel(item.path, depth + 1);
-                childContainer.appendChild(inner);
+                if (isOpen) {
+                    childContainer.appendChild(renderLevel(item.path, depth + 1));
+                } else {
+                    childContainer.dataset.lazy = '1';
+                    childContainer._renderLazy = () => {
+                        refreshGroupingFromCache();
+                        childContainer.appendChild(renderLevel(item.path, depth + 1));
+                    };
+                }
                 if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, isOpen);
 
                 let clickTimer = null;
@@ -1633,6 +1665,7 @@ function buildTreeFromFlatItems(flatItems) {
                             removeChildPathsFromState(getNodePath());
                             expandedFolders.delete(getNodePath());
                         } else {
+                            ensureTreeFolderRendered(childContainer);
                             if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(toggle, true);
                             childContainer.style.display = 'block';
                             if (typeof syncTreeFolderEndLine === 'function') syncTreeFolderEndLine(childContainer, true);
@@ -1707,8 +1740,46 @@ function buildTreeFromFlatItems(flatItems) {
 
             container.appendChild(node);
             container.appendChild(childContainer);
-        });
-        if (typeof syncTreeGuideLastMarkers === 'function') syncTreeGuideLastMarkers(container, siblings);
+        };
+        const CHUNK_SIZE = 250;
+        let renderedCount = 0;
+        let sentinel = null;
+        let observer = null;
+        const renderChunk = () => {
+            const present = new Set(Array.from(container.querySelectorAll(':scope > .node')).map((n) => n.dataset.path));
+            const end = Math.min(renderedCount + CHUNK_SIZE, siblings.length);
+            if (sentinel) sentinel.remove();
+            for (let i = renderedCount; i < end; i++) {
+                if (!present.has(siblings[i].path)) renderItem(siblings[i], i);
+            }
+            renderedCount = end;
+            if (renderedCount < siblings.length) {
+                sentinel = document.createElement('div');
+                sentinel.className = 'tree-more-sentinel';
+                sentinel.style.height = '1px';
+                container.appendChild(sentinel);
+                if (observer) observer.observe(sentinel);
+            } else if (observer) {
+                observer.disconnect();
+                observer = null;
+            }
+            if (typeof syncTreeGuideLastMarkers === 'function') syncTreeGuideLastMarkers(container, siblings);
+            const wrap = container.closest('.children');
+            if (wrap && wrap.style.display !== 'none' && typeof syncTreeChildrenGuide === 'function') syncTreeChildrenGuide(wrap);
+        };
+        if (siblings.length > CHUNK_SIZE && typeof IntersectionObserver === 'function') {
+            observer = new IntersectionObserver((entries) => {
+                if (entries.some((entry) => entry.isIntersecting) && container.isConnected) {
+                    observer.unobserve(sentinel);
+                    renderChunk();
+                }
+            }, { root: null, rootMargin: '600px 0px' });
+        }
+        if (observer) renderChunk();
+        else {
+            siblings.forEach(renderItem);
+            if (typeof syncTreeGuideLastMarkers === 'function') syncTreeGuideLastMarkers(container, siblings);
+        }
         return container;
     }
 
@@ -1774,6 +1845,7 @@ async function expandFolderToPath(targetPath) {
         if (node && node.dataset.type === 'dir') {
             const ch = node.nextElementSibling;
             if (ch && ch.classList.contains('children') && ch.style.display === 'none') {
+                ensureTreeFolderRendered(ch);
                 const tog = node.querySelector('.toggle');
                 if (typeof setTreeDirToggleOpen === 'function') setTreeDirToggleOpen(tog, true);
                 ch.style.display = 'block';

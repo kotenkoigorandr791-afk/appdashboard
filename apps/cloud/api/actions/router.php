@@ -4103,14 +4103,27 @@ if ($action === 'get_file_tree') {
 
     try {
         ensure_file_tree_table($db);
+        $clientHash = preg_replace('/[^a-f0-9]/', '', strtolower((string)($_GET['hash'] ?? $_POST['hash'] ?? '')));
+        if ($clientHash !== '' && function_exists('app_db_is_pgsql') && app_db_is_pgsql()) {
+            $hashStmt = $db->prepare("SELECT md5(tree_json) AS h FROM cloud_folder_state WHERE email = :e AND tree_valid = 1 AND tree_json <> ''");
+            $hashStmt->bindValue(':e', $email, PDO::PARAM_STR);
+            $hashRow = $hashStmt->execute()->fetch(PDO::FETCH_ASSOC);
+            if ($hashRow && $hashRow['h'] === $clientHash) {
+                json_out(['ok' => true, 'unchanged' => true, 'hash' => $clientHash]);
+            }
+        }
         $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
         $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if ($row && $row['tree_valid'] == 1 && !empty($row['tree_json'])) {
+            $treeHash = md5((string)$row['tree_json']);
+            if ($clientHash !== '' && $clientHash === $treeHash) {
+                json_out(['ok' => true, 'unchanged' => true, 'hash' => $treeHash]);
+            }
             $items = json_decode($row['tree_json'], true) ?? [];
             $items = cloud_dedupe_tree_items($items);
-            json_out(['ok' => true, 'items' => $items, 'from_cache' => true]);
+            json_out(['ok' => true, 'items' => $items, 'from_cache' => true, 'hash' => $treeHash]);
         } else {
             // Scan disk and cache
             rebuild_file_tree($email, $user);
@@ -4120,7 +4133,7 @@ if ($action === 'get_file_tree') {
             $row2 = $stmt2->execute()->fetch(PDO::FETCH_ASSOC);
             $items = $row2 ? (json_decode($row2['tree_json'], true) ?? []) : [];
             $items = cloud_dedupe_tree_items($items);
-            json_out(['ok' => true, 'items' => $items, 'from_cache' => false]);
+            json_out(['ok' => true, 'items' => $items, 'from_cache' => false, 'hash' => $row2 ? md5((string)$row2['tree_json']) : '']);
         }
     } catch (Exception $e) {
         cloud_safe_error_log("get_file_tree failed: " . $e->getMessage());

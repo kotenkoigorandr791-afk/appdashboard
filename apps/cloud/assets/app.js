@@ -7198,9 +7198,12 @@ function isTreeAutoRefreshIdle() {
 async function refreshMainTreeIncrementally() {
     if (getCurrentCloudRoot() !== 'main') return;
     const browsePath = typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '';
-    const data = await api('get_file_tree', {}, 'GET');
+    const knownHash = Array.isArray(cachedFileTree) && cachedFileTree.length ? cachedFileTreeHash : '';
+    const data = await api('get_file_tree', knownHash ? { hash: knownHash } : {}, 'GET');
     if (getCurrentCloudRoot() !== 'main') return;
+    if (data?.ok && data.unchanged) return;
     if (!data?.ok || !Array.isArray(data.items)) return;
+    cachedFileTreeHash = data.hash || '';
 
     const previousItems = Array.isArray(cachedFileTree) ? cachedFileTree : [];
     const previousMap = new Map(previousItems.map((item) => [item.path, item]));
