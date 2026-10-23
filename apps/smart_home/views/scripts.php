@@ -1108,9 +1108,9 @@ function renderErrors() {
 }
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
-function switchPage(page) {
+function switchPage(page, fromRoute) {
   state.currentPage = page;
-  updateRouteHash(true);
+  if (!fromRoute) updateRouteHash(true);
   document.querySelectorAll('.page-section').forEach(el => {
     el.classList.remove('active');
     el.style.display = '';
@@ -3953,6 +3953,10 @@ if (document.readyState !== 'loading') {
     setTimeout(() => setupViewToggle(), 100);
   });
 }
+function onRouteChange() {
+  const page = routePageFromHash();
+  if (page !== state.currentPage) switchPage(page, true);
+}
+window.addEventListener('popstate', onRouteChange);
+window.addEventListener('hashchange', onRouteChange);
 </script>
-  window.addEventListener('popstate', () => switchPage(routePageFromHash()));
-  window.addEventListener('hashchange', () => switchPage(routePageFromHash()));
