@@ -10,8 +10,12 @@ require_once __DIR__ . '/core/perf.php';
 use PhpMqtt\Client\ConnectionSettings;
 use PhpMqtt\Client\MqttClient;
 function shmw_db(): AppDatabase {
+    static $cached = null, $at = 0.0;
+    if ($cached && (microtime(true) - $at) < 30.0) return $cached;
     $db = app_main_db();
     $db->enableExceptions(true);
+    $cached = $db;
+    $at = microtime(true);
     static $ddlDone = false;
     if ($ddlDone || shp_schema_ready()) return $db;
     $ddlDone = true;
@@ -80,13 +84,7 @@ function shmw_normalize_param_value(array $param, mixed $value): mixed {
     return (string)$value;
 }
 function shmw_pending_control_ids(AppDatabase $db, string $deviceId): array {
-    $ids = [];
-    $stmt = $db->prepare('SELECT control_id FROM smarthome_control_queue WHERE device_id = :id AND expires_at > :now');
-    $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
-    $stmt->bindValue(':now', microtime(true), PDO::PARAM_STR);
-    $res = $stmt->execute();
-    while ($row = $res->fetch(PDO::FETCH_ASSOC)) $ids[] = (string)($row['control_id'] ?? '');
-    return $ids;
+    return shp_cq_pending($db, $deviceId, microtime(true));
 }
 function shmw_record_history(AppDatabase $db, string $deviceId, array $params, array $telemetry): void {
     $ins = $db->prepare('INSERT INTO smarthome_params_history (device_id, param_id, param_label, param_value, recorded_at) VALUES (:did, :pid, :lbl, :val, CURRENT_TIMESTAMP)');
@@ -102,23 +100,45 @@ function shmw_record_history(AppDatabase $db, string $deviceId, array $params, a
         $ins->execute();
     }
 }
+function shmw_my_shard(string $deviceId): bool {
+    static $n = null, $i = null;
+    if ($n === null) {
+        $n = max(1, (int)(getenv('SMART_HOME_MQTT_SHARDS') ?: 1));
+        $i = (int)(getenv('SMART_HOME_MQTT_SHARD') ?: 0);
+    }
+    return $n === 1 || (crc32($deviceId) % $n) === $i;
+}
+function shmw_device_known(AppDatabase $db, string $deviceId): ?array {
+    static $cache = [];
+    $now = microtime(true);
+    if (isset($cache[$deviceId]) && ($now - $cache[$deviceId][0]) < 30.0) return $cache[$deviceId][1];
+    $stmt = $db->prepare('SELECT controls, params FROM smarthome_devices WHERE id = :id LIMIT 1');
+    $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (count($cache) > 50000) $cache = [];
+    $cache[$deviceId] = [$now, $row ? ['controls' => shmw_json_array($row['controls'] ?? '[]'), 'params' => shmw_json_array($row['params'] ?? '[]')] : null];
+    return $cache[$deviceId][1];
+}
+function shmw_load_base(AppDatabase $db, string $deviceId): ?array {
+    $hot = shp_hot_get($deviceId);
+    if ($hot) return $hot + ['known' => true];
+    $row = shmw_device_known($db, $deviceId);
+    if (!$row) return null;
+    $stmt = $db->prepare('SELECT controls, params, local_url, status FROM smarthome_devices WHERE id = :id LIMIT 1');
+    $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
+    $r = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$r) return null;
+    return ['controls' => shmw_json_array($r['controls'] ?? '[]'), 'params' => shmw_json_array($r['params'] ?? '[]'), 'local_url' => (string)($r['local_url'] ?? ''), 'status' => (string)($r['status'] ?? 'unknown')];
+}
 function shmw_handle_state(string $deviceId, string $message): void {
+    if (!shmw_my_shard($deviceId)) return;
     $payload = json_decode($message, true);
     if (!is_array($payload)) return;
     $db = shmw_db();
-    static $cache = [];
-    $now = microtime(true);
-    if (isset($cache[$deviceId]) && ($now - $cache[$deviceId][0]) < 2.0) {
-        $device = $cache[$deviceId][1];
-    } else {
-        $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id LIMIT 1');
-        $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
-        $device = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if (count($cache) > 20000) $cache = [];
-    }
-    if (!$device) return;
-    $controls = shmw_json_array($device['controls'] ?? '[]');
-    $params = shmw_json_array($device['params'] ?? '[]');
+    $base = shmw_load_base($db, $deviceId);
+    if (!$base) return;
+    $controls = $base['controls'];
+    $params = $base['params'];
     if (!empty($payload['controls']) && is_array($payload['controls'])) {
         $pending = shmw_pending_control_ids($db, $deviceId);
         foreach ($controls as &$control) {
@@ -135,27 +155,19 @@ function shmw_handle_state(string $deviceId, string $message): void {
             $param['value'] = shmw_normalize_param_value($param, $payload['telemetry'][$id]);
         }
         unset($param);
-        shmw_record_history($db, $deviceId, $params, $payload['telemetry']);
+        foreach ($params as $param) {
+            $id = (string)($param['id'] ?? '');
+            if ($id === '' || !array_key_exists($id, $payload['telemetry']) || is_array($payload['telemetry'][$id])) continue;
+            $val = shp_clip((string)$payload['telemetry'][$id], 500);
+            if (shp_history_should_write($deviceId, $id, $val)) shp_hist_push($deviceId, $id, (string)($param['label'] ?? $id), $val);
+        }
     }
-    static $sigs = [];
     $localUrl = trim((string)($payload['local_url'] ?? ''));
-    $controlsJson = json_encode($controls, JSON_UNESCAPED_UNICODE);
-    $paramsJson = json_encode($params, JSON_UNESCAPED_UNICODE);
-    $sig = md5($localUrl . $controlsJson . $paramsJson);
-    $device['controls'] = $controlsJson;
-    $device['params'] = $paramsJson;
-    $cache[$deviceId] = [$now, $device];
-    if (isset($sigs[$deviceId]) && $sigs[$deviceId][0] === $sig && ($now - $sigs[$deviceId][1]) < 30.0) return;
-    if (count($sigs) > 20000) $sigs = [];
-    $sigs[$deviceId] = [$sig, $now];
-    $upd = $db->prepare("UPDATE smarthome_devices SET status='online', local_url=COALESCE(NULLIF(:local,''), local_url), controls=:controls, params=:params, updated_at=CURRENT_TIMESTAMP WHERE id=:id");
-    $upd->bindValue(':local', trim((string)($payload['local_url'] ?? '')), PDO::PARAM_STR);
-    $upd->bindValue(':controls', json_encode($controls, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-    $upd->bindValue(':params', json_encode($params, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-    $upd->bindValue(':id', $deviceId, PDO::PARAM_STR);
-    $upd->execute();
+    $ok = shp_hot_put($deviceId, ['status' => 'online', 'local_url' => $localUrl !== '' ? $localUrl : (string)($base['local_url'] ?? ''), 'controls' => $controls, 'params' => $params]);
+    if ($ok === null) throw new RuntimeException('redis unavailable');
 }
 function shmw_handle_status(string $deviceId, string $message): void {
+    if (!shmw_my_shard($deviceId)) return;
     $status = trim($message);
     if ($status !== 'online' && $status !== 'offline') {
         $payload = json_decode($message, true);
@@ -163,16 +175,25 @@ function shmw_handle_status(string $deviceId, string $message): void {
     }
     if ($status !== 'online' && $status !== 'offline') return;
     $db = shmw_db();
-    $upd = $db->prepare('UPDATE smarthome_devices SET status=:status, updated_at=CURRENT_TIMESTAMP WHERE id=:id');
-    $upd->bindValue(':status', $status, PDO::PARAM_STR);
-    $upd->bindValue(':id', $deviceId, PDO::PARAM_STR);
-    $upd->execute();
+    $base = shmw_load_base($db, $deviceId);
+    if (!$base) return;
+    shp_hot_put($deviceId, ['status' => $status, 'local_url' => (string)($base['local_url'] ?? ''), 'controls' => $base['controls'], 'params' => $base['params']]);
+}
+function shmw_count(): void {
+    static $n = 0, $t = 0.0;
+    $n++;
+    $now = microtime(true);
+    if ($now - $t >= 2.0) {
+        shp_metric('mqtt_msgs', $n);
+        $n = 0;
+        $t = $now;
+    }
 }
 while (true) {
     try {
         $db = shmw_db();
         [$username, $password] = shmw_backend_credentials($db);
-        $mqtt = new MqttClient('127.0.0.1', 1883, 'appdashboard-smarthome-backend', MqttClient::MQTT_3_1);
+        $mqtt = new MqttClient('127.0.0.1', 1883, 'appdashboard-smarthome-backend-' . (int)(getenv('SMART_HOME_MQTT_SHARD') ?: 0), MqttClient::MQTT_3_1);
         $settings = (new ConnectionSettings)
             ->setUsername($username)
             ->setPassword($password)
@@ -183,9 +204,18 @@ while (true) {
             ->setMaxReconnectAttempts(1000000)
             ->setDelayBetweenReconnectAttempts(1000);
         $mqtt->connect($settings, false);
+        $mqtt->registerLoopEventHandler(function (MqttClient $c, float $elapsed) {
+            static $last = 0.0;
+            $now = microtime(true);
+            if ($now - $last < 0.5) return;
+            $last = $now;
+            shp_flush_all(shmw_db());
+            $GLOBALS['shmw_beat'] = $now;
+        });
         $mqtt->subscribe('home/+/state', function (string $topic, string $message) {
             $parts = explode('/', $topic);
             if (count($parts) === 3) {
+                shmw_count();
                 try { shmw_handle_state($parts[1], $message); } catch (Throwable $e) { fwrite(STDERR, 'mqtt_worker state: ' . $e->getMessage() . PHP_EOL); }
             }
         }, 1);

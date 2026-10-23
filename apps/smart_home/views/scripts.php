@@ -1588,7 +1588,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const wrap = document.getElementById('settingHomeGroupWrap');
     if (wrap) wrap.style.display = e.target.value === 'group' ? 'block' : 'none';
   });
-  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+  const saveSettings = () => {
     const payload = {
       home_scope: document.getElementById('settingHomeScope')?.value || 'own',
       home_group_id: document.getElementById('settingHomeGroup')?.value || '',
@@ -1604,7 +1604,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.currentPage === 'home') switchPage('home');
       uiToast(uiText.saved_ok);
     }).catch(e => uiAlert(e.message));
-  });
+  };
+  let saveSettingsTimer;
+  const saveSettingsDebounced = () => { clearTimeout(saveSettingsTimer); saveSettingsTimer = setTimeout(saveSettings, 800); };
+  document.getElementById('saveSettingsBtn')?.addEventListener('click', saveSettings);
+  ['settingHomeScope', 'settingHomeGroup', 'settingHomeView'].forEach(id => document.getElementById(id)?.addEventListener('change', saveSettingsDebounced));
 
   // Refresh stats
   document.getElementById('refreshStats').addEventListener('click', renderStatistics);
