@@ -3433,19 +3433,22 @@
                 const lang = <?php echo json_encode($language, JSON_HEX_TAG); ?>;
                 const theme = <?php echo json_encode($theme, JSON_HEX_TAG); ?>;
                 const color = <?php echo json_encode($color, JSON_HEX_TAG); ?>;
-                const guidePath = which === 'zeep'
-                    ? `instruction/zeep_life_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`
-                    : `instruction/takeout_guide.html?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
+                const guides = {
+                    zeep: { path: 'instruction/zeep_life_guide.html', title: translations.zeep_guide_title || 'How to export Zeep Life data' },
+                    takeout: { path: 'instruction/takeout_guide.html', title: translations.takeout_guide_title || 'How to create a Google Takeout archive' },
+                    play_protect: { path: 'instruction/play_protect_guide.html', title: translations.mobile_app_play_protect_title || 'Disable Google Play Protect' }
+                };
+                const guide = guides[which] || guides.takeout;
+                const guidePath = `${guide.path}?lang=${encodeURIComponent(lang)}&theme=${encodeURIComponent(theme)}&color=${encodeURIComponent(color)}`;
                 if (frame) {
                     frame.src = guidePath;
                 }
                 if (title) {
-                    title.textContent = which === 'zeep'
-                        ? (translations.zeep_guide_title || 'How to export Zeep Life data')
-                        : (translations.takeout_guide_title || 'How to create a Google Takeout archive');
+                    title.textContent = guide.title;
                 }
                 openModal('guide-expand-modal');
             }
+            window.openStepsGuideExpand = openGuideExpand;
             const zeepGuideOpenBtn = document.getElementById('zeep-guide-open-btn');
             if (zeepGuideOpenBtn) zeepGuideOpenBtn.addEventListener('click', () => openGuideExpand('zeep'));
             const takeoutGuideOpenBtn = document.getElementById('takeout-guide-open-btn');

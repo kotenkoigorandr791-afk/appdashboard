@@ -290,6 +290,8 @@
     "zeep_zip_section": "ZIP archive",
     "mobile_app_devices": "Connected devices",
     "mobile_app_download": "Download mobile app",
+    "mobile_app_play_protect": "Play Protect guide",
+    "mobile_app_play_protect_title": "Disable Google Play Protect",
     "mobile_app_feature_devices_desc": "Sync data from multiple wearables and fitness trackers.",
     "mobile_app_feature_offline_desc": "Track steps even without an internet connection.",
     "mobile_app_feature_offline_title": "Offline Tracking",

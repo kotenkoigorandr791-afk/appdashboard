@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Google Play Protect guide</title>
+<style>
+:root{--primary:#6f7a8a;--bg:#f4f5f7;--text:#1f2328;--muted:#5f6670;--card:#fff;--border:rgba(31,35,40,.14);--shadow:0 14px 28px rgba(0,0,0,.08);--scroll-track:#e7eaee;--scroll-thumb:#a1a8b3}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;scroll-behavior:smooth;background:var(--bg);color:var(--text);font-family:Inter,Segoe UI,Arial,sans-serif;scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) var(--scroll-track)}
+body{background:linear-gradient(180deg,var(--bg) 0%,color-mix(in srgb,var(--bg) 88%,#d7dce2) 100%)}
+::-webkit-scrollbar{width:7px;height:7px}
+::-webkit-scrollbar-track{background:var(--scroll-track)}
+::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border-radius:999px}
+::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--scroll-thumb) 82%,#000)}
+.layout{max-width:980px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr) 220px;gap:14px}
+.content{min-width:0}
+.hero{padding:18px 20px;border:1px solid var(--border);border-radius:14px;background:linear-gradient(145deg,color-mix(in srgb,var(--card) 78%,#e5e8ed) 0%,var(--card) 68%);box-shadow:var(--shadow);margin-bottom:12px;display:flex;flex-direction:column;gap:12px}
+.guide-inframe-back{display:inline-flex;align-items:center;gap:8px;padding:8px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:13px;font-weight:600;cursor:pointer;width:fit-content;transition:all .2s ease}
+.guide-inframe-back:hover{background:color-mix(in srgb,var(--primary) 15%,var(--card));border-color:var(--primary);color:var(--primary)}
+.hero h1{margin:0 0 8px;font-size:clamp(20px,3vw,30px)}
+.hero p{margin:0;color:var(--muted);line-height:1.5}
+.note{margin:0;padding:10px 12px;border-radius:10px;border:1px solid color-mix(in srgb,#f59e0b 35%,var(--border));background:color-mix(in srgb,#f59e0b 12%,var(--card));color:var(--text);font-size:13px;line-height:1.45}
+.step{border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 10px 24px rgba(0,0,0,.06);padding:14px;margin-bottom:12px}
+.step-h{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.badge{flex:0 0 auto;width:30px;height:30px;border-radius:999px;display:grid;place-items:center;font-weight:700;color:#fff;background:linear-gradient(145deg,#7f8794,#5d6674)}
+.step h2{margin:0;font-size:18px}
+.step p{margin:0;color:var(--muted);line-height:1.5}
+.map{position:sticky;top:12px;align-self:start;border:1px solid var(--border);border-radius:14px;background:var(--card);box-shadow:0 10px 24px rgba(0,0,0,.07);padding:12px}
+.map h3{margin:2px 0 10px;font-size:14px}
+.map a{display:block;text-decoration:none;color:var(--text);font-size:13px;line-height:1.3;padding:8px 10px;border-radius:10px;margin-bottom:5px;border:1px solid transparent;transition:all .2s ease}
+.map a:hover,.map a.active{background:color-mix(in srgb,var(--primary) 18%,transparent);border-color:color-mix(in srgb,var(--primary) 30%,transparent)}
+.end{margin:4px 0 0;color:var(--muted);font-size:13px;line-height:1.45}
+[data-theme=dark]{--primary:#6f7a8a;--bg:#121417;--text:#e7ebf0;--muted:#a1a8b3;--card:#1d2128;--border:rgba(255,255,255,.11);--shadow:0 18px 38px rgba(0,0,0,.38);--scroll-track:#1a1e25;--scroll-thumb:#575f6d}
+[data-theme=dark] body{background:linear-gradient(180deg,#121417 0%,#171b21 100%)}
+@media (max-width:980px){.layout{grid-template-columns:1fr}.map{position:relative;top:0;order:-1}}
+</style>
+</head>
+<body>
+<div class="layout">
+<main class="content">
+<section class="hero">
+<button type="button" class="guide-inframe-back" id="guideInframeBack">
+<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+<span id="backBtnText"></span>
+</button>
+<h1 id="title"></h1>
+<p id="subtitle"></p>
+<p class="note" id="note"></p>
+</section>
+<section id="s1" class="step"><div class="step-h"><div class="badge">1</div><h2 data-k="s1t"></h2></div><p data-k="s1d"></p></section>
+<section id="s2" class="step"><div class="step-h"><div class="badge">2</div><h2 data-k="s2t"></h2></div><p data-k="s2d"></p></section>
+<section id="s3" class="step"><div class="step-h"><div class="badge">3</div><h2 data-k="s3t"></h2></div><p data-k="s3d"></p></section>
+<section id="s4" class="step"><div class="step-h"><div class="badge">4</div><h2 data-k="s4t"></h2></div><p data-k="s4d"></p></section>
+<section id="s5" class="step"><div class="step-h"><div class="badge">5</div><h2 data-k="s5t"></h2></div><p data-k="s5d"></p></section>
+<p class="end" id="end"></p>
+</main>
+<aside class="map">
+<h3 id="mapTitle"></h3>
+<a href="#s1" data-k="m1"></a>
+<a href="#s2" data-k="m2"></a>
+<a href="#s3" data-k="m3"></a>
+<a href="#s4" data-k="m4"></a>
+<a href="#s5" data-k="m5"></a>
+</aside>
+</div>
+<script>
+const i18n={
+en:{back:"Back",title:"Disable Google Play Protect",subtitle:"Play Protect often blocks sideloaded APK installs. Turn it off briefly, install StepMonitor, then turn protection back on.",note:"Do this only for a trusted APK from this dashboard. Re-enable Play Protect right after installation.",mapTitle:"Steps",end:"After StepMonitor installs successfully, turn Play Protect scanning back on.",s1t:"Open Play Store",s1d:"Open the Google Play Store app on your phone.",s2t:"Open Play Protect",s2d:"Tap your profile icon (top right), then choose Play Protect.",s3t:"Open settings",s3d:"Tap the gear icon in the Play Protect screen to open settings.",s4t:"Turn off scanning",s4d:"Disable “Scan apps with Play Protect”. Confirm if Android asks.",s5t:"Install and restore",s5d:"Install the StepMonitor APK. When it finishes, return here and turn Play Protect scanning back on.",m1:"1. Play Store",m2:"2. Play Protect",m3:"3. Settings",m4:"4. Disable scan",m5:"5. Install"},
+ru:{back:"Назад",title:"Отключить Google Play Protect",subtitle:"Play Protect часто блокирует установку APK не из магазина. Временно отключите защиту, установите StepMonitor, затем включите её снова.",note:"Делайте это только для APK с этой панели. Сразу после установки снова включите Play Protect.",mapTitle:"Шаги",end:"После успешной установки StepMonitor снова включите сканирование Play Protect.",s1t:"Откройте Play Маркет",s1d:"Откройте приложение Google Play на телефоне.",s2t:"Откройте Play Protect",s2d:"Нажмите на аватар (справа сверху) и выберите Play Protect.",s3t:"Откройте настройки",s3d:"На экране Play Protect нажмите значок шестерёнки.",s4t:"Отключите сканирование",s4d:"Выключите «Проверять приложения с помощью Play Protect». Подтвердите, если система попросит.",s5t:"Установите и верните защиту",s5d:"Установите APK StepMonitor. После установки снова включите сканирование Play Protect.",m1:"1. Play Маркет",m2:"2. Play Protect",m3:"3. Настройки",m4:"4. Отключить",m5:"5. Установка"},
+uk:{back:"Назад",title:"Вимкнути Google Play Protect",subtitle:"Play Protect часто блокує встановлення APK не з магазину. Тимчасово вимкніть захист, встановіть StepMonitor, потім увімкніть знову.",note:"Робіть це лише для APK з цієї панелі. Після встановлення одразу увімкніть Play Protect.",mapTitle:"Кроки",end:"Після успішного встановлення StepMonitor знову увімкніть сканування Play Protect.",s1t:"Відкрийте Play Маркет",s1d:"Відкрийте застосунок Google Play на телефоні.",s2t:"Відкрийте Play Protect",s2d:"Натисніть аватар (справа зверху) і виберіть Play Protect.",s3t:"Відкрийте налаштування",s3d:"На екрані Play Protect натисніть іконку шестерні.",s4t:"Вимкніть сканування",s4d:"Вимкніть «Перевіряти додатки за допомогою Play Protect». Підтвердьте, якщо система запитає.",s5t:"Встановіть і поверніть захист",s5d:"Встановіть APK StepMonitor. Після встановлення знову увімкніть сканування Play Protect.",m1:"1. Play Маркет",m2:"2. Play Protect",m3:"3. Налаштування",m4:"4. Вимкнути",m5:"5. Встановлення"},
+be:{back:"Назад",title:"Адключыць Google Play Protect",subtitle:"Play Protect часта блакуе ўсталёўку APK не з крамы. Часова адключыце абарону, усталюйце StepMonitor, потым уключыце зноў.",note:"Рабіце гэта толькі для APK з гэтай панэлі. Адразу пасля ўсталёўкі зноў уключыце Play Protect.",mapTitle:"Крокі",end:"Пасля паспяховай усталёўкі StepMonitor зноў уключыце сканаванне Play Protect.",s1t:"Адкрыйце Play Маркет",s1d:"Адкрыйце праграму Google Play на тэлефоне.",s2t:"Адкрыйце Play Protect",s2d:"Націсніце аватар (справа зверху) і абярыце Play Protect.",s3t:"Адкрыйце налады",s3d:"На экране Play Protect націсніце значок шасцярэнькі.",s4t:"Адключыце сканаванне",s4d:"Выключыце «Правяраць праграмы з дапамогай Play Protect». Пацвердзіце, калі сістэма папросіць.",s5t:"Усталюйце і вярніце абарону",s5d:"Усталюйце APK StepMonitor. Пасля ўсталёўкі зноў уключыце сканаванне Play Protect.",m1:"1. Play Маркет",m2:"2. Play Protect",m3:"3. Налады",m4:"4. Адключыць",m5:"5. Усталёўка"},
+pl:{back:"Wstecz",title:"Wyłącz Google Play Protect",subtitle:"Play Protect często blokuje instalację APK spoza sklepu. Tymczasowo wyłącz ochronę, zainstaluj StepMonitor, potem włącz ją ponownie.",note:"Rób to tylko dla APK z tego panelu. Po instalacji od razu włącz Play Protect.",mapTitle:"Kroki",end:"Po udanej instalacji StepMonitor włącz ponownie skanowanie Play Protect.",s1t:"Otwórz Play Store",s1d:"Otwórz aplikację Google Play na telefonie.",s2t:"Otwórz Play Protect",s2d:"Dotknij ikony profilu (prawy górny róg), potem wybierz Play Protect.",s3t:"Otwórz ustawienia",s3d:"Na ekranie Play Protect dotknij ikony koła zębatego.",s4t:"Wyłącz skanowanie",s4d:"Wyłącz „Skanuj aplikacje za pomocą Play Protect”. Potwierdź, jeśli system o to poprosi.",s5t:"Zainstaluj i przywróć ochronę",s5d:"Zainstaluj APK StepMonitor. Po instalacji włącz ponownie skanowanie Play Protect.",m1:"1. Play Store",m2:"2. Play Protect",m3:"3. Ustawienia",m4:"4. Wyłącz skan",m5:"5. Instalacja"},
+cs:{back:"Zpět",title:"Vypnout Google Play Protect",subtitle:"Play Protect často blokuje instalaci APK mimo obchod. Dočasně vypněte ochranu, nainstalujte StepMonitor a pak ji znovu zapněte.",note:"Dělejte to jen u APK z tohoto panelu. Po instalaci ihned znovu zapněte Play Protect.",mapTitle:"Kroky",end:"Po úspěšné instalaci StepMonitor znovu zapněte skenování Play Protect.",s1t:"Otevřete Obchod Play",s1d:"Otevřete aplikaci Google Play v telefonu.",s2t:"Otevřete Play Protect",s2d:"Klepněte na profil (vpravo nahoře) a zvolšte Play Protect.",s3t:"Otevřete nastavení",s3d:"Na obrazovce Play Protect klepněte na ikonu ozubeného kola.",s4t:"Vypněte skenování",s4d:"Vypněte „Kontrolovat aplikace pomocí Play Protect“. Potvrďte, pokud to systém požaduje.",s5t:"Nainstalujte a obnovte ochranu",s5d:"Nainstalujte APK StepMonitor. Po instalaci znovu zapněte skenování Play Protect.",m1:"1. Obchod Play",m2:"2. Play Protect",m3:"3. Nastavení",m4:"4. Vypnout",m5:"5. Instalace"}
+};
+const q=new URLSearchParams(location.search);
+const lang=(q.get("lang")||"en").toLowerCase();
+const theme=(q.get("theme")||"light").toLowerCase();
+const color=q.get("color")||"#007bff";
+document.documentElement.setAttribute("data-theme",theme==="dark"?"dark":"light");
+document.documentElement.style.setProperty("--primary",color);
+const t=i18n[lang]||i18n.en;
+document.documentElement.lang=lang;
+document.getElementById("backBtnText").textContent=t.back;
+document.getElementById("title").textContent=t.title;
+document.getElementById("subtitle").textContent=t.subtitle;
+document.getElementById("note").textContent=t.note;
+document.getElementById("mapTitle").textContent=t.mapTitle;
+document.getElementById("end").textContent=t.end;
+document.querySelectorAll("[data-k]").forEach(el=>{const k=el.getAttribute("data-k");if(t[k])el.textContent=t[k];});
+const navLinks=[...document.querySelectorAll(".map a")];
+const obs=new IntersectionObserver((entries)=>{entries.forEach(en=>{if(en.isIntersecting){const id=en.target.id;navLinks.forEach(a=>a.classList.toggle("active",a.getAttribute("href")==="#"+id));}})},{rootMargin:"-40% 0px -50% 0px",threshold:.01});
+document.querySelectorAll(".step").forEach(s=>obs.observe(s));
+document.getElementById("guideInframeBack")?.addEventListener("click",()=>{try{if(window.parent&&window.parent!==window)window.parent.postMessage({type:"takeout-guide-close"},"*");}catch(e){}});
+</script>
+</body>
+</html>

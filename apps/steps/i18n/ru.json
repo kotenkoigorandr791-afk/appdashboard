@@ -290,6 +290,8 @@
     "zeep_zip_section": "ZIP-архив",
     "mobile_app_devices": "Подключенные устройства",
     "mobile_app_download": "Скачать мобильное приложение",
+    "mobile_app_play_protect": "Инструкция Play Protect",
+    "mobile_app_play_protect_title": "Отключить Google Play Protect",
     "mobile_app_feature_devices_desc": "Синхронизируйте данные с нескольких носимых устройств и фитнес-трекеров.",
     "mobile_app_feature_offline_desc": "Считайте шаги даже без подключения к интернету.",
     "mobile_app_feature_offline_title": "Офлайн-трекинг",
