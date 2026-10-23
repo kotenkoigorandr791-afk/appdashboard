@@ -260,10 +260,13 @@ const MONACO_COLLAB_CURSOR_MS = 80;
 const MONACO_COLLAB_SNAPSHOT_MS = 500;
 const MONACO_COLLAB_SYNC_REQUEST_MS = 600;
 const monacoCollabSessions = new Map();
+const MONACO_COLLAB_RECONNECT_MIN_MS = 1500;
+const MONACO_COLLAB_RECONNECT_MAX_MS = 60000;
 const monacoCollabSocketState = {
     remoteClientColors: new Map(),
     socket: null,
     reconnectTimer: null,
+    reconnectAttempts: 0,
     pendingMessages: [],
     clientId: 'client-' + Math.random().toString(36).slice(2, 10),
     wasConnected: false
@@ -8987,6 +8990,8 @@ function handleMonacoCollabSocketMessage(payload) {
     }
 }
 function ensureMonacoCollabSocket() {
+    // Do not try to connect while the browser is offline.
+    if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const existing = monacoCollabSocketState.socket;
     if (existing && (existing.readyState === WebSocket.OPEN || existing.readyState === WebSocket.CONNECTING)) {
         return;
@@ -9001,6 +9006,7 @@ function ensureMonacoCollabSocket() {
         socket.addEventListener('open', () => {
             const isReconnect = monacoCollabSocketState.wasConnected;
             monacoCollabSocketState.wasConnected = true;
+            monacoCollabSocketState.reconnectAttempts = 0;
             monacoCollabSessions.forEach((session, tabId) => {
                 session.lastServerRevision = 0;
                 session.lastRemoteRevision = 0;
@@ -9040,7 +9046,11 @@ function ensureMonacoCollabSocket() {
             if (monacoCollabSocketState.socket !== socket) return;
             monacoCollabSocketState.socket = null;
             if (monacoCollabSocketState.reconnectTimer) clearTimeout(monacoCollabSocketState.reconnectTimer);
-            monacoCollabSocketState.reconnectTimer = setTimeout(() => ensureMonacoCollabSocket(), 1500);
+            // The collaboration backend is optional: back off exponentially so a
+            // missing service does not flood the console with failed connections.
+            const attempt = monacoCollabSocketState.reconnectAttempts++;
+            const delay = Math.min(MONACO_COLLAB_RECONNECT_MIN_MS * Math.pow(2, attempt), MONACO_COLLAB_RECONNECT_MAX_MS);
+            monacoCollabSocketState.reconnectTimer = setTimeout(() => ensureMonacoCollabSocket(), delay);
         });
         socket.addEventListener('error', () => {
             if (monacoCollabSocketState.socket !== socket) return;

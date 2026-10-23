@@ -427,6 +427,7 @@
   "images_total": "Obrazy",
   "invalidApiKeyFormat": "Nieprawidłowy format klucza API",
   "invalid_credentials": "Nieprawidłowy e-mail lub hasło",
+  "invalid_response": "Nieprawidłowa odpowiedź serwera",
   "invalid_reset_code": "Nieprawidłowy kod resetowania",
   "invalid_verification_code": "Nieprawidłowy kod weryfikacyjny",
   "ios": "iOS",

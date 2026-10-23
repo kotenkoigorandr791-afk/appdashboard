@@ -426,6 +426,7 @@
   "images_total": "Образів",
   "invalidApiKeyFormat": "Неправильний формат API-ключа",
   "invalid_credentials": "Невірний email або пароль",
+  "invalid_response": "Невірна відповідь сервера",
   "invalid_reset_code": "Невірний код скидання",
   "invalid_verification_code": "Невірний код підтвердження",
   "ios": "iOS",

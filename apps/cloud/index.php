@@ -229,7 +229,7 @@ cloud_require_session_auth();
 <script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=48"></script>
+<script defer src="assets/app.js?v=49"></script>
 <script defer src="assets/app/editors-and-tree.js?v=15"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>

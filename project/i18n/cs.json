@@ -427,6 +427,7 @@
   "images_total": "Obrazy",
   "invalidApiKeyFormat": "Neplatný formát API klíče",
   "invalid_credentials": "Neplatný e-mail nebo heslo",
+  "invalid_response": "Neplatná odpověď serveru",
   "invalid_reset_code": "Neplatný obnovovací kód",
   "invalid_verification_code": "Neplatný ověřovací kód",
   "ios": "iOS",
