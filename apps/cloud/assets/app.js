@@ -1343,6 +1343,11 @@ async function openShareModal() {
         return false;
     }
     const root = viewer.dataset.tabRoot || getActiveTabRoot();
+    try {
+        await flushPendingAutoSaves();
+        const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
+        if (activeTab && activeTab.modified) await saveFile();
+    } catch (_) {}
     const sharePath = typeof toMainTreePath === 'function' ? toMainTreePath(filePath, root) : filePath;
     try {
         viewer.dataset.lastSharedPath = sharePath;
@@ -2213,6 +2218,28 @@ function isBinaryFile(path) {
     ];
     return binaryExts.includes(ext);
 }
+function normalizeTabPathKey(path) {
+    return String(path || '').replace(/\\/g, '/').replace(/^\/+/, '');
+}
+function dedupeTabsByFile() {
+    const seen = new Map();
+    const kept = [];
+    tabsState.tabs.forEach((tab) => {
+        const key = getTabRoot(tab) + '|' + normalizeTabPathKey(tab.path);
+        const prevIndex = seen.get(key);
+        if (prevIndex === undefined) {
+            seen.set(key, kept.length);
+            kept.push(tab);
+            return;
+        }
+        if (tab.id === tabsState.activeTabId) kept[prevIndex] = tab;
+    });
+    if (kept.length === tabsState.tabs.length) return;
+    tabsState.tabs = kept;
+    if (!kept.some((tab) => tab.id === tabsState.activeTabId)) {
+        tabsState.activeTabId = kept.length ? kept[0].id : null;
+    }
+}
 function initTabs() {
     const savedTabs = localStorage.getItem('fileTabs');
     if (savedTabs) {
@@ -2221,6 +2248,7 @@ function initTabs() {
             tabsState.tabs = parsed.tabs || [];
             tabsState.activeTabId = parsed.activeTabId;
             tabsState.nextTabId = parsed.nextTabId || 1;
+            dedupeTabsByFile();
             
             // ADD THIS CODE - restore the user for LaTeX and other editors
             
@@ -2354,7 +2382,7 @@ function openFileInTab(path, editMode = false, root = null) {
     
     const isLatexEditor = editMode && (path.toLowerCase().endsWith('.tex') || path.toLowerCase().endsWith('.latex'));
     const requestedRoot = root || null;
-    const existingTab = tabsState.tabs.find(tab => tab.path === path && (!requestedRoot || getTabRoot(tab) === requestedRoot));
+    const existingTab = tabsState.tabs.find(tab => normalizeTabPathKey(tab.path) === normalizeTabPathKey(path) && (!requestedRoot || getTabRoot(tab) === requestedRoot));
     let inheritedRoot = requestedRoot || (existingTab ? existingTab.root : null);
     if (existingTab) {
         if (editMode && !existingTab.editMode) {

@@ -370,6 +370,8 @@
             const selection = editor.getSelection();
             if (selection && !selection.isEmpty()) {
                 editor.executeEdits('transliteration', [{ range: selection, text }]);
+                const start = selection.getStartPosition();
+                editor.setPosition({ lineNumber: start.lineNumber, column: start.column + text.length });
                 return;
             }
             const position = editor.getPosition();

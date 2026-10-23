@@ -364,7 +364,7 @@ select{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollb
 @media (min-width:769px){
 #file-view.fullscreen-mode{display:grid;grid-template-columns:max-content 1fr;grid-template-rows:auto 1fr;grid-template-areas:"tabs tabs" "toolbar viewer"}
 #file-view.fullscreen-mode .tabs-container{grid-area:tabs}
-#file-view.fullscreen-mode .file-toolbar{grid-area:toolbar;flex-direction:column;align-items:center;align-self:stretch;border-bottom:none;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);padding:var(--menu-button-toolbar-top,28px) 6px 8px;gap:6px;overflow-y:auto;overflow-x:hidden;min-width:48px;width:max-content;height:auto;min-height:0;background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
+#file-view.fullscreen-mode .file-toolbar{grid-area:toolbar;flex-direction:column;align-items:center;justify-content:flex-start;align-self:stretch;border-bottom:none;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);padding:var(--menu-button-toolbar-top,28px) 6px 8px;gap:6px;overflow-y:auto;overflow-x:hidden;min-width:48px;width:max-content;height:auto;min-height:0;background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px)}
 #file-view.fullscreen-mode .file-toolbar>.icon-btn,#file-view.fullscreen-mode .file-toolbar>.btn,#file-view.fullscreen-mode .file-toolbar>.code-actions{flex-shrink:0}
 #file-view.fullscreen-mode .file-toolbar .icon-btn{width:36px;height:36px;padding:0;justify-content:center;min-height:36px}
 #file-view.fullscreen-mode .file-toolbar .icon-btn svg{width:18px;height:18px}
