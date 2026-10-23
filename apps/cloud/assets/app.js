@@ -7160,7 +7160,7 @@ async function buildTree(path) {
 }
 window.buildTree = buildTree;
 
-const TREE_AUTO_REFRESH_INTERVAL_MS = 1000;
+const TREE_AUTO_REFRESH_INTERVAL_MS = 20000;
 let treeAutoRefreshTimerId = null;
 let treeAutoRefreshInFlight = false;
 
@@ -8867,7 +8867,7 @@ function getMonacoCollabSocketUrl() {
 }
 function flushMonacoCollabSocketQueue() {
     const socket = monacoCollabSocketState.socket;
-    if (!socket || socket.readyState !== WebSocket.OPEN) return;
+    if (!socket || socket.readyState !== WebSocket.OPEN || !monacoCollabSocketState.authed) return;
     while (monacoCollabSocketState.pendingMessages.length) {
         socket.send(JSON.stringify(monacoCollabSocketState.pendingMessages.shift()));
     }
@@ -9054,41 +9054,59 @@ function ensureMonacoCollabSocket() {
     try {
         const socket = new WebSocket(getMonacoCollabSocketUrl());
         monacoCollabSocketState.socket = socket;
-        socket.addEventListener('open', () => {
-            const isReconnect = monacoCollabSocketState.wasConnected;
+        monacoCollabSocketState.authed = false;
+        socket.addEventListener('open', async () => {
             monacoCollabSocketState.wasConnected = true;
             monacoCollabSocketState.reconnectAttempts = 0;
-            monacoCollabSessions.forEach((session, tabId) => {
-                session.lastServerRevision = 0;
-                session.lastRemoteRevision = 0;
-                session.lastRemoteContent = '';
-                const editor = editorsMap.get(tabId);
-                const joinContent = editor?.getValue?.() ?? session.lastSyncedContent ?? '';
-                sendMonacoCollabSocketMessage({
-                    type: 'join',
-                    roomKey: session.roomKey,
-                    path: session.filePath,
-                    root: session.rootKey,
-                    clientId: monacoCollabSocketState.clientId,
-                    name: currentUserState.user || 'user',
-                    color: session.color,
-                    content: joinContent,
-                    revision: session.docRevision || 0,
-                    updatedAt: Date.now()
-                });
-                if (isReconnect) {
-                    if (session.syncRequestTimer) clearTimeout(session.syncRequestTimer);
-                    session.syncRequestTimer = setTimeout(() => {
-                        session.syncRequestTimer = null;
-                        requestMonacoCollabSync(tabId);
-                    }, MONACO_COLLAB_SYNC_REQUEST_MS);
+            try {
+                const ticketRes = await api('monaco_collab_ticket', {}, 'POST');
+                if (ticketRes?.ok && ticketRes.ticket && monacoCollabSocketState.socket === socket) {
+                    socket.send(JSON.stringify({ type: 'auth', ticket: ticketRes.ticket }));
                 }
-            });
-            flushMonacoCollabSocketQueue();
+            } catch (error) {
+                console.error('Monaco collab auth ticket failed:', error);
+            }
         });
         socket.addEventListener('message', (event) => {
             try {
-                handleMonacoCollabSocketMessage(JSON.parse(event.data));
+                const payload = JSON.parse(event.data);
+                if (payload?.type === 'auth_ok') {
+                    monacoCollabSocketState.authed = true;
+                    const isReconnect = !!monacoCollabSocketState.wasConnected;
+                    monacoCollabSessions.forEach((session, tabId) => {
+                        session.lastServerRevision = 0;
+                        session.lastRemoteRevision = 0;
+                        session.lastRemoteContent = '';
+                        const editor = editorsMap.get(tabId);
+                        const joinContent = editor?.getValue?.() ?? session.lastSyncedContent ?? '';
+                        sendMonacoCollabSocketMessage({
+                            type: 'join',
+                            roomKey: session.roomKey,
+                            path: session.filePath,
+                            root: session.rootKey,
+                            clientId: monacoCollabSocketState.clientId,
+                            name: currentUserState.user || 'user',
+                            color: session.color,
+                            content: joinContent,
+                            revision: session.docRevision || 0,
+                            updatedAt: Date.now()
+                        });
+                        if (isReconnect) {
+                            if (session.syncRequestTimer) clearTimeout(session.syncRequestTimer);
+                            session.syncRequestTimer = setTimeout(() => {
+                                session.syncRequestTimer = null;
+                                requestMonacoCollabSync(tabId);
+                            }, MONACO_COLLAB_SYNC_REQUEST_MS);
+                        }
+                    });
+                    flushMonacoCollabSocketQueue();
+                    return;
+                }
+                if (payload?.type === 'auth_error') {
+                    console.error('Monaco collab auth failed:', payload.error);
+                    return;
+                }
+                handleMonacoCollabSocketMessage(payload);
             } catch (error) {
                 console.error('Invalid Monaco collab socket payload:', error);
             }
@@ -9096,6 +9114,7 @@ function ensureMonacoCollabSocket() {
         socket.addEventListener('close', () => {
             if (monacoCollabSocketState.socket !== socket) return;
             monacoCollabSocketState.socket = null;
+            monacoCollabSocketState.authed = false;
             if (monacoCollabSocketState.reconnectTimer) clearTimeout(monacoCollabSocketState.reconnectTimer);
             // The collaboration backend is optional: back off exponentially so a
             // missing service does not flood the console with failed connections.

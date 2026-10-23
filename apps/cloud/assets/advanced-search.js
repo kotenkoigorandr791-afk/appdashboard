@@ -794,11 +794,18 @@ async function performAdvancedSearchWithProgress(filters) {
 
 // Get all elements for search
 async function getAllItemsForSearch(path, root = '') {
+    const q = (advancedSearchState?.filters?.name || advancedSearchState?.lastQuery || '').trim();
+    if (!root && path === '' && q.length >= 2 && typeof api === 'function') {
+        try {
+            const res = await api('search_tree', { q, limit: 500 }, 'GET');
+            if (res?.ok && Array.isArray(res.items)) return res.items;
+        } catch (_) {}
+    }
     const params = { path };
     if (root) params.root = root;
     const items = await api('list', params, 'GET');
-    let allItems = [...items.items];
-    for (const item of items.items) {
+    let allItems = [...(items.items || [])];
+    for (const item of (items.items || [])) {
         if (item.type === 'dir') {
             const subItems = await getAllItemsForSearch(item.path, root);
             allItems = allItems.concat(subItems);

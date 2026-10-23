@@ -10,6 +10,7 @@ require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/cloud_group_chat.php';
 require_once __DIR__ . '/includes/cloud_storage_requests.php';
+require_once __DIR__ . '/includes/cloud_hardening.php';
 use PhpOffice\PhpWord\IOFactory as WordIOFactory;
 use PhpOffice\PhpSpreadsheet\IOFactory as SpreadsheetIOFactory;
 use PhpOffice\PhpPresentation\IOFactory as PresentationIOFactory;
@@ -271,10 +272,7 @@ function get_email_from_client_auth_header(): ?string {
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['email'])) {
-            $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
-            $upd->bindValue(':t', time(), PDO::PARAM_INT);
-            $upd->bindValue(':h', hash('sha256', $raw), PDO::PARAM_STR);
-            $upd->execute();
+            cloud_touch_client_token_throttled($db, hash('sha256', $raw), 600);
             $result = (string)$row['email'];
         }
     } catch (Exception $e) {
@@ -298,10 +296,7 @@ function validate_client_token_for_email(string $email, string $token): bool {
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row || empty($row['email'])) return false;
-        $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
-        $upd->bindValue(':t', time(), PDO::PARAM_INT);
-        $upd->bindValue(':h', $tokenHash, PDO::PARAM_STR);
-        $upd->execute();
+        cloud_touch_client_token_throttled($db, $tokenHash, 600);
         return true;
     } catch (Exception $e) {
         cloud_safe_error_log('validate_client_token_for_email: ' . $e->getMessage());
@@ -473,13 +468,17 @@ function cloud_session_candidate_ids(): array {
 //  Desktop client: X-Client-Auth bearer token (same DB as index.php client_auth).
 // ------------------------------------------------------------------
 function get_current_user_from_sessions(): string {
+    static $memo = false;
+    static $memoUser = 'guest';
+    if ($memo) return $memoUser;
+    $memo = true;
     $ca = get_email_from_client_auth_header();
     if ($ca !== null && $ca !== '') {
-        return email_to_cloud_username($ca);
+        return $memoUser = email_to_cloud_username($ca);
     }
     $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
     if (is_string($sessionEmail) && $sessionEmail !== '') {
-        return email_to_cloud_username($sessionEmail);
+        return $memoUser = email_to_cloud_username($sessionEmail);
     }
 
     $tryIds = cloud_session_candidate_ids();
@@ -488,12 +487,12 @@ function get_current_user_from_sessions(): string {
         $email = cloud_get_email_from_redis_session($sid);
         if ($email === null || $email === '') $email = cloud_get_email_from_php_redis_session($sid);
         if ($email !== null && $email !== '') {
-            return email_to_cloud_username($email);
+            return $memoUser = email_to_cloud_username($email);
         }
     }
 
     $db = getDB();
-    if (!$db) return 'guest';
+    if (!$db) return $memoUser = 'guest';
 
     foreach ($tryIds as $sid) {
         try {
@@ -504,14 +503,14 @@ function get_current_user_from_sessions(): string {
             if ($row && !empty($row['email'])) {
                 $username = str_replace(['@', '.'], '_', $row['email']) ?? 'guest';
                 $username = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $username);
-                return $username ?: 'guest';
+                return $memoUser = ($username ?: 'guest');
             }
         } catch (Exception $e) {
             cloud_safe_error_log("get_current_user_from_sessions failed: " . $e->getMessage());
         }
     }
 
-    return 'guest'; // No IP fallback
+    return $memoUser = 'guest';
 }
 
 // ------------------------------------------------------------------
@@ -524,30 +523,32 @@ function get_current_user_from_sessions(): string {
 //  name or path — in that case we fall back to reading the cookie directly.
 // ------------------------------------------------------------------
 function get_session_email(): ?string {
+    static $memo = false;
+    static $memoEmail = null;
+    if ($memo) return $memoEmail;
+    $memo = true;
     $ca = get_email_from_client_auth_header();
     if ($ca !== null && $ca !== '') {
-        return $ca;
+        return $memoEmail = $ca;
     }
     $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
     if (is_string($sessionEmail) && $sessionEmail !== '') {
-        return strtolower(trim($sessionEmail));
+        return $memoEmail = strtolower(trim($sessionEmail));
     }
 
     $tryIds = cloud_session_candidate_ids();
 
-    // Check Redis first (active_sessions stored in Redis when Redis is available)
     foreach ($tryIds as $sid) {
         $email = cloud_get_email_from_redis_session($sid);
         if ($email === null || $email === '') $email = cloud_get_email_from_php_redis_session($sid);
         if ($email !== null && $email !== '') {
-            return strtolower(trim($email));
+            return $memoEmail = strtolower(trim($email));
         }
     }
 
     $db = getDB();
-    if (!$db) return null;
+    if (!$db) return $memoEmail = null;
 
-    // Primary: use the session PHP already started
     foreach ($tryIds as $sid) {
         try {
             $stmt = $db->prepare('SELECT email FROM active_sessions WHERE session_id = :sid');
@@ -555,14 +556,14 @@ function get_session_email(): ?string {
             $result = $stmt->execute();
             $row    = $result->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['email'])) {
-                return $row['email'];
+                return $memoEmail = strtolower(trim((string)$row['email']));
             }
         } catch (Exception $e) {
             cloud_safe_error_log("get_session_email (session_id) failed: " . $e->getMessage());
         }
     }
 
-    return null;
+    return $memoEmail = null;
 }
 // Helper function to get user role by email
 function getUserRoleByEmail($email): int {
@@ -3107,13 +3108,15 @@ function ensureCloudUserSettingsSchema($db): void {
         hide_lang_switcher INTEGER NOT NULL DEFAULT 0,
         sync_local_path TEXT NOT NULL DEFAULT '',
         sync_interval_sec INTEGER NOT NULL DEFAULT 300,
-        sync_mode TEXT NOT NULL DEFAULT 'mtime_size_hash',
+        sync_mode TEXT NOT NULL DEFAULT 'mtime_size',
         sync_enabled INTEGER NOT NULL DEFAULT 0,
         last_sync_at INTEGER NOT NULL DEFAULT 0,
         sync_log_json TEXT NOT NULL DEFAULT '[]',
         trash_retention_days INTEGER NOT NULL DEFAULT 7,
         updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
     )");
+    static $schemaDone = false;
+    if ($schemaDone) return;
     $hasHideLangSwitcher = false;
     $hasSyncLocalPath = false;
     $hasSyncIntervalSec = false;
@@ -3138,11 +3141,12 @@ function ensureCloudUserSettingsSchema($db): void {
     }
     if (!$hasSyncLocalPath) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_local_path TEXT NOT NULL DEFAULT ''");
     if (!$hasSyncIntervalSec) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_interval_sec INTEGER NOT NULL DEFAULT 300");
-    if (!$hasSyncMode) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'mtime_size_hash'");
+    if (!$hasSyncMode) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_mode TEXT NOT NULL DEFAULT 'mtime_size'");
     if (!$hasSyncEnabled) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_enabled INTEGER NOT NULL DEFAULT 0");
     if (!$hasLastSyncAt) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN last_sync_at INTEGER NOT NULL DEFAULT 0");
     if (!$hasSyncLogJson) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN sync_log_json TEXT NOT NULL DEFAULT '[]'");
     if (!$hasTrashRetentionDays) $db->exec("ALTER TABLE cloud_user_settings ADD COLUMN trash_retention_days INTEGER NOT NULL DEFAULT 7");
+    $schemaDone = true;
 }
 
 function cloud_trash_retention_options(): array {
@@ -3491,19 +3495,23 @@ function scan_full_tree(string $dir, string $base): array {
  * Ensure the cloud_folder_state table has the tree_json column (added later).
  */
 function ensure_file_tree_table(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
     $db->exec("
         CREATE TABLE IF NOT EXISTS cloud_folder_state (
             email       TEXT    PRIMARY KEY,
             folder_json TEXT    NOT NULL DEFAULT '[]',
             tree_json   TEXT    NOT NULL DEFAULT '',
+            tree_hash   TEXT    NOT NULL DEFAULT '',
             tree_valid  INTEGER NOT NULL DEFAULT 0,
             updated_at  INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint)
         )
     ");
-    // Add tree_json / tree_valid columns if upgrading from old schema
     try { $db->exec("ALTER TABLE cloud_folder_state ADD COLUMN folder_json TEXT NOT NULL DEFAULT '[]'"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE cloud_folder_state ADD COLUMN tree_json TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
+    try { $db->exec("ALTER TABLE cloud_folder_state ADD COLUMN tree_hash TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
     try { $db->exec("ALTER TABLE cloud_folder_state ADD COLUMN tree_valid INTEGER NOT NULL DEFAULT 0"); } catch (Exception $e) {}
+    $done = true;
 }
 
 /**
@@ -3517,11 +3525,13 @@ function invalidate_file_tree(string $email): void {
         ensure_file_tree_table($db);
         $stmt = $db->prepare("
             UPDATE cloud_folder_state
-            SET tree_valid = 0, tree_json = '', updated_at = extract(epoch from now())::bigint
+            SET tree_valid = 0, tree_json = '', tree_hash = '', updated_at = extract(epoch from now())::bigint
             WHERE email = :e
         ");
         $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $stmt->execute();
+        require_once __DIR__ . '/includes/cloud_sync_bus.php';
+        cloud_sync_bus_publish($email, 'main', 'tree_invalidate', '');
     } catch (Exception $e) {
         cloud_safe_error_log("invalidate_file_tree failed: " . $e->getMessage());
     }
@@ -3554,9 +3564,11 @@ function patch_file_tree_cache_rename(string $email, string $oldPath, string $ne
         unset($item);
         if (!$changed) return;
         $json = json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $update = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+        $hash = md5((string)$json);
+        $update = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_hash = :h, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
         $update->bindValue(':e', $email, PDO::PARAM_STR);
         $update->bindValue(':j', $json, PDO::PARAM_STR);
+        $update->bindValue(':h', $hash, PDO::PARAM_STR);
         $update->execute();
     } catch (Exception $e) {
         cloud_safe_error_log("patch_file_tree_cache_rename failed: " . $e->getMessage());
@@ -3572,19 +3584,20 @@ function rebuild_file_tree(string $email, string $user): void {
     $base  = user_root($user);
     $items = scan_full_tree($base, $base);
     $json  = json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $hash  = md5((string)$json);
     try {
         ensure_file_tree_table($db);
-        // Upsert
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
         $check->bindValue(':e', $email, PDO::PARAM_STR);
         $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
         if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_valid, updated_at) VALUES (:e, '[]', :j, 1, extract(epoch from now())::bigint)");
+            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_hash, tree_valid, updated_at) VALUES (:e, '[]', :j, :h, 1, extract(epoch from now())::bigint)");
         } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_hash = :h, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
         }
         $s->bindValue(':e', $email, PDO::PARAM_STR);
         $s->bindValue(':j', $json, PDO::PARAM_STR);
+        $s->bindValue(':h', $hash, PDO::PARAM_STR);
         $s->execute();
     } catch (Exception $e) {
         cloud_safe_error_log("rebuild_file_tree failed: " . $e->getMessage());

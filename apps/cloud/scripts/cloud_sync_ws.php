@@ -10,11 +10,13 @@ require_once dirname(__DIR__) . '/includes/cloud_sync_protocol.php';
 require_once dirname(__DIR__) . '/includes/cloud_sync_engine.php';
 $host = $argv[1] ?? (getenv('CLOUD_SYNC_WS_BIND') ?: '127.0.0.1');
 $port = isset($argv[2]) ? (int)$argv[2] : (int)(getenv('CLOUD_SYNC_WS_PORT') ?: CLOUD_SYNC_DEFAULT_PORT);
+$instanceId = (string)(getenv('CLOUD_SYNC_WS_INSTANCE') ?: ($host . ':' . $port));
 $server = stream_socket_server("tcp://{$host}:{$port}", $errno, $errstr);
 if (!$server) {
     fwrite(STDERR, "Cloud sync WebSocket failed: {$errstr} ({$errno})\n");
     exit(1);
 }
+fwrite(STDOUT, "Cloud sync WS instance={$instanceId} bind={$host}:{$port} (scale via sticky email-hash LB + CLOUD_SYNC_WS_INSTANCE)\n");
 stream_set_blocking($server, false);
 $clients = [];
 $handshakes = [];
@@ -85,10 +87,9 @@ function csws_auth_token(string $token): ?string {
         $stmt->bindValue(':now', time(), PDO::PARAM_INT);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if ($row && !empty($row['email'])) {
-            $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :t WHERE token_hash = :h');
-            $upd->bindValue(':t', time(), PDO::PARAM_INT);
-            $upd->bindValue(':h', hash('sha256', $token), PDO::PARAM_STR);
-            $upd->execute();
+            if (function_exists('cloud_touch_client_token_throttled')) {
+                cloud_touch_client_token_throttled($db, hash('sha256', $token), 600);
+            }
             return (string)$row['email'];
         }
     } catch (Exception $e) {

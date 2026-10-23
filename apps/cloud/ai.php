@@ -5,22 +5,28 @@ app_sentry_bootstrap('cloud-ai');
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 // ai.php - AI Assistant endpoint
 ini_set('display_errors', '0');
-header('Access-Control-Allow-Origin: *');
+require_once __DIR__ . '/includes/session.php';
+cloud_session_start();
+$__aiHost = (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
+$__aiScheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$__aiOrigin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');
+$__aiAllowed = array_filter(array_map('trim', explode(',', (string)getenv('APP_CORS_ORIGINS'))));
+$__aiAllowed[] = $__aiScheme . '://' . $__aiHost;
+$__aiAllowed = array_values(array_unique($__aiAllowed));
+if ($__aiOrigin !== '' && in_array($__aiOrigin, $__aiAllowed, true)) {
+    header('Access-Control-Allow-Origin: ' . $__aiOrigin);
+    header('Vary: Origin');
+    header('Access-Control-Allow-Credentials: true');
+}
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
+header('Access-Control-Allow-Headers: Content-Type, X-Client-Auth, X-CSRF-Token');
 header('Cache-Control: no-cache, no-store, must-revalidate');
 header('Pragma: no-cache');
 header('Expires: 0');
 if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
     http_response_code(204);
     exit;
 }
-
-require_once __DIR__ . '/includes/session.php';
-cloud_session_start();
 
 require_once __DIR__ . '/includes/ai_config_store.php';
 require_once __DIR__ . '/includes/ai_proxy.php';
@@ -55,9 +61,6 @@ const AI_USER_SETTINGS_TABLE = 'cloud_ai_assistant_user_settings';
 const AI_USER_SETTINGS_OLD_TABLE = 'ai_assistant_user_settings';
 
 if ($action === 'ai_completions' || $action === 'ai_models') {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
-    header('Access-Control-Allow-Headers: Content-Type');
     $email = getCurrentUserEmailFromMainAPI();
     if (!$email) {
         header('Content-Type: application/json; charset=utf-8');
@@ -356,12 +359,7 @@ function getCurrentUserFromMainAPI() {
     } catch (Exception $e) {
         cloud_safe_error_log('getCurrentUserFromMainAPI error: ' . $e->getMessage());
     }
-
-    // Fallback: use IP address
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    $username = 'user_' . preg_replace('/[^a-zA-Z0-9]/', '_', $ip);
-
-    return $username;
+    return '';
 }
 
 function getCurrentUserEmailFromMainAPI() {
@@ -416,8 +414,10 @@ function getCurrentUserEmailFromMainAPI() {
 function aiCurrentEmailForChat(): string {
     $email = getCurrentUserEmailFromMainAPI();
     if ($email === '') {
-        $safe = getCurrentUserFromMainAPI();
-        $email = $safe . '@local';
+        header('Content-Type: application/json; charset=utf-8');
+        http_response_code(401);
+        echo json_encode(['error' => 'not authenticated', 'ok' => false]);
+        exit;
     }
     return $email;
 }
@@ -929,11 +929,7 @@ function aiWorkerPerformJob(array $job, array $config, string $jobPath): string 
 
 function aiUserSettingsGet() {
     global $config;
-    $email = getCurrentUserEmailFromMainAPI();
-    if ($email === '') {
-        $safe = getCurrentUserFromMainAPI();
-        $email = $safe . '@local';
-    }
+    $email = aiCurrentEmailForChat();
     $defaults = [
         'selected_model' => (string)($config['default_model'] ?? ''),
         'selected_role' => 'general',
@@ -992,11 +988,7 @@ function aiUserSettingsGet() {
 }
 
 function aiUserSettingsSet($selectedModel, $selectedRole, $chatMode, $includeFileContext, $rememberPrevious, $hasAttachedFiles = null, $autoConfirmAgentEdits = null, $attachedFilesCount = null, $mentionedFilesCount = null, $notifyOnComplete = null) {
-    $email = getCurrentUserEmailFromMainAPI();
-    if ($email === '') {
-        $safe = getCurrentUserFromMainAPI();
-        $email = $safe . '@local';
-    }
+    $email = aiCurrentEmailForChat();
     $selectedModel = is_string($selectedModel) ? trim($selectedModel) : '';
     $selectedRole = is_string($selectedRole) ? trim($selectedRole) : '';
     $chatMode = is_string($chatMode) ? trim($chatMode) : '';
@@ -1306,13 +1298,9 @@ function clearChatHistory() {
 }
 
 function getHistoryFilePath() {
-    // Get current user from main API
-    $user = getCurrentUserFromMainAPI();
-    
-    // Sanitize username
-    $safeUser = preg_replace('/[^a-zA-Z0-9_-]/', '', $user);
-    if (empty($safeUser)) $safeUser = 'default';
-    
+    $email = aiCurrentEmailForChat();
+    $safeUser = preg_replace('/[^a-zA-Z0-9_-]/', '', str_replace(['@', '.'], '_', $email));
+    if ($safeUser === '') $safeUser = 'user';
     $dir = appdata_app_base_dir('cloud') . '/data';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
     return $dir . '/' . $safeUser . '_ai_chat_history.json';
