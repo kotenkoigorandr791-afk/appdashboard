@@ -608,6 +608,7 @@ server {
     }
 
     location ^~ /home/ {
+        modsecurity off;
         alias /var/www/AppDashboard/project/home/;
         try_files $uri =404;
         expires 7d;
@@ -615,12 +616,14 @@ server {
     }
 
     location ^~ /project/assets/ {
+        modsecurity off;
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
     }
 
     location ^~ /project/onboarding/ {
+        modsecurity off;
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
@@ -634,16 +637,34 @@ server {
     }
 
     location ^~ /preview/ {
+        modsecurity off;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
     }
 
     location ~* \.(?:png|jpe?g|gif|svg|ico|woff2?|ttf|otf|eot)$ {
+        modsecurity off;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
         access_log off;
+    }
+
+    location ~* ^/(?:apps/[^/]+/|project/)?(?:assets|static|dist|js|css)/.*\.(?:js|mjs|css|map|json|wasm)$ {
+        modsecurity off;
+        try_files $uri =404;
+        expires 10m;
+        add_header Cache-Control "public, max-age=600, must-revalidate";
+        access_log off;
+    }
+
+    location ~ ^/(?:apps/[^/]+/)?i18n/load\.php$ {
+        modsecurity off;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_hide_header X-Powered-By;
     }
 
     location / {

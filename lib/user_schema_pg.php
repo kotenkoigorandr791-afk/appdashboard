@@ -33,6 +33,10 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
     return AppDatabase::connectUserSchema($schemaSql);
 }
 function app_spends_shared_ensure(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    app_once_wrap('spends_shared', __FILE__, fn() => app_spends_shared_ensure_impl($db));
+}
+function app_spends_shared_ensure_impl(AppDatabase $db): void {
     static $done = false;
     if ($done) return;
     $reg = $db->query("SELECT to_regclass('" . APP_SPENDS_SHARED_SCHEMA . ".table_settings')")->fetch(PDO::FETCH_NUM);

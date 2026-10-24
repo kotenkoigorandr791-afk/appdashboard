@@ -1,5 +1,9 @@
 <?php
 function recipes_ensure_products_image_preview_column($db) {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    app_once_wrap('rcp_preview', __FILE__, fn() => recipes_ensure_products_image_preview_column_impl($db));
+}
+function recipes_ensure_products_image_preview_column_impl($db) {
     if (!$db) return;
     try {
         $columns = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . RECIPES_DB_TABLE_PREFIX . "products'");
@@ -16,6 +20,10 @@ function recipes_ensure_products_image_preview_column($db) {
 }
 
 function recipes_ensure_steps_table($db) {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    app_once_wrap('rcp_steps', __FILE__, fn() => recipes_ensure_steps_table_impl($db));
+}
+function recipes_ensure_steps_table_impl($db) {
     if (!$db) return;
     try {
         $legacy_table_exists = $db->querySingle("SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='public' AND table_name='recipe_steps'") > 0;
@@ -51,6 +59,13 @@ function recipes_ensure_steps_table($db) {
 
 // Migration function to transfer data from JSON to SQLite
 function recipes_migrate_json_to_sqlite() {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    if (app_once_done('rcp_migrate', __FILE__)) return true;
+    $ok = recipes_migrate_json_to_sqliteImpl();
+    if ($ok) app_once_mark('rcp_migrate', __FILE__);
+    return $ok;
+}
+function recipes_migrate_json_to_sqliteImpl() {
     $db = getDB();
     if (!$db) return false;
     

@@ -1122,6 +1122,10 @@ function monitorTableColumns($db, string $table): array {
 }
 
 function monitorEnsureColumn($db, string $table, string $column, string $definition): void {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    app_once_wrap('moncol:' . $table . ':' . $column, __FILE__, fn() => monitorEnsureColumnImpl($db, $table, $column, $definition));
+}
+function monitorEnsureColumnImpl($db, string $table, string $column, string $definition): void {
     $columns = monitorTableColumns($db, $table);
     if (!isset($columns[$column])) {
         $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");

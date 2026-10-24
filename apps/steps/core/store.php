@@ -10,6 +10,10 @@ function steps_bind_user($stmt): void {
     $stmt->bindValue(':u', steps_user(), PDO::PARAM_STR);
 }
 function steps_store_ensure(AppDatabase $db): void {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    app_once_wrap('steps_store', __FILE__, fn() => steps_store_ensure_impl($db));
+}
+function steps_store_ensure_impl(AppDatabase $db): void {
     static $done = false;
     if ($done) return;
     $done = true;

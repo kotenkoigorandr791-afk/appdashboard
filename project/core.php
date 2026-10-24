@@ -195,6 +195,10 @@ function renderApUserActionsCell(string $email, string $name, bool $isRoot, bool
         . '</div></div>';
 }
 function ensureClientAuthTokensSchema(AppDatabase $db): void {
+    require_once dirname(__DIR__) . '/lib/schema_once.php';
+    app_schema_once('cat_core', __FILE__, fn() => ensureClientAuthTokensSchemaImpl($db));
+}
+function ensureClientAuthTokensSchemaImpl(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash TEXT PRIMARY KEY,
         email TEXT NOT NULL,
@@ -2944,6 +2948,10 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
         } catch (Throwable $e) {}
     }
     function newsEnsureDb(AppDatabase $db, string $newsFile): void {
+        require_once dirname(__DIR__) . '/lib/schema_once.php';
+        app_once_wrap('news_db', __FILE__, fn() => newsEnsureDbImpl($db, $newsFile));
+    }
+    function newsEnsureDbImpl(AppDatabase $db, string $newsFile): void {
         $db->exec("CREATE TABLE IF NOT EXISTS app_news (
             id TEXT PRIMARY KEY,
             title TEXT NOT NULL,

@@ -160,6 +160,10 @@ function sh_init_tables_run(AppDatabase $db): void {
 }
 
 function sh_ensure_column(AppDatabase $db, string $table, string $column, string $def): void {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    app_once_wrap('shcol:' . $table . ':' . $column, __FILE__, fn() => sh_ensure_column_impl($db, $table, $column, $def));
+}
+function sh_ensure_column_impl(AppDatabase $db, string $table, string $column, string $def): void {
     $res = $db->query("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name='" . AppDatabase::escapeString($table) . "'");
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         if (($row['name'] ?? '') === $column) return;

@@ -227,6 +227,10 @@ cleanup_old_upload_sessions();
 // api.php - replace the existing function
 
 function ensure_client_auth_tokens_table(): void {
+    require_once dirname(__DIR__, 2) . '/lib/schema_once.php';
+    app_schema_once('cloud_cat', __FILE__, 'ensure_client_auth_tokens_table_impl');
+}
+function ensure_client_auth_tokens_table_impl(): void {
     $db = getDB();
     if (!$db) return;
     try {
