@@ -2,6 +2,8 @@
 <!-- ====================== ADMIN PANEL ====================== -->
 <link rel="stylesheet" href="/project/backup/assets/backup.css">
 <script src="/project/backup/assets/backup.js" defer></script>
+<link rel="stylesheet" href="/project/performance/style.css?v=<?= is_file(dirname(__DIR__, 2) . '/performance/style.css') ? filemtime(dirname(__DIR__, 2) . '/performance/style.css') : '9' ?>">
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════
    ADMIN PANEL — uses CSS variables from main app theme
@@ -1389,25 +1391,16 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     width: 100%;
     margin: 0;
     padding: 0;
+    overflow: hidden;
 }
-#ap-performance > div {
+#ap-performance > #perf-app,
+#ap-performance > .perf-root {
     flex: 1;
     min-height: 0;
     width: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
-    border: none;
-}
-#ap-performance iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-    background: var(--bg-color);
 }
 #ap-content:has(#ap-performance.active) {
     padding: 0 !important;
@@ -1552,25 +1545,16 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     width: 100%;
     margin: 0;
     padding: 0;
+    overflow: hidden;
 }
-#ap-performance > div {
+#ap-performance > #perf-app,
+#ap-performance > .perf-root {
     flex: 1;
     min-height: 0;
     width: 100%;
     margin: 0;
     padding: 0;
     overflow: hidden;
-    border: none;
-}
-#ap-performance iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-    background: var(--bg-color);
 }
 #ap-content:has(#ap-performance.active) {
     padding: 0 !important;
@@ -1922,6 +1906,14 @@ function openPanel(id){
             try{window.BackupPanel.refresh();}catch(e){}
         }
     }
+    if(id==='ap-performance'&&window.PerformancePanel){
+        if(!apPanelInited['ap-performance']){
+            apPanelInited['ap-performance']=true;
+            try{window.PerformancePanel.init();}catch(e){console.error('[AdminPanel] PerformancePanel.init:',e);}
+        }else if(typeof window.PerformancePanel.refresh==='function'){
+            try{window.PerformancePanel.refresh();}catch(e){}
+        }
+    }
 }
 
 /* ── Open/close ── */
@@ -2120,6 +2112,12 @@ function loadPanel(target, year){
                 apAvailableYears = d.available_years;
             }
             dynRoot.innerHTML=d.html;
+            Array.prototype.slice.call(dynRoot.querySelectorAll('script')).forEach(function(oldScript){
+                var s=document.createElement('script');
+                if(oldScript.src){ s.src=oldScript.src; s.async=false; }
+                else { s.textContent=oldScript.textContent; }
+                oldScript.parentNode.replaceChild(s, oldScript);
+            });
             skeleton.style.display='none';
             dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
             apPanelInited={};

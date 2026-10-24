@@ -23,7 +23,8 @@ $monitorChartsTitle = [
     'cs' => 'Grafy monitorování',
 ][$lang] ?? 'Monitoring Charts';
 $scriptDir = str_replace('\\', '/', dirname($_SERVER['SCRIPT_NAME'] ?? ''));
-$serverMonitorEndpoint = rtrim($scriptDir === '/' ? '' : $scriptDir, '/') . '/server_monitor.php';
+$perfAppBase = rtrim($scriptDir === '/' ? '' : $scriptDir, '/') ?: '/project/performance';
+$serverMonitorEndpoint = $perfAppBase . '/server_monitor.php';
 
 $currentUser = 'Guest';
 $userRole = 0;

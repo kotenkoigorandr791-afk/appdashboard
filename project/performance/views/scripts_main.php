@@ -59,6 +59,8 @@ function t(key, params = {}) {
     return str;
 }
 
+var perfAppBase = (typeof window.__PERF_APP_BASE__ === 'string' && window.__PERF_APP_BASE__) ? window.__PERF_APP_BASE__ : <?= json_encode($perfAppBase ?? '/project/performance', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
+var perfIndexUrl = perfAppBase.replace(/\/$/, '') + '/index.php';
 var serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 var serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 
@@ -104,6 +106,25 @@ var uptimeGroupCollapsed = { docker: false, other: false };
 var monitorChartsLoaded = false;
 var monitorChartsPeriod = '24h';
 var monitorCharts = {};
+var perfStarted = false;
+var perfPollIntervalId = null;
+
+function perfRootEl() {
+    return document.getElementById('perf-app') || document.body;
+}
+function perfSetModalOpen(on) {
+    const root = perfRootEl();
+    if (on) {
+        root.classList.add('modal-open');
+        perfSetModalOpen(true);
+    } else {
+        root.classList.remove('modal-open');
+        perfSetModalOpen(false);
+    }
+}
+function perfApiPost(formData) {
+    return fetch(perfIndexUrl, { method: 'POST', body: formData, credentials: 'same-origin' });
+}
 
 // Auto-zoom state (only for admins)
 var autoZoomEnabled = userRole >= 2;
@@ -241,74 +262,37 @@ function saveStoredData() {
  */
 function calculateAutoZoomScale(data, type) {
     if (!data || data.length === 0) {
-        return { min: 0, max: type === 'network' ? 100 : 100 };
+        return { min: 0, max: 100 };
     }
-
-    // Filter out break points and get numeric values
-    const values = data.filter(item => !item.isBreak).map(item => item.y);
-
+    const values = data.filter(item => !item.isBreak).map(item => Number(item.y) || 0);
     if (values.length === 0) {
-        return { min: 0, max: type === 'network' ? 100 : 100 };
+        return { min: 0, max: 100 };
     }
-
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
-    const range = maxVal - minVal;
-
-    if (type === 'cpu') {
-        const upper = Math.min(100, Math.max(10, Math.ceil((maxVal + Math.max(5, range * 0.25)) / 5) * 5));
+    const range = Math.max(0, maxVal - minVal);
+    const curvePad = type === 'network' ? Math.max(range * 0.18, 512) : Math.max(range * 0.18, 2.5);
+    if (type === 'cpu' || type === 'memory' || type === 'disk' || type === 'swap') {
+        let upper = Math.ceil((maxVal + curvePad) / 5) * 5;
+        upper = Math.min(100, Math.max(type === 'cpu' ? 10 : 5, upper));
         return { min: 0, max: upper };
     }
-
-    // If all values are the same or very close, create a reasonable range around the value
-    if (range === 0 || range < 1) {
-        const center = maxVal;
-        const spread = Math.max(center * 0.35, type === 'network' ? 1024 : 15);
-        return {
-            min: Math.max(0, center - spread),
-            max: Math.ceil(center + spread)
-        };
-    }
-
-    // Add extra headroom to avoid clipping on smoothed lines
-    const paddingPercent = 0.22;
-    const padding = range * paddingPercent;
-    let newMin = minVal - padding;
-    let newMax = maxVal + padding;
-
-    // Clamp to valid range
-    newMin = Math.max(0, newMin);
-
-    // Ensure minimum spread so chart doesn't look like a "wall"
-    const minSpread = type === 'network' ? 5120 : 20; // At least 5 KB/s or 20%
+    let newMin = Math.max(0, minVal - curvePad);
+    let newMax = maxVal + curvePad;
+    const minSpread = type === 'network' ? 5120 : 20;
     if ((newMax - newMin) < minSpread) {
         const center = (newMin + newMax) / 2;
-        const halfSpread = minSpread / 2;
-        newMin = Math.max(0, center - halfSpread);
-        newMax = center + halfSpread;
+        newMin = Math.max(0, center - minSpread / 2);
+        newMax = center + minSpread / 2;
     }
-
-    // Round to nice numbers for readability
     if (type === 'network') {
-        // For network, round to nearest KB
         newMin = Math.max(0, Math.floor(newMin / 1024) * 1024);
         newMax = Math.ceil(newMax / 1024) * 1024;
     } else {
-        // For percentage values, round to nearest 5
         newMin = Math.max(0, Math.floor(newMin / 5) * 5);
         newMax = Math.ceil(newMax / 5) * 5;
     }
-
-    // Final guard: keep extra headroom above real max value
-    const requiredMax = maxVal + (type === 'network' ? Math.max(range * 0.1, 256) : Math.max(range * 0.1, 2));
-    if (newMax < requiredMax) {
-        if (type === 'network') {
-            newMax = Math.ceil(requiredMax / 1024) * 1024;
-        } else {
-            newMax = Math.ceil(requiredMax / 5) * 5;
-        }
-    }
-
+    if (newMax <= newMin) newMax = newMin + (type === 'network' ? 1024 : 5);
     return { min: newMin, max: newMax };
 }
 
@@ -1352,7 +1336,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: '#4CAF50',
                     backgroundColor: 'rgba(76,175,80,.12)',
                     borderWidth: 2,
-                    tension: .5,
+                    tension: .2, cubicInterpolationMode: 'monotone',
                     pointRadius: 0,
                     yAxisID: 'percent'
                 },
@@ -1362,7 +1346,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: primaryColor,
                     backgroundColor: 'rgba(33,150,243,.1)',
                     borderWidth: 2,
-                    tension: .5,
+                    tension: .2, cubicInterpolationMode: 'monotone',
                     pointRadius: 0,
                     yAxisID: 'percent'
                 },
@@ -1372,7 +1356,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: '#FF9800',
                     backgroundColor: 'rgba(255,152,0,.1)',
                     borderWidth: 2,
-                    tension: .5,
+                    tension: .2, cubicInterpolationMode: 'monotone',
                     pointRadius: 0,
                     yAxisID: 'pids'
                 }
@@ -1441,7 +1425,7 @@ function openUptimeCheckModal() {
     const modal = document.getElementById('uptimeCheckModal');
     if (!modal) return;
     modal.style.display = 'block';
-    document.body.classList.add('modal-open');
+    perfSetModalOpen(true);
 }
 
 function closeUptimeCheckModal() {
@@ -1449,7 +1433,7 @@ function closeUptimeCheckModal() {
     if (!modal) return;
     modal.style.display = 'none';
     resetUptimeForm();
-    document.body.classList.remove('modal-open');
+    perfSetModalOpen(false);
 }
 
 function editUptimeCheck(check) {
@@ -1619,17 +1603,17 @@ function prepareChartData(data, type, label) {
         }
     });
     
-    // Create main dataset
     const datasets = [{
         label: type === 'network' ? translations.ui[lang].network_speed : translations.ui[lang].usage,
         data: numericData,
         borderColor: primaryColor,
-        backgroundColor: themeClass === 'dark' ? 'rgba(133, 181, 3, 0.2)' : 'rgba(133, 181, 3, 0.1)',
+        backgroundColor: themeClass === 'dark' ? 'rgba(133, 181, 3, 0.18)' : 'rgba(133, 181, 3, 0.12)',
         borderWidth: 2,
         fill: true,
-        tension: 0.5,
-        pointRadius: 2,
-        pointHoverRadius: 5
+        tension: 0.2,
+        cubicInterpolationMode: 'monotone',
+        pointRadius: 0,
+        pointHoverRadius: 4
     }];
     
     // Add vertical lines for session breaks
@@ -1672,7 +1656,7 @@ async function fetchHistoricalDataIfNeeded() {
     const now = Date.now();
     if (histDataCache && (now - histDataCacheTime) < 300000) return histDataCache;
     try {
-        const url = new URL(window.location.href);
+        const url = new URL(perfIndexUrl, window.location.origin);
         url.search = '?monitor_stats=1&period=24h&t=' + now;
         const resp = await fetch(url.href, { headers: {'Cache-Control': 'no-cache'}, cache: 'no-store', credentials: 'same-origin' });
         if (resp.ok) {
@@ -1692,7 +1676,7 @@ async function openGraphModal(type) {
     const title = document.getElementById('graphTitle');
     const cleanupBtn = document.getElementById('graphCleanupBtn');
     m.style.display = 'block';
-    document.body.classList.add('modal-open');
+    perfSetModalOpen(true);
     if (cleanupBtn) {
         cleanupBtn.onclick = event => {
             event.stopPropagation();
@@ -1800,7 +1784,8 @@ async function openGraphModal(type) {
                             drawBorder: false
                         },
                         min: yScaleConfig.min,
-                        max: yScaleConfig.max
+                        max: yScaleConfig.max,
+                        grace: '6%'
                     }
                 },
                 plugins: {
@@ -1812,7 +1797,6 @@ async function openGraphModal(type) {
                             font: { size: 12 },
                             usePointStyle: true,
                             filter: function(item, chart) {
-                                // Filter empty labels (vertical lines)
                                 return item.text !== '';
                             }
                         }
@@ -1820,7 +1804,7 @@ async function openGraphModal(type) {
                     tooltip: {
                         mode: 'index',
                         intersect: false,
-                        backgroundColor: themeClass === 'dark' ? 'rgba(45, 45, 45, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        backgroundColor: themeClass === 'dark' ? '#1a222c' : '#ffffff',
                         titleColor: textColor,
                         bodyColor: textColor,
                         borderColor: primaryColor,
@@ -1828,7 +1812,7 @@ async function openGraphModal(type) {
                         cornerRadius: 6,
                         callbacks: {
                             label: function(context) {
-                                if (context.datasetIndex > 0) return null; // Skip vertical lines
+                                if (context.datasetIndex > 0) return null;
                                 if (type === 'network') {
                                     return `${context.dataset.label}: ${formatNetworkSpeed(context.parsed.y * 1024)}`;
                                 }
@@ -1843,11 +1827,12 @@ async function openGraphModal(type) {
                 },
                 elements: {
                     line: {
-                        tension: 0.5
+                        tension: 0.2,
+                        cubicInterpolationMode: 'monotone'
                     }
                 },
                 animation: {
-                    duration: 750
+                    duration: 420
                 }
             }
         });
@@ -1984,7 +1969,7 @@ function renderMonitorChart(container, group, key, points, index) {
                 borderColor: color,
                 backgroundColor: color + '22',
                 borderWidth: 2,
-                tension: .5,
+                tension: .2, cubicInterpolationMode: 'monotone',
                 pointRadius: 0,
                 pointHoverRadius: 3,
                 fill: true
@@ -2036,7 +2021,7 @@ function loadMonitorCharts() {
         status.style.display = 'block';
         status.textContent = monitorChartsLabels.loading;
     }
-    fetch('index.php?monitor_stats=1&period=' + encodeURIComponent(monitorChartsPeriod) + '&t=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' }, cache: 'no-store', credentials: 'same-origin' })
+        fetch(perfIndexUrl + '?monitor_stats=1&period=' + encodeURIComponent(monitorChartsPeriod) + '&t=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' }, cache: 'no-store', credentials: 'same-origin' })
         .then(response => response.json())
         .then(data => {
             if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
@@ -2068,14 +2053,14 @@ function openAppConfirmDialog(message, onConfirm, options = {}) {
     cancelBtn.style.display = isAlert ? 'none' : '';
     appConfirmCallback = isAlert ? null : (typeof onConfirm === 'function' ? onConfirm : null);
     modal.style.display = 'block';
-    document.body.classList.add('modal-open');
+    perfSetModalOpen(true);
     okBtn.focus();
 }
 
 function closeAppConfirmDialog() {
     const modal = document.getElementById('appConfirmModal');
     if (modal) modal.style.display = 'none';
-    document.body.classList.remove('modal-open');
+    perfSetModalOpen(false);
     appConfirmCallback = null;
 }
 
@@ -2107,7 +2092,7 @@ function cleanupMonitorChartData(group, key) {
         formData.append('cleanup_chart_data', '1');
         formData.append('chart_group', group);
         formData.append('chart_key', key);
-        fetch(window.location.pathname + window.location.search, { method: 'POST', body: formData, credentials: 'same-origin' })
+        perfApiPost(formData)
             .then(response => response.json())
             .then(data => {
                 if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
@@ -2171,18 +2156,35 @@ async function showHoverPreview(type, event) {
         yScaleConfig = { min: 0, max: type === 'network' ? undefined : 100 };
     }
     if (hoverPreviewChart) hoverPreviewChart.destroy();
+    const mainSet = chartData.datasets[0] ? {
+        ...chartData.datasets[0],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.2,
+        cubicInterpolationMode: 'monotone',
+        fill: true,
+        backgroundColor: themeClass === 'dark' ? 'rgba(133,181,3,.22)' : 'rgba(133,181,3,.16)'
+    } : null;
     hoverPreviewChart = new Chart(hoverPreviewCanvas.getContext('2d'), {
         type: 'line',
-        data: { labels: chartData.labels, datasets: chartData.datasets.map((set, idx) => idx === 0 ? set : { ...set, borderWidth: 0.7 }) },
+        data: { labels: chartData.labels, datasets: mainSet ? [mainSet] : [] },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 220 },
+            animation: { duration: 180 },
+            layout: { padding: { top: 6, right: 4, bottom: 2, left: 2 } },
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            elements: { point: { radius: 0 } },
+            elements: { point: { radius: 0 }, line: { tension: 0.2, cubicInterpolationMode: 'monotone' } },
             scales: {
-                x: { ticks: { display: false }, grid: { color: gridColor, drawBorder: false } },
-                y: { ticks: { color: textColor, maxTicksLimit: 4 }, grid: { color: gridColor, drawBorder: false }, min: yScaleConfig.min, max: yScaleConfig.max }
+                x: { ticks: { display: false }, grid: { display: false, drawBorder: false }, border: { display: false } },
+                y: {
+                    ticks: { color: textColor, maxTicksLimit: 3, font: { size: 10 }, padding: 4 },
+                    grid: { color: gridColor, drawBorder: false },
+                    border: { display: false },
+                    min: yScaleConfig.min,
+                    max: yScaleConfig.max,
+                    grace: '8%'
+                }
             }
         }
     });
@@ -2190,9 +2192,11 @@ async function showHoverPreview(type, event) {
 
 function closeGraphModal() {
     document.getElementById('graphModal').style.display = 'none';
-    document.body.classList.remove('modal-open');
-    document.body.classList.remove('light', 'dark');
-    document.body.classList.add(themeClass);
+    perfSetModalOpen(false);
+    if (perfRootEl() === document.body) {
+        document.body.classList.remove('light', 'dark');
+        document.body.classList.add(themeClass);
+    }
     if (graphChart) {
         graphChart.destroy();
         graphChart = null;
@@ -2248,11 +2252,7 @@ function cleanupSmartDevice(devicePath) {
         formData.append('cleanup_smart_device', '1');
         formData.append('device_path', devicePath);
 
-        fetch(window.location.pathname + window.location.search, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        })
+        perfApiPost(formData)
         .then(response => response.json())
         .then(data => {
             if (data.ok) {
@@ -2285,11 +2285,7 @@ function cleanupMetricData(metricType) {
         formData.append('cleanup_metric_data', '1');
         formData.append('metric_type', metricType);
 
-        fetch(window.location.pathname + window.location.search, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        })
+        perfApiPost(formData)
         .then(response => response.json())
         .then(data => {
             if (data.ok) {
@@ -2355,11 +2351,7 @@ function submitCleanupTimePeriod(event) {
         formData.append('start_time', startTime);
         formData.append('end_time', endTime);
 
-        fetch(window.location.pathname + window.location.search, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        })
+        perfApiPost(formData)
         .then(response => response.json())
         .then(data => {
             if (data.ok) {
@@ -2402,22 +2394,87 @@ function handleBeforeUnload() {
     saveStoredData();
 }
 
-document.getElementById('graphModal').addEventListener('click', e => {
-    if (e.target.id === 'graphModal') closeGraphModal();
-});
+window.openGraphModal = openGraphModal;
+window.closeGraphModal = closeGraphModal;
+window.toggleAutoZoom = toggleAutoZoom;
+window.refreshData = refreshData;
+window.cleanupMetricData = cleanupMetricData;
+window.cleanupSmartDevice = cleanupSmartDevice;
+window.cleanupMonitorChartData = cleanupMonitorChartData;
+window.openCleanupTimePeriodModal = openCleanupTimePeriodModal;
+window.closeCleanupTimePeriodModal = closeCleanupTimePeriodModal;
+window.submitCleanupTimePeriod = submitCleanupTimePeriod;
+window.openUptimeCheckModal = openUptimeCheckModal;
+window.closeUptimeCheckModal = closeUptimeCheckModal;
+window.toggleUptimeAddDropdown = toggleUptimeAddDropdown;
+window.closeUptimeAddDropdown = closeUptimeAddDropdown;
+window.importChecksFromJson = importChecksFromJson;
+window.runUptimeChecks = runUptimeChecks;
+window.toggleAllDockerMetrics = toggleAllDockerMetrics;
+window.toggleDockerMetrics = toggleDockerMetrics;
+window.toggleUptimeGroup = toggleUptimeGroup;
+window.editUptimeCheckById = editUptimeCheckById;
+window.deleteUptimeCheck = deleteUptimeCheck;
+window.exportCheckAsJson = exportCheckAsJson;
+window.saveUptimeCheck = saveUptimeCheck;
+window.appConfirmOk = appConfirmOk;
+window.appConfirmCancel = appConfirmCancel;
+window.filterTable = filterTable;
 
-document.addEventListener('DOMContentLoaded', () => {
+function perfBindUiClicks() {
+    const root = document.getElementById('perf-app');
+    if (!root || root.dataset.perfClickBound) return;
+    root.dataset.perfClickBound = '1';
+    root.addEventListener('click', e => {
+        const card = e.target.closest('.stat-card');
+        if (card && !e.target.closest('.stat-cleanup-btn') && !card.classList.contains('uptime-card')) {
+            const canvas = card.querySelector('canvas[id]');
+            const map = { cpuChart: 'cpu', memChart: 'memory', diskChart: 'disk', networkChart: 'network', swapChart: 'swap' };
+            if (canvas && map[canvas.id]) {
+                e.preventDefault();
+                openGraphModal(map[canvas.id]);
+            }
+        }
+    });
+}
+
+function perfBootMonitor() {
+    if (perfStarted) {
+        loadData(false);
+        return;
+    }
+    if (!document.getElementById('cpuChart')) return;
+    perfStarted = true;
+    ['graphModal', 'uptimeCheckModal', 'cleanupTimePeriodModal', 'appConfirmModal'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (el.parentElement !== document.body) {
+            document.body.appendChild(el);
+        }
+        el.classList.add('perf-root', themeClass);
+        el.style.setProperty('--primary-color', primaryColor);
+        el.style.zIndex = '100050';
+        if (id === 'graphModal' && !el.dataset.perfBackdropBound) {
+            el.dataset.perfBackdropBound = '1';
+            el.addEventListener('click', e => {
+                if (e.target.id === 'graphModal') closeGraphModal();
+            });
+        }
+    });
+    perfBindUiClicks();
     cpuChart = document.getElementById('cpuChart');
     memChart = document.getElementById('memChart');
     diskChart = document.getElementById('diskChart');
     swapChart = document.getElementById('swapChart');
     networkChart = document.getElementById('networkChart');
-
-    document.querySelectorAll('[data-section-target]').forEach(button => {
+    document.querySelectorAll('#perf-app [data-section-target], body.perf-root [data-section-target]').forEach(button => {
+        if (button.dataset.perfBound) return;
+        button.dataset.perfBound = '1';
         button.addEventListener('click', () => setActiveMonitorSection(button.getAttribute('data-section-target')));
     });
     const monitorChartsPeriodEl = document.getElementById('monitorChartsPeriod');
-    if (monitorChartsPeriodEl) {
+    if (monitorChartsPeriodEl && !monitorChartsPeriodEl.dataset.perfBound) {
+        monitorChartsPeriodEl.dataset.perfBound = '1';
         monitorChartsPeriodEl.addEventListener('change', event => {
             monitorChartsPeriod = event.target.value;
             monitorChartsLoaded = false;
@@ -2425,51 +2482,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     restoreActiveMonitorSection();
-
-    // Load auto-zoom preference from localStorage
     if (userRole >= 2) {
         try {
             const savedAutoZoom = localStorage.getItem('autoZoomEnabled');
-            if (savedAutoZoom !== null) {
-                autoZoomEnabled = savedAutoZoom === 'true';
-            }
+            if (savedAutoZoom !== null) autoZoomEnabled = savedAutoZoom === 'true';
         } catch (e) {}
-        
-        // Update toggle button state
         const toggle = document.getElementById('autoZoomToggle');
-        if (toggle) {
-            if (autoZoomEnabled) {
-                toggle.classList.add('active');
-            } else {
-                toggle.classList.remove('active');
-            }
-        }
+        if (toggle) toggle.classList.toggle('active', !!autoZoomEnabled);
     } else {
-        // Hide toggle for non-admins
         const toggle = document.getElementById('autoZoomToggle');
-        if (toggle) {
-            toggle.style.display = 'none';
-        }
+        if (toggle) toggle.style.display = 'none';
     }
-
     currentSessionStart = Date.now();
     loadStoredData();
-    
-    // Display latest known data from cache
     displayLastKnownData();
-    
     drawCircle(cpuChart, 0);
     drawCircle(memChart, 0);
     drawCircle(diskChart, 0);
     drawCircle(swapChart, 0);
     drawCircle(networkChart, 0);
-    
     loadData(false);
-    const intervalId = setInterval(() => loadData(false), UPDATE_INTERVAL);
-
+    if (perfPollIntervalId) clearInterval(perfPollIntervalId);
+    perfPollIntervalId = setInterval(() => loadData(false), UPDATE_INTERVAL);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handleBeforeUnload);
-
     <?php if ($userRole >= 2): ?>
     window.cleanupSmartDevice = cleanupSmartDevice;
     window.cleanupMetricData = cleanupMetricData;
@@ -2479,15 +2515,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeCleanupTimePeriodModal = closeCleanupTimePeriodModal;
     window.submitCleanupTimePeriod = submitCleanupTimePeriod;
     <?php endif; ?>
-    
-    let lastDataCount = {
-        cpu: cpuData.length,
-        memory: memoryData.length,
-        disk: diskData.length,
-        network: networkData.length,
-        swap: swapData.length
-    };
-    
+    let lastDataCount = { cpu: cpuData.length, memory: memoryData.length, disk: diskData.length, network: networkData.length, swap: swapData.length };
     setInterval(() => {
         const changes = {
             cpu: cpuData.length !== lastDataCount.cpu,
@@ -2496,33 +2524,35 @@ document.addEventListener('DOMContentLoaded', () => {
             network: networkData.length !== lastDataCount.network,
             swap: swapData.length !== lastDataCount.swap
         };
-        
         if (changes.cpu || changes.memory || changes.disk || changes.network || changes.swap) {
             saveStoredData();
-            lastDataCount = {
-                cpu: cpuData.length,
-                memory: memoryData.length,
-                disk: diskData.length,
-                network: networkData.length,
-                swap: swapData.length
-            };
+            lastDataCount = { cpu: cpuData.length, memory: memoryData.length, disk: diskData.length, network: networkData.length, swap: swapData.length };
         }
     }, 30000);
-    const hoverGraphTargets = [
+    [
         { id: 'cpuChart', type: 'cpu' },
         { id: 'memChart', type: 'memory' },
         { id: 'diskChart', type: 'disk' },
         { id: 'swapChart', type: 'swap' },
         { id: 'networkChart', type: 'network' }
-    ];
-    hoverGraphTargets.forEach(({ id, type }) => {
+    ].forEach(({ id, type }) => {
         const el = document.getElementById(id);
-        if (!el) return;
+        if (!el || el.dataset.perfHover) return;
+        el.dataset.perfHover = '1';
         el.addEventListener('mouseenter', e => showHoverPreview(type, e));
         el.addEventListener('mousemove', e => moveHoverPreview(e.clientX, e.clientY));
         el.addEventListener('mouseleave', hideHoverPreview);
     });
     window.addEventListener('scroll', hideHoverPreview, { passive: true });
     window.addEventListener('resize', hideHoverPreview);
-});
+}
+window.PerformancePanel = {
+    init: function () { perfBootMonitor(); },
+    refresh: function () { loadData(true); }
+};
+if (!window.__PERF_INLINE__) {
+    document.addEventListener('DOMContentLoaded', () => perfBootMonitor());
+} else if (document.getElementById('cpuChart')) {
+    // Markup already in DOM (admin panel AJAX inject); wait for panel activation via PerformancePanel.init
+}
 </script>

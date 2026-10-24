@@ -1555,12 +1555,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             </div>
         </div>
         <div class="ap-panel" id="ap-performance" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-performance-frame" name="devtools-performance" title="Performance Monitor" src="/project/performance/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['performance_monitor_title'] ?? 'Performance'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
-                </iframe>
-            </div>
+            <?php require __DIR__ . '/views/modals/performance_monitor.php'; ?>
         </div>
         <div class="ap-panel" id="ap-apps-access">
             <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['ap_app_access_title']??'App access'); ?></span></div>
