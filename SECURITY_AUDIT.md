@@ -81,3 +81,24 @@ Update the vulnerable packages; triage gitleaks/semgrep `tainted-filename`; remo
 
 ## Tests
 `tests/e2e/onlyoffice-callback-security.spec.ts`: 4 passed (unsigned OnlyOffice callback/download rejected; anonymous tts/transcription requests not served). Authenticated IDOR and traversal regression tests were not written (need seeded multi-user fixtures). Full e2e suite not run. `php -l` OK on all edited PHP files.
+
+---
+# Remediation round 3
+
+Fixed:
+- `webssh/composer.lock`: updated (lock only), `composer audit` clean.
+- `apps/lopaka/src/pnpm-lock.yaml` + new `pnpm-workspace.yaml` (overrides from `pnpm audit --fix`): vulnerabilities 27 -> 1 moderate.
+- `project/core.php` `create_browser_login`: `browser_url` now uses `APP_PUBLIC_BASE_URL` when set instead of the request `Host` header.
+
+Reviewed, no change needed:
+- CSRF on login/register/OTP forms: ZAP "Absence of Anti-CSRF Tokens" is a false positive. `apSecRequireCsrf()` (`project/bootstrap.php`) is enforced for all POSTs; an unauthenticated POST to `/login` without a token returned 403 `csrf_forbidden`.
+- Semgrep `echoed-request` samples (`apps/recipes/styles.php`, `project/routes.php`, `ShareController.php`, `apps/cloud/ai.php`): values are regex-validated, escaped or JSON-encoded. Only a sample was reviewed, not all 132.
+- `ap_device_id` cookie (no HttpOnly): set client-side for a non-secret device identifier; HttpOnly would break its use.
+
+Deferred (architecture or product decision, no commit made since no architecture change was applied):
+- Run containers as non-root (`Dockerfile`, `deploy/python-sidecar/Dockerfile`): nginx/supervisor need root and the sidecar shares volume ownership with PHP; needs a redesign and a full image rebuild/test.
+- CSP `unsafe-eval`/`unsafe-inline` and SRI for CDN scripts: requires front-end refactoring.
+- `server_name _` / real domain in nginx: requires deployment-specific domain configuration.
+- `appdashboard-mcp`: 1 high-severity npm issue needs a major version bump.
+
+Tests: full Playwright chromium suite run with the test account after installing the browser: 87 passed, 33 failed, 3 skipped. The failures are in UI specs (weather, monaco, localized app names, notifications, etc.); I did not compare against a pre-change baseline, so I cannot state that none are related to these changes. The earlier security fixes were already committed by another process in `e4dfb056`.

@@ -658,7 +658,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
             $scheme = 'https';
         }
         $host = $_SERVER['HTTP_HOST'] ?? (function_exists('app_base_domain') ? app_base_domain() : 'localhost');
-        $browserUrl = $scheme . '://' . $host . '/client-auth?request_id=' . urlencode($requestData['request_id']) . '&browser_token=' . urlencode($requestData['browser_token']);
+        $configuredBase = trim((string)(getenv('APP_PUBLIC_BASE_URL') ?: ''));
+        $baseUrl = $configuredBase !== '' ? rtrim($configuredBase, '/') : $scheme . '://' . $host;
+        $browserUrl = $baseUrl . '/client-auth?request_id=' . urlencode($requestData['request_id']) . '&browser_token=' . urlencode($requestData['browser_token']);
         json_out([
             'ok' => true,
             'request_id' => $requestData['request_id'],
