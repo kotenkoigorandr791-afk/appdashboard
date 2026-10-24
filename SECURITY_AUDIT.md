@@ -102,3 +102,12 @@ Deferred (architecture or product decision, no commit made since no architecture
 - `appdashboard-mcp`: 1 high-severity npm issue needs a major version bump.
 
 Tests: full Playwright chromium suite run with the test account after installing the browser: 87 passed, 33 failed, 3 skipped. The failures are in UI specs (weather, monaco, localized app names, notifications, etc.); I did not compare against a pre-change baseline, so I cannot state that none are related to these changes. The earlier security fixes were already committed by another process in `e4dfb056`.
+
+---
+# Remediation round 4
+
+- `appdashboard-mcp`: zod bumped to ^4.6.7 (no source imports zod; `tsc` build passes; `npm audit` 0 vulnerabilities). Rebuild the MCP package to ship it.
+- `apps/lopaka/src`: `fflate` override added; `pnpm audit` reports no known vulnerabilities.
+- CSP: `'unsafe-eval'` removed from all nginx configs (`nginx/`, `deploy/nginx/`). Verified: login, `/`, `/main` show no CSP/eval console errors; monaco/cloud-file/kanboard specs 20 passed, 4 failed (the same specs failed before the change; no monaco regressions). `'unsafe-inline'` and CDN SRI remain.
+- `deploy/python-sidecar/Dockerfile`: `USER www-data` added (verified write access to the shared volume and `/health` as uid 33 in the running container; the image itself was not rebuilt).
+- Main `appdashboard` image NOT converted to non-root. In `docker-compose.yml` the container is `privileged: true`, mounts the whole host `/` read-write at `/host`, and mounts `docker.sock`. Dropping root in the image would be cosmetic while those remain, and removing them disables the integrated restic backup/restore and Docker management features. This is a product decision: to truly close DS-0002/privilege exposure, drop `privileged`, the `/host` mount and the docker socket (or move those features into a dedicated helper service), then run nginx (already on 8080), php-fpm, mosquitto and supervisord as `www-data`.

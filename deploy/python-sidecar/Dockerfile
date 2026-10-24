@@ -27,6 +27,7 @@ COPY apps/recipes/bg_remove.py /app/apps/recipes/
 COPY apps/spends/utils/parser_bridge.py apps/spends/utils/expense_ocr_worker.py apps/spends/utils/merchant_classifier.py /app/apps/spends/utils/
 COPY deploy/python-sidecar/process_pdf.py deploy/python-sidecar/server.py deploy/python-sidecar/entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh && chmod -R a+rX /app
+USER www-data
 
 EXPOSE 8100
 HEALTHCHECK --interval=30s --timeout=5s --start-period=40s --retries=3 \
