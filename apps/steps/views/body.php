@@ -1065,23 +1065,18 @@ $metricButtons = [
             });
 
             async function ensureQrCodeStyling(){
+                if(typeof window.apEnsureQrCodeStyling==='function') return window.apEnsureQrCodeStyling();
                 if(typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
-                const url='https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
-                const res=await fetch(url,{cache:'no-store'});
-                if(!res.ok) throw new Error('HTTP '+res.status);
-                const code=await res.text();
-                const prevDefine=(typeof define!=='undefined')?define:undefined;
-                try{
-                    if(typeof window!=='undefined') window.define=undefined;
-                    if(typeof self!=='undefined') self.define=undefined;
-                    (0,eval)(code);
-                }finally{
-                    if(typeof window!=='undefined' && typeof prevDefine!=='undefined') window.define=prevDefine;
-                    if(typeof self!=='undefined' && typeof prevDefine!=='undefined') self.define=prevDefine;
-                }
-                if(typeof window!=='undefined' && typeof window.QRCodeStyling!=='undefined') return window.QRCodeStyling;
-                if(typeof self!=='undefined' && typeof self.QRCodeStyling!=='undefined') return self.QRCodeStyling;
-                return QRCodeStyling;
+                await new Promise(function(resolve,reject){
+                    var s=document.createElement('script');
+                    s.src='/project/assets/qr-code-loader.js?v=1';
+                    s.async=true;
+                    s.onload=resolve;
+                    s.onerror=reject;
+                    document.head.appendChild(s);
+                });
+                if(typeof window.apEnsureQrCodeStyling==='function') return window.apEnsureQrCodeStyling();
+                throw new Error('QR loader missing');
             }
             async function renderPairingQr(hostEl, data){
                 try{

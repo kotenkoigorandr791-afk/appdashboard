@@ -2189,12 +2189,18 @@ function buildAuthEmailBody(string $eyebrow,string $title,string $message,string
 }
 // Function to determine the actual theme for display
 function getActualDisplayTheme($configTheme) {
-    if($configTheme === 'auto') {
-                // Determine the browser theme via JavaScript (will be set in a cookie)
-                // Use light by default until JS sets the cookie
-        return isset($_COOKIE['browser_theme']) ? $_COOKIE['browser_theme'] : 'light';
+    if ($configTheme === 'auto' || $configTheme === 'device') {
+        $ch = strtolower(trim((string)($_SERVER['HTTP_SEC_CH_PREFERS_COLOR_SCHEME'] ?? '')));
+        if ($ch === 'dark' || $ch === 'light') {
+            return $ch;
+        }
+        $cookie = strtolower(trim((string)($_COOKIE['browser_theme'] ?? '')));
+        if ($cookie === 'dark' || $cookie === 'light') {
+            return $cookie;
+        }
+        return 'light';
     }
-    return $configTheme;
+    return in_array($configTheme, ['light', 'dark'], true) ? $configTheme : 'light';
 }
 
 // Function to get the theme for links (always a concrete theme, not auto)
@@ -2813,31 +2819,55 @@ function collectUserStorageTargets($email, $name, $appPaths){
 /**
  * Scan app folder paths for user folders and return list of files with sizes.
  */
-function scanUserFiles($email, $name, $appPaths){
+function scanUserFiles($email, $name, $appPaths, int $limit = 500){
     $result = [];
-    foreach(collectUserStorageTargets($email, $name, $appPaths) as $target){
-        foreach(scanFilesRecursive($target['folder']) as $file){
-            $size = @filesize($file);
-            $result[] = [
-                'app' => $target['app'],
-                'folder' => $target['folder'],
-                'path' => $file,
-                'size' => $size !== false ? (int)$size : 0,
-                'name' => basename($file)
-            ];
+    try {
+        foreach (collectUserStorageTargets($email, $name, $appPaths) as $target) {
+            foreach (scanFilesRecursive($target['folder'], $limit - count($result)) as $file) {
+                $size = @filesize($file);
+                $result[] = [
+                    'app' => $target['app'],
+                    'folder' => $target['folder'],
+                    'path' => $file,
+                    'size' => $size !== false ? (int)$size : 0,
+                    'name' => basename($file),
+                ];
+                if (count($result) >= $limit) {
+                    return $result;
+                }
+            }
         }
+    } catch (Throwable $e) {
+        error_log('scanUserFiles: ' . $e->getMessage());
     }
     return $result;
 }
 
-function scanFilesRecursive($dir){
+function scanFilesRecursive($dir, int $limit = 0){
     $result = [];
-    if(!is_dir($dir)) return $result;
-    $items = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS));
-    foreach($items as $item){
-        if($item->isFile()){
-            $result[] = $item->getPathname();
+    if (!is_dir($dir) || !is_readable($dir)) return $result;
+    try {
+        $flags = RecursiveDirectoryIterator::SKIP_DOTS;
+        if (defined('FilesystemIterator::FOLLOW_SYMLINKS')) {
+            // avoid following symlinks out of user folders
         }
+        $iterator = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS | FilesystemIterator::CURRENT_AS_FILEINFO),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        $iterator->setMaxDepth(32);
+        foreach ($iterator as $item) {
+            try {
+                if ($item->isFile()) {
+                    $result[] = $item->getPathname();
+                    if ($limit > 0 && count($result) >= $limit) break;
+                }
+            } catch (Throwable $e) {
+                continue;
+            }
+        }
+    } catch (Throwable $e) {
+        error_log('scanFilesRecursive(' . $dir . '): ' . $e->getMessage());
     }
     return $result;
 }
@@ -2848,14 +2878,13 @@ function scanFilesRecursive($dir){
 function countUserFiles($email, $name, $appPaths){
     $totalCount = 0;
     $totalFolders = 0;
-    foreach(collectUserStorageTargets($email, $name, $appPaths) as $target){
-        $totalFolders++;
-        $items = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($target['folder'], RecursiveDirectoryIterator::SKIP_DOTS));
-        foreach($items as $item){
-            if($item->isFile()){
-                $totalCount++;
-            }
+    try {
+        foreach (collectUserStorageTargets($email, $name, $appPaths) as $target) {
+            $totalFolders++;
+            $totalCount += count(scanFilesRecursive($target['folder']));
         }
+    } catch (Throwable $e) {
+        error_log('countUserFiles: ' . $e->getMessage());
     }
     return ['files' => $totalCount, 'folders' => $totalFolders];
 }
@@ -2864,10 +2893,11 @@ function countUserFiles($email, $name, $appPaths){
  * Scan user files progressively with progress updates
  */
 function formatBytes($bytes){
-    if($bytes === 0) return '0 B';
+    $bytes = (int)$bytes;
+    if ($bytes <= 0) return '0 B';
     $units = ['B','KB','MB','GB','TB'];
     $exp = (int)floor(log($bytes, 1024));
-    $exp = min($exp, count($units)-1);
+    $exp = min(max($exp, 0), count($units) - 1);
     return round($bytes / pow(1024, $exp), 2) . ' ' . $units[$exp];
 }
 
@@ -2876,29 +2906,41 @@ function formatBytes($bytes){
  */
 function deleteUserFolders($email, $name, $appPaths){
     $deleted = [];
-    foreach(collectUserStorageTargets($email, $name, $appPaths) as $target){
-        if(is_dir($target['folder'])){
-            deleteDirectory($target['folder']);
-            $deleted[] = $target['folder'];
+    try {
+        foreach (collectUserStorageTargets($email, $name, $appPaths) as $target) {
+            if (is_dir($target['folder'])) {
+                deleteDirectory($target['folder']);
+                $deleted[] = $target['folder'];
+            }
         }
+    } catch (Throwable $e) {
+        error_log('deleteUserFolders: ' . $e->getMessage());
     }
     return $deleted;
 }
 
 function deleteDirectory($dir){
-    if(!is_dir($dir)) return;
-    $items = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::CHILD_FIRST
-    );
-    foreach($items as $item){
-        if($item->isDir()){
-            rmdir($item->getPathname());
-        } else {
-            unlink($item->getPathname());
+    if (!is_dir($dir)) return;
+    try {
+        $items = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($items as $item) {
+            try {
+                if ($item->isDir()) {
+                    @rmdir($item->getPathname());
+                } else {
+                    @unlink($item->getPathname());
+                }
+            } catch (Throwable $e) {
+                continue;
+            }
         }
+        @rmdir($dir);
+    } catch (Throwable $e) {
+        error_log('deleteDirectory(' . $dir . '): ' . $e->getMessage());
     }
-    rmdir($dir);
 }
 
 

@@ -127,7 +127,8 @@ server {
         proxy_hide_header X-Frame-Options;
         proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
-        sub_filter_once on;
+        sub_filter_once off;
+        sub_filter '<head>' '<head><script id="appdashboard-sentry-theme-bridge">(function(){function apply(t){if(t!=="light"&&t!=="dark")return;try{document.documentElement.style.setProperty("color-scheme",t);localStorage.setItem("theme",t);}catch(e){}}try{var p=new URLSearchParams(location.search);var t=p.get("theme");if(t==="light"||t==="dark")apply(t);else{var s=localStorage.getItem("theme");if(s==="light"||s==="dark")apply(s);}}catch(e){}window.addEventListener("message",function(e){try{if(e&&e.data&&e.data.type==="appdashboard-theme")apply(e.data.theme);}catch(err){}});})();</script>';
         sub_filter '</body>' '<script>(function(){if(location.pathname!=="/"&&location.pathname.indexOf("/login")!==0)return;if(window.top!==window.self){/* embedded: silent SSO login is disabled by security policy */return;}var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}})();</script></body>';
     }
 }
@@ -151,7 +152,8 @@ server {
         proxy_hide_header X-Frame-Options;
         proxy_hide_header Content-Security-Policy;
         add_header Content-Security-Policy "frame-ancestors 'self' __APP_PUBLIC_URL__" always;
-        sub_filter_once on;
+        sub_filter_once off;
+        sub_filter '<head>' '<head><script id="appdashboard-sentry-theme-bridge">(function(){function apply(t){if(t!=="light"&&t!=="dark")return;try{document.documentElement.style.setProperty("color-scheme",t);localStorage.setItem("theme",t);}catch(e){}}try{var p=new URLSearchParams(location.search);var t=p.get("theme");if(t==="light"||t==="dark")apply(t);else{var s=localStorage.getItem("theme");if(s==="light"||s==="dark")apply(s);}}catch(e){}window.addEventListener("message",function(e){try{if(e&&e.data&&e.data.type==="appdashboard-theme")apply(e.data.theme);}catch(err){}});})();</script>';
         sub_filter '</body>' '<script>(function(){if(location.pathname!=="/"&&location.pathname.indexOf("/login")!==0)return;if(window.top!==window.self){/* embedded: silent SSO login is disabled by security policy */return;}var xs=[].slice.call(document.querySelectorAll("button,a"));var b=xs.find(function(x){return /AppDashboard/i.test((x.innerText||x.textContent||""));});if(b&&!b.dataset.appdashAuto){b.dataset.appdashAuto="1";b.click();}})();</script></body>';
     }
 }

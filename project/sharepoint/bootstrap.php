@@ -15,6 +15,9 @@ if (!defined('SHAREPOINT_ASSET_BASE')) {
 }
 
 require_once dirname(__DIR__, 2) . '/db.php';
+if (is_file(dirname(__DIR__, 2) . '/lib/app_version.php')) {
+    require_once dirname(__DIR__, 2) . '/lib/app_version.php';
+}
 
 if (is_file(dirname(__DIR__, 2) . '/lib/app_session.php')) {
     require_once dirname(__DIR__, 2) . '/lib/app_session.php';
@@ -168,6 +171,45 @@ if (!function_exists('sp_asset')) {
         $file = SHAREPOINT_ROOT . '/assets/' . ltrim($path, '/');
         $version = is_file($file) ? (string)filemtime($file) : '1';
         return SHAREPOINT_ASSET_BASE . '/' . ltrim($path, '/') . '?v=' . $version;
+    }
+}
+
+if (!function_exists('sp_app_version_info')) {
+    function sp_app_version_info(): array
+    {
+        if (!function_exists('appdashboard_version_info')) {
+            return ['label' => '', 'date' => '', 'tooltip' => ''];
+        }
+        $info = appdashboard_version_info();
+        $label = trim((string)($info['label'] ?? ''));
+        $date = '';
+        if ($label !== '') {
+            $date = (($info['source'] ?? '') === 'env')
+                ? (string)($info['build_date_human'] ?? '')
+                : (string)($info['updated_at_human'] ?? '');
+        }
+        $tt = [];
+        foreach (['branch' => $info['branch'] ?? '', 'full' => $info['full'] ?? '', 'updated_at' => $info['updated_at'] ?? '', 'build_date' => $info['build_date'] ?? ''] as $k => $v) {
+            if (trim((string)$v) !== '') {
+                $tt[] = $k . ': ' . $v;
+            }
+        }
+        return ['label' => $label, 'date' => $date, 'tooltip' => implode("\n", $tt)];
+    }
+}
+
+if (!function_exists('sp_footer_version_html')) {
+    function sp_footer_version_html(): string
+    {
+        $info = sp_app_version_info();
+        if ($info['label'] === '') {
+            return '';
+        }
+        $text = $info['label'];
+        if ($info['date'] !== '') {
+            $text .= ' · ' . $info['date'];
+        }
+        return '<span class="sp-footer__version" title="' . sp_h($info['tooltip'] !== '' ? $info['tooltip'] : $info['label']) . '">' . sp_h(sp_t('version')) . ': ' . sp_h($text) . '</span>';
     }
 }
 

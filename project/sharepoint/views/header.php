@@ -40,7 +40,7 @@ if (!function_exists('sp_public_shell')) {
     <span class="md3-typescale-title-medium">' . sp_h($appName) . '</span>
   </div>
   ' . $body . '
-  <footer class="sp-footer"><span class="sp-footer__brand"><span class="material-symbols-outlined">hub</span>SharePoint</span></footer>
+  <footer class="sp-footer"><span class="sp-footer__brand"><span class="material-symbols-outlined">hub</span>SharePoint</span>' . sp_footer_version_html() . '</footer>
 </main>
 <script src="' . sp_h(sp_asset('js/md3-components.js')) . '" defer></script>
 </body>

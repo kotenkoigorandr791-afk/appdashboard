@@ -1,4 +1,4 @@
-<script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+<script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
 <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
 <script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
 <script>
@@ -1379,14 +1379,12 @@ async function showChartShareLinkModal(link){
     const qrHost=document.getElementById('csl-qr');
     qrHost.innerHTML='';
     try{
-        if(typeof QRCodeStyling==='undefined'){
-            const url='https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
-            const code=await (await fetch(url,{cache:'no-store'})).text();
-            const prevDefine=typeof define!=='undefined'?define:undefined;
-            try{ if(typeof window!=='undefined')window.define=undefined; (0,eval)(code);}finally{ if(typeof window!=='undefined'&&typeof prevDefine!=='undefined')window.define=prevDefine; }
+        if(typeof window.apEnsureQrCodeStyling!=='function'){
+            await new Promise(function(resolve,reject){var s=document.createElement('script');s.src='/project/assets/qr-code-loader.js?v=1';s.onload=resolve;s.onerror=reject;document.head.appendChild(s);});
         }
+        const Ctor=await window.apEnsureQrCodeStyling();
         const wrap=document.createElement('div');wrap.className='csl-qr-wrap';
-        const qr=new QRCodeStyling({width:200,height:200,type:'svg',data:link,margin:4,qrOptions:{errorCorrectionLevel:'H'},dotsOptions:{type:'rounded',color:'#2563eb'},cornersSquareOptions:{type:'extra-rounded',color:'#2563eb'},cornersDotOptions:{type:'dot',color:'#7c3aed'},backgroundOptions:{color:'rgba(255,255,255,0)'}});
+        const qr=new Ctor(window.apQrStyleOptions?window.apQrStyleOptions(link,200):{width:200,height:200,type:'svg',data:link,margin:4,qrOptions:{errorCorrectionLevel:'H'},dotsOptions:{type:'rounded',color:'#2563eb'},cornersSquareOptions:{type:'extra-rounded',color:'#2563eb'},cornersDotOptions:{type:'dot',color:'#7c3aed'},backgroundOptions:{color:'rgba(255,255,255,0)'}});
         qr.append(wrap);qrHost.appendChild(wrap);
     }catch(e){
         qrHost.innerHTML='<div class="ccm-empty">QR unavailable</div>';

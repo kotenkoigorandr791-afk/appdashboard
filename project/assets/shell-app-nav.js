@@ -217,6 +217,10 @@
       if (done || token !== loadGen) return;
       done = true;
       hideAppLoading();
+      try {
+        var t = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : 'light';
+        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({ type: 'appdashboard-theme', theme: t }, '*');
+      } catch (_) {}
     }
     iframe.addEventListener('load', finish, { once: true });
     try {
@@ -249,6 +253,10 @@
       rail.style.display = app.app_rail ? '' : 'none';
     }
     content.className = contentAppClasses(folder, app);
+    if (typeof window.updateEdgeAppShellTheme === 'function') {
+      var edgeTheme = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : 'light';
+      window.updateEdgeAppShellTheme(edgeTheme);
+    }
     if (home) home.hidden = true;
     frame.hidden = false;
     document.body.classList.add('shell-app-open');
@@ -289,6 +297,7 @@
     var home = ensureHomeShell() || document.getElementById('shell-home') || document.getElementById('app-grid');
     var frame = document.getElementById('shell-app-frame');
     if (content) content.className = '';
+    if (typeof window.updateEdgeAppShellTheme === 'function') window.updateEdgeAppShellTheme(document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : 'light');
     if (frame) {
       frame.hidden = true;
       var iframe = document.getElementById('app-iframe');

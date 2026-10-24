@@ -1037,20 +1037,28 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 }
 .ap-role-select:focus { outline: none; border-color: var(--primary-color); }
 .ap-role-select:disabled { opacity: .45; cursor: not-allowed; }
+.ap-users-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.ap-search-wrap{position:relative;flex:1 1 220px;min-width:180px;}
+.ap-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;}
 .ap-search-bar {
     width: 100%;
     background: var(--bg-color);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 8px 12px 8px 36px;
     color: var(--text-color);
     font-size: 14px;
     font-family: sans-serif;
     box-sizing: border-box;
-    margin-bottom: 14px;
+    margin-bottom: 0;
     transition: border-color .2s;
 }
 .ap-search-bar:focus { outline: none; border-color: var(--primary-color); }
+.ap-users-sort{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.ap-sort-btn,.ap-sort-dir{border:1px solid var(--border-color);background:var(--bg-color);color:var(--text-color);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:sans-serif;}
+.ap-sort-btn.active{border-color:var(--primary-color);background:color-mix(in srgb,var(--primary-color) 18%,transparent);font-weight:600;}
+.ap-users-pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.ap-users-pager .ap-btn{padding:5px 10px;font-size:12px;min-width:36px;}
 
 /* Recipients box */
 .ap-recipients-box {
@@ -3031,9 +3039,77 @@ function wireEvents(){
         var activeTab = dynRoot.querySelector('.ap-settings-tab.active');
         showSettingsSection(activeTab && activeTab.dataset ? (activeTab.dataset.settingsSection || 'email') : 'email');
     })();
-    /* users search */
-    var uSearch=dynRoot.querySelector('#ap-users-search'), uTable=dynRoot.querySelector('#ap-users-table');
-    if(uSearch&&uTable) uSearch.addEventListener('input',function(){var q=this.value.toLowerCase();uTable.querySelectorAll('tbody tr').forEach(function(r){var e=(r.dataset.email||'').toLowerCase(),n=(r.dataset.name||'').toLowerCase();r.style.display=(e.includes(q)||n.includes(q))?'':'none';});});
+    /* users search + sort + pagination */
+    (function(){
+        var uSearch=dynRoot.querySelector('#ap-users-search');
+        var uTable=dynRoot.querySelector('#ap-users-table');
+        if(!uTable) return;
+        var tbody=uTable.querySelector('tbody');
+        var state={q:'',sort:'name',dir:'asc',page:1,pageSize:25};
+        function rows(){return Array.prototype.slice.call(tbody?tbody.querySelectorAll('tr[data-email]'):[]);}
+        function match(r){
+            if(!state.q) return true;
+            var e=(r.dataset.email||'').toLowerCase(), n=(r.dataset.name||'').toLowerCase();
+            return e.indexOf(state.q)!==-1 || n.indexOf(state.q)!==-1;
+        }
+        function sortVal(r){
+            if(state.sort==='role') return parseInt(r.dataset.role||'0',10)||0;
+            if(state.sort==='created') return r.dataset.created||'';
+            return (r.dataset.name||'').toLowerCase();
+        }
+        function applyUsersView(){
+            if(!tbody) return;
+            var list=rows().filter(match);
+            list.sort(function(a,b){
+                var av=sortVal(a), bv=sortVal(b);
+                if(av<bv) return state.dir==='asc'?-1:1;
+                if(av>bv) return state.dir==='asc'?1:-1;
+                return 0;
+            });
+            var total=list.length;
+            var pages=Math.max(1, Math.ceil(total/state.pageSize)||1);
+            if(state.page>pages) state.page=pages;
+            var start=(state.page-1)*state.pageSize;
+            var end=start+state.pageSize;
+            rows().forEach(function(r){r.style.display='none';});
+            list.forEach(function(r,i){
+                tbody.appendChild(r);
+                r.style.display=(i>=start && i<end)?'':'none';
+            });
+            var info=dynRoot.querySelector('#ap-users-page-info');
+            var prev=dynRoot.querySelector('#ap-users-prev');
+            var next=dynRoot.querySelector('#ap-users-next');
+            if(info) info.textContent=(total? (start+1) : 0)+'–'+Math.min(end,total)+' / '+total;
+            if(prev) prev.disabled=state.page<=1;
+            if(next) next.disabled=state.page>=pages;
+        }
+        window.apApplyUsersView=applyUsersView;
+        if(uSearch) uSearch.addEventListener('input',function(){state.q=(this.value||'').toLowerCase().trim();state.page=1;applyUsersView();});
+        dynRoot.querySelectorAll('.ap-sort-btn').forEach(function(btn){
+            btn.addEventListener('click',function(){
+                dynRoot.querySelectorAll('.ap-sort-btn').forEach(function(b){b.classList.remove('active');});
+                btn.classList.add('active');
+                state.sort=btn.dataset.sort||'name';
+                state.page=1;
+                applyUsersView();
+            });
+        });
+        var dirBtn=dynRoot.querySelector('#ap-users-sort-dir');
+        if(dirBtn) dirBtn.addEventListener('click',function(){
+            state.dir=state.dir==='asc'?'desc':'asc';
+            dirBtn.dataset.dir=state.dir;
+            dirBtn.textContent=state.dir==='asc'?'↑':'↓';
+            dirBtn.title=state.dir.toUpperCase();
+            applyUsersView();
+        });
+        var prev=dynRoot.querySelector('#ap-users-prev');
+        var next=dynRoot.querySelector('#ap-users-next');
+        var sizeSel=dynRoot.querySelector('#ap-users-page-size');
+        if(prev) prev.addEventListener('click',function(){if(state.page>1){state.page--;applyUsersView();}});
+        if(next) next.addEventListener('click',function(){state.page++;applyUsersView();});
+        if(sizeSel) sizeSel.addEventListener('change',function(){state.pageSize=parseInt(this.value,10)||25;state.page=1;applyUsersView();});
+        applyUsersView();
+    })();
     /* users field change (event delegation) */
     var uTbl=dynRoot.querySelector('#ap-users-table');
     if(uTbl){
@@ -3122,6 +3198,7 @@ function wireEvents(){
                         var tbody=dynRoot&&dynRoot.querySelector('#ap-users-table tbody');
                         if(tbody) tbody.innerHTML=d.rows;
                         apUpdateUserAnalytics();
+                        if(typeof window.apApplyUsersView==='function') window.apApplyUsersView();
                         if(typeof showTempNotification!=='undefined')
                             showTempNotification(<?php echo json_encode($translations['refresh_users']??'Users list updated', JSON_HEX_TAG); ?>,'info');
                     }
@@ -3359,10 +3436,12 @@ window.refreshUsersList=function(){
     var tbody=dynRoot&&dynRoot.querySelector('#ap-users-table tbody');
     if(btn){btn.disabled=true;btn.style.opacity='0.6';}
     var fd=new FormData();fd.append('get_users_table','1');fd.append('ajax','1');
+    if(typeof window.__AP_CSRF__==='string'&&window.__AP_CSRF__) fd.append('_csrf',window.__AP_CSRF__);
     fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
         if(d.success&&tbody)tbody.innerHTML=d.rows;
         if(btn){btn.disabled=false;btn.style.opacity='1';}
         apUpdateUserAnalytics();
+        if(typeof window.apApplyUsersView==='function') window.apApplyUsersView();
         if(typeof showTempNotification!=='undefined')showTempNotification(T.refresh_users,'success');
     }).catch(function(){if(btn){btn.disabled=false;btn.style.opacity='1';}});
 };
@@ -3412,27 +3491,38 @@ window.apOpenDeleteUser=function(email,name){
     },100);
 
     var fd=new FormData();fd.append('scan_user_files','1');fd.append('ajax','1');fd.append('user_email',email);
-    fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(data){
+    if(typeof window.__AP_CSRF__==='string'&&window.__AP_CSRF__) fd.append('_csrf',window.__AP_CSRF__);
+    fetch('/main',{method:'POST',body:fd,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){return r.json();}).then(function(data){
         clearInterval(progressInterval);
-
         if(pb)pb.style.width='100%';
         if(pp)pp.textContent='100%';
         if(tr)tr.textContent='<?php echo my_htmlspecialchars($translations['complete'] ?? 'Complete'); ?>!';
-
         setTimeout(function(){
             if(sm)sm.style.display='none';
             if(ps)ps.style.display='none';
             if(fl)fl.style.display='block';
             var c=document.getElementById('delete-user-file-count'),s=document.getElementById('delete-user-total-size'),l=document.getElementById('delete-user-files-list');
-            if(c)c.textContent=(data.files||[]).length+' file(s)';if(s)s.textContent=data.total_size_human;
-            if(l)l.innerHTML=(data.files||[]).slice(0,20).map(function(f){return '<div style="font-size:12px;opacity:.6;padding:1px 0;">'+esc(f.name)+' ('+esc(f.app)+')</div>';}).join('');
+            var files=(data&&data.files)||[];
+            if(c)c.textContent=files.length+(data&&data.truncated?'+':'')+' file(s)';
+            if(s)s.textContent=(data&&data.total_size_human)||'0 B';
+            if(l){
+                if(!data||data.success===false){
+                    l.innerHTML='<div class="no-files-msg">'+esc((data&&(data.message||data.error))||'Scan failed')+'</div>';
+                }else if(!files.length){
+                    l.innerHTML='<div class="no-files-msg"><?php echo my_htmlspecialchars($translations['no_user_files'] ?? 'No user files found in configured paths'); ?></div>';
+                }else{
+                    l.innerHTML=files.slice(0,20).map(function(f){return '<div style="font-size:12px;opacity:.6;padding:1px 0;">'+esc(f.name)+' ('+esc(f.app)+')</div>';}).join('');
+                }
+            }
             if(dob)dob.disabled=false;
         },300);
-    }).catch(function(){
+    }).catch(function(err){
         clearInterval(progressInterval);
         if(sm)sm.style.display='none';
         if(ps)ps.style.display='none';
         if(fl)fl.style.display='block';
+        var l=document.getElementById('delete-user-files-list');
+        if(l) l.innerHTML='<div class="no-files-msg">'+esc((err&&err.message)||'Scan failed')+'</div>';
         if(dob)dob.disabled=false;
     });
 };

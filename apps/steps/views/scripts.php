@@ -1,4 +1,4 @@
-    <script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
+    <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
     <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
     <script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
     <script>

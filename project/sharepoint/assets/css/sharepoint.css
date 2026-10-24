@@ -138,6 +138,7 @@ html { background: var(--md-sys-color-background); }
 .sp-footer { display: flex; align-items: center; justify-content: center; gap: var(--md-sys-spacing-3); flex-wrap: wrap; padding: var(--md-sys-spacing-6) var(--md-sys-spacing-4); color: var(--md-sys-color-on-surface-variant); font: var(--md-sys-typescale-body-small); border-top: 1px solid var(--md-sys-color-outline-variant); background: color-mix(in srgb, var(--md-sys-color-surface) 70%, transparent); }
 .sp-footer__brand { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; color: var(--md-sys-color-on-surface); }
 .sp-footer__brand .material-symbols-outlined { font-size: 18px; color: var(--md-sys-color-primary); }
+.sp-footer__version { font-variant-numeric: tabular-nums; opacity: .72; font-weight: 600; letter-spacing: .02em; }
 
 /* Status/password */
 .sp-status-body { display: grid; place-items: center; padding: var(--md-sys-spacing-6) var(--md-sys-spacing-4); }
