@@ -1295,8 +1295,15 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 #ap-db.ap-panel.active,
 #ap-performance.ap-panel.active,
 #ap-docker-manager.ap-panel.active {
-    padding: 12px 16px 0 !important;
+    padding: 12px 0 0 !important;
     overflow: hidden;
+}
+#ap-backup .ap-breadcrumb,
+#ap-docs .ap-breadcrumb,
+#ap-db .ap-breadcrumb,
+#ap-performance .ap-breadcrumb,
+#ap-docker-manager .ap-breadcrumb {
+    padding: 0 16px !important;
 }
 
 /* OmniRoute panel – same embedded styles (no breadcrumb) */

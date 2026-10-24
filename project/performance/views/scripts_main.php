@@ -103,6 +103,7 @@ var expandedDockerChecks = {};
 var dockerChartPeriods = {};
 var dockerMetricCharts = {};
 var uptimeGroupCollapsed = { docker: false, other: false };
+var uptimeStatusFilter = 'all';
 var monitorChartsLoaded = false;
 var monitorChartsPeriod = '24h';
 var monitorCharts = {};
@@ -1154,18 +1155,16 @@ function displayUptimeMonitoring(payload, dockerContainers) {
         if (container?.name) dockerByName[String(container.name)] = container;
     });
     const summary = payload?.summary || { up: 0, down: 0, unknown: 0, total: 0 };
-    summaryEl.innerHTML = `
-        <div class="uptime-summary-card up"><span>UP</span><strong>${summary.up || 0}</strong></div>
-        <div class="uptime-summary-card down"><span>DOWN</span><strong>${summary.down || 0}</strong></div>
-        <div class="uptime-summary-card unknown"><span>UNKNOWN</span><strong>${summary.unknown || 0}</strong></div>
-        <div class="uptime-summary-card"><span>TOTAL</span><strong>${summary.total || 0}</strong></div>`;
-    const checks = Array.isArray(payload?.checks) ? payload.checks : [];
-    if (checks.length === 0) {
+    const summaryCard = (status, label, count) => `<button type="button" class="uptime-summary-card ${status}${uptimeStatusFilter === status ? ' active' : ''}" data-perf-action="filter-uptime" data-status="${status}"><span>${label}</span><strong>${count || 0}</strong></button>`;
+    summaryEl.innerHTML = summaryCard('up', 'UP', summary.up) + summaryCard('down', 'DOWN', summary.down) + summaryCard('unknown', 'UNKNOWN', summary.unknown) + summaryCard('all', 'TOTAL', summary.total);
+    const allChecks = Array.isArray(payload?.checks) ? payload.checks : [];
+    const checks = uptimeStatusFilter === 'all' ? allChecks : allChecks.filter(check => (check.last_status || 'unknown') === uptimeStatusFilter);
+    if (allChecks.length === 0) {
         gridEl.innerHTML = '<p class="no-data">No uptime checks yet</p>';
         return;
     }
     uptimeChecksById = {};
-    checks.forEach(check => { uptimeChecksById[Number(check.id)] = check; });
+    allChecks.forEach(check => { uptimeChecksById[Number(check.id)] = check; });
     const dockerChecks = checks.filter(check => String(check.type || '') === 'docker');
     const otherChecks = checks.filter(check => String(check.type || '') !== 'docker');
     const renderCheck = check => {
@@ -1223,6 +1222,11 @@ function displayUptimeMonitoring(payload, dockerContainers) {
         ${renderGroup('other', 'Other monitors', otherChecks)}`;
     updateToggleAllDockerMetricsButton(dockerChecks);
     setTimeout(renderExpandedDockerCharts, 0);
+}
+
+function setUptimeStatusFilter(status) {
+    uptimeStatusFilter = uptimeStatusFilter === status ? 'all' : status;
+    displayUptimeMonitoring(lastKnownUptimeMonitoring, lastKnownDockerContainers);
 }
 
 function toggleUptimeGroup(key) {
@@ -1561,6 +1565,11 @@ function importChecksFromJson() {
     input.click();
 }
 
+function isModuleLoaded(v) {
+    const val = String(v || '').trim().toLowerCase();
+    return val === String('<?= $t['loaded'] ?>').trim().toLowerCase() || val === 'loaded';
+}
+
 function fillTable(id, list, nameKey, statusKey) {
     const body = document.getElementById(id);
     body.innerHTML = '';
@@ -1571,8 +1580,9 @@ function fillTable(id, list, nameKey, statusKey) {
     }
     
     list.forEach(m => {
-        const statusClass = m[statusKey] === '<?= $t['loaded'] ?>' ? 'badge' : 'badge badge-not-loaded';
-        const dotClass = m[statusKey] === '<?= $t['loaded'] ?>' ? 'module-status-dot module-status-loaded' : 'module-status-dot module-status-not-loaded';
+        const isLoaded = isModuleLoaded(m[statusKey]);
+        const statusClass = isLoaded ? 'badge' : 'badge badge-not-loaded';
+        const dotClass = isLoaded ? 'module-status-dot module-status-loaded' : 'module-status-dot module-status-not-loaded';
         
         body.insertAdjacentHTML('beforeend', 
             `<tr><td><span class="${dotClass}"></span>${m[nameKey] || ''}</td>
@@ -2454,6 +2464,7 @@ function perfHandleAction(action, el, event) {
         case 'edit-uptime': editUptimeCheckById(Number(el.getAttribute('data-check-id') || 0)); break;
         case 'delete-uptime': deleteUptimeCheck(Number(el.getAttribute('data-check-id') || 0)); break;
         case 'export-uptime': exportCheckAsJson(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'filter-uptime': setUptimeStatusFilter(el.getAttribute('data-status') || 'all'); break;
         case 'toggle-uptime-group': toggleUptimeGroup(el.getAttribute('data-group') || ''); break;
         case 'save-uptime': if (event) saveUptimeCheck(event); break;
         case 'submit-cleanup-period': if (event) submitCleanupTimePeriod(event); break;
@@ -2461,6 +2472,7 @@ function perfHandleAction(action, el, event) {
     }
 }
 function perfBindUiClicks() {
+    window.__PERF_HANDLE_ACTION__ = perfHandleAction;
     if (!window.__PERF_ACTION_DELEGATE__) {
         window.__PERF_ACTION_DELEGATE__ = true;
         document.addEventListener('click', e => {
@@ -2480,14 +2492,14 @@ function perfBindUiClicks() {
             if (!actionEl.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
             e.preventDefault();
             e.stopPropagation();
-            perfHandleAction(actionEl.getAttribute('data-perf-action'), actionEl, e);
+            window.__PERF_HANDLE_ACTION__(actionEl.getAttribute('data-perf-action'), actionEl, e);
         }, true);
         document.addEventListener('submit', e => {
             const form = e.target.closest('[data-perf-action]');
             if (!form || !form.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
             e.preventDefault();
             e.stopPropagation();
-            perfHandleAction(form.getAttribute('data-perf-action'), form, e);
+            window.__PERF_HANDLE_ACTION__(form.getAttribute('data-perf-action'), form, e);
         }, true);
     }
 }
