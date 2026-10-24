@@ -6,6 +6,7 @@
 /apps/cloud/vendor/
 /node_modules/
 **/node_modules/
+/.pnpm-store/
 appdashboard-mcp/dist/
 appdashboard-mcp/*.tgz
 /.venv/
@@ -128,14 +129,6 @@ apps/kanboard/data/*
 .aider*
 .lopaka-build-marker
 
-# --- Lopaka vendored app (apps/lopaka) ---
-# Build artifacts and dependencies live only locally; the dashboard serves the
-# prebuilt bundle in apps/lopaka (tracked), sources build it on demand.
-apps/lopaka/src/dist/
-apps/lopaka/src/node_modules/
-apps/lopaka/src/.pnpm-store/
-apps/lopaka/.deploy-tmp/
-apps/lopaka/src/.vite/
 **/.vite/
 
 # IDE / editor junk

@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en" data-theme="lopaka">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="ie=edge">
+<meta name="description" content="UI graphics editor for embedded screens with pixel perfect code builder and export. Best for Arduino, STM32, ESP32. Converts images to uint32 and uint8 variables for Adafruit GFX, u8g2 and TFT_eSPI">
+<title>Graphics editor and image converter for Arduino, ESP32, Adafruit_GFX, u8g2, TFT_eSPI</title>
+<link rel="apple-touch-icon" sizes="180x180" href="/apps/lopaka/assets/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/apps/lopaka/assets/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/apps/lopaka/assets/favicon-16x16.png">
+<link rel="manifest" href="/apps/lopaka/assets/site.webmanifest">
+<script src="/apps/lopaka/assets/lopaka-integration.js?v=3"></script>
+<script src="/apps/lopaka/assets/i18n.js?v=2"></script>
+<script src="https://browser.sentry-cdn.com/8.55.0/bundle.min.js" crossorigin="anonymous"></script>
+<script src="/apps/lopaka/assets/sentry.js"></script>
+<script type="module" crossorigin src="/apps/lopaka/assets/app.js"></script>
+<link rel="modulepreload" crossorigin href="/apps/lopaka/assets/gfx.font.js">
+<link rel="stylesheet" crossorigin href="/apps/lopaka/assets/app.css">
+</head>
+<body class="min-h-[100vh] flex-col flex flex-none">
+<div class="w-full max-w-[1600px] mx-auto font-sans min-h-[600px] flex flex-col flex-grow overflow-hidden" id="lopaka_app"></div>
+</body>
+</html>

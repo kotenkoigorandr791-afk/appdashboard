@@ -2311,11 +2311,13 @@ function apRenderVerificationPage(string $title, string $message, ?string $email
             <?php if($email !== null && $email !== ''): ?><div class="email"><?php echo $safeEmail; ?></div><?php endif; ?>
             <?php if($token !== null && $token !== ''): ?>
             <form method="post" action="/verify">
+                <?php if(function_exists('apSecCsrfField')) echo apSecCsrfField(); ?>
                 <input type="hidden" name="token" value="<?php echo $safeToken; ?>">
                 <button type="submit" name="confirm_email_verification" value="1"><?php echo $safeConfirm; ?></button>
             </form>
             <?php elseif($showResend): ?>
             <form method="post" action="/register">
+                <?php if(function_exists('apSecCsrfField')) echo apSecCsrfField(); ?>
                 <div class="field">
                     <label for="verify-resend-email">Email</label>
                     <input type="email" id="verify-resend-email" name="email" value="<?php echo $safeEmail; ?>" required>
