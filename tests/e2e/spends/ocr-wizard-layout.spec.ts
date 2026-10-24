@@ -1,9 +1,7 @@
 import { expect, test } from '@playwright/test';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { hasAuthUser, login } from '../helpers/shell';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const PNG_1X1 = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
 test('spends — OCR wizard layout: roadmap chips, upload previews, scan progress', async ({ page }) => {
   test.skip(!hasAuthUser(), 'Needs E2E_USER_EMAIL/PASSWORD');
@@ -54,9 +52,7 @@ test('spends — OCR wizard layout: roadmap chips, upload previews, scan progres
   const continueBtn = page.locator('button[data-ocr-role="upload-continue"]');
   await expect(continueBtn).toBeDisabled();
 
-  // Use repo-local placeholder image (we only need a valid bitmap for layout)
-  const filePath = path.resolve(__dirname, '../../google.png');
-  await photosInput.setInputFiles(filePath);
+  await photosInput.setInputFiles({ name: 'placeholder.png', mimeType: 'image/png', buffer: PNG_1X1 });
 
   // Preview card appears with a delete button
   const preview = wizard.locator('.ocrw-preview-card').first();

@@ -55,6 +55,11 @@ server {
 
     client_max_body_size 8m;
 
+    brotli on;
+    brotli_static on;
+    brotli_comp_level 5;
+    brotli_min_length 1024;
+    brotli_types text/html text/css application/javascript application/json image/svg+xml text/plain text/xml application/xml font/ttf font/otf application/wasm;
     gzip on;
     gzip_vary on;
     gzip_comp_level 5;

@@ -49,7 +49,7 @@ COPY --from=ext-builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    nginx libnginx-mod-http-modsecurity modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
+    nginx libnginx-mod-http-modsecurity libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
     libpq5 libzip4 libpng16-16 libjpeg62-turbo libfreetype6 \
     libxml2 libonig5 libicu72 libcurl4 \
     ffmpeg tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-bel tesseract-ocr-ukr \

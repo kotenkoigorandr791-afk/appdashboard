@@ -1679,8 +1679,10 @@ function getUserActiveSessions(string $email): array {
     if ($redis = app_redis()) {
         $out = [];
         $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
-        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
-            $raw = $redis->get(app_redis_key('active_session:' . (string)$sid));
+        $sids = array_values($redis->sMembers($setKey) ?: []);
+        $raws = $sids ? $redis->mGet(array_map(fn($sid) => app_redis_key('active_session:' . (string)$sid), $sids)) : [];
+        foreach ($sids as $i => $sid) {
+            $raw = $raws[$i] ?? false;
             if (!$raw) {
                 $redis->sRem($setKey, $sid);
                 continue;
@@ -1713,9 +1715,11 @@ function cleanupExpiredUserSessions(string $email, ?int $authTimeout = null): in
         $deleted = 0;
         $cutoff = time() - $authTimeout;
         $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
-        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
+        $sids = array_values($redis->sMembers($setKey) ?: []);
+        $raws = $sids ? $redis->mGet(array_map(fn($sid) => app_redis_key('active_session:' . (string)$sid), $sids)) : [];
+        foreach ($sids as $i => $sid) {
             $key = app_redis_key('active_session:' . (string)$sid);
-            $raw = $redis->get($key);
+            $raw = $raws[$i] ?? false;
             if (!$raw) {
                 $redis->sRem($setKey, $sid);
                 $deleted++;
@@ -3639,9 +3643,10 @@ function clearTrustedDevices(string $email): void {
 // ── Trusted Devices Schema Helpers ──────────────────────────────────────────
 
 function ensureTrustedDevicesSchema(AppDatabase $db): void {
-    static $done = false;
-    if ($done) return;
-    $done = true;
+    require_once __DIR__ . '/lib/schema_once.php';
+    app_once_wrap('trusted_devices_schema', __FILE__, fn() => ensureTrustedDevicesSchemaImpl($db));
+}
+function ensureTrustedDevicesSchemaImpl(AppDatabase $db): void {
     if (!app_db_is_pgsql()) return;
     try {
         $db->exec("DELETE FROM trusted_devices WHERE id NOT IN (
