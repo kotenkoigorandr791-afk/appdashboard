@@ -1274,6 +1274,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $_apAllU     = $_apUList;
         foreach($_apPList as $_pe=>$_pd){ if(!isset($_apAllU[$_pe])){ $_pd['_pending']=true; $_apAllU[$_pe]=$_pd; } }
         $_apCurEmail = $_SESSION['user']['email'] ?? '';
+        $_apCrumbHome = my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel');
+        $apBreadcrumb = static function (string $pageLabel) use ($_apCrumbHome): string {
+            return '<div class="ap-breadcrumb"><a href="#" class="ap-breadcrumb-home" data-ap-home="1">'.$_apCrumbHome.'</a> / <span>'.my_htmlspecialchars($pageLabel).'</span></div>';
+        };
     
         ob_start();
 ?>
@@ -1321,7 +1325,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     <div id="ap-content">
         <!-- Users Panel -->
         <div class="ap-panel active" id="ap-users">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['user_management']??'User Management'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['user_management']??'User Management'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['user_management']??'User Management'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_users_subtitle']??'View, edit roles, and delete registered users.'); ?></div>
             <!-- User Analytics Summary -->
@@ -1420,7 +1424,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <!-- Settings Panel (Email, Telegram, OnlyOffice, AI) -->
         <div class="ap-panel" id="ap-settings">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['settings_title']??'Settings'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['settings_title']??'Settings'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['settings_title']??'System Settings'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_settings_subtitle']??'Configure email, Telegram bot, OnlyOffice, Docker, Backup, and AI assistant integrations.'); ?></div>
 
@@ -1547,18 +1551,19 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <!-- Docker Manager Panel -->
         
 <div class="ap-panel" id="ap-docker-manager" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
+            <?php echo $apBreadcrumb($translations['docker_manager_title']??'Docker Manager'); ?>
+            <div class="ap-embed-frame">
                 <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/project/docker/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
+                        title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>">
                 </iframe>
             </div>
         </div>
         <div class="ap-panel" id="ap-performance" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
+            <?php echo $apBreadcrumb($translations['performance_monitor_title']??'Performance'); ?>
             <?php require __DIR__ . '/views/modals/performance_monitor.php'; ?>
         </div>
         <div class="ap-panel" id="ap-apps-access">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['ap_app_access_title']??'App access'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['ap_app_access_title']??'App access'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['ap_app_access_title']??'App access'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_app_access_subtitle']??'Minimum role required to open each app. Default is Administrator (2).'); ?></div>
             <div class="ap-card">
@@ -1594,7 +1599,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <!-- Statistics Panel -->
         <div class="ap-panel" id="ap-stats">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['stats_graph']??'Statistics'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['stats_graph']??'Statistics'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['stats_graph']??'Visit Statistics'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_stats_subtitle']??'Visit statistics and disk usage per user.'); ?></div>
             <!-- Live chart preview -->
@@ -1677,9 +1682,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-ssh-layout">
                 <div class="ap-ssh-topbar">
                     <div style="min-width:0;">
-                        <div class="ap-breadcrumb" style="margin:0 0 6px 0;">
-                            <?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span style="opacity:.9;">SSH Terminal</span>
-                        </div>
+                        <?php echo $apBreadcrumb($translations['ssh_terminal']??'SSH Terminal'); ?>
                         <div class="ap-page-title" style="margin:0;font-size:16px;">SSH Terminal</div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;">
@@ -1753,21 +1756,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             </div>
         </div>
         <div class="ap-panel" id="ap-backup">
+            <?php echo $apBreadcrumb($translations['backup']??'Backup'); ?>
             <?php require __DIR__ . '/views/modals/backup_manager.php'; ?>
         </div>
         <div class="ap-panel" id="ap-docs" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe name="devtools-docs" title="Documentation Viewer" src="/doc_viewer.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['documentation'] ?? 'Documentation'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
-                </iframe>
-            </div>
+            <?php echo $apBreadcrumb($translations['view_documentation']??$translations['documentation']??'Documentation'); ?>
+            <?php require __DIR__ . '/views/modals/docs_viewer.php'; ?>
         </div>
         <div class="ap-panel" id="ap-db" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
+            <?php echo $apBreadcrumb($translations['database']??'Database'); ?>
+            <div class="ap-embed-frame">
                 <iframe name="devtools-db" title="Database Admin" src="/db_admin.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['database'] ?? 'Database'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
+                        title="<?php echo my_htmlspecialchars($translations['database'] ?? 'Database'); ?>">
                 </iframe>
             </div>
         </div>

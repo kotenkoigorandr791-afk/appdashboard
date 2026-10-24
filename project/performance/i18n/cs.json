@@ -137,5 +137,9 @@
     "from": "Od",
     "to": "Do",
     "delete": "Smazat",
-    "close": "Zavřít"
+    "close": "Zavřít",
+    "add_manually": "Přidat ručně",
+    "import_from_json": "Import z JSON",
+    "expand_all": "Rozbalit vše",
+    "collapse_all": "Sbalit vše"
 }

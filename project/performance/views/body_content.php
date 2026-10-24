@@ -58,7 +58,6 @@
 </style>
 
 <div class="admin-monitor-topbar">
-    <div class="admin-monitor-title"><?= htmlspecialchars($t['title']) ?></div>
     <div class="admin-monitor-tabs">
         <button class="admin-monitor-tab active" type="button" data-section-target="graphs"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
         <button class="admin-monitor-tab" type="button" data-section-target="monitorCharts"><svg viewBox="0 0 24 24"><path d="M3 3v18h18"/><path d="m7 14 4-4 3 3 5-6"/></svg><?= htmlspecialchars($monitorChartsTitle) ?></button>
@@ -68,12 +67,12 @@
         <button class="admin-monitor-tab" type="button" data-section-target="php"><svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="10" ry="6"/><text x="12" y="14.4" text-anchor="middle" font-size="5.8" font-weight="800" fill="currentColor" stroke="none">PHP</text></svg><?= htmlspecialchars($t['php_modules']) ?></button>
     </div>
     <div class="admin-monitor-actions">
-        <div id="autoZoomToggle" class="auto-zoom-toggle" onclick="toggleAutoZoom()" title="<?= htmlspecialchars($t['auto_zoom']) ?>">
+        <div id="autoZoomToggle" class="auto-zoom-toggle" data-perf-action="toggle-autozoom" role="button" tabindex="0" title="<?= htmlspecialchars($t['auto_zoom']) ?>">
             <svg class="zoom-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
             <span class="toggle-label"><?= htmlspecialchars($t['auto_zoom']) ?></span>
             <div class="switch-track"><div class="switch-thumb"></div></div>
         </div>
-        <button class="btn-secondary icon-button" type="button" onclick="refreshData()"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['refresh']) ?></button>
+        <button class="btn-secondary icon-button" type="button" data-perf-action="refresh"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['refresh']) ?></button>
     </div>
 </div>
 <div id="connectionStatus" class="connection-status" style="display: none;">
@@ -88,47 +87,47 @@
             <div class="stats-grid">
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['cpu_usage']) ?></h3>
-                    <canvas id="cpuChart" width="150" height="150" onclick="openGraphModal('cpu')"></canvas>
+                    <canvas id="cpuChart" width="150" height="150" data-perf-action="open-graph" data-metric="cpu"></canvas>
                     <div id="cpuVal" class="stat-val">0%</div>
                     <div id="cpuError" class="stat-error" style="display: none;"></div>
                     <?php if ($userRole >= 2): ?>
-                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('cpu')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <button class="stat-cleanup-btn" type="button" data-perf-action="cleanup-metric" data-metric="cpu" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                     <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['memory_usage']) ?></h3>
-                    <canvas id="memChart" width="150" height="150" onclick="openGraphModal('memory')"></canvas>
+                    <canvas id="memChart" width="150" height="150" data-perf-action="open-graph" data-metric="memory"></canvas>
                     <div id="memVal" class="stat-val">0%</div>
                     <div id="memError" class="stat-error" style="display: none;"></div>
                     <?php if ($userRole >= 2): ?>
-                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('memory')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <button class="stat-cleanup-btn" type="button" data-perf-action="cleanup-metric" data-metric="memory" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                     <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['disk_usage']) ?></h3>
-                    <canvas id="diskChart" width="150" height="150" onclick="openGraphModal('disk')"></canvas>
+                    <canvas id="diskChart" width="150" height="150" data-perf-action="open-graph" data-metric="disk"></canvas>
                     <div id="diskVal" class="stat-val">0%</div>
                     <div id="diskError" class="stat-error" style="display: none;"></div>
                     <?php if ($userRole >= 2): ?>
-                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('disk')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <button class="stat-cleanup-btn" type="button" data-perf-action="cleanup-metric" data-metric="disk" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                     <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['network_usage']) ?></h3>
-                    <canvas id="networkChart" width="150" height="150" onclick="openGraphModal('network')"></canvas>
+                    <canvas id="networkChart" width="150" height="150" data-perf-action="open-graph" data-metric="network"></canvas>
                     <div id="networkVal" class="stat-val">0 KB/s</div>
                     <div id="networkError" class="stat-error" style="display: none;"></div>
                     <?php if ($userRole >= 2): ?>
-                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('network')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <button class="stat-cleanup-btn" type="button" data-perf-action="cleanup-metric" data-metric="network" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                     <?php endif; ?>
                 </div>
                 <div class="stat-card">
                     <h3><?= htmlspecialchars($t['swap_usage']) ?></h3>
-                    <canvas id="swapChart" width="150" height="150" onclick="openGraphModal('swap')"></canvas>
+                    <canvas id="swapChart" width="150" height="150" data-perf-action="open-graph" data-metric="swap"></canvas>
                     <div id="swapVal" class="stat-val">0%</div>
                     <div id="swapError" class="stat-error" style="display: none;"></div>
                     <?php if ($userRole >= 2): ?>
-                    <button class="stat-cleanup-btn" type="button" onclick="cleanupMetricData('swap')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
+                    <button class="stat-cleanup-btn" type="button" data-perf-action="cleanup-metric" data-metric="swap" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                     <?php endif; ?>
                 </div>
                 <div class="stat-card uptime-card">
@@ -176,15 +175,15 @@
                     <div class="uptime-toolbar-actions">
                         <?php if ($userRole >= 2): ?>
                         <div class="uptime-add-dropdown" id="uptimeAddDropdown">
-                            <button class="btn-primary icon-button" type="button" onclick="toggleUptimeAddDropdown(event)"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></button>
+                            <button class="btn-primary icon-button" type="button" data-perf-action="toggle-uptime-add"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></button>
                             <div class="uptime-add-dropdown-menu" id="uptimeAddDropdownMenu">
-                                <button type="button" onclick="openUptimeCheckModal(); closeUptimeAddDropdown();"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> <?= htmlspecialchars($t['add_manually'] ?? 'Add manually') ?></button>
-                                <button type="button" onclick="importChecksFromJson(); closeUptimeAddDropdown();"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <?= htmlspecialchars($t['import_from_json'] ?? 'Import from JSON') ?></button>
+                                <button type="button" data-perf-action="open-uptime-modal"><svg viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></svg> <?= htmlspecialchars($t['add_manually'] ?? 'Add manually') ?></button>
+                                <button type="button" data-perf-action="import-uptime-json"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg> <?= htmlspecialchars($t['import_from_json'] ?? 'Import from JSON') ?></button>
                             </div>
                         </div>
                         <?php endif; ?>
-                        <button id="toggleAllDockerMetricsBtn" class="btn-secondary icon-button" type="button" onclick="toggleAllDockerMetrics()"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span>Expand all</span></button>
-                        <button class="btn-secondary icon-button" type="button" onclick="runUptimeChecks()"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['run_checks'] ?? 'Run checks') ?></button>
+                        <button id="toggleAllDockerMetricsBtn" class="btn-secondary icon-button" type="button" data-perf-action="toggle-all-docker"><svg viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></svg><span><?= htmlspecialchars($t['expand_all'] ?? 'Expand all') ?></span></button>
+                        <button class="btn-secondary icon-button" type="button" data-perf-action="run-uptime-checks"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7"/><path d="M21 3v6h-6"/></svg><?= htmlspecialchars($t['run_checks'] ?? 'Run checks') ?></button>
                     </div>
                 </div>
                 <div id="uptimeSummary" class="uptime-summary">
@@ -210,7 +209,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
                     <h2 style="margin: 0;"><?= htmlspecialchars($t['smart_diagnostics']) ?></h2>
                     <?php if ($userRole >= 2): ?>
-                    <button class="btn-secondary icon-button" type="button" onclick="openCleanupTimePeriodModal()"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><?= htmlspecialchars($t['cleanup_time_period'] ?? 'Delete by time period') ?></button>
+                    <button class="btn-secondary icon-button" type="button" data-perf-action="open-cleanup-period"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg><?= htmlspecialchars($t['cleanup_time_period'] ?? 'Delete by time period') ?></button>
                     <?php endif; ?>
                 </div>
                 <div id="smartGrid" class="smart-grid">
@@ -251,11 +250,10 @@
 
 <?php if ($userRole >= 2): ?>
 <div id="uptimeCheckModal" class="modal uptime-check-modal">
-    <span class="modal-close" onclick="closeUptimeCheckModal()">&times;</span>
     <div class="modal-content uptime-modal-content">
         <div class="uptime-form-panel">
-            <h2><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></h2>
-            <form id="uptimeCheckForm" class="uptime-check-form" onsubmit="saveUptimeCheck(event)">
+            <div class="perf-modal-head"><h2><?= htmlspecialchars($t['add_uptime_check'] ?? 'Add check') ?></h2><button type="button" class="perf-modal-close" data-perf-action="close-uptime-modal" aria-label="Close">&times;</button></div>
+            <form id="uptimeCheckForm" class="uptime-check-form" data-perf-action="save-uptime" onsubmit="return false;">
                 <input type="hidden" name="id" value="">
                 <label><span><?= htmlspecialchars($t['monitor_name'] ?? 'Name') ?></span><input name="name" type="text" required></label>
                 <label><span><?= htmlspecialchars($t['monitor_type'] ?? 'Type') ?></span><select name="type"><option value="http">HTTP</option><option value="keyword">HTTP Keyword</option><option value="tcp">TCP Port</option><option value="ping">Ping</option><option value="dns">DNS</option></select></label>
@@ -268,7 +266,7 @@
                 <label class="uptime-enabled check-label"><input name="enabled" type="checkbox" class="checkbox" checked><span class="checkbox-box"><svg width="14" height="11" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#111113" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" /></svg></span><span><?= htmlspecialchars($t['enabled'] ?? 'Enabled') ?></span></label>
                 <div class="uptime-form-actions">
                     <button class="btn-primary" type="submit"><?= htmlspecialchars($t['save'] ?? 'Save') ?></button>
-                    <button class="btn-secondary" type="button" onclick="closeUptimeCheckModal()"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
+                    <button class="btn-secondary" type="button" data-perf-action="close-uptime-modal"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
                 </div>
             </form>
         </div>
@@ -276,16 +274,15 @@
 </div>
 
 <div id="cleanupTimePeriodModal" class="modal uptime-check-modal">
-    <span class="modal-close" onclick="closeCleanupTimePeriodModal()">&times;</span>
     <div class="modal-content uptime-modal-content">
         <div class="uptime-form-panel">
-            <h2><?= htmlspecialchars($t['cleanup_time_period'] ?? 'Delete by time period') ?></h2>
-            <form id="cleanupTimePeriodForm" class="uptime-check-form" onsubmit="submitCleanupTimePeriod(event)">
+            <div class="perf-modal-head"><h2><?= htmlspecialchars($t['cleanup_time_period'] ?? 'Delete by time period') ?></h2><button type="button" class="perf-modal-close" data-perf-action="close-cleanup-period" aria-label="Close">&times;</button></div>
+            <form id="cleanupTimePeriodForm" class="uptime-check-form" data-perf-action="submit-cleanup-period" onsubmit="return false;">
                 <label><span><?= htmlspecialchars($t['from'] ?? 'From') ?></span><input id="cleanupStartTime" type="datetime-local" required></label>
                 <label><span><?= htmlspecialchars($t['to'] ?? 'To') ?></span><input id="cleanupEndTime" type="datetime-local" required></label>
                 <div class="uptime-form-actions">
                     <button class="btn-primary" type="submit"><?= htmlspecialchars($t['delete'] ?? 'Delete') ?></button>
-                    <button class="btn-secondary" type="button" onclick="closeCleanupTimePeriodModal()"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
+                    <button class="btn-secondary" type="button" data-perf-action="close-cleanup-period"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
                 </div>
             </form>
         </div>
@@ -296,7 +293,7 @@
 <div id="graphModal" class="modal">
     <div class="modal-content graph-modal-content">
         <div class="graph-container">
-            <span class="modal-close" onclick="closeGraphModal()">&times;</span>
+            <button type="button" class="perf-modal-close graph-modal-close" data-perf-action="close-graph" aria-label="Close">&times;</button>
             <div id="graphTitle" class="graph-title"></div>
             <?php if ($userRole >= 2): ?>
             <button id="graphCleanupBtn" class="graph-cleanup-btn" type="button"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
@@ -314,8 +311,8 @@
             <h2 id="appConfirmTitle"></h2>
             <p id="appConfirmMessage"></p>
             <div class="uptime-form-actions">
-                <button class="btn-primary" type="button" onclick="appConfirmOk()" id="appConfirmOkBtn"></button>
-                <button class="btn-secondary" type="button" onclick="appConfirmCancel()" id="appConfirmCancelBtn"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
+                <button class="btn-primary" type="button" data-perf-action="confirm-ok" id="appConfirmOkBtn"></button>
+                <button class="btn-secondary" type="button" data-perf-action="confirm-cancel" id="appConfirmCancelBtn"><?= htmlspecialchars($t['cancel'] ?? 'Cancel') ?></button>
             </div>
         </div>
     </div>

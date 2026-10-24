@@ -38,7 +38,8 @@
 .stat-val { font-size: 1.5rem; font-weight: 700; }
 .uptime-card { order: 6; cursor: default; }
 .stat-error { font-size: 12px; color: #F44336; margin-top: 5px; text-align: center; }
-.stat-cleanup-btn { position: absolute; top: 12px; right: 12px; display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-color); cursor: pointer; transition: all .2s ease; z-index: 10; }
+.stat-card h3 { padding-right: 40px; }
+.stat-cleanup-btn { position: absolute; top: 10px; right: 10px; display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; padding: 0; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-color); cursor: pointer; transition: all .2s ease; z-index: 10; }
 .stat-cleanup-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .stat-cleanup-btn:hover { background: var(--error-color); border-color: var(--error-color); color: #fff; transform: scale(1.05); }
 .stat-cleanup-btn:active { transform: scale(0.95); }
@@ -117,7 +118,9 @@
 .uptime-checks-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
 .uptime-group { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 .uptime-group-header { width: 100%; display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto auto; align-items: center; gap: 9px; min-height: 42px; border: 1px solid var(--border-color); border-radius: 8px; padding: 8px 10px; background: color-mix(in srgb, var(--card-bg) 90%, #111 10%); color: var(--text-color); cursor: pointer; text-align: left; }
-.uptime-group-arrow { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; font-size: 1.25rem; line-height: 1; color: var(--primary-color); }
+.uptime-group-arrow { width: 22px; height: 22px; display: inline-flex; align-items: center; justify-content: center; color: var(--primary-color); flex: 0 0 22px; }
+.uptime-group-arrow svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; transition: transform .18s ease; transform: rotate(0deg); }
+.uptime-group:not(.collapsed) .uptime-group-arrow svg { transform: rotate(90deg); }
 .uptime-group-title { align-self: center; font-weight: 800; min-width: 0; line-height: 1.2; overflow-wrap: anywhere; }
 .uptime-group-count, .uptime-group-pill { border: 1px solid var(--border-color); border-radius: 999px; padding: 2px 8px; font-size: .78rem; font-weight: 800; }
 .uptime-group-pill.up { color: #4CAF50; }
@@ -190,13 +193,10 @@
 /* ---------- MODAL ---------- */
 .modal { display: none; position: fixed; z-index: 100050; inset: 0; background: var(--modal-overlay, #0a0e13); overflow: auto; }
 .modal-content { background: var(--modal-bg, var(--card-bg)); margin: 0; padding: 20px; width: 100%; height: 100%; overflow: auto; }
-.modal-close { position: fixed; top: 70px; right: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.8); color: #000; font-size: 40px; font-weight: 700; text-align: center; line-height: 50px; cursor: pointer; z-index: 91; }
-.modal-close:hover { color: var(--primary-color); }
+.modal-close { display: none !important; }
 .graph-modal-content { display: flex; justify-content: center; align-items: center; min-height: 100%; padding: 20px; }
 .graph-container { width: min(980px, 100%); height: min(720px, calc(100dvh - 40px)); display: flex; flex-direction: column; min-width: 0; position: relative; }
-.graph-container .modal-close, .graph-cleanup-btn { position: absolute; top: 8px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--border-color); border-radius: 50%; background: var(--card-bg); color: var(--text-color); box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; }
-.graph-container .modal-close { right: 8px; font-size: 30px; line-height: 40px; }
-.graph-cleanup-btn { right: 56px; }
+.graph-cleanup-btn { position: absolute; top: 8px; right: 56px; display: inline-flex; align-items: center; justify-content: center; width: 40px; height: 40px; padding: 0; border: 1px solid var(--border-color); border-radius: 50%; background: var(--card-bg); color: var(--text-color); box-shadow: 0 4px 14px rgba(0,0,0,.25); cursor: pointer; }
 .graph-cleanup-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .graph-cleanup-btn:hover { border-color: var(--error-color); color: var(--error-color); }
 .graph-canvas-container { flex: 1; min-height: 0; min-width: 0; position: relative; }
@@ -249,7 +249,6 @@
     .smart-hero, .drive-header { flex-direction: column; }
     .graph-container { height: min(calc(100dvh - 40px), 100%); }
     .graph-modal-inner { padding: 15px; margin: 10px; }
-    .modal-close { top: 64px; right: 20px; width: 40px; height: 40px; font-size: 30px; line-height: 40px; }
     .scrollable-content { padding-top: 60px; }
     .connection-status { right: 12px; bottom: 12px; max-width: calc(100vw - 24px); width: calc(100vw - 24px); justify-content: flex-start; flex-wrap: wrap; }
 }
@@ -264,7 +263,8 @@
 .perf-root {
     margin: 0;
     width: 100%;
-    height: 100vh;
+    height: 100%;
+    min-height: 0;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -274,34 +274,34 @@
 }
 .perf-root .admin-monitor-topbar {
     flex: 0 0 auto;
-    height: 52px;
+    min-height: 52px;
+    height: auto;
     display: flex;
     align-items: center;
     gap: 12px;
-    padding: 0 14px;
+    padding: 8px 14px;
     background: var(--sidebar-bg, var(--card-bg));
     border-bottom: 1px solid var(--border-color);
     box-sizing: border-box;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: thin;
 }
-.perf-root .admin-monitor-title {
-    flex: 0 0 auto;
-    font-size: 13px;
-    font-weight: 700;
-    letter-spacing: .5px;
-    text-transform: uppercase;
-    color: var(--text-color);
-}
+.perf-root .admin-monitor-title { display: none !important; }
 .perf-root .admin-monitor-tabs {
-    flex: 1;
+    flex: 1 1 auto;
     min-width: 0;
     display: flex;
     align-items: center;
     gap: 6px;
     overflow-x: auto;
-    scrollbar-width: none;
+    scrollbar-width: thin;
 }
-.perf-root .admin-monitor-tabs::-webkit-scrollbar {
-    display: none;
+.perf-root .admin-monitor-actions {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
 }
 .perf-root .admin-monitor-tab {
     height: 34px;
@@ -423,6 +423,9 @@
     margin-bottom: 10px;
     font-size: 13px;
     font-weight: 700;
+    padding-right: 40px;
+    width: 100%;
+    box-sizing: border-box;
 }
 .perf-root .stat-val {
     font-size: 20px;
@@ -491,46 +494,24 @@
 .perf-root .modal-content {
     background: var(--modal-bg, var(--card-bg));
 }
-.perf-root .modal-close {
-    top: 14px;
-    right: 18px;
-    width: 36px;
-    height: 36px;
-    border: 1px solid var(--border-color);
-    border-radius: 50%;
-    background: var(--modal-bg, var(--card-bg));
-    color: var(--text-color);
-    font-size: 24px;
-    line-height: 34px;
-}
-.perf-root .graph-container .modal-close {
-    top: 8px;
-    right: 8px;
-    width: 40px;
-    height: 40px;
-    background: var(--card-bg);
-    font-size: 30px;
-    line-height: 40px;
-}
 @media (max-width: 768px) {
     .perf-root .admin-monitor-topbar {
         height: auto;
         min-height: 52px;
         align-items: stretch;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         padding: 8px 10px;
-    }
-    .perf-root .admin-monitor-title {
-        width: 100%;
+        overflow-x: auto;
     }
     .perf-root .admin-monitor-actions {
-        width: 100%;
+        flex: 0 0 auto;
         min-width: 0;
         gap: 6px;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
     }
     .perf-root .admin-monitor-tabs {
-        width: 100%;
+        flex: 1 1 auto;
+        min-width: 0;
     }
     .perf-root .container {
         padding: 12px;
@@ -587,7 +568,20 @@
 .perf-root .uptime-form-panel,
 .perf-root .app-dialog {
     background: var(--modal-bg, var(--card-bg));
+    position: relative;
 }
-.perf-root .modal-close {
-    background: var(--modal-bg, #fff);
+.perf-modal-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+.perf-modal-head h2 { margin: 0; flex: 1; min-width: 0; }
+.perf-modal-close {
+    width: 40px; height: 40px; flex: 0 0 auto; display: inline-flex; align-items: center; justify-content: center;
+    background: none; border: 1.5px solid var(--border-color); border-radius: 50%; color: var(--text-secondary);
+    font-size: 24px; line-height: 1; cursor: pointer; transition: background .15s, color .15s, border-color .15s; padding: 0; box-sizing: border-box;
 }
+.perf-modal-close:hover { background: var(--danger, #ef4444); color: #fff; border-color: var(--danger, #ef4444); }
+.graph-modal-close { position: absolute; top: 8px; right: 8px; z-index: 2; }
+.perf-root .modal-close,
+#uptimeCheckModal > .modal-close,
+#cleanupTimePeriodModal > .modal-close,
+#graphModal > .modal-close,
+#appConfirmModal > .modal-close { display: none !important; }
+body.perf-modal-open { overflow: hidden; }

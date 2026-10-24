@@ -572,7 +572,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     padding: 0 0 4px;
     border-bottom: 1px solid var(--border-color);
 }
-#ap-ssh .ap-ssh-topbar .ap-breadcrumb { display: none; }
+#ap-ssh .ap-ssh-topbar .ap-breadcrumb { display: block; margin-bottom: 6px; }
 #ap-ssh .ap-ssh-topbar .ap-page-title { margin: 0; font-size: 14px; line-height: 1.2; }
 #ap-ssh-quick-commands-bar {
     display: flex;
@@ -644,12 +644,35 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
 .ap-breadcrumb {
     font-size: 12px;
     color: var(--text-color);
-    opacity: .4;
-    margin-bottom: 14px;
+    opacity: .7;
+    margin: 0 0 14px;
     letter-spacing: 0.5px;
     font-family: sans-serif;
+    flex: 0 0 auto;
 }
 .ap-breadcrumb span { color: var(--primary-color); opacity: 1; }
+.ap-breadcrumb-home {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    opacity: .85;
+}
+.ap-breadcrumb-home:hover { color: var(--primary-color); opacity: 1; text-decoration: underline; }
+.ap-embed-frame {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+.ap-embed-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
 
 /* Card */
 .ap-card {
@@ -1226,347 +1249,57 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 #ap-sidebar:hover::-webkit-scrollbar {
     width: 2px;
 }
-#ap-backup.ap-panel.active {
+#ap-backup.ap-panel.active,
+#ap-docs.ap-panel.active,
+#ap-db.ap-panel.active,
+#ap-performance.ap-panel.active,
+#ap-docker-manager.ap-panel.active {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
     width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 12px 16px 0;
+    box-sizing: border-box;
 }
-#ap-backup .ap-breadcrumb,
-#ap-backup .ap-page-title,
-#ap-backup .ap-page-subtitle {
-    display: none;
-}
-
-/* iframe container - full available area */
-#ap-backup > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-backup iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-backup.active) {
-    padding: 0 !important;
-}
-
-/* Alternative option - directly for #ap-backup.active */
-#ap-backup.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Also remove padding from the parent container */
-#ap-backup.active + *,
-#ap-backup.active {
-    padding: 0 !important;
-}
-
-/* Remove padding from all parent elements when backup is active */
-#ap-backup.active,
-#ap-backup.active ~ *,
-#ap-content:has(#ap-backup.active) {
-    padding: 0 !important;
-}
-
-/* Documentation panel styles */
-#ap-docs.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
-#ap-docs .ap-breadcrumb,
-#ap-docs .ap-page-title,
-#ap-docs .ap-page-subtitle {
-    display: none;
-}
-#ap-docs > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-docs iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-#ap-docs.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-docs.active + *,
-#ap-docs.active {
-    padding: 0 !important;
-}
-#ap-docs.active,
-#ap-docs.active ~ *,
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-
-/* Database panel – same embedded styles */
-#ap-db.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
-#ap-db .ap-breadcrumb,
-#ap-db .ap-page-title,
-#ap-db .ap-page-subtitle {
-    display: none;
-}
-#ap-db > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-db iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
-}
-#ap-db.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-db.active + *,
-#ap-db.active {
-    padding: 0 !important;
-}
-#ap-db.active,
-#ap-db.active ~ *,
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
-}
-
-#ap-performance.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
+#ap-backup > #bdp-app,
+#ap-docs > #doc-app,
 #ap-performance > #perf-app,
-#ap-performance > .perf-root {
+#ap-db > .ap-embed-frame,
+#ap-docker-manager > .ap-embed-frame {
     flex: 1;
     min-height: 0;
     width: 100%;
-    margin: 0;
-    padding: 0;
     overflow: hidden;
 }
-#ap-content:has(#ap-performance.active) {
-    padding: 0 !important;
-    overflow: hidden;
-}
-#ap-performance.active {
-    margin: 0 !important;
+#ap-content:has(#ap-backup.active),
+#ap-content:has(#ap-docs.active),
+#ap-content:has(#ap-db.active),
+#ap-content:has(#ap-performance.active),
+#ap-content:has(#ap-docker-manager.active) {
     padding: 0 !important;
 }
 
-/* OmniRoute panel – same embedded styles */
-/* Backup panel: the restic UI is inline (no iframe) and manages its own
-   padding/scroll inside #bdp-app (project/backup/assets/backup.css). */
-#ap-backup.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
 #ap-backup .ap-breadcrumb,
-#ap-backup .ap-page-title,
-#ap-backup .ap-page-subtitle {
-    display: none;
-}
-#ap-content:has(#ap-backup.active) {
-    padding: 0 !important;
-}
-#ap-backup.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Documentation panel styles */
-#ap-docs.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
 #ap-docs .ap-breadcrumb,
-#ap-docs .ap-page-title,
-#ap-docs .ap-page-subtitle {
-    display: none;
-}
-#ap-docs > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-docs iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-#ap-docs.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-docs.active + *,
-#ap-docs.active {
-    padding: 0 !important;
-}
-#ap-docs.active,
-#ap-docs.active ~ *,
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-
-/* Database panel – same embedded styles */
-#ap-db.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
 #ap-db .ap-breadcrumb,
-#ap-db .ap-page-title,
-#ap-db .ap-page-subtitle {
-    display: none;
+#ap-performance .ap-breadcrumb,
+#ap-docker-manager .ap-breadcrumb {
+    display: block !important;
+    margin: 0 0 10px;
+    padding: 0 2px;
 }
-#ap-db > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+#ap-backup.ap-panel.active,
+#ap-docs.ap-panel.active,
+#ap-db.ap-panel.active,
+#ap-performance.ap-panel.active,
+#ap-docker-manager.ap-panel.active {
+    padding: 12px 16px 0 !important;
     overflow: hidden;
-    border: none;
-}
-#ap-db iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
-}
-#ap-db.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-db.active + *,
-#ap-db.active {
-    padding: 0 !important;
-}
-#ap-db.active,
-#ap-db.active ~ *,
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
 }
 
-#ap-performance.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
-#ap-performance > #perf-app,
-#ap-performance > .perf-root {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-}
-#ap-content:has(#ap-performance.active) {
-    padding: 0 !important;
-    overflow: hidden;
-}
-#ap-performance.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* OmniRoute panel – same embedded styles */
-
+/* OmniRoute panel – same embedded styles (no breadcrumb) */
 #ap-omniroute.ap-panel.active {
     display: flex;
     flex-direction: column;
@@ -1912,6 +1645,14 @@ function openPanel(id){
             try{window.PerformancePanel.init();}catch(e){console.error('[AdminPanel] PerformancePanel.init:',e);}
         }else if(typeof window.PerformancePanel.refresh==='function'){
             try{window.PerformancePanel.refresh();}catch(e){}
+        }
+    }
+    if(id==='ap-docs'&&window.DocsPanel){
+        if(!apPanelInited['ap-docs']){
+            apPanelInited['ap-docs']=true;
+            try{window.DocsPanel.init();}catch(e){console.error('[AdminPanel] DocsPanel.init:',e);}
+        }else if(typeof window.DocsPanel.refresh==='function'){
+            try{window.DocsPanel.refresh();}catch(e){}
         }
     }
 }
@@ -2918,6 +2659,12 @@ function wireEvents(){
         var pid=this.dataset.panel;
         openPanel(pid);
     });});
+    dynRoot.addEventListener('click', function(ev){
+        var home = ev.target && ev.target.closest ? ev.target.closest('[data-ap-home]') : null;
+        if(!home || !dynRoot.contains(home)) return;
+        ev.preventDefault();
+        openPanel('ap-users');
+    });
     var _apFetch=window.fetch;
     if(!_apFetch._apStepupWrapped){
         window.fetch=function(i,n){

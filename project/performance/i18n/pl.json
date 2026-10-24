@@ -137,5 +137,9 @@
     "from": "Od",
     "to": "Do",
     "delete": "Usuń",
-    "close": "Zamknij"
+    "close": "Zamknij",
+    "add_manually": "Dodaj ręcznie",
+    "import_from_json": "Import z JSON",
+    "expand_all": "Rozwiń wszystkie",
+    "collapse_all": "Zwiń wszystkie"
 }

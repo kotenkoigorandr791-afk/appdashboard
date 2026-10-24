@@ -14,7 +14,7 @@ var translations = {
         'total', 'speed', 'session_break', 'usage', 'network_speed',
         'time', 'loading_ellipsis', 'error_loading_data', 'unknown',
         'cleanup_device_confirm', 'cleanup_time_confirm', 'cleanup_success', 'cleanup_error',
-        'select_time_period', 'delete', 'cancel', 'close'
+        'select_time_period', 'delete', 'cancel', 'close', 'expand_all', 'collapse_all'
     ];
     $jsUi = [];
     foreach ($translations as $langCode => $langData) {
@@ -114,13 +114,9 @@ function perfRootEl() {
 }
 function perfSetModalOpen(on) {
     const root = perfRootEl();
-    if (on) {
-        root.classList.add('modal-open');
-        perfSetModalOpen(true);
-    } else {
-        root.classList.remove('modal-open');
-        perfSetModalOpen(false);
-    }
+    if (!root) return;
+    root.classList.toggle('modal-open', !!on);
+    document.body.classList.toggle('perf-modal-open', !!on);
 }
 function perfApiPost(formData) {
     return fetch(perfIndexUrl, { method: 'POST', body: formData, credentials: 'same-origin' });
@@ -880,7 +876,7 @@ function buildSmartDeviceCard(device) {
             <div class="smart-test-meta">${formatSmartHours(test.lifetime_hours)}${test.remaining_percent !== null && test.remaining_percent !== undefined ? ` • ${test.remaining_percent}% remaining` : ''}</div>
         </div>`).join('') : `<p class="no-data"><?= htmlspecialchars($t['smart_no_tests']) ?></p>`;
 
-    const cleanupButton = <?= $userRole >= 2 ? 'true' : 'false' ?> ? `<button class="smart-cleanup-btn" type="button" onclick="cleanupSmartDevice('${escapeHtml(device.device || '')}')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
+                const cleanupButton = <?= $userRole >= 2 ? 'true' : 'false' ?> ? `<button class="smart-cleanup-btn" type="button" data-perf-action="cleanup-smart" data-device="${escapeHtml(device.device || '')}" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
 
     return `
         <div class="smart-card">
@@ -1198,9 +1194,9 @@ function displayUptimeMonitoring(payload, dockerContainers) {
                 <div class="uptime-history">${bars || '<span class="uptime-history-empty">No checks</span>'}</div>
                 <div class="uptime-check-message">${escapeHtml(check.last_message || '')}</div>
                 <div class="uptime-card-actions">
-                    ${isDocker && dockerContainer ? `<button class="btn-secondary icon-button" type="button" onclick="toggleDockerMetrics(${Number(check.id)})">${expanded ? '<svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg> Hide metrics' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg> Show metrics'}</button>` : ''}
-                    ${userRole >= 2 ? `<button class="btn-secondary icon-button" type="button" onclick="editUptimeCheckById(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Edit</button>${canDelete ? `<button class="btn-secondary icon-button" type="button" onclick="deleteUptimeCheck(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete</button>` : ''}` : ''}
-                    <button class="btn-secondary icon-button" type="button" onclick="exportCheckAsJson(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+                    ${isDocker && dockerContainer ? `<button class="btn-secondary icon-button" type="button" data-perf-action="toggle-docker-metrics" data-check-id="${Number(check.id)}">${expanded ? '<svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg> Hide metrics' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg> Show metrics'}</button>` : ''}
+                    ${userRole >= 2 ? `<button class="btn-secondary icon-button" type="button" data-perf-action="edit-uptime" data-check-id="${Number(check.id)}"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Edit</button>${canDelete ? `<button class="btn-secondary icon-button" type="button" data-perf-action="delete-uptime" data-check-id="${Number(check.id)}"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete</button>` : ''}` : ''}
+                    <button class="btn-secondary icon-button" type="button" data-perf-action="export-uptime" data-check-id="${Number(check.id)}"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
                 </div>
                 ${dockerDetails}
             </div>`;
@@ -1212,8 +1208,8 @@ function displayUptimeMonitoring(payload, dockerContainers) {
         const down = groupChecks.filter(check => (check.last_status || 'unknown') === 'down').length;
         return `
             <div class="uptime-group ${collapsed ? 'collapsed' : ''}">
-                <button class="uptime-group-header" type="button" onclick="toggleUptimeGroup('${key}')">
-                    <span class="uptime-group-arrow">${collapsed ? '›' : '⌄'}</span>
+                <button class="uptime-group-header" type="button" data-perf-action="toggle-uptime-group" data-group="${key}">
+                    <span class="uptime-group-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
                     <span class="uptime-group-title">${title}</span>
                     <span class="uptime-group-count">${groupChecks.length}</span>
                     <span class="uptime-group-pill up">${up}</span>
@@ -1286,7 +1282,7 @@ function updateToggleAllDockerMetricsButton(dockerChecks) {
     if (!button) return;
     const allExpanded = dockerChecks.length > 0 && dockerChecks.every(check => expandedDockerChecks[Number(check.id)]);
     const label = button.querySelector('span');
-    if (label) label.textContent = allExpanded ? 'Collapse all' : 'Expand all';
+    if (label) label.textContent = allExpanded ? (t('collapse_all') || 'Collapse all') : (t('expand_all') || 'Expand all');
     button.disabled = dockerChecks.length === 0;
 }
 
@@ -1422,8 +1418,12 @@ document.addEventListener('click', (e) => {
 });
 
 function openUptimeCheckModal() {
-    const modal = document.getElementById('uptimeCheckModal');
+    let modal = document.getElementById('uptimeCheckModal');
     if (!modal) return;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.classList.add('perf-root', themeClass);
+    modal.style.setProperty('--primary-color', primaryColor);
+    modal.style.zIndex = '100050';
     modal.style.display = 'block';
     perfSetModalOpen(true);
 }
@@ -2045,6 +2045,10 @@ function openAppConfirmDialog(message, onConfirm, options = {}) {
     const okBtn = document.getElementById('appConfirmOkBtn');
     const cancelBtn = document.getElementById('appConfirmCancelBtn');
     if (!modal || !msgEl) return;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.classList.add('perf-root', themeClass);
+    modal.style.setProperty('--primary-color', primaryColor);
+    modal.style.zIndex = '100050';
     const isAlert = options.alert === true;
     msgEl.textContent = message;
     titleEl.textContent = options.title || (isAlert ? '' : t('delete'));
@@ -2312,18 +2316,25 @@ function cleanupMetricData(metricType) {
 
 function openCleanupTimePeriodModal() {
     const modal = document.getElementById('cleanupTimePeriodModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    if (!modal) return;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.classList.add('perf-root', themeClass);
+    modal.style.setProperty('--primary-color', primaryColor);
+    modal.style.zIndex = '100050';
+    modal.style.display = 'block';
+    perfSetModalOpen(true);
 }
 
 function closeCleanupTimePeriodModal() {
     const modal = document.getElementById('cleanupTimePeriodModal');
     if (modal) {
         modal.style.display = 'none';
-        document.getElementById('cleanupStartTime').value = '';
-        document.getElementById('cleanupEndTime').value = '';
+        const start = document.getElementById('cleanupStartTime');
+        const end = document.getElementById('cleanupEndTime');
+        if (start) start.value = '';
+        if (end) end.value = '';
     }
+    perfSetModalOpen(false);
 }
 
 function submitCleanupTimePeriod(event) {
@@ -2421,21 +2432,64 @@ window.appConfirmOk = appConfirmOk;
 window.appConfirmCancel = appConfirmCancel;
 window.filterTable = filterTable;
 
+function perfHandleAction(action, el, event) {
+    switch (action) {
+        case 'toggle-autozoom': toggleAutoZoom(); break;
+        case 'refresh': refreshData(); break;
+        case 'open-graph': openGraphModal(el.getAttribute('data-metric') || 'cpu'); break;
+        case 'cleanup-metric': cleanupMetricData(el.getAttribute('data-metric') || ''); break;
+        case 'cleanup-smart': cleanupSmartDevice(el.getAttribute('data-device') || ''); break;
+        case 'toggle-uptime-add': toggleUptimeAddDropdown(event || { stopPropagation() {} }); break;
+        case 'open-uptime-modal': closeUptimeAddDropdown(); openUptimeCheckModal(); break;
+        case 'import-uptime-json': closeUptimeAddDropdown(); importChecksFromJson(); break;
+        case 'toggle-all-docker': toggleAllDockerMetrics(); break;
+        case 'run-uptime-checks': runUptimeChecks(); break;
+        case 'open-cleanup-period': openCleanupTimePeriodModal(); break;
+        case 'close-uptime-modal': closeUptimeCheckModal(); break;
+        case 'close-cleanup-period': closeCleanupTimePeriodModal(); break;
+        case 'close-graph': closeGraphModal(); break;
+        case 'confirm-ok': appConfirmOk(); break;
+        case 'confirm-cancel': appConfirmCancel(); break;
+        case 'toggle-docker-metrics': toggleDockerMetrics(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'edit-uptime': editUptimeCheckById(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'delete-uptime': deleteUptimeCheck(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'export-uptime': exportCheckAsJson(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'toggle-uptime-group': toggleUptimeGroup(el.getAttribute('data-group') || ''); break;
+        case 'save-uptime': if (event) saveUptimeCheck(event); break;
+        case 'submit-cleanup-period': if (event) submitCleanupTimePeriod(event); break;
+        default: break;
+    }
+}
 function perfBindUiClicks() {
-    const root = document.getElementById('perf-app');
-    if (!root || root.dataset.perfClickBound) return;
-    root.dataset.perfClickBound = '1';
-    root.addEventListener('click', e => {
-        const card = e.target.closest('.stat-card');
-        if (card && !e.target.closest('.stat-cleanup-btn') && !card.classList.contains('uptime-card')) {
-            const canvas = card.querySelector('canvas[id]');
-            const map = { cpuChart: 'cpu', memChart: 'memory', diskChart: 'disk', networkChart: 'network', swapChart: 'swap' };
-            if (canvas && map[canvas.id]) {
-                e.preventDefault();
-                openGraphModal(map[canvas.id]);
+    if (!window.__PERF_ACTION_DELEGATE__) {
+        window.__PERF_ACTION_DELEGATE__ = true;
+        document.addEventListener('click', e => {
+            const actionEl = e.target.closest('[data-perf-action]');
+            if (!actionEl) {
+                const card = e.target.closest('#perf-app .stat-card');
+                if (card && !e.target.closest('.stat-cleanup-btn') && !card.classList.contains('uptime-card')) {
+                    const canvas = card.querySelector('canvas[id]');
+                    const map = { cpuChart: 'cpu', memChart: 'memory', diskChart: 'disk', networkChart: 'network', swapChart: 'swap' };
+                    if (canvas && map[canvas.id]) {
+                        e.preventDefault();
+                        openGraphModal(map[canvas.id]);
+                    }
+                }
+                return;
             }
-        }
-    });
+            if (!actionEl.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            perfHandleAction(actionEl.getAttribute('data-perf-action'), actionEl, e);
+        }, true);
+        document.addEventListener('submit', e => {
+            const form = e.target.closest('[data-perf-action]');
+            if (!form || !form.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            perfHandleAction(form.getAttribute('data-perf-action'), form, e);
+        }, true);
+    }
 }
 
 function perfBootMonitor() {
@@ -2446,18 +2500,27 @@ function perfBootMonitor() {
     if (!document.getElementById('cpuChart')) return;
     perfStarted = true;
     ['graphModal', 'uptimeCheckModal', 'cleanupTimePeriodModal', 'appConfirmModal'].forEach(id => {
-        const el = document.getElementById(id);
+        const matches = Array.from(document.querySelectorAll('#' + id));
+        const el = matches.pop() || null;
+        matches.forEach(dup => dup.remove());
         if (!el) return;
+        el.querySelectorAll(':scope > .modal-close').forEach(n => n.remove());
         if (el.parentElement !== document.body) {
             document.body.appendChild(el);
         }
         el.classList.add('perf-root', themeClass);
         el.style.setProperty('--primary-color', primaryColor);
         el.style.zIndex = '100050';
-        if (id === 'graphModal' && !el.dataset.perfBackdropBound) {
+        el.dataset.perfClickBound = '';
+        if (!el.dataset.perfBackdropBound) {
             el.dataset.perfBackdropBound = '1';
             el.addEventListener('click', e => {
-                if (e.target.id === 'graphModal') closeGraphModal();
+                if (e.target === el) {
+                    if (id === 'graphModal') closeGraphModal();
+                    else if (id === 'uptimeCheckModal') closeUptimeCheckModal();
+                    else if (id === 'cleanupTimePeriodModal') closeCleanupTimePeriodModal();
+                    else if (id === 'appConfirmModal') appConfirmCancel();
+                }
             });
         }
     });
@@ -2547,7 +2610,16 @@ function perfBootMonitor() {
     window.addEventListener('resize', hideHoverPreview);
 }
 window.PerformancePanel = {
-    init: function () { perfBootMonitor(); },
+    init: function () {
+        const app = document.getElementById('perf-app');
+        if (app && app.dataset.perfInstance !== String(window.__PERF_INSTANCE__ || '')) {
+            perfStarted = false;
+            window.__PERF_INSTANCE__ = String(Date.now());
+            app.dataset.perfInstance = window.__PERF_INSTANCE__;
+        }
+        perfBindUiClicks();
+        perfBootMonitor();
+    },
     refresh: function () { loadData(true); }
 };
 if (!window.__PERF_INLINE__) {

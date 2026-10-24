@@ -137,5 +137,9 @@
     "from": "С",
     "to": "По",
     "delete": "Удалить",
-    "close": "Закрыть"
+    "close": "Закрыть",
+    "add_manually": "Добавить вручную",
+    "import_from_json": "Импорт из JSON",
+    "expand_all": "Развернуть все",
+    "collapse_all": "Свернуть все"
 }
