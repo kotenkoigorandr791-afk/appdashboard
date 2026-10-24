@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/store.php';
 // Settings
 $defaultSettings = [
     'goal_steps'    => 10000,
@@ -11,7 +12,9 @@ $defaultSettings = [
 function loadUserSettings(AppDatabase $db, array $defaults): array {
     $settings = $defaults;
     try {
-        $result = $db->query('SELECT key, value FROM settings');
+        $stmt = $db->prepare('SELECT key, value FROM steps_settings WHERE user_email = :u');
+        steps_bind_user($stmt);
+        $result = $stmt->execute();
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $settings[$row['key']] = $row['value'];
         }
@@ -33,7 +36,8 @@ function loadUserSettings(AppDatabase $db, array $defaults): array {
 }
 
 function saveUserSetting(AppDatabase $db, string $key, string $value): void {
-    $stmt = $db->prepare('INSERT INTO settings (key, value) VALUES (:k, :v) ON CONFLICT (key) DO UPDATE SET value=excluded.value');
+    $stmt = $db->prepare('INSERT INTO steps_settings (user_email, key, value) VALUES (:u, :k, :v) ON CONFLICT (user_email, key) DO UPDATE SET value=excluded.value');
+    steps_bind_user($stmt);
     $stmt->bindValue(':k', $key, PDO::PARAM_STR);
     $stmt->bindValue(':v', $value, PDO::PARAM_STR);
     $stmt->execute();

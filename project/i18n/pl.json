@@ -427,6 +427,7 @@
   "images_total": "Obrazy",
   "invalidApiKeyFormat": "Nieprawidłowy format klucza API",
   "invalid_credentials": "Nieprawidłowy e-mail lub hasło",
+  "invalid_response": "Nieprawidłowa odpowiedź serwera",
   "invalid_reset_code": "Nieprawidłowy kod resetowania",
   "invalid_verification_code": "Nieprawidłowy kod weryfikacyjny",
   "ios": "iOS",
@@ -658,7 +659,7 @@
   "share_sort_no_grouping": "Bez grupowania",
   "share_sort_smallest": "najmniejszy",
   "shared_files_management": "Zarządzanie udostępnionymi plikami",
-  "shell_application": "Aplikacja Shell",
+  "shell_application": "ServerKherson",
   "shortcut_admin_panel": "Otwórz panel administracyjny",
   "shortcut_arrows": "Przesuwanie między kafelkami",
   "shortcut_enter": "Otwórz wybraną aplikację",
@@ -845,6 +846,11 @@
   "verified_users": "Zweryfikowani",
   "verify_email": "Zweryfikuj e-mail",
   "verify_password": "Zweryfikuj",
+  "version_build_date": "Budowa obrazu",
+  "version_branch": "Gałąź",
+  "version_commit": "Commit",
+  "version_label": "Wersja",
+  "version_updated": "Kod zaktualizowany",
   "view_documentation": "Zobacz dokumentację",
   "view_privacy": "Zobacz prywatność",
   "view_terms": "Zobacz warunki",
@@ -1146,5 +1152,7 @@
   "backup_view_log": "Pokaż log",
   "backup_warning": "Ostrzeżenie",
   "backup_weekday": "Dzień tygodnia",
-  "backup_wizard": "Kreator kopii zapasowych"
+  "backup_wizard": "Kreator kopii zapasowych",
+  "opening_app": "Otwieranie…",
+  "opening_app_named": "Otwieranie {name}…"
 }

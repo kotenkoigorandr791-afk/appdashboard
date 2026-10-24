@@ -53,7 +53,7 @@ final class ShareRegistry
             'spends' => ['label' => 'Spends', 'icon' => 'pie_chart'],
             'steps' => ['label' => 'Steps', 'icon' => 'directions_walk'],
             'films' => ['label' => 'Films', 'icon' => 'movie'],
-            'smart_home' => ['label' => 'Smart Home', 'icon' => 'home_automation'],
+            'smart_home' => ['label' => 'Smart Home', 'icon' => 'home'],
         ];
     }
 

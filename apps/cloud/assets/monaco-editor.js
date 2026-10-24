@@ -1346,6 +1346,14 @@ function monacoCreateSpellcheckWorker() {
                     self.postMessage({ type: 'ready', requestId: data.requestId, languageId: data.languageId });
                     return;
                 }
+                if (data.type === 'preload') {
+                    ensureTypo();
+                    await ensureSupplemental();
+                    for (const languageId of data.languageIds || []) {
+                        if (data.languages[languageId]) await ensureDictionary(languageId, data.languages[languageId]);
+                    }
+                    return;
+                }
                 if (data.type === 'check') {
                     const lines = String(data.text || '').split(/\\r\\n|\\r|\\n/);
                     const wordRegex = /[\\p{L}\\p{M}]+(?:['-][\\p{L}\\p{M}]+)*/gu;
@@ -1369,7 +1377,9 @@ function monacoCreateSpellcheckWorker() {
                             const languageIds = wordLanguageIds(word, data.languageId);
                             if (languageIds.length === 0) continue;
                             let isCorrect = false;
-                            for (const languageId of languageIds) {
+                            for (let languageIndex = 0; languageIndex < languageIds.length; languageIndex++) {
+                                const languageId = languageIds[languageIndex];
+                                if (languageIndex > 0 && !dictionaries[languageId]) continue;
                                 if (!loadedLanguageIds.has(languageId)) {
                                     await ensureDictionary(languageId, data.languages[languageId]);
                                     loadedLanguageIds.add(languageId);
@@ -1381,20 +1391,6 @@ function monacoCreateSpellcheckWorker() {
                                 }
                             }
                             if (!isCorrect) {
-                                if (!Object.prototype.hasOwnProperty.call(suggestionsMap, word)) {
-                                    const suggestions = [];
-                                    for (const langId of languageIds) {
-                                        const dict = dictionaries[langId];
-                                        if (dict) {
-                                            suggestions.push(...dict.suggest(word).slice(0, 5));
-                                            if (suggestions.length >= 5) break;
-                                        }
-                                    }
-                                    suggestionsMap[word] = Array.from(new Set(suggestions)).slice(0, 5);
-                                }
-                                if (!suggestionsMap[word] || suggestionsMap[word].length === 0) {
-                                    continue;
-                                }
                                 errors.push({
                                     word,
                                     startLineNumber: i + 1,
@@ -1443,6 +1439,20 @@ function monacoGetSpellcheckWorker() {
     monacoSpellcheckSharedWorker = worker;
     return worker;
 }
+
+function monacoPreloadSpellcheckDictionaries() {
+    const saved = monacoGetDefaultSpellcheckLanguage();
+    if (saved === 'off') return;
+    const appLang = new URLSearchParams(window.location.search).get('lang') || document.documentElement.lang || 'en';
+    const byAppLang = { ru: 'ru_RU', uk: 'uk_UA', be: 'be_BY', pl: 'pl_PL', cs: 'cs_CZ' };
+    const preferred = saved === 'auto' ? ['en_US', byAppLang[String(appLang).slice(0, 2)]] : [saved];
+    const languageIds = Array.from(new Set(preferred.filter((id) => id && monacoSpellcheckLanguages[id])));
+    if (!languageIds.length) return;
+    monacoGetSpellcheckWorker().postMessage({ type: 'preload', languageIds, languages: monacoSpellcheckLanguagesPayload() });
+}
+(window.requestIdleCallback || ((callback) => setTimeout(callback, 800)))(() => {
+    try { monacoPreloadSpellcheckDictionaries(); } catch (_) {}
+}, { timeout: 4000 });
 
 function monacoNextSpellcheckRequestId() {
     return ++monacoSpellcheckRequestSeq;
@@ -2170,7 +2180,6 @@ function monacoCreateStatusBar(editor, container, filePath, tabId, readOnly) {
         });
         leftItems.appendChild(spellLabel);
         leftItems.appendChild(spellSelector);
-        leftItems.appendChild(spellStatus);
         monacoEnableSpellcheck(editor, container, spellStatus, activeSpellLanguage);
     }
     const rightItems = document.createElement('div');
@@ -3181,8 +3190,11 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
             }
         });
 
-        if (!readOnly && language === 'plaintext') {
+        if (!readOnly && (language === 'plaintext' || language === 'markdown')) {
             monacoSetupTxtNumberedListContinuation(editor, filePath);
+        }
+
+        if (!readOnly && language === 'plaintext') {
 
             let isApplyingAutoCase = false;
             const autoSentenceCaseDisposable = editor.onDidChangeModelContent((event) => {

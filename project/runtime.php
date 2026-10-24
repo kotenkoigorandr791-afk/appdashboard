@@ -145,7 +145,10 @@ if(is_dir($appsFsDir)){
                 $iconMasked=false;
             }
             $totalVisits=$visitStatsTotals[$folder]??0;
-            $appRailApps=['gitea','immich','kanboard','dawarich','sentry','x','X','lopaka'];
+            // Rail bar (home + service name) is only for external services with
+            // their own full UI. Locally integrated apps (kanboard, lopaka,
+            // cloud, ...) bring their own menu, so the rail is not rendered.
+            $appRailApps=['gitea','immich','dawarich','sentry','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
             $descFile=$subdir.'/description.json';
             $description='';
@@ -177,7 +180,7 @@ if(is_dir($appsFsDir)){
 $currentDomain=(isset($_SERVER['HTTPS'])&&$_SERVER['HTTPS']==='on'?"https":"http")."://".$_SERVER['HTTP_HOST'];
 $selectedApp=isset($_GET['app'])?$_GET['app']:null;
 
-$pageTitle="Shell Application";
+$pageTitle="ServerKherson";
 $selectedAppMenuButton=$defaultMenuButton;
 $selectedAppMenuButtonMobile=$defaultMenuButton;
 $selectedAppMenuButtonScroll=false;
@@ -214,7 +217,7 @@ if($selectedApp){
     }
 }
 $userDataForApps=isset($_SESSION['user'])?['name'=>$_SESSION['user']['name'],'email'=>$_SESSION['user']['email'],'photo'=>$_SESSION['user']['photo']??'default_avatar.png','role'=>$_SESSION['user']['role']??0]:null;
-$usersList=loadUsers();
+$usersList=(int)($_SESSION['user']['role']??0)>=2?loadUsers():[];
 $isRootUser=isset($_SESSION['user']['email'])&&$_SESSION['user']['email']==='root@root';
 $isAdmin = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
 $activeSessions=[];

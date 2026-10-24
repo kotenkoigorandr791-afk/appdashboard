@@ -345,6 +345,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $clearPasswordRequirement->bindValue(':password',$users[$email]['password']);
                 $clearPasswordRequirement->bindValue(':email',$email);
                 $clearPasswordRequirement->execute();
+                usersCache(null, true);
                 unset($_SESSION['pending_oauth_data'], $_SESSION['pending_google_data'],$_SESSION['pending_set_password_only']);
                 resetFailedAttempts(getClientIp(),'login');
                 clearTrustedDeviceLogoutSuppression();
@@ -776,6 +777,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 // they never show up in the MCP token list.
                 $mcpPlatform=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':$tokenName;
                 $tokenApp=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':appClientAuthTokenAppId($_POST['token_app']??'');
+                if($tokenApp==='steps'&&!empty($_POST['force_new'])){
+                    $revokeSteps=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = 'steps' AND revoked = 0");
+                    $revokeSteps->bindValue(':e',$email,PDO::PARAM_STR);
+                    $revokeSteps->execute();
+                }
                 $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$mcpPlatform,$tokenApp);
                 $_SESSION['mcp_generated_token']=(string)$tokenData['token'];
                 $profileSuccess=$translations['mcp_setup_token_generated'];
@@ -1009,7 +1015,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(isset($qcRow['name'])) $qcCols[] = (string)$qcRow['name'];
         }
         $qcEnsureColumn = static function(string $column, string $definition) use ($db, &$qcCols): void {
-            if(in_array($column, $qcCols, true)) return;
+            if(in_array($column, $qcCols, true) || !preg_match('/^[a-z_][a-z0-9_]*$/', $column)) return;
             try { $db->exec("ALTER TABLE quick_commands ADD COLUMN $column $definition"); $qcCols[] = $column; } catch (Throwable $e) {}
         };
         $qcEnsureColumn('email', "TEXT NOT NULL DEFAULT ''");

@@ -44,7 +44,7 @@ final class FileRenderer extends BaseRenderer
             'pdf' => $this->renderPdf(),
             'office' => $this->renderOffice(),
             'text' => $this->renderText($size),
-            'archive' => $this->renderStatic('folder_zip', sp_t('archive')),
+            'archive' => $this->renderArchive($size),
             '3dmodel' => $this->renderStatic('view_in_ar', '3D'),
             default => $this->renderStatic('draft', sp_t('binary')),
         };
@@ -177,7 +177,7 @@ final class FileRenderer extends BaseRenderer
     <button type="button" class="md3-btn md3-btn--icon md3-btn--text" data-sp-pdf-fullscreen aria-label="' . $fullscreen . '" title="' . $fullscreen . '"><span class="material-symbols-outlined">fullscreen</span></button>
   </div>
   <div class="sp-pdf-stage">
-    <iframe class="sp-pdf" src="' . $base . '#toolbar=0&amp;navpanes=0" title="' . sp_h($this->name) . '"></iframe>
+    <iframe class="sp-pdf" src="' . $base . '#toolbar=0&amp;navpanes=0&amp;zoom=100" title="' . sp_h($this->name) . '"></iframe>
   </div>
 </div>';
     }
@@ -210,6 +210,96 @@ final class FileRenderer extends BaseRenderer
   <a class="md3-btn md3-btn--filled" href="' . sp_h($this->downloadUrl) . '">
     <span class="material-symbols-outlined">download</span>' . sp_h(sp_t('download_file')) . '
   </a>
+</div>';
+    }
+
+    private function renderArchive(int $size): string
+    {
+        $zip = new ZipArchive();
+        if (!class_exists('ZipArchive') || @$zip->open($this->path) !== true) {
+            return $this->renderStatic('folder_zip', sp_t('archive'));
+        }
+
+        $items = [];
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $stat = $zip->statIndex($i);
+            if ($stat) {
+                $name = (string)$stat['name'];
+                $itemSize = (int)$stat['size'];
+                $mtime = (int)($stat['mtime'] ?? 0);
+                $isDir = str_ends_with($name, '/') || ($itemSize === 0 && str_ends_with(rtrim($name, '/'), '/'));
+                $items[] = [
+                    'name' => $name,
+                    'size' => $itemSize,
+                    'mtime' => $mtime,
+                    'is_dir' => $isDir,
+                ];
+            }
+        }
+        $zip->close();
+
+        if ($items === []) {
+            return $this->renderStatic('folder_zip', sp_t('archive'));
+        }
+
+        usort($items, static function ($a, $b) {
+            if ($a['is_dir'] !== $b['is_dir']) {
+                return $a['is_dir'] ? -1 : 1;
+            }
+            return strcasecmp($a['name'], $b['name']);
+        });
+
+        $totalSize = 0;
+        foreach ($items as $item) {
+            $totalSize += (int)$item['size'];
+        }
+
+        $listHead = '<div class="sp-folder-list__head" aria-hidden="true">
+          <span class="sp-folder-list__col-name">' . sp_h(sp_t('file')) . '</span>
+          <span class="sp-folder-list__col-meta">' . sp_h(sp_t('size')) . '</span>
+          <span class="sp-folder-list__col-date">' . sp_h(sp_t('modified')) . '</span>
+          <span class="sp-folder-list__col-action"></span>
+        </div>';
+
+        $rows = '';
+        foreach ($items as $item) {
+            $name = (string)$item['name'];
+            $isDir = $item['is_dir'];
+            $itemSize = (int)$item['size'];
+            $mtime = $item['mtime'] > 0 ? date('M j, Y', $item['mtime']) : '';
+
+            if ($isDir) {
+                $icon = sp_folder_icon_html('sp-folder-row__icon');
+                $meta = sp_t('folder');
+                $type = 'folder';
+            } else {
+                $icon = sp_file_icon_html($name, 'sp-folder-row__icon');
+                $meta = sp_format_bytes($itemSize);
+                $type = 'file';
+            }
+
+            $rows .= '<div class="sp-folder-row" data-type="' . $type . '" role="listitem">
+  <div class="sp-folder-row__link" style="cursor: default;">
+    ' . $icon . '
+    <span class="sp-folder-row__name">' . sp_h($name) . '</span>
+    <span class="sp-folder-row__meta">' . sp_h($meta) . '</span>
+    <span class="sp-folder-row__date">' . sp_h($mtime) . '</span>
+  </div>
+  <span class="sp-folder-row__action"></span>
+</div>';
+        }
+
+        return '<div class="sp-archive-preview" style="padding: var(--md-sys-spacing-5);">
+  <div class="sp-section-head" style="margin-bottom: 12px;">
+    <span class="md3-typescale-title-medium">' . sp_h(sp_t('archive')) . ' (' . count($items) . ')</span>
+    <div style="display: flex; gap: 8px; align-items: center;">
+      <span class="md3-chip md3-chip--assist"><span class="material-symbols-outlined">inventory_2</span>' . count($items) . ' ' . sp_h(sp_t('items')) . ($totalSize > 0 ? ' · ' . sp_h(sp_format_bytes($totalSize)) : '') . '</span>
+      <a class="md3-btn md3-btn--filled" href="' . sp_h($this->downloadUrl) . '">
+        <span class="material-symbols-outlined">download</span>' . sp_h(sp_t('download_file')) . '
+      </a>
+    </div>
+  </div>
+  <div class="sp-folder-list" role="list">' . $listHead . $rows . '</div>
 </div>';
     }
 

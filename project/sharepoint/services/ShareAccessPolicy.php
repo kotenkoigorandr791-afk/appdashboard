@@ -18,6 +18,16 @@ final class ShareAccessPolicy
         if ($share->max_views > 0 && $share->view_count >= $share->max_views) {
             return AccessResult::deny('max_views_exceeded');
         }
+        if ($share->access_mode === 'restricted') {
+            $email = strtolower(trim((string)(sp_session_user()['email'] ?? '')));
+            if ($email === '') {
+                return AccessResult::deny('login_required');
+            }
+            $allowed = array_map('strtolower', (array)($share->resource_data['allowed_emails'] ?? []));
+            if ($email !== $share->owner_email && $allowed !== [] && !in_array($email, $allowed, true)) {
+                return AccessResult::deny('user_not_allowed');
+            }
+        }
         if ($share->isPasswordProtected() && !self::isUnlocked($share)) {
             return AccessResult::deny('password_required');
         }

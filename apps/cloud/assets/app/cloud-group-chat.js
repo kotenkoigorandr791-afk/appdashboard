@@ -767,7 +767,7 @@
         state.pollTimer = setInterval(() => {
             if (state.open && !document.hidden) loadMessages(true);
             refreshUnread();
-        }, 4000);
+        }, 10000);
     }
     function stopPolling() {
         if (state.pollTimer) { clearInterval(state.pollTimer); state.pollTimer = null; }

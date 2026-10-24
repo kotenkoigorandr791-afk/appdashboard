@@ -917,14 +917,46 @@ body.light-theme footer { border-top-color: rgba(26,43,51,0.1); }
 .loading-overlay {
   position: fixed; inset: 0; z-index: 9999; display: flex;
   align-items: center; justify-content: center;
-  background: rgba(7,17,30,0.85); backdrop-filter: blur(8px);
-  color: #deeeff; font-size: 16px; font-weight: 600;
-  animation: loadFadeIn .2s ease;
+  background: rgba(7,17,30,0.55); backdrop-filter: blur(10px) brightness(0.55);
+  -webkit-backdrop-filter: blur(10px) brightness(0.55);
+  color: #fff; animation: loadFadeIn .2s ease;
 }
 body.light-theme .loading-overlay {
-  background: rgba(237,244,251,0.88); color: #1a2b38;
+  background: rgba(237,244,251,0.55); backdrop-filter: blur(10px) brightness(0.85);
+  -webkit-backdrop-filter: blur(10px) brightness(0.85); color: #1a2b38;
+}
+.loading-overlay-box {
+  background: rgba(30,30,30,0.5); backdrop-filter: blur(15px);
+  -webkit-backdrop-filter: blur(15px); padding: 40px 60px; border-radius: 20px;
+  display: flex; flex-direction: column; align-items: center;
+  border: 1px solid rgba(255,255,255,0.1); color: inherit; text-align: center;
+}
+body.light-theme .loading-overlay-box {
+  background: rgba(255,255,255,0.55); border-color: rgba(26,43,51,0.12);
+}
+.loading-overlay-logo {
+  width: 80px; height: 80px; margin-bottom: 20px; object-fit: contain;
+  animation: loadPulse 2s ease-in-out infinite;
+}
+.loading-overlay-title {
+  margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.02em;
+}
+.loading-overlay-sub {
+  margin: 8px 0 0; font-size: 14px; font-weight: 500; opacity: 0.78;
+}
+.loading-overlay-bar {
+  width: 200px; height: 4px; background: rgba(255,255,255,0.12);
+  border-radius: 2px; overflow: hidden; margin-top: 18px;
+}
+body.light-theme .loading-overlay-bar { background: rgba(26,43,51,0.12); }
+.loading-overlay-bar::after {
+  content: ''; display: block; width: 40%; height: 100%;
+  background: #00a8ff; box-shadow: 0 0 10px #00a8ff;
+  animation: loadBar 2s infinite ease-in-out;
 }
 @keyframes loadFadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes loadPulse { 50% { transform: scale(1.1); } }
+@keyframes loadBar { 0% { transform: translateX(-100%); } 100% { transform: translateX(300%); } }
 
 /* ── Responsive ── */
 @media (max-width: 600px) {

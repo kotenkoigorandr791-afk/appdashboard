@@ -21,6 +21,8 @@ function zeep_notify_job_once(AppDatabase $db, string $jobId, array $state): arr
     try { zeep_job_save($db, $jobId, $state); } catch (Throwable $e) {}
     return $state;
 }
+steps_require_auth_json();
+
 $safeName = get_current_user_folder();
 define('ZEEP_USER_DIR', __DIR__ . '/../../users/' . $safeName);
 define('ZEEP_JOBS_DIR', ZEEP_USER_DIR . '/zeep_jobs/');
@@ -181,9 +183,8 @@ function zeep_run_worker_now(string $jobPath): bool {
     return (int)$rc === 0;
 }
 function zeep_job_cfg(array $jobIdParts): array {
-    $email = get_current_user_email() ?: ('folder_' . basename(ZEEP_USER_DIR));
+    $email = get_current_user_email();
     return array_merge([
-        'user_schema' => app_user_schema_id('steps', $email),
         'user_email' => $email,
     ], $jobIdParts);
 }

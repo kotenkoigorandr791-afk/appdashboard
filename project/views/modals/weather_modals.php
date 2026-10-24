@@ -532,15 +532,35 @@ function handleCustomSelectKey(e, selectId, hiddenSelectId) {
         setCustomSelectOpen(selectId, false);
         return;
     }
-    if (e.key && e.key.length === 1) {
+    if (e.key && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault();
+        const ch = e.key.toLowerCase();
         const now = Date.now();
-        customSelectTypeahead.text = customSelectTypeahead.id === selectId && now - customSelectTypeahead.ts < 800 ? customSelectTypeahead.text + e.key.toLowerCase() : e.key.toLowerCase();
+        const sameSelect = customSelectTypeahead.id === selectId;
+        const within = sameSelect && (now - customSelectTypeahead.ts < 900);
+        const prev = sameSelect ? (customSelectTypeahead.text || '') : '';
+        let query;
+        let start;
+        if (within && prev === ch) {
+            query = ch;
+            start = activeIndex + 1;
+        } else if (within && prev) {
+            query = prev + ch;
+            start = 0;
+        } else {
+            query = ch;
+            start = 0;
+        }
         customSelectTypeahead.id = selectId;
+        customSelectTypeahead.text = query;
         customSelectTypeahead.ts = now;
-        const query = customSelectTypeahead.text;
-        const start = isOpen ? activeIndex + 1 : 0;
         if (!isOpen) setCustomSelectOpen(selectId, true);
-        const ordered = items.slice(start).concat(items.slice(0, start));
+        const matchable = items.filter(item => (item.dataset.value || '') !== '');
+        if (!matchable.length) return;
+        const from = Math.max(0, matchable.indexOf(items[activeIndex]));
+        const ordered = start > 0
+            ? matchable.slice(from + 1).concat(matchable.slice(0, from + 1))
+            : matchable.slice();
         const found = ordered.find(item => item.textContent.trim().toLowerCase().startsWith(query));
         if (found) setActiveCustomOption(selectId, items.indexOf(found));
     }
@@ -855,7 +875,6 @@ function renderWeeklyForecast() {
             '<div class="weather-modal-city">' + escHtml(city) + '</div>' +
             '<div class="weather-modal-current">' + escHtml(currentLine) + '</div>' +
         '</div>' +
-        '<button type="button" class="std-topbar-close weather-modal-close-btn" onclick="closeWeatherModal()" aria-label="<?php echo my_htmlspecialchars($translations['close'] ?? 'Close'); ?>">&times;</button>' +
     '</div>' +
     '<div class="weather-modal-body">' +
     '<div class="weather-weekly">';

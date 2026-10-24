@@ -1,7 +1,8 @@
 {
     "apiEndpoint": "API Endpoint",
     "colorType": "Тип цвета",
-    "english": "off",
+    "english": "Выкл",
+    "sharePasswordSetPlaceholder": "Пароль задан. Введите новый, чтобы заменить",
     "hideLanguageSwitcherOnMainPage": "Скрыть переключатель языков на мобильных устройствах",
     "quota": "Выделено",
     "quotaUpdated": "Квота успешно обновлена",

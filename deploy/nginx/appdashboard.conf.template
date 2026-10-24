@@ -22,6 +22,26 @@ limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
 limit_req_status 429;
 
 
+map $http_x_forwarded_for $sh_client_ip {
+    ~^\s*(?<sh_first>[^,\s]+) $sh_first;
+    default $remote_addr;
+}
+map $sh_client_ip $sh_ws_key {
+    127.0.0.1 "";
+    ::1 "";
+    default $sh_client_ip;
+}
+limit_conn_zone $sh_ws_key zone=sh_ws_conn:10m;
+limit_req_zone $sh_ws_key zone=sh_ws_req:10m rate=20r/s;
+
+upstream smart_home_ws {
+    least_conn;
+    server 127.0.0.1:8766;
+    server 127.0.0.1:8786;
+    server 127.0.0.1:8787;
+    keepalive 64;
+}
+
 server {
     listen 127.0.0.1:8080;
     server_name __AI_HOST__;
@@ -69,7 +89,7 @@ server {
     add_header Referrer-Policy "strict-origin-when-cross-origin" always;
     add_header Permissions-Policy "geolocation=(self), microphone=(), camera=(self), usb=(), clipboard-write=*, clipboard-read=*, unload=*" always;
     add_header Strict-Transport-Security "$hsts_header" always;
-    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'self'; frame-src 'self' https://challenges.cloudflare.com https://document.__BASE_DOMAIN__ https://git.__BASE_DOMAIN__ https://photo.__BASE_DOMAIN__ https://dawarich.__BASE_DOMAIN__ https://sentry.__BASE_DOMAIN__; frame-ancestors 'self'; form-action 'self' https://accounts.google.com https://github.com; script-src 'self' https://challenges.cloudflare.com https://document.__BASE_DOMAIN__ 'unsafe-inline' 'unsafe-eval' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; script-src-elem 'self' https://challenges.cloudflare.com https://document.__BASE_DOMAIN__ 'unsafe-inline' 'unsafe-eval' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; style-src 'self' https://challenges.cloudflare.com 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws: wss: ws://localhost:* ws://127.0.0.1:*; worker-src 'self' blob:; manifest-src 'self'; $uir_token" always;
+    add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'self'; frame-src 'self' https://challenges.cloudflare.com https://document.__BASE_DOMAIN__ https://git.__BASE_DOMAIN__ https://photo.__BASE_DOMAIN__ https://dawarich.__BASE_DOMAIN__ https://sentry.__BASE_DOMAIN__; frame-ancestors 'self'; form-action 'self' https://accounts.google.com https://github.com; script-src 'self' https://challenges.cloudflare.com https://document.__BASE_DOMAIN__ 'unsafe-inline' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; script-src-elem 'self' https://challenges.cloudflare.com https://document.__BASE_DOMAIN__ 'unsafe-inline' blob: https://browser.sentry-cdn.com https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://cdn.amcharts.com https://static.cloudflareinsights.com; style-src 'self' https://challenges.cloudflare.com 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://cdn.plyr.io https://fonts.googleapis.com; font-src 'self' data: https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob: https:; connect-src 'self' https: http://localhost:* http://127.0.0.1:* ws: wss: ws://localhost:* ws://127.0.0.1:*; worker-src 'self' blob:; manifest-src 'self'; $uir_token" always;
 
     if ($request_uri ~* "^(.*/)index\.(php|html?)$") {
         return 301 $1;
@@ -396,7 +416,7 @@ server {
         proxy_cookie_path / /admin-omniroute/;
         proxy_hide_header Content-Security-Policy;
         proxy_hide_header X-Frame-Options;
-        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' 'unsafe-eval' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: http: ws: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss://localhost:* https://static.cloudflareinsights.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" always;
+        add_header Content-Security-Policy "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'self'; form-action 'self'; script-src 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com; script-src-elem 'self' 'unsafe-inline' blob: https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https: http: ws: wss: http://localhost:* http://127.0.0.1:* ws://localhost:* ws://127.0.0.1:* wss://localhost:* https://static.cloudflareinsights.com; worker-src 'self' blob:; manifest-src 'self'; upgrade-insecure-requests" always;
         sub_filter_once off;
         sub_filter_types *;
         sub_filter '<head>' '<head><base href="/admin-omniroute/"><script>(function(){var p="/admin-omniroute",a=["/api","/v1","/dashboard","/home","/login","/offline","/manifest.webmanifest","/sw.js","/a2a","/chat","/providers","/_next"];function m(u){for(var i=0;i<a.length;i++){var v=a[i];if(u===v||u.indexOf(v+"/")===0||u.indexOf(v+"?")===0)return true}return false}function r(u){if(typeof u!=="string")return u;if(u===p||u.indexOf(p+"/")===0)return u;if(location.protocol==="https:"&&u.indexOf("http://"+location.host)===0)u="https://"+u.slice(("http://"+location.host).length);if(u.indexOf(location.origin)===0)u=u.slice(location.origin.length);if(m(u))return p+u;return u}var f=window.fetch;if(f)window.fetch=function(i,n){if(typeof i==="string")i=r(i);else if(i&&typeof Request!=="undefined"&&i instanceof Request){var x=new URL(i.url,location.href),u=r(x.host===location.host?(x.pathname+x.search):i.url);if(u!==i.url&&u!==(x.pathname+x.search))i=new Request(u,i)}return f.call(this,i,n)};var o=XMLHttpRequest.prototype.open;XMLHttpRequest.prototype.open=function(mth,u){arguments[1]=r(u);return o.apply(this,arguments)};var W=window.WebSocket;if(W){window.WebSocket=function(u,pr){if(typeof u==="string"){try{var x=new URL(u,location.href);if(x.protocol==="ws:"&&location.protocol==="https:")x.protocol="wss:";if(x.host===location.host){var path=r(x.pathname+x.search);u=x.protocol+"//"+x.host+path}}catch(e){}}return pr!==undefined?new W(u,pr):new W(u)};window.WebSocket.prototype=W.prototype;window.WebSocket.CONNECTING=W.CONNECTING;window.WebSocket.OPEN=W.OPEN;window.WebSocket.CLOSING=W.CLOSING;window.WebSocket.CLOSED=W.CLOSED}})();</script>';
@@ -493,10 +513,12 @@ server {
     }
 
     location /smart-home-ws {
-        proxy_pass http://127.0.0.1:8766;
+        limit_conn sh_ws_conn 400;
+        limit_req zone=sh_ws_req burst=200 nodelay;
+        proxy_pass http://smart_home_ws;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Real-IP $sh_client_ip;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_set_header Upgrade $http_upgrade;
@@ -552,22 +574,12 @@ server {
         expires 1h;
     }
 
-    location ~ ^/apps/steps/users/[^/]+/.*\.csv$ {
-        set $deny_protected 1;
-        if ($arg_sharedFile != "") { set $deny_protected 0; }
-        if ($arg_download != "") { set $deny_protected 0; }
-        if ($arg_display != "") { set $deny_protected 0; }
-        if ($deny_protected = 1) { return 403; }
-        try_files $uri =404;
+    location ~ ^/apps/steps/(steps-mobile-app|upload_sessions)(/|$) {
+        return 404;
     }
 
-    location ~ ^/apps/steps/users/[^/]+/.*\.json$ {
-        set $deny_protected 1;
-        if ($arg_sharedFile != "") { set $deny_protected 0; }
-        if ($arg_download != "") { set $deny_protected 0; }
-        if ($arg_display != "") { set $deny_protected 0; }
-        if ($deny_protected = 1) { return 403; }
-        try_files $uri =404;
+    location ~ ^/apps/steps/users/[^/]+/(?!profile\.jpg$).+ {
+        return 404;
     }
 
     location ~ ^/apps/spends/users/[^/]+/.*\.csv$ {

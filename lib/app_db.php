@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/schema_once.php';
 require_once __DIR__ . '/db_config.php';
 require_once __DIR__ . '/pgsql_compat.php';
 require_once __DIR__ . '/db_auth_security.php';
@@ -6,6 +7,9 @@ function app_main_db(): AppDatabase {
     return app_open_main_db();
 }
 function app_notifications_ensure(AppDatabase $db): void {
+    app_schema_once('app_notif', __FILE__, fn() => app_notifications_ensure_impl($db));
+}
+function app_notifications_ensure_impl(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
         id BIGSERIAL PRIMARY KEY,
         user_email TEXT NOT NULL DEFAULT '',

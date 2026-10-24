@@ -290,6 +290,8 @@
     "zeep_zip_section": "ZIP-архіў",
     "mobile_app_devices": "Падключаныя прылады",
     "mobile_app_download": "Спампаваць мабільную праграму",
+    "mobile_app_play_protect": "Інструкцыя Play Protect",
+    "mobile_app_play_protect_title": "Адключыць Google Play Protect",
     "mobile_app_feature_devices_desc": "Сінхранізуйце даныя з некалькіх насімых прылад і фітнес-трэкераў.",
     "mobile_app_feature_offline_desc": "Лічыце крокі нават без падключэння да інтэрнэту.",
     "mobile_app_feature_offline_title": "Афлайн-сачэнне",

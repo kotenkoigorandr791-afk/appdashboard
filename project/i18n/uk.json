@@ -426,6 +426,7 @@
   "images_total": "Образів",
   "invalidApiKeyFormat": "Неправильний формат API-ключа",
   "invalid_credentials": "Невірний email або пароль",
+  "invalid_response": "Невірна відповідь сервера",
   "invalid_reset_code": "Невірний код скидання",
   "invalid_verification_code": "Невірний код підтвердження",
   "ios": "iOS",
@@ -627,7 +628,7 @@
   "share_expiration_never": "Ніколи",
   "share_id": "ID спільного доступу",
   "shared_files_management": "Управління спільними файлами",
-  "shell_application": "Оболонка (Shell Application)",
+  "shell_application": "ServerKherson",
   "show_hide_password": "Показати/приховати пароль",
   "show_password": "Показати пароль",
   "smtp_host": "SMTP Хост",
@@ -798,6 +799,11 @@
   "verified_users": "Підтверджені",
   "verify_email": "Підтвердити email",
   "verify_password": "Перевірити",
+  "version_build_date": "Збірка образу",
+  "version_branch": "Гілка",
+  "version_commit": "Коміт",
+  "version_label": "Версія",
+  "version_updated": "Код оновлено",
   "view_documentation": "Переглянути документацію",
   "view_privacy": "Перегляд політики",
   "view_terms": "Перегляд умов",
@@ -1098,5 +1104,7 @@
   "backup_view_log": "Показати журнал",
   "backup_warning": "Попередження",
   "backup_weekday": "День тижня",
-  "backup_wizard": "Майстер резервного копіювання"
+  "backup_wizard": "Майстер резервного копіювання",
+  "opening_app": "Відкриття…",
+  "opening_app_named": "Відкриття «{name}»…"
 }

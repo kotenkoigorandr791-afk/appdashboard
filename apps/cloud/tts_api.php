@@ -52,9 +52,9 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
         } catch (Throwable $e) {
         }
     }
+    if (preg_match('#(^|[\\\\/])\.\.([\\\\/]|$)#', $relativePath)) return null;
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $candidates = [];
-    if (preg_match('/^(?:[a-zA-Z]:[\\\\\\/]|\/)/', $relativePath)) $candidates[] = $relativePath;
     $candidates[] = $normalized;
     $candidates[] = app_path($normalized);
     $candidates[] = app_path('../' . $normalized);
@@ -178,6 +178,11 @@ function ensure_tts_tables() {
 }
 
 ensure_tts_tables();
+require_once __DIR__ . '/includes/cloud_endpoint_auth.php';
+require_once __DIR__ . '/includes/ai_proxy.php';
+$ttsAuthEmail = cloud_endpoint_require_email();
+$ttsAuthUser = cloud_endpoint_username($ttsAuthEmail);
+cloud_endpoint_rate_limit($ttsAuthEmail, 'utility');
 
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     $action = $_GET['action'] ?? '';
@@ -332,15 +337,14 @@ if ($action === 'generate_tts') {
     $language = $_POST['language'] ?? 'en';
     $speed = floatval($_POST['speed'] ?? 1.0);
     $textPath = $_POST['text_path'] ?? '';
-    $user = $_POST['user'] ?? 'default';
+    $user = $ttsAuthUser;
 
     if (!$text) {
         echo json_encode(['success' => false, 'error' => 'No text provided']);
         exit;
     }
-    $rlEmail = get_session_email() ?: (string)$user;
     if (function_exists('cloud_ai_require_rate_limit')) {
-        cloud_ai_require_rate_limit((string)$rlEmail, 'speech');
+        cloud_ai_require_rate_limit($ttsAuthEmail, 'speech');
     }
 
     $pythonPath = python_bin();
@@ -452,7 +456,7 @@ if ($action === 'generate_tts') {
 if ($action === 'save_audio_to_server') {
     $progressId = $_POST['progress_id'] ?? '';
     $textPath = $_POST['text_path'] ?? '';
-    $user = $_POST['user'] ?? 'default';
+    $user = $ttsAuthUser;
     $root = $_POST['root'] ?? 'main';
 
     if (!$progressId || !$textPath) {

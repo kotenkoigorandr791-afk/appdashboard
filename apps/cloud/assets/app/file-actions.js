@@ -1549,6 +1549,7 @@ async function shareItem(path, type, root) {
     }
 
     try {
+        await flushPendingAutoSaves();
         const displayName = path.split('/').pop();
         const normalizedPath = getShareActionPath(path, root);
         shareState.currentPath = normalizedPath;

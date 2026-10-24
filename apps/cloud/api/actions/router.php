@@ -6,6 +6,13 @@ require_once __DIR__ . '/cloud_group_chat.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_storage_requests.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_config_store.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_hardening.php';
+if (!in_array($action, cloud_public_api_actions(), true)) {
+    cloud_require_api_auth_unless_public($action);
+    cloud_require_cookie_csrf();
+    $rlKey = (string)(get_session_email() ?: ($_SERVER['REMOTE_ADDR'] ?? 'anon'));
+    cloud_require_rate_limit($rlKey, $action === 'upload' ? 'upload' : 'api');
+}
 if (!function_exists('cloud_dedupe_tree_items')) {
     function cloud_dedupe_tree_items(array $items): array {
         $deduped = [];
@@ -74,11 +81,11 @@ if ($action === 'set_encryption_notice_status') {
 }
 
 if ($action === 'get_state') {
-    $current_user = get_current_user_from_sessions();
-    $email = get_session_email();
-    $display_email = $email ?: $current_user;
+    $current_user = cloud_api_user();
+    $email = cloud_api_email();
+    $display_email = $email;
+    cloud_session_close_early();
 
-    // Quota - look up by email directly (no JOIN users.name, which does not exist)
     $user_quota    = cloud_storage_default_quota_mb();
     $session_limit = 0;
     $hide_lang_switcher = 0;
@@ -88,33 +95,31 @@ if ($action === 'get_state') {
     $sync_enabled = 0;
     $last_sync_at = 0;
     $trash_retention_days = 7;
-    if ($email) {
-        $db_s = getDB();
-        if ($db_s) {
-            try {
-                ensureCloudUserSettingsSchema($db_s);
-                $sq = $db_s->prepare('SELECT quota_mb, session_limit_mb, hide_lang_switcher, sync_local_path, sync_interval_sec, sync_mode, sync_enabled, last_sync_at, trash_retention_days FROM cloud_user_settings WHERE email = :e');
-                $sq->bindValue(':e', $email, PDO::PARAM_STR);
-                $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
-                if ($rq) {
-                    $user_quota    = max(1, (int)$rq['quota_mb']);
-                    $session_limit = max(0, (int)$rq['session_limit_mb']);
-                    $hide_lang_switcher = ((int)($rq['hide_lang_switcher'] ?? 0)) ? 1 : 0;
-                    $sync_local_path = (string)($rq['sync_local_path'] ?? '');
-                    $sync_interval_sec = max(60, (int)($rq['sync_interval_sec'] ?? 300));
-                    $sync_mode = (string)($rq['sync_mode'] ?? 'mtime_size');
-                    $sync_enabled = ((int)($rq['sync_enabled'] ?? 0)) ? 1 : 0;
-                    $last_sync_at = max(0, (int)($rq['last_sync_at'] ?? 0));
-                    $trash_retention_days = cloud_normalize_trash_retention_days((int)($rq['trash_retention_days'] ?? 7));
-                }
-            } catch (Exception $e) {
-                cloud_safe_error_log("get_state quota lookup failed: " . $e->getMessage());
+    $db_s = getDB();
+    if ($db_s) {
+        try {
+            ensureCloudUserSettingsSchema($db_s);
+            $sq = $db_s->prepare('SELECT quota_mb, session_limit_mb, hide_lang_switcher, sync_local_path, sync_interval_sec, sync_mode, sync_enabled, last_sync_at, trash_retention_days FROM cloud_user_settings WHERE email = :e');
+            $sq->bindValue(':e', $email, PDO::PARAM_STR);
+            $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
+            if ($rq) {
+                $user_quota    = max(1, (int)$rq['quota_mb']);
+                $session_limit = max(0, (int)$rq['session_limit_mb']);
+                $hide_lang_switcher = ((int)($rq['hide_lang_switcher'] ?? 0)) ? 1 : 0;
+                $sync_local_path = (string)($rq['sync_local_path'] ?? '');
+                $sync_interval_sec = max(60, (int)($rq['sync_interval_sec'] ?? 300));
+                $sync_mode = (string)($rq['sync_mode'] ?? 'mtime_size');
+                if ($sync_mode === 'mtime_size_hash') $sync_mode = 'mtime_size';
+                $sync_enabled = ((int)($rq['sync_enabled'] ?? 0)) ? 1 : 0;
+                $last_sync_at = max(0, (int)($rq['last_sync_at'] ?? 0));
+                $trash_retention_days = cloud_normalize_trash_retention_days((int)($rq['trash_retention_days'] ?? 7));
             }
+        } catch (Exception $e) {
+            cloud_safe_error_log("get_state quota lookup failed: " . $e->getMessage());
         }
     }
 
-    $root = user_root($current_user);
-    $used_bytes = is_dir($root) ? dir_size($root) : 0;
+    $used_bytes = cloud_used_bytes_cached($email, $current_user, false, 300);
     $user_photo = resolve_user_photo_url(getUserPhotoByEmail($email));
 
     $users = [[
@@ -499,13 +504,24 @@ if ($action === 'share_file' || $action === 'share_folder') {
         }
 
         // Check if an active link already exists for this file/folder from this user
-        $stmt = $db->prepare('SELECT share_id FROM shared_files WHERE file_path = :file_path AND user_email = :user_email');
+        $stmt = $db->prepare('SELECT share_id, expires, expires_option, password_hash, view_only, disable_download, disable_copy, max_views FROM shared_files WHERE file_path = :file_path AND user_email = :user_email');
         $stmt->bindValue(':file_path', $normalizedPath, PDO::PARAM_STR);
         $stmt->bindValue(':user_email', $userEmail, PDO::PARAM_STR);
         $result = $stmt->execute();
         $existing = $result->fetch(PDO::FETCH_ASSOC);
 
         if ($existing && isset($existing['share_id'])) {
+            $existingExpires = ($existing['expires'] ?? null) === null ? null : (int)$existing['expires'];
+            if (!empty($_POST['reuse_existing'])) {
+                json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $existingExpires, 'expires_option' => (string)$existing['expires_option'], 'view_only' => (int)$existing['view_only'], 'disable_download' => (int)$existing['disable_download'], 'disable_copy' => (int)$existing['disable_copy'], 'max_views' => (int)$existing['max_views'], 'has_password' => (string)$existing['password_hash'] !== '']);
+                return;
+            }
+            if ($plainPassword === '' && !empty($_POST['keep_password'])) {
+                $passwordHash = (string)$existing['password_hash'];
+            }
+            if ($expiresOption === (string)$existing['expires_option']) {
+                $expires = $existingExpires;
+            }
             $upd = $db->prepare('UPDATE shared_files SET is_folder = :is_folder, expires = :expires, expires_option = :expires_option, password_hash = :password_hash, view_only = :view_only, disable_download = :disable_download, disable_copy = :disable_copy, max_views = :max_views WHERE share_id = :share_id');
             $upd->bindValue(':is_folder', $isFolder, PDO::PARAM_INT);
             if ($expires === null) $upd->bindValue(':expires', null, PDO::PARAM_NULL);
@@ -519,7 +535,7 @@ if ($action === 'share_file' || $action === 'share_folder') {
             $upd->bindValue(':share_id', $existing['share_id'], PDO::PARAM_STR);
             $upd->execute();
             sharepoint_mirror_legacy_cloud($db, (string)$existing['share_id'], basename($fullPath), $normalizedPath, (bool)$isFolder, $userEmail, $expires, $expiresOption, $passwordHash, !$disableDownload, $maxViews);
-            json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
+            json_out(['key' => $existing['share_id'], 'link' => sharepoint_public_link((string)$existing['share_id']), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews, 'has_password' => $passwordHash !== '']);
             return;
         }
 
@@ -556,7 +572,7 @@ if ($action === 'share_file' || $action === 'share_folder') {
 
         if ($stmt->execute()) {
             sharepoint_mirror_legacy_cloud($db, (string)$shareId, basename($fullPath), $normalizedPath, (bool)$isFolder, $userEmail, $expires, $expiresOption, $passwordHash, !$disableDownload, $maxViews);
-            json_out(['key' => $shareId, 'link' => sharepoint_public_link((string)$shareId), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews]);
+            json_out(['key' => $shareId, 'link' => sharepoint_public_link((string)$shareId), 'expires' => $expires, 'expires_option' => $expiresOption, 'view_only' => $viewOnly, 'disable_download' => $disableDownload, 'disable_copy' => $disableCopy, 'max_views' => $maxViews, 'has_password' => $passwordHash !== '']);
         } else {
             json_out(['error' => 'Failed to create share record'], 500);
         }
@@ -673,8 +689,7 @@ if (!function_exists('cloud_storage_api_admin_email')) {
     }
     function cloud_storage_api_used_bytes(string $email): int {
         $username = email_to_cloud_username(strtolower(trim($email)));
-        $root = user_root($username, 'main');
-        return is_dir($root) ? dir_size($root) : 0;
+        return cloud_used_bytes_cached($email, $username, false, 300);
     }
 }
 
@@ -1934,38 +1949,33 @@ if ($action === 'save_file') {
 }
 
 if ($action === 'office_download') {
-    header('Access-Control-Allow-Origin: *');
-    header('Access-Control-Allow-Methods: GET');
-    header('Access-Control-Allow-Headers: *');
-    
-    $user = $_GET['user'] ?? get_current_user_from_sessions();
+    $user = cloud_api_user();
+    cloud_session_close_early();
     $path = safe_path((string)($_GET['path'] ?? ''));
-    
     if ($path === '') {
         http_response_code(400);
         exit('Path required');
     }
-    
     $base = user_root($user, get_requested_root_key());
     $target = $base . '/' . $path;
-    
-    if (!file_exists($target)) {
+    $realBase = realpath($base);
+    $realTarget = realpath($target);
+    if ($realBase === false || $realTarget === false || strpos($realTarget, $realBase . DIRECTORY_SEPARATOR) !== 0 && $realTarget !== $realBase) {
         http_response_code(404);
         exit('File not found');
     }
-    
-    $mime = mime_content_type($target) ?: 'application/octet-stream';
-    
-    // Important: flush output to avoid JSON errors
+    if (!is_file($realTarget)) {
+        http_response_code(404);
+        exit('File not found');
+    }
+    $mime = mime_content_type($realTarget) ?: 'application/octet-stream';
     @ob_end_clean();
-    
     header('Content-Type: ' . $mime);
-    header('Content-Disposition: attachment; filename="' . rawurlencode(basename($target)) . '"');
-    header('Content-Length: ' . filesize($target));
+    header('Content-Disposition: attachment; filename="' . rawurlencode(basename($realTarget)) . '"');
+    header('Content-Length: ' . filesize($realTarget));
     header('Cache-Control: no-cache');
     header('X-Content-Type-Options: nosniff');
-    
-    readfile($target);
+    readfile($realTarget);
     exit;
 }
 
@@ -2149,30 +2159,29 @@ if ($action === 'upload') {
         }
     }
 
-    // === Quota check — read from DB by session email ===
-    $root = user_root($user);
-    $used = dir_size($root);
+    if (!$upload_email || $user === 'guest' || $user !== cloud_api_user()) {
+        json_out(['error' => 'not authenticated'], 401);
+    }
+    $chunkIndex = (int)($_POST['chunk'] ?? $_POST['chunk_index'] ?? 0);
+    $isLastChunk = !empty($_POST['last']) || !empty($_POST['is_last']) || (isset($_POST['chunks']) && $chunkIndex + 1 >= (int)$_POST['chunks']);
+    $needQuotaScan = ($chunkIndex <= 0) || $isLastChunk;
+    $used = cloud_used_bytes_cached($upload_email, $user, false, $needQuotaScan ? 60 : 300);
 
-    $quotaBytes        = cloud_storage_default_quota_mb() * 1024 * 1024; // default 1GB
+    $quotaBytes        = cloud_storage_default_quota_mb() * 1024 * 1024;
     $sessionLimitBytes = 0;
-    if ($upload_email) {
-        $db_uq = getDB();
-        if ($db_uq) {
-            try {
-                $sq = $db_uq->prepare('SELECT quota_mb, session_limit_mb FROM cloud_user_settings WHERE email = :e');
-                $sq->bindValue(':e', $upload_email, PDO::PARAM_STR);
-                $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
-                if ($rq) {
-                    $quotaBytes        = max(1, (int)$rq['quota_mb']) * 1024 * 1024;
-                    $sessionLimitBytes = max(0, (int)$rq['session_limit_mb']) * 1024 * 1024;
-                }
-            } catch (Exception $e) {
-                cloud_safe_error_log("upload quota check failed: " . $e->getMessage());
+    $db_uq = getDB();
+    if ($db_uq) {
+        try {
+            $sq = $db_uq->prepare('SELECT quota_mb, session_limit_mb FROM cloud_user_settings WHERE email = :e');
+            $sq->bindValue(':e', $upload_email, PDO::PARAM_STR);
+            $rq = $sq->execute()->fetch(PDO::FETCH_ASSOC);
+            if ($rq) {
+                $quotaBytes        = max(1, (int)$rq['quota_mb']) * 1024 * 1024;
+                $sessionLimitBytes = max(0, (int)$rq['session_limit_mb']) * 1024 * 1024;
             }
+        } catch (Exception $e) {
+            cloud_safe_error_log("upload quota check failed: " . $e->getMessage());
         }
-    } else {
-        $quotaBytes        = getUserQuota($user) * 1024 * 1024;
-        $sessionLimitBytes = getSessionLimit($user) * 1024 * 1024;
     }
 
     $remaining = $quotaBytes - $used;
@@ -2228,7 +2237,10 @@ if ($action === 'upload') {
             // For upload, do not invalidate the tree cache:
             // the structure will be updated incrementally via patch_file_tree.
             $emailLog = get_session_email();
-            if ($chunk == $chunks - 1 && $emailLog) append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
+            if ($chunk == $chunks - 1 && $emailLog) {
+                append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
+                cloud_adjust_usage_cache($emailLog, (int)$file['size']);
+            }
             if ($chunk == $chunks - 1) cloud_group_maybe_log('create', $final_target_path);
             json_out(['ok'=>true, 'name'=>$fileName, 'chunk'=>$chunk, 'completed'=>($chunk == $chunks - 1)]);
         } else {
@@ -2259,7 +2271,10 @@ if ($action === 'upload') {
         // For upload, do not invalidate the tree cache:
         // the structure will be updated incrementally via patch_file_tree.
         $emailLog = get_session_email();
-        if ($emailLog) append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
+        if ($emailLog) {
+            append_sync_log($emailLog, $rootKey, 'upload', $final_target_path, 'INFO', 'Upload completed');
+            cloud_adjust_usage_cache($emailLog, (int)@filesize($dest));
+        }
         cloud_group_maybe_log('create', $final_target_path);
         json_out(['ok'=>true, 'name'=>$fileName]);
     }
@@ -4018,15 +4033,15 @@ if ($action === 'export_pdf') {
 }
 
 if ($action === 'get_ai_config') {
+    cloud_api_email();
     $config = loadAIConfig();
     if (isUserRoot()) {
         json_out($config);
     } else {
         json_out([
-            'api_endpoint' => $config['api_endpoint'],
-            'default_model' => $config['default_model'],
+            'default_model' => $config['default_model'] ?? '',
             'models' => $config['models'] ?? [],
-            'has_key' => !empty($config['api_key'])
+            'has_key' => !empty($config['api_key']),
         ]);
     }
 }
@@ -4060,18 +4075,17 @@ if ($action === 'save_ai_config') {
 }
 
 if ($action === 'debug_session') {
+    if (!isUserRoot()) json_out(['error' => 'forbidden'], 403);
     $db = getDB();
     $session_id  = session_id();
     $cookie_sid  = $_COOKIE['PHPSESSID'] ?? null;
     $email       = get_session_email();
-
     $db_row = null;
     if ($db && $cookie_sid) {
         $stmt = $db->prepare('SELECT session_id, email FROM active_sessions WHERE session_id = :sid');
         $stmt->bindValue(':sid', $cookie_sid, PDO::PARAM_STR);
         $db_row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     }
-
     json_out([
         'php_session_id'   => $session_id,
         'cookie_PHPSESSID' => $cookie_sid,
@@ -4083,33 +4097,45 @@ if ($action === 'debug_session') {
 }
 
 if ($action === 'get_file_tree') {
-    $email = get_session_email();
-    if (!$email) json_out(['ok' => false, 'error' => 'not authenticated']);
-
-    $user = get_current_user_from_sessions();
+    $email = cloud_api_email();
+    $user = cloud_api_user();
+    cloud_session_close_early();
     $db   = getDB();
     if (!$db) json_out(['ok' => false, 'error' => 'db unavailable']);
 
     try {
         ensure_file_tree_table($db);
-        $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
+        $clientHash = preg_replace('/[^a-f0-9]/', '', strtolower((string)($_GET['hash'] ?? $_POST['hash'] ?? '')));
+        if ($clientHash !== '') {
+            $hashStmt = $db->prepare("SELECT tree_hash AS h FROM cloud_folder_state WHERE email = :e AND tree_valid = 1 AND tree_hash <> '' LIMIT 1");
+            $hashStmt->bindValue(':e', $email, PDO::PARAM_STR);
+            $hashRow = $hashStmt->execute()->fetch(PDO::FETCH_ASSOC);
+            if ($hashRow && (string)$hashRow['h'] === $clientHash) {
+                json_out(['ok' => true, 'unchanged' => true, 'hash' => $clientHash]);
+            }
+        }
+        $stmt = $db->prepare("SELECT tree_json, tree_hash, tree_valid FROM cloud_folder_state WHERE email = :e");
         $stmt->bindValue(':e', $email, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
 
         if ($row && $row['tree_valid'] == 1 && !empty($row['tree_json'])) {
+            $treeHash = (string)($row['tree_hash'] ?? '');
+            if ($treeHash === '') $treeHash = md5((string)$row['tree_json']);
+            if ($clientHash !== '' && $clientHash === $treeHash) {
+                json_out(['ok' => true, 'unchanged' => true, 'hash' => $treeHash]);
+            }
             $items = json_decode($row['tree_json'], true) ?? [];
             $items = cloud_dedupe_tree_items($items);
-            json_out(['ok' => true, 'items' => $items, 'from_cache' => true]);
+            json_out(['ok' => true, 'items' => $items, 'from_cache' => true, 'hash' => $treeHash]);
         } else {
-            // Scan disk and cache
             rebuild_file_tree($email, $user);
-            // Re-read
-            $stmt2 = $db->prepare("SELECT tree_json FROM cloud_folder_state WHERE email = :e");
+            $stmt2 = $db->prepare("SELECT tree_json, tree_hash FROM cloud_folder_state WHERE email = :e");
             $stmt2->bindValue(':e', $email, PDO::PARAM_STR);
             $row2 = $stmt2->execute()->fetch(PDO::FETCH_ASSOC);
             $items = $row2 ? (json_decode($row2['tree_json'], true) ?? []) : [];
             $items = cloud_dedupe_tree_items($items);
-            json_out(['ok' => true, 'items' => $items, 'from_cache' => false]);
+            $outHash = $row2 ? ((string)($row2['tree_hash'] ?? '') ?: md5((string)$row2['tree_json'])) : '';
+            json_out(['ok' => true, 'items' => $items, 'from_cache' => false, 'hash' => $outHash]);
         }
     } catch (Exception $e) {
         cloud_safe_error_log("get_file_tree failed: " . $e->getMessage());
@@ -4348,7 +4374,6 @@ if ($action === 'get_folder_state') {
 
 if ($action === 'set_folder_state') {
     $email = get_session_email();
-    cloud_safe_error_log("[cloud] set_folder_state: session_id=" . session_id() . " cookie=" . ($_COOKIE['PHPSESSID'] ?? 'none') . " email=" . ($email ?? 'null'));
     if (!$email) json_out(['ok' => false, 'error' => 'not authenticated']);
 
     $db = getDB();
@@ -4467,23 +4492,71 @@ if ($action === 'patch_file_tree') {
 
         $items = cloud_dedupe_tree_items($items);
         $json = json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $hash = md5((string)$json);
 
         $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
         $check->bindValue(':e', $email, PDO::PARAM_STR);
         $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
         if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_valid, updated_at) VALUES (:e, '[]', :j, 1, extract(epoch from now())::bigint)");
+            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_hash, tree_valid, updated_at) VALUES (:e, '[]', :j, :h, 1, extract(epoch from now())::bigint)");
         } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
+            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_hash = :h, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
         }
         $s->bindValue(':e', $email, PDO::PARAM_STR);
         $s->bindValue(':j', $json, PDO::PARAM_STR);
+        $s->bindValue(':h', $hash, PDO::PARAM_STR);
         $s->execute();
 
-        json_out(['ok' => true, 'count' => count($items)]);
+        json_out(['ok' => true, 'count' => count($items), 'hash' => $hash]);
     } catch (Exception $e) {
         cloud_safe_error_log("patch_file_tree failed: " . $e->getMessage());
         json_out(['ok' => false, 'error' => $e->getMessage()]);
     }
 }
+
+if ($action === 'monaco_collab_ticket') {
+    $email = cloud_api_email();
+    $ticket = bin2hex(random_bytes(16));
+    $dir = sys_get_temp_dir() . '/cloud_monaco_tickets';
+    if (!is_dir($dir)) @mkdir($dir, 0700, true);
+    $payload = json_encode(['email' => $email, 'exp' => time() + 3600], JSON_UNESCAPED_UNICODE);
+    @file_put_contents($dir . '/' . $ticket . '.json', $payload);
+    json_out(['ok' => true, 'ticket' => $ticket, 'expires_in' => 3600]);
+}
+
+if ($action === 'search_tree') {
+    $email = cloud_api_email();
+    $user = cloud_api_user();
+    cloud_session_close_early();
+    $q = trim((string)($_GET['q'] ?? $_POST['q'] ?? ''));
+    if ($q === '' || mb_strlen($q) < 2) json_out(['ok' => true, 'items' => []]);
+    $limit = min(500, max(1, (int)($_GET['limit'] ?? $_POST['limit'] ?? 200)));
+    $db = getDB();
+    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
+    ensure_file_tree_table($db);
+    $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e LIMIT 1");
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$row || (int)($row['tree_valid'] ?? 0) !== 1 || empty($row['tree_json'])) {
+        rebuild_file_tree($email, $user);
+        $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e LIMIT 1");
+        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    }
+    $items = $row ? (json_decode((string)$row['tree_json'], true) ?? []) : [];
+    $needle = mb_strtolower($q);
+    $out = [];
+    foreach ($items as $item) {
+        if (!is_array($item)) continue;
+        $name = mb_strtolower((string)($item['name'] ?? ''));
+        $path = mb_strtolower((string)($item['path'] ?? ''));
+        if ($name === '' && $path === '') continue;
+        if (mb_strpos($name, $needle) !== false || mb_strpos($path, $needle) !== false) {
+            $out[] = $item;
+            if (count($out) >= $limit) break;
+        }
+    }
+    json_out(['ok' => true, 'items' => $out, 'count' => count($out)]);
+}
+
 json_out(['error'=>'unknown action'], 400);

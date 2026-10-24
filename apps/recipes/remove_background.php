@@ -6,6 +6,8 @@
 @ignore_user_abort(true);
 
 header('Content-Type: application/json; charset=utf-8');
+require_once dirname(__DIR__, 2) . '/lib/endpoint_guard.php';
+app_guard_session_user('remove_bg', 6);
 
 function bg_fail(int $code, string $message, array $extra = []): void {
     http_response_code($code);

@@ -28,7 +28,7 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
     $path = getUserDBPath($email);
     if (!is_file($path)) return;
     $cnt = (int)$udb->querySingle('SELECT COUNT(*) FROM expenses');
-    if ($cnt > 0) return;
+    if ($cnt > 0) { @rename($path, $path . '.migrated'); return; }
     try {
         $sqlite = new SQLite3($path);
         $sqlite->enableExceptions(true);
@@ -39,7 +39,7 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
                 if ($table === 'settings') dbSetSetting($udb, (string)$row['key'], (string)$row['value']);
                 elseif ($table === 'table_settings') dbSetTableSetting($udb, (string)$row['key'], (string)$row['value']);
                 elseif ($table === 'stores') {
-                    $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,:v,:o,:c) ON CONFLICT (id) DO UPDATE SET name=EXCLUDED.name, visible=EXCLUDED.visible, sort_order=EXCLUDED.sort_order, category=EXCLUDED.category');
+                    $st = $udb->prepare('INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,:v,:o,:c) ON CONFLICT (user_id,id) DO UPDATE SET name=EXCLUDED.name, visible=EXCLUDED.visible, sort_order=EXCLUDED.sort_order, category=EXCLUDED.category');
                     $st->bindValue(':id', (string)$row['id'], PDO::PARAM_STR);
                     $st->bindValue(':n', (string)$row['name'], PDO::PARAM_STR);
                     $st->bindValue(':v', (int)($row['visible'] ?? 1), PDO::PARAM_INT);
@@ -47,7 +47,7 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
                     $st->bindValue(':c', spendsNormalizeStoreCategory($row['category'] ?? 'other'), PDO::PARAM_STR);
                     $st->execute();
                 } elseif ($table === 'expenses') {
-                    $st = $udb->prepare('INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:es,:or) ON CONFLICT (date,store) DO UPDATE SET amount=EXCLUDED.amount');
+                    $st = $udb->prepare('INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:es,:or) ON CONFLICT (user_id,date,store) DO UPDATE SET amount=EXCLUDED.amount');
                     $st->bindValue(':d', (string)$row['date'], PDO::PARAM_STR);
                     $st->bindValue(':s', (string)$row['store'], PDO::PARAM_STR);
                     $st->bindValue(':a', (float)($row['amount'] ?? 0), PDO::PARAM_STR);
@@ -55,7 +55,7 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
                     $st->bindValue(':or', $row['ocr_raw_store'] ?? null, PDO::PARAM_NULL);
                     $st->execute();
                 } elseif ($table === 'incomes') {
-                    $st = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,:a) ON CONFLICT (date) DO UPDATE SET amount=EXCLUDED.amount');
+                    $st = $udb->prepare('INSERT INTO incomes (date,amount) VALUES (:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=EXCLUDED.amount');
                     $st->bindValue(':d', (string)$row['date'], PDO::PARAM_STR);
                     $st->bindValue(':a', (float)($row['amount'] ?? 0), PDO::PARAM_STR);
                     $st->execute();
@@ -63,12 +63,13 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
             }
         }
         $sqlite->close();
+        @rename($path, $path . '.migrated');
     } catch (Throwable $e) {
         error_log('spends sqlite migrate ' . $email . ': ' . $e->getMessage());
     }
 }
 function dbSetSetting($udb, $key, $value) {
-    $st = $udb->prepare('INSERT INTO settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value');
+    $st = $udb->prepare('INSERT INTO settings (key, value) VALUES (:k,:v) ON CONFLICT (user_id,key) DO UPDATE SET value=EXCLUDED.value');
     $st->bindValue(':k', $key);
     $st->bindValue(':v', (string)$value);
     $st->execute();
@@ -80,7 +81,7 @@ function dbGetSetting($udb, $key, $default = null) {
     return $r ? $r['value'] : $default;
 }
 function dbSetTableSetting($udb, $key, $value) {
-    $st = $udb->prepare('INSERT INTO table_settings (key, value) VALUES (:k,:v) ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value');
+    $st = $udb->prepare('INSERT INTO table_settings (key, value) VALUES (:k,:v) ON CONFLICT (user_id,key) DO UPDATE SET value=EXCLUDED.value');
     $st->bindValue(':k', $key);
     $st->bindValue(':v', (string)$value);
     $st->execute();

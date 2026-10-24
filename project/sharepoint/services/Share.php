@@ -81,6 +81,9 @@ final class Share
 
     public function hasPermission(string $permission): bool
     {
+        if ($permission === 'download' && in_array($this->resource_type, ['file', 'folder'], true) && in_array('view', $this->permissions, true)) {
+            return true;
+        }
         return in_array($permission, $this->permissions, true);
     }
 

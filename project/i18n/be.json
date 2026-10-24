@@ -426,6 +426,7 @@
   "images_total": "Вобразаў",
   "invalidApiKeyFormat": "Няправільны фармат API-ключа",
   "invalid_credentials": "Няправільны email або пароль",
+  "invalid_response": "Няправільны адказ сервера",
   "invalid_reset_code": "Няправільны код скідання",
   "invalid_verification_code": "Няправільны код пацверджання",
   "ios": "iOS",
@@ -627,7 +628,7 @@
   "share_expiration_never": "Ніколі",
   "share_id": "ID агульнага доступу",
   "shared_files_management": "Кіраванне агульнымі файламі",
-  "shell_application": "Абалонка (Shell Application)",
+  "shell_application": "ServerKherson",
   "show_hide_password": "Паказаць/схаваць пароль",
   "show_password": "Паказаць пароль",
   "smtp_host": "SMTP Хост",
@@ -798,6 +799,11 @@
   "verified_users": "Пацверджаныя",
   "verify_email": "Пацвердзіць email",
   "verify_password": "Праверыць",
+  "version_build_date": "Зборка вобразу",
+  "version_branch": "Галіна",
+  "version_commit": "Каміт",
+  "version_label": "Версія",
+  "version_updated": "Код абноўлены",
   "view_documentation": "Прагледзець дакументацыю",
   "view_privacy": "Прагляд палітыкі",
   "view_terms": "Прагляд умоў",
@@ -1098,5 +1104,7 @@
   "backup_view_log": "Паказаць журнал",
   "backup_warning": "Папярэджанне",
   "backup_weekday": "Дзень тыдня",
-  "backup_wizard": "Майстар рэзервнага капіявання"
+  "backup_wizard": "Майстар рэзервнага капіявання",
+  "opening_app": "Адкрыццё…",
+  "opening_app_named": "Адкрыццё «{name}»…"
 }

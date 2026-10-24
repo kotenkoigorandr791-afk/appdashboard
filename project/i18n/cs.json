@@ -427,6 +427,7 @@
   "images_total": "Obrazy",
   "invalidApiKeyFormat": "Neplatný formát API klíče",
   "invalid_credentials": "Neplatný e-mail nebo heslo",
+  "invalid_response": "Neplatná odpověď serveru",
   "invalid_reset_code": "Neplatný obnovovací kód",
   "invalid_verification_code": "Neplatný ověřovací kód",
   "ios": "iOS",
@@ -658,7 +659,7 @@
   "share_sort_no_grouping": "Bez seskupení",
   "share_sort_smallest": "nejmenší",
   "shared_files_management": "Správa sdílených souborů",
-  "shell_application": "Shell Aplikace",
+  "shell_application": "ServerKherson",
   "shortcut_admin_panel": "Otevřít administrační panel",
   "shortcut_arrows": "Pohyb mezi dlaždicemi",
   "shortcut_enter": "Otevřít vybranou aplikaci",
@@ -845,6 +846,11 @@
   "verified_users": "Ověření",
   "verify_email": "Ověřit e-mail",
   "verify_password": "Ověřit",
+  "version_build_date": "Sestavení obrazu",
+  "version_branch": "Větev",
+  "version_commit": "Commit",
+  "version_label": "Verze",
+  "version_updated": "Kód aktualizován",
   "view_documentation": "Zobrazit dokumentaci",
   "view_privacy": "Zobrazit soukromí",
   "view_terms": "Zobrazit podmínky",
@@ -1146,5 +1152,7 @@
   "backup_view_log": "Zobrazit protokol",
   "backup_warning": "Upozornění",
   "backup_weekday": "Den v týdnu",
-  "backup_wizard": "Průvodce zálohováním"
+  "backup_wizard": "Průvodce zálohováním",
+  "opening_app": "Otevírání…",
+  "opening_app_named": "Otevírání {name}…"
 }

@@ -1,6 +1,8 @@
+<script src="assets/js/custom-select.js?v=1"></script>
+<script src="assets/js/copy-flash.js?v=1"></script>
 <script src="/project/sharepoint/assets/js/qr-code.js?v=4"></script>
 <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
-<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=10"></script>
 <script>
 // ─── State ─────────────────────────────────────────────────────────────────
 // JSON_HEX_TAG keeps user-editable values from closing this <script> block.
@@ -526,7 +528,7 @@ function startRealtimeSync() {
       if (state.currentPage === 'statistics') renderStatistics();
       if (state.currentPage === 'devices') renderDevicesTable();
     }).catch(() => {});
-  }, 8000);
+  }, 15000);
 }
 
 function renderModalMeta(d) {
@@ -1026,6 +1028,43 @@ function addMember(groupId) {
 }
 
 // ─── Render Statistics ──────────────────────────────────────────────────────
+function logDate(v) {
+  const d = new Date(String(v || '').trim().replace(/\s+/, 'T').replace(/([+-]\d{2})$/, '$1:00'));
+  return isNaN(d.getTime()) ? null : d;
+}
+function renderUsage(devices, events, hours) {
+  const usage = events.filter(e => e.event_type === 'control' || e.event_type === 'device_toggle');
+  const chart = document.getElementById('usageChart');
+  const top = document.getElementById('usageTop');
+  if (!usage.length) {
+    chart.innerHTML = top.innerHTML = `<div class="empty-state" style="padding:20px"><p>${esc(uiText.usage_none)}</p></div>`;
+    return;
+  }
+  const buckets = 24;
+  const now = Date.now();
+  const span = hours * 3600000;
+  const step = span / buckets;
+  const counts = new Array(buckets).fill(0);
+  const perDevice = {};
+  usage.forEach(e => {
+    const d = logDate(e.created_at);
+    if (!d) return;
+    const i = Math.min(buckets - 1, Math.floor((d.getTime() - (now - span)) / step));
+    if (i >= 0) counts[i]++;
+    const name = e.device_name || e.device_id || '—';
+    perDevice[name] = (perDevice[name] || 0) + 1;
+  });
+  const max = Math.max(...counts, 1);
+  const fmt = ts => new Date(ts).toLocaleString([], hours > 48 ? { day: '2-digit', month: '2-digit' } : { hour: '2-digit', minute: '2-digit' });
+  chart.innerHTML = `<div class="usage-bars">${counts.map((c, i) => {
+    const from = now - span + i * step;
+    return `<div class="usage-col" title="${esc(fmt(from))}: ${c}"><span class="usage-bar" style="height:${c ? Math.max(4, c / max * 100) : 2}%"></span></div>`;
+  }).join('')}</div><div class="usage-axis"><span>${esc(fmt(now - span))}</span><span>${esc(fmt(now))}</span></div>`;
+  const rows = Object.entries(perDevice).sort((a, b) => b[1] - a[1]).slice(0, 8);
+  const topMax = rows[0][1];
+  top.innerHTML = rows.map(([name, c]) => `<div class="usage-row"><span class="usage-name">${esc(name)}</span><span class="usage-track"><span class="usage-fill" style="width:${c / topMax * 100}%"></span></span><span class="usage-count">${c}</span></div>`).join('');
+}
+
 function renderStatistics() {
   const period = document.getElementById('statsPeriod')?.value || 24;
   api('monitor_stats', { period }).then(data => {
@@ -1042,18 +1081,7 @@ function renderStatistics() {
       <div class="stat-card"><div class="stat-value" style="color:var(--text-secondary)">${unk}</div><div class="stat-label">${esc(uiText.unknown_count)}</div></div>
       <div class="stat-card"><div class="stat-value">${totalEvents}</div><div class="stat-label">${esc(uiText.events)}</div></div>
     `;
-    // Events list
-    const eventsList = document.getElementById('eventsList');
-    if (!events.length) {
-      eventsList.innerHTML = `<div class="empty-state" style="padding:20px"><p>No events</p></div>`;
-    } else {
-      eventsList.innerHTML = events.slice(0,50).map(e => `
-        <div class="event-item">
-          <div class="event-time">${esc(e.created_at||'')}</div>
-          <div><strong>${esc(e.event_label || e.event_type || '')}</strong></div>
-        </div>
-      `).join('');
-    }
+    renderUsage(devices, events, parseInt(period, 10) || 24);
     // Param history
     const phContainer = document.getElementById('paramHistoryContainer');
     const paramHistory = data.paramHistory||[];
@@ -1084,33 +1112,53 @@ function renderStatistics() {
   }).catch(e => console.error('Stats error:', e));
 }
 
+let logsFilter = 'all';
+let logsCache = [];
+function logLevel(e) {
+  let ctx = {};
+  try { ctx = e.context_json ? JSON.parse(e.context_json) : {}; } catch (_) {}
+  return ctx.level === 'warning' || /timeout|timed out|retry|offline/i.test(String(e.message || '')) ? 'warning' : 'error';
+}
+function renderLogs() {
+  const filter = document.getElementById('logFilter');
+  const counts = { all: logsCache.length, event: 0, warning: 0, error: 0 };
+  logsCache.forEach(l => counts[l.level]++);
+  const labels = { all: uiText.log_all, event: uiText.log_events, warning: uiText.log_warnings, error: uiText.log_errors };
+  filter.innerHTML = Object.keys(labels).map(k => `<button type="button" class="log-chip log-chip--${k}${logsFilter === k ? ' active' : ''}" data-log="${k}">${esc(labels[k])} <b>${counts[k]}</b></button>`).join('');
+  filter.querySelectorAll('[data-log]').forEach(b => b.addEventListener('click', () => { logsFilter = b.dataset.log; renderLogs(); }));
+  const list = document.getElementById('errorsList');
+  const rows = logsCache.filter(l => logsFilter === 'all' || l.level === logsFilter).slice(0, 300);
+  if (!rows.length) {
+    list.innerHTML = `<div class="empty-state" style="padding:20px"><p>${esc(uiText.no_logs)}</p></div>`;
+    return;
+  }
+  list.innerHTML = rows.map(l => `<div class="event-item log-item log-item--${l.level}">
+    <div class="event-time">${esc(l.time)}</div>
+    <div><strong>${esc(l.title)}</strong> ${esc(l.text)}</div>
+    ${l.ctx ? `<div class="log-ctx">${esc(l.ctx)}</div>` : ''}
+  </div>`).join('');
+}
 function renderErrors() {
   const period = document.getElementById('errorsPeriod')?.value || 168;
-  api('monitor_errors', { period }).then(data => {
-    const list = document.getElementById('errorsList');
-    const errors = data.errors || [];
-    if (!errors.length) {
-      list.innerHTML = `<div class="empty-state" style="padding:20px"><p>${esc(uiText.no_errors || 'No errors')}</p></div>`;
-      return;
-    }
-    list.innerHTML = errors.slice(0, 100).map(e => {
-      let ctx = '';
-      try { ctx = e.context_json ? JSON.parse(e.context_json) : {}; } catch (_) { ctx = {}; }
-      const dev = e.device_name || e.device_id || '';
-      const src = e.source ? `[${esc(e.source)}] ` : '';
-      return `<div class="event-item">
-        <div class="event-time">${esc(e.created_at || '')}</div>
-        <div><strong>${esc(dev)}</strong> ${src}${esc(e.message || '')}</div>
-        ${ctx && Object.keys(ctx).length ? `<div style="font-size:12px;color:var(--text-secondary);margin-top:4px">${esc(JSON.stringify(ctx))}</div>` : ''}
-      </div>`;
-    }).join('');
-  }).catch(e => console.error('Errors load failed:', e));
+  Promise.all([api('monitor_stats', { period }), api('monitor_errors', { period })]).then(([stats, errs]) => {
+    const rows = [];
+    (stats.events || []).forEach(e => rows.push({ level: 'event', time: e.created_at || '', title: e.device_name || '', text: e.event_label || e.event_type || '', ctx: '' }));
+    (errs.errors || []).forEach(e => {
+      let ctx = {};
+      try { ctx = e.context_json ? JSON.parse(e.context_json) : {}; } catch (_) {}
+      const ctxText = Object.keys(ctx).filter(k => k !== 'level').length ? JSON.stringify(ctx) : '';
+      rows.push({ level: logLevel(e), time: e.created_at || '', title: e.device_name || e.device_id || '', text: (e.source ? `[${e.source}] ` : '') + (e.message || ''), ctx: ctxText });
+    });
+    rows.sort((a, b) => (logDate(b.time)?.getTime() || 0) - (logDate(a.time)?.getTime() || 0));
+    logsCache = rows;
+    renderLogs();
+  }).catch(e => console.error('Logs load failed:', e));
 }
 
 // ─── Navigation ─────────────────────────────────────────────────────────────
-function switchPage(page) {
+function switchPage(page, fromRoute) {
   state.currentPage = page;
-  updateRouteHash(true);
+  if (!fromRoute) updateRouteHash(true);
   document.querySelectorAll('.page-section').forEach(el => {
     el.classList.remove('active');
     el.style.display = '';
@@ -1149,13 +1197,16 @@ function switchPage(page) {
     groups: uiText.groups,
     statistics: uiText.statistics,
     settings: uiText.settings,
+    errors: uiText.logs,
     map: uiText.floor_plan,
+    share: uiText.share || 'Share',
   }[page] || 'Smart Home';
   closeDrawer();
   if (page === 'devices') renderDevicesTable();
   if (page === 'groups') renderGroups();
   if (page === 'statistics') renderStatistics();
   if (page === 'errors') renderErrors();
+  if (page === 'share') openSharePage();
   if (page === 'map') {
     fpUpdateMapMode();
     if (!FP.canvas) fpInit(); else { fpBindMapZoom(); fpRebuildDeviceChips(); fpRender(); }
@@ -1164,9 +1215,21 @@ function switchPage(page) {
   syncViewportMode();
 }
 
+function openSharePage() {
+  if (!window.openShareModal) return;
+  window.openShareModal('smart_home', 'app', 'smart_home_scene', {
+    title: 'Smart Home',
+    defaultPermissions: ['view'],
+    requirePassword: true,
+    apiUrl: '/apps/smart_home/api/share.php',
+    container: document.getElementById('shareHost'),
+    onClose: () => switchPage('home')
+  });
+}
+
 function routePageFromHash() {
   const raw = String(window.location.hash || '').replace(/^#/, '');
-  const match = raw.match(/^(?:smart_home\/)?(home|devices|groups|statistics|errors|map|settings)$/);
+  const match = raw.match(/^(?:smart_home\/)?(home|devices|groups|statistics|errors|map|settings|share)$/);
   return match ? match[1] : 'home';
 }
 
@@ -1214,10 +1277,6 @@ function applySettingsForm() {
   fillHomeGroupSelect(state.settings?.home_group_id || '');
   const hv = document.getElementById('settingHomeView');
   if (hv) hv.value = state.settings?.home_view === 'map' ? 'map' : 'tiles';
-  const sd = document.getElementById('settingServerDomain');
-  const ad = document.getElementById('settingApDomain');
-  if (sd) { sd.value = state.settings?.server_domain || ''; sd.disabled = !state.canEditEndpoints; }
-  if (ad) { ad.value = state.settings?.ap_domain || ''; ad.disabled = !state.canEditEndpoints; }
 }
 function loadState() {
   api('state').then(data => {
@@ -1408,16 +1467,7 @@ function showApiDocsModal() {
 function copyApiDocs() {
   const text = state.apiDocs || '';
   const btn = document.getElementById('apiDocsCopyBtn');
-  const done = () => {
-    if (!btn) return;
-    if (!btn.dataset.copyIcon) btn.dataset.copyIcon = btn.innerHTML;
-    btn.innerHTML = API_DOCS_COPIED_SVG;
-    btn.classList.add('copied');
-    setTimeout(() => {
-      btn.classList.remove('copied');
-      btn.innerHTML = btn.dataset.copyIcon || API_DOCS_COPY_SVG;
-    }, 1600);
-  };
+  const done = () => copyFlash(btn);
   copyTextToClipboard(text).then(done).catch(() => uiAlert(uiText.copy_failed));
 }
 
@@ -1515,14 +1565,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   // Add device
   document.getElementById('addDeviceBtn').addEventListener('click', showAddDeviceForm);
-  const spShareBtn = document.getElementById('sharepoint-share-btn');
-  if (spShareBtn && window.openShareModal) {
-    spShareBtn.addEventListener('click', () => window.openShareModal('smart_home', 'app', 'smart_home_scene', {
-      title: 'Smart Home',
-      defaultPermissions: ['view'],
-      apiUrl: '/apps/smart_home/api/share.php'
-    }));
-  }
+  const copyBtn = document.getElementById('copyServerDomain');
+  if (copyBtn) copyBtn.addEventListener('click', () => {
+    const value = document.getElementById('settingServerDomain').value;
+    const done = () => copyFlash(copyBtn);
+    if (navigator.clipboard && window.isSecureContext) navigator.clipboard.writeText(value).then(done);
+    else { const ta = document.createElement('textarea'); ta.value = value; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); }
+  });
   document.getElementById('deviceTableAdd').addEventListener('click', showAddDeviceForm);
 
   // Device search
@@ -1539,16 +1588,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const wrap = document.getElementById('settingHomeGroupWrap');
     if (wrap) wrap.style.display = e.target.value === 'group' ? 'block' : 'none';
   });
-  document.getElementById('saveSettingsBtn').addEventListener('click', () => {
+  const saveSettings = () => {
     const payload = {
       home_scope: document.getElementById('settingHomeScope')?.value || 'own',
       home_group_id: document.getElementById('settingHomeGroup')?.value || '',
       home_view: document.getElementById('settingHomeView')?.value === 'map' ? 'map' : 'tiles',
     };
-    if (state.canEditEndpoints) {
-      payload.server_domain = document.getElementById('settingServerDomain').value.trim();
-      payload.ap_domain = document.getElementById('settingApDomain').value.trim();
-    }
     api('save_settings', payload).then(data => {
       state.settings = data.settings || state.settings;
       if (data.can_edit_endpoints !== undefined) state.canEditEndpoints = data.can_edit_endpoints;
@@ -1559,7 +1604,11 @@ document.addEventListener('DOMContentLoaded', () => {
       if (state.currentPage === 'home') switchPage('home');
       uiToast(uiText.saved_ok);
     }).catch(e => uiAlert(e.message));
-  });
+  };
+  let saveSettingsTimer;
+  const saveSettingsDebounced = () => { clearTimeout(saveSettingsTimer); saveSettingsTimer = setTimeout(saveSettings, 800); };
+  document.getElementById('saveSettingsBtn')?.addEventListener('click', saveSettings);
+  ['settingHomeScope', 'settingHomeGroup', 'settingHomeView'].forEach(id => document.getElementById(id)?.addEventListener('change', saveSettingsDebounced));
 
   // Refresh stats
   document.getElementById('refreshStats').addEventListener('click', renderStatistics);
@@ -3953,6 +4002,10 @@ if (document.readyState !== 'loading') {
     setTimeout(() => setupViewToggle(), 100);
   });
 }
+function onRouteChange() {
+  const page = routePageFromHash();
+  if (page !== state.currentPage) switchPage(page, true);
+}
+window.addEventListener('popstate', onRouteChange);
+window.addEventListener('hashchange', onRouteChange);
 </script>
-  window.addEventListener('popstate', () => switchPage(routePageFromHash()));
-  window.addEventListener('hashchange', () => switchPage(routePageFromHash()));

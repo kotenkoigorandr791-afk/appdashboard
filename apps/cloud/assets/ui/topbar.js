@@ -21,6 +21,36 @@ function initTopbarUI(i18n) {
     settingsModal?.classList.add('hidden');
   }
   window.closeSettingsMenu = closeSettingsMenu;
+  (function initSettingsModalReturn() {
+    if (!settingsModal || window.__settingsModalReturnInit) return;
+    window.__settingsModalReturnInit = true;
+    let pendingUntil = 0;
+    let returnModal = null;
+    let shownBefore = new Set();
+    const isShown = (modal) => modal.isConnected && !modal.classList.contains('hidden') && getComputedStyle(modal).display !== 'none';
+    const listShown = () => Array.from(document.querySelectorAll('.modal')).filter((modal) => modal !== settingsModal && !settingsModal.contains(modal) && isShown(modal));
+    document.addEventListener('click', (event) => {
+      const button = event.target.closest('#settings-menu button');
+      if (button && button.id !== 'btn-close-settings-menu') pendingUntil = Date.now() + 4000;
+    }, true);
+    new MutationObserver(() => {
+      const shown = listShown();
+      if (returnModal) {
+        if (!isShown(returnModal)) {
+          returnModal = null;
+          if (!shown.length) settingsModal.classList.remove('hidden');
+        }
+      } else if (pendingUntil > Date.now()) {
+        const opened = shown.find((modal) => !shownBefore.has(modal));
+        if (opened) {
+          returnModal = opened;
+          pendingUntil = 0;
+          closeSettingsMenu();
+        }
+      }
+      shownBefore = new Set(shown);
+    }).observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'style'] });
+  })();
   const hideLangSwitcherToggle = document.getElementById('hide-lang-switcher-toggle');
   const topbarSearchHost = document.getElementById('topbar-search-host');
   const topbarActions = document.getElementById('topbar-actions');

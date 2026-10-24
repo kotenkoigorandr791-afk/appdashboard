@@ -6,6 +6,12 @@ OUT_DIR="$ROOT/downloads"
 APK="$OUT_DIR/stepmonitor.apk"
 HASH_FILE="$OUT_DIR/stepmonitor-build.sha256"
 META_FILE="$OUT_DIR/stepmonitor.json"
+
+cleanup_build_artifacts() {
+  rm -rf "$APP_DIR/app/build" "$APP_DIR/build" "$APP_DIR/.gradle"
+}
+trap cleanup_build_artifacts EXIT
+
 mkdir -p "$OUT_DIR"
 
 # Release signing credentials. The keystore itself lives at

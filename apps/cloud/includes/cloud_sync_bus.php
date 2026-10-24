@@ -1,6 +1,9 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/cloud_sync_protocol.php';
+
+const CLOUD_SYNC_BUS_MAX_BYTES = 1048576;
+
 function cloud_sync_bus_dir(): string {
     $dir = dirname(__DIR__) . '/storage/.sync_bus';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
@@ -8,6 +11,30 @@ function cloud_sync_bus_dir(): string {
 }
 function cloud_sync_bus_channel(string $email): string {
     return cloud_sync_bus_dir() . '/' . hash('sha256', strtolower(trim($email))) . '.events';
+}
+function cloud_sync_bus_rotate_if_needed(string $file): void {
+    if (!is_file($file)) return;
+    $size = (int)@filesize($file);
+    if ($size <= CLOUD_SYNC_BUS_MAX_BYTES) return;
+    $fh = @fopen($file, 'cb+');
+    if (!$fh) return;
+    flock($fh, LOCK_EX);
+    $size = (int)@filesize($file);
+    if ($size > CLOUD_SYNC_BUS_MAX_BYTES) {
+        $keep = (int)(CLOUD_SYNC_BUS_MAX_BYTES * 0.5);
+        fseek($fh, max(0, $size - $keep));
+        $tail = stream_get_contents($fh);
+        if (is_string($tail) && $tail !== '') {
+            $nl = strpos($tail, "\n");
+            if ($nl !== false) $tail = substr($tail, $nl + 1);
+            ftruncate($fh, 0);
+            rewind($fh);
+            fwrite($fh, $tail);
+            fflush($fh);
+        }
+    }
+    flock($fh, LOCK_UN);
+    fclose($fh);
 }
 function cloud_sync_bus_publish(string $email, string $rootKey, string $kind, string $path, array $extra = []): void {
     if ($email === '') return;
@@ -19,7 +46,9 @@ function cloud_sync_bus_publish(string $email, string $rootKey, string $kind, st
         'path' => $path,
     ], $extra);
     $line = cloud_sync_encode($event) . "\n";
-    @file_put_contents(cloud_sync_bus_channel($email), $line, FILE_APPEND | LOCK_EX);
+    $file = cloud_sync_bus_channel($email);
+    cloud_sync_bus_rotate_if_needed($file);
+    @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
     $notifyHost = getenv('CLOUD_SYNC_NOTIFY_HOST') ?: '127.0.0.1';
     $notifyPort = (int)(getenv('CLOUD_SYNC_NOTIFY_PORT') ?: 8771);
     $sock = @stream_socket_client("udp://{$notifyHost}:{$notifyPort}", $errno, $errstr, 0.2);

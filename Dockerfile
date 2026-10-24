@@ -32,6 +32,10 @@ RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --opt
 
 # --- Runtime: no compiler toolchain; TinyTeX lives on volume (ensure-tinytex.sh)
 FROM php:8.5.12-fpm-bookworm
+ARG APP_VERSION=dev
+ARG APP_GIT_COMMIT=
+ARG APP_BUILD_DATE=
+ENV APP_VERSION=${APP_VERSION} APP_GIT_COMMIT=${APP_GIT_COMMIT} APP_BUILD_DATE=${APP_BUILD_DATE}
 ENV DEBIAN_FRONTEND=noninteractive
 ENV HYPERFRAMES_TELEMETRY_DISABLED=1
 ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
@@ -84,6 +88,7 @@ RUN mkdir -p /etc/nginx/modsecurity /var/log/modsecurity \
     && chmod 0775 /var/log/modsecurity
 
 COPY nginx/appdashboard.conf /etc/nginx/sites-available/appdashboard.conf
+COPY nginx/appdashboard.conf.template /etc/nginx/templates/appdashboard.conf.template
 COPY deploy/waf/appdashboard-modsecurity.conf /etc/nginx/modsecurity/appdashboard.conf
 COPY deploy/waf/appdashboard-crs-exclusions.conf /etc/nginx/modsecurity/appdashboard-crs-exclusions.conf
 COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf

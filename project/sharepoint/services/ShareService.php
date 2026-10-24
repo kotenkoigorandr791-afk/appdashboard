@@ -122,6 +122,7 @@ final class ShareService
         $share->owner_email = $ownerEmail;
         $share->access_mode = $accessMode;
         $share->permissions = $permissions;
+        $share->resource_data['allowed_emails'] = $this->parseEmails($input['allowed_emails'] ?? []);
         $share->password_hash = $passwordHash;
         $share->expires_at = $expiresAt;
         $share->expires_option = $expiresOption;
@@ -131,6 +132,35 @@ final class ShareService
         $share->is_active = true;
 
         return $this->repo->create($share);
+    }
+
+    private function parseEmails($value): array
+    {
+        $list = is_array($value) ? $value : preg_split('/[\s,;]+/', (string)$value);
+        return array_values(array_unique(array_filter(array_map(static fn($e) => strtolower(trim((string)$e)), $list), static fn($e) => $e !== '' && str_contains($e, '@'))));
+    }
+
+    public function applyUpdate(Share $share, array $input): void
+    {
+        $permissions = array_values(array_unique(array_intersect(array_map('strval', (array)($input['permissions'] ?? [])), ShareAccessPolicy::PERMISSIONS)));
+        if (!in_array('view', $permissions, true)) {
+            array_unshift($permissions, 'view');
+        }
+        $accessMode = strtolower((string)($input['access_mode'] ?? 'public'));
+        $title = trim((string)($input['title'] ?? ''));
+        [$option, $expiresAt] = ShareTokenService::resolveExpiration((string)($input['expires_option'] ?? '1m'));
+        $share->permissions = $permissions;
+        $share->access_mode = in_array($accessMode, ShareAccessPolicy::ACCESS_MODES, true) ? $accessMode : 'public';
+        $share->title = $title !== '' ? $title : $share->title;
+        $share->expires_option = $option;
+        $share->expires_at = $expiresAt;
+        $share->max_views = max(0, (int)($input['max_views'] ?? 0));
+        $share->resource_data['allowed_emails'] = $this->parseEmails($input['allowed_emails'] ?? []);
+        $this->repo->update($share);
+        $password = trim((string)($input['password'] ?? ''));
+        if ($password !== '') {
+            $this->repo->setPassword($share->id, password_hash($password, PASSWORD_DEFAULT));
+        }
     }
 
     public function publicLink(Share $share): string
@@ -154,6 +184,10 @@ final class ShareService
             'expires_option' => $share->expires_option,
             'data_mode' => $share->dataMode(),
             'created_at' => $share->created_at,
+            'max_views' => $share->max_views,
+            'resource_id' => $share->resource_id,
+            'allowed_emails' => $share->resource_data['allowed_emails'] ?? [],
+            'password_protected' => $share->isPasswordProtected(),
         ];
     }
 }

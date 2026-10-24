@@ -2,6 +2,9 @@
 // index.php
 // Entry UI: reads theme/lang/color from URL and serves the app shell.
 declare(strict_types=1);
+if (!defined('APP_ROOT')) define('APP_ROOT', dirname(__DIR__, 2));
+require_once APP_ROOT . '/lib/sentry_bootstrap.php';
+app_sentry_bootstrap('cloud');
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 
 function get_param(string $key, string $default=''): string {
@@ -70,7 +73,7 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=53" />
+  <link rel="stylesheet" href="assets/styles.css?v=58" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -98,8 +101,9 @@ cloud_require_session_auth();
 .root-toolbar-footer{display:flex;flex-direction:column;align-items:center;gap:10px;width:100%}
 .root-toolbar-separator{width:100%;padding:2px 0 0;margin-top:2px}
 .root-toolbar-top-separator::before,.root-toolbar-separator::before{content:"";display:block;height:1px;margin:0 7px;background:color-mix(in srgb,var(--border) 72%,transparent);width:calc(100% - 14px)}
-.sync-log-modal-content{max-width:980px;width:92vw}
-.sync-log-table-wrap{max-height:60vh;overflow:auto;border:1px solid var(--border);border-radius:10px}
+.sync-log-modal-content{max-width:980px;width:92vw;height:90vh;height:90dvh;max-height:90vh;max-height:90dvh}
+.sync-log-modal-content .modal-body{overflow:hidden;display:flex;flex-direction:column}
+.sync-log-table-wrap{flex:1 1 auto;min-height:0;overflow:auto;border:1px solid var(--border);border-radius:10px}
 .sync-log-table{width:100%;border-collapse:collapse;font-size:13px}
 .sync-log-table th,.sync-log-table td{padding:10px 12px;border-bottom:1px solid var(--border);text-align:left}
 .sync-log-level-info{color:#38bdf8;font-weight:600}
@@ -226,18 +230,18 @@ cloud_require_session_auth();
 <script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=48"></script>
-<script defer src="assets/app/editors-and-tree.js?v=15"></script>
+<script defer src="assets/app.js?v=55"></script>
+<script defer src="assets/app/editors-and-tree.js?v=17"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
 <script defer src="assets/app/file-viewers.js?v=4"></script>
-<script defer src="assets/app/file-actions.js?v=13"></script>
+<script defer src="assets/app/file-actions.js?v=14"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=9"></script>
 <script defer src="assets/audio-player.js?v=4"></script>
 <script defer src="assets/app/cloud-group-chat.js?v=11"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
-<script defer src="assets/ui/topbar.js?v=3"></script>
+<script defer src="assets/ui/topbar.js?v=4"></script>
 <script defer src="assets/settings/sync-modals.js?v=9"></script>
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=4"></script>
@@ -245,8 +249,8 @@ cloud_require_session_auth();
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
 <script defer src="assets/ai-assistant.js?v=43"></script>
-<script defer src="assets/monaco-shared.js?v=3"></script>
-<script defer src="assets/monaco-editor.js?v=21"></script>
+<script defer src="assets/monaco-shared.js?v=5"></script>
+<script defer src="assets/monaco-editor.js?v=24"></script>
 
 
 </head>

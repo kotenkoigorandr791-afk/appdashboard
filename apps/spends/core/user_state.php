@@ -1,12 +1,7 @@
 <?php
 // ─── Current user setup ────────────────────────────────────────────────────────
-$currentUserEmail = getCurrentUserFromActiveSessions();
-if (!$currentUserEmail || $currentUserEmail === 'default_user') {
-    $currentUserEmail  = 'default_user';
-    $currentUserFolder = 'default_user';
-} else {
-    $currentUserFolder = getSafeFolderName($currentUserEmail);
-}
+$currentUserEmail = spendsRequireUser();
+$currentUserFolder = getSafeFolderName($currentUserEmail);
 $currentUser = $currentUserEmail;
 
 $userDir = APPS_DATA_DIR . $currentUserFolder;
@@ -122,14 +117,12 @@ function exportExpensesToCSV($udb, $stores) {
     $lines[] = implode(',', array_map(fn($s) => '"'.$s.'"', array_merge(['Date'], $storeNames)));
     $mm = $udb->query("SELECT MIN(date) AS lo, MAX(date) AS hi FROM expenses")->fetch(PDO::FETCH_ASSOC);
     if (empty($mm['lo'])) return implode("\n", $lines);
+    $amounts = [];
+    $res = $udb->query('SELECT date, store, amount FROM expenses');
+    while ($r = $res->fetch(PDO::FETCH_ASSOC)) $amounts[$r['date']][$r['store']] = (float)$r['amount'];
     foreach (listCalendarDaysInclusive($mm['lo'], $mm['hi']) as $d) {
         $cells = [$d];
-        foreach ($storeNames as $sn) {
-            $st = $udb->prepare('SELECT amount FROM expenses WHERE date=:d AND store=:s');
-            $st->bindValue(':d', $d); $st->bindValue(':s', $sn);
-            $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
-            $cells[] = $r ? number_format((float)$r['amount'], 2, '.', '') : '0.00';
-        }
+        foreach ($storeNames as $sn) $cells[] = number_format($amounts[$d][$sn] ?? 0, 2, '.', '');
         $lines[] = implode(',', $cells);
     }
     return implode("\n", $lines);

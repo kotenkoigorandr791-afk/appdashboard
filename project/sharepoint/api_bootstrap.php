@@ -1,4 +1,7 @@
 <?php
+if (!defined('APP_ROOT')) {
+    define('APP_ROOT', dirname(__DIR__, 2));
+}
 require_once __DIR__ . '/bootstrap.php';
 
 if (!function_exists('sharepoint_api_owner')) {
@@ -16,6 +19,10 @@ if (!function_exists('sharepoint_api_owner')) {
 if (!function_exists('sharepoint_api_handle')) {
     function sharepoint_api_handle(string $appId): void
     {
+        if (defined('APP_ROOT')) {
+            require_once APP_ROOT . '/lib/sentry_bootstrap.php';
+            app_sentry_bootstrap($appId . '-share');
+        }
         if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
             sp_json_response(['success' => false, 'error' => 'method_not_allowed'], 405);
         }
@@ -28,6 +35,9 @@ if (!function_exists('sharepoint_api_handle')) {
             $input['resource_app'] = $input['resource_app'] ?? $appId;
             if (strtolower((string)$input['resource_app']) !== $appId && $appId !== 'cloud') {
                 sp_json_response(['success' => false, 'error' => 'app mismatch'], 400);
+            }
+            if ($appId === 'smart_home' && trim((string)($input['password'] ?? '')) === '') {
+                sp_json_response(['success' => false, 'error' => 'password_required'], 400);
             }
             try {
                 $service = new ShareService($repo);
@@ -45,6 +55,35 @@ if (!function_exists('sharepoint_api_handle')) {
             $shares = $repo->findByOwner($owner, $input);
             $service = new ShareService($repo);
             sp_json_response(['success' => true, 'shares' => array_map([$service, 'describe'], $shares)]);
+        }
+
+        if ($action === 'update') {
+            $share = $repo->findById((int)($input['id'] ?? 0));
+            if (!$share) {
+                sp_json_response(['success' => false, 'error' => 'not_found'], 404);
+            }
+            if ($share->owner_email !== $owner && !sp_is_admin()) {
+                sp_json_response(['success' => false, 'error' => 'forbidden'], 403);
+            }
+            $service = new ShareService($repo);
+            $service->applyUpdate($share, $input);
+            sp_json_response(['success' => true, 'share' => $service->describe($repo->findById($share->id))]);
+        }
+
+        if ($action === 'password') {
+            $share = $repo->findById((int)($input['id'] ?? 0));
+            if (!$share) {
+                sp_json_response(['success' => false, 'error' => 'not_found'], 404);
+            }
+            if ($share->owner_email !== $owner && !sp_is_admin()) {
+                sp_json_response(['success' => false, 'error' => 'forbidden'], 403);
+            }
+            $password = trim((string)($input['password'] ?? ''));
+            if ($password === '') {
+                sp_json_response(['success' => false, 'error' => 'password_required'], 400);
+            }
+            $repo->setPassword($share->id, password_hash($password, PASSWORD_DEFAULT));
+            sp_json_response(['success' => true]);
         }
 
         if ($action === 'revoke' || $action === 'delete') {

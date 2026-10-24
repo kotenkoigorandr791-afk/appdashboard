@@ -1,14 +1,15 @@
 <?php
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 header('Content-Type: application/json; charset=utf-8');
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST, GET, OPTIONS');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
-
+require_once __DIR__ . '/includes/cloud_endpoint_auth.php';
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+    http_response_code(204);
     exit();
 }
+$translateEmail = cloud_endpoint_require_email();
+cloud_endpoint_rate_limit($translateEmail, 'utility');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input = json_decode(file_get_contents('php://input'), true);
@@ -22,10 +23,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $text = trim($input['text']);
     $sourceLang = $input['source_lang'];
     $targetLangs = $input['target_langs'] ?? ['en', 'ru', 'be'];
-    
+    if (!is_array($targetLangs)) $targetLangs = ['en'];
+    $targetLangs = array_slice(array_values($targetLangs), 0, 5);
     if (empty($text)) {
         http_response_code(400);
         echo json_encode(['error' => 'Text cannot be empty']);
+        exit();
+    }
+    if (mb_strlen($text) > 5000) {
+        http_response_code(400);
+        echo json_encode(['error' => 'Text too long']);
         exit();
     }
     

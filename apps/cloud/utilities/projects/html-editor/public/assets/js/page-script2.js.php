@@ -84,13 +84,11 @@
             if (!filePath || !editor) { showStatus('No file selected', true); return; }
             const content = editor.getValue();
             if (window.originalContent === content) {
-                showStatus((translations[lang] || translations.en).noChanges, false);
                 if (window.parent) window.parent.postMessage({ type: 'htmlEditorSaved', relativePath: filePath, success: true, message: 'No changes to save' }, '*');
-                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
+                if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
                 return;
             }
             try {
-                showStatus((translations[lang] || translations.en).saving, false);
                 const response = await fetch('<?= htmlspecialchars($apiUrl) ?>', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -106,7 +104,7 @@
                     window.parent.postMessage({ type: 'HTML_SAVED', path: filePath, timestamp: Date.now() }, '*');
                     window.parent.postMessage({ type: 'htmlEditorSaved', relativePath: filePath, success: true, message: 'File saved successfully' }, '*');
                 }
-                if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
+                if (window.parent) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
             } catch (error) {
                 showStatus(((translations[lang] || translations.en).saveError) + ': ' + error.message, true);
                 if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: error.message }, '*');

@@ -72,6 +72,18 @@ function smart_log_ensure_schema(AppDatabase $db): void {
         last_sent INTEGER NOT NULL
     )");
 }
+function smart_log_purge_old(AppDatabase $db, int $now): void {
+    $marker = sys_get_temp_dir() . '/smart_log_purge.marker';
+    if (is_file($marker) && $now - (int)@filemtime($marker) < 3600) return;
+    @touch($marker);
+    $days = max(1, (int)(getenv('SMART_LOG_RETENTION_DAYS') ?: 90));
+    $st = $db->prepare('DELETE FROM smart_app_logs WHERE last_seen < :t');
+    $st->bindValue(':t', $now - $days * 86400, PDO::PARAM_INT);
+    $st->execute();
+    $tg = $db->prepare('DELETE FROM smart_log_tg_sent WHERE last_sent < :t');
+    $tg->bindValue(':t', $now - $days * 86400, PDO::PARAM_INT);
+    $tg->execute();
+}
 function smart_log_conn(): AppDatabase {
     static $db = null;
     if ($db instanceof AppDatabase) {
@@ -165,6 +177,7 @@ function smart_log_write(string $appId, string $level, string $message, string $
         $stmt->bindValue(':msg', substr($message, 0, 8000), PDO::PARAM_STR);
         $stmt->bindValue(':ts', $now, PDO::PARAM_INT);
         $stmt->execute();
+        smart_log_purge_old($db, $now);
         smart_log_notify_telegram($db, $sig, $appId, $level, $message, $sourceFile, $sourceLine, $now);
     } catch (Throwable $e) {
         cloud_safe_error_log('smart_log_write: ' . $e->getMessage());

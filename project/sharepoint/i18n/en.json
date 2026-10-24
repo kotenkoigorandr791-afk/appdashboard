@@ -184,5 +184,21 @@
   "previous_page": "Previous page",
   "next_page": "Next page",
   "fit_width": "Fit width",
-  "pdf_tools": "PDF tools"
+  "pdf_tools": "PDF tools",
+  "error_password_required": "Password is required",
+  "existingTitle": "Link already exists",
+  "existingSub": "This link is protected by a password. You can change it below.",
+  "newPassword": "New password",
+  "changePassword": "Change password",
+  "passwordUpdated": "Password updated",
+  "activeParams": "Active link settings",
+  "views": "Views limit",
+  "passwordSet": "Password protected",
+  "required": "required",
+  "save": "Save",
+  "login_required": "Sign in to open this link",
+  "user_not_allowed": "Your account is not allowed to open this link",
+  "allowedEmails": "Allowed emails",
+  "restrictedHint": "Only signed-in users can open the link. Leave empty to allow any signed-in user.",
+  "keepCurrent": "leave empty to keep current"
 }

@@ -1,5 +1,9 @@
 <?php
+require_once __DIR__ . '/schema_once.php';
 function public_api_ensure_token_schema(AppDatabase $db): void {
+    app_schema_once('pa_token', __FILE__, fn() => public_api_ensure_token_schema_impl($db));
+}
+function public_api_ensure_token_schema_impl(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_tokens (
         token_hash TEXT PRIMARY KEY,
         email TEXT NOT NULL,
@@ -101,6 +105,9 @@ function public_api_revoke_all_for_email(AppDatabase $db, string $email): void {
 }
 
 function public_api_ensure_browser_auth_schema(AppDatabase $db): void {
+    app_schema_once('pa_browser', __FILE__, fn() => public_api_ensure_browser_auth_schema_impl($db));
+}
+function public_api_ensure_browser_auth_schema_impl(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS client_auth_browser_requests (
         request_id TEXT PRIMARY KEY,
         poll_token_hash TEXT NOT NULL,
@@ -161,6 +168,9 @@ function public_api_get_browser_auth_request(AppDatabase $db, string $requestId)
 }
 
 function public_api_ensure_oauth_schema(AppDatabase $db): void {
+    app_schema_once('pa_oauth', __FILE__, fn() => public_api_ensure_oauth_schema_impl($db));
+}
+function public_api_ensure_oauth_schema_impl(AppDatabase $db): void {
     $db->exec("CREATE TABLE IF NOT EXISTS oauth_clients (
         client_id TEXT PRIMARY KEY,
         client_secret_hash TEXT NOT NULL,
