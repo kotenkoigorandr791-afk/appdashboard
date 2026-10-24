@@ -6,3 +6,6 @@ playwright-report/
 !.gitignore
 
 tmp/
+load/results/
+test-results/
+

@@ -8,7 +8,12 @@
     "test:headed": "playwright test -c config/playwright.config.ts --headed",
     "test:ui": "playwright test -c config/playwright.config.ts --ui",
     "test:report": "playwright show-report test-results/html-report",
-    "install:browsers": "playwright install chromium firefox webkit"
+    "install:browsers": "playwright install chromium firefox webkit",
+    "load": "node load/run-all.mjs",
+    "load:app": "node load/run-app.mjs",
+    "load:smoke": "LOAD_VUS=50 LOAD_DURATION_MS=20000 LOAD_RAMP_MS=2000 LOAD_THINK_MS=200 node load/run-all.mjs",
+    "load:1k": "LOAD_VUS=1000 LOAD_DURATION_MS=45000 LOAD_RAMP_MS=10000 LOAD_THINK_MS=500 node load/run-all.mjs",
+    "load:15k": "LOAD_VUS=15000 LOAD_DURATION_MS=90000 LOAD_RAMP_MS=30000 LOAD_THINK_MS=1000 node load/run-all.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.54.2",
