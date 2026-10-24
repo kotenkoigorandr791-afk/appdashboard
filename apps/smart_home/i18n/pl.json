@@ -149,5 +149,14 @@
   "search": "Szukaj urządzeń",
   "server_domain": "Domena serwera",
   "settings": "Ustawienia",
-  "statistics": "Statystyki"
+  "statistics": "Statystyki",
+  "logs": "Logs",
+  "usage_chart": "Device usage",
+  "usage_top": "Most used devices",
+  "usage_none": "No device activity for this period",
+  "log_all": "All",
+  "log_events": "Events",
+  "log_warnings": "Warnings",
+  "log_errors": "Errors",
+  "no_logs": "No logs"
 }

@@ -6,6 +6,7 @@ services:
     image: postgres:16
     container_name: appdashboard-db
     restart: unless-stopped
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB", "-c", "effective_cache_size=2GB", "-c", "work_mem=8MB", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
     environment:
       POSTGRES_DB: appdashboard
       POSTGRES_USER: appdashboard
@@ -25,7 +26,7 @@ services:
     image: redis:7-alpine
     container_name: appdashboard-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "volatile-lru"]
     # Redis используется приложением внутри docker-сети.
     # Публикация порта на хост ломает `docker compose up`, если 16379 уже занят.
     expose:
@@ -42,7 +43,7 @@ services:
     build:
       context: .
       dockerfile: deploy/python-sidecar/Dockerfile
-    image: appdashboard-py:latest
+    image: ${APPDASHBOARD_PY_IMAGE:-ihorkotenko/appdashboard-py:latest}
     container_name: appdashboard-py
     restart: unless-stopped
     logging:
@@ -84,7 +85,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: appdashboard:latest
+    image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
     container_name: appdashboard
     entrypoint: ["/var/www/AppDashboard/docker-entrypoint.sh"]
     command: ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
@@ -176,7 +177,7 @@ services:
     security_opt:
       - seccomp:./deploy/seccomp-restic.json
     ports:
-      - "127.0.0.1:8080:8080"
+      - "127.0.0.1:80:8080"
       - "127.0.0.1:8808:8808"
     volumes:
       - .:/var/www/AppDashboard

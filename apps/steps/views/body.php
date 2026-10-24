@@ -34,6 +34,23 @@ $stepmonitorForwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROT
 $stepmonitorScheme = ($stepmonitorForwardedProto === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $stepmonitorPort === '443') ? 'https' : 'http';
 $stepmonitorPortPart = ($stepmonitorPort !== '' && !in_array($stepmonitorPort, ['80', '443'], true)) ? ':' . $stepmonitorPort : '';
 $stepmonitorLanEndpoint = $stepmonitorServerIp !== '' ? $stepmonitorScheme . '://' . $stepmonitorServerIp . $stepmonitorPortPart . '/api/steps' : '';
+$stepmonitorApkDownloadName = 'StepMonitor' . ($stepmonitorVersionName !== '' ? '-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', $stepmonitorVersionName) : '') . '.apk';
+$stepmonitorExistingToken = '';
+try {
+    $tokenEmail = function_exists('get_current_user_email') ? (string)(get_current_user_email() ?? '') : (string)($_SESSION['user']['email'] ?? '');
+    $tokenDb = function_exists('getDB') ? getDB() : null;
+    if ($tokenEmail !== '' && $tokenDb) {
+        $tokenStmt = $tokenDb->prepare("SELECT token_plain FROM client_auth_tokens WHERE email = :e AND app_id = 'steps' AND revoked = 0 AND expires_at > :t AND token_plain <> '' ORDER BY created_at DESC LIMIT 1");
+        $tokenStmt->bindValue(':e', $tokenEmail, PDO::PARAM_STR);
+        $tokenStmt->bindValue(':t', time(), PDO::PARAM_INT);
+        $tokenRow = $tokenStmt->execute()->fetch(PDO::FETCH_ASSOC);
+        if ($tokenRow && (string)($tokenRow['token_plain'] ?? '') !== '') {
+            $stepmonitorExistingToken = (string)$tokenRow['token_plain'];
+        }
+    }
+} catch (Throwable $e) {
+    $stepmonitorExistingToken = '';
+}
 $metricHasValue = static function (array $metrics, string $type): bool {
     if ($type === 'distance') return isset($metrics['distance']['total_meters']) && is_numeric($metrics['distance']['total_meters']) && (float)$metrics['distance']['total_meters'] > 0;
     if ($type === 'calories') {
@@ -77,7 +94,7 @@ $metricButtons = [
         <div class="app-topbar">
             <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
             <div class="app-topbar-actions">
-                <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><i class="fas fa-share-nodes"></i></button>
+                <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
@@ -329,20 +346,26 @@ $metricButtons = [
                                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
                                 <?php echo htmlspecialchars($translations['mobile_app_qr_generate'] ?? 'Generate'); ?>
                             </button>
-                            <button type="button" id="mobile-app-token-revoke" class="ma-qr-generate" style="display:none;">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
-                                <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
-                            </button>
                         </div>
+                        <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke" style="display:none;">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                            <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
+                        </button>
                         <h3><?php echo htmlspecialchars($translations['mobile_app_scan_title'] ?? 'Scan to Pair'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['mobile_app_scan_desc'] ?? 'Open the app and scan this code to sync instantly.'); ?></p>
                         <p class="ma-qr-error" id="mobile-app-qr-error" style="display:none;color:#ef4444;font-size:12px;margin:-16px 0 16px;"></p>
 
                         <?php if ($stepmonitorAvailable): ?>
-                        <a class="ma-download" href="/downloads/stepmonitor.apk" download="stepmonitor.apk">
-                            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                            <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
-                        </a>
+                        <div class="ma-download-row">
+                            <a class="ma-download" href="/downloads/stepmonitor.apk" download="<?php echo htmlspecialchars($stepmonitorApkDownloadName); ?>">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
+                            </a>
+                            <button type="button" id="mobile-app-play-protect-guide" class="ma-play-protect">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <?php echo htmlspecialchars($translations['mobile_app_play_protect'] ?? 'Play Protect guide'); ?>
+                            </button>
+                        </div>
                         <?php endif; ?>
 
                         <?php if ($stepmonitorVersionName !== '' || $stepmonitorBuiltAt > 0): ?>
@@ -954,6 +977,7 @@ $metricButtons = [
             const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
 
             let pairing={token:'',link:''};
+            const existingToken=<?php echo json_encode($stepmonitorExistingToken, JSON_HEX_TAG); ?>;
 
             const hintModal=document.getElementById('manual-pair-modal');
             const hintClose=document.getElementById('manual-pair-close');
@@ -964,11 +988,32 @@ $metricButtons = [
             const regenLabel=regenBtn ? regenBtn.innerHTML : '';
             const revokeLabel=revokeBtn ? revokeBtn.innerHTML : '';
             const noTokenMsg=<?php echo json_encode($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.', JSON_HEX_TAG); ?>;
+            const playProtectBtn=document.getElementById('mobile-app-play-protect-guide');
 
+            function setPairingToken(token){
+                pairing.token=String(token||'');
+                pairing.link=pairing.token ? ('stepmonitor://auth?endpoint='+encodeURIComponent(endpoint)+'&token='+encodeURIComponent(pairing.token)) : '';
+            }
             function refreshHintFields(){
                 if(hintEndpoint) hintEndpoint.textContent=endpoint;
                 if(hintLink) hintLink.textContent=pairing.link||'—';
                 if(hintToken) hintToken.textContent=pairing.token||noTokenMsg;
+            }
+            async function showPairingQr(){
+                if(!pairing.token||!pairing.link) return;
+                if(placeholder) placeholder.style.display='none';
+                if(qrFrame){ qrFrame.style.display='flex'; qrFrame.innerHTML=''; await renderPairingQr(qrFrame, pairing.link); }
+                if(genBtn) genBtn.style.display='none';
+                if(revokeBtn) revokeBtn.style.display='';
+                refreshHintFields();
+            }
+            function clearPairingUi(){
+                pairing={token:'',link:''};
+                if(qrFrame){ qrFrame.innerHTML=''; qrFrame.style.display='none'; }
+                if(placeholder) placeholder.style.display='';
+                if(genBtn) genBtn.style.display='';
+                if(revokeBtn) revokeBtn.style.display='none';
+                refreshHintFields();
             }
             function openHint(){
                 if(!hintModal) return;
@@ -987,17 +1032,8 @@ $metricButtons = [
             hintModal?.addEventListener('click', (e)=>{ if(e.target===hintModal) closeHint(); });
             document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && hintModal && hintModal.style.display==='flex') closeHint(); });
 
-            regenBtn?.addEventListener('click', async ()=>{
-                if(!regenBtn || regenBtn.disabled) return;
-                regenBtn.disabled=true;
-                regenBtn.classList.add('is-busy');
-                try{
-                    await generateQr();
-                }finally{
-                    regenBtn.disabled=false;
-                    regenBtn.classList.remove('is-busy');
-                    regenBtn.innerHTML=regenLabel;
-                }
+            playProtectBtn?.addEventListener('click', ()=>{
+                if(typeof window.openStepsGuideExpand==='function') window.openStepsGuideExpand('play_protect');
             });
 
             document.querySelectorAll('#manual-pair-modal .ma-copy-btn').forEach(btn=>{
@@ -1085,20 +1121,19 @@ $metricButtons = [
                 }
             }
 
-            async function generateQr(){
+            async function fetchCsrf(){
+                try{
+                    const r=await fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'});
+                    const d=await r.json().catch(()=>null);
+                    return d&&d.csrf?String(d.csrf):'';
+                }catch(e){ return ''; }
+            }
+            async function generateQr(forceNew){
                 const errEl=document.getElementById('mobile-app-qr-error');
                 const showErr=(msg)=>{
                     if(errEl){ errEl.textContent=msg; errEl.style.display='block'; }
                 };
                 const hideErr=()=>{ if(errEl){ errEl.style.display='none'; errEl.textContent=''; } };
-
-                async function fetchCsrf(){
-                    try{
-                        const r=await fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'});
-                        const d=await r.json().catch(()=>null);
-                        return d&&d.csrf?String(d.csrf):'';
-                    }catch(e){ return ''; }
-                }
                 async function sendRequest(csrf){
                     const fd=new FormData();
                     fd.append('action','generate_mcp_token');
@@ -1106,6 +1141,7 @@ $metricButtons = [
                     fd.append('ajax','1');
                     fd.append('mcp_token_name','Health Connect');
                     fd.append('token_app','steps');
+                    if(forceNew) fd.append('force_new','1');
                     const opts={method:'POST',body:fd,credentials:'same-origin'};
                     if(csrf){
                         fd.append('_csrf',csrf);
@@ -1113,7 +1149,6 @@ $metricButtons = [
                     }
                     return fetch('/main',opts);
                 }
-
                 try{
                     hideErr();
                     let csrf=await fetchCsrf();
@@ -1125,28 +1160,14 @@ $metricButtons = [
                         data=await res.json().catch(()=>null);
                     }
                     if(!data||!data.success||!data.token) throw new Error((data&&data.error)||'Token generation failed');
-
-                    pairing.token=String(data.token);
-                    pairing.link='stepmonitor://auth?endpoint='+encodeURIComponent(endpoint)+'&token='+encodeURIComponent(data.token);
-
-                    if(placeholder) placeholder.style.display='none';
-                    if(qrFrame){ qrFrame.style.display='flex'; qrFrame.innerHTML=''; await renderPairingQr(qrFrame, pairing.link); }
-                    if(genBtn) genBtn.style.display='none';
-                    if(revokeBtn) revokeBtn.style.display='';
-                    refreshHintFields();
+                    setPairingToken(data.token);
+                    await showPairingQr();
                 }catch(e){
                     console.error('Pairing QR error:',e);
                     showErr(String(e && e.message ? e.message : e));
                 }
             }
-            async function revokeToken(){
-                async function fetchCsrf(){
-                    try{
-                        const r=await fetch('/csrf',{method:'GET',credentials:'same-origin',cache:'no-store'});
-                        const d=await r.json().catch(()=>null);
-                        return d&&d.csrf?String(d.csrf):'';
-                    }catch(e){ return ''; }
-                }
+            async function revokeToken(resetUi){
                 const csrf=await fetchCsrf();
                 const fd=new FormData();
                 fd.append('action','revoke_mcp_token');
@@ -1159,18 +1180,14 @@ $metricButtons = [
                 const res=await fetch('/main',opts);
                 const data=await res.json().catch(()=>null);
                 if(!data||!data.success) throw new Error((data&&data.error)||'Token revoke failed');
-                pairing={token:'',link:''};
-                if(qrFrame){ qrFrame.innerHTML=''; qrFrame.style.display='none'; }
-                if(placeholder) placeholder.style.display='';
-                if(genBtn) genBtn.style.display='';
-                if(revokeBtn) revokeBtn.style.display='none';
-                refreshHintFields();
+                if(resetUi!==false) clearPairingUi();
+                else pairing={token:'',link:''};
             }
 
             genBtn?.addEventListener('click', async ()=>{
                 if(genBtn) genBtn.disabled=true;
                 try{
-                    await generateQr();
+                    await generateQr(false);
                 }finally{
                     if(genBtn) genBtn.disabled=false;
                 }
@@ -1179,7 +1196,7 @@ $metricButtons = [
                 if(!revokeBtn || revokeBtn.disabled) return;
                 revokeBtn.disabled=true;
                 try{
-                    await revokeToken();
+                    await revokeToken(true);
                 }catch(e){
                     console.error('Pairing token revoke error:',e);
                 }finally{
@@ -1187,6 +1204,22 @@ $metricButtons = [
                     revokeBtn.innerHTML=revokeLabel;
                 }
             });
+            regenBtn?.addEventListener('click', async ()=>{
+                if(!regenBtn || regenBtn.disabled) return;
+                regenBtn.disabled=true;
+                regenBtn.classList.add('is-busy');
+                try{
+                    await generateQr(true);
+                }finally{
+                    regenBtn.disabled=false;
+                    regenBtn.classList.remove('is-busy');
+                    regenBtn.innerHTML=regenLabel;
+                }
+            });
+            if(existingToken){
+                setPairingToken(existingToken);
+                showPairingQr().catch(e=>console.error('Existing pairing QR error:',e));
+            }
         })();
         </script>
         <script>

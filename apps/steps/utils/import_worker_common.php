@@ -43,20 +43,15 @@ function steps_worker_connect_db(array $cfg): ?AppDatabase {
         steps_import_log('error', 'steps worker: missing user_email in job config', __FILE__, __LINE__);
         return null;
     }
-    static $booted = false;
-    if (!$booted) {
-        require_once __DIR__ . '/../../../lib/pgsql_compat.php';
-        require_once __DIR__ . '/../../../lib/user_schema_pg.php';
-        $booted = true;
-    }
     try {
-        $db = app_user_db_connect('steps', $email);
+        require_once __DIR__ . '/../../../lib/app_db.php';
+        require_once __DIR__ . '/../core/store.php';
         require_once __DIR__ . '/../video_job_sqlite.php';
-        video_job_ensure_schema($db);
         require_once __DIR__ . '/google_fit_takeout/fit_takeout_state.php';
-        fit_takeout_ensure_schema($db);
         require_once __DIR__ . '/zeep_life/zeep_state.php';
-        zeep_job_ensure_schema($db);
+        $db = app_main_db();
+        steps_user($email);
+        steps_store_ensure($db);
         return $db;
     } catch (Throwable $e) {
         steps_import_log('error', 'steps worker db connect failed email=' . $email . ' err=' . $e->getMessage(), __FILE__, __LINE__);
@@ -282,7 +277,8 @@ function steps_worker_existing_dates_map(AppDatabase $db, array $days): array {
             $ph[] = $key;
             $params[$key] = $day;
         }
-        $stmt = $db->prepare('SELECT date, steps FROM steps WHERE date IN (' . implode(',', $ph) . ')');
+        $stmt = $db->prepare('SELECT date, steps FROM steps_days WHERE user_email = :u AND date IN (' . implode(',', $ph) . ')');
+        steps_bind_user($stmt);
         foreach ($params as $key => $day) $stmt->bindValue($key, $day, PDO::PARAM_STR);
         $res = $stmt->execute();
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
@@ -295,8 +291,10 @@ function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mo
     if (!$daySteps) return 0;
     ksort($daySteps);
     $existing = steps_worker_existing_dates_map($db, array_keys($daySteps));
-    $replaceStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
-    $insertStmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO NOTHING');
+    $replaceStmt = $db->prepare('INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO UPDATE SET steps=excluded.steps');
+    $insertStmt = $db->prepare('INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO NOTHING');
+    steps_bind_user($replaceStmt);
+    steps_bind_user($insertStmt);
     $n = 0;
     foreach ($daySteps as $d => $s) {
         if ($allowZero ? $s < 0 : $s <= 0) continue;
@@ -326,12 +324,10 @@ function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mo
 }
 function steps_worker_conflicts_app_db(AppDatabase $db, array $daySteps): int {
     if (!$daySteps) return 0;
+    $existing = steps_worker_existing_dates_map($db, array_map('strval', array_keys($daySteps)));
     $n = 0;
     foreach ($daySteps as $day => $steps) {
-        $stmt = $db->prepare('SELECT steps FROM steps WHERE date = :d');
-        $stmt->bindValue(':d', (string)$day, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if (is_array($row) && (int)$row['steps'] !== (int)$steps) $n++;
+        if (isset($existing[(string)$day]) && $existing[(string)$day] !== (int)$steps) $n++;
     }
     return $n;
 }

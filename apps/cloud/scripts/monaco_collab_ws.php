@@ -19,6 +19,23 @@ $clientBuffers = [];
 $rooms = [];
 $meta = [];
 $roomSnapshots = [];
+$authed = [];
+
+function ws_validate_ticket(string $ticket): ?string
+{
+    $ticket = preg_replace('/[^a-f0-9]/', '', strtolower($ticket));
+    if ($ticket === '' || strlen($ticket) < 16) return null;
+    $file = sys_get_temp_dir() . '/cloud_monaco_tickets/' . $ticket . '.json';
+    if (!is_file($file)) return null;
+    $raw = @file_get_contents($file);
+    $data = is_string($raw) ? json_decode($raw, true) : null;
+    if (!is_array($data) || empty($data['email'])) return null;
+    if ((int)($data['exp'] ?? 0) < time()) {
+        @unlink($file);
+        return null;
+    }
+    return strtolower(trim((string)$data['email']));
+}
 
 function ws_room_update_snapshot(string $roomKey, array $message, array &$roomSnapshots): bool
 {
@@ -106,7 +123,7 @@ function ws_handshake($client, string $buffer): bool
     return true;
 }
 
-function ws_remove_client($clientId, array &$clients, array &$handshakes, array &$clientBuffers, array &$rooms, array &$meta): void
+function ws_remove_client($clientId, array &$clients, array &$handshakes, array &$clientBuffers, array &$rooms, array &$meta, array &$authed = null): void
 {
     foreach (array_keys($rooms) as $roomKey) {
         unset($rooms[$roomKey][$clientId]);
@@ -116,6 +133,7 @@ function ws_remove_client($clientId, array &$clients, array &$handshakes, array 
         fclose($clients[$clientId]);
     }
     unset($clients[$clientId], $handshakes[$clientId], $clientBuffers[$clientId], $meta[$clientId]);
+    if (is_array($authed)) unset($authed[$clientId]);
 }
 
 function ws_broadcast(string $roomKey, string $payload, string $excludeClientId, array $clients, array $rooms): void
@@ -159,8 +177,22 @@ function ws_broadcast_presence(string $roomKey, array $clients, array $rooms, ar
     ws_broadcast($roomKey, $payload, '', $clients, $rooms);
 }
 
-function ws_dispatch_message(string $clientId, array $message, array &$clients, array &$rooms, array &$meta, array &$roomSnapshots): void
+function ws_dispatch_message(string $clientId, array $message, array &$clients, array &$rooms, array &$meta, array &$roomSnapshots, array &$authed): void
 {
+    if (($message['type'] ?? '') === 'auth') {
+        $email = ws_validate_ticket((string)($message['ticket'] ?? ''));
+        if ($email === null) {
+            ws_send_to_client($clientId, json_encode(['type' => 'auth_error', 'error' => 'unauthorized'], JSON_UNESCAPED_UNICODE), $clients);
+            return;
+        }
+        $authed[$clientId] = $email;
+        ws_send_to_client($clientId, json_encode(['type' => 'auth_ok', 'email' => $email], JSON_UNESCAPED_UNICODE), $clients);
+        return;
+    }
+    if (empty($authed[$clientId])) {
+        ws_send_to_client($clientId, json_encode(['type' => 'auth_error', 'error' => 'auth required'], JSON_UNESCAPED_UNICODE), $clients);
+        return;
+    }
     if ($message['type'] === 'join' && !empty($message['roomKey'])) {
         $roomKey = (string)$message['roomKey'];
         $rooms[$roomKey][$clientId] = true;
@@ -246,7 +278,7 @@ function ws_dispatch_message(string $clientId, array $message, array &$clients, 
     }
 }
 
-function ws_process_buffer($socket, string $clientId, array &$clients, array &$handshakes, array &$clientBuffers, array &$rooms, array &$meta, array &$roomSnapshots): void
+function ws_process_buffer($socket, string $clientId, array &$clients, array &$handshakes, array &$clientBuffers, array &$rooms, array &$meta, array &$roomSnapshots, array &$authed): void
 {
     while (true) {
         if (empty($handshakes[$clientId])) {
@@ -255,7 +287,7 @@ function ws_process_buffer($socket, string $clientId, array &$clients, array &$h
                 $handshakes[$clientId] = true;
                 $clientBuffers[$clientId] = '';
             } else {
-                ws_remove_client($clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta);
+                ws_remove_client($clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta, $authed);
             }
             return;
         }
@@ -264,13 +296,13 @@ function ws_process_buffer($socket, string $clientId, array &$clients, array &$h
         if ($frame === null) return;
         $clientBuffers[$clientId] = substr($clientBuffers[$clientId], $frame['consumed']);
         if ($frame['payload'] === '__CLOSE__') {
-            ws_remove_client($clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta);
+            ws_remove_client($clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta, $authed);
             return;
         }
 
         $message = json_decode($frame['payload'], true);
         if (!is_array($message) || empty($message['type'])) continue;
-        ws_dispatch_message($clientId, $message, $clients, $rooms, $meta, $roomSnapshots);
+        ws_dispatch_message($clientId, $message, $clients, $rooms, $meta, $roomSnapshots, $authed);
     }
 }
 
@@ -300,11 +332,11 @@ while (true) {
         $clientId = (string)(int)$socket;
         $chunk = @fread($socket, 65535);
         if ($chunk === '' || $chunk === false) {
-            ws_remove_client($clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta);
+            ws_remove_client($clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta, $authed);
             continue;
         }
 
         $clientBuffers[$clientId] = ($clientBuffers[$clientId] ?? '') . $chunk;
-        ws_process_buffer($socket, $clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta, $roomSnapshots);
+        ws_process_buffer($socket, $clientId, $clients, $handshakes, $clientBuffers, $rooms, $meta, $roomSnapshots, $authed);
     }
 }

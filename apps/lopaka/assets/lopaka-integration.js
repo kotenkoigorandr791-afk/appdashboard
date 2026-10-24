@@ -115,3 +115,8 @@
         window.__LOPAKA_LANG__ = lang;
     }
 })();
+(function () {
+    var s = document.createElement('style');
+    s.textContent = '.fui-editor__left{padding-top:52px!important;box-sizing:border-box}@media (max-width:768px){.fui-editor__top{margin-top:52px!important}}';
+    document.head.appendChild(s);
+})();

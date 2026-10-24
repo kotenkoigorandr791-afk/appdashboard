@@ -97,7 +97,8 @@ abstract class BaseRenderer
   </div>
   <div class="sp-top-bar__actions">
     <button class="md3-btn md3-btn--icon md3-btn--text sp-header-action" data-sp-theme-cycle aria-label="' . sp_h(sp_t('theme')) . '" title="' . sp_h(sp_t('theme')) . '">
-      <span class="material-symbols-outlined">contrast</span>
+      <svg class="sp-theme-icon sp-theme-icon--sun" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>
+      <svg class="sp-theme-icon sp-theme-icon--moon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>
     </button>
     ' . $download . '
     <button class="md3-btn md3-btn--icon md3-btn--text sp-header-action" data-md3-menu-trigger="sp-more-menu" aria-label="' . sp_h(sp_t('more')) . '">
@@ -170,7 +171,9 @@ abstract class BaseRenderer
 <meta name="description" content="' . sp_h($description) . '">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preload" href="' . sp_h(sp_asset('fonts/material-symbols-outlined.woff2')) . '" as="font" type="font/woff2" crossorigin>
+<script>(function(d){var r=function(){d.documentElement.classList.add("sp-icons-ready")};setTimeout(r,3000);if(d.fonts&&d.fonts.load){d.fonts.load("24px \'Material Symbols Outlined\'","home").then(r,r)}else{r()}})(document);</script>
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-tokens.css')) . '">
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-components.css')) . '">
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-layout.css')) . '">
@@ -206,6 +209,8 @@ abstract class BaseRenderer
             'not_found' => ['icon' => 'link_off', 'title' => sp_t('not_found'), 'text' => sp_t('not_found')],
             'max_views_exceeded' => ['icon' => 'visibility_off', 'title' => sp_t('views_exceeded'), 'text' => sp_t('views_exceeded')],
             'resource_unavailable' => ['icon' => 'cloud_off', 'title' => sp_t('resource_unavailable'), 'text' => sp_t('resource_unavailable')],
+            'login_required' => ['icon' => 'lock', 'title' => sp_t('login_required'), 'text' => sp_t('login_required')],
+            'user_not_allowed' => ['icon' => 'block', 'title' => sp_t('user_not_allowed'), 'text' => sp_t('user_not_allowed')],
         ];
         $view = $config[$reason] ?? ['icon' => 'error', 'title' => sp_t('not_found'), 'text' => sp_t('not_found')];
         $content = '<section class="sp-empty md3-card md3-card--outlined" role="alert">

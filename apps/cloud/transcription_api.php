@@ -8,6 +8,11 @@ require_once dirname(__DIR__, 2) . '/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/transcription_jobs.php';
 require_once __DIR__ . '/includes/ai_speech.php';
+require_once __DIR__ . '/includes/cloud_endpoint_auth.php';
+require_once __DIR__ . '/includes/ai_proxy.php';
+$transcriptionAuthEmail = cloud_endpoint_require_email();
+$transcriptionAuthUser = cloud_endpoint_username($transcriptionAuthEmail);
+cloud_endpoint_rate_limit($transcriptionAuthEmail, 'utility');
 
 function app_path($relativePath = '') {
     $baseDir = realpath(__DIR__);
@@ -56,9 +61,9 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
         } catch (Throwable $e) {
         }
     }
+    if (preg_match('#(^|[\\\\/])\.\.([\\\\/]|$)#', $relativePath)) return null;
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $candidates = [];
-    if (preg_match('/^(?:[a-zA-Z]:[\\\\\\/]|\/)/', $relativePath)) $candidates[] = $relativePath;
     $candidates[] = $normalized;
     $candidates[] = app_path($normalized);
     $candidates[] = app_path('../' . $normalized);
@@ -174,7 +179,6 @@ function handle_sse_stream() {
     header('Cache-Control: no-cache');
     header('Connection: keep-alive');
     header('X-Accel-Buffering: no');
-    header('Access-Control-Allow-Origin: *');
     $lastProgress = -1;
     $lastSentTime = 0;
     $maxTime = 600;
@@ -239,15 +243,14 @@ $action = $_POST['action'] ?? '';
 if ($action === 'start_transcription') {
     $audioPath = $_POST['audio_path'] ?? '';
     $language = $_POST['language'] ?? 'pl';
-    $user = $_POST['user'] ?? 'default';
+    $user = $transcriptionAuthUser;
     $root = $_POST['root'] ?? 'main';
     if (!$audioPath) {
         echo json_encode(['success' => false, 'error' => 'No audio path provided']);
         exit;
     }
-    $rlEmail = get_session_email() ?: (string)$user;
     if (function_exists('cloud_ai_require_rate_limit')) {
-        cloud_ai_require_rate_limit((string)$rlEmail, 'speech');
+        cloud_ai_require_rate_limit($transcriptionAuthEmail, 'speech');
     }
 
     // The AI hub must be configured: the transcription is done by its saved
@@ -318,7 +321,7 @@ if ($action === 'get_progress') {
     exit;
 }
 if ($action === 'find_active_progress') {
-    $user = $_POST['user'] ?? 'default';
+    $user = $transcriptionAuthUser;
     echo json_encode(transcription_jobs_find_active((string)$user));
     exit;
 }
@@ -328,7 +331,7 @@ if ($action === 'stream_progress') {
 }
 if ($action === 'save_transcription_to_server') {
     $audioPath = $_POST['audio_path'] ?? '';
-    $user = $_POST['user'] ?? 'default';
+    $user = $transcriptionAuthUser;
     $root = $_POST['root'] ?? 'main';
     $transcription = $_POST['transcription'] ?? '';
     if (!$audioPath || !$transcription) {

@@ -6,8 +6,11 @@ const ADMIN_SESSION_IDLE_SECONDS = 14400;
 const ADMIN_PASSWORD_MIN_LENGTH = 10;
 
 function adminSecurityEnsureSchema(): void {
-    static $done = false;
-    if ($done) return;
+    require_once __DIR__ . '/schema_once.php';
+    app_schema_once('admin_sec', __FILE__, 'adminSecurityEnsureSchemaImpl');
+}
+
+function adminSecurityEnsureSchemaImpl(): void {
     $db = getDB();
     $db->exec("CREATE TABLE IF NOT EXISTS admin_audit_log (
         id BIGSERIAL PRIMARY KEY,
@@ -22,8 +25,7 @@ function adminSecurityEnsureSchema(): void {
     )");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_admin_audit_created ON admin_audit_log(created_at DESC)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_admin_audit_email ON admin_audit_log(email)");
-    try { $db->exec("ALTER TABLE users ADD COLUMN admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
-    $done = true;
+    try { $db->exec("ALTER TABLE users ADD COLUMN IF NOT EXISTS admin_capabilities TEXT NOT NULL DEFAULT ''"); } catch (Exception $e) {}
 }
 
 function adminMetaGet(string $key, string $default = ''): string {

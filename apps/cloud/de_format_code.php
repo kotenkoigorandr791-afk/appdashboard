@@ -142,15 +142,19 @@ function compactCode($code, $language) {
 // If file run directly - return JSON API
 if (isset($_POST['action']) && $_POST['action'] === 'compact') {
     header('Content-Type: application/json');
-    
+    require_once __DIR__ . '/includes/cloud_endpoint_auth.php';
+    $email = cloud_endpoint_require_email();
+    cloud_endpoint_rate_limit($email, 'utility');
     $code = $_POST['code'] ?? '';
     $language = $_POST['language'] ?? '';
-    
     if (empty($code) || empty($language)) {
         echo json_encode(['error' => 'Code and language are required']);
         exit;
     }
-    
+    if (strlen($code) > 500000) {
+        echo json_encode(['error' => 'code too large']);
+        exit;
+    }
     try {
         $compacted = compactCode($code, $language);
         echo json_encode(['success' => true, 'compacted_code' => $compacted]);

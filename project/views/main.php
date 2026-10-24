@@ -1,7 +1,7 @@
 <?php
 $showDefaultAdminNotice=false;
 try{$defaultAdminUser=getUserByEmail('root@root');}catch(Throwable $e){$defaultAdminUser=null;}
-if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdminUser['password']??'')))$showDefaultAdminNotice=true;
+if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdminUser['password']??'')))$showDefaultAdminNotice=true;
 ?>
 <!DOCTYPE html>
 <html lang="<?php echo $language; ?>">
@@ -1266,6 +1266,21 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         #stats-controls button.active{background:var(--primary-color);opacity:1;font-weight:bold;}
         .stats-edit-button{margin-left:auto;}
         #app-iframe{width:100%;height:100vh;border:none;position:fixed;top:0;left:0;z-index:1;box-sizing:border-box;}
+        #app-iframe.shell-iframe-loading{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}
+        .shell-app-loading-overlay{position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:rgba(7,17,30,0.55);backdrop-filter:blur(10px) brightness(0.55);-webkit-backdrop-filter:blur(10px) brightness(0.55);color:#fff;animation:shellLoadFadeIn .2s ease;}
+        body.light-theme .shell-app-loading-overlay,body.theme-light .shell-app-loading-overlay{background:rgba(237,244,251,0.55);backdrop-filter:blur(10px) brightness(0.85);-webkit-backdrop-filter:blur(10px) brightness(0.85);color:#1a2b38;}
+        body.wallpaper-custom .shell-app-loading-overlay{background:rgba(8,12,18,0.35);}
+        .shell-app-loading-box{background:rgba(30,30,30,0.5);backdrop-filter:blur(15px);-webkit-backdrop-filter:blur(15px);padding:40px 60px;border-radius:20px;display:flex;flex-direction:column;align-items:center;border:1px solid rgba(255,255,255,0.1);text-align:center;color:inherit;}
+        body.light-theme .shell-app-loading-box,body.theme-light .shell-app-loading-box{background:rgba(255,255,255,0.55);border-color:rgba(26,43,51,0.12);}
+        .shell-app-loading-logo{width:80px;height:80px;margin-bottom:20px;object-fit:contain;animation:shellLoadPulse 2s ease-in-out infinite;}
+        .shell-app-loading-title{margin:0;font-size:22px;font-weight:700;letter-spacing:0.02em;}
+        .shell-app-loading-sub{margin:8px 0 0;font-size:14px;font-weight:500;opacity:0.78;}
+        .shell-app-loading-bar{width:200px;height:4px;background:rgba(255,255,255,0.12);border-radius:2px;overflow:hidden;margin-top:18px;}
+        body.light-theme .shell-app-loading-bar,body.theme-light .shell-app-loading-bar{background:rgba(26,43,51,0.12);}
+        .shell-app-loading-bar::after{content:'';display:block;width:40%;height:100%;background:var(--primary-color,#00a8ff);box-shadow:0 0 10px color-mix(in srgb,var(--primary-color,#00a8ff) 80%,transparent);animation:shellLoadBar 2s infinite ease-in-out;}
+        @keyframes shellLoadFadeIn{from{opacity:0}to{opacity:1}}
+        @keyframes shellLoadPulse{50%{transform:scale(1.1)}}
+        @keyframes shellLoadBar{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
         #content{padding-top:0;position:fixed;left:0;width:100%;height:100vh;box-sizing:border-box;overflow:hidden;}
         #content.has-app-rail{--rail-w:48px;--rail-full-w:48px;--rail-peek:4px;}
         #content.has-app-rail #app-iframe{left:var(--rail-w);width:calc(100% - var(--rail-w));}
@@ -1310,6 +1325,9 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .app-rail-service-name{display:none;}
         @media (max-width:768px){
             #content.has-app-rail{--rail-w:40px;}
+            /* Locally integrated apps ship their own menu button: hide the shell
+               hamburger on phones so it does not sit on top of the app's one. */
+            body.shell-local-app #menu-button{display:none!important;}
             #app-icon-rail{--rail-w:40px;--rail-icon:24px;gap:4px;padding-top:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) + 8px);padding-bottom:8px;padding-left:3px;padding-right:3px;}
             #content.has-app-rail.rail-top-on-mobile{--rail-h:48px;--rail-w:0px;}
             #content.has-app-rail.rail-top-on-mobile #app-iframe{left:0!important;width:100%!important;top:var(--rail-h);height:calc(100% - var(--rail-h));}
@@ -1346,6 +1364,13 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .app-tile iframe{width:100%;height:150px;border:none;border-radius:4px;pointer-events:none;}
         button,input[type="submit"]{background-color:var(--primary-color);color:#fff;border:none;padding:10px;cursor:pointer;border-radius:4px;}
         input.settings-save-btn{background-color:var(--primary-color);color:#fff;border:none;padding:12px 24px;cursor:pointer;border-radius:50px;font-weight:600;display:block;margin-left:auto;}
+.settings-footer{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:4px;}
+.settings-footer input.settings-save-btn{margin-left:auto;}
+.settings-version{display:inline-flex;align-items:baseline;gap:5px;font-size:12px;line-height:1.2;opacity:.65;color:var(--text-color);white-space:nowrap;cursor:help;user-select:text;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.settings-version-label{opacity:.8;}
+.settings-version-value{font-weight:600;letter-spacing:.02em;font-variant-numeric:tabular-nums;}
+.settings-version-date{opacity:.7;}
+@media(max-width:480px){.settings-footer{gap:8px;}.settings-version{font-size:11px;}}
         button:hover,input[type="submit"]:hover{opacity:0.8;}
         .notification{position:fixed;bottom:24px;right:20px;padding:10px 14px 10px 16px;border-radius:8px;color:var(--text-color);font-weight:400;z-index:101200;opacity:0;transform:translateX(30px);transition:all 0.25s ease;max-width:320px;font-size:13px;box-shadow:0 2px 12px rgba(0,0,0,0.18);display:flex;align-items:flex-start;gap:10px;border-left:4px solid var(--primary-color);background:var(--modal-bg);}
         .notification.show{opacity:1;transform:translateX(0);}
@@ -1932,13 +1957,20 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             width: 92%;
             max-width: 680px;
             max-height: 90vh;
-            overflow: auto;
+            overflow: hidden;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             animation: slideUp 0.35s cubic-bezier(0.4, 0, 0.2, 1);
             position: relative;
             color: var(--text-color);
             display: flex;
             flex-direction: column;
+        }
+        #weatherModalContent {
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            min-height: 0;
+            overflow: hidden;
         }
         .weather-modal-close {
             position: absolute;
@@ -2026,35 +2058,45 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
         .weather-modal-body {
             padding: 20px 24px;
             flex: 1;
+            min-height: 0;
+            overflow-x: hidden;
             overflow-y: auto;
+            overscroll-behavior: contain;
             scrollbar-width: thin;
-            scrollbar-color: var(--border-color) var(--modal-bg);
+            scrollbar-color: var(--border-color) transparent;
+            border-radius: 0 0 30px 30px;
         }
         .weather-modal-body::-webkit-scrollbar {
             width: 8px;
         }
         .weather-modal-body::-webkit-scrollbar-track {
-            background: var(--modal-bg);
+            background: transparent;
+            margin: 8px 0 16px;
         }
         .weather-modal-body::-webkit-scrollbar-thumb {
             background: var(--border-color);
             border-radius: 4px;
+            border: 2px solid transparent;
+            background-clip: padding-box;
         }
         .weather-modal-body::-webkit-scrollbar-thumb:hover {
             background: color-mix(in srgb, var(--border-color) 70%, var(--text-color));
+            background-clip: padding-box;
         }
         .weather-settings-modal {
             position: relative;
             width: 92%;
             max-width: 720px;
             max-height: 90vh;
-            overflow: auto;
+            overflow: hidden;
             background: var(--modal-bg);
             border-radius: 30px;
             padding: 0;
             box-shadow: 0 24px 80px rgba(0,0,0,0.5);
             border: 0;
             color: var(--text-color);
+            display: flex;
+            flex-direction: column;
         }
         #weatherSettingsModalContent {
             display: flex;
@@ -2529,7 +2571,7 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             }
         }
         .weather-modal-body {
-            padding: 20px 24px 0;
+            padding: 20px 24px 24px;
         }
         .weather-weekly {
             display: flex;
@@ -2685,14 +2727,8 @@ if($showLogin&&$defaultAdminUser&&appPasswordVerify('root',(string)($defaultAdmi
             stroke: currentColor;
         }
         .weather-modal::-webkit-scrollbar {
-            width: 6px;
-        }
-        .weather-modal::-webkit-scrollbar-track {
-            background: transparent;
-        }
-        .weather-modal::-webkit-scrollbar-thumb {
-            background: var(--border-color);
-            border-radius: 3px;
+            width: 0;
+            height: 0;
         }
         @keyframes fadeIn {
             from { opacity: 0; }
@@ -2755,7 +2791,15 @@ $_guideEnabled = !empty($_guideCfg['enabled'])
 $_wp = $savedWallpaper ?? ($config['wallpaper'] ?? 'default');
 $_wpUrl = ap_wallpaper_asset_url($_wp);
 $_bodyClasses = [];
-if ($path === '/main' && $selectedApp && in_array($selectedApp, array_map(function($appData){return $appData['folder'];}, $apps), true)) { $_bodyClasses[] = 'shell-app-open'; }
+if ($path === '/main' && $selectedApp && in_array($selectedApp, array_map(function($appData){return $appData['folder'];}, $apps), true)) {
+    $_bodyClasses[] = 'shell-app-open';
+    // Locally integrated apps (no rail / not an external service) have their own
+    // menu button, so the shell hamburger is hidden on phones for them.
+    $_selectedAppData = null;
+    foreach ($apps as $_appData) { if ($_appData['folder'] === $selectedApp) { $_selectedAppData = $_appData; break; } }
+    if ($_selectedAppData === null || empty($_selectedAppData['app_rail'])) { $_bodyClasses[] = 'shell-local-app'; }
+    unset($_selectedAppData, $_appData);
+}
 $_bodyClasses[] = ($_wp === 'default') ? 'wallpaper-default' : 'wallpaper-custom';
 $_bodyClasses[] = ($config['theme'] === 'dark') ? 'theme-dark' : 'theme-light';
 $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
@@ -2936,8 +2980,8 @@ $_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
 <?php if($showTopBarTitle): ?>
 <div id="top-bar"<?php echo !empty($shellAppOpen) ? ' hidden' : ''; ?>>
     <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
-    <a id="home-root-button" class="shell-home-link" href="/main" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
-    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'Shell Application'); ?></div>
+    <a id="home-root-button" class="shell-home-link" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
+    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'ServerKherson'); ?></div>
     <div class="weather-widget weather-widget-instance" id="weatherWidget">
         <span class="weather-icon"></span>
         <span class="weather-temp">--°C</span>
@@ -4295,7 +4339,47 @@ endif; // showOtpPage
             </div>
         </div>
         <input type="hidden" name="current_app" value="<?php echo my_htmlspecialchars($selectedApp); ?>">
+<?php
+$versionInfo = function_exists('appdashboard_version_info') ? appdashboard_version_info() : ['label' => '', 'source' => 'unknown'];
+$versionLabel = $versionInfo['label'] ?? '';
+$versionDate = '';
+if ($versionLabel !== '') {
+    $versionDate = ($versionInfo['source'] ?? '') === 'env'
+        ? ($versionInfo['build_date_human'] ?? '')
+        : ($versionInfo['updated_at_human'] ?? '');
+}
+$versionTooltip = '';
+if ($versionLabel !== '') {
+    $ttParts = [];
+    $branchVal = $versionInfo['branch'] ?? '';
+    if ($branchVal !== '') {
+        $ttParts[] = ($translations['version_branch'] ?? 'Branch') . ': ' . $branchVal;
+    }
+    $fullVal = $versionInfo['full'] ?? '';
+    if ($fullVal !== '') {
+        $ttParts[] = ($translations['version_commit'] ?? 'Commit') . ': ' . $fullVal;
+    }
+    $updatedVal = $versionInfo['updated_at'] ?? '';
+    if ($updatedVal !== '') {
+        $ttParts[] = ($translations['version_updated'] ?? 'Code updated') . ': ' . $updatedVal;
+    }
+    $bdVal = $versionInfo['build_date'] ?? '';
+    if ($bdVal !== '') {
+        $ttParts[] = ($translations['version_build_date'] ?? 'Image build') . ': ' . $bdVal;
+    }
+    $versionTooltip = implode("\n", $ttParts);
+}
+?>
+<div class="settings-footer">
+<?php if ($versionLabel !== ''): ?>
+    <span class="settings-version" title="<?php echo my_htmlspecialchars($versionTooltip); ?>">
+        <span class="settings-version-label"><?php echo my_htmlspecialchars($translations['version_label'] ?? 'Version'); ?>:</span>
+        <span class="settings-version-value"><?php echo my_htmlspecialchars($versionLabel); ?></span>
+        <?php if ($versionDate !== ''): ?><span class="settings-version-date">· <?php echo my_htmlspecialchars($versionDate); ?></span><?php endif; ?>
+    </span>
+<?php endif; ?>
         <input type="submit" name="settings" value="<?php echo my_htmlspecialchars($translations['save']); ?>" class="settings-save-btn">
+</div>
 
         </div><!-- /.modal-scroll-body -->
 </form>
@@ -4346,8 +4430,8 @@ if($selectedApp){foreach($apps as $appData){if($appData['folder']===$selectedApp
 $showAppFrame=$path==='/main'&&$selectedAppData!==null;
 $showAppRail=$showAppFrame&&!empty($selectedAppData['app_rail']);
 ?>
-<?php $railTopApps=['immich','gitea','kanboard','dawarich','sentry','lopaka']; ?>
-<?php $edgeAppShellApps=['immich','gitea','kanboard','dawarich','sentry','x','X','lopaka']; ?>
+<?php $railTopApps=['immich','gitea','dawarich','sentry']; ?>
+<?php $edgeAppShellApps=['immich','gitea','dawarich','sentry','x','X']; ?>
 <?php if($path==='/main' && !$showLogin): ?>
 <script>
 window.__SHELL_APPS=<?php echo json_encode($apps, JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
@@ -4358,8 +4442,13 @@ window.__SHELL_THEME=<?php echo json_encode(($selectedApp === 'kanboard' && in_a
 window.__SHELL_COLOR=<?php echo json_encode($config['color'] ?? ''); ?>;
 window.__SHELL_USER_DATA=<?php echo json_encode($userDataForApps ? base64_encode(json_encode($userDataForApps)) : ''); ?>;
 window.__SHELL_CURRENT_APP=<?php echo json_encode($selectedApp); ?>;
+window.__SHELL_I18N=<?php echo json_encode([
+    'shell_application' => $translations['shell_application'] ?? 'ServerKherson',
+    'opening_app' => $translations['opening_app'] ?? 'Opening…',
+    'opening_app_named' => $translations['opening_app_named'] ?? 'Opening {name}…',
+], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<script src="/project/assets/shell-app-nav.js?v=4" defer></script>
+<script src="/project/assets/shell-app-nav.js?v=7" defer></script>
 <?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($path==='/main'): ?>

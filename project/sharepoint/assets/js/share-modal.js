@@ -95,7 +95,7 @@
     if (document.querySelector('link[data-sharepoint-share-modal]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/project/sharepoint/assets/css/share-modal.css?v=5';
+    link.href = '/project/sharepoint/assets/css/share-modal.css?v=11';
     link.dataset.sharepointShareModal = '1';
     document.head.appendChild(link);
   }
@@ -134,27 +134,121 @@
     }
 
     expiryOptions() {
+      const current = (this.existing && this.existing.expires_option) || '1m';
       return [['1m', t('exp_1m')], ['1h', t('exp_1h')], ['1d', t('exp_1d')], ['1w', t('exp_1w')], ['3m', t('exp_3m')], ['6m', t('exp_6m')], ['1y', t('exp_1y')], ['never', t('never')]]
-        .map(([value, label]) => '<option value="' + value + '"' + (value === '1m' ? ' selected' : '') + '>' + esc(label) + '</option>')
+        .map(([value, label]) => '<option value="' + value + '"' + (value === current ? ' selected' : '') + '>' + esc(label) + '</option>')
         .join('');
     }
 
     open() {
       ensureStyles();
       this.overlay = this.buildOverlay();
-      document.body.appendChild(this.overlay);
-      document.body.classList.add('sp-share-open', 'sp-share-app-' + this.appId);
-      requestAnimationFrame(() => {
-        this.overlay.classList.add('is-open');
-        const focus = this.overlay.querySelector('[autofocus], input, select, button');
-        if (focus) setTimeout(() => focus.focus(), 60);
-      });
-      document.addEventListener('keydown', this.onKey);
+      const host = this.options.container;
+      if (host) {
+        host.innerHTML = '';
+        this.overlay.classList.add('sp-share-overlay--page', 'is-open');
+        host.appendChild(this.overlay);
+      } else {
+        document.body.appendChild(this.overlay);
+        document.body.classList.add('sp-share-open', 'sp-share-app-' + this.appId);
+        requestAnimationFrame(() => {
+          this.overlay.classList.add('is-open');
+          const focus = this.overlay.querySelector('[autofocus], input, select, button');
+          if (focus) setTimeout(() => focus.focus(), 60);
+        });
+        document.addEventListener('keydown', this.onKey);
+      }
+      if (this.options.requirePassword) this.loadExisting();
       return this;
+    }
+
+    endpoint() {
+      return this.options.apiUrl || ('/apps/' + this.appId + '/api/share.php');
+    }
+
+    async post(body) {
+      const response = await fetch(this.endpoint(), {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      const text = await response.text();
+      let result = null;
+      try { result = JSON.parse(text); } catch (e) { result = null; }
+      if (!result) throw new Error(translatedError(response.status === 401 ? 'not authenticated' : 'create_failed'));
+      if (!response.ok || !result.success) throw new Error(translatedError(result.error));
+      return result;
+    }
+
+    async loadExisting() {
+      try {
+        const result = await this.post({ action: 'list', resource_app: this.appId, resource_type: this.resourceType, status: 'active' });
+        const found = (result.shares || []).find((item) => String(item.resource_id) === String(this.resourceId));
+        if (found && this.overlay) this.showExisting(found);
+      } catch (e) {}
+    }
+
+    paramsHtml(share) {
+      const expiresDate = parseDate(share.expires_at);
+      const items = [
+        t('expires') + ': ' + (expiresDate ? expiresDate.toLocaleString() : t('noExpiry')),
+        (share.permissions || []).map((p) => t(p)).join(' · '),
+        t('views') + ': ' + (share.max_views > 0 ? share.max_views : t('unlimited')),
+        t('access') + ': ' + t(share.access_mode),
+        t('dataMode') + ': ' + t(share.data_mode)
+      ];
+      if (share.password_protected) items.push(t('passwordSet'));
+      return items.map((item) => '<span>' + esc(item) + '</span>').join('');
+    }
+
+    passwordField(id, name, attrs) {
+      return '<div class="sp-share__pw"><input class="sp-share__input" id="' + id + '" name="' + name + '" type="password" autocomplete="new-password" placeholder="••••••••"' + attrs + '>' +
+        '<button class="sp-share__eye" type="button" data-eye aria-label="' + esc(t('password')) + '">' + icon('view') + '</button></div>';
+    }
+
+    linkBoxHtml(link) {
+      return '<div class="sp-share__link-box">' +
+        '<input type="text" readonly value="' + esc(link) + '" aria-label="' + esc(t('link')) + '">' +
+        '<button class="sp-share__mini" type="button" data-copy title="' + esc(t('copy')) + '">' + icon('copy') + '</button>' +
+        '<a class="sp-share__mini" href="' + esc(link) + '" target="_blank" rel="noopener" title="' + esc(t('open')) + '">' + icon('open') + '</a>' +
+      '</div>';
+    }
+
+    showExisting(share) {
+      this.existing = share;
+      this.dialog.outerHTML = this.buildModal();
+      this.dialog = this.overlay.querySelector('.sp-share-modal');
+      this.bind(this.overlay);
+      const head = this.dialog.querySelector('.sp-share__head-text .sp-share__title');
+      head.textContent = t('existingTitle');
+      const body = this.dialog.querySelector('.sp-share__body');
+      body.insertAdjacentHTML('afterbegin', '<p class="sp-share__hint">' + esc(t('existingSub')) + '</p>' + this.linkBoxHtml(String(share.link || '')) +
+        '<div class="sp-share__meta" style="justify-content:flex-start">' + this.paramsHtml(share) + '</div>');
+      this.bindDialog(String(share.link || ''));
+    }
+
+    bindDialog(link) {
+      this.dialog.querySelectorAll('[data-eye]').forEach((eye) => {
+        eye.addEventListener('click', () => {
+          const input = eye.parentNode.querySelector('input');
+          input.type = input.type === 'password' ? 'text' : 'password';
+        });
+      });
+      this.dialog.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => this.close()));
+      this.dialog.querySelectorAll('[data-copy]').forEach((button) => {
+        button.addEventListener('click', () => this.copy(link, button));
+      });
     }
 
     close() {
       if (!this.overlay) return;
+      if (this.options.container) {
+        this.overlay.remove();
+        this.overlay = null;
+        if (this.options.onClose) this.options.onClose();
+        return;
+      }
       this.overlay.classList.remove('is-open');
       document.removeEventListener('keydown', this.onKey);
       const node = this.overlay;
@@ -177,7 +271,7 @@
       overlay.className = 'sp-share-overlay';
       overlay.setAttribute('role', 'presentation');
       overlay.addEventListener('click', (event) => {
-        if (event.target === overlay) this.close();
+        if (event.target === overlay && !this.options.container) this.close();
       });
       overlay.innerHTML = this.buildModal();
       this.dialog = overlay.querySelector('.sp-share-modal');
@@ -187,7 +281,8 @@
 
     buildModal() {
       const meta = this.meta();
-      const defaults = this.options.defaultPermissions || defaultPermissions(this.appId, this.resourceType);
+      const ex = this.existing;
+      const defaults = (ex && ex.permissions) || this.options.defaultPermissions || defaultPermissions(this.appId, this.resourceType);
       const permissions = permissionList(this.appId, this.resourceType).map((permission) => {
         const selected = defaults.indexOf(permission) !== -1;
         return '<label class="sp-share__chip' + (selected ? ' is-selected' : '') + '">' +
@@ -195,7 +290,8 @@
           icon(PERMISSION_META[permission].icon) + esc(t(PERMISSION_META[permission].key)) +
           '</label>';
       }).join('');
-      const dataMode = this.resourceType === 'app'
+      const restricted = !!ex && ex.access_mode === 'restricted';
+      const dataMode = this.resourceType === 'app' && !ex
         ? '<section class="sp-share__section"><span class="sp-share__label">' + esc(t('dataMode')) + '</span>' +
           '<div class="sp-share__segmented">' +
             '<label class="sp-share__segment is-selected"><input type="radio" name="data_mode" value="live" checked>' + esc(t('live')) + '</label>' +
@@ -216,7 +312,7 @@
           '<form data-form>' +
             '<section class="sp-share__section">' +
               '<label class="sp-share__label" for="sp-share-title-input">' + esc(t('title')) + '</label>' +
-              '<input class="sp-share__input" id="sp-share-title-input" name="title" type="text" autofocus value="' + esc(this.options.title || '') + '" placeholder="' + esc(meta.name) + '">' +
+              '<input class="sp-share__input" id="sp-share-title-input" name="title" type="text" autofocus value="' + esc((ex && ex.title) || this.options.title || '') + '" placeholder="' + esc(meta.name) + '">' +
             '</section>' +
             '<section class="sp-share__section">' +
               '<span class="sp-share__label">' + esc(t('permissions')) + '</span>' +
@@ -226,9 +322,14 @@
             '<section class="sp-share__section">' +
               '<span class="sp-share__label">' + esc(t('access')) + '</span>' +
               '<div class="sp-share__segmented">' +
-                '<label class="sp-share__segment is-selected"><input type="radio" name="access_mode" value="public" checked>' + esc(t('public')) + '</label>' +
-                '<label class="sp-share__segment"><input type="radio" name="access_mode" value="restricted">' + esc(t('restricted')) + '</label>' +
+                '<label class="sp-share__segment' + (restricted ? '' : ' is-selected') + '"><input type="radio" name="access_mode" value="public"' + (restricted ? '' : ' checked') + '>' + esc(t('public')) + '</label>' +
+                '<label class="sp-share__segment' + (restricted ? ' is-selected' : '') + '"><input type="radio" name="access_mode" value="restricted"' + (restricted ? ' checked' : '') + '>' + esc(t('restricted')) + '</label>' +
               '</div>' +
+            '</section>' +
+            '<section class="sp-share__section" data-restricted-box' + (restricted ? '' : ' hidden') + '>' +
+              '<label class="sp-share__label" for="sp-share-emails">' + esc(t('allowedEmails')) + '</label>' +
+              '<textarea class="sp-share__input" id="sp-share-emails" name="allowed_emails" rows="2" placeholder="user@example.com, other@example.com">' + esc(((ex && ex.allowed_emails) || []).join(', ')) + '</textarea>' +
+              '<p class="sp-share__hint">' + esc(t('restrictedHint')) + '</p>' +
             '</section>' +
             '<div class="sp-share__row">' +
               '<section class="sp-share__section">' +
@@ -239,20 +340,20 @@
               '</section>' +
               '<section class="sp-share__section">' +
                 '<label class="sp-share__label" for="sp-share-views">' + esc(t('maxViews')) + '</label>' +
-                '<input class="sp-share__input" id="sp-share-views" name="max_views" type="number" min="0" step="1" value="0" inputmode="numeric">' +
+                '<input class="sp-share__input" id="sp-share-views" name="max_views" type="number" min="0" step="1" value="' + (ex ? parseInt(ex.max_views, 10) || 0 : 0) + '" inputmode="numeric">' +
                 '<p class="sp-share__hint">' + esc(t('unlimited')) + '</p>' +
               '</section>' +
             '</div>' +
             '<section class="sp-share__section">' +
-              '<label class="sp-share__label" for="sp-share-password">' + esc(t('password')) + ' <span style="font-weight:500;text-transform:none;letter-spacing:0">(' + esc(t('optional')) + ')</span></label>' +
-              '<input class="sp-share__input" id="sp-share-password" name="password" type="password" autocomplete="new-password" placeholder="••••••••">' +
+              '<label class="sp-share__label" for="sp-share-password">' + esc(t('password')) + ' <span style="font-weight:500;text-transform:none;letter-spacing:0">(' + esc(t(ex && ex.password_protected ? 'keepCurrent' : (this.options.requirePassword ? 'required' : 'optional'))) + ')</span></label>' +
+              this.passwordField('sp-share-password', 'password', ex && ex.password_protected ? '' : (this.options.requirePassword ? ' required' : '')) +
             '</section>' +
             dataMode +
           '</form>' +
         '</div>' +
         '<footer class="sp-share__foot">' +
           '<button class="sp-share__btn sp-share__btn--ghost" type="button" data-close>' + esc(t('cancel')) + '</button>' +
-          '<button class="sp-share__btn sp-share__btn--primary" type="button" data-create>' + esc(t('createBtn')) + '</button>' +
+          '<button class="sp-share__btn sp-share__btn--primary" type="button" data-create>' + esc(t(ex ? 'save' : 'createBtn')) + '</button>' +
         '</footer>' +
       '</div>';
     }
@@ -277,6 +378,9 @@
           group.querySelectorAll('.sp-share__segment').forEach((segment) => {
             segment.classList.toggle('is-selected', !!segment.querySelector('input:checked'));
           });
+          if (input.name === 'access_mode') {
+            overlay.querySelector('[data-restricted-box]').hidden = input.value !== 'restricted';
+          }
         });
       });
       overlay.querySelector('[data-create]').addEventListener('click', () => this.create());
@@ -287,6 +391,7 @@
     }
 
     payload() {
+      if (this.existing) return this.updatePayload();
       const form = this.overlay.querySelector('form');
       const formData = new FormData(form);
       const permissions = formData.getAll('permissions').map(String);
@@ -298,11 +403,28 @@
         title: String(formData.get('title') || this.options.title || '').trim(),
         description: this.options.description || '',
         access_mode: formData.get('access_mode') || 'public',
+        allowed_emails: String(formData.get('allowed_emails') || ''),
         permissions: permissions.length ? permissions : ['view'],
         expires_option: formData.get('expires_option') || '1m',
         password: String(formData.get('password') || ''),
         max_views: Math.max(0, parseInt(formData.get('max_views') || '0', 10) || 0),
         data_mode: formData.get('data_mode') || 'live'
+      };
+    }
+
+    updatePayload() {
+      const data = new FormData(this.overlay.querySelector('form'));
+      const permissions = data.getAll('permissions').map(String);
+      return {
+        action: 'update',
+        id: this.existing.id,
+        title: String(data.get('title') || '').trim(),
+        access_mode: data.get('access_mode') || 'public',
+        allowed_emails: String(data.get('allowed_emails') || ''),
+        permissions: permissions.length ? permissions : ['view'],
+        expires_option: data.get('expires_option') || '1m',
+        password: String(data.get('password') || ''),
+        max_views: Math.max(0, parseInt(data.get('max_views') || '0', 10) || 0)
       };
     }
 
@@ -314,20 +436,11 @@
       const original = button.textContent;
       button.innerHTML = '<span class="sp-share__spinner" aria-hidden="true"></span>' + esc(t('createBtn'));
       try {
-        const endpoint = this.options.apiUrl || ('/apps/' + this.appId + '/api/share.php');
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          credentials: 'same-origin',
-          headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-          body: JSON.stringify(this.payload())
-        });
-        const text = await response.text();
-        let result = null;
-        try { result = JSON.parse(text); } catch (e) { result = null; }
-        if (!result) {
-          throw new Error(translatedError(response.status === 401 ? 'not authenticated' : 'create_failed'));
+        const result = await this.post(this.payload());
+        if (this.existing) {
+          this.showExisting(result.share);
+          return;
         }
-        if (!response.ok || !result.success) throw new Error(translatedError(result.error));
         this.share = result.share;
         this.showSuccess();
       } catch (error) {
@@ -358,26 +471,20 @@
           '<div class="sp-share__success-icon" aria-hidden="true">' + icon('link') + '</div>' +
           '<h3>' + esc(this.meta().name) + '</h3>' +
           '<p>' + esc(t('linkReadySub')) + '</p>' +
-          '<div class="sp-share__link-box">' +
-            '<input type="text" readonly value="' + esc(link) + '" aria-label="' + esc(t('link')) + '">' +
-            '<button class="sp-share__mini" type="button" data-copy title="' + esc(t('copy')) + '">' + icon('copy') + '</button>' +
-            '<a class="sp-share__mini" href="' + esc(link) + '" target="_blank" rel="noopener" title="' + esc(t('open')) + '">' + icon('open') + '</a>' +
-          '</div>' +
+          this.linkBoxHtml(link) +
           '<div class="sp-share__meta"><span>' + esc(t('expires')) + ': ' + esc(expires) + '</span><span>' + esc((share.permissions || []).join(' · ')) + '</span></div>' +
           '<div class="sp-share__qr" data-qr></div>' +
         '</div></div>' +
         '<footer class="sp-share__foot"><button class="sp-share__btn sp-share__btn--ghost" type="button" data-close>' + esc(t('done')) + '</button><button class="sp-share__btn sp-share__btn--primary" type="button" data-copy>' + esc(t('copy')) + '</button></footer>';
-      this.dialog.querySelectorAll('[data-close]').forEach((button) => button.addEventListener('click', () => this.close()));
-      this.dialog.querySelectorAll('[data-copy]').forEach((button) => {
-        button.addEventListener('click', () => this.copy(link, button));
-      });
+      this.bindDialog(link);
       const qr = this.dialog.querySelector('[data-qr]');
       if (qr && window.SharepointQR) window.SharepointQR.render(qr, link);
     }
 
     copy(link, button) {
       const done = () => {
-        if (button && button.tagName === 'BUTTON') {
+        if (button && window.copyFlash) window.copyFlash(button);
+        else if (button && button.tagName === 'BUTTON') {
           const prev = button.innerHTML;
           button.textContent = t('copied');
           setTimeout(() => { button.innerHTML = prev; }, 1400);

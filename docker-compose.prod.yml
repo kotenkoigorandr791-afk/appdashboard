@@ -1,0 +1,16 @@
+services:
+  appdashboard-py:
+    volumes: !reset
+      - appdashboard-data:/opt/AppDashboard/data
+      - appdashboard-appdata:/opt/ApplicationData
+
+  appdashboard:
+    volumes: !reset
+      - appdashboard-data:/opt/AppDashboard/data
+      - appdashboard-appdata:/opt/ApplicationData
+      - appdashboard-logs:/var/log/nginx
+      - appdashboard-logs:/var/log/bot
+      - appdashboard-waf-logs:/var/log/modsecurity
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /:/host
+      - ${HOME:-/home/ihor}:/host-home

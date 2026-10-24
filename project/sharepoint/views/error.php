@@ -10,6 +10,8 @@ function sp_render_status_page(string $reason, ?Share $share = null, int $status
         'not_found' => ['icon' => 'link_off', 'title' => sp_t('not_found')],
         'max_views_exceeded' => ['icon' => 'visibility_off', 'title' => sp_t('views_exceeded')],
         'resource_unavailable' => ['icon' => 'cloud_off', 'title' => sp_t('resource_unavailable')],
+        'login_required' => ['icon' => 'lock', 'title' => sp_t('login_required')],
+        'user_not_allowed' => ['icon' => 'block', 'title' => sp_t('user_not_allowed')],
         'too_many_attempts' => ['icon' => 'timer', 'title' => sp_t('too_many_attempts')],
     ];
     $view = $config[$reason] ?? ['icon' => 'error', 'title' => sp_t('not_found')];

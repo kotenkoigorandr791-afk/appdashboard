@@ -525,7 +525,13 @@ async function loadData(forceRefresh = false) {
         saveStoredData();
         histDataCache = null;
     } catch (error) {
-        console.error('Error loading data:', error);
+        // A request cancelled by our own timeout is expected (slow backend or a
+        // backgrounded tab) and must not be reported as a JavaScript error.
+        if (error && error.name === 'AbortError') {
+            console.warn('Monitor request timed out, retrying:', error.message || 'aborted');
+        } else {
+            console.error('Error loading data:', error);
+        }
         retryCount++;
         const shouldUseFallback = error && (error.message === 'primary_fetch_failed' || (error.name === 'TypeError' && retryCount <= 1));
         if (shouldUseFallback) {

@@ -54,7 +54,7 @@ if ($ooIsDownload || $ooIsCallback) {
 }
 
 $filePath = isset($_GET['path']) ? $_GET['path'] : '';
-$user = isset($_GET['user']) ? $_GET['user'] : 'default';
+$user = ($ooIsDownload || $ooIsCallback) ? (string)($_GET['user'] ?? 'default') : cloud_session_storage_user();
 $lang = isset($_GET['lang']) ? $_GET['lang'] : 'en';
 $theme = isset($_GET['theme']) ? $_GET['theme'] : 'dark';
 $color = isset($_GET['color']) ? (string)$_GET['color'] : '#85b503';
@@ -104,17 +104,24 @@ function cloud_onlyoffice_find_group_root_for_file(string $user, string $path): 
     }
     return null;
 }
+function cloud_onlyoffice_callback_url_allowed(string $url): bool {
+    global $DOC_SERV_URL;
+    $p = parse_url($url);
+    if (!is_array($p) || !in_array(strtolower((string)($p['scheme'] ?? '')), ['http', 'https'], true) || isset($p['user']) || isset($p['pass'])) return false;
+    $host = strtolower((string)($p['host'] ?? ''));
+    if ($host === '') return false;
+    $allowed = array_filter(array_map('trim', explode(',', strtolower((string)getenv('ONLYOFFICE_CALLBACK_HOSTS')))));
+    $allowed[] = strtolower((string)parse_url($DOC_SERV_URL, PHP_URL_HOST));
+    return in_array($host, $allowed, true);
+}
 function download_remote_content(string $url): string|false {
-    $data = @file_get_contents($url);
-    if ($data !== false) return $data;
-    if (!function_exists('curl_init')) return false;
+    if (!cloud_onlyoffice_callback_url_allowed($url)) return false;
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
+    curl_setopt($ch, CURLOPT_FOLLOWLOCATION, false);
+    curl_setopt($ch, CURLOPT_PROTOCOLS, CURLPROTO_HTTP | CURLPROTO_HTTPS);
     curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 10);
     curl_setopt($ch, CURLOPT_TIMEOUT, 60);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-    curl_setopt($ch, CURLOPT_SSL_VERIFYHOST, false);
     $data = curl_exec($ch);
     $code = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
     if ($data === false || $code >= 400) return false;

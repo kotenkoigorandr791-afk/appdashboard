@@ -875,7 +875,7 @@
       fetch('', { method: 'POST', body: formData })
       .then(response => response.json())
       .then(result => {
-        if (result.success) setStatus(t['autosaved'] + ' (' + result.timestamp + ')', 'status-ok');
+        if (result.success) notifyParentSaved();
       })
       .catch(error => {
         // Auto-save error - silent
@@ -1560,6 +1560,10 @@
         editor.focus();
     }
     
+    function notifyParentSaved() {
+      if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
+    }
+
     function saveFile() {
       const content = editor ? editor.getValue() : '';
       return fetch('', {
@@ -1570,7 +1574,7 @@
       .then(response => response.json())
       .then(result => {
         if (result.success) {
-          setStatus(t['saved'], 'status-ok');
+          notifyParentSaved();
           lastContent = content;
           return;
         }

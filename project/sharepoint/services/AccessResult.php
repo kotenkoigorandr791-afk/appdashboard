@@ -33,7 +33,8 @@ final class AccessResult
             'not_found', 'resource_unavailable' => 404,
             'expired' => 410,
             'revoked', 'max_views_exceeded', 'permission_denied', 'path_traversal' => 403,
-            'password_required' => 401,
+            'password_required', 'login_required' => 401,
+            'user_not_allowed' => 403,
             default => 400,
         };
     }

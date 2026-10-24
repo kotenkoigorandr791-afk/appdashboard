@@ -58,11 +58,17 @@ class PgCursor:
         return self._cur.fetchall()
 
 def connect_user(app_prefix: str, email: str) -> 'PgConnection':
-    from pg_user_db import user_schema_id
-    schema = user_schema_id(app_prefix, email).replace('"', '""')
     conn = get_conn()
     with conn.cursor() as cur:
-        cur.execute(f'SET search_path TO "{schema}", public')
+        if app_prefix == 'spends':
+            cur.execute('SET search_path TO "spends_shared", public')
+            cur.execute("SELECT set_config('spends.user_id', %s, false)", (email.strip().lower(),))
+            cur.execute('SET ROLE spends_app')
+        else:
+            from pg_user_db import user_schema_id
+            schema = user_schema_id(app_prefix, email).replace('"', '""')
+            cur.execute(f'SET search_path TO "{schema}", public')
+    conn.commit()
     return PgConnection(conn)
 
 class PgConnection:

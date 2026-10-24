@@ -20,6 +20,9 @@ function cloud_group_root_key(string $groupId): string
 
 function ensureCloudGroupsSchema($db): void
 {
+    static $done = false;
+    if ($done) return;
+    $done = true;
     if (!$db) return;
     cloud_group_ensure_notifications($db);
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_groups (

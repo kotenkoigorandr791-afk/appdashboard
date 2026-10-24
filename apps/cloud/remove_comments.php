@@ -349,6 +349,8 @@ function removeComments($code, $language) {
 
 // API mode
 if (isset($_POST['action']) && $_POST['action'] === 'remove_comments') {
+    require_once dirname(__DIR__, 2) . '/lib/endpoint_guard.php';
+    app_guard_session_user('remove_comments', 120);
     header('Content-Type: application/json');
     
     $code = $_POST['code'] ?? '';

@@ -162,7 +162,7 @@ if ($method === 'GET') {
             if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
         }
         header('Content-Type: application/vnd.android.package-archive; charset=binary');
-        header('Content-Disposition: attachment; filename="stepmonitor-' . $version . '.apk"');
+        header('Content-Disposition: attachment; filename="StepMonitor-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', (string)$version) . '.apk"');
         header('Content-Length: ' . (string)filesize($apkFile));
         header('Cache-Control: no-store, private');
         header('Pragma: no-cache');

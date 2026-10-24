@@ -9,6 +9,7 @@ $openTableTitle = ['be'=>'Адкрыць табліцу','cs'=>'Otevřít tabulk
 <!DOCTYPE html>
 <html lang="<?= htmlspecialchars($language) ?>">
 <head>
+    <?= spendsCsrfScript() ?>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title><?= htmlspecialchars($translations['expense_tracker_title']) ?></title>

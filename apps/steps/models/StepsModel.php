@@ -1,7 +1,9 @@
 <?php
+require_once __DIR__ . '/../core/store.php';
 // === Steps — basic operations ===
 function upsertStep(AppDatabase $db, string $date, int $steps): void {
-    $stmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
+    $stmt = $db->prepare('INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO UPDATE SET steps=excluded.steps');
+    steps_bind_user($stmt);
     $stmt->bindValue(':d', $date, PDO::PARAM_STR);
     $stmt->bindValue(':s', $steps, PDO::PARAM_INT);
     $stmt->execute();
@@ -10,7 +12,8 @@ function upsertStepsBatch(AppDatabase $db, array $items): void {
     $pdo = $db->getPdo();
     $pdo->beginTransaction();
     try {
-        $stmt = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
+        $stmt = $db->prepare('INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO UPDATE SET steps=excluded.steps');
+        steps_bind_user($stmt);
         foreach ($items as $item) {
             $stmt->bindValue(':d', $item['date'], PDO::PARAM_STR);
             $stmt->bindValue(':s', (int)$item['steps'], PDO::PARAM_INT);
@@ -48,41 +51,14 @@ function normalizeStoredDate(string $raw): ?string {
     }
     return null;
 }
-function normalizeStepsDatesTable(AppDatabase $db): void {
-    $rows = [];
-    try {
-        $res = $db->query('SELECT date, steps FROM steps');
-        while ($r = $res->fetch(PDO::FETCH_ASSOC)) {
-            $iso = normalizeStoredDate((string)($r['date'] ?? ''));
-            if (!$iso) continue;
-            $steps = (int)($r['steps'] ?? 0);
-            if (!isset($rows[$iso]) || $steps > $rows[$iso]) $rows[$iso] = $steps;
-        }
-    } catch (Exception $e) {
-        return;
-    }
-    try {
-        $db->exec('BEGIN');
-        $db->exec('DELETE FROM steps');
-        $st = $db->prepare('INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps');
-        foreach ($rows as $d => $s) {
-            $st->bindValue(':d', $d, PDO::PARAM_STR);
-            $st->bindValue(':s', $s, PDO::PARAM_INT);
-            $st->execute();
-        }
-        $db->exec('COMMIT');
-    } catch (Exception $e) {
-        $db->exec('ROLLBACK');
-    }
-}
-
 // Load ONLY needed date range (for chart/calendar)
 function loadStepsRange(AppDatabase $db, string $from, string $to): array {
     $steps = [];
     try {
         $stmt = $db->prepare(
-            'SELECT date, steps FROM steps WHERE date >= :from AND date <= :to ORDER BY date ASC'
+            'SELECT date, steps FROM steps_days WHERE user_email = :u AND date >= :from AND date <= :to ORDER BY date ASC'
         );
+        steps_bind_user($stmt);
         $stmt->bindValue(':from', $from, PDO::PARAM_STR);
         $stmt->bindValue(':to',   $to,   PDO::PARAM_STR);
         $result = $stmt->execute();
@@ -98,9 +74,10 @@ function loadStepsRange(AppDatabase $db, string $from, string $to): array {
 // Min and max date in DB
 function getStepsDateBounds(AppDatabase $db): array {
     try {
-        $minDate = $db->querySingle('SELECT MIN(date) FROM steps');
-        $maxDate = $db->querySingle('SELECT MAX(date) FROM steps');
-        return [$minDate ?: null, $maxDate ?: null];
+        $stmt = $db->prepare('SELECT MIN(date), MAX(date) FROM steps_days WHERE user_email = :u');
+        steps_bind_user($stmt);
+        $r = $stmt->execute()->fetch(PDO::FETCH_NUM);
+        return [($r[0] ?? null) ?: null, ($r[1] ?? null) ?: null];
     } catch (Exception $e) {
         return [null, null];
     }
@@ -115,13 +92,13 @@ function loadStepsPage(AppDatabase $db, int $page, int $pageSize, string $filter
 
     try {
         // Total count
-        $countSql = "SELECT COUNT(*) FROM steps" . ($where ? " WHERE $where" : '');
+        $countSql = "SELECT COUNT(*) FROM steps_days WHERE $where";
         $countStmt = $db->prepare($countSql);
         foreach ($params as $k => $v) $countStmt->bindValue($k, $v[0], $v[1]);
         $total = (int)$countStmt->execute()->fetch(PDO::FETCH_NUM)[0];
 
         // Page
-        $sql = "SELECT date, steps FROM steps" . ($where ? " WHERE $where" : '') . " ORDER BY date DESC LIMIT :lim OFFSET :off";
+        $sql = "SELECT date, steps FROM steps_days WHERE $where ORDER BY date DESC LIMIT :lim OFFSET :off";
         $stmt = $db->prepare($sql);
         foreach ($params as $k => $v) $stmt->bindValue($k, $v[0], $v[1]);
         $stmt->bindValue(':lim', $pageSize, PDO::PARAM_INT);
@@ -141,8 +118,8 @@ function loadStepsPage(AppDatabase $db, int $page, int $pageSize, string $filter
 }
 
 function buildStepsWhere(string $op, ?int $val, ?int $valTo, ?string $dateFrom, ?string $dateTo): array {
-    $parts = [];
-    $params = [];
+    $parts = ['user_email = :u'];
+    $params = [':u' => [steps_user(), PDO::PARAM_STR]];
     $safeDateFrom = (is_string($dateFrom) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateFrom)) ? $dateFrom : null;
     $safeDateTo = (is_string($dateTo) && preg_match('/^\d{4}-\d{2}-\d{2}$/', $dateTo)) ? $dateTo : null;
     if ($safeDateFrom !== null) {
@@ -180,7 +157,9 @@ function buildStepsWhere(string $op, ?int $val, ?int $valTo, ?string $dateFrom, 
 function exportStepsToCSV(AppDatabase $db): string {
     $out = '';
     try {
-        $result = $db->query('SELECT date, steps FROM steps ORDER BY date ASC');
+        $stmt = $db->prepare('SELECT date, steps FROM steps_days WHERE user_email = :u ORDER BY date ASC');
+        steps_bind_user($stmt);
+        $result = $stmt->execute();
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $out .= isoToCSVDate($row['date']) . ',' . $row['steps'] . "\n";
         }
@@ -191,10 +170,13 @@ function exportStepsToCSV(AppDatabase $db): string {
 }
 
 // Import CSV content into DB
-function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $replace = true): array {
+function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $replace = true, bool $ownTx = true): array {
     $imported = [];
     $lines = explode("\n", $csvContent);
-    $db->exec('BEGIN');
+    $sql = 'INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO ' . ($replace ? 'UPDATE SET steps=excluded.steps' : 'NOTHING');
+    $stmt = $db->prepare($sql);
+    steps_bind_user($stmt);
+    if ($ownTx) $db->exec('BEGIN');
     try {
         foreach ($lines as $line) {
             $line = trim($line);
@@ -206,23 +188,54 @@ function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $re
             $isoDate = csvDateToISO($rawDate);
             if (!$isoDate) continue;
             $steps = (int)$row[1];
-            $sql   = $replace
-                ? 'INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO UPDATE SET steps=excluded.steps'
-                : 'INSERT INTO steps (date, steps) VALUES (:d, :s) ON CONFLICT (date) DO NOTHING';
-            $stmt = $db->prepare($sql);
             $stmt->bindValue(':d', $isoDate, PDO::PARAM_STR);
             $stmt->bindValue(':s', $steps,   PDO::PARAM_INT);
             $stmt->execute();
             $imported[$isoDate] = $steps;
         }
-        $db->exec('COMMIT');
+        if ($ownTx) $db->exec('COMMIT');
     } catch (Exception $e) {
-        $db->exec('ROLLBACK');
+        if ($ownTx) $db->exec('ROLLBACK');
         error_log("importStepsFromCSVContent failed: " . $e->getMessage());
+        if (!$ownTx) throw $e;
     }
     return $imported;
 }
 
+function steps_fill_range(array $byDate, string $from, string $to): array {
+    $out = [];
+    $cd = new DateTime($from);
+    $end = new DateTime($to);
+    while ($cd <= $end) {
+        $ds = $cd->format('Y-m-d');
+        $out[] = $byDate[$ds] ?? ['date' => $ds, 'steps' => 0];
+        $cd->modify('+1 day');
+    }
+    return $out;
+}
+function steps_delete_all(AppDatabase $db): void {
+    $stmt = $db->prepare('DELETE FROM steps_days WHERE user_email = :u');
+    steps_bind_user($stmt);
+    $stmt->execute();
+}
+function steps_replace_all_from_csv(AppDatabase $db, string $csv): array {
+    $db->exec('BEGIN');
+    try {
+        steps_delete_all($db);
+        $r = importStepsFromCSVContent($db, $csv, true, false);
+        $db->exec('COMMIT');
+        return $r;
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
+    }
+}
+function steps_version(AppDatabase $db): string {
+    $stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(MAX(date), '') AS max_date, COALESCE(SUM(steps), 0) AS total_steps FROM steps_days WHERE user_email = :u");
+    steps_bind_user($stmt);
+    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    return (string)($row['count'] ?? 0) . '|' . (string)($row['max_date'] ?? '') . '|' . (string)($row['total_steps'] ?? 0);
+}
 function steps_delete_tree(string $dir): bool {
     if (!is_dir($dir)) {
         return true;

@@ -27,7 +27,7 @@ class ReleaseRepository(context: Context) {
     }
 
     /**
-     * Returns the GitHub release only when [versionName] matches [GithubRelease.tagName].
+     * Returns the release only when [versionName] matches [GithubRelease.tagName].
      * Never falls back to another version — avoids showing 1.9.8 notes on a 1.9.9 install.
      */
     suspend fun findReleaseForVersion(
@@ -41,7 +41,7 @@ class ReleaseRepository(context: Context) {
     private fun fetchFromNetwork(): List<GithubRelease>? {
         val request = Request.Builder()
             .url(RELEASES_URL)
-            .header("Accept", "application/vnd.github+json")
+            .header("Accept", "application/json")
             .get()
             .build()
         return try {
@@ -79,6 +79,6 @@ class ReleaseRepository(context: Context) {
         private const val KEY_CACHE_TS = "ts"
         private const val CACHE_TTL_MS = 10 * 60 * 1000L
         private const val RELEASES_URL =
-            "https://api.github.com/repos/mcnaveen/health-connect-webhook/releases?per_page=20"
+            "https://git.serverkherson.xyz/api/v1/repos/kotenkoigorandr791/apps-dashboard/releases?limit=20"
     }
 }

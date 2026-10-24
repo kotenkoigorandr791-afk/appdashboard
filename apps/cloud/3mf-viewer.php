@@ -5,9 +5,6 @@ require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/includes/auth_gate.php';
 cloud_session_start();
 cloud_require_session_auth();
-header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: GET, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type');
 
 function cloud_hex_to_rgba(string $hex, float $alpha): string {
     $hex = ltrim(trim($hex), '#');

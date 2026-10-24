@@ -45,8 +45,84 @@ function getCurrentUserFromActiveSessions() {
     if (is_string($sessionEmail) && $sessionEmail !== '') return $sessionEmail;
     $row = spendsActiveSessionRow();
     if (!empty($row['email']) && is_string($row['email'])) return $row['email'];
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    return 'user_' . preg_replace('/[^a-zA-Z0-9]/', '_', $ip);
+    return null;
+}
+function spendsCacheGet(string $key): ?string {
+    $r = app_redis();
+    if (!$r) return null;
+    try {
+        $v = $r->get(app_redis_key('spends:' . $key));
+        return is_string($v) ? $v : null;
+    } catch (Throwable $e) {
+        return null;
+    }
+}
+function spendsCacheSet(string $key, string $value, int $ttl): void {
+    $r = app_redis();
+    if (!$r) return;
+    try {
+        $r->setex(app_redis_key('spends:' . $key), $ttl, $value);
+    } catch (Throwable $e) {
+    }
+}
+function spendsSlotAcquire(string $name, int $limit, int $ttl): bool {
+    $r = app_redis();
+    if (!$r) return true;
+    try {
+        $key = app_redis_key('spends:slot:' . $name);
+        $n = (int)$r->incr($key);
+        $r->expire($key, $ttl);
+        if ($n > $limit) {
+            $r->decr($key);
+            return false;
+        }
+        return true;
+    } catch (Throwable $e) {
+        return true;
+    }
+}
+function spendsSlotRelease(string $name): void {
+    $r = app_redis();
+    if (!$r) return;
+    try {
+        $key = app_redis_key('spends:slot:' . $name);
+        if ((int)$r->decr($key) < 0) $r->set($key, 0);
+    } catch (Throwable $e) {
+    }
+}
+function spendsCsrfToken(): string {
+    if (empty($_SESSION['spends_csrf']) || !is_string($_SESSION['spends_csrf'])) $_SESSION['spends_csrf'] = bin2hex(random_bytes(32));
+    return $_SESSION['spends_csrf'];
+}
+function spendsCsrfScript(): string {
+    $t = json_encode(spendsCsrfToken());
+    return "<script>(function(){var t=$t,f=window.fetch;window.spendsCsrfToken=t;window.fetch=function(u,o){o=o||{};var m=(o.method||(u&&u.method)||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'){var h=new Headers(o.headers||(u&&u.headers)||{});h.set('X-CSRF-Token',t);o.headers=h;}return f.call(this,u,o);};})();</script>";
+}
+function spendsCsrfEnforce(): void {
+    if (defined('PUBLIC_API') || ($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') return;
+    $sent = (string)($_SERVER['HTTP_X_CSRF_TOKEN'] ?? $_POST['csrf_token'] ?? '');
+    if ($sent !== '' && hash_equals(spendsCsrfToken(), $sent)) return;
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'error', 'message' => 'csrf_invalid'], JSON_UNESCAPED_UNICODE);
+    exit;
+}
+function spendsRequireUser(): string {
+    $email = getCurrentUserFromActiveSessions();
+    if (is_string($email) && $email !== '') {
+        spendsCsrfEnforce();
+        return $email;
+    }
+    $isPage = ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' && str_contains((string)($_SERVER['HTTP_ACCEPT'] ?? ''), 'text/html') && !isset($_GET['api']);
+    if ($isPage) {
+        $params = array_intersect_key($_GET, array_flip(['theme', 'lang', 'color']));
+        header('Location: /login' . ($params ? '?' . http_build_query($params) : ''));
+        exit;
+    }
+    http_response_code(401);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['status' => 'error', 'message' => 'auth_required'], JSON_UNESCAPED_UNICODE);
+    exit;
 }
 function getSafeFolderName($email) {
     $n = str_replace(['@', '.'], '_', $email);

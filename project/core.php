@@ -658,7 +658,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
             $scheme = 'https';
         }
         $host = $_SERVER['HTTP_HOST'] ?? (function_exists('app_base_domain') ? app_base_domain() : 'localhost');
-        $browserUrl = $scheme . '://' . $host . '/client-auth?request_id=' . urlencode($requestData['request_id']) . '&browser_token=' . urlencode($requestData['browser_token']);
+        $configuredBase = trim((string)(getenv('APP_PUBLIC_BASE_URL') ?: ''));
+        $baseUrl = $configuredBase !== '' ? rtrim($configuredBase, '/') : $scheme . '://' . $host;
+        $browserUrl = $baseUrl . '/client-auth?request_id=' . urlencode($requestData['request_id']) . '&browser_token=' . urlencode($requestData['browser_token']);
         json_out([
             'ok' => true,
             'request_id' => $requestData['request_id'],
@@ -1883,7 +1885,9 @@ $defaultTranslations['share_expiration_1m'] = '1 month';
 $defaultTranslations['share_expiration_3m'] = '3 months';
 $defaultTranslations['share_expiration_6m'] = 'Half a year';
 $defaultTranslations['share_expiration_1y'] = '1 year';
-$defaultTranslations['shell_application'] = 'Shell Application';
+$defaultTranslations['shell_application'] = 'ServerKherson';
+$defaultTranslations['opening_app'] = 'Opening…';
+$defaultTranslations['opening_app_named'] = 'Opening {name}…';
 $defaultTranslations['news_portal_title'] = 'News Portal';
 $defaultTranslations['news_articles'] = 'Articles';
 $defaultTranslations['news_title_label'] = 'Title';
@@ -2534,7 +2538,7 @@ function sendTelegramPhoto($photoUrl, $caption){
         curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
         curl_setopt($ch, CURLOPT_TIMEOUT, 10);
         curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
+        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true);
         $photoData = curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         if($photoData === false || $httpCode !== 200) $photoData = null;
@@ -2933,6 +2937,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     }
     function newsEnsureColumn(AppDatabase $db, array &$cols, string $table, string $column, string $definition): void {
         if (in_array($column, $cols, true)) return;
+        if (!preg_match('/^[a-z_][a-z0-9_]*$/', $table) || !preg_match('/^[a-z_][a-z0-9_]*$/', $column)) return;
         try {
             $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
             $cols[] = $column;

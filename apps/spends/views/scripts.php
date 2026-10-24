@@ -56,7 +56,13 @@ function showNotification(message, type='info') {
     const c = document.getElementById('notification-container');
     const n = document.createElement('div');
     n.className = `notification ${type}`;
-    n.innerHTML = `<span>${message}</span><button class="notification-close" onclick="this.parentElement.remove()">×</button>`;
+    const s = document.createElement('span');
+    s.textContent = message;
+    const b = document.createElement('button');
+    b.className = 'notification-close';
+    b.textContent = '×';
+    b.onclick = () => n.remove();
+    n.append(s, b);
     c.appendChild(n);
     setTimeout(()=>n.remove(), 5000);
 }
@@ -1078,8 +1084,7 @@ function uploadBackup(){
     fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status==='success'){showNotification(t('backup_uploaded','Backup uploaded'),'success');fi.value='';setTimeout(()=>location.reload(),1000);}else showNotification(d.message||t('error_generic','Error'),'error');}).catch(e=>showNotification(`${t('upload_error','Upload error')}: ${e}`,'error'));
 }
 function viewBackup(fn) {
-    const safeUser = currentUser.replace(/[^a-zA-Z0-9]/g,'_');
-    fetch(`backups/${safeUser}/${fn}`).then(r=>r.text()).then(data=>{
+    fetch(`?download_backup=${encodeURIComponent(fn)}`).then(r=>r.text()).then(data=>{
         const preview=document.getElementById('backup-preview');
         const lines=data.trim().split('\n');
         if(!lines.length){preview.innerHTML=`<div style="text-align:center;padding:20px;color:#666;">${t('empty_backup','Empty backup')}</div>`;showModal('view-backup-modal');return;}

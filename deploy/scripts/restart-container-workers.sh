@@ -11,7 +11,7 @@ while [ "$i" -lt 120 ]; do
     continue
   fi
   if docker exec "$CONTAINER" sh -c "$SUPERVISORCTL status smart-home-ws" >/dev/null 2>&1; then
-    docker exec "$CONTAINER" sh -c "$SUPERVISORCTL restart php-fpm smart-home-ws ssh-ws"
+    docker exec "$CONTAINER" sh -c "$SUPERVISORCTL restart php-fpm smart-home-ws smart-home-ws-2 smart-home-ws-3 smart-home-mqtt-worker smart-home-mqtt-worker-2 ssh-ws"
     exit 0
   fi
   sleep 2

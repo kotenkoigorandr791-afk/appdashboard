@@ -432,15 +432,18 @@ body.sp-share-open { overflow: hidden !important; }
 .sp-share--films .sp-share__segment { border-radius: 4px; }
 
 .sp-share--smart_home {
-  --sp-share-accent: var(--primary-color, #4aa8ff);
-  --sp-share-text: var(--text-color, #eef4ff);
-  --sp-share-surface: var(--modal-bg, rgba(17, 21, 28, .96));
-  --sp-share-raised: rgba(255, 255, 255, .07);
-  --sp-share-border: rgba(255, 255, 255, .13);
-  --sp-share-radius: 22px;
-  --sp-share-control-radius: 13px;
-  --sp-share-font: Inter, system-ui, sans-serif;
+  --sp-share-accent: var(--text, #1f1e1c);
+  --sp-share-text: var(--text, #1f1e1c);
+  --sp-share-surface: var(--surface, #f5f3f0);
+  --sp-share-raised: var(--surface-2, #fff);
+  --sp-share-border: var(--line, #d6d3cf);
+  --sp-share-radius: var(--radius, 20px);
+  --sp-share-control-radius: var(--radius-sm, 14px);
+  --sp-share-font: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --sp-share-muted: var(--text-secondary, color-mix(in srgb, var(--sp-share-text) 62%, transparent));
+  --sp-share-soft: color-mix(in srgb, var(--sp-share-text) 12%, transparent);
 }
+.sp-share--smart_home .sp-share__btn--primary { color: var(--surface); }
 
 .sp-share--cloud {
   --sp-share-accent: var(--primary-color, #6750a4);
@@ -460,4 +463,41 @@ body.sp-share-open { overflow: hidden !important; }
 
 @media (prefers-reduced-motion: reduce) {
   .sp-share-overlay, .sp-share-modal, .sp-share__btn, .sp-share__input { transition: none; }
+}
+
+.sp-share__pw { position: relative; }
+.sp-share-modal .sp-share__pw .sp-share__input { padding-right: 46px; }
+.sp-share__eye { position: absolute; top: 50%; right: 8px; transform: translateY(-50%); display: grid; place-items: center; width: 32px; height: 32px; padding: 0; color: var(--sp-share-muted); background: transparent; border: 0; border-radius: 50%; cursor: pointer; }
+.sp-share__eye:hover { color: var(--sp-share-text); background: var(--sp-share-soft); }
+
+.sp-share-overlay--page {
+  position: static;
+  display: block;
+  padding: 0;
+  background: none;
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  opacity: 1;
+  visibility: visible;
+  container-type: inline-size;
+}
+.sp-share-overlay--page .sp-share-modal {
+  width: min(760px, 100%);
+  max-height: none;
+  margin: 0 auto;
+  overflow: visible;
+  transform: none;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, .14);
+}
+.sp-share-overlay--page .sp-share__body { overflow: visible; padding: 0 clamp(16px, 4cqw, 28px) 8px; }
+.sp-share-overlay--page .sp-share__head { padding: clamp(16px, 4cqw, 26px) clamp(16px, 4cqw, 28px) 14px; }
+.sp-share-overlay--page .sp-share__foot { padding: 16px clamp(16px, 4cqw, 28px) 20px; border-radius: 0 0 var(--sp-share-radius) var(--sp-share-radius); }
+.sp-share-overlay--page .sp-share__section { padding: 14px 16px; background: color-mix(in srgb, var(--sp-share-text) 3.5%, transparent); border: 1px solid var(--sp-share-border); border-radius: var(--sp-share-control-radius); }
+.sp-share-overlay--page .sp-share__row .sp-share__section { margin: 0; }
+.sp-share-overlay--page .sp-share__row { margin: 12px 0 14px; align-items: stretch; }
+.sp-share-overlay--page .sp-share__meta span { padding: 6px 11px; }
+@container (max-width: 520px) {
+  .sp-share__row { grid-template-columns: 1fr; }
+  .sp-share__foot { flex-direction: column-reverse; }
+  .sp-share__foot .sp-share__btn { width: 100%; }
 }

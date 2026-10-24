@@ -1,7 +1,8 @@
 {
     "apiEndpoint": "API Endpoint",
     "colorType": "Color Type",
-    "english": "off",
+    "english": "Off",
+    "sharePasswordSetPlaceholder": "Password is set. Enter a new one to replace it",
     "hideLanguageSwitcherOnMainPage": "Hide language switcher on main page",
     "quota": "Quota",
     "quotaUpdated": "Quota updated successfully",

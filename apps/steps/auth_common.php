@@ -42,15 +42,26 @@ function get_current_user_email(): ?string {
     return null;
 }
 function emailToFolderName(string $email): string {
-    $n = str_replace(['@', '.'], '_', $email);
-    $n = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $n);
+    return 'u' . substr(hash('sha256', strtolower(trim($email))), 0, 32);
+}
+function legacyEmailFolderName(string $email): string {
+    $n = preg_replace('/[^a-zA-Z0-9_\-]/', '_', str_replace(['@', '.'], '_', $email));
     return $n !== '' ? $n : 'default_user';
 }
 function get_current_user_folder(): string {
     $email = get_current_user_email();
-    if ($email) {
-        return emailToFolderName($email);
+    if (!$email) {
+        throw new RuntimeException('unauthenticated');
     }
-    $ip = $_SERVER['REMOTE_ADDR'] ?? 'unknown';
-    return 'user_' . preg_replace('/[^a-zA-Z0-9]/', '_', $ip);
+    return emailToFolderName($email);
+}
+function steps_require_auth_json(): string {
+    $email = get_current_user_email();
+    if (!$email) {
+        http_response_code(401);
+        header('Content-Type: application/json; charset=utf-8');
+        echo json_encode(['ok' => false, 'error' => 'unauthorized']);
+        exit;
+    }
+    return $email;
 }

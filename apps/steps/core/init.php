@@ -42,67 +42,15 @@ if (!empty($userPhotoFromDB)) {
     }
 }
 
-// Open user database
 $userDb = getUserDB($userDir);
 if (!$userDb) {
     throw new RuntimeException('Steps database unavailable');
 }
-normalizeStepsDatesTable($userDb);
-
-// Load settings
 $userSettings = loadUserSettings($userDb, $defaultSettings);
-
-// Initialize steps: only last 12 months for initial render
-$today        = (new DateTime())->format('Y-m-d');
-
-// If DB is empty — fill with a month of zeros
-$totalCount = (int)$userDb->querySingle('SELECT COUNT(*) FROM steps');
-if ($totalCount === 0) {
-    $sd = (new DateTime())->modify('-1 month');
-    $ed = new DateTime();
-    $userDb->exec('BEGIN');
-    while ($sd <= $ed) {
-        upsertStep($userDb, $sd->format('Y-m-d'), 0);
-        $sd->modify('+1 day');
-    }
-    $userDb->exec('COMMIT');
-}
-
-// Ensure today exists in DB
-$userDb->exec("INSERT INTO steps (date, steps) VALUES ('$today', 0) ON CONFLICT (date) DO NOTHING");
-
-// Determine earliest date
+$today = (new DateTime())->format('Y-m-d');
 [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
-
-// Load entire available date range for JS
-$jsRangeFrom = $earliestInDB ?? $today;
+$jsRangeFrom = $earliestInDB ?? (new DateTime())->modify('-1 month')->format('Y-m-d');
 $jsRangeTo = ($latestInDB && strcmp($latestInDB, $today) > 0) ? $latestInDB : $today;
-error_log("Loading steps range: from=$jsRangeFrom, to=$jsRangeTo, earliest=$earliestInDB, latest=$latestInDB, today=$today");
 $stepsDataRaw = loadStepsRange($userDb, $jsRangeFrom, $jsRangeTo);
-error_log("Loaded steps count: " . count($stepsDataRaw));
-
-// Fill gaps with zeros in loaded range
-$cd = new DateTime($jsRangeFrom);
-$ed2 = new DateTime($jsRangeTo);
-$toInsert = [];
-while ($cd <= $ed2) {
-    $ds = $cd->format('Y-m-d');
-    if (!isset($stepsDataRaw[$ds])) $toInsert[] = $ds;
-    $cd->modify('+1 day');
-}
-if ($toInsert) {
-    $userDb->exec('BEGIN');
-    foreach ($toInsert as $ds) {
-        upsertStep($userDb, $ds, 0);
-        $stepsDataRaw[$ds] = ['date' => $ds, 'steps' => 0];
-    }
-    $userDb->exec('COMMIT');
-}
-
-$stepsData = array_values($stepsDataRaw);
-usort($stepsData, fn($a, $b) => strcmp($a['date'], $b['date']));
-error_log("Final stepsData count: " . count($stepsData) . ", first 3: " . json_encode(array_slice($stepsData, 0, 3)));
-
-// Health Connect compact metrics for the same range (steps UI charts).
+$stepsData = steps_fill_range($stepsDataRaw, $jsRangeFrom, $jsRangeTo);
 $healthMetrics = hc_read_metrics_range($userDir, $jsRangeFrom, $jsRangeTo);
-error_log("Loaded health metrics days: " . count($healthMetrics));

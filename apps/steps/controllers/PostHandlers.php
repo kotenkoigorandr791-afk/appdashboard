@@ -1,4 +1,8 @@
 <?php
+function steps_safe_backup_name($name): ?string {
+    $n = basename((string)$name);
+    return preg_match('/^(Steps_backup|Before_restore|Before_external_import)_[0-9_-]+\.csv$/', $n) ? $n : null;
+}
 // === POST handlers ===
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header('Content-Type: application/json');
@@ -191,8 +195,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit(json_encode(['status' => 'success'] + $result));
     }
     if (isset($_POST['get_steps_updates'])) {
-        $row = $userDb->query('SELECT COUNT(*) AS count, COALESCE(MAX(date), \'\') AS max_date, COALESCE(SUM(steps), 0) AS total_steps FROM steps')->fetch(PDO::FETCH_ASSOC);
-        $version = (string)($row['count'] ?? 0) . '|' . (string)($row['max_date'] ?? '') . '|' . (string)($row['total_steps'] ?? 0);
+        $version = steps_version($userDb);
         if ((string)($_POST['version'] ?? '') === $version) {
             exit(json_encode(['status' => 'success', 'changed' => false, 'version' => $version]));
         }
@@ -200,7 +203,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
         $from = $earliestInDB ?? $today;
         $to = ($latestInDB && strcmp($latestInDB, $today) > 0) ? $latestInDB : $today;
-        $rows = array_values(loadStepsRange($userDb, $from, $to));
+        $rows = steps_fill_range(loadStepsRange($userDb, $from, $to), $from, $to);
         exit(json_encode(['status' => 'success', 'changed' => true, 'version' => $version, 'steps' => $rows]));
     }
 
@@ -240,9 +243,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Restore from backup
     if (isset($_POST['restore_backup'])) {
-        $bname     = $_POST['backup_file'] ?? '';
+        $bname     = steps_safe_backup_name($_POST['backup_file'] ?? '');
         $backupDir = "$userDir/backups";
-        if (empty($bname) || !file_exists("$backupDir/$bname"))
+        if ($bname === null || !is_file("$backupDir/$bname"))
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
         // Auto-backup before restore
         $autoCSV = exportStepsToCSV($userDb);
@@ -251,8 +254,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($content === false)
             exit(json_encode(['status' => 'error', 'message' => $translations['failed_restore_backup'] ?? 'Failed to restore']));
         try {
-            $userDb->exec('DELETE FROM steps');
-            importStepsFromCSVContent($userDb, $content, true);
+            steps_replace_all_from_csv($userDb, $content);
             exit(json_encode(['status' => 'success', 'message' => $translations['backup_restored'] ?? 'Restored']));
         } catch (Exception $e) {
             exit(json_encode(['status' => 'error', 'message' => $translations['failed_restore_backup'] ?? 'Failed to restore']));
@@ -261,9 +263,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Delete backup
     if (isset($_POST['delete_backup'])) {
-        $bname     = $_POST['backup_file'] ?? '';
+        $bname     = steps_safe_backup_name($_POST['backup_file'] ?? '');
         $backupDir = "$userDir/backups";
-        if (empty($bname) || !file_exists("$backupDir/$bname"))
+        if ($bname === null || !is_file("$backupDir/$bname"))
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
         exit(json_encode(unlink("$backupDir/$bname")
             ? ['status' => 'success', 'message' => $translations['backup_deleted'] ?? 'Deleted']
@@ -296,8 +298,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             checkDirectory($backupDir);
             file_put_contents("$backupDir/Before_external_import_" . date('Y-m-d_H-i-s') . ".csv", $autoCSV);
         }
-        if ($mode === 'replace') $userDb->exec('DELETE FROM steps');
-        $imported = importStepsFromCSVContent($userDb, $content, true);
+        $imported = $mode === 'replace' ? steps_replace_all_from_csv($userDb, $content) : importStepsFromCSVContent($userDb, $content, true);
         $msg = sprintf($translations['external_backup_imported'] ?? 'Imported %d records', count($imported));
         exit(json_encode(['status' => 'success', 'message' => $msg, 'count' => count($imported)]));
     }

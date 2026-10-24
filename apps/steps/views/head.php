@@ -1888,6 +1888,34 @@
             opacity: 0.6;
             cursor: wait;
         }
+        .mobile-app-content .ma-qr-revoke {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            margin: -8px 0 16px;
+            padding: 8px 14px;
+            border: 1px solid color-mix(in srgb, #ef4444 45%, var(--border-color));
+            border-radius: var(--radius-sm, 8px);
+            background: color-mix(in srgb, #ef4444 12%, var(--surface-solid));
+            color: #ef4444;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background-color 0.2s, transform 0.1s, filter 0.2s;
+        }
+        .mobile-app-content .ma-qr-revoke:hover:not(:disabled) {
+            background: color-mix(in srgb, #ef4444 18%, var(--surface-solid));
+            filter: brightness(1.04);
+        }
+        .mobile-app-content .ma-qr-revoke:active {
+            transform: scale(0.98);
+        }
+        .mobile-app-content .ma-qr-revoke:disabled {
+            opacity: 0.6;
+            cursor: wait;
+        }
         .mobile-app-content .ma-qr-hint {
             position: absolute;
             top: 12px;
@@ -2118,13 +2146,18 @@
             margin: 0 0 24px 0;
             line-height: 1.4;
         }
-        .mobile-app-content .ma-download {
-            background-color: var(--ma-accent, #4ade80);
-            color: #000;
+        .mobile-app-content .ma-download-row {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            width: 100%;
+        }
+        .mobile-app-content .ma-download,
+        .mobile-app-content .ma-play-protect {
             border: none;
-            padding: 14px 24px;
+            padding: 14px 18px;
             border-radius: var(--radius-sm, 8px);
-            font-size: 15px;
+            font-size: 14px;
             font-weight: 600;
             cursor: pointer;
             display: flex;
@@ -2134,13 +2167,28 @@
             box-sizing: border-box;
             justify-content: center;
             text-decoration: none;
-            transition: background-color 0.2s, transform 0.1s;
+            transition: background-color 0.2s, transform 0.1s, filter 0.2s;
+        }
+        .mobile-app-content .ma-download {
+            background-color: var(--ma-accent, #4ade80);
+            color: #000;
         }
         .mobile-app-content .ma-download:hover {
             background-color: var(--ma-accent-hover, #22c55e);
         }
-        .mobile-app-content .ma-download:active {
+        .mobile-app-content .ma-download:active,
+        .mobile-app-content .ma-play-protect:active {
             transform: scale(0.98);
+        }
+        .mobile-app-content .ma-play-protect {
+            background: color-mix(in srgb, var(--surface-solid) 70%, transparent);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+        }
+        .mobile-app-content .ma-play-protect:hover {
+            border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
+            background: color-mix(in srgb, var(--primary-color) 10%, var(--surface-solid));
+            color: var(--primary-color, #3D8BFF);
         }
         .mobile-app-content .ma-meta {
             display: flex;
@@ -3338,12 +3386,15 @@ height: 48px;
 #manual-pair-modal .ma-copy-btn {
     align-self: end;
 }
-.mobile-app-content .ma-download,
 .mobile-app-content .ma-qr-generate,
 #manual-pair-modal .manual-pair-regen-btn {
     background: var(--primary-color, #3D8BFF);
     color: #fff;
     border-color: color-mix(in srgb, var(--primary-color) 80%, #000);
+}
+.mobile-app-content .ma-download {
+    background-color: var(--ma-accent, #4ade80);
+    color: #000;
 }
 @media (max-width: 520px) {
     #manual-pair-modal .manual-pair-content {

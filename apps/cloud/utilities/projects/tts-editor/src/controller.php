@@ -40,6 +40,7 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
         if (is_file($appDataPath)) return $appDataPath;
     } catch (Throwable $e) {
     }
+    if (preg_match('#(^|[\\\\/])\.\.([\\\\/]|$)#', $relativePath)) return null;
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $rootMap = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf'];
     $rootPrefix = ($root !== 'main' && isset($rootMap[$root])) ? $rootMap[$root] : '';

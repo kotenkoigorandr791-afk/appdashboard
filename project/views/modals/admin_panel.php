@@ -1765,6 +1765,9 @@ var T=<?php echo json_encode([
     'refresh_users' =>$translations['refresh_users']??'Users list refreshed',
     'folder_ph'     =>$translations['folder_config_app_placeholder']??'— Select app —',
     'error'         =>'Error',
+    'invalid_response'=>$translations['invalid_response']??'Invalid server response',
+    'network_error' =>$translations['network_error']??'Network error',
+    'unknown_error' =>'Unknown error',
     'password_reset_admin_success'=>$translations['password_reset_admin_success']??'Password reset successfully',
     'copy_password'      =>$translations['copy_password']??'Copy password',
     'password_copied'    =>$translations['password_copied']??'Password copied to clipboard',
@@ -1962,6 +1965,14 @@ function apAdminFetch(fields, retried){
         });
     });
 }
+function apTranslateError(code){
+    if(!code) return T.unknown_error;
+    var s=String(code);
+    var map={'invalid_response':'invalid_response','invalid_rsponse':'invalid_response','network_error':'network_error','timeout':'network_error'};
+    var key=map[s];
+    if(key&&T[key]) return T[key];
+    return s;
+}
 function apGateShow(msg){
     apLoaded=false;
     if(dynRoot) dynRoot.style.display='none';
@@ -2091,7 +2102,7 @@ function loadPanel(target, year){
                 if(d&&(d.admin_auth_required||d.error==='admin_auth_required')) {apGateShow('');return;}
                 if(d&&d.error==='csrf_forbidden'){ apGateShow(<?php echo json_encode($translations['csrf_forbidden'] ?? 'Security check failed. Refresh the page and try again.', JSON_HEX_TAG); ?>); return; }
                 if(d&&!d.success&&/(not authorized|unauthorized|not authenticated|не авториз)/i.test(d.error||'')) {apShowUnauthorizedMsg();return;}
-                if(msgEl)msgEl.textContent='Error: '+(d&&d.error?d.error:'Unknown error');return;
+                if(msgEl)msgEl.textContent='Error: '+apTranslateError(d&&d.error);return;
             }
             apLoaded=true;
             try{apStatsData=JSON.parse(d.stats||'{}');}catch(e){apStatsData={};}
@@ -2790,7 +2801,7 @@ function apSshNormalizeSpaces(s){
                     if(d && d.success){
                         loadQuickCommands();
                     } else {
-                        fmAlert('Error: ' + (d && d.error ? d.error : 'Unknown'));
+                        fmAlert('Error: ' + apTranslateError(d && d.error));
                     }
                 })
                 .catch(function(err){
@@ -2857,7 +2868,7 @@ function apSshNormalizeSpaces(s){
                         resetQuickForm();
                         loadQuickCommands();
                     } else {
-                        fmAlert('Error: ' + (d && d.error ? d.error : 'Unknown'));
+                        fmAlert('Error: ' + apTranslateError(d && d.error));
                     }
                 })
                 .catch(function(err){

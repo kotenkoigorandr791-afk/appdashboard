@@ -3,54 +3,83 @@
 use Ratchet\ConnectionInterface;
 use Ratchet\MessageComponentInterface;
 
+require_once __DIR__ . '/core/perf.php';
+
 class SmartHomeWsHandler implements MessageComponentInterface
 {
     private string $appDir;
     private \SplObjectStorage $clients;
     private bool $startupReconcileDone = false;
     private float $lastReconcileAt = 0.0;
+    private bool $ddlDone = false;
+    private int $port = 8766;
+    private array $cfgCache = [];
+    private array $deviceConns = [];
+    private array $dashCount = [];
+    private float $lastBeatAt = 0.0;
+    private float $lastTouchAt = 0.0;
+    private float $tickMax = 0.0;
+    private array $prevBoots = [];
+    private bool $isLeader = false;
+    private array $persistSig = [];
+    private float $lastQueuePollAt = 0.0;
+    private float $lastTokenPurgeAt = 0.0;
 
-    public function __construct(string $appDir)
+    public function __construct(string $appDir, int $port = 8766)
     {
+        $this->port = $port;
         $this->appDir = rtrim($appDir, '/');
         
         $this->clients = new \SplObjectStorage();
     }
 
+    private ?AppDatabase $dbc = null;
+    private float $dbAt = 0.0;
+
     private function db(): AppDatabase
     {
+        if ($this->dbc && (microtime(true) - $this->dbAt) < 30.0) {
+            return $this->dbc;
+        }
         require_once dirname($this->appDir, 2) . '/lib/app_db.php';
         $db = app_main_db();
         $db->enableExceptions(true);
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_ws_tokens (
-            token TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
-            expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_queue (
-            id TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
-            control_id TEXT NOT NULL, value_json TEXT NOT NULL, created_at REAL NOT NULL, expires_at REAL NOT NULL
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_results (
-            id TEXT PRIMARY KEY, result_json TEXT NOT NULL, updated_at REAL NOT NULL
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_monitor_logs (
-            id BIGSERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL,
-            device_id TEXT,
-            event_type TEXT NOT NULL,
-            event_data TEXT NOT NULL DEFAULT '{}',
-            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
-        )");
-        $db->exec("CREATE TABLE IF NOT EXISTS smarthome_errors (
-            id BIGSERIAL PRIMARY KEY,
-            user_email TEXT NOT NULL DEFAULT '',
-            device_id TEXT NOT NULL DEFAULT '',
-            device_name TEXT NOT NULL DEFAULT '',
-            source TEXT NOT NULL DEFAULT '',
-            message TEXT NOT NULL,
-            context_json TEXT NOT NULL DEFAULT '{}',
-            created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
-        )");
+        $this->dbc = $db;
+        $this->dbAt = microtime(true);
+        if (!$this->ddlDone) {
+            $this->ddlDone = true;
+            if (!shp_schema_ready()) {
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_ws_tokens (
+                token TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
+                expires_at INTEGER NOT NULL, created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_queue (
+                id TEXT PRIMARY KEY, user_email TEXT NOT NULL, device_id TEXT NOT NULL,
+                control_id TEXT NOT NULL, value_json TEXT NOT NULL, created_at REAL NOT NULL, expires_at REAL NOT NULL
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_control_results (
+                id TEXT PRIMARY KEY, result_json TEXT NOT NULL, updated_at REAL NOT NULL
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_monitor_logs (
+                id BIGSERIAL PRIMARY KEY,
+                user_email TEXT NOT NULL,
+                device_id TEXT,
+                event_type TEXT NOT NULL,
+                event_data TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+            )");
+            $db->exec("CREATE TABLE IF NOT EXISTS smarthome_errors (
+                id BIGSERIAL PRIMARY KEY,
+                user_email TEXT NOT NULL DEFAULT '',
+                device_id TEXT NOT NULL DEFAULT '',
+                device_name TEXT NOT NULL DEFAULT '',
+                source TEXT NOT NULL DEFAULT '',
+                message TEXT NOT NULL,
+                context_json TEXT NOT NULL DEFAULT '{}',
+                created_at TEXT NOT NULL DEFAULT (CURRENT_TIMESTAMP)
+            )");
+            }
+        }
         return $db;
     }
 
@@ -207,27 +236,21 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     private function monitorPurge(AppDatabase $db): void
     {
-        try {
-            $db->exec("DELETE FROM smarthome_monitor_logs WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
-        } catch (\Throwable $e) {
-            error_log('WS monitorPurge logs: ' . $e->getMessage());
-        }
+        shp_purge_if_due($db);
     }
 
     private function errorPurge(AppDatabase $db): void
     {
-        try {
-            $db->exec("DELETE FROM smarthome_errors WHERE created_at::timestamptz < CURRENT_TIMESTAMP - interval '30 days'");
-        } catch (\Throwable $e) {
-            error_log('WS monitorPurge errors: ' . $e->getMessage());
-        }
+        shp_purge_if_due($db);
     }
 
     private function monitorLog(string $email, ?string $deviceId, string $eventType, array $data): void
     {
         try {
+            if (!shp_rate_ok('ml:' . shp_user_hash($email), 300)) {
+                return;
+            }
             $db = $this->db();
-            $this->monitorPurge($db);
             if ($deviceId && empty($data['device_name'])) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -250,8 +273,11 @@ class SmartHomeWsHandler implements MessageComponentInterface
     private function logError(string $email, ?string $deviceId, string $deviceName, string $source, string $message, array $context = []): void
     {
         try {
+            if (!shp_event_dedupe('err', $email, (string)$deviceId, $source, $message) || !shp_rate_ok('err:' . shp_user_hash($email), 120)) {
+                return;
+            }
+            $message = shp_clip($message, 2000);
             $db = $this->db();
-            $this->errorPurge($db);
             if ($deviceName === '' && $deviceId) {
                 $stmt = $db->prepare('SELECT name FROM smarthome_devices WHERE id = :id LIMIT 1');
                 $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
@@ -281,7 +307,46 @@ class SmartHomeWsHandler implements MessageComponentInterface
             'device_id' => null,
             'device_token' => null,
             'connected_at' => microtime(true),
+            'ip' => $this->clientIp($conn),
+            'bucket' => 100.0,
+            'bucket_at' => microtime(true),
+            'dropped' => 0,
         ]);
+    }
+
+    private function clientIp(ConnectionInterface $conn): string
+    {
+        try {
+            $h = $conn->httpRequest->getHeader('X-Real-IP');
+            if ($h) return (string)$h[0];
+        } catch (\Throwable $e) {}
+        return (string)($conn->remoteAddress ?? '');
+    }
+
+    private function allowMessage(ConnectionInterface $conn, array &$state, int $len): bool
+    {
+        $role = $state['role'] ?? null;
+        $maxLen = $role === 'dashboard' ? 65536 : 1048576;
+        if ($len > $maxLen) {
+            shp_metric('ws_oversize');
+            try { $conn->close(); } catch (\Throwable $e) {}
+            return false;
+        }
+        $now = microtime(true);
+        $rate = $role === 'dashboard' ? 20.0 : 100.0;
+        $burst = $role === 'dashboard' ? 60.0 : 300.0;
+        $state['bucket'] = min($burst, ($state['bucket'] ?? $burst) + ($now - ($state['bucket_at'] ?? $now)) * $rate);
+        $state['bucket_at'] = $now;
+        if ($state['bucket'] < 1.0) {
+            $state['dropped'] = ($state['dropped'] ?? 0) + 1;
+            shp_metric('ws_rate_dropped');
+            if ($state['dropped'] > 1000) {
+                try { $conn->close(); } catch (\Throwable $e) {}
+            }
+            return false;
+        }
+        $state['bucket'] -= 1.0;
+        return true;
     }
 
     public function onMessage(ConnectionInterface $conn, $msg): void
@@ -290,6 +355,10 @@ class SmartHomeWsHandler implements MessageComponentInterface
             return;
         }
         $state = $this->clients[$conn];
+        if (!$this->allowMessage($conn, $state, strlen((string)$msg))) {
+            $this->clients[$conn] = $state;
+            return;
+        }
         $state['last_recv_at'] = microtime(true);
         $this->clients[$conn] = $state;
         $payload = json_decode((string)$msg, true);
@@ -335,8 +404,25 @@ class SmartHomeWsHandler implements MessageComponentInterface
             return;
         }
         $state = $this->clients[$conn];
-        if (($state['role'] ?? null) === 'device' && !empty($state['user_email']) && !empty($state['device_id'])) {
-            $this->setDeviceTunnelStatus((string)$state['user_email'], (string)$state['device_id'], false);
+        $u = (string)($state['user_email'] ?? '');
+        $d = (string)($state['device_id'] ?? '');
+        if (($state['role'] ?? null) === 'device' && $u !== '' && $d !== '') {
+            $key = $u . "\0" . $d;
+            $mine = ($this->deviceConns[$key] ?? null) === $conn;
+            if ($mine) unset($this->deviceConns[$key]);
+            $owner = shp_ws_dev_get($u, $d);
+            if ($mine && ($owner === null || $owner === $this->port)) {
+                shp_ws_dev_del($u, $d, $this->port);
+                $this->setDeviceTunnelStatus($u, $d, false);
+            }
+        }
+        if (($state['role'] ?? null) === 'dashboard' && $u !== '') {
+            $key = $u . "\0" . $d;
+            $this->dashCount[$key] = max(0, ($this->dashCount[$key] ?? 1) - 1);
+            if ($this->dashCount[$key] === 0) {
+                unset($this->dashCount[$key]);
+                shp_ws_dash_remove($u, $d, $this->port);
+            }
         }
         $this->clients->offsetUnset($conn);
     }
@@ -349,21 +435,26 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     public function tick(): void
     {
+        $t0 = microtime(true);
         try {
             $db = $this->db();
-            $db->exec('DELETE FROM smarthome_ws_tokens WHERE expires_at < ' . time());
-            $db->exec('DELETE FROM smarthome_control_queue WHERE expires_at < ' . microtime(true));
+            shp_purge_if_due($db);
+            shp_flush_all($db);
             $this->processControlQueue();
             $this->heartbeatTick();
-            if (!$this->startupReconcileDone) {
-                $this->startupReconcileDone = true;
-                $this->reconcileTunnelStatus(true);
-            } else {
-                $this->reconcileTunnelStatus(false);
+            $this->beatTick();
+            if ($this->isLeader) {
+                if (!$this->startupReconcileDone) {
+                    $this->startupReconcileDone = true;
+                    $this->reconcileTunnelStatus(true);
+                } else {
+                    $this->reconcileTunnelStatus(false);
+                }
             }
         } catch (\Throwable $e) {
             error_log('WS tick: ' . $e->getMessage());
         }
+        $this->tickMax = max($this->tickMax, microtime(true) - $t0);
     }
 
     private float $lastHeartbeatAt = 0;
@@ -398,8 +489,29 @@ class SmartHomeWsHandler implements MessageComponentInterface
         }
     }
 
+    private function authFailed(ConnectionInterface $conn): void
+    {
+        $ip = (string)($this->clients[$conn]['ip'] ?? '');
+        if ($ip !== '' && $ip !== '127.0.0.1' && $ip !== '::1' && !shp_rate_ok('wsauthfail:' . $ip, 20)) {
+            shp_metric('ws_auth_blocked');
+            try { $conn->close(); } catch (\Throwable $e) {}
+        }
+    }
+
+    private function authAllowed(ConnectionInterface $conn): bool
+    {
+        $ip = (string)($this->clients[$conn]['ip'] ?? '');
+        if ($ip === '' || $ip === '127.0.0.1' || $ip === '::1' || shp_rate_ok('wsauth:' . $ip, 600)) return true;
+        $this->sendJson($conn, ['type' => 'error', 'message' => 'Too many auth attempts']);
+        try { $conn->close(); } catch (\Throwable $e) {}
+        return false;
+    }
+
     private function handleAuth(ConnectionInterface $conn, array $payload): void
     {
+        if (!$this->authAllowed($conn)) {
+            return;
+        }
         $role = (string)($payload['role'] ?? '');
         if ($role === 'device') {
             $this->authDevice($conn, $payload);
@@ -424,11 +536,14 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $stmt->bindValue(':tok', $deviceToken, PDO::PARAM_STR);
         $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$row) {
+            $this->authFailed($conn);
             $this->sendJson($conn, ['type' => 'error', 'message' => 'Unknown device token']);
             return;
         }
         $userEmail = (string)($row['user_email'] ?? '');
         $deviceId = (string)($row['device_id'] ?? '');
+        unset($this->cfgCache[$deviceId]);
+        shp_hot_drop($deviceId);
         $device = $this->loadDevice($userEmail, $deviceId);
         if ($device === null) {
             $this->sendJson($conn, ['type' => 'error', 'message' => 'Device record not found']);
@@ -442,20 +557,17 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $state['last_recv_at'] = microtime(true);
         $state['last_ping_at'] = 0.0;
         $this->clients[$conn] = $state;
-        $duplicates = [];
-        foreach ($this->clients as $other) {
-            if ($other === $conn) continue;
-            $os = $this->clients[$other];
-            if (($os['role'] ?? null) === 'device'
-                && (string)($os['user_email'] ?? '') === $userEmail
-                && (string)($os['device_id'] ?? '') === $deviceId) {
-                $duplicates[] = $other;
-            }
-        }
-        foreach ($duplicates as $dup) {
+        $key = $userEmail . "\0" . $deviceId;
+        $dup = $this->deviceConns[$key] ?? null;
+        if ($dup && $dup !== $conn) {
+            unset($this->deviceConns[$key]);
             try { $dup->close(); } catch (\Throwable $e) {}
         }
-
+        $this->deviceConns[$key] = $conn;
+        $prevOwner = shp_ws_dev_set($userEmail, $deviceId, $this->port);
+        if ($prevOwner !== null && $prevOwner !== $this->port) {
+            shp_ws_push($prevOwner, ['kind' => 'close_device', 'user' => $userEmail, 'device' => $deviceId]);
+        }
         if (!empty($payload['definition']) && is_array($payload['definition'])) {
             $device = $this->applyDeviceDefinition($device, $payload['definition']);
         }
@@ -465,7 +577,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         if (!empty($payload['local_url'])) {
             $device['local_url'] = trim((string)$payload['local_url']);
         }
-        $device = $this->setDeviceTunnelStatus($userEmail, $deviceId, true, $device);
+        $device = $this->setDeviceTunnelStatus($userEmail, $deviceId, true, $device, true);
         $this->sendJson($conn, array_merge([
             'type' => 'connected',
             'device_id' => $deviceId,
@@ -488,6 +600,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $stmt->bindValue(':tok', $sessionToken, PDO::PARAM_STR);
         $meta = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
         if (!$meta || (int)($meta['expires_at'] ?? 0) < time()) {
+            $this->authFailed($conn);
             $this->sendJson($conn, ['type' => 'error', 'message' => 'Invalid dashboard token']);
             return;
         }
@@ -496,6 +609,16 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $state['user_email'] = (string)($meta['user_email'] ?? '');
         $state['device_id'] = (string)($meta['device_id'] ?? '');
         $this->clients[$conn] = $state;
+        if (!shp_rate_ok('wsdash:' . $state['user_email'], 120)) {
+            $state['role'] = null;
+            $this->clients[$conn] = $state;
+            $this->sendJson($conn, ['type' => 'error', 'message' => 'Too many dashboard connections']);
+            try { $conn->close(); } catch (\Throwable $e) {}
+            return;
+        }
+        $dk = $state['user_email'] . "\0" . $state['device_id'];
+        $this->dashCount[$dk] = ($this->dashCount[$dk] ?? 0) + 1;
+        shp_ws_dash_add($state['user_email'], $state['device_id'], $this->port);
         $del = $db->prepare('DELETE FROM smarthome_ws_tokens WHERE token = :tok');
         $del->bindValue(':tok', $sessionToken, PDO::PARAM_STR);
         $del->execute();
@@ -562,7 +685,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
             }
         }
         $device = $this->applyTunnelStatusToDevice($device, true);
-        $this->persistDevice($device);
+        $this->persistDevice($device, !empty($payload['definition']) && is_array($payload['definition']));
         $this->broadcastToDashboards((string)$state['user_email'], (string)$state['device_id'], [
             'type' => 'state_update',
             'device' => $device,
@@ -598,19 +721,18 @@ class SmartHomeWsHandler implements MessageComponentInterface
         $this->persistDevice($device);
 
         $matched = 0;
-        foreach ($this->clients as $client) {
-            $clientState = $this->clients[$client];
-            if (($clientState['role'] ?? null) === 'device'
-                && ($clientState['user_email'] ?? null) === $state['user_email']
-                && ($clientState['device_id'] ?? null) === $state['device_id']) {
-                $this->sendJson($client, [
-                    'type' => 'command',
-                    'control_id' => $controlId,
-                    'value' => $payload['value'] ?? null,
-                    'controls' => $this->controlsMap($device),
-                ]);
-                $matched++;
-            }
+        $cmd = [
+            'type' => 'command',
+            'control_id' => $controlId,
+            'value' => $payload['value'] ?? null,
+            'controls' => $this->controlsMap($device),
+        ];
+        $local = $this->localDevice((string)$state['user_email'], (string)$state['device_id']);
+        if ($local) {
+            $this->sendJson($local, $cmd);
+            $matched++;
+        } elseif ($this->forwardToDevice((string)$state['user_email'], (string)$state['device_id'], $cmd, [$controlId, $payload['value'] ?? null])) {
+            $matched++;
         }
 
         if ($matched > 0) {
@@ -646,14 +768,12 @@ class SmartHomeWsHandler implements MessageComponentInterface
             return;
         }
         $matched = 0;
-        foreach ($this->clients as $client) {
-            $clientState = $this->clients[$client];
-            if (($clientState['role'] ?? null) === 'device'
-                && ($clientState['user_email'] ?? null) === $state['user_email']
-                && ($clientState['device_id'] ?? null) === $state['device_id']) {
-                $this->sendJson($client, $payload);
-                $matched++;
-            }
+        $local = $this->localDevice((string)$state['user_email'], (string)$state['device_id']);
+        if ($local) {
+            $this->sendJson($local, $payload);
+            $matched++;
+        } elseif ($this->forwardToDevice((string)$state['user_email'], (string)$state['device_id'], $payload)) {
+            $matched++;
         }
         if ($matched < 1) {
             $this->sendJson($conn, [
@@ -706,12 +826,26 @@ class SmartHomeWsHandler implements MessageComponentInterface
     private function loadDevice(string $userEmail, string $deviceId): ?array
     {
         try {
+            $hot = shp_hot_get($deviceId);
+            $cached = $this->cfgCache[$deviceId] ?? null;
+            if ($hot && $cached && (microtime(true) - $cached[1]) < 300.0 && ($cached[0]['user_email'] ?? '') === $userEmail) {
+                $dev = $cached[0];
+                $dev['status'] = $hot['status'];
+                if ($hot['local_url'] !== '') $dev['local_url'] = $hot['local_url'];
+                $dev['controls'] = $hot['controls'];
+                $dev['params'] = $hot['params'];
+                return $dev;
+            }
             $db = $this->db();
             $stmt = $db->prepare('SELECT * FROM smarthome_devices WHERE id = :id AND user_email = :em');
             $stmt->bindValue(':id', $deviceId, PDO::PARAM_STR);
             $stmt->bindValue(':em', $userEmail, PDO::PARAM_STR);
             $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-            return $row ? $this->rowToArray($row) : null;
+            if (!$row) return null;
+            $dev = $this->rowToArray($row);
+            if (count($this->cfgCache) > 20000) $this->cfgCache = [];
+            $this->cfgCache[$deviceId] = [$dev, microtime(true)];
+            return $dev;
         } catch (\Throwable $e) {
             error_log('WS loadDevice: ' . $e->getMessage());
             return null;
@@ -750,15 +884,11 @@ class SmartHomeWsHandler implements MessageComponentInterface
     private function connectedDeviceKeys(): array
     {
         $keys = [];
-        foreach ($this->clients as $client) {
-            $state = $this->clients[$client];
-            if (($state['role'] ?? null) !== 'device' || empty($state['device_id'])) continue;
-            $keys[(string)$state['user_email'] . "\0" . (string)$state['device_id']] = true;
-        }
+        foreach ($this->deviceConns as $key => $_) $keys[$key] = true;
         return $keys;
     }
 
-    private function setDeviceTunnelStatus(string $userEmail, string $deviceId, bool $online, ?array $device = null): array
+    private function setDeviceTunnelStatus(string $userEmail, string $deviceId, bool $online, ?array $device = null, bool $config = false): array
     {
         if ($device === null) {
             $device = $this->loadDevice($userEmail, $deviceId);
@@ -767,7 +897,7 @@ class SmartHomeWsHandler implements MessageComponentInterface
             return [];
         }
         $device = $this->applyTunnelStatusToDevice($device, $online);
-        $this->persistDevice($device);
+        $this->persistDevice($device, $config);
         $this->broadcastToDashboards($userEmail, $deviceId, [
             'type' => 'state_update',
             'device' => $device,
@@ -782,27 +912,49 @@ class SmartHomeWsHandler implements MessageComponentInterface
             return;
         }
         $this->lastReconcileAt = $now;
-        $connected = $this->connectedDeviceKeys();
         try {
             $db = $this->db();
-            $res = $db->query("SELECT id, user_email, status, params FROM smarthome_devices");
+            $res = $db->query("SELECT id, user_email, params FROM smarthome_devices WHERE params LIKE '%online%'");
+            $cand = [];
             while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
                 $userEmail = (string)($row['user_email'] ?? '');
                 $deviceId = (string)($row['id'] ?? '');
                 if ($userEmail === '' || $deviceId === '') continue;
                 $params = json_decode($row['params'] ?: '[]', true) ?: [];
                 if (!$this->deviceHasWsOnline($params)) continue;
-                $key = $userEmail . "\0" . $deviceId;
-                if (isset($connected[$key])) continue;
-                $this->setDeviceTunnelStatus($userEmail, $deviceId, false);
+                $cand[] = [$userEmail, $deviceId];
+            }
+            $local = $this->connectedDeviceKeys();
+            foreach (array_chunk($cand, 1000) as $chunk) {
+                $exists = shp_ws_dev_connected_many($chunk);
+                foreach ($chunk as [$u, $d]) {
+                    $key = $u . "\0" . $d;
+                    if (isset($local[$key]) || !empty($exists[$key])) continue;
+                    $this->setDeviceTunnelStatus($u, $d, false);
+                }
             }
         } catch (\Throwable $e) {
             error_log('WS reconcileTunnelStatus: ' . $e->getMessage());
         }
     }
 
-    private function persistDevice(array $device): void
+    private function persistDevice(array $device, bool $config = false): void
     {
+        $id = (string)($device['id'] ?? '');
+        if (!$config && shp_hot_put($id, ['status' => $device['status'] ?? 'unknown', 'local_url' => $device['local_url'] ?? '', 'controls' => $device['controls'] ?? [], 'params' => $device['params'] ?? []]) !== null) {
+            return;
+        }
+        if ($config) {
+            $this->cfgCache[$id] = [$device, microtime(true)];
+            shp_hot_drop($id);
+        }
+        $sig = md5(json_encode([$device['name'] ?? '', $device['room'] ?? '', $device['type'] ?? '', $device['status'] ?? '', $device['local_url'] ?? '', $device['server_domain'] ?? '', $device['ap_domain'] ?? '', $device['mqtt_topic'] ?? '', $device['device_token'] ?? '', $device['notes'] ?? '', $device['icon'] ?? '', $device['controls'] ?? [], $device['params'] ?? [], $device['files'] ?? []]));
+        $now = microtime(true);
+        $prev = $this->persistSig[$id] ?? null;
+        if ($prev && $prev[0] === $sig && ($now - $prev[1]) < 30.0) {
+            return;
+        }
+        $this->persistSig[$id] = [$sig, $now];
         try {
             $db = $this->db();
             $stmt = $db->prepare("UPDATE smarthome_devices SET
@@ -875,30 +1027,92 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     private function pendingControlIds(string $deviceId): array
     {
-        $ids = [];
-        $now = microtime(true);
-        $db = $this->db();
-        $stmt = $db->prepare('SELECT control_id FROM smarthome_control_queue WHERE device_id = :did AND expires_at > :now');
-        $stmt->bindValue(':did', $deviceId, PDO::PARAM_STR);
-        $stmt->bindValue(':now', $now, PDO::PARAM_STR);
-        $res = $stmt->execute();
-        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            $ids[] = (string)($row['control_id'] ?? '');
-        }
-        return $ids;
+        return shp_cq_pending($this->db(), $deviceId, microtime(true));
     }
 
     private function broadcastToDashboards(string $userEmail, string $deviceId, array $payload): void
     {
+        $this->deliverToLocalDashboards($userEmail, $deviceId, $payload);
+        if (count(shp_ws_live_ports()) < 2) return;
+        foreach (shp_ws_dash_ports($userEmail, $deviceId) as $port) {
+            if ($port !== $this->port) shp_ws_push($port, ['kind' => 'dash', 'user' => $userEmail, 'device' => $deviceId, 'payload' => $payload]);
+        }
+    }
+
+    private function deliverToLocalDashboards(string $userEmail, string $deviceId, array $payload): void
+    {
+        if (empty($this->dashCount[$userEmail . "\0" . $deviceId])) return;
         foreach ($this->clients as $client) {
             $state = $this->clients[$client];
-            if (($state['role'] ?? null) !== 'dashboard') {
-                continue;
-            }
-            if (($state['user_email'] ?? null) !== $userEmail || ($state['device_id'] ?? null) !== $deviceId) {
-                continue;
-            }
+            if (($state['role'] ?? null) !== 'dashboard') continue;
+            if (($state['user_email'] ?? null) !== $userEmail || ($state['device_id'] ?? null) !== $deviceId) continue;
             $this->sendJson($client, $payload);
+        }
+    }
+
+    private function localDevice(string $userEmail, string $deviceId): ?ConnectionInterface
+    {
+        return $this->deviceConns[$userEmail . "\0" . $deviceId] ?? null;
+    }
+
+    private function forwardToDevice(string $userEmail, string $deviceId, array $payload, ?array $mark = null): bool
+    {
+        $owner = shp_ws_dev_get($userEmail, $deviceId);
+        if ($owner === null || $owner === $this->port || !in_array($owner, shp_ws_live_ports(), true)) return false;
+        shp_ws_push($owner, ['kind' => 'to_device', 'user' => $userEmail, 'device' => $deviceId, 'payload' => $payload, 'mark' => $mark]);
+        return true;
+    }
+
+    public function drainInbox(): void
+    {
+        foreach (shp_ws_drain($this->port) as $m) {
+            $kind = (string)($m['kind'] ?? '');
+            $u = (string)($m['user'] ?? '');
+            $d = (string)($m['device'] ?? '');
+            if ($kind === 'dash') {
+                $this->deliverToLocalDashboards($u, $d, (array)($m['payload'] ?? []));
+            } elseif ($kind === 'to_device') {
+                $c = $this->localDevice($u, $d);
+                if ($c) {
+                    $this->sendJson($c, (array)($m['payload'] ?? []));
+                    if (!empty($m['mark'])) $this->markControlPending($u, $d, (string)$m['mark'][0], $m['mark'][1] ?? null);
+                }
+            } elseif ($kind === 'close_device') {
+                $c = $this->localDevice($u, $d);
+                if ($c) {
+                    unset($this->deviceConns[$u . "\0" . $d]);
+                    try { $c->close(); } catch (\Throwable $e) {}
+                }
+            }
+        }
+    }
+
+    private function beatTick(): void
+    {
+        $now = microtime(true);
+        if ($now - $this->lastBeatAt >= 2.0) {
+            $this->lastBeatAt = $now;
+            $dash = 0;
+            foreach ($this->dashCount as $n) $dash += $n;
+            shp_ws_proc_beat($this->port, ['clients' => count($this->clients), 'devices' => count($this->deviceConns), 'dashboards' => $dash, 'tick_max_ms' => (int)($this->tickMax * 1000), 'mem_mb' => (int)(memory_get_usage(true) / 1048576)]);
+            $this->tickMax = 0.0;
+            $this->isLeader = shp_ws_is_leader($this->port);
+            $boots = shp_ws_live_boots();
+            if ($this->prevBoots && $boots !== $this->prevBoots) {
+                foreach ($this->prevBoots as $p => $b) {
+                    if (($boots[$p] ?? null) !== $b) {
+                        $this->lastReconcileAt = 0.0;
+                        break;
+                    }
+                }
+            }
+            $this->prevBoots = $boots;
+        }
+        if ($now - $this->lastTouchAt >= 10.0) {
+            $this->lastTouchAt = $now;
+            $pairs = [];
+            foreach ($this->deviceConns as $key => $_) $pairs[] = explode("\0", $key, 2);
+            foreach (array_chunk($pairs, 1000) as $chunk) shp_ws_dev_touch($chunk, $this->port);
         }
     }
 
@@ -912,144 +1126,101 @@ class SmartHomeWsHandler implements MessageComponentInterface
 
     private function storeControlResult(string $requestId, array $result): void
     {
-        $db = $this->db();
         $result['updated_at'] = microtime(true);
-        $ins = $db->prepare('INSERT INTO smarthome_control_results (id, result_json, updated_at) VALUES (:id, :rj, :ua)');
-        $ins->bindValue(':id', $requestId, PDO::PARAM_STR);
-        $ins->bindValue(':rj', json_encode($result, JSON_UNESCAPED_UNICODE), PDO::PARAM_STR);
-        $ins->bindValue(':ua', microtime(true), PDO::PARAM_STR);
-        $ins->execute();
+        shp_cr_put($requestId, $result);
     }
 
     private function processControlQueue(): void
     {
+        $now = microtime(true);
+        if (!shp_redis() && ($now - $this->lastQueuePollAt) < 1.0) {
+            return;
+        }
+        $this->lastQueuePollAt = $now;
         try {
             $db = $this->db();
-        $now = microtime(true);
-        $items = [];
-        $res = $db->query('SELECT * FROM smarthome_control_queue');
-        while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-            $items[] = $row;
-        }
-        unset($res);
-
-        foreach ($items as $item) {
-            $requestId = (string)$item['id'];
-            $item['value'] = json_decode($item['value_json'] ?? 'null', true);
-            $item['expires_at'] = (float)$item['expires_at'];
-            $userEmail = (string)($item['user_email'] ?? '');
-            $deviceId = (string)($item['device_id'] ?? '');
-            $controlId = trim((string)($item['control_id'] ?? ''));
-            $visibleDevices = [];
-            foreach ($this->clients as $client) {
-                $state = $this->clients[$client];
-                if (($state['role'] ?? null) === 'device') {
-                    $visibleDevices[] = [
-                        'user_email' => (string)($state['user_email'] ?? ''),
-                        'device_id' => (string)($state['device_id'] ?? ''),
-                    ];
+            $items = shp_cq_list($db, $now);
+            if (!$items) {
+                return;
+            }
+            $isLeader = $this->isLeader;
+            foreach ($items as $item) {
+                $requestId = (string)$item['id'];
+                $item['value'] = json_decode($item['value_json'] ?? 'null', true);
+                $item['expires_at'] = (float)$item['expires_at'];
+                $userEmail = (string)($item['user_email'] ?? '');
+                $deviceId = (string)($item['device_id'] ?? '');
+                $controlId = trim((string)($item['control_id'] ?? ''));
+                $deviceConn = $this->localDevice($userEmail, $deviceId);
+                if ($deviceConn === null) {
+                    $owner = shp_ws_dev_get($userEmail, $deviceId);
+                    if ($owner !== null && $owner !== $this->port && in_array($owner, shp_ws_live_ports(), true)) {
+                        continue;
+                    }
+                    if (!$isLeader) {
+                        continue;
+                    }
                 }
-            }
-            if (($item['expires_at'] ?? 0) < $now) {
-                $device = $this->loadDevice($userEmail, $deviceId);
-                $this->logError($userEmail, $deviceId, (string)($device['name'] ?? ''), 'control_queue', 'Device control timeout', [
-                    'control_id' => $controlId,
-                    'request_id' => $requestId,
-                ]);
-                $this->storeControlResult((string)$requestId, [
-                    'status' => 'error',
-                    'message' => 'Device control timeout',
-                    'visible_devices' => $visibleDevices,
-                ]);
-                $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
-                $d->execute();
-                continue;
-            }
-
-            if ($userEmail === '' || $deviceId === '' || $controlId === '') {
-                $this->storeControlResult((string)$requestId, [
-                    'status' => 'error',
-                    'message' => 'Invalid control request',
-                ]);
-                $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
-                $d->execute();
-                continue;
-            }
-
-            $deviceConn = null;
-            foreach ($this->clients as $client) {
-                $state = $this->clients[$client];
-                if (($state['role'] ?? null) === 'device'
-                    && ($state['user_email'] ?? '') === $userEmail
-                    && ($state['device_id'] ?? '') === $deviceId) {
-                    $deviceConn = $client;
-                    break;
-                }
-            }
-            if ($deviceConn === null) {
-                continue;
-            }
-
-            $device = $this->loadDevice($userEmail, $deviceId);
-            if ($device === null) {
-                $this->storeControlResult((string)$requestId, [
-                    'status' => 'error',
-                    'message' => 'Device record not found',
-                ]);
-                $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
-                $d->execute();
-                continue;
-            }
-
-            $matched = false;
-            foreach ($device['controls'] as &$control) {
-                if (($control['id'] ?? '') !== $controlId) {
+                if ($item['expires_at'] < $now) {
+                    $device = $this->loadDevice($userEmail, $deviceId);
+                    $this->logError($userEmail, $deviceId, (string)($device['name'] ?? ''), 'control_queue', 'Device control timeout', [
+                        'control_id' => $controlId,
+                        'request_id' => $requestId,
+                    ]);
+                    $this->storeControlResult($requestId, ['status' => 'error', 'message' => 'Device control timeout']);
+                    shp_cq_del($db, $requestId);
+                    shp_metric('control_timeouts');
                     continue;
                 }
-                $matched = true;
-                if (($control['type'] ?? '') === 'switch') {
-                    $control['value'] = (bool)($item['value'] ?? false);
-                } elseif (($control['type'] ?? '') === 'range') {
-                    $control['value'] = (int)($item['value'] ?? 0);
-                } else {
-                    $control['value'] = (string)($item['value'] ?? '');
+                if ($userEmail === '' || $deviceId === '' || $controlId === '') {
+                    $this->storeControlResult($requestId, ['status' => 'error', 'message' => 'Invalid control request']);
+                    shp_cq_del($db, $requestId);
+                    continue;
                 }
-            }
-            unset($control);
-
-            if (!$matched) {
-                $this->storeControlResult((string)$requestId, [
-                    'status' => 'error',
-                    'message' => 'Unknown control',
+                if ($deviceConn === null) {
+                    continue;
+                }
+                $device = $this->loadDevice($userEmail, $deviceId);
+                if ($device === null) {
+                    $this->storeControlResult($requestId, ['status' => 'error', 'message' => 'Device record not found']);
+                    shp_cq_del($db, $requestId);
+                    continue;
+                }
+                $matched = false;
+                foreach ($device['controls'] as &$control) {
+                    if (($control['id'] ?? '') !== $controlId) {
+                        continue;
+                    }
+                    $matched = true;
+                    if (($control['type'] ?? '') === 'switch') {
+                        $control['value'] = (bool)($item['value'] ?? false);
+                    } elseif (($control['type'] ?? '') === 'range') {
+                        $control['value'] = (int)($item['value'] ?? 0);
+                    } else {
+                        $control['value'] = (string)($item['value'] ?? '');
+                    }
+                }
+                unset($control);
+                if (!$matched) {
+                    $this->storeControlResult($requestId, ['status' => 'error', 'message' => 'Unknown control']);
+                    shp_cq_del($db, $requestId);
+                    continue;
+                }
+                $this->persistDevice($device);
+                $this->sendJson($deviceConn, [
+                    'type' => 'command',
+                    'control_id' => $controlId,
+                    'value' => $item['value'] ?? null,
+                    'controls' => $this->controlsMap($device),
                 ]);
-                $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-                $d->bindValue(':id', $requestId, PDO::PARAM_STR);
-                $d->execute();
-                continue;
+                $this->broadcastToDashboards($userEmail, $deviceId, [
+                    'type' => 'state_update',
+                    'device' => $device,
+                ]);
+                $this->storeControlResult($requestId, ['status' => 'ok', 'device' => $device]);
+                shp_cq_del($db, $requestId);
+                shp_metric('control_delivered');
             }
-
-            $this->persistDevice($device);
-            $this->sendJson($deviceConn, [
-                'type' => 'command',
-                'control_id' => $controlId,
-                'value' => $item['value'] ?? null,
-                'controls' => $this->controlsMap($device),
-            ]);
-            $this->broadcastToDashboards($userEmail, $deviceId, [
-                'type' => 'state_update',
-                'device' => $device,
-            ]);
-            $this->storeControlResult((string)$requestId, [
-                'status' => 'ok',
-                'device' => $device,
-            ]);
-            $d = $db->prepare('DELETE FROM smarthome_control_queue WHERE id = :id');
-            $d->bindValue(':id', $requestId, PDO::PARAM_STR);
-            $d->execute();
-        }
         } catch (\Throwable $e) {
             error_log('WS processControlQueue: ' . $e->getMessage());
         }

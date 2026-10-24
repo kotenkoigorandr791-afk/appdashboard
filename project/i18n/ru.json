@@ -433,6 +433,7 @@
   "images_total": "Образов",
   "invalidApiKeyFormat": "Неверный формат API-ключа",
   "invalid_credentials": "Неверный email или пароль",
+  "invalid_response": "Неверный ответ сервера",
   "invalid_reset_code": "Неверный код сброса",
   "invalid_verification_code": "Неверный код подтверждения",
   "ios": "iOS",
@@ -640,7 +641,7 @@
   "share_expiration_never": "Никогда",
   "share_id": "ID общего доступа",
   "shared_files_management": "Управление общими файлами",
-  "shell_application": "Оболочка (Shell Application)",
+  "shell_application": "ServerKherson",
   "show_hide_password": "Показать/скрыть пароль",
   "show_password": "Показать пароль",
   "smtp_host": "SMTP Хост",
@@ -816,6 +817,11 @@
   "verified_users": "Подтверждённые",
   "verify_email": "Подтвердить email",
   "verify_password": "Проверить",
+  "version_build_date": "Сборка образа",
+  "version_branch": "Ветка",
+  "version_commit": "Коммит",
+  "version_label": "Версия",
+  "version_updated": "Код обновлён",
   "view_documentation": "Просмотреть документацию",
   "view_privacy": "Просмотр политики",
   "view_terms": "Просмотр условий",
@@ -1122,5 +1128,7 @@
   "backup_view_log": "Показать журнал",
   "backup_warning": "Предупреждение",
   "backup_weekday": "День недели",
-  "backup_wizard": "Мастер резервного копирования"
+  "backup_wizard": "Мастер резервного копирования",
+  "opening_app": "Открытие…",
+  "opening_app_named": "Открытие «{name}»…"
 }
