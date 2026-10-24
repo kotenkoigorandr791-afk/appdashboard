@@ -9,7 +9,8 @@ error_reporting(E_ALL);
 // ============================================
 $DOC_SERV_URL = rtrim((string)(getenv('DOCUMENT_PUBLIC_URL') ?: (function_exists('app_public_url') ? app_public_url('document') : '')), '/');
 if ($DOC_SERV_URL === '') { $DOC_SERV_URL = 'http://document.localhost'; } 
-$JWT_SECRET = 'uZbUAlqEAONtLYmVrZVNjuqOefiQZR';
+require_once dirname(__DIR__, 6) . '/db.php';
+$JWT_SECRET = trim((string)getOnlyofficeJwtSecret());
 $VIEWER_USER = 'zip-viewer';
 require_once dirname(__DIR__, 4) . '/includes/session.php';
 require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
@@ -28,7 +29,7 @@ $theme = isset($_GET['theme']) && in_array($_GET['theme'], ['dark', 'light']) ? 
 $folderColor = isset($_GET['folderColor']) ? $_GET['folderColor'] : '#f1c40f';
 $archiveParam = isset($_GET['archive']) ? $_GET['archive'] : '';
 $pathParam = isset($_GET['path']) ? $_GET['path'] : '';
-$user = isset($_GET['user']) ? $_GET['user'] : 'default';
+$user = cloud_session_storage_user();
 $root = isset($_GET['root']) ? $_GET['root'] : 'main';
 $parentArchive = isset($_GET['parent']) ? urldecode($_GET['parent']) : null;
 
@@ -82,6 +83,7 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
         if (is_file($appDataPath)) return $appDataPath;
     } catch (Throwable $e) {
     }
+    if (preg_match('#(^|[\\\\/])\.\.([\\\\/]|$)#', $relativePath)) return null;
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $rootMap = ['archive' => '.archive', 'temp' => '.temp_files', 'documents' => '.documents', 'photos' => '.photos', 'pdf' => '.pdf'];
     $rootPrefix = ($root !== 'main' && isset($rootMap[$root])) ? $rootMap[$root] : '';
@@ -279,7 +281,7 @@ if ($officeCallback && isset($_GET['file']) && isset($_GET['user'])) {
     header('Content-Type: application/json; charset=utf-8');
     
     $callbackFile = urldecode($_GET['file']);
-    $callbackUser = $_GET['user'];
+    $callbackUser = $user;
     $body = json_decode(file_get_contents('php://input'), true);
     
     echo json_encode(['error' => 0, 'status' => 1]);
@@ -291,7 +293,7 @@ if ($officeCallback && isset($_GET['file']) && isset($_GET['user'])) {
 // ============================================
 if ($officeDownload && isset($_GET['file']) && isset($_GET['user'])) {
     $downloadFile = urldecode($_GET['file']);
-    $downloadUser = $_GET['user'];
+    $downloadUser = $user;
     
     if (!empty($archivePath) && file_exists($archivePath)) {
         $data = zip_viewer_read_archive_file($archivePath, $downloadFile, $archivePassword);

@@ -50,6 +50,18 @@ if (!function_exists('cloud_session_email_for_gate')) {
     }
 }
 
+if (!function_exists('cloud_session_storage_user')) {
+    function cloud_session_storage_user(string $fallback = 'default'): string
+    {
+        $email = cloud_session_email_for_gate();
+        if ($email === null || $email === '') {
+            return $fallback;
+        }
+        $name = preg_replace('/[^a-zA-Z0-9_\-]/', '_', str_replace(['@', '.'], '_', $email));
+        return $name !== '' ? $name : $fallback;
+    }
+}
+
 if (!function_exists('cloud_require_session_auth')) {
     function cloud_require_session_auth(): void
     {

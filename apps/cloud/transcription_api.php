@@ -61,6 +61,7 @@ function resolve_user_file_path($user, $relativePath, $root = 'main') {
         } catch (Throwable $e) {
         }
     }
+    if (preg_match('#(^|[\\\\/])\.\.([\\\\/]|$)#', $relativePath)) return null;
     $normalized = str_replace(['\\', '/'], DIRECTORY_SEPARATOR, ltrim($relativePath, '/\\'));
     $candidates = [];
     $candidates[] = $normalized;
