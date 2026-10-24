@@ -56,7 +56,7 @@ function app_db_schema_fingerprint(string $path): string {
 }
 function app_db_schema_ready(AppDatabase $db): bool {
     try {
-        return (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='config' LIMIT 1");
+        return (bool)$db->querySingle("SELECT to_regclass('public.config') IS NOT NULL");
     } catch (Throwable $e) {
         return false;
     }
@@ -3585,6 +3585,9 @@ function clearTrustedDevices(string $email): void {
 // ── Trusted Devices Schema Helpers ──────────────────────────────────────────
 
 function ensureTrustedDevicesSchema(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
     if (!app_db_is_pgsql()) return;
     try {
         $db->exec("DELETE FROM trusted_devices WHERE id NOT IN (

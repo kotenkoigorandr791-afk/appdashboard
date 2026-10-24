@@ -766,6 +766,9 @@ function decrypt_documents_content(string $raw, string $user): string {
     return $plain === false ? '' : $plain;
 }
 function ensureCloudSyncLogsSchema($db): void {
+    static $done = false;
+    if ($done) return;
+    $done = true;
     if (!$db) return;
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_sync_logs (
         id BIGSERIAL PRIMARY KEY,
