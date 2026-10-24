@@ -250,18 +250,13 @@ $trustedDevices=[];
 $currentIp=getClientIp();
 $isCurrentDeviceTrusted=false;
 if(isset($_SESSION['user']['email'])){
-    $activeSessions=getUserActiveSessions($_SESSION['user']['email']);
     $trustedDevices=getUserTrustedDevices($_SESSION['user']['email']);
     $isCurrentDeviceTrusted=isTrustedDevice($_SESSION['user']['email'], getDeviceFingerprint());
 }
 $currentUserEmail = $_SESSION['user']['email'] ?? null;
 $isAdmin = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
 
-if ($isAdmin) {
-    $sharedFiles = loadSharedFiles(null, true);
-} else {
-    $sharedFiles = $currentUserEmail ? loadSharedFiles($currentUserEmail) : [];
-}
+$sharedFiles = [];
 
 $userOAuthConnections = [];
 if(isset($_SESSION['user']['email'])){

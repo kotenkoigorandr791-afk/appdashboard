@@ -5,6 +5,8 @@ services:
       - appdashboard-appdata:/opt/ApplicationData
 
   appdashboard:
+    environment:
+      PHP_OPCACHE_VALIDATE_TIMESTAMPS: "0"
     volumes: !reset
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData

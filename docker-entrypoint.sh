@@ -23,7 +23,7 @@ else
     printf 'opcache.memory_consumption=192\n'
     printf 'opcache.interned_strings_buffer=16\n'
     printf 'opcache.max_accelerated_files=20000\n'
-    printf 'opcache.validate_timestamps=1\n'
+    printf 'opcache.validate_timestamps=%s\n' "${PHP_OPCACHE_VALIDATE_TIMESTAMPS:-1}"
     printf 'opcache.revalidate_freq=30\n'
     printf 'opcache.jit=tracing\n'
     printf 'opcache.jit_buffer_size=%s\n' "${PHP_OPCACHE_JIT_BUFFER:-64M}"

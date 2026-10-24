@@ -3983,26 +3983,8 @@ endif; // showOtpPage
         <div class="modal-scroll-body">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['active_sessions']); ?></h3><button id="refresh-sessions" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
             <?php if(isset($sessionManagementSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($sessionManagementSuccess); ?></div><?php endif;?>
-            <div id="sessions-list-container">
-                <?php if(empty($activeSessions)):?><p><?php echo my_htmlspecialchars($translations['no_active_sessions']); ?></p>
-                <?php else:?>
-                    <table class="sessions-table">
-                        <thead><tr><th><?php echo my_htmlspecialchars($translations['device']); ?></th><th><?php echo my_htmlspecialchars($translations['browser']); ?></th><th><?php echo my_htmlspecialchars($translations['login_time']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['ip_address']); ?></th><th><?php echo my_htmlspecialchars($translations['terminate_session']); ?></th></tr></thead>
-                        <tbody>
-                        <?php foreach($activeSessions as $sessionId=>$session):?>
-                            <tr class="<?php echo $sessionId===session_id()?'current-session':''; ?>">
-                                <td><div class="device-browser-item"><?php $device=$session['device']??'unknown_device';$deviceClass=$device.'-icon';$deviceText=$translations[$device]??$translations['unknown_device'];?><div class="device-icon <?php echo $deviceClass; ?>"><?php echo get_device_icon_html($device); ?></div><span><?php echo my_htmlspecialchars($deviceText); ?></span></div></td>
-                                <td><div class="device-browser-item"><?php $browser=$session['browser']??'unknown_browser';$browserClass=$browser.'-icon';$browserText=$translations[$browser]??$translations['unknown_browser'];?><div class="browser-icon <?php echo $browserClass; ?>"><?php echo get_browser_icon_svg($browser); ?></div><span><?php echo my_htmlspecialchars($browserText); ?></span></div></td>
-                                <td><?php echo date('Y-m-d H:i:s',$session['login_time']); ?></td>
-                                <td><?php echo date('Y-m-d H:i:s',$session['last_activity']); ?></td>
-                            <td class="ip-location-cell" title="<?php echo my_htmlspecialchars($session['ip_location'] ?: ($translations['unknown_location'] ?? 'Unknown location')); ?>"><?php echo my_htmlspecialchars($session['ip_address']??'Unknown'); ?></td>
-                                <td><?php if($sessionId!==session_id()):?><form method="post" style="display:inline;"><input type="hidden" name="session_id" value="<?php echo my_htmlspecialchars($sessionId); ?>"><button type="submit" name="terminate_session" class="terminate-btn"><?php echo my_htmlspecialchars($translations['terminate_session']); ?></button></form><?php else:?><span style="color:#666;"><?php echo my_htmlspecialchars($translations['current_session']); ?></span><?php endif;?></td>
-                            </tr>
-                        <?php endforeach;?>
-                        </tbody>
-                    </table>
-                    <div style="margin-top:20px;"><form method="post"><button type="submit" name="terminate_all_sessions" class="auth-button" style="background:#ff4444;"><?php echo my_htmlspecialchars($translations['terminate_all_sessions']); ?></button></form></div>
-                <?php endif;?>
+            <div id="sessions-list-container" data-lazy-fragment="sessions">
+                <p class="ap-lazy-loading" style="opacity:.6;"><?php echo my_htmlspecialchars($translations['loading_btn'] ?? 'Loading...'); ?></p>
             </div>
             <hr style="margin:20px 0;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['trusted_devices']); ?></h3><button id="refresh-trusted" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
@@ -4066,67 +4048,13 @@ endif; // showOtpPage
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
                 </button>
                 <button id="delete-filtered-files" class="delete-filtered-btn" style="display:none;"><?php echo my_htmlspecialchars($translations['delete_filtered_files'] ?? 'Delete Filtered'); ?></button>
-                <?php if(!empty($sharedFiles)):?>
+                <?php if(true):?>
                     <button type="button" id="delete-all-files-btn" class="terminate-btn" style="background:#ff4444;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;"><?php echo my_htmlspecialchars($translations['delete_all_files']); ?></button>
                 <?php endif;?>
             </div>
         </div>
         <div id="shared-files-list-container">
-            <?php if(empty($sharedFiles)):?>
-                <p style="text-align:center;opacity:.5;padding:20px 0;"><?php echo my_htmlspecialchars($translations['no_shared_files']); ?></p>
-            <?php else:?>
-                <table id="shared-files-table" style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                    <colgroup>
-                        <col style="width:12%">
-                        <col style="width:20%">
-                        <col style="width:28%">
-                        <col style="width:24%">
-                        <col style="width:16%">
-                    </colgroup>
-                    <thead>
-                        <tr style="background:var(--table-header-bg);">
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['share_id']); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['file_name']); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['file_path']); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['expires'] ?? 'Expires'); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;"><?php echo my_htmlspecialchars($translations['delete_file']); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($sharedFiles as $shareId=>$fileData):
-                            $_sfUrl = $fileData['file_path'] ?? ($fileData['url'] ?? '');
-                            $_sfName = $fileData['file_name'] ?? ($_sfUrl !== '' ? basename($_sfUrl) : '');
-                            $_sfExpiresOption = (string)($fileData['expires_option'] ?? 'never');
-                            $_sfExpires = isset($fileData['expires']) && $fileData['expires'] !== null ? (int)$fileData['expires'] : null;
-                            $_sfExpiryLabelMap = [
-                                'never' => $translations['share_expiration_never'] ?? 'Never',
-                                '1h' => $translations['share_expiration_1h'] ?? '1 hour',
-                                '1d' => $translations['share_expiration_1d'] ?? '1 day',
-                                '1w' => $translations['share_expiration_1w'] ?? '1 week',
-                                '1m' => $translations['share_expiration_1m'] ?? '1 month',
-                                '3m' => $translations['share_expiration_3m'] ?? '3 months',
-                                '6m' => $translations['share_expiration_6m'] ?? 'Half a year',
-                                '1y' => $translations['share_expiration_1y'] ?? '1 year',
-                            ];
-                            $_sfExpiryText = $_sfExpires ? date('Y-m-d H:i', $_sfExpires) : ($translations['share_expiration_never'] ?? 'Never');
-                        ?>
-                            <tr data-filename="<?php echo my_htmlspecialchars($_sfName); ?>" data-filepath="<?php echo my_htmlspecialchars($_sfUrl); ?>" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="border-bottom:1px solid var(--border-color);">
-                                <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><?php echo my_htmlspecialchars(substr($shareId,0,10).'…'); ?></td>
-                                <td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo my_htmlspecialchars($_sfName); ?>"><?php echo $_sfName !== '' ? my_htmlspecialchars($_sfName) : '<em style="opacity:.4">—</em>'; ?></td>
-                                <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="<?php echo my_htmlspecialchars($_sfUrl); ?>"><?php if($_sfUrl===''){echo '<em style="opacity:.4">—</em>';}elseif($isRootUser){echo my_htmlspecialchars($_sfUrl);}else{echo my_htmlspecialchars('…/'.$_sfName);}?></td>
-                                <td style="padding:6px 10px;">
-                                    <select class="sf-expiry-select" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="width:100%;min-width:0;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--input-bg);color:var(--text-color);font-size:12px;">
-                                        <?php foreach($_sfExpiryLabelMap as $_sfOptionValue => $_sfOptionLabel): ?>
-                                            <option value="<?php echo my_htmlspecialchars($_sfOptionValue); ?>" <?php echo $_sfExpiresOption === $_sfOptionValue ? 'selected' : ''; ?>><?php echo my_htmlspecialchars($_sfOptionLabel); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </td>
-                                <td style="padding:6px 10px;white-space:nowrap;"><button type="button" class="terminate-btn sf-delete-btn" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="padding:4px 10px;font-size:12px;"><?php echo my_htmlspecialchars($translations['delete_file']); ?></button></td>
-                            </tr>
-                        <?php endforeach;?>
-                    </tbody>
-                </table>
-            <?php endif;?>
+            <p style="text-align:center;opacity:.5;padding:20px 0;"><?php echo my_htmlspecialchars($translations['loading_btn'] ?? 'Loading...'); ?></p>
         </div>
     </div>
 </div>
@@ -5928,6 +5856,11 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
         function sharedFileText(value){
             return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
+        function apLoadSessionsFragment(){
+            const box=document.getElementById('sessions-list-container');
+            if(!box)return;
+            fetch('/main?api=shell_fragment&name=sessions',{credentials:'same-origin'}).then(function(r){return r.text();}).then(function(html){box.innerHTML=html;}).catch(function(){});
+        }
         function renderSharedFilesTable(files){
             const container = document.getElementById('shared-files-list-container');
             if(!container) return;
@@ -7125,7 +7058,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         })();
         if(emailButton){emailButton.addEventListener('click',()=>{closeAllModals();if(emailModal){emailModal.style.display='flex';}});if(closeEmail){closeEmail.addEventListener('click',()=>{if(emailModal){emailModal.style.display='none';}});}if(emailModal){emailModal.addEventListener('click',(e)=>{if(e.target===emailModal){emailModal.style.display='none';}});}}
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
-        if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
+        if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';apLoadSessionsFragment();}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
         const modalButtons=[qrButton,emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
         if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else openSidebarMenu(); });}
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}

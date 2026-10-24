@@ -2906,6 +2906,20 @@ function deleteDirectory($dir){
 
 
 // ── News Portal API ───────────────────────────────────────────────────────────
+if (isset($_GET['api']) && $_GET['api'] === 'shell_fragment') {
+    while (ob_get_level() > 1) ob_end_clean();
+    $sessionOk = isset($_SESSION['user']['email'], $_SESSION['auth_time']) && getUserFromActiveSessions(session_id()) !== null;
+    if (!$sessionOk) { http_response_code(401); exit; }
+    header('Content-Type: text/html; charset=UTF-8');
+    header('Cache-Control: private, no-store');
+    if (($_GET['name'] ?? '') === 'sessions') {
+        $activeSessions = getUserActiveSessions((string)$_SESSION['user']['email']);
+        require_once APP_ROOT . '/project/browser-icons.php';
+        require APP_ROOT . '/project/views/fragments/sessions_list.php';
+    }
+    exit;
+}
+
 if (isset($_GET['api']) && $_GET['api'] === 'news') {
     $newsDataDir = rtrim((string)(getenv('APP_NEWS_DATA_DIR') ?: appdata_data_dir() . '/news'), '/');
     $newsFile = $newsDataDir . '/news.json';
