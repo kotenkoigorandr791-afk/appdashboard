@@ -1,61 +1,66 @@
 <?php
 // If request to get products
 if (isset($_GET['get_products'])) {
-    $products = [];
-    if ($db) {
-        try {
-            $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
-            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-                $products[] = [
-                    'id' => $row['id'],
-                    'name' => [
-                        'en' => $row['name_en'],
-                        'uk' => $row['name_uk'],
-                        'ru' => $row['name_ru'],
-                        'be' => $row['name_be']
-                    ],
-                    'image' => $row['image'],
-                    'image_preview' => $row['image_preview'] ?? null,
-                    'category' => $row['category'] ?? '',
-                    'updated_at' => $row['updated_at'] ?? ''
-                ];
-            }
-        } catch (Exception $e) {
-            error_log("Failed to get products: " . $e->getMessage());
-        }
-    }
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode($products, JSON_UNESCAPED_UNICODE);
+    echo recipes_cached_json('products', function () use ($db) {
+        $products = [];
+        if ($db) {
+            try {
+                $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
+                while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+                    $products[] = [
+                        'id' => $row['id'],
+                        'name' => [
+                            'en' => $row['name_en'],
+                            'uk' => $row['name_uk'],
+                            'ru' => $row['name_ru'],
+                            'be' => $row['name_be']
+                        ],
+                        'image' => $row['image'],
+                        'image_preview' => $row['image_preview'] ?? null,
+                        'category' => $row['category'] ?? '',
+                        'updated_at' => $row['updated_at'] ?? ''
+                    ];
+                }
+            } catch (Exception $e) {
+                error_log("Failed to get products: " . $e->getMessage());
+            }
+        }
+        return json_encode($products, JSON_UNESCAPED_UNICODE);
+    });
     exit;
 }
 
 // If request to get recipes
 if (isset($_GET['get_recipes'])) {
-    $recipes = [];
     $page = isset($_GET['recipe_page']) ? (int)$_GET['recipe_page'] : 1;
-    
-    if ($db) {
-        try {
-            $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en");
-            while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-                $recipe = [
-                    'id' => $row['id'],
-                    'title' => [
-                        'en' => $row['title_en'],
-                        'uk' => $row['title_uk'],
-                        'ru' => $row['title_ru'],
-                        'be' => $row['title_be']
-                    ],
-                    'image' => $row['image']
-                ];
-                $recipes[] = $recipe;
-            }
-        } catch (Exception $e) {
-            error_log("Failed to get recipes: " . $e->getMessage());
-        }
-    }
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['recipes' => $recipes, 'page' => $page], JSON_UNESCAPED_UNICODE);
+    echo recipes_cached_json('recipes:' . $page, function () use ($db, $page) {
+        $recipes = [];
+        $page = isset($_GET['recipe_page']) ? (int)$_GET['recipe_page'] : 1;
+    
+        if ($db) {
+            try {
+                $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en");
+                while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
+                    $recipe = [
+                        'id' => $row['id'],
+                        'title' => [
+                            'en' => $row['title_en'],
+                            'uk' => $row['title_uk'],
+                            'ru' => $row['title_ru'],
+                            'be' => $row['title_be']
+                        ],
+                        'image' => $row['image']
+                    ];
+                    $recipes[] = $recipe;
+                }
+            } catch (Exception $e) {
+                error_log("Failed to get recipes: " . $e->getMessage());
+            }
+        }
+        return json_encode(['recipes' => $recipes, 'page' => $page], JSON_UNESCAPED_UNICODE);
+    });
     exit;
 }
 

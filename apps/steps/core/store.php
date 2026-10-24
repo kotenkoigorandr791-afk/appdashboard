@@ -1,6 +1,37 @@
 <?php
 require_once __DIR__ . '/../../../lib/user_schema_pg.php';
 require_once __DIR__ . '/../models/StepsModel.php';
+require_once __DIR__ . '/../../../lib/redis.php';
+function steps_cache_gen(): string {
+    $r = app_redis();
+    if (!$r) return '0';
+    try { return (string)($r->get(app_redis_key('steps:gen:' . steps_user())) ?: '0'); } catch (Throwable $e) { return '0'; }
+}
+function steps_cache_bump(): void {
+    static $registered = false;
+    $r = app_redis();
+    if (!$r) return;
+    $user = steps_user();
+    try { $r->incr(app_redis_key('steps:gen:' . $user)); } catch (Throwable $e) {}
+    if ($registered) return;
+    $registered = true;
+    register_shutdown_function(function () use ($user) {
+        $r = app_redis();
+        if ($r) { try { $r->incr(app_redis_key('steps:gen:' . $user)); } catch (Throwable $e) {} }
+    });
+}
+function steps_cached(string $name, array $args, callable $fn, int $ttl = 60) {
+    $r = app_redis();
+    if (!$r || steps_user() === '') return $fn();
+    $key = app_redis_key('steps:c:' . md5(steps_user() . '|' . steps_cache_gen() . '|' . $name . '|' . json_encode($args)));
+    try {
+        $hit = $r->get($key);
+        if (is_string($hit) && $hit !== '') return unserialize($hit, ['allowed_classes' => false]);
+    } catch (Throwable $e) {}
+    $val = $fn();
+    try { $r->set($key, serialize($val), ['EX' => $ttl]); } catch (Throwable $e) {}
+    return $val;
+}
 function steps_user(?string $set = null): string {
     static $u = '';
     if ($set !== null) $u = strtolower(trim($set));
@@ -55,6 +86,7 @@ function steps_legacy_table_exists(AppDatabase $db, string $schemaSql, string $t
     return $r && $r[0];
 }
 function steps_migrate_legacy_schema(AppDatabase $db, string $email): void {
+    steps_cache_bump();
     $schemaSql = app_user_schema_sql(app_user_schema_id('steps', $email));
     if (steps_legacy_table_exists($db, $schemaSql, 'steps')) {
         $stmt = $db->prepare("INSERT INTO steps_days (user_email, date, steps) SELECT :u, date, steps FROM $schemaSql.steps WHERE date ~ '^[0-9]{4}-[0-9]{2}-[0-9]{2}\$' ON CONFLICT DO NOTHING");
@@ -82,6 +114,7 @@ function steps_migrate_legacy_schema(AppDatabase $db, string $email): void {
     }
 }
 function upsertStepIgnore(AppDatabase $db, string $date, int $steps): void {
+    steps_cache_bump();
     $stmt = $db->prepare('INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO NOTHING');
     steps_bind_user($stmt);
     $stmt->bindValue(':d', $date, PDO::PARAM_STR);

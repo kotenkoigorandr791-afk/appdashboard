@@ -20,7 +20,7 @@ map $is_secure_conn $uir_token {
     default "";
 }
 limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
-limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=600r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_heavy:10m rate=60r/m;
 limit_req_status 429;
@@ -159,7 +159,7 @@ server {
     }
 
     location ^~ /mcp-api/ {
-        limit_req zone=appdashboard_api burst=120 nodelay;
+        limit_req zone=appdashboard_api burst=300 nodelay;
         proxy_pass http://127.0.0.1:8808/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -191,7 +191,7 @@ server {
     }
 
     location = /map/api/token {
-        limit_req zone=appdashboard_api burst=60 nodelay;
+        limit_req zone=appdashboard_api burst=200 nodelay;
         rewrite ^ /apps/map/index.php last;
     }
     location = /map/api/tokens {
@@ -231,7 +231,7 @@ server {
         rewrite ^ /index.php last;
     }
     location = /api/client-auth {
-        limit_req zone=appdashboard_api burst=120 nodelay;
+        limit_req zone=appdashboard_api burst=300 nodelay;
         rewrite ^ /index.php?api=client_auth last;
     }
     location = /authorize {
@@ -252,7 +252,7 @@ server {
     }
 
     location ^~ /public-api/ {
-        limit_req zone=appdashboard_api burst=120 nodelay;
+        limit_req zone=appdashboard_api burst=300 nodelay;
         include fastcgi.conf;
         fastcgi_pass unix:/run/php/php-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $document_root/public-api/index.php;

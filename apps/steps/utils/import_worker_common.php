@@ -288,6 +288,7 @@ function steps_worker_existing_dates_map(AppDatabase $db, array $days): array {
     return $map;
 }
 function steps_worker_import_app_db(AppDatabase $db, array $daySteps, string $mode, bool $allowZero = false): int {
+    steps_cache_bump();
     if (!$daySteps) return 0;
     ksort($daySteps);
     $existing = steps_worker_existing_dates_map($db, array_keys($daySteps));

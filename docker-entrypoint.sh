@@ -25,6 +25,10 @@ else
     printf 'opcache.max_accelerated_files=20000\n'
     printf 'opcache.validate_timestamps=1\n'
     printf 'opcache.revalidate_freq=30\n'
+    printf 'opcache.jit=tracing\n'
+    printf 'opcache.jit_buffer_size=%s\n' "${PHP_OPCACHE_JIT_BUFFER:-64M}"
+    printf 'realpath_cache_size=16M\n'
+    printf 'realpath_cache_ttl=300\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
 APP_WAF_RULE_ENGINE="${APP_WAF_RULE_ENGINE:-On}"

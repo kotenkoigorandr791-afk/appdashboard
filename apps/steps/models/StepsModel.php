@@ -2,6 +2,7 @@
 require_once __DIR__ . '/../core/store.php';
 // === Steps — basic operations ===
 function upsertStep(AppDatabase $db, string $date, int $steps): void {
+    steps_cache_bump();
     $stmt = $db->prepare('INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO UPDATE SET steps=excluded.steps');
     steps_bind_user($stmt);
     $stmt->bindValue(':d', $date, PDO::PARAM_STR);
@@ -9,6 +10,7 @@ function upsertStep(AppDatabase $db, string $date, int $steps): void {
     $stmt->execute();
 }
 function upsertStepsBatch(AppDatabase $db, array $items): void {
+    steps_cache_bump();
     $pdo = $db->getPdo();
     $pdo->beginTransaction();
     try {
@@ -53,6 +55,9 @@ function normalizeStoredDate(string $raw): ?string {
 }
 // Load ONLY needed date range (for chart/calendar)
 function loadStepsRange(AppDatabase $db, string $from, string $to): array {
+    return steps_cached('range', [$from, $to], fn() => loadStepsRangeDb($db, $from, $to));
+}
+function loadStepsRangeDb(AppDatabase $db, string $from, string $to): array {
     $steps = [];
     try {
         $stmt = $db->prepare(
@@ -73,6 +78,9 @@ function loadStepsRange(AppDatabase $db, string $from, string $to): array {
 
 // Min and max date in DB
 function getStepsDateBounds(AppDatabase $db): array {
+    return steps_cached('bounds', [], fn() => getStepsDateBoundsDb($db));
+}
+function getStepsDateBoundsDb(AppDatabase $db): array {
     try {
         $stmt = $db->prepare('SELECT MIN(date), MAX(date) FROM steps_days WHERE user_email = :u');
         steps_bind_user($stmt);
@@ -171,6 +179,7 @@ function exportStepsToCSV(AppDatabase $db): string {
 
 // Import CSV content into DB
 function importStepsFromCSVContent(AppDatabase $db, string $csvContent, bool $replace = true, bool $ownTx = true): array {
+    steps_cache_bump();
     $imported = [];
     $lines = explode("\n", $csvContent);
     $sql = 'INSERT INTO steps_days (user_email, date, steps) VALUES (:u, :d, :s) ON CONFLICT (user_email, date) DO ' . ($replace ? 'UPDATE SET steps=excluded.steps' : 'NOTHING');
@@ -214,6 +223,7 @@ function steps_fill_range(array $byDate, string $from, string $to): array {
     return $out;
 }
 function steps_delete_all(AppDatabase $db): void {
+    steps_cache_bump();
     $stmt = $db->prepare('DELETE FROM steps_days WHERE user_email = :u');
     steps_bind_user($stmt);
     $stmt->execute();
@@ -231,6 +241,9 @@ function steps_replace_all_from_csv(AppDatabase $db, string $csv): array {
     }
 }
 function steps_version(AppDatabase $db): string {
+    return steps_cached('version', [], fn() => steps_version_db($db));
+}
+function steps_version_db(AppDatabase $db): string {
     $stmt = $db->prepare("SELECT COUNT(*) AS count, COALESCE(MAX(date), '') AS max_date, COALESCE(SUM(steps), 0) AS total_steps FROM steps_days WHERE user_email = :u");
     steps_bind_user($stmt);
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
