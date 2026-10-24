@@ -1015,7 +1015,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             if(isset($qcRow['name'])) $qcCols[] = (string)$qcRow['name'];
         }
         $qcEnsureColumn = static function(string $column, string $definition) use ($db, &$qcCols): void {
-            if(in_array($column, $qcCols, true)) return;
+            if(in_array($column, $qcCols, true) || !preg_match('/^[a-z_][a-z0-9_]*$/', $column)) return;
             try { $db->exec("ALTER TABLE quick_commands ADD COLUMN $column $definition"); $qcCols[] = $column; } catch (Throwable $e) {}
         };
         $qcEnsureColumn('email', "TEXT NOT NULL DEFAULT ''");

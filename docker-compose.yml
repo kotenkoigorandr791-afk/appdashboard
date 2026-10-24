@@ -6,7 +6,7 @@ services:
     image: postgres:16
     container_name: appdashboard-db
     restart: unless-stopped
-    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB", "-c", "effective_cache_size=2GB", "-c", "work_mem=8MB", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000"]
+    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB", "-c", "effective_cache_size=2GB", "-c", "work_mem=8MB", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
     environment:
       POSTGRES_DB: appdashboard
       POSTGRES_USER: appdashboard

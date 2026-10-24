@@ -822,7 +822,7 @@ function oauth_immich_db(): ?PDO {
         'host.docker.internal',
     ]));
     foreach (['immich-db', 'immich_postgres'] as $container) {
-        $ip = trim((string)shell_exec("docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' {$container} 2>/dev/null"));
+        $ip = trim((string)shell_exec("docker inspect -f '{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}' " . escapeshellarg($container) . ' 2>/dev/null'));
         if ($ip !== '' && filter_var($ip, FILTER_VALIDATE_IP) && !in_array($ip, $hosts, true)) $hosts[] = $ip;
     }
     foreach (['172.17.0.1', '172.19.0.1'] as $extra) {

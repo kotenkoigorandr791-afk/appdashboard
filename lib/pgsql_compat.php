@@ -75,6 +75,7 @@ final class AppDatabase {
     private ?string $schemaSql;
     private array $initSql = [];
     private int $lastChanges = 0;
+    private bool $publicPathSet = false;
     private bool $exceptions = true;
     private function __construct(PDO $pdo, ?string $schemaSql = null, array $initSql = []) {
         $this->pdo = $pdo;
@@ -82,6 +83,7 @@ final class AppDatabase {
         $this->initSql = $initSql;
     }
     public function reconnect(): void {
+        $this->publicPathSet = false;
         $this->pdo = app_pdo_connect(true);
         if ($this->schemaSql !== null) {
             $this->pdo->exec('SET search_path TO ' . $this->schemaSql . ', public');
@@ -93,7 +95,9 @@ final class AppDatabase {
             self::$instance = new self(app_pdo_connect(false));
         } else {
             try {
+                if (self::$instance->publicPathSet) return self::$instance;
                 self::$instance->pdo->exec('SET search_path TO public');
+                self::$instance->publicPathSet = true;
             } catch (PDOException $e) {
                 if (!app_db_is_transient_connection_error($e)) throw $e;
                 self::$instance->reconnect();

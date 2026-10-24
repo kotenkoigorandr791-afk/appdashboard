@@ -62,8 +62,19 @@ function app_db_schema_ready(AppDatabase $db): bool {
     }
 }
 
+function app_db_has_unique_index(AppDatabase $db, string $table, array $columns): bool {
+    try {
+        $stmt = $db->prepare("SELECT 1 FROM pg_index i WHERE i.indrelid = to_regclass(CAST(:t AS text)) AND i.indisunique AND i.indpred IS NULL AND i.indexprs IS NULL AND (SELECT array_agg(a.attname::text ORDER BY k.ord) FROM unnest(i.indkey::int2[]) WITH ORDINALITY k(attnum, ord) JOIN pg_attribute a ON a.attrelid = i.indrelid AND a.attnum = k.attnum) = CAST(:c AS text[]) LIMIT 1");
+        $stmt->bindValue(':t', 'public.' . $table, PDO::PARAM_STR);
+        $stmt->bindValue(':c', '{' . implode(',', $columns) . '}', PDO::PARAM_STR);
+        return (bool)$stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    } catch (Throwable $e) {
+        return false;
+    }
+}
 function app_db_ensure_unique_index(AppDatabase $db, string $table, array $columns, string $indexName): void {
     $columnList = implode(',', $columns);
+    if (app_db_has_unique_index($db, $table, $columns)) return;
     try {
         $partition = implode(', ', $columns);
         $db->exec("DELETE FROM $table t USING (SELECT ctid, ROW_NUMBER() OVER (PARTITION BY $partition ORDER BY ctid) AS rn FROM $table) d WHERE t.ctid = d.ctid AND d.rn > 1");
@@ -1780,14 +1791,12 @@ function activeSessionTtlSeconds(string $email): int {
     $role = 0;
     try { $role = (int)((getUserByEmail($email)['role'] ?? 0)); } catch (Throwable $e) {}
     $adminIdle = defined('ADMIN_SESSION_IDLE_SECONDS') ? (int)ADMIN_SESSION_IDLE_SECONDS : appAuthTimeoutSeconds();
-    if ($email === 'root@root' || $role >= 2) {
-        // Admins used to get a much shorter idle timeout than regular users,
-        // which logged the admin panel out constantly. Keep the standard window.
-        return max($adminIdle, appAuthTimeoutSeconds());
-    }
     $fp = getDeviceFingerprint();
-    if ($email !== '' && $fp !== '' && isTrustedDevice($email, $fp)) {
+    if ($email !== '' && $email !== 'root@root' && $fp !== '' && isTrustedDevice($email, $fp)) {
         return 365 * 24 * 3600;
+    }
+    if ($email === 'root@root' || $role >= 2) {
+        return max($adminIdle, appAuthTimeoutSeconds());
     }
     return appAuthTimeoutSeconds();
 }
@@ -2436,11 +2445,19 @@ function emailSendCooldownRemaining(string $email, int $windowSec = 60): int {
 // ─────────────────────────────────────────────────────────────────────────────
 // CONFIG (auth, SMTP, Telegram, etc.)
 // ─────────────────────────────────────────────────────────────────────────────
+function configCache(?string $key = null, ?string $value = null, bool $reset = false): array {
+    static $cache = [];
+    if ($reset) $cache = [];
+    elseif ($key !== null) $cache[$key] = $value;
+    return $cache;
+}
 function getConfig(string $key, string $default = ''): string {
-    $db   = getDB();
-    $stmt = $db->prepare("SELECT value FROM config WHERE key=:k LIMIT 1");
+    $cache = configCache();
+    if (array_key_exists($key, $cache)) return $cache[$key] ?? $default;
+    $stmt = getDB()->prepare("SELECT value FROM config WHERE key=:k LIMIT 1");
     $stmt->bindValue(':k', $key);
     $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
+    configCache($key, $row ? (string)$row['value'] : null);
     return $row ? $row['value'] : $default;
 }
 
@@ -2450,6 +2467,7 @@ function setConfig(string $key, string $value): void {
     $stmt->bindValue(':k', $key);
     $stmt->bindValue(':v', $value);
     $stmt->execute();
+    configCache($key, $value);
 }
 
 function loadAuthConfig(): array {
@@ -3536,8 +3554,6 @@ function removeTrustedDevice(string $email, string $fingerprint): void {
     if ($redis = app_redis()) {
         $redis->del(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint));
         $redis->sRem(app_redis_key('trusted_devices_by_email:' . strtolower($email)), $fingerprint);
-        removeTrustedDeviceCookies($email, $fingerprint);
-        return;
     }
     $db = getDB();
     $stmt = $db->prepare("DELETE FROM trusted_devices WHERE email = :e AND fingerprint = :f");
@@ -3652,6 +3668,20 @@ function createTrustedDeviceCookie(string $email, string $fingerprint, string $d
     return $rawCookie;
 }
 
+function persistRotatedTrustedDeviceCookie(string $oldHash, string $newHash, string $fingerprint, int $expiresAt): void {
+    try {
+        $db = getDB();
+        ensureTrustedDeviceCookiesSchema($db);
+        $upd = $db->prepare("UPDATE trusted_device_cookies SET cookie_hash = :nh, fingerprint = :f, last_used_at = :u, expires_at = :x WHERE cookie_hash = :oh");
+        $upd->bindValue(':nh', $newHash, PDO::PARAM_STR);
+        $upd->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+        $upd->bindValue(':u', time(), PDO::PARAM_INT);
+        $upd->bindValue(':x', $expiresAt, PDO::PARAM_INT);
+        $upd->bindValue(':oh', $oldHash, PDO::PARAM_STR);
+        $upd->execute();
+    } catch (Throwable $e) {}
+}
+
 function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
     if ($redis = app_redis()) {
         $cookieHash = hash('sha256', $rawCookie);
@@ -3705,6 +3735,7 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
                         $device['ip'] = getClientIp();
                         $redis->set(app_redis_key('trusted_device:' . strtolower($email) . ':' . $fingerprint), json_encode($device, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
                     }
+                    persistRotatedTrustedDeviceCookie($cookieHash, $newHash, $fingerprint, (int)$row['expires_at']);
                     return ['email' => $email, 'new_token' => $newRawCookie];
                 }
                 $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
@@ -3776,7 +3807,6 @@ function removeTrustedDeviceCookies(string $email, string $fingerprint): void {
         $cookieHash = (string)$redis->get($mapKey);
         if ($cookieHash !== '') $redis->del(app_redis_key('trusted_cookie:' . $cookieHash));
         $redis->del($mapKey);
-        return;
     }
     $db = getDB();
     ensureTrustedDeviceCookiesSchema($db);

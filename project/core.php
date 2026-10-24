@@ -2937,6 +2937,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'news') {
     }
     function newsEnsureColumn(AppDatabase $db, array &$cols, string $table, string $column, string $definition): void {
         if (in_array($column, $cols, true)) return;
+        if (!preg_match('/^[a-z_][a-z0-9_]*$/', $table) || !preg_match('/^[a-z_][a-z0-9_]*$/', $column)) return;
         try {
             $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
             $cols[] = $column;

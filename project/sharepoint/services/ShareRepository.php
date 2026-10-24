@@ -182,16 +182,23 @@ final class ShareRepository
     {
         $ids = array_values(array_filter(array_map('intval', $ids)));
         if ($ids === []) return 0;
-        $in = implode(',', $ids);
-        return (int)getDB()->exec("UPDATE shares SET is_active = FALSE, revoked_at = NOW() WHERE id IN ($in)");
+        return $this->execIn('UPDATE shares SET is_active = FALSE, revoked_at = NOW() WHERE id IN (%s)', $ids);
     }
 
     public function bulkDelete(array $ids): int
     {
         $ids = array_values(array_filter(array_map('intval', $ids)));
         if ($ids === []) return 0;
-        $in = implode(',', $ids);
-        return (int)getDB()->exec("DELETE FROM shares WHERE id IN ($in)");
+        return $this->execIn('DELETE FROM shares WHERE id IN (%s)', $ids);
+    }
+
+    private function execIn(string $sql, array $ids): int
+    {
+        $db = getDB();
+        $stmt = $db->prepare(sprintf($sql, implode(',', array_fill(0, count($ids), '?'))));
+        foreach ($ids as $i => $id) $stmt->bindValue($i + 1, $id, PDO::PARAM_INT);
+        $stmt->execute();
+        return (int)$db->changes();
     }
 
     public function deleteByApp(string $app): int
