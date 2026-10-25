@@ -101,6 +101,17 @@ services:
       XDG_CACHE_HOME: /opt/ApplicationData/models/cache
       XDG_DATA_HOME: /opt/ApplicationData/models
       PREFETCH_MODELS: "${PREFETCH_MODELS:-1}"
+      # Cap parallel latexmk so many users cannot melt the host.
+      LATEX_MAX_CONCURRENT: "${LATEX_MAX_CONCURRENT:-2}"
+      LATEX_QUEUE_WAIT: "${LATEX_QUEUE_WAIT:-90}"
+      LATEX_MAX_SOURCE_BYTES: "${LATEX_MAX_SOURCE_BYTES:-1500000}"
+      LATEX_COMPILE_TIMEOUT: "${LATEX_COMPILE_TIMEOUT:-180}"
+      LATEX_PDF_CACHE_MAX: "${LATEX_PDF_CACHE_MAX:-64}"
+      LATEX_CACHE_TTL: "${LATEX_CACHE_TTL:-3600}"
+      SYNCTEX_MAX_ENTRIES: "${SYNCTEX_MAX_ENTRIES:-120}"
+      SYNCTEX_TTL: "${SYNCTEX_TTL:-1800}"
+      LATEX_TEXMF_CACHE: /opt/ApplicationData/latex-texmf
+      LATEX_PDF_CACHE: /opt/ApplicationData/latex-pdf-cache
     volumes:
       - .:/var/www/AppDashboard
       - ./deploy/python-sidecar/server.py:/app/server.py:ro

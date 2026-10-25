@@ -328,8 +328,16 @@ if (isset($_POST['latex'])) {
         $err = $res['error'] ?: 'Compilation failed';
         if ($res['raw'] !== '') {
             $decoded = json_decode($res['raw'], true);
-            if (is_array($decoded) && !empty($decoded['output'])) $err = (string)$decoded['output'];
-            elseif (is_array($decoded) && empty($decoded['success']) && !empty($decoded['error'])) $err = (string)$decoded['error'];
+            if (is_array($decoded)) {
+                if (!empty($decoded['output'])) $err = (string)$decoded['output'];
+                elseif (!empty($decoded['detail'])) $err = is_string($decoded['detail']) ? $decoded['detail'] : json_encode($decoded['detail']);
+                elseif (empty($decoded['success']) && !empty($decoded['error'])) $err = (string)$decoded['error'];
+            }
+        }
+        if ((int)$res['code'] === 503) {
+            $err = $err !== '' && $err !== 'Compilation failed' ? $err : 'Server is busy compiling other documents. Please try again in a moment.';
+        } elseif ((int)$res['code'] === 413) {
+            $err = 'LaTeX source is too large to compile.';
         }
         latex_respond_compile_error($err, false);
     }

@@ -941,6 +941,7 @@
       
       if (indicator) {
         indicator.textContent = text;
+        indicator.title = text;
         indicator.className = className + " tb-pin";
         indicator.style.opacity = '1';
         indicator.style.transition = 'opacity 0.5s, color 0.5s';

@@ -152,7 +152,7 @@
     #insert-select:hover, #template-select:hover { background-color: #4a4d51; }
     #insert-select option, #template-select option { background: var(--panel-bg); color: var(--text-color); }
     #insert-select optgroup, #template-select optgroup { font-weight: bold; color: var(--accent-color); }
-    #status-indicator { margin-left: auto; font-size: 0.9em; white-space: nowrap; flex-shrink: 0; }
+    #status-indicator { margin-left: auto; font-size: 0.9em; white-space: nowrap; flex: 0 1 auto; min-width: 0; max-width: min(220px, 28%); overflow: hidden; text-overflow: ellipsis; }
     .status-compiling { color: var(--warning-color); } 
     .status-ok { color: #32cd32; } 
     .status-error { color: #ff6b6b; }
