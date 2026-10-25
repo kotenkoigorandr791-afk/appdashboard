@@ -2803,6 +2803,10 @@ function convertImage($inputFile, $outputFile, $from, $to) {
             $success = imagepng($image, $outputFile, 9);
             break;
         case 'webp':
+            if (!function_exists('imagewebp')) {
+                imagedestroy($image);
+                throw new Exception('WebP conversion not supported by GD');
+            }
             $success = imagewebp($image, $outputFile, 90);
             break;
         case 'bmp':
