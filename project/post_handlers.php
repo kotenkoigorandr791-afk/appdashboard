@@ -1552,11 +1552,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         
 <div class="ap-panel" id="ap-docker-manager" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <?php echo $apBreadcrumb($translations['docker_manager_title']??'Docker Manager'); ?>
-            <div class="ap-embed-frame">
-                <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/project/docker/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>">
-                </iframe>
-            </div>
+            <div id="ap-docker-root" data-query="<?php echo my_htmlspecialchars('lang=' . urlencode($language) . '&theme=' . urlencode($themeForAppLink) . '&color=' . urlencode($config['color'] ?? '#007bff')); ?>"></div>
         </div>
         <div class="ap-panel" id="ap-performance" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <?php echo $apBreadcrumb($translations['performance_monitor_title']??'Performance'); ?>

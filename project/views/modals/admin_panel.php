@@ -3,6 +3,7 @@
 <link rel="stylesheet" href="/project/backup/assets/backup.css">
 <script src="/project/backup/assets/backup.js" defer></script>
 <link rel="stylesheet" href="/project/performance/style.css?v=<?= is_file(dirname(__DIR__, 2) . '/performance/style.css') ? filemtime(dirname(__DIR__, 2) . '/performance/style.css') : '9' ?>">
+<script src="/project/assets/docker/panel.js?v=<?= (int)@filemtime(dirname(__DIR__, 2) . '/assets/docker/panel.js') ?>" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════
@@ -510,6 +511,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     min-height: 0;
 }
 #ap-content:has(#ap-docker-manager.active),
+#ap-backup > #bdp-app { overflow-x: hidden !important; overflow-y: auto !important; }
 #ap-content:has(#ap-backup.active),
 #ap-content:has(#ap-docs.active),
 #ap-content:has(#ap-db.active),
@@ -1267,7 +1269,7 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 #ap-docs > #doc-app,
 #ap-performance > #perf-app,
 #ap-db > .ap-embed-frame,
-#ap-docker-manager > .ap-embed-frame {
+#ap-docker-manager > #ap-docker-root {
     flex: 1;
     min-height: 0;
     width: 100%;
@@ -1289,6 +1291,8 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     display: block !important;
     margin: 0 0 10px;
     padding: 0 2px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
 }
 #ap-backup.ap-panel.active,
 #ap-docs.ap-panel.active,
@@ -1303,7 +1307,8 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 #ap-db .ap-breadcrumb,
 #ap-performance .ap-breadcrumb,
 #ap-docker-manager .ap-breadcrumb {
-    padding: 0 16px !important;
+    padding: 0 16px 10px !important;
+    border-bottom: 1px solid var(--border-color);
 }
 
 /* OmniRoute panel – same embedded styles (no breadcrumb) */
@@ -1654,6 +1659,13 @@ function openPanel(id){
             try{window.PerformancePanel.refresh();}catch(e){}
         }
     }
+    if(id==='ap-docker-manager'&&window.DockerPanel){
+        var dr=document.getElementById('ap-docker-root');
+        if(!apPanelInited['ap-docker-manager']||!window.DockerPanel.mounted()){
+            apPanelInited['ap-docker-manager']=true;
+            try{window.DockerPanel.init(dr);}catch(e){console.error('[AdminPanel] DockerPanel.init:',e);}
+        }
+    }
     if(id==='ap-docs'&&window.DocsPanel){
         if(!apPanelInited['ap-docs']){
             apPanelInited['ap-docs']=true;
@@ -1732,6 +1744,7 @@ function apGateShow(msg){
     if(err){ err.style.display=msg?'block':'none'; err.textContent=msg||''; }
     var pwd=document.getElementById('ap-gate-password'); if(pwd){ pwd.value=''; setTimeout(function(){pwd.focus();},50); }
 }
+window.apGateShow=apGateShow;
 function apGateHide(){
     var gate=document.getElementById('ap-gate-login'); if(gate) gate.style.display='none';
     var spin=document.getElementById('ap-loading-spinner'); if(spin) spin.style.display='';

@@ -30,7 +30,8 @@ $currentUser = 'Guest';
 $userRole = 0;
 $userRoleName = $t['role_guest'];
 
-session_start();
+require_once __DIR__ . '/../../lib/app_session.php';
+app_session_start();
 $currentUser = get_current_user_from_sessions();
 $userEmail = monitor_current_user_email();
 $userRole = monitor_current_user_role($userEmail);

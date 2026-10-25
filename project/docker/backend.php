@@ -417,4 +417,6 @@ if ($message !== '') {
 }
 
 // Render main page
+ob_start();
 require __DIR__ . '/../views/modals/docker_manager.php';
+dockerOutput((string)ob_get_clean(), t('docker_manager_title'), false);

@@ -1,6 +1,6 @@
 /* ---------- THEME VARIABLES ---------- */
 .perf-root.light { --bg-color: #e8eef5; --card-bg: #ffffff; --text-color: #1a2332; --border-color: rgba(15,30,50,0.14); --text-secondary: rgba(26,35,50,0.62); --hover-color: #f0f4f8; --modal-bg: #ffffff; --modal-overlay: #e8eef5; --sidebar-bg: #f4f7fb; --group-block-bg: #eef3f8; }
-.perf-root.dark { --bg-color: #0f1419; --card-bg: #121820; --text-color: #f4f7fb; --border-color: rgba(255,255,255,0.14); --text-secondary: rgba(244,247,251,0.62); --hover-color: rgba(255,255,255,0.10); --modal-bg: #121820; --modal-overlay: #0a0e13; --sidebar-bg: #10161e; --group-block-bg: #1a222c; }
+.perf-root.dark { --bg-color: #0f1419; --card-bg: #121820; --text-color: #f4f7fb; --border-color: rgba(255,255,255,0.14); --text-secondary: rgba(244,247,251,0.62); --hover-color: #1c2531; --modal-bg: #121820; --modal-overlay: #0a0e13; --sidebar-bg: #10161e; --group-block-bg: #1a222c; }
 .perf-root { --error-color: #ff4444; --warning-color: #ff8800; }
 
 /* ---------- RESET & BASE ---------- */
@@ -589,3 +589,15 @@
 #graphModal > .modal-close,
 #appConfirmModal > .modal-close { display: none !important; }
 body.perf-modal-open { overflow: hidden; }
+.perf-root.modal { display: none; position: fixed; inset: 0; width: auto; height: auto; overflow: auto; flex-direction: initial; }
+
+.perf-root .perf-menu-toggle { position: absolute; top: 10px; right: 14px; z-index: 31; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-color); cursor: pointer; }
+.perf-root .perf-menu-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
+.perf-root .perf-menu-toggle:hover { border-color: var(--primary-color); color: var(--primary-color); }
+.perf-root { position: relative; }
+.perf-root .admin-monitor-topbar { position: absolute; top: 0; right: 0; bottom: 0; z-index: 30; width: 280px; max-width: 86%; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 16px; padding: 60px 14px 14px; overflow-x: hidden; overflow-y: auto; background: var(--sidebar-bg); border-bottom: 0; border-left: 1px solid var(--border-color); transform: translateX(100%); transition: transform .25s ease; box-shadow: none; }
+.perf-root.menu-open .admin-monitor-topbar { transform: translateX(0); box-shadow: -12px 0 32px rgba(0,0,0,.35); }
+.perf-root .admin-monitor-tabs { flex: 0 0 auto; flex-direction: column; align-items: stretch; overflow: visible; }
+.perf-root .admin-monitor-tab { width: 100%; justify-content: flex-start; }
+.perf-root .admin-monitor-actions { flex-direction: column; align-items: stretch; border-top: 1px solid var(--border-color); padding-top: 14px; }
+.perf-root .container { padding-top: 56px; }

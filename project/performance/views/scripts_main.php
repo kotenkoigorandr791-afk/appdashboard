@@ -60,7 +60,7 @@ function t(key, params = {}) {
 }
 
 var perfAppBase = (typeof window.__PERF_APP_BASE__ === 'string' && window.__PERF_APP_BASE__) ? window.__PERF_APP_BASE__ : <?= json_encode($perfAppBase ?? '/project/performance', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
-var perfIndexUrl = perfAppBase.replace(/\/$/, '') + '/index.php';
+var perfIndexUrl = perfAppBase.replace(/\/$/, '') + '/';
 var serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 var serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 
@@ -120,7 +120,10 @@ function perfSetModalOpen(on) {
     document.body.classList.toggle('perf-modal-open', !!on);
 }
 function perfApiPost(formData) {
-    return fetch(perfIndexUrl, { method: 'POST', body: formData, credentials: 'same-origin' });
+    return fetch(perfIndexUrl, { method: 'POST', body: formData, credentials: 'same-origin' }).then(response => {
+        if (response.status === 401 && typeof window.apGateShow === 'function') window.apGateShow('');
+        return response;
+    });
 }
 
 // Auto-zoom state (only for admins)
@@ -2445,6 +2448,7 @@ window.filterTable = filterTable;
 function perfHandleAction(action, el, event) {
     switch (action) {
         case 'toggle-autozoom': toggleAutoZoom(); break;
+        case 'toggle-menu': document.getElementById('perf-app').classList.toggle('menu-open'); break;
         case 'refresh': refreshData(); break;
         case 'open-graph': openGraphModal(el.getAttribute('data-metric') || 'cpu'); break;
         case 'cleanup-metric': cleanupMetricData(el.getAttribute('data-metric') || ''); break;
@@ -2545,7 +2549,7 @@ function perfBootMonitor() {
     document.querySelectorAll('#perf-app [data-section-target], body.perf-root [data-section-target]').forEach(button => {
         if (button.dataset.perfBound) return;
         button.dataset.perfBound = '1';
-        button.addEventListener('click', () => setActiveMonitorSection(button.getAttribute('data-section-target')));
+        button.addEventListener('click', () => { setActiveMonitorSection(button.getAttribute('data-section-target')); const app = document.getElementById('perf-app'); if (app) app.classList.remove('menu-open'); });
     });
     const monitorChartsPeriodEl = document.getElementById('monitorChartsPeriod');
     if (monitorChartsPeriodEl && !monitorChartsPeriodEl.dataset.perfBound) {

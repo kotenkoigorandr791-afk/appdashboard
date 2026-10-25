@@ -57,6 +57,7 @@
     }
 </style>
 
+<button class="perf-menu-toggle" type="button" data-perf-action="toggle-menu" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
 <div class="admin-monitor-topbar">
     <div class="admin-monitor-tabs">
         <button class="admin-monitor-tab active" type="button" data-section-target="graphs"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/></svg><?= htmlspecialchars($t['section_graphs']) ?></button>
