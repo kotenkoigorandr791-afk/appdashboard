@@ -1970,6 +1970,25 @@ function showSuccessCheck(button,text='') {
     button.__successTimer = null;
   }, 1300);
 }
+function showErrorCross(button) {
+  if (!button) return;
+  if (button.__successTimer) clearTimeout(button.__successTimer);
+  if (!button.dataset.successOriginalHtml) button.dataset.successOriginalHtml = button.innerHTML;
+  button.innerHTML = '<svg class="error-cross-icon" width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.6" fill="none" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"></path></svg>';
+  button.classList.remove('success-check-active');
+  button.classList.add('error-cross-active');
+  button.disabled = true;
+  button.__successTimer = setTimeout(() => {
+    button.innerHTML = button.dataset.successOriginalHtml;
+    button.classList.remove('error-cross-active');
+    button.disabled = false;
+    button.__successTimer = null;
+  }, 1600);
+}
+function showSaveResult(button, ok) {
+  if (ok === true) showSuccessCheck(button);
+  else if (ok === false) showErrorCross(button);
+}
 function isConvertibleFile(path) {
     const ext = path.split('.').pop().toLowerCase();
     const convertibleExts = [
@@ -2674,9 +2693,7 @@ function handleHotkeys(e, i18n) {
   if (mod && e.key.toLowerCase() === 's') {
     e.preventDefault();
     e.stopPropagation();
-    saveFile().then((ok) => {
-      if (ok) showSuccessCheck(document.getElementById('btn-save'));
-    });
+    saveFile().then((ok) => showSaveResult(document.getElementById('btn-save'), ok));
     return;
   }
   if (e.key === 'Escape' && searchState.active) {

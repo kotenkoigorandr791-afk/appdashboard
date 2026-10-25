@@ -2588,11 +2588,8 @@ window.addEventListener('message', function(event) {
     }
     if (event.data.type === 'editorSaveResult') {
         const saveButton = document.getElementById('btn-save');
-        if (event.data.ok) {
-            if (saveButton) showSuccessCheck(saveButton);
-        } else if (event.data.message) {
-            flashStatus(event.data.message);
-        }
+        showSaveResult(saveButton, !!event.data.ok);
+        if (!event.data.ok && event.data.message) flashStatus(event.data.message);
     }
     if (event.data.type === 'closeTranscriptionEditor') {
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
@@ -4808,7 +4805,7 @@ function initRootToolbar(i18n) {
     }
     document.getElementById('btn-save').addEventListener('click', async () => {
     const ok = await saveFile();
-    if (ok) showSuccessCheck(document.getElementById('btn-save'));
+    showSaveResult(document.getElementById('btn-save'), ok);
     });
     document.getElementById('btn-monaco-undo')?.addEventListener('click', () => {
     const active = window.monacoManager?.getActiveEditor?.();
@@ -9282,6 +9279,7 @@ async function autoSaveFile(editor, filePath, tabId = null) {
         if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showSuccessCheck(document.getElementById('btn-save'));
     } catch (err) {
         flashStatus(t(i18n, 'autoSaveFailed') + err.message);
+        if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showErrorCross(document.getElementById('btn-save'));
     } finally {
         if (resolvedTabId) {
             clearAutoSaveTimer(resolvedTabId);
@@ -9556,7 +9554,7 @@ async function saveFile() {
             return false;
         }
         iframe.contentWindow.postMessage({ type: 'editor:save' }, '*');
-        return false;
+        return null;
     }
 
     const path = activeTab.path;
