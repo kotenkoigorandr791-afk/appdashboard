@@ -6977,6 +6977,7 @@ function escapeRegex(string) {
 }
 async function refreshUsers(i18n) {
     const state = await api('get_state');
+    if (state && state.csrf_token) window.__cloudCsrf = state.csrf_token;
     window.__cloudUsersState = state;
     setCurrentUser(state.active);
     const tableBody = document.getElementById('users-table-body');
@@ -9768,7 +9769,7 @@ async function api(action, params={}, method='POST') {
     }
   } else {
     const body = new URLSearchParams({ action, ...scopedParams });
-    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Device-Id': ensureCloudDeviceId()}, body });
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Device-Id': ensureCloudDeviceId(), ...(window.__cloudCsrf ? {'X-CSRF-Token': window.__cloudCsrf} : {})}, body });
     const text = await res.text();
     let data;
     try {

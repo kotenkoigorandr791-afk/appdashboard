@@ -61,11 +61,22 @@
             statusEl.style.display = 'block';
             setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
         }
+        function injectPreviewScrollbarStyle(doc) {
+            if (theme === 'light') return doc;
+            const style = '<style id="ap-preview-scrollbar">html{color-scheme:dark;scrollbar-color:#555 #1e1e1e}html::-webkit-scrollbar,body::-webkit-scrollbar{width:10px;height:10px}html::-webkit-scrollbar-track,body::-webkit-scrollbar-track{background:#1e1e1e}html::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{background:#555;border-radius:4px}html::-webkit-scrollbar-thumb:hover,body::-webkit-scrollbar-thumb:hover{background:#777}</style>';
+            if (/id=["']ap-preview-scrollbar["']/.test(doc)) return doc;
+            if (/<\/head>/i.test(doc)) return doc.replace(/<\/head>/i, style + '</head>');
+            if (/<html[^>]*>/i.test(doc)) return doc.replace(/<html[^>]*>/i, m => m + '<head>' + style + '</head>');
+            return style + doc;
+        }
         function normalizeHtmlForPreview(html) {
             const trimmed = (html || '').trim();
-            if (!trimmed) return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body></body></html>';
-            if (/<html[\s>]/i.test(trimmed)) return trimmed;
-            return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + trimmed + '</body></html>';
+            let doc = !trimmed
+                ? '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body></body></html>'
+                : /<html[\s>]/i.test(trimmed)
+                    ? trimmed
+                    : '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + trimmed + '</body></html>';
+            return injectPreviewScrollbarStyle(doc);
         }
         function updatePreview() {
             if (!editor || !previewFrame) return;

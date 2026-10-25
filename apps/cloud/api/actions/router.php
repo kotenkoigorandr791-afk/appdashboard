@@ -84,6 +84,8 @@ if ($action === 'get_state') {
     $current_user = cloud_api_user();
     $email = cloud_api_email();
     $display_email = $email;
+    if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    $csrfToken = (string)$_SESSION['csrf_token'];
     cloud_session_close_early();
 
     $user_quota    = cloud_storage_default_quota_mb();
@@ -139,6 +141,7 @@ if ($action === 'get_state') {
     ]];
 
     json_out([
+        'csrf_token' => $csrfToken,
         'active' => $current_user,
         'active_email' => $display_email,
         'photo' => $user_photo,
