@@ -92,7 +92,9 @@ test.describe.serial('root password change flow', () => {
     await expect(currentPwdInput).toBeVisible({ timeout: 15000 });
     await currentPwdInput.fill(NEW_PASSWORD);
     await page.locator('#verify-current-password').click();
-    await expect(page.locator('#current-password-msg')).toContainText('verified', { timeout: 15000 });
+    // The message is rendered in the account's own language, so accept both
+    // locales the built-in admin account can be stored with.
+    await expect(page.locator('#current-password-msg')).toContainText(/verified|подтверждён/i, { timeout: 15000 });
 
     const newerPassword = 'NewAdmin789';
     await page.locator('#change-new-password').fill(newerPassword);

@@ -212,7 +212,9 @@ test.describe('home — mobile toasts full-width', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.evaluate(() => { document.body.style.height = '4000px'; });
     await page.waitForTimeout(6500);
-    const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
+    // The gutter only shapes the full-width mobile layout (<=768px); on desktop
+    // widths the toasts keep their own 400px bottom-right placement.
+    const context = await browser.newContext({ viewport: { width: 414, height: 896 } });
     const scrollPage = await context.newPage();
     await scrollPage.goto('http://localhost/?lang=en&theme=dark', { waitUntil: 'domcontentloaded' });
     await scrollPage.evaluate(() => { localStorage.clear(); });
