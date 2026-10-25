@@ -29,6 +29,7 @@ function cloud_public_scheme(): string {
     return 'http';
 }
 function cloud_public_host(): string {
+    if (getenv('APP_TRUST_FORWARDED_HOST') !== '1') return (string)($_SERVER['HTTP_HOST'] ?? 'localhost');
     $forwarded = (string)($_SERVER['HTTP_FORWARDED'] ?? '');
     if ($forwarded !== '' && preg_match('/(?:^|[;,]\s*)host=([^;,]+)/i', $forwarded, $m)) {
         return trim($m[1], "\" \t");
@@ -92,6 +93,14 @@ function getDB() {
 }
 }
 
+if (!function_exists('cloud_schema_once')) {
+    function cloud_schema_once(string $key, callable $fn): void {
+        $stamp = sys_get_temp_dir() . '/cloud_schema_' . md5($key . ':' . (int)@filemtime(__FILE__) . ':' . (int)@filemtime(__DIR__ . '/includes/cloud_groups.php')) . '.stamp';
+        if (is_file($stamp)) return;
+        $fn();
+        @touch($stamp);
+    }
+}
 function ensure_cloud_encryption_consents_schema_sqlite(AppDatabase $db): void {
     $db->exec("SELECT 1");
     $hasTable = (bool)$db->querySingle("SELECT 1 FROM information_schema.tables WHERE table_schema='public' AND table_name='cloud_encryption_consents' LIMIT 1");
@@ -139,6 +148,10 @@ function ensure_cloud_encryption_consents_schema_sqlite(AppDatabase $db): void {
 }
 
 function ensure_cloud_encryption_consents_table(): void {
+    if (function_exists('cloud_schema_once')) cloud_schema_once(__FUNCTION__, fn() => ensure_cloud_encryption_consents_table_impl());
+    else ensure_cloud_encryption_consents_table_impl();
+}
+function ensure_cloud_encryption_consents_table_impl(): void {
     $db = getDB();
     if (!$db) return;
     try {
@@ -571,6 +584,13 @@ function get_session_email(): ?string {
 }
 // Helper function to get user role by email
 function getUserRoleByEmail($email): int {
+    $roleKey = strtolower((string)$email);
+    if ($roleKey !== '' && isset($_SESSION['role_cache'][$roleKey]) && time() - $_SESSION['role_cache'][$roleKey]['t'] < 60) return (int)$_SESSION['role_cache'][$roleKey]['r'];
+    $role = getUserRoleByEmailUncached($email);
+    if ($roleKey !== '' && session_status() === PHP_SESSION_ACTIVE) $_SESSION['role_cache'][$roleKey] = ['r' => $role, 't' => time()];
+    return $role;
+}
+function getUserRoleByEmailUncached($email): int {
     $db = getDB();
     if (!$db || !$email) {
         return 0;
@@ -770,6 +790,9 @@ function decrypt_documents_content(string $raw, string $user): string {
     return $plain === false ? '' : $plain;
 }
 function ensureCloudSyncLogsSchema($db): void {
+    cloud_schema_once(__FUNCTION__, fn() => ensureCloudSyncLogsSchema_impl($db));
+}
+function ensureCloudSyncLogsSchema_impl($db): void {
     static $done = false;
     if ($done) return;
     $done = true;
@@ -3107,6 +3130,9 @@ function getSessionLimit(string $username): int {
 }
 
 function ensureCloudUserSettingsSchema($db): void {
+    cloud_schema_once(__FUNCTION__, fn() => ensureCloudUserSettingsSchema_impl($db));
+}
+function ensureCloudUserSettingsSchema_impl($db): void {
     if (!$db) return;
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_user_settings (
         email TEXT PRIMARY KEY,
@@ -3502,6 +3528,9 @@ function scan_full_tree(string $dir, string $base): array {
  * Ensure the cloud_folder_state table has the tree_json column (added later).
  */
 function ensure_file_tree_table(AppDatabase $db): void {
+    cloud_schema_once(__FUNCTION__, fn() => ensure_file_tree_table_impl($db));
+}
+function ensure_file_tree_table_impl(AppDatabase $db): void {
     static $done = false;
     if ($done) return;
     $db->exec("
@@ -3615,6 +3644,9 @@ function rebuild_file_tree(string $email, string $user): void {
 //  Storage usage cache helpers (folder-level treemap data)
 // ------------------------------------------------------------------
 function ensure_storage_usage_table(AppDatabase $db): void {
+    cloud_schema_once(__FUNCTION__, fn() => ensure_storage_usage_table_impl($db));
+}
+function ensure_storage_usage_table_impl(AppDatabase $db): void {
     $db->exec("
         CREATE TABLE IF NOT EXISTS cloud_storage_usage_stats (
             email            TEXT PRIMARY KEY,

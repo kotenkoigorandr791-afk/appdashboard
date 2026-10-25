@@ -8,6 +8,7 @@ require_once dirname(__DIR__, 4) . '/includes/session.php';
 require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
 cloud_session_start();
 cloud_require_session_auth();
+$currentUser = cloud_session_storage_user();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $currentUser = $_SESSION['current_user'] ?? $_GET['user'] ?? 'default';
 $templatesFile = CLOUD_APP_ROOT . '/templates.json';

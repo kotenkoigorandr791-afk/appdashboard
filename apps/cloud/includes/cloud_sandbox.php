@@ -7,6 +7,11 @@ function cloud_sandbox_bwrap_path(): string
     return $path !== '' && is_executable($path) ? $path : '';
 }
 
+function cloud_sandbox_unsafe_allowed(): bool
+{
+    return getenv('APP_SANDBOX_ALLOW_UNSAFE') === '1';
+}
+
 function cloud_sandbox_base_args(string $workDir): array
 {
     $bwrap = cloud_sandbox_bwrap_path();
@@ -59,6 +64,9 @@ function cloud_sandbox_exec(string $workDir, string $command, ?string $input = n
 {
     $timeout = max(1, min(180, $timeout));
     $redirect = $mergeStderr ? ' 2>&1' : '';
+    if (cloud_sandbox_bwrap_path() === '' && !cloud_sandbox_unsafe_allowed()) {
+        return ['success' => false, 'output' => '', 'error' => 'Sandbox runtime is not available', 'exitCode' => 126];
+    }
     if (cloud_sandbox_bwrap_path() === '') {
         $result = cloud_sandbox_proc_exec('timeout ' . (int)$timeout . 's /bin/sh -lc ' . escapeshellarg($command . $redirect), $workDir, $input);
         return [
@@ -70,7 +78,7 @@ function cloud_sandbox_exec(string $workDir, string $command, ?string $input = n
     }
     $cmd = 'timeout ' . (int)$timeout . 's ' . cloud_sandbox_shell_command($workDir, $command . $redirect);
     $result = cloud_sandbox_proc_exec($cmd, $workDir, $input);
-    if (($result['exitCode'] ?? 0) !== 0 && str_contains((string)($result['output'] ?? ''), 'bwrap: setting up uid map: Permission denied')) {
+    if (cloud_sandbox_unsafe_allowed() && ($result['exitCode'] ?? 0) !== 0 && str_contains((string)($result['output'] ?? ''), 'bwrap: setting up uid map: Permission denied')) {
         $result = cloud_sandbox_proc_exec('timeout ' . (int)$timeout . 's /bin/sh -lc ' . escapeshellarg($command . $redirect), $workDir, $input);
     }
     return [

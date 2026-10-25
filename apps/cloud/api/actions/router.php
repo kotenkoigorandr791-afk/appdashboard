@@ -4206,6 +4206,10 @@ if ($action === 'refresh_storage_usage') {
 
 if (!function_exists('cloud_ai_ensure_chat_tables')) {
     function cloud_ai_ensure_chat_tables(AppDatabase $db): void {
+    if (function_exists('cloud_schema_once')) cloud_schema_once(__FUNCTION__, fn() => cloud_ai_ensure_chat_tables_impl($db));
+    else cloud_ai_ensure_chat_tables_impl($db);
+}
+function cloud_ai_ensure_chat_tables_impl(AppDatabase $db): void {
         $db->exec("CREATE TABLE IF NOT EXISTS cloud_ai_assistant_chats (
             id BIGSERIAL PRIMARY KEY,
             email TEXT NOT NULL,

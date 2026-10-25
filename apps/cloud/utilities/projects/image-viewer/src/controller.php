@@ -4,6 +4,7 @@ require_once dirname(__DIR__, 4) . '/includes/session.php';
 require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
 cloud_session_start();
 cloud_require_session_auth();
+$user = cloud_session_storage_user();
 $filePath = isset($_GET['path']) ? $_GET['path'] : '';
 $theme = isset($_GET['theme']) ? $_GET['theme'] : 'light';
 $color = isset($_GET['color']) ? $_GET['color'] : '#85b503';

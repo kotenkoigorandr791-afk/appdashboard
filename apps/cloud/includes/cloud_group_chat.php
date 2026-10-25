@@ -13,6 +13,11 @@ function cloud_is_hidden_group_tree_path(string $path): bool
 }
 function ensureCloudGroupChatSchema($db): void
 {
+    if (function_exists('cloud_schema_once')) cloud_schema_once(__FUNCTION__, fn() => ensureCloudGroupChatSchema_impl($db));
+    else ensureCloudGroupChatSchema_impl($db);
+}
+function ensureCloudGroupChatSchema_impl($db): void
+{
     if (!$db) return;
     ensureCloudGroupsSchema($db);
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_group_chat_messages (
