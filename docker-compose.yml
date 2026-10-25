@@ -103,6 +103,7 @@ services:
       PREFETCH_MODELS: "${PREFETCH_MODELS:-1}"
     volumes:
       - .:/var/www/AppDashboard
+      - ./deploy/python-sidecar/server.py:/app/server.py:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData
     depends_on:

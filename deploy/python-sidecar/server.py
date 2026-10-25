@@ -74,7 +74,7 @@ def health():
     return {"status": "ok"}
 
 SYNCTEX_ROOT = Path(tempfile.gettempdir()) / "synctex"
-SYNCTEX_TTL = 3600
+SYNCTEX_TTL = 1800
 
 
 def _prune_synctex() -> None:
@@ -94,11 +94,21 @@ def _store_synctex(tmp: str) -> str:
     sid = uuid.uuid4().hex
     dest = SYNCTEX_ROOT / sid
     dest.mkdir(parents=True, exist_ok=True)
+    # PDF is required by synctex CLI (-o document.pdf); tex helps view queries.
     for name in ("document.synctex.gz", "document.pdf", "document.tex"):
         src = Path(tmp) / name
         if src.is_file():
             shutil.copy2(src, dest / name)
     return sid
+
+
+def _synctex_dir(sid: str) -> Path:
+    if not re.fullmatch(r"[0-9a-f]{32}", sid or ""):
+        raise HTTPException(400, "bad id")
+    d = SYNCTEX_ROOT / sid
+    if not d.is_dir():
+        raise HTTPException(404, "expired")
+    return d
 
 
 def _parse_synctex(output: str) -> dict:
@@ -111,7 +121,12 @@ def _parse_synctex(output: str) -> dict:
 
 
 @app.post("/latex")
-async def latex_compile(latex: str = Form(...), engine: str = Form("pdflatex"), synctex: str = Form("")):
+async def latex_compile(
+    latex: str = Form(...),
+    engine: str = Form("pdflatex"),
+    synctex: str = Form(""),
+    format: str = Form("json"),
+):
     selected = "lualatex" if engine == "lualatex" else "pdflatex"
     with tempfile.TemporaryDirectory() as tmp:
         source = Path(tmp) / "document.tex"
@@ -124,7 +139,23 @@ async def latex_compile(latex: str = Form(...), engine: str = Form("pdflatex"), 
         proc = _run(cmd + [source.name], timeout=300, cwd=tmp, extra_env={"HOME": tmp, "TEXMFVAR": cache, "TEXMFCACHE": cache, "TEXMFHOME": cache + "/home", "OSFONTDIR": "/usr/share/fonts"})
         pdf = Path(tmp) / "document.pdf"
         ok = proc.returncode == 0 and pdf.is_file()
-        return {"success": ok, "pdf": base64.b64encode(pdf.read_bytes()).decode("ascii") if pdf.is_file() else "", "output": (proc.stdout or "")[-12000:], "synctex_id": _store_synctex(tmp) if ok and synctex else ""}
+        sid = _store_synctex(tmp) if ok and synctex else ""
+        if format == "raw":
+            if not ok:
+                return JSONResponse(
+                    {"success": False, "output": (proc.stdout or "")[-12000:], "synctex_id": ""},
+                    status_code=422,
+                )
+            headers = {}
+            if sid:
+                headers["X-Synctex-Id"] = sid
+            return Response(content=pdf.read_bytes(), media_type="application/pdf", headers=headers)
+        return {
+            "success": ok,
+            "pdf": base64.b64encode(pdf.read_bytes()).decode("ascii") if pdf.is_file() else "",
+            "output": (proc.stdout or "")[-12000:],
+            "synctex_id": sid,
+        }
 
 
 @app.post("/synctex")
@@ -137,9 +168,7 @@ async def synctex_query(
     x: float = Form(0),
     y: float = Form(0),
 ):
-    if not re.fullmatch(r"[0-9a-f]{32}", id):
-        raise HTTPException(400, "bad id")
-    d = SYNCTEX_ROOT / id
+    d = _synctex_dir(id)
     if not (d / "document.synctex.gz").is_file():
         return {"ok": False, "error": "expired"}
     if mode == "edit":
@@ -153,6 +182,20 @@ async def synctex_query(
     if "Page" not in r:
         return {"ok": False}
     return {"ok": True, "page": int(r["Page"]), "x": float(r["x"]), "y": float(r["y"]), "h": float(r["h"]), "v": float(r["v"]), "w": float(r["W"]), "hh": float(r["H"])}
+
+
+@app.post("/synctex/pdf")
+async def synctex_pdf(id: str = Form(...)):
+    d = _synctex_dir(id)
+    pdf = d / "document.pdf"
+    if not pdf.is_file():
+        raise HTTPException(404, "pdf missing")
+    # Touch mtime so active previews are not pruned mid-session.
+    try:
+        d.touch()
+    except OSError:
+        pass
+    return Response(content=pdf.read_bytes(), media_type="application/pdf", headers={"X-Synctex-Id": id})
 
 
 @app.post("/tts")

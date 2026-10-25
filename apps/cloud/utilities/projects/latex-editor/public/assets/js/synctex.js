@@ -20,8 +20,9 @@
         } catch (_) { return null; }
     }
     function pageWrapper(n) {
-        const c = pdfView().querySelector('canvas[data-page-number="' + n + '"]');
-        return c ? c.closest('.pdf-page-wrapper') : null;
+        const view = pdfView();
+        return view.querySelector('.pdf-page-wrapper[data-page-number="' + n + '"]')
+            || (() => { const c = view.querySelector('canvas[data-page-number="' + n + '"]'); return c ? c.closest('.pdf-page-wrapper') : null; })();
     }
     function scrollPdfTo(wrapper, markTop, markHeight) {
         const view = pdfView();
@@ -52,6 +53,7 @@
         if (!r) return;
         const w = pageWrapper(r.page);
         if (!w) return;
+        w.scrollIntoView({ block: 'nearest' });
         const s = parseFloat(w.dataset.scale) || 1;
         const h = Math.max(r.hh, 10);
         mark(w, Math.max(0, r.h * s - 4), Math.max(0, (r.v - h) * s), Math.max(r.w * s, 40) + 8, h * s + 6);
@@ -61,8 +63,8 @@
         const e = getEditor();
         if (!e || !wrapper) return;
         const s = parseFloat(wrapper.dataset.scale) || 1;
-        const canvas = wrapper.querySelector('canvas');
-        const r = await query({ mode: 'edit', page: canvas.getAttribute('data-page-number'), x: cx / s, y: cy / s });
+        const page = wrapper.dataset.pageNumber || (wrapper.querySelector('canvas') && wrapper.querySelector('canvas').getAttribute('data-page-number'));
+        const r = await query({ mode: 'edit', page, x: cx / s, y: cy / s });
         if (!r) return;
         e.revealLineInCenter(r.line);
         e.setPosition({ lineNumber: r.line, column: Math.max(1, r.column) });

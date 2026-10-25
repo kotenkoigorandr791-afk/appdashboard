@@ -12,7 +12,7 @@
     const isPortraitOrientation = window.innerHeight > window.innerWidth;
 
     // ─── Check if minimap should be hidden ───────────────────────────────────
-    const shouldHideMinimap = isTouchDevice && isPortraitOrientation;
+    const shouldHideMinimap = isTouchDevice || document.body.classList.contains('mobile-layout');
 
     // ─── Touch selection support (ported from monaco-editor.js) ──────────────
     /**
@@ -151,7 +151,9 @@
         value: initialContent,
         language: 'latex',
         theme: isDark ? 'custom-dark' : 'custom-light',
-        automaticLayout: true,
+        automaticLayout: false,
+        largeFileOptimizations: true,
+        maxTokenizationLineLength: 20000,
 
         // ── Touch-adaptive settings ──────────────────────────────────────────
         // Larger font & hidden line numbers make tap targets comfortable on phones
@@ -168,7 +170,7 @@
         fastScrollSensitivity:       isTouchDevice ? 4 : 2,
         // ────────────────────────────────────────────────────────────────────
 
-        minimap: { enabled: !shouldHideMinimap, size: 'fill', showSlider: 'always' },
+        minimap: { enabled: !shouldHideMinimap, size: 'proportional', showSlider: 'mouseover', maxColumn: 80 },
         scrollBeyondLastLine: true,
         wordWrap: 'on',
         wrappingIndent: 'indent',
@@ -176,9 +178,9 @@
         foldingStrategy: 'auto',
         showFoldingControls: 'always',
         renderLineHighlight: 'all',
-        cursorBlinking: 'smooth',
-        cursorSmoothCaretAnimation: 'on',
-        smoothScrolling: true,
+        cursorBlinking: isTouchDevice ? 'blink' : 'smooth',
+        cursorSmoothCaretAnimation: isTouchDevice ? 'off' : 'on',
+        smoothScrolling: !isTouchDevice,
         formatOnPaste: true,
         formatOnType: true,
         autoClosingBrackets: 'always',
@@ -242,8 +244,7 @@
             setStatus((msg && msg.name ? msg.name : 'user') + ': ' + (t['compiling'] || 'compiling...'), 'status-compiling');
           },
           onRemoteCompile: function(msg) {
-            // Another user compiled the document - refresh the PDF preview
-            recompilePreviewAfterRemoteCompile();
+            refreshPreviewAfterRemoteCompile(msg && msg.info ? msg.info : msg);
           }
         });
       }
@@ -294,8 +295,15 @@
 
       setupStatusBarReset();
       
-      // Same gutter, folding and transliteration rules as the main editor.
-      editor.updateOptions(shared.standardEditorOptions());
+      // Same gutter/folding/transliteration as main editor, but keep automaticLayout off
+      // (manual layout via ResizeObserver / pane changes — avoids double thrash).
+      editor.updateOptions(Object.assign({}, shared.standardEditorOptions(), {
+        automaticLayout: false,
+        largeFileOptimizations: true,
+        minimap: { enabled: !shouldHideMinimap, size: 'proportional', showSlider: 'mouseover', maxColumn: 80 },
+        cursorSmoothCaretAnimation: isTouchDevice ? 'off' : 'on',
+        smoothScrolling: !isTouchDevice
+      }));
       shared.installTransliteration({
         editor: editor,
         container: monacoContainer,
@@ -849,14 +857,13 @@
     // Update minimap visibility based on orientation
     function updateMinimapVisibility() {
         if (!editor) return;
-        const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0) || (navigator.msMaxTouchPoints > 0);
-        const isPortrait = window.innerHeight > window.innerWidth;
-        const shouldHide = isTouch && isPortrait;
+        const shouldHide = isTouchDevice || document.body.classList.contains('mobile-layout');
         editor.updateOptions({
             minimap: {
                 enabled: !shouldHide,
-                size: 'fill',
-                showSlider: 'always'
+                size: 'proportional',
+                showSlider: 'mouseover',
+                maxColumn: 80
             }
         });
     }
@@ -1071,39 +1078,52 @@
 
 
 
-    // Re-fetch and re-render the compiled PDF (viewer side of a remote compile)
-    function recompilePreviewAfterRemoteCompile() {
+    // Refresh preview after a peer compile without running latexmk again.
+    function refreshPreviewAfterRemoteCompile(info) {
+      const sid = info && (info.synctex_id || info.synctexId);
+      if (!sid) {
+        setStatus(t['success'] || 'ok', 'status-ok');
+        return Promise.resolve();
+      }
       const formData = new FormData();
-      formData.append('latex', editor ? editor.getValue() : '');
-      setStatus(t['compiling'], 'status-compiling');
+      formData.append('synctex_pdf', '1');
+      formData.append('synctex_id', sid);
+      setStatus(t['pdf_loading'] || 'loading...', 'status-compiling');
       return fetch('', { method: 'POST', body: formData })
         .then(async response => {
           const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('application/pdf')) { window.__synctexId = response.headers.get('X-Synctex-Id') || ''; return { kind: 'pdf', blob: await response.blob() }; }
-          throw new Error('no pdf');
+          if (!contentType.includes('application/pdf')) throw new Error('no pdf');
+          window.__synctexId = response.headers.get('X-Synctex-Id') || sid;
+          return response.blob();
         })
-        .then(result => {
-          if (result.kind === 'pdf') {
-            displayPdf(result.blob);
-            setStatus(t['success'], 'status-ok');
-          }
+        .then(blob => {
+          displayPdf(blob);
+          setStatus(t['success'], 'status-ok');
         })
         .catch(() => { setStatus(t['error'], 'status-error'); });
     }
+    let compileAbort = null;
+    let compileSeq = 0;
     function compileLatex(savePdf = false) {
         const runCompile = () => {
+        if (compileAbort) try { compileAbort.abort(); } catch (_) {}
+        compileAbort = typeof AbortController !== 'undefined' ? new AbortController() : null;
+        const seq = ++compileSeq;
         const latexContent = editor ? editor.getValue() : '';
         setStatus(t['compiling'], 'status-compiling');
         if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) window.cloudIframeCollab.notifyLatexCompiling();
         const formData = new FormData();
         formData.append('latex', latexContent);
         if (savePdf) formData.append('save_pdf', 'true');
-        return fetch('', { method: 'POST', body: formData })
+        const fetchOpts = { method: 'POST', body: formData };
+        if (compileAbort) fetchOpts.signal = compileAbort.signal;
+        return fetch('', fetchOpts)
         .then(async response => {
+            if (seq !== compileSeq) return { kind: 'stale' };
             const contentType = response.headers.get('content-type') || '';
             if (contentType.includes('application/pdf')) {
-                window.__synctexId = response.headers.get('X-Synctex-Id') || '';
-                return { kind: 'pdf', blob: await response.blob() };
+                window.__synctexId = response.headers.get('X-Synctex-Id') || window.__synctexId || '';
+                return { kind: 'pdf', blob: await response.blob(), synctex_id: window.__synctexId };
             }
             if (contentType.includes('application/json')) {
                 const data = await response.json();
@@ -1116,12 +1136,16 @@
             throw new Error(text || t['compilation_failed'] || 'Compilation failed');
         })
         .then(result => {
+            if (!result || result.kind === 'stale' || seq !== compileSeq) return { success: false, stale: true };
             if (savePdf) {
                 const data = result.data;
                 if (data && data.success && data.pdf_path && Number(data.size || 0) > 0) {
                     setStatus(t['success'], 'status-ok');
                     showNotification(t['save_pdf'], t['compilation_success'], 'success');
-                    if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) window.cloudIframeCollab.notifyLatexCompiled({ pdf_path: data.pdf_path });
+                    if (data.synctex_id) window.__synctexId = data.synctex_id;
+                    if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) {
+                        window.cloudIframeCollab.notifyLatexCompiled({ pdf_path: data.pdf_path, synctex_id: window.__synctexId || data.synctex_id || '' });
+                    }
                     if (window.parent) {
                         window.parent.postMessage({
                             type: 'PDF_SAVED',
@@ -1137,10 +1161,14 @@
             }
             displayPdf(result.blob);
             setStatus(t['success'], 'status-ok');
-            if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) window.cloudIframeCollab.notifyLatexCompiled({});
+            if (window.cloudIframeCollab && window.cloudIframeCollab.getSession()) {
+                window.cloudIframeCollab.notifyLatexCompiled({ synctex_id: result.synctex_id || window.__synctexId || '' });
+            }
             return { success: true };
         })
         .catch(error => {
+            if (error && error.name === 'AbortError') return { success: false, aborted: true };
+            if (seq !== compileSeq) return { success: false, stale: true };
             setStatus(t['error'], 'status-error');
             showCompilationError(error.message);
             return { success: false, error: error.message };
@@ -1268,6 +1296,7 @@
     function showCompilationError(errorText) {
         const filteredError = filterLaTeXError(errorText);
         lastCompilationErrorText = filteredError;
+        teardownPdfViewer();
         const pdfView = document.getElementById('pdf-view');
         pdfView.innerHTML = `
             <div class="error-overlay">
@@ -1581,8 +1610,107 @@
     let pdfUseFakeWorker = false;
     let pdfWorkerBlobUrl = '';
     let lastPdfBytes = null;
+    let pdfDocLive = null;
+    let pdfPageObserver = null;
+    let pdfRenderActive = 0;
+    const PDF_RENDER_CONCURRENCY = 2;
+    const PDF_OUTPUT_SCALE_CAP = (isTouchDevice || document.body.classList.contains('mobile-layout')) ? 1 : 1.25;
     const pdfViewSettings = { zoom: 'auto', joined: false };
     const PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    function pdfOutputScale() {
+      const dpr = window.devicePixelRatio || 1;
+      return Math.min(Math.max(dpr, 1), PDF_OUTPUT_SCALE_CAP);
+    }
+    function teardownPdfViewer() {
+      if (pdfPageObserver) {
+        try { pdfPageObserver.disconnect(); } catch (_) {}
+        pdfPageObserver = null;
+      }
+      if (pdfDocLive) {
+        try { pdfDocLive.destroy(); } catch (_) {}
+        pdfDocLive = null;
+      }
+    }
+    function releasePdfPageWrapper(wrapper) {
+      if (!wrapper || wrapper.dataset.rendered !== '1') return;
+      wrapper.replaceChildren();
+      wrapper.dataset.rendered = '0';
+      wrapper.dataset.textLayer = '0';
+    }
+    async function withPdfRenderSlot(fn) {
+      while (pdfRenderActive >= PDF_RENDER_CONCURRENCY) {
+        await new Promise(r => setTimeout(r, 32));
+      }
+      pdfRenderActive++;
+      try { return await fn(); }
+      finally { pdfRenderActive--; }
+    }
+    async function ensurePdfTextLayer(wrapper) {
+      if (!wrapper || !pdfDocLive) return;
+      if (wrapper.dataset.rendered !== '1') return;
+      if (wrapper.dataset.textLayer === '1' || wrapper.dataset.textLayer === 'pending') return;
+      if (wrapper.querySelector('.text-layer')) {
+        wrapper.dataset.textLayer = '1';
+        return;
+      }
+      const pageNum = Number(wrapper.dataset.pageNumber);
+      const renderScale = parseFloat(wrapper.dataset.scale) || 1;
+      if (!pageNum) return;
+      wrapper.dataset.textLayer = 'pending';
+      try {
+        const page = await pdfDocLive.getPage(pageNum);
+        const viewport = page.getViewport({ scale: renderScale });
+        const textLayer = document.createElement('div');
+        textLayer.className = 'text-layer';
+        await renderLineTextLayer(page, viewport, textLayer);
+        try { page.cleanup(); } catch (_) {}
+        if (wrapper.dataset.rendered !== '1') return;
+        wrapper.appendChild(textLayer);
+        wrapper.dataset.textLayer = '1';
+      } catch (_) {
+        if (wrapper.dataset.textLayer === 'pending') wrapper.dataset.textLayer = '0';
+      }
+    }
+    async function paintPdfPage(wrapper, pdf, pageNum, renderScale, token) {
+      if (!wrapper || token !== pdfRenderToken) return;
+      if (wrapper.dataset.rendered === '1' || wrapper.dataset.rendered === 'pending') return;
+      wrapper.dataset.rendered = 'pending';
+      try {
+        await withPdfRenderSlot(async () => {
+          if (token !== pdfRenderToken) return;
+          const page = await pdf.getPage(pageNum);
+          if (token !== pdfRenderToken) {
+            try { page.cleanup(); } catch (_) {}
+            return;
+          }
+          const viewport = page.getViewport({ scale: renderScale });
+          wrapper.style.width = viewport.width + 'px';
+          wrapper.style.height = viewport.height + 'px';
+          const canvas = document.createElement('canvas');
+          const outputScale = pdfOutputScale();
+          canvas.width = Math.floor(viewport.width * outputScale);
+          canvas.height = Math.floor(viewport.height * outputScale);
+          canvas.style.width = viewport.width + 'px';
+          canvas.style.height = viewport.height + 'px';
+          canvas.className = 'pdf-page';
+          canvas.setAttribute('data-page-number', pageNum);
+          const context = canvas.getContext('2d', { alpha: false });
+          context.scale(outputScale, outputScale);
+          await page.render({ canvasContext: context, viewport, intent: 'display' }).promise;
+          if (token !== pdfRenderToken) {
+            try { page.cleanup(); } catch (_) {}
+            return;
+          }
+          wrapper.replaceChildren(canvas);
+          wrapper.dataset.rendered = '1';
+          wrapper.dataset.textLayer = '0';
+          try { page.cleanup(); } catch (_) {}
+        });
+      } catch (_) {
+        if (wrapper.dataset.rendered === 'pending') wrapper.dataset.rendered = '0';
+      }
+      if (token !== pdfRenderToken && wrapper.dataset.rendered === 'pending') wrapper.dataset.rendered = '0';
+    }
     async function fetchPdfWorkerCode() {
       if (window.__pdfWorkerCode) return window.__pdfWorkerCode;
       const r = await fetch(PDFJS_WORKER_URL, { credentials: 'omit', mode: 'cors' });
@@ -1719,7 +1847,7 @@
     function setPdfZoom(zoom) {
       pdfViewSettings.zoom = zoom === 'auto' ? 'auto' : Number(zoom);
       syncPdfContextMenu();
-      if (lastPdfBytes) displayPdf(new Blob([lastPdfBytes], { type: 'application/pdf' }), { forceScale: true });
+      if (lastPdfBytes) displayPdf(lastPdfBytes, { forceScale: true });
     }
     function makePdfPageGap() {
       const separator = document.createElement('div');
@@ -1747,6 +1875,11 @@
         ev.preventDefault();
         showPdfContextMenu(ev.clientX, ev.clientY);
       });
+      // Build selectable text layer only when the user interacts with a page.
+      pdfView.addEventListener('pointerdown', ev => {
+        const wrapper = ev.target && ev.target.closest && ev.target.closest('.pdf-page-wrapper');
+        if (wrapper) ensurePdfTextLayer(wrapper);
+      }, true);
     }
     function resolvePdfRenderScale(pageWidth, pdfView, forceScale) {
       const availableWidth = Math.max(200, (pdfView.clientWidth || 600) - 30);
@@ -1761,7 +1894,13 @@
       }
       return Number(pdfViewSettings.zoom) || fitScale;
     }
-    function displayPdf(pdfBlob, opts = {}) {
+    async function bytesFromPdfSource(source) {
+      if (source instanceof Uint8Array) return source;
+      if (source instanceof ArrayBuffer) return new Uint8Array(source);
+      if (source && typeof source.arrayBuffer === 'function') return new Uint8Array(await source.arrayBuffer());
+      throw new Error('unsupported pdf source');
+    }
+    function displayPdf(pdfSource, opts = {}) {
       const pdfView = document.getElementById('pdf-view');
       const placeholder = document.getElementById('pdf-placeholder');
       if (placeholder) placeholder.style.display = 'none';
@@ -1779,56 +1918,36 @@
       } else {
         pdfView.classList.add('pdf-updating');
       }
-      pdfBlob.arrayBuffer().then(async buffer => {
+      bytesFromPdfSource(pdfSource).then(async data => {
         if (token !== pdfRenderToken) return;
-        const data = new Uint8Array(buffer);
-        lastPdfBytes = data.slice();
+        lastPdfBytes = data;
+        teardownPdfViewer();
         const pdf = await openPdfDoc(data);
         if (token !== pdfRenderToken) { try { pdf.destroy(); } catch (_) {} return; }
+        pdfDocLive = pdf;
         const firstPage = await pdf.getPage(1);
         const baseViewport = firstPage.getViewport({ scale: 1 });
+        try { firstPage.cleanup(); } catch (_) {}
         const renderScale = resolvePdfRenderScale(baseViewport.width, pdfView, forceScale || !replacing);
-        const pageRenderPromises = [];
-        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-          pageRenderPromises.push(
-            pdf.getPage(pageNum).then(async page => {
-              const viewport = page.getViewport({ scale: renderScale });
-              const wrapper = document.createElement('div');
-              wrapper.className = 'pdf-page-wrapper';
-              wrapper.dataset.scale = String(renderScale);
-              wrapper.dataset.zoomMode = String(pdfViewSettings.zoom);
-              wrapper.style.width = viewport.width + 'px';
-              wrapper.style.height = viewport.height + 'px';
-              const canvas = document.createElement('canvas');
-              const outputScale = Math.max(window.devicePixelRatio || 1, 2);
-              canvas.width = Math.floor(viewport.width * outputScale);
-              canvas.height = Math.floor(viewport.height * outputScale);
-              canvas.style.width = viewport.width + 'px';
-              canvas.style.height = viewport.height + 'px';
-              canvas.className = 'pdf-page';
-              canvas.setAttribute('data-page-number', pageNum);
-              wrapper.appendChild(canvas);
-              const context = canvas.getContext('2d');
-              context.scale(outputScale, outputScale);
-              await page.render({ canvasContext: context, viewport: viewport }).promise;
-              const textLayer = document.createElement('div');
-              textLayer.className = 'text-layer';
-              wrapper.appendChild(textLayer);
-              await renderLineTextLayer(page, viewport, textLayer);
-              return { wrapper, pageNum };
-            })
-          );
-        }
-        const renderedPages = await Promise.all(pageRenderPromises);
-        if (token !== pdfRenderToken) return;
-        renderedPages.sort((a, b) => a.pageNum - b.pageNum);
+        const pageWidth = baseViewport.width * renderScale;
+        const pageHeight = baseViewport.height * renderScale;
         const frag = document.createDocumentFragment();
         const stage = document.createElement('div');
         stage.className = 'pdf-stage' + (pdfViewSettings.joined ? ' pdf-pages-joined' : '');
-        renderedPages.forEach((item, index) => {
-          stage.appendChild(item.wrapper);
-          if (index < renderedPages.length - 1) stage.appendChild(makePdfPageGap());
-        });
+        const wrappers = [];
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          const wrapper = document.createElement('div');
+          wrapper.className = 'pdf-page-wrapper';
+          wrapper.dataset.scale = String(renderScale);
+          wrapper.dataset.zoomMode = String(pdfViewSettings.zoom);
+          wrapper.dataset.pageNumber = String(pageNum);
+          wrapper.dataset.rendered = '0';
+          wrapper.style.width = pageWidth + 'px';
+          wrapper.style.height = pageHeight + 'px';
+          stage.appendChild(wrapper);
+          wrappers.push(wrapper);
+          if (pageNum < pdf.numPages) stage.appendChild(makePdfPageGap());
+        }
         frag.appendChild(stage);
         const oldScrollHeight = pdfView.scrollHeight;
         pdfView.replaceChildren(frag);
@@ -1842,6 +1961,17 @@
           }
           pdfView.scrollLeft = savedScroll.left;
         }
+        pdfPageObserver = new IntersectionObserver((entries) => {
+          if (token !== pdfRenderToken || pdfDocLive !== pdf) return;
+          for (const entry of entries) {
+            const wrapper = entry.target;
+            const pageNum = Number(wrapper.dataset.pageNumber);
+            if (!pageNum) continue;
+            if (entry.isIntersecting) paintPdfPage(wrapper, pdf, pageNum, renderScale, token);
+            else releasePdfPageWrapper(wrapper);
+          }
+        }, { root: pdfView, rootMargin: '240px 0px', threshold: 0.01 });
+        wrappers.forEach(w => pdfPageObserver.observe(w));
         setStatus(t['pdf_loaded'], 'status-ok');
       }).catch(error => {
         if (token !== pdfRenderToken) return;
@@ -2149,19 +2279,27 @@
       return '';
     }
     
+    function disposeListingEditor() {
+      if (!listingEditor) return;
+      try { listingEditor.dispose(); } catch (_) {}
+      listingEditor = null;
+    }
     function closeModal(modalId) {
       document.getElementById(modalId).style.display = 'none';
+      if (modalId === 'listing-modal') disposeListingEditor();
     }
     
     function setupModalEvents() {
       document.querySelectorAll('.modal-close').forEach(closeBtn => {
         closeBtn.addEventListener('click', function() {
-          this.closest('.modal').style.display = 'none';
+          const modal = this.closest('.modal');
+          if (!modal) return;
+          closeModal(modal.id);
         });
       });
       document.querySelectorAll('.modal').forEach(modal => {
         modal.addEventListener('click', function(e) {
-          if (e.target === this) this.style.display = 'none';
+          if (e.target === this) closeModal(this.id);
         });
       });
       document.getElementById('notification-ok').addEventListener('click', function() {
@@ -2498,7 +2636,9 @@
       // Create the listing editor if it does not exist yet
       if (!listingEditor && document.getElementById('listing-code-editor')) {
         require(['vs/editor/editor.main'], function() {
-          listingEditor = monaco.editor.create(document.getElementById('listing-code-editor'), {
+          const listingHost = document.getElementById('listing-code-editor');
+          listingHost.innerHTML = '';
+          listingEditor = monaco.editor.create(listingHost, {
             value: '# Example code\nimport numpy as np\n\nx = np.linspace(0, 10, 100)\ny = np.sin(x)\n\nprint("Hello, World!")',
             language: 'python',
             theme: <?php echo $theme === 'dark' ? '"custom-dark"' : '"custom-light"'; ?>,
@@ -2508,7 +2648,8 @@
             minimap: { enabled: false },
             scrollBeyondLastLine: false,
             wordWrap: 'on',
-            tabSize: 4
+            tabSize: 4,
+            largeFileOptimizations: true
           });
           
           // Add a content change handler to update the preview
@@ -2855,6 +2996,10 @@
       initFormattingToolbar();
       updateFormattingButtonsState();
       setStatus(t['ready'], 'status-ok');
+    });
+    window.addEventListener('pagehide', () => {
+      teardownPdfViewer();
+      lastPdfBytes = null;
     });
     setStatus(t['ready'], 'status-ok');
     scheduleRelayout();

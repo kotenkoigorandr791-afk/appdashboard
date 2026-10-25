@@ -262,6 +262,29 @@ if (isset($_POST['synctex_query'])) {
     exit;
 }
 
+if (isset($_POST['synctex_pdf'])) {
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    if (!getenv('PY_SIDECAR_URL')) {
+        http_response_code(503);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'sidecar unavailable']);
+        exit;
+    }
+    require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
+    $sid = (string)($_POST['synctex_id'] ?? '');
+    $res = py_sidecar_raw('synctex/pdf', ['id' => $sid], 30);
+    if (!$res['ok'] || stripos($res['content_type'], 'pdf') === false) {
+        http_response_code($res['code'] >= 400 ? $res['code'] : 404);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'pdf unavailable']);
+        exit;
+    }
+    header('Content-Type: application/pdf');
+    if (!empty($res['headers']['x-synctex-id'])) header('X-Synctex-Id: ' . $res['headers']['x-synctex-id']);
+    echo $res['raw'];
+    exit;
+}
+
 if (isset($_POST['latex'])) {
     $latex = $_POST['latex'];
     $savePdf = isset($_POST['save_pdf']) && $filePath;
@@ -272,13 +295,14 @@ if (isset($_POST['latex'])) {
         latex_respond_compile_error('LaTeX compile sidecar is not configured.', $savePdf);
     }
     require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
-    $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex', 'synctex' => '1'], null, null, 300);
-    $body = is_array($sidecar['body']) ? $sidecar['body'] : [];
-    if (empty($body['success']) || empty($body['pdf'])) {
-        latex_respond_compile_error((string)($body['output'] ?? '') !== '' ? (string)$body['output'] : ($sidecar['error'] ?: 'Compilation failed'), $savePdf);
-    }
-    $pdfContent = base64_decode((string)$body['pdf']);
+    $engine = latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex';
     if ($savePdf) {
+        $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => $engine, 'synctex' => '1', 'format' => 'json'], null, null, 300);
+        $body = is_array($sidecar['body']) ? $sidecar['body'] : [];
+        if (empty($body['success']) || empty($body['pdf'])) {
+            latex_respond_compile_error((string)($body['output'] ?? '') !== '' ? (string)$body['output'] : ($sidecar['error'] ?: 'Compilation failed'), true);
+        }
+        $pdfContent = base64_decode((string)$body['pdf']);
         $pdfFilename = pathinfo($filePath, PATHINFO_FILENAME) . '.pdf';
         $pdfSavePath = dirname($userStoragePath) . "/" . $pdfFilename;
         $pdfDir = dirname($pdfSavePath);
@@ -291,7 +315,7 @@ if (isset($_POST['latex'])) {
                 if ($email) invalidate_file_tree($email);
             }
             header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'pdf_saved' => true, 'pdf_path' => dirname($filePath) . "/" . $pdfFilename, 'pdf_name' => $pdfFilename, 'size' => filesize($pdfSavePath), 'message' => 'PDF saved successfully']);
+            echo json_encode(['success' => true, 'pdf_saved' => true, 'pdf_path' => dirname($filePath) . "/" . $pdfFilename, 'pdf_name' => $pdfFilename, 'size' => filesize($pdfSavePath), 'message' => 'PDF saved successfully', 'synctex_id' => (string)($body['synctex_id'] ?? '')]);
         } else {
             if (is_file($pdfSavePath)) @unlink($pdfSavePath);
             header('Content-Type: application/json');
@@ -299,9 +323,19 @@ if (isset($_POST['latex'])) {
         }
         exit;
     }
+    $res = py_sidecar_raw('latex', ['latex' => $latex, 'engine' => $engine, 'synctex' => '1', 'format' => 'raw'], 300);
+    if (!$res['ok'] || stripos($res['content_type'], 'pdf') === false) {
+        $err = $res['error'] ?: 'Compilation failed';
+        if ($res['raw'] !== '') {
+            $decoded = json_decode($res['raw'], true);
+            if (is_array($decoded) && !empty($decoded['output'])) $err = (string)$decoded['output'];
+            elseif (is_array($decoded) && empty($decoded['success']) && !empty($decoded['error'])) $err = (string)$decoded['error'];
+        }
+        latex_respond_compile_error($err, false);
+    }
     header('Content-Type: application/pdf');
-    if (!empty($body['synctex_id'])) header('X-Synctex-Id: ' . $body['synctex_id']);
-    echo $pdfContent;
+    if (!empty($res['headers']['x-synctex-id'])) header('X-Synctex-Id: ' . $res['headers']['x-synctex-id']);
+    echo $res['raw'];
     exit;
 }
 
