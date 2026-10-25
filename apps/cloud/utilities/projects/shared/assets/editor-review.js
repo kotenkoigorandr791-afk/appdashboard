@@ -30,11 +30,18 @@
         return b;
     };
     async function call(action, data) {
+        const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+        try {
+            const csrf = (window.parent && window.parent.APP_CONFIG && window.parent.APP_CONFIG.csrfToken) || (window.APP_CONFIG && window.APP_CONFIG.csrfToken) || '';
+            if (csrf) headers['X-CSRF-TOKEN'] = csrf;
+        } catch (_) {}
         const r = await fetch(api + '?action=' + action + '&root=' + encodeURIComponent(root), {
             method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            credentials: 'same-origin',
+            headers,
             body: new URLSearchParams({ action, path, root, ...(data || {}) })
         });
+        if (!r.ok) throw new Error('http ' + r.status);
         return r.json();
     }
     const style = el('style');

@@ -176,6 +176,8 @@
     .mtk8 { color: <?php echo $theme === 'light' ? '#267f99' : '#4ec9b0'; ?>; } /* Other */
     
     #pdf-view { flex-grow: 1; overflow-y: auto; padding: 15px; text-align: center; position: relative; }
+    #pdf-view.pdf-updating { opacity: 0.82; transition: opacity 0.15s ease; }
+    #pdf-view .pdf-stage { transition: opacity 0.2s ease; }
     #pdf-view canvas { display: block; }
     .pdf-page-wrapper { position: relative; margin: 0 auto 15px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: #fff; }
     .pdf-page-wrapper .pdf-page { margin: 0; box-shadow: none; max-width: none; }

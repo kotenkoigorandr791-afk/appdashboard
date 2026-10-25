@@ -23,13 +23,20 @@
         const c = pdfView().querySelector('canvas[data-page-number="' + n + '"]');
         return c ? c.closest('.pdf-page-wrapper') : null;
     }
+    function scrollPdfTo(wrapper, markTop, markHeight) {
+        const view = pdfView();
+        if (!view || !wrapper) return;
+        const y = wrapper.offsetTop + markTop + (markHeight || 0) / 2 - view.clientHeight / 2;
+        const max = Math.max(0, view.scrollHeight - view.clientHeight);
+        view.scrollTo({ top: Math.max(0, Math.min(max, y)), left: view.scrollLeft, behavior: 'smooth' });
+    }
     function mark(wrapper, left, top, width, height) {
         wrapper.querySelectorAll('.synctex-mark').forEach(m => m.remove());
         const m = document.createElement('div');
         m.className = 'synctex-mark';
         m.style.cssText = 'position:absolute;pointer-events:none;border-radius:3px;background:rgba(255,200,0,.35);outline:2px solid rgba(255,170,0,.9);transition:opacity .6s;left:' + left + 'px;top:' + top + 'px;width:' + width + 'px;height:' + height + 'px';
         wrapper.appendChild(m);
-        m.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        scrollPdfTo(wrapper, top, height);
         setTimeout(() => { m.style.opacity = '0'; }, 1800);
         setTimeout(() => m.remove(), 2500);
     }
@@ -74,7 +81,22 @@
         if (p) toCode(p.wrapper, p.x, p.y);
     }
     const style = document.createElement('style');
-    style.textContent = '.synctex-line{background:rgba(255,200,0,.25)}.pdf-page-wrapper{position:relative}';
+    style.textContent = [
+        '.synctex-line{background:rgba(255,200,0,.25)}',
+        '.pdf-page-wrapper{position:relative}',
+        '#resizer{position:relative;overflow:visible}',
+        '.rz-tools{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:48px;z-index:30;cursor:default}',
+        '.rz-group{display:flex;flex-direction:column;gap:2px;padding:5px;border-radius:16px;background:var(--panel-bg,#252526);border:1px solid var(--border-color,#3c3c3c);box-shadow:0 2px 8px rgba(0,0,0,.35)}',
+        '.rz-tools button{display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:none!important;border-radius:12px!important;background:transparent;color:var(--text-color,#ccc);cursor:pointer}',
+        '.rz-tools button:hover{background:var(--btn-bg,#3a3d41)}',
+        'body.pane-editor .rz-tools{transform:translate(-100%,-50%);left:100%}',
+        'body.pane-pdf .rz-tools{transform:translate(0,-50%);left:0}',
+        'body.pane-editor #pdf-panel{display:none!important}',
+        'body.pane-editor #editor-panel,body.pane-pdf #pdf-panel{flex:1 1 auto!important;width:auto!important;min-width:0!important}',
+        'body.pane-pdf #editor-panel{display:none!important}',
+        '.mobile-layout .rz-tools{display:none}',
+        '@media (max-width:768px){.rz-tools{display:none}}'
+    ].join('');
     document.head.appendChild(style);
     const ICONS = {
         right: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-arrow-right preview-icon"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>',
@@ -82,7 +104,6 @@
         chevRight: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 17 5-5-5-5"/><path d="m13 17 5-5-5-5"/></svg>',
         chevLeft: '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m11 17-5-5 5-5"/><path d="m18 17-5-5 5-5"/></svg>'
     };
-    style.textContent += '#resizer{position:relative;overflow:visible}.rz-tools{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;gap:2px;padding:3px;border-radius:6px;background:var(--panel-bg,#252526);border:1px solid var(--border-color,#3c3c3c);box-shadow:0 2px 8px rgba(0,0,0,.35);z-index:30;cursor:default}.rz-tools button{display:flex;align-items:center;justify-content:center;width:22px;height:22px;padding:0;border:none;border-radius:4px;background:transparent;color:var(--text-color,#ccc);cursor:pointer}.rz-tools button:hover{background:var(--btn-bg,#3a3d41)}body.pane-editor .rz-tools{transform:translate(-100%,-50%);left:100%}body.pane-pdf .rz-tools{transform:translate(0,-50%);left:0}body.pane-editor #pdf-panel{display:none!important}body.pane-editor #editor-panel,body.pane-pdf #pdf-panel{flex:1 1 auto!important;width:auto!important;min-width:0!important}body.pane-pdf #editor-panel{display:none!important}.mobile-layout .rz-tools{display:none}@media (max-width:768px){.rz-tools{display:none}}';
     function rzButton(icon, tip, fn) {
         const b = document.createElement('button');
         b.type = 'button';
@@ -105,12 +126,16 @@
     if (resizerEl) {
         const tools = document.createElement('div');
         tools.className = 'rz-tools';
-        tools.append(
-            rzButton(ICONS.right, t.toPdfTip, toPdf),
-            rzButton(ICONS.left, t.toCodeTip, pdfToCode),
+        const sync = document.createElement('div');
+        sync.className = 'rz-group';
+        sync.append(rzButton(ICONS.right, t.toPdfTip, toPdf), rzButton(ICONS.left, t.toCodeTip, pdfToCode));
+        const panes = document.createElement('div');
+        panes.className = 'rz-group';
+        panes.append(
             rzButton(ICONS.chevRight, t.expandEditor, () => setPane(paneMode() === 'pdf' ? 'split' : 'editor')),
             rzButton(ICONS.chevLeft, t.expandPdf, () => setPane(paneMode() === 'editor' ? 'split' : 'pdf'))
         );
+        tools.append(sync, panes);
         resizerEl.appendChild(tools);
         resizerEl.addEventListener('mousedown', ev => { if (paneMode() !== 'split') ev.stopImmediatePropagation(); }, true);
         resizerEl.addEventListener('touchstart', ev => { if (paneMode() !== 'split') ev.stopImmediatePropagation(); }, { capture: true, passive: true });

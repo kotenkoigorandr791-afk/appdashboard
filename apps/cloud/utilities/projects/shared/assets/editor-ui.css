@@ -28,6 +28,9 @@ button:not(.ui-select-btn),
 .icon-btn {
   border-radius: 999px !important;
 }
+.rz-tools button {
+  border-radius: 12px !important;
+}
 
 /* Custom dropdown that mirrors #ai-chat-select / #ai-chat-menu. */
 .ui-select {

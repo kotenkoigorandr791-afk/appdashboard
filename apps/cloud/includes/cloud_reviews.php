@@ -26,6 +26,15 @@ function cloud_reviews_ensure_schema($db): void
     else $make();
 }
 
+function cloud_reviews_run($db, string $sql, array $params)
+{
+    $st = $db->prepare($sql);
+    foreach ($params as $k => $v) {
+        $st->bindValue($k, $v, is_int($v) ? PDO::PARAM_INT : ($v === null ? PDO::PARAM_NULL : PDO::PARAM_STR));
+    }
+    return $st->execute();
+}
+
 function cloud_reviews_scope(string $email, string $rootKey): string
 {
     return cloud_is_group_root($rootKey) ? $rootKey : $email . '|' . $rootKey;
@@ -62,9 +71,10 @@ function cloud_reviews_handle(string $action): void
     if (!file_exists(user_root($user, $rootKey) . '/' . $path)) json_out(['ok' => false, 'error' => 'not found'], 404);
     $scope = cloud_reviews_scope($email, $rootKey);
     if ($action === 'review_list') {
-        $st = $db->prepare("SELECT *, (author_email = :e) AS mine FROM cloud_file_reviews WHERE scope_key = :s AND file_path = :p ORDER BY start_line, id");
-        $st->execute([':e' => $email, ':s' => $scope, ':p' => $path]);
-        json_out(['ok' => true, 'items' => array_map('cloud_reviews_row', $st->fetchAll(PDO::FETCH_ASSOC))]);
+        $res = cloud_reviews_run($db, "SELECT *, CASE WHEN author_email = :e THEN 1 ELSE 0 END AS mine FROM cloud_file_reviews WHERE scope_key = :s AND file_path = :p ORDER BY start_line, id", [':e' => $email, ':s' => $scope, ':p' => $path]);
+        $items = [];
+        while (($row = $res->fetch(PDO::FETCH_ASSOC)) !== null) $items[] = cloud_reviews_row($row);
+        json_out(['ok' => true, 'items' => $items]);
     }
     if ($action === 'review_add') {
         $comment = trim((string)($_POST['comment'] ?? ''));
@@ -72,29 +82,17 @@ function cloud_reviews_handle(string $action): void
         if ($comment === '' && $suggestion === null) json_out(['ok' => false, 'error' => 'empty review'], 400);
         $start = max(1, (int)($_POST['start_line'] ?? 1));
         $end = max($start, (int)($_POST['end_line'] ?? $start));
-        $st = $db->prepare("INSERT INTO cloud_file_reviews (scope_key, file_path, author_email, author_name, start_line, end_line, quote, comment, suggestion) VALUES (:s, :p, :e, :n, :a, :b, :q, :c, :g) RETURNING id");
-        $st->bindValue(':s', $scope);
-        $st->bindValue(':p', $path);
-        $st->bindValue(':e', $email);
-        $st->bindValue(':n', $user);
-        $st->bindValue(':a', $start, PDO::PARAM_INT);
-        $st->bindValue(':b', $end, PDO::PARAM_INT);
-        $st->bindValue(':q', mb_substr((string)($_POST['quote'] ?? ''), 0, 4000));
-        $st->bindValue(':c', mb_substr($comment, 0, 4000));
-        $st->bindValue(':g', $suggestion, $suggestion === null ? PDO::PARAM_NULL : PDO::PARAM_STR);
-        $st->execute();
-        json_out(['ok' => true, 'id' => (int)$st->fetchColumn()]);
+        $res = cloud_reviews_run($db, "INSERT INTO cloud_file_reviews (scope_key, file_path, author_email, author_name, start_line, end_line, quote, comment, suggestion) VALUES (:s, :p, :e, :n, :a, :b, :q, :c, :g) RETURNING id", [':s' => $scope, ':p' => $path, ':e' => $email, ':n' => $user, ':a' => $start, ':b' => $end, ':q' => mb_substr((string)($_POST['quote'] ?? ''), 0, 4000), ':c' => mb_substr($comment, 0, 4000), ':g' => $suggestion]);
+        json_out(['ok' => true, 'id' => (int)$res->fetchColumn()]);
     }
     $id = (int)($_POST['id'] ?? 0);
     if ($action === 'review_resolve') {
         $status = ($_POST['status'] ?? '') === 'rejected' ? 'rejected' : 'accepted';
-        $st = $db->prepare("UPDATE cloud_file_reviews SET status = :st, resolved_by = :e, resolved_at = extract(epoch from now())::bigint WHERE id = :id AND scope_key = :s AND file_path = :p");
-        $st->execute([':st' => $status, ':e' => $user, ':id' => $id, ':s' => $scope, ':p' => $path]);
+        cloud_reviews_run($db, "UPDATE cloud_file_reviews SET status = :st, resolved_by = :e, resolved_at = extract(epoch from now())::bigint WHERE id = :id AND scope_key = :s AND file_path = :p", [':st' => $status, ':e' => $user, ':id' => $id, ':s' => $scope, ':p' => $path]);
         json_out(['ok' => true, 'status' => $status]);
     }
     if ($action === 'review_delete') {
-        $st = $db->prepare("DELETE FROM cloud_file_reviews WHERE id = :id AND scope_key = :s AND file_path = :p AND author_email = :e");
-        $st->execute([':id' => $id, ':s' => $scope, ':p' => $path, ':e' => $email]);
+        cloud_reviews_run($db, "DELETE FROM cloud_file_reviews WHERE id = :id AND scope_key = :s AND file_path = :p AND author_email = :e", [':id' => $id, ':s' => $scope, ':p' => $path, ':e' => $email]);
         json_out(['ok' => true]);
     }
     json_out(['ok' => false, 'error' => 'unknown action'], 400);

@@ -1695,82 +1695,167 @@
       }
     }
 
+    let pdfRenderToken = 0;
+    let pdfUseFakeWorker = false;
+    let pdfWorkerBlobUrl = '';
+    const PDFJS_WORKER_URL = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.4.120/pdf.worker.min.js';
+    async function fetchPdfWorkerCode() {
+      if (window.__pdfWorkerCode) return window.__pdfWorkerCode;
+      const r = await fetch(PDFJS_WORKER_URL, { credentials: 'omit', mode: 'cors' });
+      if (!r.ok) throw new Error('pdf worker fetch ' + r.status);
+      window.__pdfWorkerCode = await r.text();
+      return window.__pdfWorkerCode;
+    }
+    async function ensurePdfWorkerSrc() {
+      if (pdfWorkerBlobUrl) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerBlobUrl;
+        return pdfWorkerBlobUrl;
+      }
+      const code = await fetchPdfWorkerCode();
+      pdfWorkerBlobUrl = URL.createObjectURL(new Blob([code], { type: 'text/javascript' }));
+      pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorkerBlobUrl;
+      return pdfWorkerBlobUrl;
+    }
+    async function ensurePdfjsWorkerGlobal() {
+      if (window.pdfjsWorker && window.pdfjsWorker.WorkerMessageHandler) return;
+      const code = await fetchPdfWorkerCode();
+      // Monaco's AMD loader steals UMD builds; force a classic global export.
+      const wrapped = '(function(){var define=undefined,exports=undefined,module=undefined;\n' + code + '\n})();';
+      const url = URL.createObjectURL(new Blob([wrapped], { type: 'text/javascript' }));
+      await new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = url;
+        s.onload = () => { URL.revokeObjectURL(url); resolve(); };
+        s.onerror = () => { URL.revokeObjectURL(url); reject(new Error('pdf worker script')); };
+        document.head.appendChild(s);
+      });
+      if (!(window.pdfjsWorker && window.pdfjsWorker.WorkerMessageHandler)) {
+        throw new Error('Setting up fake worker failed: WorkerMessageHandler missing');
+      }
+    }
+    async function openPdfDocWithFake(data) {
+      await ensurePdfjsWorkerGlobal();
+      await ensurePdfWorkerSrc();
+      const RealWorker = window.Worker;
+      try {
+        window.Worker = undefined;
+        return await pdfjsLib.getDocument({ data: data.slice(), useSystemFonts: true }).promise;
+      } finally {
+        window.Worker = RealWorker;
+      }
+    }
+    async function openPdfDoc(data) {
+      await ensurePdfWorkerSrc();
+      if (pdfUseFakeWorker) return openPdfDocWithFake(data);
+      const task = pdfjsLib.getDocument({ data: data.slice(), useSystemFonts: true });
+      try {
+        return await Promise.race([
+          task.promise,
+          new Promise((_, reject) => setTimeout(() => reject(new Error('pdf-worker-timeout')), 8000))
+        ]);
+      } catch (err) {
+        try { task.destroy(); } catch (_) {}
+        const msg = String(err && err.message || err || '');
+        if (!/pdf-worker-timeout|fake worker|WorkerMessageHandler|Failed to fetch|importScripts/i.test(msg)) throw err;
+        pdfUseFakeWorker = true;
+        return openPdfDocWithFake(data);
+      }
+    }
     function displayPdf(pdfBlob) {
       const pdfView = document.getElementById('pdf-view');
       const placeholder = document.getElementById('pdf-placeholder');
       if (placeholder) placeholder.style.display = 'none';
-      pdfView.innerHTML = '<div class="pdf-loading">' + t['pdf_loading'] + '</div>';
-      // Pass the bytes to PDF.js instead of a blob: URL. PDF.js fetches a blob: URL
-      // from inside its worker, which CSP blocks (connect-src has no blob:), so the
-      // worker got an empty response and PDF.js reported "Unexpected server
-      // response (0) while retrieving PDF". Reading the blob here keeps the render
-      // in the page context and needs no blob: URL at all.
-      pdfBlob.arrayBuffer().then(buffer => {
-        const loadingTask = pdfjsLib.getDocument({ data: new Uint8Array(buffer) });
-        loadingTask.promise.then(async pdf => {
-          pdfView.innerHTML = '';
-          // Fit the page to the preview panel width. The canvas must not be
-          // shrunk by CSS afterwards, otherwise the selectable text layer would
-          // no longer line up with the rendered text.
-          const firstPage = await pdf.getPage(1);
-          const baseViewport = firstPage.getViewport({ scale: 1 });
-          const availableWidth = Math.max(200, (pdfView.clientWidth || 600) - 30);
-          const renderScale = Math.min(2, Math.max(0.5, availableWidth / baseViewport.width));
-          const pageRenderPromises = [];
-          for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-            pageRenderPromises.push(
-              pdf.getPage(pageNum).then(async page => {
-                const viewport = page.getViewport({ scale: renderScale });
-                // Each page lives in a positioned wrapper so an invisible,
-                // selectable text layer can sit exactly on top of the canvas.
-                const wrapper = document.createElement('div');
-                wrapper.className = 'pdf-page-wrapper';
-                wrapper.dataset.scale = renderScale;
-                wrapper.style.width = viewport.width + 'px';
-                wrapper.style.height = viewport.height + 'px';
-                const canvas = document.createElement('canvas');
-                // Render at device pixel ratio so the PDF stays crisp on HiDPI
-                // screens; the CSS size (and the text layer) stays in viewport px.
-                const outputScale = Math.max(window.devicePixelRatio || 1, 2);
-                canvas.width = Math.floor(viewport.width * outputScale);
-                canvas.height = Math.floor(viewport.height * outputScale);
-                canvas.style.width = viewport.width + 'px';
-                canvas.style.height = viewport.height + 'px';
-                canvas.className = 'pdf-page';
-                canvas.setAttribute('data-page-number', pageNum);
-                wrapper.appendChild(canvas);
-                const context = canvas.getContext('2d');
-                context.scale(outputScale, outputScale);
-                const renderContext = { canvasContext: context, viewport: viewport };
-                await page.render(renderContext).promise;
-                // Text layer: one selectable span per visual line.
-                const textLayer = document.createElement('div');
-                textLayer.className = 'text-layer';
-                wrapper.appendChild(textLayer);
-                await renderLineTextLayer(page, viewport, textLayer);
-                return { wrapper, pageNum };
-              })
-            );
+      const token = ++pdfRenderToken;
+      const prevWrapper = pdfView.querySelector('.pdf-page-wrapper');
+      const keepScale = prevWrapper ? parseFloat(prevWrapper.dataset.scale) : NaN;
+      const savedScroll = {
+        top: pdfView.scrollTop,
+        left: pdfView.scrollLeft,
+        ratio: pdfView.scrollHeight > pdfView.clientHeight ? pdfView.scrollTop / Math.max(1, pdfView.scrollHeight - pdfView.clientHeight) : 0
+      };
+      const replacing = !!prevWrapper;
+      if (!replacing) {
+        pdfView.innerHTML = '<div class="pdf-loading">' + t['pdf_loading'] + '</div>';
+      } else {
+        pdfView.classList.add('pdf-updating');
+      }
+      pdfBlob.arrayBuffer().then(async buffer => {
+        if (token !== pdfRenderToken) return;
+        const data = new Uint8Array(buffer);
+        const pdf = await openPdfDoc(data);
+        if (token !== pdfRenderToken) { try { pdf.destroy(); } catch (_) {} return; }
+        const firstPage = await pdf.getPage(1);
+        const baseViewport = firstPage.getViewport({ scale: 1 });
+        const availableWidth = Math.max(200, (pdfView.clientWidth || 600) - 30);
+        const fitScale = Math.min(2, Math.max(0.5, availableWidth / baseViewport.width));
+        const renderScale = Number.isFinite(keepScale) && keepScale > 0 ? keepScale : fitScale;
+        const pageRenderPromises = [];
+        for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+          pageRenderPromises.push(
+            pdf.getPage(pageNum).then(async page => {
+              const viewport = page.getViewport({ scale: renderScale });
+              const wrapper = document.createElement('div');
+              wrapper.className = 'pdf-page-wrapper';
+              wrapper.dataset.scale = String(renderScale);
+              wrapper.style.width = viewport.width + 'px';
+              wrapper.style.height = viewport.height + 'px';
+              const canvas = document.createElement('canvas');
+              const outputScale = Math.max(window.devicePixelRatio || 1, 2);
+              canvas.width = Math.floor(viewport.width * outputScale);
+              canvas.height = Math.floor(viewport.height * outputScale);
+              canvas.style.width = viewport.width + 'px';
+              canvas.style.height = viewport.height + 'px';
+              canvas.className = 'pdf-page';
+              canvas.setAttribute('data-page-number', pageNum);
+              wrapper.appendChild(canvas);
+              const context = canvas.getContext('2d');
+              context.scale(outputScale, outputScale);
+              await page.render({ canvasContext: context, viewport: viewport }).promise;
+              const textLayer = document.createElement('div');
+              textLayer.className = 'text-layer';
+              wrapper.appendChild(textLayer);
+              await renderLineTextLayer(page, viewport, textLayer);
+              return { wrapper, pageNum };
+            })
+          );
+        }
+        const renderedPages = await Promise.all(pageRenderPromises);
+        if (token !== pdfRenderToken) return;
+        renderedPages.sort((a, b) => a.pageNum - b.pageNum);
+        const frag = document.createDocumentFragment();
+        const stage = document.createElement('div');
+        stage.className = 'pdf-stage';
+        renderedPages.forEach((item, index) => {
+          stage.appendChild(item.wrapper);
+          if (index < renderedPages.length - 1) {
+            const separator = document.createElement('div');
+            separator.className = 'pdf-page-gap';
+            separator.style.height = '20px';
+            separator.style.width = '100%';
+            stage.appendChild(separator);
           }
-          return Promise.all(pageRenderPromises);
-        })
-        .then(renderedPages => {
-          renderedPages.sort((a, b) => a.pageNum - b.pageNum);
-          renderedPages.forEach((item, index) => {
-            pdfView.appendChild(item.wrapper);
-            if (index < renderedPages.length - 1) {
-              const separator = document.createElement('div');
-              separator.style.height = '20px';
-              separator.style.width = '100%';
-              pdfView.appendChild(separator);
-            }
-          });
-          setStatus(t['pdf_loaded'], 'status-ok');
-        })
-        .catch(error => {
-          pdfView.innerHTML = '<div style="color: red;">' + t['pdf_load_error'] + ' ' + error.message + '</div>';
-          setStatus(t['status_err'], 'status-error');
         });
+        frag.appendChild(stage);
+        const oldScrollHeight = pdfView.scrollHeight;
+        pdfView.replaceChildren(frag);
+        pdfView.classList.remove('pdf-updating');
+        if (replacing) {
+          const newMax = Math.max(1, pdfView.scrollHeight - pdfView.clientHeight);
+          if (oldScrollHeight > 0 && pdfView.scrollHeight > 0) {
+            pdfView.scrollTop = Math.min(newMax, savedScroll.top * (pdfView.scrollHeight / oldScrollHeight));
+          } else {
+            pdfView.scrollTop = savedScroll.top;
+          }
+          pdfView.scrollLeft = savedScroll.left;
+        }
+        setStatus(t['pdf_loaded'], 'status-ok');
+      }).catch(error => {
+        if (token !== pdfRenderToken) return;
+        pdfView.classList.remove('pdf-updating');
+        if (!replacing) {
+          pdfView.innerHTML = '<div style="color: red;">' + t['pdf_load_error'] + ' ' + error.message + '</div>';
+        }
+        setStatus(t['status_err'], 'status-error');
       });
     }
     
