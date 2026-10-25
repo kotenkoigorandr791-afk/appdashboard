@@ -17,8 +17,10 @@
 <script type="module" crossorigin src="/apps/lopaka/assets/app.js"></script>
 <link rel="modulepreload" crossorigin href="/apps/lopaka/assets/gfx.font.js">
 <link rel="stylesheet" crossorigin href="/apps/lopaka/assets/app.css">
+<link rel="stylesheet" href="/apps/lopaka/assets/preview.css?v=1">
 </head>
 <body class="min-h-[100vh] flex-col flex flex-none">
 <div class="w-full max-w-[1600px] mx-auto font-sans min-h-[600px] flex flex-col flex-grow overflow-hidden" id="lopaka_app"></div>
+<script src="/apps/lopaka/assets/preview.js?v=1"></script>
 </body>
 </html>
