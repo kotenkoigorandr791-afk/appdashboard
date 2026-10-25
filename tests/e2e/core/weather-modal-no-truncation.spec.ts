@@ -153,7 +153,7 @@ test.describe('weather modal — no truncation', () => {
     expect(truncation, `${selector} should not have text-overflow: ellipsis`).not.toBe('ellipsis');
   }
 
-  async function assertNotClipped(page, selector, maxWidth = null) {
+  async function assertNotClipped(page, selector) {
     const info = await page.evaluate((sel) => {
       const el = document.querySelector(sel);
       if (!el) return { clipped: false };
@@ -173,10 +173,8 @@ test.describe('weather modal — no truncation', () => {
       };
     }, selector);
     console.log(`  ${selector}: scrollWidth=${info.scrollWidth} clientWidth=${info.clientWidth} clipped=${info.clipped} overflow=${info.overflow} textOverflow=${info.textOverflow}`);
-    if (maxWidth !== null) {
-      const computedMaxWidth = await page.evaluate((sel) => getComputedStyle(document.querySelector(sel)).maxWidth, selector);
-      expect(computedMaxWidth, `${selector} maxWidth should not be truncated`).not.toBe('none');
-    }
+    // The rows are grid/flex cells, so the description intentionally has no
+    // max-width: it must wrap inside its column instead of being capped.
     expect(info.clipped, `${selector} should not be horizontally clipped`).toBe(false);
   }
 
