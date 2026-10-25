@@ -1282,6 +1282,8 @@
 }
   </style>
 <style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-toolbar.css'); ?></style>
+<?php if ($theme === 'light'): ?><style>:root{--tb-bg:#f0f0f0;--tb-border:#ddd;--tb-sep:#ccc;--tb-menu-bg:#fff;--tb-menu-border:#ccc;--tb-fg:#333;--tb-hover:#e6e6e6;}</style><?php endif; ?>
 </head>
 <body class="<?php 
   if ($isMobile) {
@@ -1695,7 +1697,7 @@
   </div>
   <div id="main">
     <div id="editor-panel">
-      <div id="formatting-toolbar" class="formatting-toolbar">
+      <div id="formatting-toolbar" class="formatting-toolbar editor-toolbar">
         <div class="toolbar-group">
           <button class="formatting-btn" data-command="bold" title="<?php echo $t['bold']; ?>"><i class="fas fa-bold"></i></button>
           <button class="formatting-btn" data-command="italic" title="<?php echo $t['italic']; ?>"><i class="fas fa-italic"></i></button>
@@ -1727,7 +1729,7 @@
           </button>
         </div>
       </div>
-      <div id="helper-bar">
+      <div id="helper-bar" class="tb-overflow">
         <button id="compile-btn" class="btn">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -1739,7 +1741,6 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
             <?php echo $t['save_pdf']; ?>
         </button>
-        <button id="fullscreen-btn" class="btn"><?php echo $t['fullscreen_editor']; ?></button>
         <div class="dropdown">
           <button id="template-btn" class="btn"><?php echo $t['select_template']; ?></button>
           <div id="template-dropdown" class="dropdown-content">
@@ -1789,7 +1790,7 @@
             <div class="dropdown-item" data-value="listing"><?php echo $t['insert_listing']; ?></div>
           </div>
         </div>
-        <div id="status-indicator" class="status-ok"><?php echo $t['ready']; ?></div>
+        <div id="status-indicator" class="status-ok tb-pin"><?php echo $t['ready']; ?></div>
       </div>
       <div id="latex-editor-container">
         <div id="monaco-editor"></div>
@@ -1867,7 +1868,7 @@
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=1"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
 
   
@@ -1875,5 +1876,8 @@
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-review.js'); ?></script>
+<script><?php readfile(__DIR__ . '/../public/assets/js/synctex.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-toolbar.js'); ?></script>
 </body>
 </html>

@@ -3,11 +3,6 @@ set -e
 if [ "${RUN_ENSURE_CONTAINER_PACKAGES:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh || true
 fi
-if [ "${RUN_ENSURE_TINYTEX:-1}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh ]; then
-  chmod +x /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh 2>/dev/null || true
-  # Sync on first boot so /usr/bin/xelatex exists; later starts are cheap.
-  sh /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh >/var/log/supervisor/tinytex.log 2>&1 || true
-fi
 if [ "${PHP_OPCACHE_ENABLE:-1}" = "0" ]; then
   {
     printf 'opcache.enable=0\n'

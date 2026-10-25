@@ -178,8 +178,6 @@ services:
       REDIS_DATABASE: "0"
       REDIS_PREFIX: "appdashboard:"
       PY_SIDECAR_URL: "${PY_SIDECAR_URL:-http://appdashboard-py:8100}"
-      TINYTEX_HOME: /opt/ApplicationData/tinytex
-      RUN_ENSURE_TINYTEX: "${RUN_ENSURE_TINYTEX:-0}"
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"
       APP_WAF_RULE_ENGINE: "${APP_WAF_RULE_ENGINE:-On}"

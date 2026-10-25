@@ -1059,7 +1059,7 @@
       
       if (indicator) {
         indicator.textContent = text;
-        indicator.className = className;
+        indicator.className = className + " tb-pin";
         indicator.style.opacity = '1';
         indicator.style.transition = 'opacity 0.5s, color 0.5s';
         
@@ -1204,7 +1204,7 @@
       return fetch('', { method: 'POST', body: formData })
         .then(async response => {
           const contentType = response.headers.get('content-type') || '';
-          if (contentType.includes('application/pdf')) return { kind: 'pdf', blob: await response.blob() };
+          if (contentType.includes('application/pdf')) { window.__synctexId = response.headers.get('X-Synctex-Id') || ''; return { kind: 'pdf', blob: await response.blob() }; }
           throw new Error('no pdf');
         })
         .then(result => {
@@ -1227,6 +1227,7 @@
         .then(async response => {
             const contentType = response.headers.get('content-type') || '';
             if (contentType.includes('application/pdf')) {
+                window.__synctexId = response.headers.get('X-Synctex-Id') || '';
                 return { kind: 'pdf', blob: await response.blob() };
             }
             if (contentType.includes('application/json')) {
@@ -1724,6 +1725,7 @@
                 // selectable text layer can sit exactly on top of the canvas.
                 const wrapper = document.createElement('div');
                 wrapper.className = 'pdf-page-wrapper';
+                wrapper.dataset.scale = renderScale;
                 wrapper.style.width = viewport.width + 'px';
                 wrapper.style.height = viewport.height + 'px';
                 const canvas = document.createElement('canvas');

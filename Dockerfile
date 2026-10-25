@@ -30,7 +30,7 @@ RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --opt
     && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader --working-dir=/var/www/AppDashboard/apps/cloud \
     && rm -rf /root/.composer /tmp/*
 
-# --- Runtime: no compiler toolchain; TinyTeX lives on volume (ensure-tinytex.sh)
+# --- Runtime: no compiler toolchain; LaTeX is compiled only in the appdashboard-py sidecar
 FROM php:8.5.12-fpm-bookworm
 ARG APP_VERSION=dev
 ARG APP_GIT_COMMIT=
@@ -42,7 +42,6 @@ ENV ONNXRUNTIME_NODE_INSTALL_CUDA=skip
 ENV ONNXRUNTIME_PREFER_CPU=1
 ENV PIP_DEFAULT_TIMEOUT=300
 ENV PIP_RETRIES=10
-ENV PATH="/opt/TinyTeX/bin/x86_64-linux:/opt/TinyTeX/bin/aarch64-linux:${PATH}"
 
 COPY --from=ext-builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extensions/
 COPY --from=ext-builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
@@ -67,8 +66,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get autoremove -y \
     && rm -rf /var/lib/apt/lists/* /root/.npm /tmp/*
 
-# TinyTeX is installed at runtime into TINYTEX_HOME (volume), see deploy/scripts/ensure-tinytex.sh
-ENV TINYTEX_HOME=/opt/ApplicationData/tinytex
 ENV HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-home
 ENV XDG_CACHE_HOME=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache
 ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm

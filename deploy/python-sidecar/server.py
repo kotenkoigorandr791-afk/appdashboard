@@ -3,6 +3,10 @@ import os
 import subprocess
 import tempfile
 import base64
+import re
+import shutil
+import time
+import uuid
 from pathlib import Path
 from typing import Optional
 
@@ -49,10 +53,13 @@ def _spawn(cmd: list[str], log_path: Optional[str] = None) -> None:
         log_fh.close()
 
 
-def _run(cmd: list[str], timeout: int = 300, cwd: Optional[str] = None) -> subprocess.CompletedProcess:
+def _run(cmd: list[str], timeout: int = 300, cwd: Optional[str] = None, extra_env: Optional[dict] = None) -> subprocess.CompletedProcess:
+    env = _env()
+    if extra_env:
+        env.update(extra_env)
     return subprocess.run(
         cmd,
-        env=_env(),
+        env=env,
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
         text=True,
@@ -66,16 +73,86 @@ def _run(cmd: list[str], timeout: int = 300, cwd: Optional[str] = None) -> subpr
 def health():
     return {"status": "ok"}
 
+SYNCTEX_ROOT = Path(tempfile.gettempdir()) / "synctex"
+SYNCTEX_TTL = 3600
+
+
+def _prune_synctex() -> None:
+    now = time.time()
+    if not SYNCTEX_ROOT.is_dir():
+        return
+    for d in SYNCTEX_ROOT.iterdir():
+        if d.is_dir() and now - d.stat().st_mtime > SYNCTEX_TTL:
+            shutil.rmtree(d, ignore_errors=True)
+
+
+def _store_synctex(tmp: str) -> str:
+    gz = Path(tmp) / "document.synctex.gz"
+    if not gz.is_file():
+        return ""
+    _prune_synctex()
+    sid = uuid.uuid4().hex
+    dest = SYNCTEX_ROOT / sid
+    dest.mkdir(parents=True, exist_ok=True)
+    for name in ("document.synctex.gz", "document.pdf", "document.tex"):
+        src = Path(tmp) / name
+        if src.is_file():
+            shutil.copy2(src, dest / name)
+    return sid
+
+
+def _parse_synctex(output: str) -> dict:
+    data = {}
+    for line in output.splitlines():
+        if ":" in line:
+            k, v = line.split(":", 1)
+            data.setdefault(k.strip(), v.strip())
+    return data
+
+
 @app.post("/latex")
-async def latex_compile(latex: str = Form(...), engine: str = Form("pdflatex")):
+async def latex_compile(latex: str = Form(...), engine: str = Form("pdflatex"), synctex: str = Form("")):
     selected = "lualatex" if engine == "lualatex" else "pdflatex"
     with tempfile.TemporaryDirectory() as tmp:
         source = Path(tmp) / "document.tex"
         source.write_text(latex, encoding="utf-8")
         mode = "-lualatex" if selected == "lualatex" else "-pdf"
-        proc = _run(["latexmk", mode, "-interaction=nonstopmode", "-halt-on-error", source.name], timeout=300, cwd=tmp)
+        cmd = ["latexmk", mode, "-interaction=nonstopmode", "-halt-on-error"]
+        if synctex:
+            cmd += ["-e", f"${selected}='{selected} -synctex=1 -interaction=nonstopmode %O %S';"]
+        cache = str(Path(tmp) / ".texcache")
+        proc = _run(cmd + [source.name], timeout=300, cwd=tmp, extra_env={"HOME": tmp, "TEXMFVAR": cache, "TEXMFCACHE": cache, "TEXMFHOME": cache + "/home", "OSFONTDIR": "/usr/share/fonts"})
         pdf = Path(tmp) / "document.pdf"
-        return {"success": proc.returncode == 0 and pdf.is_file(), "pdf": base64.b64encode(pdf.read_bytes()).decode("ascii") if pdf.is_file() else "", "output": (proc.stdout or "")[-12000:]}
+        ok = proc.returncode == 0 and pdf.is_file()
+        return {"success": ok, "pdf": base64.b64encode(pdf.read_bytes()).decode("ascii") if pdf.is_file() else "", "output": (proc.stdout or "")[-12000:], "synctex_id": _store_synctex(tmp) if ok and synctex else ""}
+
+
+@app.post("/synctex")
+async def synctex_query(
+    id: str = Form(...),
+    mode: str = Form("view"),
+    line: int = Form(1),
+    col: int = Form(0),
+    page: int = Form(1),
+    x: float = Form(0),
+    y: float = Form(0),
+):
+    if not re.fullmatch(r"[0-9a-f]{32}", id):
+        raise HTTPException(400, "bad id")
+    d = SYNCTEX_ROOT / id
+    if not (d / "document.synctex.gz").is_file():
+        return {"ok": False, "error": "expired"}
+    if mode == "edit":
+        proc = _run(["synctex", "edit", "-o", f"{page}:{x}:{y}:document.pdf"], timeout=30, cwd=str(d))
+        r = _parse_synctex(proc.stdout or "")
+        if "Line" not in r:
+            return {"ok": False}
+        return {"ok": True, "line": int(r["Line"]), "column": max(0, int(r.get("Column", "0")))}
+    proc = _run(["synctex", "view", "-i", f"{line}:{col}:document.tex", "-o", "document.pdf"], timeout=30, cwd=str(d))
+    r = _parse_synctex(proc.stdout or "")
+    if "Page" not in r:
+        return {"ok": False}
+    return {"ok": True, "page": int(r["Page"]), "x": float(r["x"]), "y": float(r["y"]), "h": float(r["h"]), "v": float(r["v"]), "w": float(r["W"]), "hh": float(r["H"])}
 
 
 @app.post("/tts")

@@ -27,6 +27,7 @@
     let sock = null;
     let sockReady = false;
     let pending = [];
+    let retries = 0;
     let clientId = '';
     const remoteColors = new Map();
     const cursorWidgets = new Map(); // clientId -> widget
@@ -69,11 +70,7 @@
             }
         } catch (_) { /* cross-origin parent – fall through */ }
         const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // iframe editors are served from utilities/projects/... under the cloud app
-        const seg = location.pathname.split('/');
-        const idx = seg.indexOf('utilities');
-        const base = idx > 0 ? seg.slice(0, idx).join('/') : '';
-        return `${proto}//${location.host}${base}/cloud-collab-ws`;
+        return `${proto}//${location.host}/cloud-collab-ws`;
     }
 
     function connect(explicit) {
@@ -81,6 +78,7 @@
         try { sock = new WebSocket(wsUrl(explicit)); } catch (e) { setTimeout(() => connect(explicit), 2000); return; }
         sock.onopen = () => {
             sockReady = true;
+            retries = 0;
             if (state) send({ type: 'join', ...joinPayload() });
             flush();
         };
@@ -102,7 +100,7 @@
             if (msg.type === 'latex_compiling' && state.onCompiling) { state.onCompiling(msg); return; }
             if (msg.type === 'latex_compiled' && state.onRemoteCompile) { state.onRemoteCompile(msg); return; }
         };
-        sock.onclose = () => { sockReady = false; sock = null; setTimeout(() => connect(explicit), 1500); };
+        sock.onclose = () => { sockReady = false; sock = null; retries = Math.min(retries + 1, 6); setTimeout(() => connect(explicit), 1500 * retries); };
         sock.onerror = () => { try { sock && sock.close(); } catch (_) {} };
     }
 

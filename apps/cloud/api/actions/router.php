@@ -1877,6 +1877,11 @@ if ($action === 'get_user_role') {
     ]);
 }
 
+if (in_array($action, ['review_list', 'review_add', 'review_resolve', 'review_delete'], true)) {
+  require_once dirname(__DIR__, 2) . '/includes/cloud_reviews.php';
+  cloud_reviews_handle($action);
+}
+
 if ($action === 'save_file') {
   $user = get_current_user_from_sessions();
   $path = safe_path((string)($_POST['path'] ?? ''));
