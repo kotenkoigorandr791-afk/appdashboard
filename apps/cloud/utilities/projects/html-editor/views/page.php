@@ -93,33 +93,14 @@
                     <div class="toolbar-group">
                         <button class="toolbar-btn" id="undoBtn" title="Undo (Ctrl+Z)" data-i18n-title="undoTooltip"><i class="fas fa-undo"></i></button>
                         <button class="toolbar-btn" id="redoBtn" title="Redo (Ctrl+Y)" data-i18n-title="redoTooltip"><i class="fas fa-redo"></i></button>
-                    </div>
-                    <div class="toolbar-group preview-actions-mobile" id="mobilePreviewActions">
-                        <button class="toolbar-btn" id="fullscreenBtnMobile" title="Fullscreen preview" data-i18n-title="fullscreenTooltip"><i class="fas fa-expand"></i></button>
-                        <button class="toolbar-btn" id="refreshPreviewBtnMobile" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
-                        <button class="toolbar-btn exit-fullscreen" id="exitFullscreenBtnMobile" title="Exit fullscreen" data-i18n-title="exitFullscreenTooltip" style="display:none;"><i class="fas fa-compress"></i></button>
+                        <button class="toolbar-btn" id="refreshPreviewBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
                     </div>
                 </div>
                 <div id="editor-container"></div>
             </div>
             <div class="resizer"></div>
             <div class="preview-panel">
-                <div class="preview-header">
-                    <div class="preview-title" data-i18n="preview">Preview</div>
-                    <div class="preview-actions" id="desktopPreviewActions">
-                        <button class="toolbar-btn" id="fullscreenBtn" title="Fullscreen preview" data-i18n-title="fullscreenTooltip"><i class="fas fa-expand"></i></button>
-                        <button class="toolbar-btn" id="refreshPreviewBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
-                        <button class="toolbar-btn exit-fullscreen" id="exitFullscreenBtn" title="Exit fullscreen" data-i18n-title="exitFullscreenTooltip" style="display:none;"><i class="fas fa-compress"></i></button>
-                    </div>
-                </div>
                 <div id="preview">
-                    <div class="fullscreen-header" style="display:none;">
-                        <div class="preview-title" data-i18n="preview">Preview</div>
-                        <div class="preview-actions">
-                            <button class="toolbar-btn" id="fullscreenRefreshBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
-                            <button class="toolbar-btn exit-fullscreen" id="fullscreenExitBtn" title="Exit fullscreen" data-i18n-title="exitFullscreenTooltip"><i class="fas fa-compress"></i></button>
-                        </div>
-                    </div>
                     <div class="preview-frame-wrap">
                         <iframe id="previewFrame" name="cloud-html-preview" title="HTML Preview" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"></iframe>
                     </div>
@@ -148,6 +129,8 @@
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-panes.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-preview-sync.js'); ?></script>
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>

@@ -3,16 +3,8 @@
         const preview = document.getElementById('preview');
         const clearBtn = document.getElementById('clearBtn');
         const saveBtn = document.getElementById('saveBtn');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
-        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
-        const fullscreenBtnMobile = document.getElementById('fullscreenBtnMobile');
-        const refreshPreviewBtnMobile = document.getElementById('refreshPreviewBtnMobile');
-        const exitFullscreenBtnMobile = document.getElementById('exitFullscreenBtnMobile');
-        const mobilePreviewActions = document.getElementById('mobilePreviewActions');
-        const fullscreenHeader = document.querySelector('.fullscreen-header');
-        const fullscreenExitBtn = document.getElementById('fullscreenExitBtn');
-        const fullscreenRefreshBtn = document.getElementById('fullscreenRefreshBtn');
+        let previewSync = null;
         const confirmClearModal = document.getElementById('confirmClearModal');
         const cancelClearBtn = document.getElementById('cancelClearBtn');
         const confirmClearBtn = document.getElementById('confirmClearBtn');
@@ -29,7 +21,6 @@
         const AUTO_SAVE_DELAY = 10000;
         let hasUnsavedChanges = false;
         let isInitialLoad = true;
-        let isFullscreen = false;
         let previewTimer = null;
         const translations = {
             en: { saveTooltip: "Save (Ctrl+S)", clearTooltip: "Clear all content", fullscreenTooltip: "Fullscreen preview", exitFullscreenTooltip: "Exit fullscreen", refreshPreviewTooltip: "Refresh preview", preview: "Preview", undoTooltip: "Undo (Ctrl+Z)", redoTooltip: "Redo (Ctrl+Y)", confirmClearTitle: "Confirm Clear", confirmClearText: "Are you sure you want to clear all content? This action cannot be undone.", cancel: "Cancel", clear: "Clear", saving: "Saving...", saved: "Saved successfully", saveError: "Error saving file", fileSaved: "File saved successfully", noChanges: "No changes to save", unsavedChanges: "Unsaved changes", previewRefreshed: "Preview refreshed" },
@@ -81,6 +72,7 @@
         function updatePreview() {
             if (!editor || !previewFrame) return;
             previewFrame.srcdoc = normalizeHtmlForPreview(editor.getValue());
+            if (previewSync && previewSync.rebind) setTimeout(() => previewSync.rebind(), 50);
         }
         function schedulePreviewUpdate() {
             if (isResizing) return;
@@ -137,34 +129,9 @@
             redoBtn.classList.toggle('disabled', !redoState);
             redoBtn.disabled = !redoState;
         }
-        function toggleFullscreen() {
-            isFullscreen = !isFullscreen;
-            if (isFullscreen) {
-                preview.classList.add('fullscreen');
-                fullscreenHeader.style.display = 'flex';
-                fullscreenBtn.style.display = 'none';
-                exitFullscreenBtn.style.display = 'flex';
-                fullscreenBtnMobile.style.display = 'none';
-                exitFullscreenBtnMobile.style.display = 'flex';
-            } else {
-                preview.classList.remove('fullscreen');
-                fullscreenHeader.style.display = 'none';
-                fullscreenBtn.style.display = 'flex';
-                exitFullscreenBtn.style.display = 'none';
-                fullscreenBtnMobile.style.display = 'flex';
-                exitFullscreenBtnMobile.style.display = 'none';
-            }
-        }
         undoBtn.addEventListener('click', () => { editor.trigger('keyboard', 'undo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
         redoBtn.addEventListener('click', () => { editor.trigger('keyboard', 'redo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
-        fullscreenBtn.addEventListener('click', toggleFullscreen);
-        exitFullscreenBtn.addEventListener('click', toggleFullscreen);
         refreshPreviewBtn.addEventListener('click', refreshPreview);
-        fullscreenBtnMobile.addEventListener('click', toggleFullscreen);
-        exitFullscreenBtnMobile.addEventListener('click', toggleFullscreen);
-        refreshPreviewBtnMobile.addEventListener('click', refreshPreview);
-        fullscreenExitBtn.addEventListener('click', toggleFullscreen);
-        fullscreenRefreshBtn.addEventListener('click', refreshPreview);
         clearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'flex'; });
         cancelClearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'none'; });
         confirmClearBtn.addEventListener('click', () => { if (editor) { editor.setValue(''); updatePreview(); editor.focus(); } confirmClearModal.style.display = 'none'; updateButtonStates(); });
@@ -179,6 +146,7 @@
         let isResizing = false;
         function expandPreviewPanel() {
             if (!editorPanel || !previewPanel) return;
+            if (window.cloudEditorPanes && cloudEditorPanes.paneMode() !== 'split') return;
             const containerWidth = editorPanel.parentElement?.offsetWidth || 0;
             if (containerWidth < 640) return;
             const minWidth = 300;
@@ -232,6 +200,7 @@
         }
         resizer.addEventListener('pointerdown', (e) => {
             if (e.button !== 0) return;
+            if (e.target && e.target.closest && e.target.closest('.rz-tools')) return;
             e.preventDefault();
             e.stopPropagation();
             if (resizer.setPointerCapture) {
@@ -308,6 +277,12 @@
                 window.cloudIframeMonacoAiSave = saveFile;
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
                 updateButtonStates();
+                if (window.cloudPreviewSync) previewSync = cloudPreviewSync.enableHtml({ iframe: previewFrame });
+                if (window.cloudEditorPanes) cloudEditorPanes.enable({
+                    getEditor: () => editor,
+                    onToPreview: () => previewSync && previewSync.toPreview(),
+                    onToCode: () => previewSync && previewSync.toCode()
+                });
             }).catch(function (e) {
                 console.error('Monaco failed to load:', e);
             });
@@ -325,22 +300,8 @@
         window.addEventListener('load', () => {
             translatePage();
             initMonaco();
-            const isMobile = window.innerWidth <= 768;
-            if (isMobile) {
-                document.querySelector('.preview-header').style.display = 'none';
-                mobilePreviewActions.style.display = 'flex';
-            }
         });
         window.addEventListener('resize', function() {
             if (editor) editor.layout();
             if (!isResizing && window.innerWidth > 768) expandPreviewPanel();
-            const isMobile = window.innerWidth <= 768;
-            if (isMobile) {
-                document.querySelector('.preview-header').style.display = 'none';
-                mobilePreviewActions.style.display = 'flex';
-            } else {
-                document.querySelector('.preview-header').style.display = 'flex';
-                mobilePreviewActions.style.display = 'none';
-            }
         });
-        document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && isFullscreen) toggleFullscreen(); });
