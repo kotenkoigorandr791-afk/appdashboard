@@ -1,8 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { execSync } from 'child_process';
 
-const ADMIN_EMAIL = process.env.E2E_USER_EMAIL || 'dashboard-e2e@test.local';
-const ADMIN_PASSWORD = process.env.E2E_USER_PASSWORD || 'dashboard-e2e-e2e-password';
+// A dedicated non-root admin: E2E_USER_EMAIL is the built-in root account and
+// this spec is specifically about what a *non-root* admin may do.
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'dashboard-e2e@test.local';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'dashboard-e2e-e2e-password';
 // A second, non-root user used as the status-change target.
 const TARGET_EMAIL = 'codex-cloud-peer@example.com';
 
@@ -28,6 +30,7 @@ test.describe('admin changes other user status (task 008)', () => {
   const originalTargetVerified = getVerified(TARGET_EMAIL);
   const originalSelfVerified = getVerified(ADMIN_EMAIL);
   const originalTargetRole = getRole(TARGET_EMAIL);
+  const originalAdminRole = Number(getRole(ADMIN_EMAIL));
 
   test.afterAll(() => {
     setVerified(TARGET_EMAIL, originalTargetVerified);
@@ -84,10 +87,14 @@ test.describe('admin changes other user status (task 008)', () => {
     await saveUserRoles(page, 'user_verified', { 'root@root': '0' });
     expect(getVerified('root@root')).toBe(true);
 
-    // 4. Non-root admins still may NOT change roles.
+    // 4. Non-root admins may change another user's role (see the admin feature
+    //    that lets them manage roles), but never their own.
     const roleBefore = getRole(TARGET_EMAIL);
-    await saveUserRoles(page, 'user_roles', { [TARGET_EMAIL]: '0' });
-    expect(getRole(TARGET_EMAIL)).toBe(roleBefore);
+    const newRole = roleBefore === '1' ? '0' : '1';
+    await saveUserRoles(page, 'user_roles', { [TARGET_EMAIL]: newRole });
+    expect(getRole(TARGET_EMAIL)).toBe(newRole);
+    await saveUserRoles(page, 'user_roles', { [ADMIN_EMAIL]: '0' });
+    expect(getRole(ADMIN_EMAIL)).toBe(String(originalAdminRole));
   });
 
   test('direct POST without admin panel gate is rejected by the gate', async ({ request }) => {

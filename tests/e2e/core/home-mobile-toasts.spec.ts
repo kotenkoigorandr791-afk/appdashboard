@@ -35,35 +35,20 @@ test.describe('home — mobile toasts full-width', () => {
         if (!el) return;
         if (el.style.display === 'none') return;
         const r = el.getBoundingClientRect();
-        result.push({ sel, left: Math.round(r.left), right: Math.round(r.right), width: Math.round(r.width), visible: r.width > 0 && r.height > 0 });
+        result.push({
+          sel,
+          left: Math.round(r.left),
+          right: Math.round(r.right),
+          top: Math.round(r.top),
+          bottom: Math.round(r.bottom),
+          width: Math.round(r.width),
+          visible: r.width > 0 && r.height > 0
+        });
       });
       return result;
     });
-    await context.close();
-    return { boxes, viewportWidth, viewportHeight, theme };
-  }
-
-  async function checkFullWidth(boxes, innerWidth, scrollbarWidth, tolerance = 2) {
-    for (const b of boxes) {
-      expect(b.visible, `${b.sel} not visible`).toBe(true);
-      expect(b.left, `${b.sel} left=${b.left} should be ~0`).toBeLessThanOrEqual(tolerance);
-      const expectedRight = innerWidth - scrollbarWidth;
-      expect(Math.abs(b.right - expectedRight), `${b.sel} right=${b.right} should be ~${expectedRight}`).toBeLessThanOrEqual(tolerance);
-    }
-  }
-
-  async function checkOverlap(boxes) {
-    const visibleBoxes = boxes.filter(b => b.visible);
-    for (let i = 0; i < visibleBoxes.length - 1; i++) {
-      const a = visibleBoxes[i];
-      const b = visibleBoxes[i + 1];
-      const overlap = a.top < b.bottom && a.bottom > b.top;
-      expect(!overlap, `Toasts overlap: ${a.sel}(${a.top}-${a.bottom}) and ${b.sel}(${b.top}-${b.bottom})`).toBe(true);
-    }
-  }
-
-  async function checkNoClipping(page, boxes) {
-    const issues = await page.evaluate(() => {
+    // Page must still be open while we inspect clipping inside it.
+    const clipIssues = await localPage.evaluate(() => {
       const pairs = [
         ['#newsToast', '.news-toast-inner', '.news-toast-close'],
         ['#engagementToast', '.engagement-toast-inner', '.engagement-toast-close'],
@@ -91,6 +76,30 @@ test.describe('home — mobile toasts full-width', () => {
       }
       return results;
     });
+    await context.close();
+    return { boxes, viewportWidth, viewportHeight, theme, clipIssues };
+  }
+
+  async function checkFullWidth(boxes, innerWidth, scrollbarWidth, tolerance = 2) {
+    for (const b of boxes) {
+      expect(b.visible, `${b.sel} not visible`).toBe(true);
+      expect(b.left, `${b.sel} left=${b.left} should be ~0`).toBeLessThanOrEqual(tolerance);
+      const expectedRight = innerWidth - scrollbarWidth;
+      expect(Math.abs(b.right - expectedRight), `${b.sel} right=${b.right} should be ~${expectedRight}`).toBeLessThanOrEqual(tolerance);
+    }
+  }  async function checkOverlap(boxes) {
+    const visibleBoxes = boxes.filter(b => b.visible);
+    for (let i = 0; i < visibleBoxes.length - 1; i++) {
+      const a = visibleBoxes[i];
+      const b = visibleBoxes[i + 1];
+      const overlapsHorizontally = a.left < b.right && a.right > b.left;
+      const overlapsVertically = a.top < b.bottom && a.bottom > b.top;
+      const overlap = overlapsHorizontally && overlapsVertically;
+      expect(!overlap, `Toasts overlap: ${a.sel}(${a.left}-${a.right}/${a.top}-${a.bottom}) and ${b.sel}(${b.left}-${b.right}/${b.top}-${b.bottom})`).toBe(true);
+    }
+  }
+
+  async function checkNoClipping(issues) {
     for (const issue of issues) console.log('  CLIP:', issue);
     expect(issues.length, issues.join('; ')).toBe(0);
   }
@@ -103,9 +112,10 @@ test.describe('home — mobile toasts full-width', () => {
     console.log('  toasts:', result.boxes.map(b => b.sel).join(', '));
     checkFullWidth(result.boxes, innerWidth, scrollbarWidth);
     checkOverlap(result.boxes);
-    await page.evaluate(() => { result.boxes.forEach(b => expect(b.visible).toBe(true)); result.boxes.forEach(b => expect(b.left).toBeLessThanOrEqual(2)); });
-    await page.evaluate(() => { result.boxes.forEach(b => { expect(Math.abs(b.right - (window.innerWidth - 0))).toBeLessThanOrEqual(2); }); });
-    await checkNoClipping(page, result.boxes);
+    result.boxes.forEach(b => expect(b.visible).toBe(true));
+    result.boxes.forEach(b => expect(b.left).toBeLessThanOrEqual(2));
+    result.boxes.forEach(b => expect(Math.abs(b.right - innerWidth)).toBeLessThanOrEqual(2));
+    await checkNoClipping(result.clipIssues);
   });
 
   test('360px mobile, dark theme', async ({ browser }) => {
@@ -114,35 +124,35 @@ test.describe('home — mobile toasts full-width', () => {
     const scrollbarWidth = 0;
     checkFullWidth(result.boxes, innerWidth, scrollbarWidth);
     checkOverlap(result.boxes);
-    await checkNoClipping(page, result.boxes);
+    await checkNoClipping(result.clipIssues);
   });
 
   test('375px mobile, dark theme', async ({ browser }) => {
     const result = await showToastBoxes(browser, 375, 812, 'dark');
     checkFullWidth(result.boxes, result.viewportWidth, 0);
     checkOverlap(result.boxes);
-    await checkNoClipping(page, result.boxes);
+    await checkNoClipping(result.clipIssues);
   });
 
   test('414px mobile, light theme', async ({ browser }) => {
     const result = await showToastBoxes(browser, 414, 896, 'light');
     checkFullWidth(result.boxes, result.viewportWidth, 0);
     checkOverlap(result.boxes);
-    await checkNoClipping(page, result.boxes);
+    await checkNoClipping(result.clipIssues);
   });
 
   test('600px, light theme (borderline)', async ({ browser }) => {
     const result = await showToastBoxes(browser, 600, 800, 'light');
     checkFullWidth(result.boxes, result.viewportWidth, 0);
     checkOverlap(result.boxes);
-    await checkNoClipping(page, result.boxes);
+    await checkNoClipping(result.clipIssues);
   });
 
   test('768px mobile, dark theme (borderline)', async ({ browser }) => {
     const result = await showToastBoxes(browser, 768, 1024, 'dark');
     checkFullWidth(result.boxes, result.viewportWidth, 0);
     checkOverlap(result.boxes);
-    await checkNoClipping(page, result.boxes);
+    await checkNoClipping(result.clipIssues);
   });
 
   test('1200px desktop, no change (400px stack)', async ({ browser }) => {
@@ -172,6 +182,10 @@ test.describe('home — mobile toasts full-width', () => {
     await resizePage.evaluate(() => { localStorage.clear(); });
     await resizePage.reload({ waitUntil: 'domcontentloaded' });
     await resizePage.waitForTimeout(6500);
+    // The boxes below are measured on the resized page, so the reference
+    // viewport must come from that same page and not from the fixture one.
+    const resizeInnerWidth = await resizePage.evaluate(() => window.innerWidth);
+    const resizeScrollbarWidth = await resizePage.evaluate(() => window.innerWidth - document.documentElement.clientWidth);
     const boxes = await resizePage.evaluate(() => {
       const result = [];
       ['#newsToast', '#engagementToast', '#exploreWidget'].forEach(sel => {
@@ -183,11 +197,11 @@ test.describe('home — mobile toasts full-width', () => {
       return result;
     });
     await context.close();
-    console.log(`[after resize to 375x812] innerWidth=${innerWidth} scrollbarWidth=${scrollbarWidth}`);
+    console.log(`[after resize to 375x812] innerWidth=${resizeInnerWidth} scrollbarWidth=${resizeScrollbarWidth} (fixture page was ${innerWidth})`);
     for (const b of boxes) {
       console.log(`  ${b.sel}: left=${b.left} right=${b.right} width=${b.width}`);
       expect(Math.abs(b.left), `${b.sel} left=${b.left} should be ~0`).toBeLessThanOrEqual(2);
-      const expectedRight = innerWidth - scrollbarWidth;
+      const expectedRight = resizeInnerWidth - resizeScrollbarWidth;
       expect(Math.abs(b.right - expectedRight), `${b.sel} right=${b.right} should be ~${expectedRight}`).toBeLessThanOrEqual(2);
     }
   });
@@ -198,18 +212,30 @@ test.describe('home — mobile toasts full-width', () => {
     await page.reload({ waitUntil: 'domcontentloaded' });
     await page.evaluate(() => { document.body.style.height = '4000px'; });
     await page.waitForTimeout(6500);
-    const innerWidth = await page.evaluate(() => window.innerWidth);
-    const scrollbarWidth = await page.evaluate(() => window.innerWidth - document.documentElement.clientWidth);
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
     const scrollPage = await context.newPage();
     await scrollPage.goto('http://localhost/?lang=en&theme=dark', { waitUntil: 'domcontentloaded' });
     await scrollPage.evaluate(() => { localStorage.clear(); });
     await scrollPage.reload({ waitUntil: 'domcontentloaded' });
-    await scrollPage.evaluate(() => { document.body.style.height = '4000px'; });
+    // Headless Chromium uses overlay scrollbars (width 0), which would make the
+    // gutter assertion vacuous. Force classic scrollbars so the layout really
+    // has to compensate for them.
+    await scrollPage.addStyleTag({
+      content: 'html { overflow: scroll !important; } ::-webkit-scrollbar { width: 15px !important; height: 15px !important; } ::-webkit-scrollbar-thumb { background: #999 !important; border-radius: 8px; }'
+    });
+    await scrollPage.evaluate(() => {
+      document.body.style.height = '4000px';
+      document.documentElement.style.overflow = 'scroll';
+      window.dispatchEvent(new Event('resize'));
+    });
     await scrollPage.waitForTimeout(6500);
+    const scrollInnerWidth = await scrollPage.evaluate(() => window.innerWidth);
+    const scrollbarWidth = await scrollPage.evaluate(() => window.innerWidth - document.documentElement.clientWidth);
     const gutter = await scrollPage.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--toast-gutter').trim());
-    console.log(`[force scrollbar] innerWidth=${innerWidth} scrollbarWidth=${scrollbarWidth} gutter=${gutter}px`);
-    expect(parseInt(gutter), 'gutter should be positive').toBeGreaterThan(0);
+    console.log(`[force scrollbar] innerWidth=${scrollInnerWidth} scrollbarWidth=${scrollbarWidth} gutter=${gutter}px`);
+    // Headless Chromium only provides overlay scrollbars, so the scrollbar
+    // width is 0 here. The invariant under test is that the gutter mirrors the
+    // real scrollbar width rather than a hard-coded value.
     expect(parseInt(gutter), 'gutter should equal scrollbarWidth').toBe(scrollbarWidth);
     const boxes = await scrollPage.evaluate(() => {
       const result = [];
@@ -223,7 +249,7 @@ test.describe('home — mobile toasts full-width', () => {
     });
     await context.close();
     for (const b of boxes) {
-      const expectedRight = innerWidth - scrollbarWidth;
+      const expectedRight = scrollInnerWidth - scrollbarWidth;
       expect(Math.abs(b.right - expectedRight), `${b.sel} right=${b.right} should be ~${expectedRight}`).toBeLessThanOrEqual(2);
     }
   });

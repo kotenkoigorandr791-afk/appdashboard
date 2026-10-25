@@ -1,8 +1,17 @@
 import { test, expect } from '@playwright/test';
+import { resetRootToFactoryPassword, restoreRootSuitePassword } from '../helpers/rootPassword';
 
 const ROOT_EMAIL = 'root@root';
 const ROOT_PASSWORD = 'root';
 const BASE = 'http://localhost';
+
+test.beforeAll(() => {
+  resetRootToFactoryPassword();
+});
+
+test.afterAll(() => {
+  restoreRootSuitePassword();
+});
 
 test('3 sequential password changes all work', async ({ page }) => {
   let currentPassword = ROOT_PASSWORD;

@@ -136,7 +136,8 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
                             val configs = prefs.getWebhookConfigs().filter { it.isEnabled }
                             val result = WebhookManager(
                                 webhookConfigs = configs,
-                                context = context
+                                context = context,
+                                syncType = "test"
                             ).postData(payload)
                             testPayloadMessage = if (result.isSuccess) {
                                 prefs.markSyncSuccess()

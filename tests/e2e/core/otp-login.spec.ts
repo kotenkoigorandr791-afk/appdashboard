@@ -1,9 +1,20 @@
 import { expect, test, type Page } from '@playwright/test';
+import { resetRootToFactoryPassword, restoreRootSuitePassword } from '../helpers/rootPassword';
 
-const ADMIN_EMAIL = process.env.E2E_USER_EMAIL || 'dashboard-e2e@test.local';
-const ADMIN_PASSWORD = process.env.E2E_USER_PASSWORD || 'dashboard-e2e-e2e-password';
+// Deliberately a separate non-root admin: E2E_USER_EMAIL points at the
+// built-in root account, which is exactly what the later cases forbid.
+const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || 'dashboard-e2e@test.local';
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || 'dashboard-e2e-e2e-password';
 const ROOT_EMAIL = 'root@root';
 const ROOT_PASSWORD = 'root';
+
+test.beforeAll(() => {
+  resetRootToFactoryPassword();
+});
+
+test.afterAll(() => {
+  restoreRootSuitePassword();
+});
 
 async function loginViaUi(page: Page, email: string, password: string) {
   await page.goto('/login?lang=en', { waitUntil: 'domcontentloaded' });

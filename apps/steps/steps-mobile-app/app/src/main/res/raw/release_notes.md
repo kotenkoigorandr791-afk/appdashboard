@@ -1,3 +1,10 @@
+## v1.10.0 - 2026-10-25
+
+* 👤 New Settings screen with your personal data — name, email, daily step goal, height, weight, stride length and date of birth can now be viewed and edited from the app
+* ⚙️ All app settings moved onto their own Settings screen, reachable with one tap from the profile tab
+* 🐎 Faster, lighter server sync: profile and settings requests no longer scan the whole user table, so the dashboard stays responsive with many accounts syncing at once
+* 📋 Logs screen cleaned up: the search field no longer squeezes the header, and an empty state explains when there is nothing to show yet
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Fixed health data landing on the wrong day for users east of UTC — distances, calories, sleep and pulse are now counted on the day they happened

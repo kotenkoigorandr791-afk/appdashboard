@@ -339,6 +339,7 @@
     <string name="logs_title">логи синхронизации</string>
     <string name="action_clear">Очистить</string>
     <string name="logs_empty">Логов пока нет</string>
+    <string name="logs_no_matches">Нет логов под текущий фильтр</string>
     <string name="logs_status_err">ОШИБКА</string>
     <string name="logs_filter_all">Все</string>
     <string name="logs_filter_success">Успешно</string>
@@ -563,6 +564,25 @@
     <string name="about_language_changed_text">Нужно перезапустить приложение, чтобы изменения вступили в силу.</string>
     <string name="about_restart">Перезапустить</string>
     <string name="about_later">Позже</string>
+
+    <!-- Settings Activity: personal data + all app settings live on this separate screen -->
+    <string name="settings_title">Настройки</string>
+    <string name="settings_back_cd">Назад</string>
+    <string name="personal_title">Личные данные</string>
+    <string name="personal_name">Имя</string>
+    <string name="personal_email">Эл. почта</string>
+    <string name="personal_body_title">Параметры тела</string>
+    <string name="personal_goal">Дневная цель шагов</string>
+    <string name="personal_height">Рост, см</string>
+    <string name="personal_weight">Вес, кг</string>
+    <string name="personal_stride">Длина шага, см</string>
+    <string name="personal_birth">Дата рождения</string>
+    <string name="personal_birth_hint">ГГГГ-ММ-ДД</string>
+    <string name="personal_save">Сохранить изменения</string>
+    <string name="personal_saved">Личные данные сохранены</string>
+    <string name="personal_error">Не удалось сохранить: %1$s</string>
+    <string name="personal_load_error">Не удалось загрузить личные данные</string>
+    <string name="personal_requires_connection">Подключите аккаунт, чтобы изменять личные данные.</string>
     
     <string name="logs_row_http_label">HTTP</string>
     <string name="logs_row_ok">ОК</string>

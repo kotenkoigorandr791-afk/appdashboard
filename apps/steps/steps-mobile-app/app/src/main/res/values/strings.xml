@@ -345,6 +345,7 @@
     <string name="logs_title">synchronization logs</string>
     <string name="action_clear">Clear</string>
     <string name="logs_empty">No logs yet</string>
+    <string name="logs_no_matches">No logs match the current filter</string>
     <string name="logs_row_http_label">HTTP</string>
     <string name="logs_row_ok">OK</string>
     <string name="logs_row_err">ERR</string>
@@ -530,6 +531,25 @@
     <string name="settings_conflict_forget">Clear memory (show dialog each time)</string>
     <!-- Manual sync previous day -->
     <string name="manual_sync_previous_day">Previous day</string>
+
+    <!-- Settings Activity: personal data + all app settings live on this separate screen -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_back_cd">Back</string>
+    <string name="personal_title">Personal data</string>
+    <string name="personal_name">Name</string>
+    <string name="personal_email">Email</string>
+    <string name="personal_body_title">Body parameters</string>
+    <string name="personal_goal">Daily step goal</string>
+    <string name="personal_height">Height, cm</string>
+    <string name="personal_weight">Weight, kg</string>
+    <string name="personal_stride">Stride length, cm</string>
+    <string name="personal_birth">Date of birth</string>
+    <string name="personal_birth_hint">YYYY-MM-DD</string>
+    <string name="personal_save">Save changes</string>
+    <string name="personal_saved">Personal data saved</string>
+    <string name="personal_error">Could not save: %1$s</string>
+    <string name="personal_load_error">Could not load personal data</string>
+    <string name="personal_requires_connection">Connect an account to edit your personal data.</string>
 
     <!-- Logs Activity (legacy keys used by stringResource in Activities/Screens) -->
     <string name="logs_back_cd">Back</string>

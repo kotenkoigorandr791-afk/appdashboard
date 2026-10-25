@@ -77,19 +77,21 @@ function public_api_validate_token(AppDatabase $db, string $rawToken, string $de
     $maxTtl = (int)(getenv('PUBLIC_API_TOKEN_TTL_MAX') ?: (365 * 24 * 3600));
     $hardCap = (int)($row['created_at'] ?? $now) + $maxTtl;
     $newExpiresAt = min(max($expiresAt, $now + $ttl), $hardCap);
-    if ($newExpiresAt > $expiresAt + 86400) {
-        $upd = $db->prepare("UPDATE client_auth_tokens SET last_used_at = :u, expires_at = :x WHERE token_hash = :h");
-        $upd->bindValue(':u', $now, PDO::PARAM_INT);
-        $upd->bindValue(':x', $newExpiresAt, PDO::PARAM_INT);
-        $upd->bindValue(':h', $hash, PDO::PARAM_STR);
-        $upd->execute();
-        $row['expires_at'] = $newExpiresAt;
-        return $row;
-    }
-    $upd = $db->prepare("UPDATE client_auth_tokens SET last_used_at = :u WHERE token_hash = :h");
+    $refreshExpiry = $newExpiresAt > $expiresAt + 86400;
+    // Touch last_used_at at most once per interval. Writing to this hot row on
+    // every request multiplied WAL and row-lock traffic with each concurrent
+    // client, while last_used_at is only informational.
+    $touchInterval = max(0, (int)(getenv('PUBLIC_API_TOKEN_TOUCH_INTERVAL') ?: 300));
+    $touch = ($now - (int)($row['last_used_at'] ?? 0)) >= $touchInterval;
+    if (!$refreshExpiry && !$touch) return $row;
+    $sql = "UPDATE client_auth_tokens SET last_used_at = :u" . ($refreshExpiry ? ", expires_at = :x" : "") . " WHERE token_hash = :h";
+    $upd = $db->prepare($sql);
     $upd->bindValue(':u', $now, PDO::PARAM_INT);
+    if ($refreshExpiry) $upd->bindValue(':x', $newExpiresAt, PDO::PARAM_INT);
     $upd->bindValue(':h', $hash, PDO::PARAM_STR);
     $upd->execute();
+    if ($refreshExpiry) $row['expires_at'] = $newExpiresAt;
+    $row['last_used_at'] = $now;
     return $row;
 }
 function public_api_revoke_token(AppDatabase $db, string $rawToken): void {

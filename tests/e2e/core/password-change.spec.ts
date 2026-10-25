@@ -1,11 +1,21 @@
 import { expect, test, type Page } from '@playwright/test';
 import { autoAcceptCookies, gotoShell } from '../helpers/shell';
+import { resetRootToFactoryPassword, restoreRootSuitePassword } from '../helpers/rootPassword';
 
 const ROOT_EMAIL = 'root@root';
 const ROOT_PASSWORD = 'root';
 const NEW_PASSWORD = 'Admin123456';
 
 const NAV_TIMEOUT = 120000;
+
+test.beforeAll(() => {
+  // The whole flow only exists while the built-in admin still has the factory password.
+  resetRootToFactoryPassword();
+});
+
+test.afterAll(() => {
+  restoreRootSuitePassword();
+});
 
 async function submitLogin(page: Page) {
   const respPromise = page.waitForResponse(r => r.request().method() === 'POST' && r.url().includes('/login'), { timeout: NAV_TIMEOUT });

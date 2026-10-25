@@ -1,9 +1,18 @@
 import { test, expect } from '@playwright/test';
+import { resetRootToFactoryPassword, restoreRootSuitePassword } from '../helpers/rootPassword';
 
 const ROOT_EMAIL = 'root@root';
 const ROOT_PASSWORD = 'root';
 const NEW_PASSWORD = 'Admin12345678';
 const BASE = 'http://localhost';
+
+test.beforeAll(() => {
+  resetRootToFactoryPassword();
+});
+
+test.afterAll(() => {
+  restoreRootSuitePassword();
+});
 
 test('password change and re-login full cycle', async ({ page }) => {
   // Step 1: Login with default root password

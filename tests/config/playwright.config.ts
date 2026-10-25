@@ -14,7 +14,9 @@ const webkitProjects = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1'
 export default defineConfig({
   testDir: '../e2e',
   outputDir: '../test-results/artifacts',
-  fullyParallel: true,
+  // Password/first-start specs carry account state across the tests of one
+  // file, so a file must never be interleaved with another one.
+  fullyParallel: false,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
   workers: hasAuthUser ? 1 : (process.env.CI ? 2 : undefined),
