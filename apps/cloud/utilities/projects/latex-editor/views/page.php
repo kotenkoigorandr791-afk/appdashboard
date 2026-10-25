@@ -30,7 +30,7 @@
       .tablet-layout #main { flex-direction: column; }
       .tablet-layout #editor-panel { width: 100%; height: 50%; order: 1; }
       .tablet-layout #pdf-panel { width: 100%; height: 50%; order: 3; }
-      .tablet-layout #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; }
+      .tablet-layout #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; overflow: visible; z-index: 40; }
     }
     
     /* Mobile layout - vertical split with editor on top */
@@ -72,6 +72,8 @@
       height: 5px;
       cursor: row-resize;
       order: 2;
+      overflow: visible;
+      z-index: 40;
     }
     body.mobile-layout #resizer:hover {
       background: var(--accent-color);
@@ -81,7 +83,7 @@
       #main { flex-direction: column; }
       #editor-panel { width: 100% !important; height: 50%; min-width: 0; order: 1; }
       #pdf-panel { width: 100% !important; height: 50%; min-width: 0; order: 3; }
-      #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; }
+      #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; overflow: visible; z-index: 40; }
       body.mobile-layout #editor-panel,
       body.mobile-layout #pdf-panel {
         height: auto;
@@ -1738,8 +1740,6 @@
         </div>
         <div class="toolbar-group">
           <button class="formatting-btn" data-command="clearFormatting" title="<?php echo $t['clear_formatting']; ?>"><i class="fas fa-eraser"></i></button>
-          <button class="formatting-btn" data-command="undo" title="<?php echo $t['undo']; ?>"><i class="fas fa-undo"></i></button>
-          <button class="formatting-btn" data-command="redo" title="<?php echo $t['redo']; ?>"><i class="fas fa-redo"></i></button>
         </div>
         <div class="toolbar-group">
           <button class="formatting-btn" id="translate-btn-toolbar" data-command="translate" title="<?php echo $t['translate']; ?>">
@@ -1882,11 +1882,11 @@
 
   
   <!-- Monaco Editor Scripts -->
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=4"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js?v=2"></script>
 
   
   <script>

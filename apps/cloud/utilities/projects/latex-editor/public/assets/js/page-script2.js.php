@@ -247,54 +247,15 @@
           }
         });
       }
-      if (isTouchDevice) {
-        editor.addAction({
-          id: 'touch-select-all',
-          label: 'Select All',
-          contextMenuGroupId: '9_cutcopypaste',
-          contextMenuOrder: 1,
-          run: function(ed) {
-            const model = ed.getModel();
-            const lastLine   = model.getLineCount();
-            const lastColumn = model.getLineMaxColumn(lastLine);
-            ed.setSelection(new monaco.Range(1, 1, lastLine, lastColumn));
-            ed.revealLine(1);
-          }
-        });
-
-        editor.addAction({
-          id: 'touch-select-word',
-          label: 'Select Word',
-          contextMenuGroupId: '9_cutcopypaste',
-          contextMenuOrder: 2,
-          run: function(ed) {
-            const pos  = ed.getPosition();
-            const word = ed.getModel().getWordAtPosition(pos);
-            if (word) {
-              ed.setSelection(new monaco.Range(
-                pos.lineNumber, word.startColumn,
-                pos.lineNumber, word.endColumn
-              ));
-            }
-          }
-        });
-
-        editor.addAction({
-          id: 'touch-select-line',
-          label: 'Select Line',
-          contextMenuGroupId: '9_cutcopypaste',
-          contextMenuOrder: 3,
-          run: function(ed) {
-            const pos  = ed.getPosition();
-            const len  = ed.getModel().getLineMaxColumn(pos.lineNumber);
-            ed.setSelection(new monaco.Range(pos.lineNumber, 1, pos.lineNumber, len));
-          }
-        });
-      }
-      
       monacoReady = true;
       if (window.attachCloudIframeMonacoAi) window.attachCloudIframeMonacoAi(editor);
       window.cloudIframeMonacoAiSave = saveFile;
+      shared.installStandardActions({
+        editor: editor,
+        monaco: monaco,
+        container: monacoContainer,
+        aiEndpoint: <?= json_encode(cloud_url('ai.php')) ?>
+      });
 
       
       // Setup keyboard shortcuts
@@ -323,23 +284,6 @@
         deleteLine();
       });
       
-      editor.addAction({
-        id: 'select-all-custom',
-        label: 'Select All',           // or t['select_all'] if you add a translation
-        keybindings: [
-          monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyA
-        ],
-        contextMenuGroupId: 'navigation', // group in the context menu
-        contextMenuOrder: 0,              // order - first
-        run: function(ed) {
-          const model = ed.getModel();
-          const lastLine = model.getLineCount();
-          const lastColumn = model.getLineMaxColumn(lastLine);
-          ed.setSelection(new monaco.Range(1, 1, lastLine, lastColumn));
-          ed.focus();
-        }
-      });
-
       // Update formatting buttons state on selection change
       editor.onDidChangeCursorSelection(function(e) {
         updateFormattingButtonsState();
@@ -1492,8 +1436,10 @@
         editor.focus();
     }
     
-    function notifyParentSaved() {
-      if (window.parent && window.parent !== window) window.parent.postMessage({ type: 'editorSaveResult', ok: true }, '*');
+    function notifyParentSaved(ok, message) {
+      if (window.parent && window.parent !== window) {
+        window.parent.postMessage({ type: 'editorSaveResult', ok: !!ok, message: message || '' }, '*');
+      }
     }
 
     function saveFile() {
@@ -1506,18 +1452,23 @@
       .then(response => response.json())
       .then(result => {
         if (result.success) {
-          notifyParentSaved();
+          notifyParentSaved(true);
           lastContent = content;
           return;
         }
         setStatus(t['save_failed'], 'status-error');
+        notifyParentSaved(false, t['save_failed']);
         throw new Error('save failed');
       })
       .catch(error => {
         setStatus(t['save_error'], 'status-error');
+        notifyParentSaved(false, t['save_error']);
         throw error;
       });
     }
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'editor:save') saveFile();
+    });
     
     // Function to update the Undo/Redo button state
     function updateUndoRedoButtons() {

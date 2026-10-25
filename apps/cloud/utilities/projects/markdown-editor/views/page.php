@@ -151,7 +151,7 @@
         mjx-container[jax="CHTML"]{color:<?php echo $color;?> !important;}
         @media (max-width:768px){
             .editor-container{flex-direction:column;}
-            .resizer{width:100%;height:8px;cursor:row-resize;}
+            .resizer{width:100%;height:5px;cursor:row-resize;z-index:40;overflow:visible;}
             .editor-panel,.preview-panel{min-width:100%;min-height:250px;}
             .editor-toolbar{padding:6px 8px;gap:4px;height:44px;flex-wrap:nowrap;overflow-x:auto;overflow-y:hidden;white-space:nowrap;-webkit-overflow-scrolling:touch;scrollbar-width:thin;scrollbar-color:#555 #252526;}
             .editor-toolbar::-webkit-scrollbar{height:4px;}
@@ -410,8 +410,6 @@
                         <button class="toolbar-btn" id="tableBtn" title="Insert table" data-i18n-title="tableTooltip"><i class="fas fa-table"></i></button>
                         <button class="toolbar-btn" id="hrBtn" title="Horizontal line" data-i18n-title="hrTooltip"><i class="fas fa-minus"></i></button>
                         <button class="toolbar-btn" id="mathBtn" title="Insert math formula" data-i18n-title="mathTooltip"><i class="fas fa-square-root-alt"></i></button>
-                        <button class="toolbar-btn" id="undoBtn" title="Undo (Ctrl+Z)" data-i18n-title="undoTooltip"><i class="fas fa-undo"></i></button>
-                        <button class="toolbar-btn" id="redoBtn" title="Redo (Ctrl+Y)" data-i18n-title="redoTooltip"><i class="fas fa-redo"></i></button>
                     </div>
                     <div class="toolbar-group">
                         <button class="toolbar-btn default" id="translateBtnToolbar" title="Translate selected text" data-i18n-title="translateTooltip">
@@ -600,11 +598,11 @@
         </div>
     </div>
     <div class="status-message" id="statusMessage"></div>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=4"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js?v=2"></script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-panes.js'); ?></script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-preview-sync.js'); ?></script>
     <script>

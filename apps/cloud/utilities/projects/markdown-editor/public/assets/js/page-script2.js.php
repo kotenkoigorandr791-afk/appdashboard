@@ -198,31 +198,20 @@
         }
         function updateButtonStates() {
             if (!editor) return;
-            
-            // Get the undo/redo state
-            const undoState = editor.getModel().canUndo();
-            const redoState = editor.getModel().canRedo();
-            
-            // Update the undo/redo buttons
-            const undoBtn = document.getElementById('undoBtn');
-            const redoBtn = document.getElementById('redoBtn');
-            
-            if (undoState) {
-                undoBtn.classList.remove('disabled');
-                undoBtn.disabled = false;
-            } else {
-                undoBtn.classList.add('disabled');
-                undoBtn.disabled = true;
+            const model = editor.getModel();
+            if (!model) return;
+            const undoBtnEl = document.getElementById('undoBtn');
+            const redoBtnEl = document.getElementById('redoBtn');
+            if (undoBtnEl) {
+                const undoState = model.canUndo();
+                undoBtnEl.classList.toggle('disabled', !undoState);
+                undoBtnEl.disabled = !undoState;
             }
-            
-            if (redoState) {
-                redoBtn.classList.remove('disabled');
-                redoBtn.disabled = false;
-            } else {
-                redoBtn.classList.add('disabled');
-                redoBtn.disabled = true;
+            if (redoBtnEl) {
+                const redoState = model.canRedo();
+                redoBtnEl.classList.toggle('disabled', !redoState);
+                redoBtnEl.disabled = !redoState;
             }
-            
             // Update formatting button state (requires selection)
             const selection = editor.getSelection();
             const hasSelection = selection && !selection.isEmpty();
@@ -441,14 +430,14 @@
             updateButtonStates();
         });
         mathBtn.addEventListener('click', () => { mathFormula.value = ''; mathModal.style.display = 'flex'; });
-        undoBtn.addEventListener('click', () => { 
+        undoBtn?.addEventListener('click', () => { 
             editor.trigger('keyboard', 'undo', null); 
             setTimeout(() => {
                 updatePreview(); 
                 updateButtonStates();
             }, 10);
         });
-        redoBtn.addEventListener('click', () => { 
+        redoBtn?.addEventListener('click', () => { 
             editor.trigger('keyboard', 'redo', null); 
             setTimeout(() => {
                 updatePreview(); 
@@ -761,6 +750,12 @@
                 window.originalContent = editor.getValue();
                 if (window.attachCloudIframeMonacoAi) window.attachCloudIframeMonacoAi(editor);
                 window.cloudIframeMonacoAiSave = saveFile;
+                shared.installStandardActions({
+                    editor: editor,
+                    monaco: monaco,
+                    container: document.getElementById('editor-container'),
+                    aiEndpoint: <?= json_encode(cloud_url('ai.php')) ?>
+                });
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => insertTextAtCursor('**', '**'));
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => insertTextAtCursor('*', '*'));
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU, () => insertTextAtCursor('<u>', '</u>'));

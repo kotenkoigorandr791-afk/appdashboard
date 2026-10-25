@@ -71,7 +71,7 @@
         .preview-actions-mobile{display:none;}
         @media (max-width:768px){
             .editor-container{flex-direction:column;}
-            .resizer{width:100%;height:8px;cursor:row-resize;}
+            .resizer{width:100%;height:5px;cursor:row-resize;z-index:40;overflow:visible;}
             .editor-panel,.preview-panel{min-width:100%;min-height:250px;}
             .preview-header{display:none;}
             .preview-actions-mobile{display:flex !important;gap:4px;flex-shrink:0;}
@@ -91,8 +91,6 @@
                         <button class="toolbar-btn danger" id="clearBtn" title="Clear all content" data-i18n-title="clearTooltip"><i class="fas fa-broom"></i></button>
                     </div>
                     <div class="toolbar-group">
-                        <button class="toolbar-btn" id="undoBtn" title="Undo (Ctrl+Z)" data-i18n-title="undoTooltip"><i class="fas fa-undo"></i></button>
-                        <button class="toolbar-btn" id="redoBtn" title="Redo (Ctrl+Y)" data-i18n-title="redoTooltip"><i class="fas fa-redo"></i></button>
                         <button class="toolbar-btn" id="refreshPreviewBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
                     </div>
                 </div>
@@ -124,11 +122,11 @@
         </div>
     </div>
     <div class="status-message" id="statusMessage"></div>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=4"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js?v=2"></script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-panes.js'); ?></script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-preview-sync.js'); ?></script>
     <script>

@@ -10,6 +10,7 @@
         const confirmClearBtn = document.getElementById('confirmClearBtn');
         const undoBtn = document.getElementById('undoBtn');
         const redoBtn = document.getElementById('redoBtn');
+        // Undo/redo live in the shell file-toolbar, not inside the editor.
         const urlParams = new URLSearchParams(window.location.search);
         const filePath = urlParams.get('path') || '';
         const user = urlParams.get('user') || 'default';
@@ -122,15 +123,21 @@
         }
         function updateButtonStates() {
             if (!editor) return;
-            const undoState = editor.getModel().canUndo();
-            const redoState = editor.getModel().canRedo();
-            undoBtn.classList.toggle('disabled', !undoState);
-            undoBtn.disabled = !undoState;
-            redoBtn.classList.toggle('disabled', !redoState);
-            redoBtn.disabled = !redoState;
+            const model = editor.getModel();
+            if (!model) return;
+            if (undoBtn) {
+                const undoState = model.canUndo();
+                undoBtn.classList.toggle('disabled', !undoState);
+                undoBtn.disabled = !undoState;
+            }
+            if (redoBtn) {
+                const redoState = model.canRedo();
+                redoBtn.classList.toggle('disabled', !redoState);
+                redoBtn.disabled = !redoState;
+            }
         }
-        undoBtn.addEventListener('click', () => { editor.trigger('keyboard', 'undo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
-        redoBtn.addEventListener('click', () => { editor.trigger('keyboard', 'redo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
+        undoBtn?.addEventListener('click', () => { editor.trigger('keyboard', 'undo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
+        redoBtn?.addEventListener('click', () => { editor.trigger('keyboard', 'redo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
         refreshPreviewBtn.addEventListener('click', refreshPreview);
         clearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'flex'; });
         cancelClearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'none'; });
@@ -275,6 +282,12 @@
                 window.originalContent = editor.getValue();
                 if (window.attachCloudIframeMonacoAi) window.attachCloudIframeMonacoAi(editor);
                 window.cloudIframeMonacoAiSave = saveFile;
+                shared.installStandardActions({
+                    editor: editor,
+                    monaco: monaco,
+                    container: document.getElementById('editor-container'),
+                    aiEndpoint: <?= json_encode(cloud_url('ai.php')) ?>
+                });
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
                 updateButtonStates();
                 if (window.cloudPreviewSync) previewSync = cloudPreviewSync.enableHtml({ iframe: previewFrame });

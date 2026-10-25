@@ -2230,9 +2230,15 @@ function updateToolbarForLatexEditor() {
     const saveBtn = document.getElementById('btn-save');
     const codeActionsBtn = document.getElementById('btn-code-actions');
     const copyBtn = document.getElementById('btn-copy');
-    saveBtn.classList.add('hidden');
-    codeActionsBtn.classList.add('hidden');
-    if (copyBtn) copyBtn.classList.add('hidden');
+    const undoBtn = document.getElementById('btn-monaco-undo');
+    const redoBtn = document.getElementById('btn-monaco-redo');
+    saveBtn?.classList.remove('hidden');
+    codeActionsBtn?.classList.add('hidden');
+    copyBtn?.classList.add('hidden');
+    undoBtn?.classList.remove('hidden');
+    redoBtn?.classList.remove('hidden');
+    if (typeof updateIframeUndoRedoToolbar === 'function') updateIframeUndoRedoToolbar();
+    else if (typeof updateMonacoUndoRedoToolbar === 'function') updateMonacoUndoRedoToolbar();
 }
 function updateToolbarForZipViewer() {
     const saveBtn = document.getElementById('btn-save');

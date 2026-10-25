@@ -23,16 +23,26 @@
             '#resizer,.resizer{position:relative;overflow:visible}',
             '.rz-tools{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:48px;z-index:30;cursor:default;pointer-events:auto}',
             '.rz-group{display:flex;flex-direction:column;gap:2px;padding:5px;border-radius:16px;background:var(--panel-bg,#252526);border:1px solid var(--border-color,#3c3c3c);box-shadow:0 2px 8px rgba(0,0,0,.35)}',
-            '.rz-tools button{display:flex;align-items:center;justify-content:center;width:24px;height:24px;padding:0;border:none!important;border-radius:12px!important;background:transparent;color:var(--text-color,#ccc);cursor:pointer;pointer-events:auto}',
+            '.rz-group.rz-panes{min-height:58px;justify-content:center}',
+            '.rz-tools button{display:flex;align-items:center;justify-content:center;width:24px;height:24px;max-height:24px;padding:0;border:none!important;border-radius:12px!important;background:transparent;color:var(--text-color,#ccc);cursor:pointer;pointer-events:auto;overflow:hidden;transition:opacity .22s ease,max-height .22s ease,max-width .22s ease,transform .22s ease,margin .22s ease}',
             '.rz-tools button:hover{background:var(--btn-bg,#3a3d41)}',
-            'body.pane-editor .rz-tools,body.pane-preview .rz-tools,body.pane-pdf .rz-tools{transform:translate(-100%,-50%);left:100%}',
+            '.rz-tools button.rz-collapsed{opacity:0;max-height:0;height:0;margin:0;pointer-events:none;transform:scale(.85)}',
+            'body.pane-editor .rz-tools{transform:translate(-100%,-50%);left:100%}',
             'body.pane-preview .rz-tools,body.pane-pdf .rz-tools{transform:translate(0,-50%);left:0}',
             'body.pane-editor .rz-sync,body.pane-preview .rz-sync,body.pane-pdf .rz-sync{display:none!important}',
             'body.pane-editor #pdf-panel,body.pane-editor .preview-panel{display:none!important}',
             'body.pane-preview #editor-panel,body.pane-preview .editor-panel,body.pane-pdf #editor-panel{display:none!important}',
             'body.pane-editor #editor-panel,body.pane-editor .editor-panel,body.pane-preview #pdf-panel,body.pane-preview .preview-panel,body.pane-pdf #pdf-panel{flex:1 1 auto!important;width:auto!important;min-width:0!important;height:auto!important}',
-            '.mobile-layout .rz-tools{display:none}',
-            '@media (max-width:768px){.rz-tools{display:none}}',
+            'body.rz-stack #resizer,body.rz-stack .resizer{overflow:visible!important;z-index:60;flex-shrink:0}',
+            'body.rz-stack #main,body.rz-stack .editor-container{overflow:visible!important}',
+            'body.rz-stack .rz-tools{display:flex!important;flex-direction:row;align-items:center;justify-content:center;gap:16px;top:50%;left:50%;transform:translate(-50%,-50%);max-width:calc(100% - 8px);z-index:61;pointer-events:auto}',
+            'body.rz-stack .rz-group{flex-direction:row;pointer-events:auto}',
+            'body.rz-stack .rz-group.rz-panes{min-height:0;min-width:58px;justify-content:center}',
+            'body.rz-stack .rz-tools button svg{transform:rotate(90deg)}',
+            'body.rz-stack .rz-tools button.rz-collapsed{max-width:0;width:0;max-height:24px;height:24px;opacity:0;pointer-events:none}',
+            'body.rz-stack.pane-editor .rz-tools{top:0!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,calc(-100% - 6px))!important}',
+            'body.rz-stack.pane-preview .rz-tools,body.rz-stack.pane-pdf .rz-tools{top:100%!important;left:50%!important;right:auto!important;bottom:auto!important;transform:translate(-50%,6px)!important}',
+            'body.rz-stack.pane-editor #resizer,body.rz-stack.pane-editor .resizer,body.rz-stack.pane-preview #resizer,body.rz-stack.pane-preview .resizer,body.rz-stack.pane-pdf #resizer,body.rz-stack.pane-pdf .resizer{position:relative;z-index:60}',
             '.pv-sync-mark{outline:2px solid rgba(255,170,0,.95)!important;background:rgba(255,200,0,.22)!important;border-radius:3px}',
             '.pv-sync-line{background:rgba(255,200,0,.25)}'
         ].join('');
@@ -62,18 +72,30 @@
         if (document.body.classList.contains('pane-preview') || document.body.classList.contains('pane-pdf')) return 'preview';
         return 'split';
     }
+    function updateStackMode() {
+        const resizer = state && state.tools && state.tools.parentElement;
+        let stacked = false;
+        if (resizer) {
+            const w = resizer.offsetWidth || 0;
+            const h = resizer.offsetHeight || 0;
+            if (w > 0 && h > 0) stacked = w >= Math.max(16, h) * 2;
+        }
+        if (document.body.classList.contains('mobile-layout')) stacked = true;
+        document.body.classList.toggle('rz-stack', !!stacked);
+    }
     function updatePaneButtons() {
         if (!state) return;
+        updateStackMode();
         const mode = paneMode();
         if (state.syncGroup) state.syncGroup.style.display = mode === 'split' ? '' : 'none';
         if (state.btnExpandEditor) {
-            state.btnExpandEditor.style.display = mode === 'editor' ? 'none' : '';
+            state.btnExpandEditor.classList.toggle('rz-collapsed', mode === 'editor');
             state.btnExpandEditor.title = mode === 'preview'
                 ? ((state.opts && state.opts.showEditorTip) || t.showEditor)
                 : ((state.opts && state.opts.expandEditorTip) || t.expandEditor);
         }
         if (state.btnExpandPreview) {
-            state.btnExpandPreview.style.display = mode === 'preview' ? 'none' : '';
+            state.btnExpandPreview.classList.toggle('rz-collapsed', mode === 'preview');
             state.btnExpandPreview.title = mode === 'editor'
                 ? ((state.opts && state.opts.showPreviewTip) || t.showPreview)
                 : ((state.opts && state.opts.expandPreviewTip) || t.expandPreview);
@@ -132,8 +154,12 @@
         resizer.addEventListener('pointerdown', restoreSplitForDrag, true);
         resizer.addEventListener('mousedown', restoreSplitForDrag, true);
         resizer.addEventListener('touchstart', restoreSplitForDrag, { capture: true, passive: true });
+        window.addEventListener('resize', updatePaneButtons);
+        if (typeof ResizeObserver !== 'undefined') {
+            try { new ResizeObserver(updatePaneButtons).observe(resizer); } catch (_) {}
+        }
         updatePaneButtons();
         return state;
     }
-    window.cloudEditorPanes = { enable, setPane, paneMode, getEditor, t, ICONS };
+    window.cloudEditorPanes = { enable, setPane, paneMode, getEditor, t, ICONS, updateStackMode };
 })();

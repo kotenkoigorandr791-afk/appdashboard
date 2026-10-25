@@ -2589,6 +2589,7 @@ window.addEventListener('message', function(event) {
     if (event.data.type === 'editorSaveResult') {
         const saveButton = document.getElementById('btn-save');
         showSaveResult(saveButton, !!event.data.ok);
+        if (event.data.ok && tabsState.activeTabId) markTabAsModified(tabsState.activeTabId, false);
         if (!event.data.ok && event.data.message) flashStatus(event.data.message);
     }
     if (event.data.type === 'closeTranscriptionEditor') {
@@ -2709,10 +2710,17 @@ window.addEventListener('message', function(event) {
 });
 function updateToolbarForMarkdownEditor() {
     const codeActionsBtn = document.getElementById('btn-code-actions');
-    // The save button lives in the shell toolbar; the editor asks its own
-    // iframe to save via postMessage.
+    const copyBtn = document.getElementById('btn-copy');
+    const undoBtn = document.getElementById('btn-monaco-undo');
+    const redoBtn = document.getElementById('btn-monaco-redo');
+    // Save / undo / redo live in the shell toolbar; the iframe handles the action.
     document.getElementById('btn-save')?.classList.remove('hidden');
-    codeActionsBtn.classList.add('hidden');
+    codeActionsBtn?.classList.add('hidden');
+    copyBtn?.classList.add('hidden');
+    undoBtn?.classList.remove('hidden');
+    redoBtn?.classList.remove('hidden');
+    if (typeof updateIframeUndoRedoToolbar === 'function') updateIframeUndoRedoToolbar();
+    else updateMonacoUndoRedoToolbar();
 }
 function openHtmlEditor(filePath, root = null) {
     const requestedRoot = root || null;
@@ -3387,20 +3395,27 @@ function updateToolbarForTab(tab) {
     const copyBtn = document.getElementById('btn-copy');
     const undoBtn = document.getElementById('btn-monaco-undo');
     const redoBtn = document.getElementById('btn-monaco-redo');
-    if (tab.photoEditor || tab.latexEditor || tab.onlyOfficeEditor || tab.zipViewer) {
+    if (tab.photoEditor || tab.onlyOfficeEditor || tab.zipViewer) {
         saveBtn.classList.add('hidden');
         codeActionsBtn.classList.add('hidden');
         if (copyBtn) copyBtn.classList.add('hidden');
         undoBtn?.classList.add('hidden');
         redoBtn?.classList.add('hidden');
-    } else if (tab.transcriptionEditor || tab.ttsEditor || tab.markdownEditor || tab.htmlEditor) {
-        // Saving happens inside the embedded editor; the toolbar button asks it
-        // to save via postMessage instead of carrying a second save button.
+    } else if (tab.transcriptionEditor || tab.ttsEditor) {
         saveBtn.classList.remove('hidden');
         codeActionsBtn.classList.add('hidden');
         if (copyBtn) copyBtn.classList.add('hidden');
         undoBtn?.classList.add('hidden');
         redoBtn?.classList.add('hidden');
+    } else if (tab.markdownEditor || tab.htmlEditor || tab.latexEditor) {
+        // Embedded Monaco editors: save + undo/redo go through the iframe bridge
+        // so toolbar Back also reverts AI edits (pushUndoStop-backed).
+        saveBtn.classList.remove('hidden');
+        codeActionsBtn.classList.add('hidden');
+        if (copyBtn) copyBtn.classList.add('hidden');
+        undoBtn?.classList.remove('hidden');
+        redoBtn?.classList.remove('hidden');
+        updateIframeUndoRedoToolbar();
     } else {
         const isTxtFile = /\.txt$/i.test(tab.path || '');
         saveBtn.classList.toggle('hidden', !tab.editMode);
@@ -3428,10 +3443,64 @@ function updateToolbarForTab(tab) {
     }
 }
 
+function getActiveMonacoIframe() {
+    const tabId = tabsState?.activeTabId;
+    if (!tabId) return null;
+    const tab = tabsState.tabs.find((t) => t.id === tabId);
+    if (!tab || !(tab.markdownEditor || tab.htmlEditor || tab.latexEditor)) return null;
+    return Array.from(document.querySelectorAll('#viewer iframe[data-tab-id]')).find((n) => n.getAttribute('data-tab-id') === String(tabId)) || null;
+}
+
+function updateIframeUndoRedoToolbar(state) {
+    const undoBtn = document.getElementById('btn-monaco-undo');
+    const redoBtn = document.getElementById('btn-monaco-redo');
+    if (!undoBtn || !redoBtn) return;
+    if (!getActiveMonacoIframe()) return;
+    const next = state || window.__iframeUndoRedoState || { canUndo: false, canRedo: false };
+    undoBtn.disabled = !next.canUndo;
+    redoBtn.disabled = !next.canRedo;
+}
+
+async function sendActiveIframeMonacoAction(action) {
+    const iframe = getActiveMonacoIframe();
+    const target = iframe?.contentWindow;
+    if (!target) return null;
+    const reqId = `hist_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    return await new Promise((resolve) => {
+        let done = false;
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            window.removeEventListener('message', onMessage);
+            resolve(null);
+        }, 4000);
+        function onMessage(ev) {
+            const d = ev?.data;
+            if (!d || d.source !== 'cloudIframeMonacoAi' || d.reqId !== reqId) return;
+            if (ev.source !== target || done) return;
+            done = true;
+            clearTimeout(timer);
+            window.removeEventListener('message', onMessage);
+            resolve(d.ok ? (d.result || {}) : null);
+        }
+        window.addEventListener('message', onMessage);
+        target.postMessage({ source: 'cloudParent', type: 'cloudIframeMonacoAi', reqId, action }, '*');
+    });
+}
+
 function updateMonacoUndoRedoToolbar() {
     const undoBtn = document.getElementById('btn-monaco-undo');
     const redoBtn = document.getElementById('btn-monaco-redo');
     if (!undoBtn || !redoBtn) return;
+    if (getActiveMonacoIframe()) {
+        updateIframeUndoRedoToolbar();
+        sendActiveIframeMonacoAction('getUndoRedoState').then((state) => {
+            if (!state) return;
+            window.__iframeUndoRedoState = state;
+            updateIframeUndoRedoToolbar(state);
+        });
+        return;
+    }
     const active = window.monacoManager?.getActiveEditor?.();
     if (!active) {
         undoBtn.disabled = true;
@@ -4807,17 +4876,45 @@ function initRootToolbar(i18n) {
     const ok = await saveFile();
     showSaveResult(document.getElementById('btn-save'), ok);
     });
-    document.getElementById('btn-monaco-undo')?.addEventListener('click', () => {
+    document.getElementById('btn-monaco-undo')?.addEventListener('click', async () => {
+    if (getActiveMonacoIframe()) {
+        const state = await sendActiveIframeMonacoAction('undo');
+        if (state) {
+            window.__iframeUndoRedoState = state;
+            updateIframeUndoRedoToolbar(state);
+        } else {
+            updateMonacoUndoRedoToolbar();
+        }
+        return;
+    }
     const active = window.monacoManager?.getActiveEditor?.();
     if (!active) return;
     window.monacoManager?.undo?.(active.tabId);
     setTimeout(updateMonacoUndoRedoToolbar, 0);
     });
-    document.getElementById('btn-monaco-redo')?.addEventListener('click', () => {
+    document.getElementById('btn-monaco-redo')?.addEventListener('click', async () => {
+    if (getActiveMonacoIframe()) {
+        const state = await sendActiveIframeMonacoAction('redo');
+        if (state) {
+            window.__iframeUndoRedoState = state;
+            updateIframeUndoRedoToolbar(state);
+        } else {
+            updateMonacoUndoRedoToolbar();
+        }
+        return;
+    }
     const active = window.monacoManager?.getActiveEditor?.();
     if (!active) return;
     window.monacoManager?.redo?.(active.tabId);
     setTimeout(updateMonacoUndoRedoToolbar, 0);
+    });
+    window.addEventListener('message', (ev) => {
+        const d = ev?.data;
+        if (!d || d.source !== 'cloudIframeMonacoAi' || d.type !== 'undoRedoState') return;
+        const iframe = getActiveMonacoIframe();
+        if (!iframe || ev.source !== iframe.contentWindow) return;
+        window.__iframeUndoRedoState = { canUndo: !!d.canUndo, canRedo: !!d.canRedo };
+        updateIframeUndoRedoToolbar(window.__iframeUndoRedoState);
     });
     document.getElementById('btn-copy').addEventListener('click', async () => {
     const path = document.getElementById('viewer').dataset.path;
@@ -9548,7 +9645,7 @@ async function saveFile() {
         return false;
     }
 
-    if (activeTab.transcriptionEditor || activeTab.ttsEditor || activeTab.markdownEditor || activeTab.htmlEditor) {
+    if (activeTab.transcriptionEditor || activeTab.ttsEditor || activeTab.markdownEditor || activeTab.htmlEditor || activeTab.latexEditor) {
         const iframe = document.querySelector(`iframe[data-tab-id="${activeTab.id}"]`) || tabsState.iframeCache.get(activeTab.id);
         if (!iframe || !iframe.contentWindow) {
             flashStatus(t(i18n, 'noFileToSave'));

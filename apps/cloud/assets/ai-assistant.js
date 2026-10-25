@@ -5665,7 +5665,7 @@
         const activeTab = window.tabsState?.tabs?.find((tab) => tab.id === window.tabsState?.activeTabId);
         if (!activeTab?.path) return false;
         let content = '';
-        if (activeTab.markdownEditor || activeTab.latexEditor) {
+        if (activeTab.markdownEditor || activeTab.latexEditor || activeTab.htmlEditor) {
             const iframeContent = getIframeEditorContent(activeTab.id);
             if (iframeContent != null) content = iframeContent;
         }
@@ -5676,7 +5676,7 @@
         if (!content && window.editorsMap?.has(activeTab.id)) {
             content = window.editorsMap.get(activeTab.id)?.getValue?.() || '';
         }
-        if (activeTab.markdownEditor || activeTab.latexEditor) {
+        if (activeTab.markdownEditor || activeTab.latexEditor || activeTab.htmlEditor) {
             try {
                 const saveRes = await sendIframeMonacoAiAction('save');
                 if (typeof window.markTabAsModified === 'function') window.markTabAsModified(activeTab.id, false);
