@@ -1,6 +1,6 @@
 <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
 <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
-<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=12"></script>
 <script>
 <?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
 const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;
@@ -2005,6 +2005,7 @@ function showShareModal(){
         window.openShareModal('spends','app','expense_chart',{
             title: (translations.share_chart || document.title || 'Expenses'),
             defaultPermissions: ['view','interact'],
+            requirePassword: true,
             apiUrl: '/apps/spends/api/share.php'
         });
         return;
@@ -2057,6 +2058,7 @@ function shareChartToCloud(){
         window.openShareModal('spends','app','expense_chart',{
             title: (translations.share_chart || document.title || 'Expenses'),
             defaultPermissions: ['view','interact'],
+            requirePassword: true,
             apiUrl: '/apps/spends/api/share.php'
         });
         return;

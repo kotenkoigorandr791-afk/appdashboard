@@ -52,6 +52,12 @@ final class ShareService
             array_map('strval', $permissions),
             ShareAccessPolicy::PERMISSIONS
         )));
+        // Only Smart Home may hand out "edit" (device control). Every other
+        // app — spends above all — shares data that recipients must not be
+        // able to change.
+        if ($resourceApp !== 'smart_home') {
+            $permissions = array_values(array_diff($permissions, ['edit']));
+        }
         if (!in_array('view', $permissions, true)) {
             array_unshift($permissions, 'view');
         }
@@ -62,7 +68,7 @@ final class ShareService
         }
 
         [$expiresOption, $expiresAt] = ShareTokenService::resolveExpiration(
-            (string)($input['expires_option'] ?? '1m')
+            self::finiteExpiration((string)($input['expires_option'] ?? '1m'), $resourceApp)
         );
 
         $maxViews = max(0, (int)($input['max_views'] ?? 0));
@@ -140,15 +146,33 @@ final class ShareService
         return array_values(array_unique(array_filter(array_map(static fn($e) => strtolower(trim((string)$e)), $list), static fn($e) => $e !== '' && str_contains($e, '@'))));
     }
 
+    /**
+     * Financial records (spends) must never live behind an immortal link, so
+     * "never" and any unknown value collapse to the default one month there.
+     * Other apps keep their previous behaviour.
+     */
+    private static function finiteExpiration(string $option, string $resourceApp): string
+    {
+        if ($resourceApp !== 'spends') {
+            return $option;
+        }
+        return in_array($option, ['1h', '1d', '1w', '1m', '3m', '6m', '1y'], true) ? $option : '1m';
+    }
+
     public function applyUpdate(Share $share, array $input): void
     {
         $permissions = array_values(array_unique(array_intersect(array_map('strval', (array)($input['permissions'] ?? [])), ShareAccessPolicy::PERMISSIONS)));
+        if ($share->resource_app !== 'smart_home') {
+            $permissions = array_values(array_diff($permissions, ['edit']));
+        }
         if (!in_array('view', $permissions, true)) {
             array_unshift($permissions, 'view');
         }
         $accessMode = strtolower((string)($input['access_mode'] ?? 'public'));
         $title = trim((string)($input['title'] ?? ''));
-        [$option, $expiresAt] = ShareTokenService::resolveExpiration((string)($input['expires_option'] ?? '1m'));
+        [$option, $expiresAt] = ShareTokenService::resolveExpiration(
+            self::finiteExpiration((string)($input['expires_option'] ?? '1m'), $share->resource_app)
+        );
         $share->permissions = $permissions;
         $share->access_mode = in_array($accessMode, ShareAccessPolicy::ACCESS_MODES, true) ? $accessMode : 'public';
         $share->title = $title !== '' ? $title : $share->title;

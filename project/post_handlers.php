@@ -782,6 +782,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     $revokeSteps->bindValue(':e',$email,PDO::PARAM_STR);
                     $revokeSteps->execute();
                 }
+                // The spends mobile pairing screen also issues a single app-scoped
+                // token per user; a "new token" click must invalidate the old one.
+                if($tokenApp==='spends'&&!empty($_POST['force_new'])){
+                    $revokeSpends=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = 'spends' AND revoked = 0");
+                    $revokeSpends->bindValue(':e',$email,PDO::PARAM_STR);
+                    $revokeSpends->execute();
+                }
                 $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$mcpPlatform,$tokenApp);
                 $_SESSION['mcp_generated_token']=(string)$tokenData['token'];
                 $profileSuccess=$translations['mcp_setup_token_generated'];
@@ -807,7 +814,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $email=$_SESSION['user']['email']??'';
         $tokenHash=trim((string)($_POST['token_hash']??''));
         $tokenApp=appClientAuthTokenAppId($_POST['token_app']??'mcp');
-        if($email!==''&&($tokenHash!==''||$tokenApp==='steps'||$tokenApp==='kanboard')){
+        if($email!==''&&($tokenHash!==''||$tokenApp==='steps'||$tokenApp==='kanboard'||$tokenApp==='spends')){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);

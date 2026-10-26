@@ -95,7 +95,7 @@
     if (document.querySelector('link[data-sharepoint-share-modal]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/project/sharepoint/assets/css/share-modal.css?v=11';
+    link.href = '/project/sharepoint/assets/css/share-modal.css?v=12';
     link.dataset.sharepointShareModal = '1';
     document.head.appendChild(link);
   }
@@ -107,11 +107,20 @@
     return ['view', 'interact'];
   }
 
+  // "edit" is reserved for Smart Home scene control. Everywhere else a
+  // recipient must never be able to modify the owner's data (financial
+  // records, recipes, step logs, …), so the chip is not offered at all.
   function permissionList(appId, resourceType) {
     if (resourceType !== 'app') return ['view', 'download', 'share'];
     if (appId === 'films') return ['view', 'share'];
     if (appId === 'smart_home') return ['view', 'edit', 'share'];
-    return ['view', 'interact', 'edit', 'share'];
+    return ['view', 'interact', 'share'];
+  }
+
+  // Financial data links must always expire: the "never" option is only
+  // offered to apps that do not handle sensitive records.
+  function allowsNoExpiry(appId) {
+    return appId !== 'spends';
   }
 
   class SharepointShareModal {
@@ -134,8 +143,11 @@
     }
 
     expiryOptions() {
-      const current = (this.existing && this.existing.expires_option) || '1m';
-      return [['1m', t('exp_1m')], ['1h', t('exp_1h')], ['1d', t('exp_1d')], ['1w', t('exp_1w')], ['3m', t('exp_3m')], ['6m', t('exp_6m')], ['1y', t('exp_1y')], ['never', t('never')]]
+      let current = (this.existing && this.existing.expires_option) || '1m';
+      const options = [['1m', t('exp_1m')], ['1h', t('exp_1h')], ['1d', t('exp_1d')], ['1w', t('exp_1w')], ['3m', t('exp_3m')], ['6m', t('exp_6m')], ['1y', t('exp_1y')]];
+      if (allowsNoExpiry(this.appId)) options.push(['never', t('never')]);
+      if (current === 'never' && !allowsNoExpiry(this.appId)) current = '1m';
+      return options
         .map(([value, label]) => '<option value="' + value + '"' + (value === current ? ' selected' : '') + '>' + esc(label) + '</option>')
         .join('');
     }
@@ -428,10 +440,28 @@
       };
     }
 
+    /** The native `required` attribute is bypassed because the submit button is
+     *  type="button", so an empty mandatory password must be caught here. */
+    validatePassword() {
+      if (!this.options.requirePassword) return '';
+      if (this.existing && this.existing.password_protected) return '';
+      const field = this.overlay.querySelector('form [name="password"]');
+      if (field && String(field.value || '').trim() !== '') return '';
+      field && field.focus();
+      return t('password_required');
+    }
+
     async create() {
       const button = this.overlay.querySelector('[data-create]');
       const errorBox = this.overlay.querySelector('[data-error]');
       errorBox.hidden = true;
+      const invalid = this.validatePassword();
+      if (invalid) {
+        errorBox.hidden = false;
+        errorBox.className = 'sp-share__error';
+        errorBox.textContent = invalid;
+        return;
+      }
       button.disabled = true;
       const original = button.textContent;
       button.innerHTML = '<span class="sp-share__spinner" aria-hidden="true"></span>' + esc(t('createBtn'));

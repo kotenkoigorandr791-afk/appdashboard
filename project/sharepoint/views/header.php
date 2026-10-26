@@ -27,7 +27,9 @@ if (!function_exists('sp_public_shell')) {
 <link rel="icon" type="image/svg+xml" href="' . sp_h(sp_asset('icon.svg')) . '">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="preload" href="' . sp_h(sp_asset('fonts/material-symbols-outlined.woff2')) . '" as="font" type="font/woff2" crossorigin>
+<script>(function(d){var r=function(){d.documentElement.classList.add("sp-icons-ready")};setTimeout(r,3000);if(d.fonts&&d.fonts.load){d.fonts.load("24px \'Material Symbols Outlined\'","home").then(r,r)}else{r()}})(document);</script>
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-tokens.css')) . '">
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-components.css')) . '">
 <link rel="stylesheet" href="' . sp_h(sp_asset('css/md3-layout.css')) . '">

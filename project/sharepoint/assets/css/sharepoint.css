@@ -377,7 +377,7 @@ html { background: var(--md-sys-color-background); }
 .sp-bar-list { display: flex; flex-direction: column; gap: var(--md-sys-spacing-2); }
 .sp-bar-list__row { display: grid; grid-template-columns: minmax(100px, 180px) 1fr auto; gap: var(--md-sys-spacing-3); align-items: center; }
 .sp-bar-list__track { height: 10px; background: var(--md-sys-color-surface-variant); border-radius: 999px; overflow: hidden; }
-.sp-bar-list__fill { height: 100%; border-radius: inherit; background: var(--md-sys-color-primary); }
+.sp-bar-list__fill { display: block; height: 100%; border-radius: inherit; background: var(--md-sys-color-primary); }
 .sp-steps-chart { display: flex; align-items: flex-end; gap: 3px; min-height: 220px; padding: var(--md-sys-spacing-3) 0; overflow-x: auto; }
 .sp-steps-chart__bar { flex: 0 0 auto; width: min(28px, 4vw); min-width: 6px; border-radius: 6px 6px 2px 2px; background: var(--md-sys-color-primary); position: relative; }
 @media (max-width: 560px) {

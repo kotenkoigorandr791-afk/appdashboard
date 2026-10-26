@@ -36,7 +36,7 @@ if (!function_exists('sharepoint_api_handle')) {
             if (strtolower((string)$input['resource_app']) !== $appId && $appId !== 'cloud') {
                 sp_json_response(['success' => false, 'error' => 'app mismatch'], 400);
             }
-            if ($appId === 'smart_home' && trim((string)($input['password'] ?? '')) === '') {
+            if (in_array($appId, ['smart_home', 'spends'], true) && trim((string)($input['password'] ?? '')) === '') {
                 sp_json_response(['success' => false, 'error' => 'password_required'], 400);
             }
             try {
@@ -66,6 +66,12 @@ if (!function_exists('sharepoint_api_handle')) {
                 sp_json_response(['success' => false, 'error' => 'forbidden'], 403);
             }
             $service = new ShareService($repo);
+            // Spending links carry live financial data: they may never be
+            // password-less, not even when an older record was created before
+            // the rule existed.
+            if ($appId === 'spends' && !$share->isPasswordProtected() && trim((string)($input['password'] ?? '')) === '') {
+                sp_json_response(['success' => false, 'error' => 'password_required'], 400);
+            }
             $service->applyUpdate($share, $input);
             sp_json_response(['success' => true, 'share' => $service->describe($repo->findById($share->id))]);
         }
