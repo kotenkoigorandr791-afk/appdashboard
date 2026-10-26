@@ -300,7 +300,7 @@
                 setRecipeImageCleared(false);
                 document.getElementById('recipeClearImageFlag').value = '0';
                 document.getElementById('recipeTitle').value = '';
-                document.getElementById('steps').innerHTML = `<button type="button" onclick="addStep()">${translations.add_step}</button>`;
+                document.getElementById('steps').innerHTML = `<button type="button" onclick="openStepTypeDialog()">${translations.add_step}</button>`;
                 steps = [];
                 currentEditingRecipeSnapshot = null;
                 resetBackgroundRemovalState('recipe');
@@ -659,9 +659,69 @@
             const stepIndex = steps.length;
             const stepDiv = document.createElement('div');
             stepDiv.className = 'step';
-            stepDiv.innerHTML = `
+            stepDiv.innerHTML = buildStepInnerHTML(data, stepIndex, steps.length);
+            stepsDiv.insertBefore(stepDiv, stepsDiv.lastElementChild);
+            steps.push(data);
+
+            updateStepIndices();
+        }
+
+        function buildStepInnerHTML(data, stepIndex, totalSteps) {
+            const isProduct = data.type === 'product';
+            const canMoveUp = stepIndex > 0;
+            const canMoveDown = stepIndex < totalSteps - 1;
+            let mainPart;
+            let selectProductBtn = '';
+
+            if (isProduct) {
+                const product = products.find(p => String(p.id) === String(data.content));
+                const pname = product ? (product.name[currentLang] || product.name.en || '') : '';
+                const img = product ? productImgTile(product) : 'default_recipe.jpg';
+                mainPart = `
+                    <div class="step-product-preview ${product ? 'has-product' : ''}" id="stepProductPreview-${stepIndex}" ${product ? `onclick="openProductSelection(${stepIndex})" title="${translations.select_product}"` : ''}>
+                        <img src="${img}" alt="">
+                        <span class="step-product-preview-name">${escapeHtml(pname)}</span>
+                    </div>
+                    <div class="quantity-container">
+                        <label>${translations.quantity}</label>
+                        <input type="number" class="quantity-input" min="0" step="0.1" value="${data.quantity?.value || 100}" placeholder="100">
+                        <select class="unit-select">
+                            <option value="grams" ${data.quantity?.unit === 'grams' ? 'selected' : ''}>${translations.grams}</option>
+                            <option value="pieces" ${data.quantity?.unit === 'pieces' ? 'selected' : ''}>${translations.pieces}</option>
+                            <option value="teaspoon" ${data.quantity?.unit === 'teaspoon' ? 'selected' : ''}>${translations.teaspoon}</option>
+                            <option value="tablespoon" ${data.quantity?.unit === 'tablespoon' ? 'selected' : ''}>${translations.tablespoon}</option>
+                        </select>
+                    </div>
+                `;
+                selectProductBtn = product ? '' : `<button type="button" onclick="openProductSelection(${stepIndex})">${translations.select_product}</button>`;
+            } else {
+                mainPart = `
+                    <textarea placeholder="${translations.instruction}">${data.type === 'instruction' && typeof data.content === 'string' ? data.content : ''}</textarea>
+                    <div class="timer-wrapper">
+                        <label class="timer-toggle"><input type="checkbox" ${data.timer ? 'checked' : ''} onchange="toggleTimer(this, ${stepIndex})"><span class="timer-toggle-box" aria-hidden="true"></span>${translations.set_timer}</label>
+                        <div class="timer-input" style="visibility: ${data.timer ? 'visible' : 'hidden'};" id="timer-step${stepIndex}">
+                            <input type="number" class="timer-hours" min="0" max="99" placeholder="${translations.hours}" value="${data.timer ? data.timer.hours : '0'}" onkeydown="handleTimerKeydown(event, ${stepIndex})" onchange="updateTimer(${stepIndex})">
+                            <span>:</span>
+                            <input type="number" class="timer-minutes" min="0" max="59" placeholder="${translations.minutes}" value="${data.timer ? data.timer.minutes : '0'}" onkeydown="handleTimerKeydown(event, ${stepIndex})" onchange="updateTimer(${stepIndex})">
+                        </div>
+                    </div>`;
+            }
+
+            return `
                 <div class="step-header">
                     <h4>${translations.step} ${stepIndex + 1}</h4>
+                    <div class="step-reorder">
+                        <button type="button" onclick="moveStepUp(${stepIndex})" title="${translations.move_step_up || 'Move up'}" ${!canMoveUp ? 'disabled' : ''}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M5 15l7-7 7 7"></path>
+                            </svg>
+                        </button>
+                        <button type="button" onclick="moveStepDown(${stepIndex})" title="${translations.move_step_down || 'Move down'}" ${!canMoveDown ? 'disabled' : ''}>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <path d="M5 9l7 7 7-7"></path>
+                            </svg>
+                        </button>
+                    </div>
                     <button type="button" class="remove-step" onclick="removeStep(${stepIndex})" title="${translations.delete_step}">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ff0000" stroke-width="2">
                             <path d="M18 6L6 18"></path>
@@ -669,45 +729,24 @@
                         </svg>
                     </button>
                 </div>
-                <button type="button" onclick="openProductSelection(${stepIndex})">${translations.select_product}</button>
-                <textarea placeholder="${translations.instruction}">${data.type === 'instruction' ? data.content : ''}</textarea>
-                <label class="timer-toggle"><input type="checkbox" ${data.timer ? 'checked' : ''} onchange="toggleTimer(this, ${stepIndex})"><span class="timer-toggle-box" aria-hidden="true"></span>${translations.set_timer}</label>
-                <div class="timer-input" style="visibility: ${data.timer ? 'visible' : 'hidden'};" id="timer-step${stepIndex}">
-                    <input type="number" class="timer-hours" min="0" max="99" placeholder="${translations.hours}" value="${data.timer ? data.timer.hours : '0'}" onkeydown="handleTimerKeydown(event, ${stepIndex})" onchange="updateTimer(${stepIndex})">
-                    <span>:</span>
-                    <input type="number" class="timer-minutes" min="0" max="59" placeholder="${translations.minutes}" value="${data.timer ? data.timer.minutes : '0'}" onkeydown="handleTimerKeydown(event, ${stepIndex})" onchange="updateTimer(${stepIndex})">
-                </div>
+                ${selectProductBtn}
+                ${mainPart}
             `;
-            stepsDiv.insertBefore(stepDiv, stepsDiv.lastElementChild);
-            steps.push(data);
+        }
 
-            if (data.type === 'product') {
-                const product = products.find(p => p.id === data.content);
-                if (product) {
-                    stepDiv.querySelector('textarea').value = product.name[currentLang];
-                }
-                const qtyContainer = document.createElement('div');
-                qtyContainer.className = 'quantity-container';
-                qtyContainer.innerHTML = `
-                    <label>${translations.quantity}</label>
-                    <input type="number" class="quantity-input" min="0" step="0.1" value="${data.quantity?.value || 100}" placeholder="100">
-                    <select class="unit-select">
-                        <option value="grams" ${data.quantity?.unit === 'grams' ? 'selected' : ''}>${translations.grams}</option>
-                        <option value="pieces" ${data.quantity?.unit === 'pieces' ? 'selected' : ''}>${translations.pieces}</option>
-                        <option value="teaspoon" ${data.quantity?.unit === 'teaspoon' ? 'selected' : ''}>${translations.teaspoon}</option>
-                        <option value="tablespoon" ${data.quantity?.unit === 'tablespoon' ? 'selected' : ''}>${translations.tablespoon}</option>
-                    </select>
-                `;
-                const textarea = stepDiv.querySelector('textarea');
-                textarea.parentNode.insertBefore(qtyContainer, textarea.nextSibling);
+        function openStepTypeDialog() {
+            openModal('stepTypeModal');
+        }
 
-                if (data.quantity) {
-                    qtyContainer.querySelector('.quantity-input').value = data.quantity.value;
-                    qtyContainer.querySelector('.unit-select').value = data.quantity.unit || 'grams';
-                }
+        function confirmAddStep(type) {
+            closeModal('stepTypeModal');
+            if (type === 'product') {
+                const draftIndex = getRecipeFormStepDivs().length;
+                addStep({ type: 'product', content: null, timer: null, quantity: null });
+                openProductSelection(draftIndex);
+            } else {
+                addStep();
             }
-
-            updateStepIndices();
         }
 
         function getRecipeFormStepDivs() {
@@ -717,6 +756,7 @@
 
         function updateStepIndices() {
             const stepDivs = getRecipeFormStepDivs();
+            const total = stepDivs.length;
             stepDivs.forEach((stepDiv, index) => {
                 const header = stepDiv.querySelector('h4');
                 if (header) {
@@ -752,7 +792,50 @@
                 if (removeButton) {
                     removeButton.setAttribute('onclick', `removeStep(${index})`);
                 }
+
+                // Update reorder buttons
+                const reorderButtons = stepDiv.querySelectorAll('.step-reorder button');
+                if (reorderButtons.length === 2) {
+                    const moveUpBtn = reorderButtons[0];
+                    const moveDownBtn = reorderButtons[1];
+                    moveUpBtn.setAttribute('onclick', `moveStepUp(${index})`);
+                    moveDownBtn.setAttribute('onclick', `moveStepDown(${index})`);
+                    moveUpBtn.disabled = index === 0;
+                    moveDownBtn.disabled = index === total - 1;
+                }
             });
+        }
+
+        function moveStepUp(stepIndex) {
+            if (stepIndex <= 0 || stepIndex >= steps.length) return;
+            const stepDivs = getRecipeFormStepDivs();
+            const currentDiv = stepDivs[stepIndex];
+            const prevDiv = stepDivs[stepIndex - 1];
+
+            // Swap in the steps array
+            [steps[stepIndex], steps[stepIndex - 1]] = [steps[stepIndex - 1], steps[stepIndex]];
+
+            // Swap the DOM elements - insert current before previous
+            const stepsContainer = document.getElementById('steps');
+            stepsContainer.insertBefore(currentDiv, prevDiv);
+
+            updateStepIndices();
+        }
+
+        function moveStepDown(stepIndex) {
+            if (stepIndex < 0 || stepIndex >= steps.length - 1) return;
+            const stepDivs = getRecipeFormStepDivs();
+            const currentDiv = stepDivs[stepIndex];
+            const nextDiv = stepDivs[stepIndex + 1];
+
+            // Swap in the steps array
+            [steps[stepIndex], steps[stepIndex + 1]] = [steps[stepIndex + 1], steps[stepIndex]];
+
+            // Swap the DOM elements - insert next before current
+            const stepsContainer = document.getElementById('steps');
+            stepsContainer.insertBefore(nextDiv, currentDiv);
+
+            updateStepIndices();
         }
 
         function handleTimerKeydown(event, stepIndex) {
@@ -770,6 +853,7 @@
 
         function openProductSelection(stepIndex) {
             currentStepIndex = stepIndex;
+            productSelectionTarget = 'recipe';
             openModal('productSelectionModal');
             document.getElementById('productSelectionSearch').value = '';
             filterSelectionProducts('');
@@ -1241,8 +1325,11 @@
                     document.getElementById('recipeFormId').value = recipeId;
                     document.getElementById('recipeTitle').value = recipeData.title[currentLang];
                     document.getElementById('recipeLang').value = currentLang;
-                    document.getElementById('steps').innerHTML = `<button type="button" onclick="addStep()">${translations.add_step}</button>`;
-                    recipeData.steps.forEach(step => {
+                    document.getElementById('steps').innerHTML = `<button type="button" onclick="openStepTypeDialog()">${translations.add_step}</button>`;
+                    const orderedSteps = recipeData.steps
+                        .map((step, origIndex) => ({ ...step, __origIndex: origIndex }))
+                        .sort((a, b) => ((a.type === 'product' ? 0 : 1) - (b.type === 'product' ? 0 : 1)) || (a.__origIndex - b.__origIndex));
+                    orderedSteps.forEach(step => {
                         let stepData = { ...step };
                         if (step.type === 'instruction') {
                             stepData.content = typeof step.content === 'object' ? (step.content[currentLang] || step.content.en || step.content) : step.content;
@@ -2674,7 +2761,7 @@
             const instructionTranslationIndexes = currentSteps
                 .map((step, index) => {
                     if (step.type !== 'instruction') return -1;
-                    const originalStep = sourceRecipe && Array.isArray(sourceRecipe.steps) ? sourceRecipe.steps[index] : null;
+                const originalStep = sourceRecipe && Array.isArray(sourceRecipe.steps) ? sourceRecipe.steps[step.__origIndex ?? index] : null;
                     const originalText = originalStep && originalStep.type === 'instruction'
                         ? getRecipeLocalizedText(originalStep.content, sourceLang)
                         : '';
@@ -3333,29 +3420,12 @@
                 steps[currentStepIndex] = {
                     type: 'product',
                     content: product.id,
-                    timer: steps[currentStepIndex]?.timer || null,
                     quantity: { value: 100, unit: 'grams' }
                 };
                 const stepDiv = getRecipeFormStepDivs()[currentStepIndex];
                 if (!stepDiv) return;
-                stepDiv.querySelector('textarea').value = product.name[currentLang];
-                let qtyContainer = stepDiv.querySelector('.quantity-container');
-                if (!qtyContainer) {
-                    qtyContainer = document.createElement('div');
-                    qtyContainer.className = 'quantity-container';
-                    qtyContainer.innerHTML = `
-                        <label>${translations.quantity}</label>
-                        <input type="number" class="quantity-input" min="0" step="0.1" value="100" placeholder="100">
-                        <select class="unit-select">
-                            <option value="grams">${translations.grams}</option>
-                            <option value="pieces">${translations.pieces}</option>
-                            <option value="teaspoon">${translations.teaspoon}</option>
-                            <option value="tablespoon">${translations.tablespoon}</option>
-                        </select>
-                    `;
-                    const textarea = stepDiv.querySelector('textarea');
-                    textarea.parentNode.insertBefore(qtyContainer, textarea.nextSibling);
-                }
+                stepDiv.innerHTML = buildStepInnerHTML(steps[currentStepIndex], currentStepIndex);
+                updateStepIndices();
                 closeModal('productSelectionModal');
             }
         }
@@ -4037,7 +4107,7 @@
             document.getElementById('recipeFormId').value = '';
             document.getElementById('recipeLang').value = currentLang;
             document.getElementById('recipeTitle').value = draft.title || '';
-            document.getElementById('steps').innerHTML = `<button type="button" onclick="addStep()">${translations.add_step}</button>`;
+            document.getElementById('steps').innerHTML = `<button type="button" onclick="openStepTypeDialog()">${translations.add_step}</button>`;
             steps = [];
             (draft.steps || []).forEach(step => addStep(step));
             if (draft.image_url) {

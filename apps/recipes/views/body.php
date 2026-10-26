@@ -593,6 +593,24 @@
         </div>
     </div>
 
+    <!-- Step Type Modal -->
+    <div class="modal" id="stepTypeModal" style="z-index: 2250;">
+        <div class="modal-content step-type-modal">
+            <div class="step-type-modal-header">
+                <h2><?php echo htmlspecialchars($translations[$lang]['choose_step_type']); ?></h2>
+                <button class="modal-close modal-close-sm" onclick="closeModal('stepTypeModal')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18"></path>
+                        <path d="M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>            <div class="step-type-actions">
+                <button type="button" class="step-type-ingredient" onclick="confirmAddStep('product')"><?php echo htmlspecialchars($translations[$lang]['step_type_ingredient']); ?></button>
+                <button type="button" class="step-type-instruction" onclick="confirmAddStep('instruction')"><?php echo htmlspecialchars($translations[$lang]['step_type_instruction']); ?></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Recipe Modal -->
     <div class="modal" id="recipeModal">
         <div class="modal-content">
@@ -658,7 +676,7 @@
                     <button type="button" class="image-tool-btn image-tool-btn-secondary" id="recipeBgUndoBtn" onclick="undoBackgroundRemoval('recipe')" style="display:none;">Undo background removal</button>
                 </div>
                 <div id="steps" class="recipe-steps-block" style="margin-bottom: 20px;">
-                    <button type="button" onclick="addStep()"><?php echo $translations[$lang]['add_step']; ?></button>
+                    <button type="button" onclick="openStepTypeDialog()"><?php echo $translations[$lang]['add_step']; ?></button>
                 </div>
                 <div id="recipeTranslationProgress" style="display: none; margin: 10px 0;">
                     <div style="background: rgba(128,128,128,0.2); border-radius: 10px; height: 24px; position: relative; overflow: hidden;">

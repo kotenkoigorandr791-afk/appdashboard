@@ -1035,43 +1035,214 @@ form button:hover {
 #recipeModal .recipe-upload-grid #recipeImageFileRow input[type="file"] {
     width: 100%;
     max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
 }
 
 .step {
     border: 1px solid var(--primary-color);
     padding: 15px;
-    padding-right: 56px;
     margin: 10px 0;
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     background-color: var(--bg-color);
-    display: flex;
-    align-items: flex-start;
-    gap: 10px;
     position: relative;
 }
 
-/* Remove-step cross: right vertical rail with stable size */
-#recipeModal .step .remove-step {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 42px;
+#recipeModal .step {
     display: flex;
-    align-items: flex-start;
-    justify-content: center;
-    padding: 12px 0 0;
-    margin: 0;
-    border-left: 1px solid rgba(128, 128, 128, 0.35);
-    border-radius: 0 var(--border-radius) var(--border-radius) 0;
-    background: rgba(128, 128, 128, 0.06);
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+}
+
+#recipeModal .step h4 {
+    white-space: nowrap;
+}
+
+#recipeModal .step > button {
+    align-self: flex-start;
+    width: auto;
+}
+
+#recipeModal .step textarea {
+    width: 100%;
+    min-width: 0;
     box-sizing: border-box;
+}
+
+/* Add Step type chooser dialog */
+.step-type-modal {
+    max-width: 420px;
+    text-align: center;
+}
+
+.step-type-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.step-type-modal-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.step-type-modal .modal-close {
+    position: static;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+.step-type-modal .modal-close:hover {
+    background: rgba(128, 128, 128, 0.15);
+}
+
+.step-type-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.step-type-actions button {
+    padding: 12px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--line-color);
+    border-radius: var(--border-radius);
+    background-color: var(--btn-bg-color);
+    color: <?php echo $theme === 'dark' ? '#141817' : '#ffffff'; ?>;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.step-type-actions button:hover {
+    background-color: var(--btn-hover-bg) !important;
+    box-shadow: var(--hover-shadow);
+}
+
+/* Product step: preview card instead of textarea */
+#recipeModal .step-product-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid rgba(128, 128, 128, 0.32);
+    border-radius: var(--border-radius);
+    background: rgba(128, 128, 128, 0.06);
+}
+
+#recipeModal .step-product-preview img {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#recipeModal .step-product-preview-name {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* Remove-step cross — same chrome as the reorder buttons */
+#recipeModal .step .remove-step {
+    background: rgba(128, 128, 128, 0.10);
+    color: #ff3b3b;
+    border: 1px solid rgba(128, 128, 128, 0.30);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: none;
+}
+
+#recipeModal .step .remove-step:hover {
+    background: rgba(255, 59, 59, 0.16);
+    border-color: rgba(255, 59, 59, 0.45);
+    color: #ff5a5a;
+}
+
+#recipeModal .step .remove-step svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
 }
 
 .step h4 {
     color: var(--text-color);
     margin-top: 0;
+}
+
+/* Step reorder buttons */
+.step-reorder {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    align-items: center;
+}
+
+#recipeModal .step .step-reorder button {
+    background: rgba(128, 128, 128, 0.10);
+    color: var(--text-color);
+    border: 1px solid rgba(128, 128, 128, 0.30);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: none;
+}
+
+#recipeModal .step .step-reorder button:hover {
+    background: rgba(128, 128, 128, 0.22);
+    color: var(--text-color);
+}
+
+#recipeModal .step .step-reorder button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+#recipeModal .step .step-reorder button svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    fill: none;
+}
+
+#recipeModal .step .step-header {
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+
+#recipeModal .step .step-header h4 {
+    flex-shrink: 0;
+    margin-right: auto;
 }
 
 .step button {
@@ -1171,12 +1342,21 @@ form button:hover {
     background-color: var(--bg-color);
 }
 
+.step .timer-wrapper {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+}
+
 .quantity-container {
     display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
+    flex-direction: row;
+    align-items: center;
+    gap: 12px;
     margin-top: 10px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .quantity-container label {
@@ -1205,17 +1385,20 @@ form button:hover {
   display: flex;
   align-items: center;
   gap: 5px;
+  flex-wrap: nowrap;
 }
 .timer-hours, .timer-minutes {
   width: 50px;
   padding: 5px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .timer-input.active {
     display: flex;
     gap: 5px;
     align-items: center;
+    flex-wrap: nowrap;
 }
 
 .timer-input input {
@@ -1225,6 +1408,7 @@ form button:hover {
     border-radius: var(--border-radius);
     background-color: var(--bg-color);
     color: var(--text-color);
+    flex-shrink: 0;
 }
 
 /* "Set Timer" label: single line + custom animated checkbox */
@@ -2579,9 +2763,9 @@ input[type="file"]:required {
         bottom: 0;
         width: 42px;
         display: flex;
-        align-items: flex-start;
+        align-items: center;
         justify-content: center;
-        padding: 10px 0 0;
+        padding: 0;
         margin: 0;
         border-left: 1px solid rgba(128, 128, 128, 0.35);
         border-radius: 0 var(--border-radius) var(--border-radius) 0;

@@ -141,6 +141,9 @@
   "add_recipe_manual": "Manual entry",
   "add_recipe_manual_desc": "Fill in title, steps and ingredients yourself",
   "add_step": "Add Step",
+  "choose_step_type": "Choose step type",
+  "step_type_ingredient": "Ingredient",
+  "step_type_instruction": "Instruction",
   "category": "Category",
   "delete_confirm_title": "Confirm deletion",
   "delete_step": "Delete step",
@@ -167,5 +170,7 @@
   "instruction": "Instruction",
   "instructions_title": "Instructions",
   "step": "Step",
-  "steps": "Steps"
+  "steps": "Steps",
+  "move_step_up": "Move up",
+  "move_step_down": "Move down"
 }
