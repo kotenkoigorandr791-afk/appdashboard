@@ -1046,14 +1046,14 @@
         "scanQr": "Scan QR code",
         "pasteLink": "Вставити посилання з QR",
         "manual": "Ручне підключення",
-        "connected": "Підключено як {email}",
+        "connected": "Підключено як {{email}}",
         "notConnected": "Не підключено",
         "wifiOnly": "Лише Wi‑Fi",
         "wifiOnlyHint": "Синхронізувати тільки через Wi‑Fi",
         "allowMobile": "Мобільна мережа",
         "allowMobileHint": "Дозволити синхронізацію через мобільний інтернет",
         "syncNow": "Синхронізувати зараз",
-        "lastSync": "Остання синхронізація: {time}",
+        "lastSync": "Остання синхронізація: {{time}}",
         "never": "ще не було",
         "disconnect": "Відключити",
         "walletListener": "Google Wallet",
@@ -1065,10 +1065,14 @@
         "statusOk": "Актуально",
         "pairSuccess": "Успішно підключено",
         "pairFailed": "Не вдалося підключити",
-        "syncSuccess": "Синхронізовано (нових: {created}, пропущено: {skipped})",
+        "syncSuccess": "Синхронізовано (нових: {{created}}, пропущено: {{skipped}})",
         "groups": {
-          "sync": "Sync"
-        }
+          "sync": "Синхронізація"
+        },
+        "required": "Потрібне підключення до сервера",
+        "requiredHint": "Spends працює лише як клієнт AppDashboard. Підключіться через QR або вставте посилання з веб-додатку.",
+        "pairCta": "Підключити до сервера",
+        "requireServer": "Офлайн-режим недоступний"
       }
     }
   },
@@ -1600,7 +1604,7 @@
   },
   "onboarding": {
     "welcome": {
-      "subtitle": "Облік витрат з синхронізацією з AppDashboard Spends"
+      "subtitle": "Клієнт AppDashboard Spends — підключіться до сервера для синхронізації витрат"
     },
     "openSource": {
       "title": "Free & open source",
@@ -1650,8 +1654,7 @@
     },
     "pair": {
       "title": "Підключення до сервера",
-      "description": "Відскануйте QR у веб-застосунку Spends або вставте посилання / адресу та токен.",
-      "skip": "Продовжити офлайн"
+      "description": "Відскануйте QR з веб-додатку Spends або вставте посилання / адресу та токен. Офлайн-режим недоступний."
     }
   },
   "dates": {

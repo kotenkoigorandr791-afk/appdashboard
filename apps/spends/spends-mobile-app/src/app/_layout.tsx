@@ -29,6 +29,7 @@ import { useTransactionLifecycleSync } from "~/hooks/use-transaction-lifecycle-s
 import { DirectionEnum } from "~/i18n/language.constants"
 import { useLanguageStore } from "~/stores/language.store"
 import { useOnboardingStore } from "~/stores/onboarding.store"
+import { useServerSyncStore } from "~/stores/server-sync.store"
 import { NewEnum } from "~/types/new"
 import { logger } from "~/utils/logger"
 
@@ -75,14 +76,30 @@ function AppRootLayout() {
 
   const isRTL = useLanguageStore((s) => s.isRTL)
   const isOnboardingCompleted = useOnboardingStore((s) => s.isCompleted)
+  const isPaired = useServerSyncStore((s) => Boolean(s.endpoint && s.token))
   const router = useRouter()
   const segments = useSegments()
 
   useEffect(() => {
-    if (!isOnboardingCompleted && segments[0] !== "onboarding") {
+    const root = String(segments[0] || "")
+    const path = segments.map(String).join("/")
+    const onOnboarding = root === "onboarding"
+    const onServerSync = path === "settings/server-sync"
+    const onAuth = root === "auth"
+    if (!isOnboardingCompleted && !onOnboarding && !onAuth) {
       router.replace("/onboarding")
+      return
     }
-  }, [isOnboardingCompleted, segments, router])
+    if (
+      isOnboardingCompleted &&
+      !isPaired &&
+      !onServerSync &&
+      !onOnboarding &&
+      !onAuth
+    ) {
+      router.replace("/settings/server-sync")
+    }
+  }, [isOnboardingCompleted, isPaired, segments, router])
 
   useEffect(() => {
     if (Platform.OS === "android") {
@@ -257,6 +274,14 @@ function AppRootLayout() {
                 <Stack.Screen
                   name="settings/trash"
                   options={{ title: t("screens.settings.trash.title") }}
+                />
+                <Stack.Screen
+                  name="auth"
+                  options={{ headerShown: false, title: t("screens.settings.serverSync.pair") }}
+                />
+                <Stack.Screen
+                  name="settings/server-sync"
+                  options={{ title: t("screens.settings.serverSync.title") }}
                 />
                 <Stack.Screen
                   name="settings/preferences/index"

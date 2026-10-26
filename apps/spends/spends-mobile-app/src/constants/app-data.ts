@@ -1,7 +1,7 @@
 export const AppData = {
   name: "Spends",
   description:
-    "Companion mobile app for AppDashboard Spends — offline expense tracking with server sync",
+    "Companion client for AppDashboard Spends — requires server pairing to sync expenses",
   githubUrl: "",
   githubProfile: "",
 }

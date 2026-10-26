@@ -1046,14 +1046,14 @@
         "scanQr": "مسح رمز QR",
         "pasteLink": "لصق رابط الاقتران",
         "manual": "اقتران يدوي",
-        "connected": "متصل كـ {email}",
+        "connected": "متصل كـ {{email}}",
         "notConnected": "غير متصل",
         "wifiOnly": "واي فاي فقط",
         "wifiOnlyHint": "المزامنة فقط عبر الواي فاي",
         "allowMobile": "السماح ببيانات الجوال",
         "allowMobileHint": "المزامنة أيضاً عبر شبكة الجوال",
         "syncNow": "مزامنة الآن",
-        "lastSync": "آخر مزامنة: {time}",
+        "lastSync": "آخر مزامنة: {{time}}",
         "never": "أبداً",
         "disconnect": "قطع الاتصال",
         "walletListener": "التقاط Google Wallet",
@@ -1065,10 +1065,14 @@
         "statusOk": "محدّث",
         "pairSuccess": "تم الاقتران بنجاح",
         "pairFailed": "فشل الاقتران",
-        "syncSuccess": "تمت المزامنة ({created} جديد، {skipped} متخطى)",
+        "syncSuccess": "تمت المزامنة ({{created}} جديد، {{skipped}} متخطى)",
         "groups": {
-          "sync": "مزامنة"
-        }
+          "sync": "المزامنة"
+        },
+        "required": "يلزم الاتصال بالخادم",
+        "requiredHint": "يعمل Spends فقط كعميل لـ AppDashboard. اربط عبر QR أو الصق الرابط من الويب.",
+        "pairCta": "الاتصال بالخادم",
+        "requireServer": "وضع عدم الاتصال غير متاح"
       }
     }
   },
@@ -1650,8 +1654,7 @@
     },
     "pair": {
       "title": "Connect to your server",
-      "description": "Scan the QR code from the Spends web app, or paste the pairing link / endpoint and token.",
-      "skip": "Continue offline"
+      "description": "امسح رمز QR من تطبيق Spends على الويب أو الصق رابط الاقتران / نقطة النهاية والرمز. وضع عدم الاتصال غير متاح."
     }
   },
   "dates": {

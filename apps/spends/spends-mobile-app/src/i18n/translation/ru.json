@@ -1046,14 +1046,14 @@
         "scanQr": "Scan QR code",
         "pasteLink": "Вставить ссылку из QR",
         "manual": "Ручное подключение",
-        "connected": "Подключено как {email}",
+        "connected": "Подключено как {{email}}",
         "notConnected": "Не подключено",
         "wifiOnly": "Только Wi‑Fi",
         "wifiOnlyHint": "Синхронизировать только через Wi‑Fi",
         "allowMobile": "Мобильная сеть",
         "allowMobileHint": "Разрешить синхронизацию через мобильный интернет",
         "syncNow": "Синхронизировать сейчас",
-        "lastSync": "Последняя синхронизация: {time}",
+        "lastSync": "Последняя синхронизация: {{time}}",
         "never": "ещё не было",
         "disconnect": "Отключить",
         "walletListener": "Google Wallet",
@@ -1065,10 +1065,14 @@
         "statusOk": "Актуально",
         "pairSuccess": "Успешно подключено",
         "pairFailed": "Не удалось подключить",
-        "syncSuccess": "Синхронизировано (новых: {created}, пропущено: {skipped})",
+        "syncSuccess": "Синхронизировано (новых: {{created}}, пропущено: {{skipped}})",
         "groups": {
-          "sync": "Sync"
-        }
+          "sync": "Синхронизация"
+        },
+        "required": "Нужно подключение к серверу",
+        "requiredHint": "Spends работает только как клиент AppDashboard. Подключитесь через QR или вставьте ссылку из веб-приложения.",
+        "pairCta": "Подключить к серверу",
+        "requireServer": "Офлайн-режим недоступен"
       }
     }
   },
@@ -1600,7 +1604,7 @@
   },
   "onboarding": {
     "welcome": {
-      "subtitle": "Учёт расходов с синхронизацией с AppDashboard Spends"
+      "subtitle": "Клиент AppDashboard Spends — подключитесь к серверу для синхронизации расходов"
     },
     "openSource": {
       "title": "Free & open source",
@@ -1650,8 +1654,7 @@
     },
     "pair": {
       "title": "Подключение к серверу",
-      "description": "Отсканируйте QR в веб-приложении Spends или вставьте ссылку / адрес и токен.",
-      "skip": "Продолжить офлайн"
+      "description": "Отсканируйте QR из веб-приложения Spends или вставьте ссылку / адрес и токен. Офлайн-режим недоступен."
     }
   },
   "dates": {

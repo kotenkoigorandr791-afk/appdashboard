@@ -1046,14 +1046,14 @@
         "scanQr": "Scan QR code",
         "pasteLink": "Wklej link z QR",
         "manual": "Połączenie ręczne",
-        "connected": "Połączono jako {email}",
+        "connected": "Połączono jako {{email}}",
         "notConnected": "Nie połączono",
         "wifiOnly": "Tylko Wi‑Fi",
         "wifiOnlyHint": "Synchronizuj tylko przez Wi‑Fi",
         "allowMobile": "Sieć komórkowa",
         "allowMobileHint": "Pozwól na synchronizację przez dane komórkowe",
         "syncNow": "Synchronizuj teraz",
-        "lastSync": "Ostatnia synchronizacja: {time}",
+        "lastSync": "Ostatnia synchronizacja: {{time}}",
         "never": "jeszcze nie",
         "disconnect": "Odłącz",
         "walletListener": "Google Wallet",
@@ -1065,10 +1065,14 @@
         "statusOk": "Aktualne",
         "pairSuccess": "Połączono pomyślnie",
         "pairFailed": "Nie udało się połączyć",
-        "syncSuccess": "Zsynchronizowano (nowych: {created}, pominięto: {skipped})",
+        "syncSuccess": "Zsynchronizowano (nowych: {{created}}, pominięto: {{skipped}})",
         "groups": {
-          "sync": "Sync"
-        }
+          "sync": "Synchronizacja"
+        },
+        "required": "Wymagane połączenie z serwerem",
+        "requiredHint": "Spends działa tylko jako klient AppDashboard. Połącz przez QR lub wklej link z aplikacji webowej.",
+        "pairCta": "Połącz z serwerem",
+        "requireServer": "Tryb offline jest niedostępny"
       }
     }
   },
@@ -1650,8 +1654,7 @@
     },
     "pair": {
       "title": "Połączenie z serwerem",
-      "description": "Zeskanuj QR w aplikacji WWW Spends albo wklej link / adres i token.",
-      "skip": "Kontynuuj offline"
+      "description": "Zeskanuj kod QR z aplikacji Spends lub wklej link / endpoint i token. Tryb offline jest niedostępny."
     }
   },
   "dates": {

@@ -1046,14 +1046,14 @@
         "scanQr": "Scan QR code",
         "pasteLink": "Paste pairing link",
         "manual": "Manual pairing",
-        "connected": "Connected as {email}",
+        "connected": "Connected as {{email}}",
         "notConnected": "Not connected",
         "wifiOnly": "Wi‑Fi only",
         "wifiOnlyHint": "Sync only when connected to Wi‑Fi",
         "allowMobile": "Allow mobile data",
         "allowMobileHint": "Also sync over cellular networks",
         "syncNow": "Sync now",
-        "lastSync": "Last sync: {time}",
+        "lastSync": "Last sync: {{time}}",
         "never": "never",
         "disconnect": "Disconnect",
         "walletListener": "Google Wallet capture",
@@ -1065,10 +1065,14 @@
         "statusOk": "Up to date",
         "pairSuccess": "Paired successfully",
         "pairFailed": "Pairing failed",
-        "syncSuccess": "Synced ({created} new, {skipped} skipped)",
+        "syncSuccess": "Synced ({{created}} new, {{skipped}} skipped)",
         "groups": {
           "sync": "Sync"
-        }
+        },
+        "required": "Server connection is required",
+        "requiredHint": "Spends works only as a client of your AppDashboard server. Pair via QR or paste the link from the web app.",
+        "pairCta": "Connect to server",
+        "requireServer": "This app cannot be used offline"
       }
     }
   },
@@ -1600,7 +1604,7 @@
   },
   "onboarding": {
     "welcome": {
-      "subtitle": "Track expenses with AppDashboard Spends sync"
+      "subtitle": "Companion client for AppDashboard Spends — connect to your server to sync expenses"
     },
     "openSource": {
       "title": "Free & open source",
@@ -1650,8 +1654,7 @@
     },
     "pair": {
       "title": "Connect to your server",
-      "description": "Scan the QR code from the Spends web app, or paste the pairing link / endpoint and token.",
-      "skip": "Continue offline"
+      "description": "Scan the QR code from the Spends web app, or paste the pairing link / endpoint and token. Offline use is not available."
     }
   },
   "dates": {

@@ -24,7 +24,7 @@ export default function OnboardingLayout() {
       />
       <Stack.Screen
         name="start"
-        options={{ ...headerStyles, title: t("onboarding.start.title") }}
+        options={{ ...headerStyles, title: t("onboarding.pair.title") }}
       />
       <Stack.Screen
         name="accounts"

@@ -1046,14 +1046,14 @@
         "scanQr": "Scan QR code",
         "pasteLink": "Vložit odkaz z QR",
         "manual": "Ruční připojení",
-        "connected": "Připojeno jako {email}",
+        "connected": "Připojeno jako {{email}}",
         "notConnected": "Nepřipojeno",
         "wifiOnly": "Pouze Wi‑Fi",
         "wifiOnlyHint": "Synchronizovat pouze přes Wi‑Fi",
         "allowMobile": "Mobilní síť",
         "allowMobileHint": "Povolit synchronizaci přes mobilní data",
         "syncNow": "Synchronizovat nyní",
-        "lastSync": "Poslední synchronizace: {time}",
+        "lastSync": "Poslední synchronizace: {{time}}",
         "never": "ještě nebylo",
         "disconnect": "Odpojit",
         "walletListener": "Google Wallet",
@@ -1065,10 +1065,14 @@
         "statusOk": "Aktuální",
         "pairSuccess": "Úspěšně připojeno",
         "pairFailed": "Nepodařilo se připojit",
-        "syncSuccess": "Synchronizováno (nových: {created}, přeskočeno: {skipped})",
+        "syncSuccess": "Synchronizováno (nových: {{created}}, přeskočeno: {{skipped}})",
         "groups": {
-          "sync": "Sync"
-        }
+          "sync": "Synchronizace"
+        },
+        "required": "Je vyžadováno připojení k serveru",
+        "requiredHint": "Spends funguje pouze jako klient AppDashboard. Připojte se přes QR nebo vložte odkaz z webové aplikace.",
+        "pairCta": "Připojit k serveru",
+        "requireServer": "Offline režim není k dispozici"
       }
     }
   },
@@ -1650,8 +1654,7 @@
     },
     "pair": {
       "title": "Připojení k serveru",
-      "description": "Naskenujte QR ve webové aplikaci Spends nebo vložte odkaz / adresu a token.",
-      "skip": "Pokračovat offline"
+      "description": "Naskenujte QR z webové aplikace Spends nebo vložte odkaz / endpoint a token. Offline režim není k dispozici."
     }
   },
   "dates": {

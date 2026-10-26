@@ -124,24 +124,47 @@ export function parsePairingLink(link: string): {
 } | null {
   const trimmed = link.trim()
   if (!trimmed) return null
+  const fromParams = (endpoint: string | null, token: string | null) => {
+    if (!endpoint || !token) return null
+    return { endpoint: normalizePairingEndpoint(endpoint), token }
+  }
   try {
-    const url = new URL(trimmed)
-    if (url.protocol === "spends:" && url.hostname === "auth") {
-      const endpoint = url.searchParams.get("endpoint") || ""
-      const token = url.searchParams.get("token") || ""
-      if (endpoint && token) {
-        return { endpoint: normalizePairingEndpoint(endpoint), token }
-      }
+    const normalized =
+      trimmed.startsWith("spends:") || /^https?:\/\//i.test(trimmed)
+        ? trimmed
+        : trimmed.startsWith("/")
+          ? `spends://${trimmed.replace(/^\/+/, "")}`
+          : `spends://auth?${trimmed.replace(/^\?/, "")}`
+    const url = new URL(normalized)
+    const hostPath = `${url.hostname}${url.pathname}`.replace(/\/+$/, "")
+    if (
+      url.protocol === "spends:" &&
+      (url.hostname === "auth" ||
+        hostPath === "auth" ||
+        url.pathname === "/auth" ||
+        url.pathname.endsWith("/auth"))
+    ) {
+      const parsed = fromParams(
+        url.searchParams.get("endpoint"),
+        url.searchParams.get("token"),
+      )
+      if (parsed) return parsed
     }
-    const endpoint = url.searchParams.get("endpoint")
-    const token = url.searchParams.get("token")
-    if (endpoint && token) {
-      return { endpoint: normalizePairingEndpoint(endpoint), token }
-    }
+    const parsed = fromParams(
+      url.searchParams.get("endpoint"),
+      url.searchParams.get("token"),
+    )
+    if (parsed) return parsed
   } catch {
     /* fall through */
   }
-  return null
+  const q = trimmed.includes("?") ? trimmed.slice(trimmed.indexOf("?") + 1) : trimmed
+  try {
+    const sp = new URLSearchParams(q)
+    return fromParams(sp.get("endpoint"), sp.get("token"))
+  } catch {
+    return null
+  }
 }
 
 export async function fetchSpendsProfile(

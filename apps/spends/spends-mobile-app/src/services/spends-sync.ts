@@ -76,7 +76,7 @@ async function ensureLocalStoreCategory(name: string): Promise<string | null> {
       id,
       name,
       type: "expense",
-      icon: "shopping-bag",
+      icon: "basket",
       colorSchemeName: null,
       createdAt: now,
       updatedAt: now,
@@ -321,15 +321,35 @@ export async function ingestWalletEvent(event: {
   raw?: string
   date?: string
 }): Promise<boolean> {
+  const state = useServerSyncStore.getState()
+  if (!state.isPaired()) return false
   const date = event.date || ymd(new Date())
   const store = event.store.trim()
   const amount = Number(event.amount)
   if (!store || !(amount > 0)) return false
   const raw = event.raw || ""
   const sig = await spendsSignature(date, store, amount, raw || "wallet")
-  const state = useServerSyncStore.getState()
   if (state.knownSignatures.includes(sig)) return false
-
+  if (!(await networkAllowsSync())) return false
+  try {
+    await pushSpendsSync({
+      wallet_events: [
+        {
+          date,
+          store,
+          amount,
+          raw,
+          signature: sig,
+          client_id: sig.slice(0, 16),
+        },
+      ],
+    })
+  } catch (e) {
+    logger.error("wallet push failed", {
+      error: e instanceof Error ? e.message : String(e),
+    })
+    return false
+  }
   const currency = "USD"
   const accountId = await ensurePrimaryAccount(currency)
   const catId = await ensureLocalStoreCategory(store)
@@ -351,29 +371,6 @@ export async function ingestWalletEvent(event: {
   }
   await createTransaction(txData)
   state.addKnownSignatures([sig])
-
-  if (state.isPaired()) {
-    try {
-      if (await networkAllowsSync()) {
-        await pushSpendsSync({
-          wallet_events: [
-            {
-              date,
-              store,
-              amount,
-              raw,
-              signature: sig,
-              client_id: sig.slice(0, 16),
-            },
-          ],
-        })
-      }
-    } catch (e) {
-      logger.error("wallet push failed", {
-        error: e instanceof Error ? e.message : String(e),
-      })
-    }
-  }
   return true
 }
 
