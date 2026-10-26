@@ -1,0 +1,449 @@
+import { useNavigation, useRouter } from "expo-router"
+import { useEffect, useLayoutEffect, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { FlatList, View as RNView } from "react-native"
+import { StyleSheet, useUnistyles } from "react-native-unistyles"
+
+import { AccountPickerSheet } from "~/components/accounts/account-picker-sheet"
+import { BillItemCard } from "~/components/bill-splitter/bill-item-card"
+import { ConfirmSheet } from "~/components/confirm-sheet"
+import { DynamicIcon } from "~/components/dynamic-icon"
+import { IconSvg } from "~/components/icons"
+import { InfoSheet } from "~/components/info-sheet"
+import { Money } from "~/components/money"
+import { RouteLoadingState } from "~/components/route-load-state"
+import { Button } from "~/components/ui/button"
+import { EmptyState } from "~/components/ui/empty-state"
+import { Fab } from "~/components/ui/fab"
+import { Pressable } from "~/components/ui/pressable"
+import { Text } from "~/components/ui/text"
+import { View } from "~/components/ui/view"
+import { useActiveAccountsQuery } from "~/database/drizzle/read-models/account-read-model"
+import {
+  getAllocatedTotal,
+  getBillTotal,
+  useBillSplitterStore,
+} from "~/stores/bill-splitter.store"
+import { useMoneyFormattingStore } from "~/stores/money-formatting.store"
+import type { BillItem } from "~/types/bill-splitter"
+export default function BillSplitterScreen() {
+  const { data: accounts, status } = useActiveAccountsQuery()
+  const { t } = useTranslation()
+  const { theme } = useUnistyles()
+  const router = useRouter()
+  const navigation = useNavigation()
+  const preferredCurrency = useMoneyFormattingStore((s) => s.preferredCurrency)
+  const participants = useBillSplitterStore((s) => s.participants)
+  const items = useBillSplitterStore((s) => s.items)
+  const accountId = useBillSplitterStore((s) => s.accountId)
+  const setAccountId = useBillSplitterStore((s) => s.setAccountId)
+  const removeItem = useBillSplitterStore((s) => s.removeItem)
+  const clearBill = useBillSplitterStore((s) => s.clearBill)
+  const setCurrencyCode = useBillSplitterStore((s) => s.setCurrencyCode)
+  const [infoVisible, setInfoVisible] = useState(false)
+  const [clearVisible, setClearVisible] = useState(false)
+  const [accountPickerOpen, setAccountPickerOpen] = useState(false)
+  const selectedAccount = accounts.find((a) => a.id === accountId) ?? null
+  const currency = selectedAccount?.currencyCode ?? preferredCurrency
+  useEffect(() => setCurrencyCode(currency), [currency, setCurrencyCode])
+  const total = getBillTotal(items)
+  const allocated = getAllocatedTotal(items)
+  // Progress bar fill percentage, clamped to 0–100
+  const progressPercent = total > 0 ? Math.min(allocated / total, 1) * 100 : 0
+  const handleSelectAccount = (id: string) => setAccountId(id)
+  // Header right: info button + trash (only when items exist)
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <RNView style={styles.headerRight}>
+          {items.length > 0 && (
+            <Pressable
+              onPress={() => setClearVisible(true)}
+              style={styles.headerButton}
+              accessibilityLabel={t(
+                "screens.settings.billSplitter.actions.clearBill",
+              )}
+            >
+              <IconSvg
+                name="trash-outline"
+                size={20}
+                color={theme.colors.error}
+              />
+            </Pressable>
+          )}
+          <Pressable
+            onPress={() => setInfoVisible(true)}
+            style={styles.headerButton}
+            accessibilityLabel={t("screens.settings.billSplitter.info.title")}
+          >
+            <IconSvg
+              name="info-circle-outline"
+              size={20}
+              color={theme.colors.onSecondary}
+            />
+          </Pressable>
+        </RNView>
+      ),
+    })
+  }, [navigation, theme, t, items.length])
+  const renderItem = ({ item }: { item: BillItem }) => (
+    <BillItemCard
+      item={item}
+      participants={participants}
+      onDelete={() => removeItem(item.id)}
+      onEdit={() =>
+        router.push({
+          pathname: "/settings/bill-splitter/add-item",
+          params: { itemId: item.id },
+        })
+      }
+    />
+  )
+  const hasItems = items.length > 0
+  if (status === "loading") return <RouteLoadingState />
+  return (
+    <View style={styles.container}>
+      <FlatList
+        data={items}
+        keyExtractor={(item) => item.id}
+        renderItem={renderItem}
+        // Extra bottom padding: summary button (72) + FAB offset (88)
+        contentContainerStyle={[
+          styles.listContent,
+          hasItems && styles.listContentWithSummary,
+        ]}
+        ListHeaderComponent={
+          <>
+            {/* Account Picker */}
+            <RNView style={styles.accountPickerBlock}>
+              {/* Trigger row */}
+              <Pressable
+                style={[
+                  styles.accountTrigger,
+                  selectedAccount && styles.accountTriggerSelected,
+                ]}
+                onPress={() => setAccountPickerOpen(true)}
+                accessibilityLabel={t(
+                  "screens.settings.billSplitter.summary.selectAccount",
+                )}
+              >
+                {selectedAccount ? (
+                  <>
+                    <DynamicIcon
+                      icon={selectedAccount.icon || "wallet-outline"}
+                      size={32}
+                      colorScheme={selectedAccount.colorScheme}
+                      variant="badge"
+                    />
+                    <View style={styles.accountTriggerContent}>
+                      <Text style={styles.accountTriggerName} numberOfLines={1}>
+                        {selectedAccount.name}
+                      </Text>
+                      <Money
+                        value={selectedAccount.balance}
+                        currency={selectedAccount.currencyCode}
+                        style={styles.accountTriggerBalance}
+                      />
+                    </View>
+                    <IconSvg
+                      name="chevron-down-outline"
+                      size={22}
+                      color={theme.colors.onSecondary}
+                      style={styles.chevron}
+                    />
+                  </>
+                ) : (
+                  <>
+                    <DynamicIcon
+                      icon="wallet-outline"
+                      size={32}
+                      color={theme.colors.primary}
+                      variant="badge"
+                    />
+                    <Text
+                      style={styles.accountTriggerPlaceholder}
+                      numberOfLines={1}
+                    >
+                      {t("screens.settings.billSplitter.summary.selectAccount")}
+                    </Text>
+                    <IconSvg
+                      name="chevron-down-outline"
+                      size={22}
+                      color={theme.colors.onSecondary}
+                      style={styles.chevron}
+                    />
+                  </>
+                )}
+              </Pressable>
+            </RNView>
+
+            {/* Hero Total Display */}
+            <View style={styles.heroContainer}>
+              <Money
+                value={allocated}
+                currency={currency}
+                hideSign
+                style={styles.heroAmount}
+              />
+              <Text style={styles.heroOf}>
+                {`/ `}
+                <Money
+                  value={total}
+                  currency={currency}
+                  hideSign
+                  style={styles.heroTotal}
+                />
+              </Text>
+
+              {/* Progress bar */}
+              <View style={styles.progressTrack}>
+                <View
+                  style={[
+                    styles.progressFill,
+                    { width: `${progressPercent}%` },
+                  ]}
+                />
+              </View>
+
+              {/* Participants chip */}
+              <Pressable
+                style={styles.participantsChip}
+                onPress={() => router.push("/settings/bill-splitter/names")}
+                accessibilityLabel={t(
+                  "screens.settings.billSplitter.names.title",
+                )}
+              >
+                <IconSvg
+                  name="users-outline"
+                  size={14}
+                  color={theme.colors.onSecondary}
+                />
+                <Text style={styles.participantsChipText}>
+                  {participants.length}{" "}
+                  {t("screens.settings.billSplitter.names.title").toLowerCase()}
+                </Text>
+              </Pressable>
+            </View>
+          </>
+        }
+        ListEmptyComponent={
+          <EmptyState
+            icon="page-break-outline"
+            title={t("screens.settings.billSplitter.items.empty.title")}
+            description={t(
+              "screens.settings.billSplitter.items.empty.description",
+            )}
+          />
+        }
+        ItemSeparatorComponent={() => <View style={styles.separator} />}
+      />
+
+      {/* Summary bottom button — only when items exist */}
+      {hasItems && (
+        <View style={styles.summaryButtonContainer}>
+          <Button
+            style={styles.summaryButton}
+            onPress={() => router.push("/settings/bill-splitter/summary")}
+          >
+            <Text style={styles.summaryButtonText}>
+              {t("screens.settings.billSplitter.actions.summary")}
+            </Text>
+          </Button>
+        </View>
+      )}
+
+      {/* FAB — positioned above the summary button when visible */}
+      <Fab
+        onPress={() => router.push("/settings/bill-splitter/add-item")}
+        accessibilityLabel={t("screens.settings.billSplitter.actions.addItem")}
+        style={hasItems && styles.fabAboveSummary}
+      />
+
+      {/* Sheets */}
+      <AccountPickerSheet
+        visible={accountPickerOpen}
+        onClose={() => setAccountPickerOpen(false)}
+        title={t("screens.settings.billSplitter.summary.selectAccount")}
+        accounts={accounts}
+        selectedId={accountId ?? undefined}
+        onSelect={handleSelectAccount}
+      />
+      <InfoSheet
+        visible={infoVisible}
+        onRequestClose={() => setInfoVisible(false)}
+        title={t("screens.settings.billSplitter.info.title")}
+        description={t("screens.settings.billSplitter.info.description")}
+      />
+      <ConfirmSheet
+        visible={clearVisible}
+        onRequestClose={() => setClearVisible(false)}
+        onConfirm={clearBill}
+        title={t("screens.settings.billSplitter.clear.confirm.title")}
+        description={t(
+          "screens.settings.billSplitter.clear.confirm.description",
+        )}
+        confirmLabel={t("common.actions.clear")}
+        variant="destructive"
+        icon="trash-outline"
+      />
+    </View>
+  )
+}
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+  },
+  // Header
+  headerRight: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 4,
+    marginRight: 4,
+  },
+  headerButton: {
+    padding: 6,
+    borderRadius: theme.radius,
+  },
+  // Account picker block (trigger + inline list)
+  accountPickerBlock: {
+    marginTop: 16,
+  },
+  accountTrigger: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 10,
+    borderRadius: theme.radius,
+    borderWidth: 2,
+    borderColor: theme.colors.secondary,
+    borderStyle: "dashed",
+  },
+  accountTriggerSelected: {
+    borderStyle: "solid",
+    borderColor: theme.colors.primary,
+  },
+  accountTriggerContent: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    gap: 8,
+  },
+  accountTriggerName: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    fontWeight: "600",
+    color: theme.colors.onSurface,
+    flex: 1,
+    minWidth: 0,
+  },
+  accountTriggerBalance: {
+    fontSize: theme.typography.bodyMedium.fontSize,
+    color: theme.colors.semantic.semi,
+  },
+  accountTriggerPlaceholder: {
+    flex: 1,
+    fontSize: theme.typography.bodyLarge.fontSize,
+    color: theme.colors.semantic.semi,
+  },
+  chevron: {
+    opacity: 0.7,
+    alignSelf: "center",
+  },
+  // Inline account picker dropdown
+  // Hero total display
+  heroContainer: {
+    alignItems: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+    gap: 4,
+  },
+  heroAmount: {
+    ...theme.typography.headlineLarge,
+    color: theme.colors.onSurface,
+  },
+  heroOf: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    color: theme.colors.onSecondary,
+  },
+  heroTotal: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    color: theme.colors.onSecondary,
+  },
+  // Progress bar
+  progressTrack: {
+    marginTop: 12,
+    width: "100%",
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: `${theme.colors.onSurface}15`,
+    overflow: "hidden",
+  },
+  progressFill: {
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: theme.colors.primary,
+  },
+  // Participants chip
+  participantsChip: {
+    marginTop: 8,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 999,
+    backgroundColor: `${theme.colors.onSurface}08`,
+    borderWidth: 1,
+    borderColor: theme.colors.semantic.semi,
+    alignSelf: "center",
+  },
+  participantsChipText: {
+    fontSize: theme.typography.bodyMedium.fontSize,
+    fontWeight: "500",
+    color: theme.colors.onSecondary,
+  },
+  // Items list
+  listContent: {
+    paddingTop: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 96,
+    gap: 12,
+  },
+  listContentWithSummary: {
+    // Extra room so content clears the summary button + FAB
+    paddingBottom: 160,
+  },
+  separator: {
+    height: 0,
+  },
+  // Summary bottom button
+  summaryButtonContainer: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    paddingTop: 8,
+    backgroundColor: theme.colors.surface,
+    borderTopWidth: 1,
+    borderTopColor: `${theme.colors.onSurface}10`,
+  },
+  summaryButton: {
+    flex: 1,
+    height: 48,
+  },
+  summaryButtonText: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    fontWeight: "600",
+    color: theme.colors.onPrimary,
+  },
+  // FAB
+  // Raise FAB above the summary button strip (height 88 = 48 button + 20 pad + 8 top pad + 12 gap)
+  fabAboveSummary: {
+    bottom: 100,
+  },
+}))

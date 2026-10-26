@@ -1,0 +1,349 @@
+import { useRef } from "react"
+import { useTranslation } from "react-i18next"
+import Swipeable, {
+  type SwipeableMethods,
+} from "react-native-gesture-handler/ReanimatedSwipeable"
+import type { SharedValue } from "react-native-reanimated"
+import { useUnistyles } from "react-native-unistyles"
+import { useShallow } from "zustand/react/shallow"
+
+import { IconSvg } from "~/components/icons"
+import { Pressable } from "~/components/ui/pressable"
+import { View } from "~/components/ui/view"
+import type { TransactionWithRelations } from "~/database/drizzle/read-models/transaction-read-model"
+import {
+  deleteTransaction,
+  deleteTransfer,
+} from "~/database/services/ledger-service"
+import { useIsConfirmable } from "~/hooks/use-time-reactivity"
+import { isPreapproved } from "~/services/auto-confirmation-service"
+import { usePendingTransactionsStore } from "~/stores/pending-transactions.store"
+import { useTransactionItemAppearanceStore } from "~/stores/transaction-item-appearance.store"
+import { useTransfersPreferencesStore } from "~/stores/transfers-preferences.store"
+import {
+  TransactionKindEnum,
+  TransactionSubTypeEnum,
+  TransactionTypeEnum,
+} from "~/types/transactions"
+import { convertMinorUnits } from "~/utils/money"
+import { formatFriendlyDate, formatReadableTime } from "~/utils/time-utils"
+import { Toast } from "~/utils/toast"
+
+import { transactionItemStyles } from "./styles"
+import { SwipeAction } from "./swipe-action"
+import { TransactionItemLeft } from "./transaction-item-left"
+import { TransactionItemRight } from "./transaction-item-right"
+
+const TRASH_ACTION_WIDTH = 100
+type TransactionItemVariant = "default" | "upcoming"
+interface TransactionItemProps {
+  transactionWithRelations: TransactionWithRelations
+  onPress?: () => void
+  onDelete?: () => void
+  /** If provided and returns true, parent handles delete (e.g. shows recurring modal); item will not delete and only close swipe. */
+  onBeforeDelete?: (row: TransactionWithRelations) => boolean | Promise<boolean>
+  /** Left-swipe restore action. Only shown when the transaction is already deleted (trash). */
+  onRestore?: () => void | Promise<void>
+  onConfirm?: () => void
+  onWillOpen?: (methods: SwipeableMethods) => void
+  rightActionAccessibilityLabel?: string
+  leftActionAccessibilityLabel?: string
+  variant?: TransactionItemVariant
+}
+/**
+ * Own component so the time-based confirmable check (a scheduler subscription
+ * per row) only exists for upcoming rows that can show the button.
+ */
+const ConfirmButton = ({
+  transaction,
+  onConfirm,
+}: {
+  transaction: TransactionWithRelations
+  onConfirm: () => void
+}) => {
+  const { t } = useTranslation()
+  const { theme } = useUnistyles()
+  const isConfirmable = useIsConfirmable(transaction)
+  if (!isConfirmable) return null
+  return (
+    <Pressable
+      style={[
+        transactionItemStyles.confirmButton,
+        { backgroundColor: theme.colors.semantic.success },
+      ]}
+      onPress={onConfirm}
+      accessibilityLabel={t("screens.home.upcoming.a11y.confirm")}
+    >
+      <IconSvg name="check" size={18} color={theme.colors.onError} />
+    </Pressable>
+  )
+}
+
+export const TransactionItem = ({
+  transactionWithRelations,
+  onPress,
+  onDelete,
+  onBeforeDelete,
+  onRestore,
+  onConfirm,
+  onWillOpen,
+  rightActionAccessibilityLabel,
+  leftActionAccessibilityLabel,
+  variant = "default",
+}: TransactionItemProps) => {
+  const swipeableRef = useRef<SwipeableMethods | null>(null)
+  const { t } = useTranslation()
+  const { theme } = useUnistyles()
+  const {
+    id,
+    account,
+    category,
+    relatedAccount,
+    conversionRate,
+    isTransfer: txIsTransfer,
+    type,
+    amount,
+    title,
+    transactionDate,
+    extra,
+    isDeleted,
+    transferId,
+    subtype,
+    kind,
+  } = transactionWithRelations
+  const isTransfer = txIsTransfer || type === TransactionTypeEnum.TRANSFER
+  const transferLayout = useTransfersPreferencesStore((s) => s.layout)
+  const isCombinedTransfer = Boolean(
+    isTransfer && transferLayout === "combine" && relatedAccount,
+  )
+  const isCrossCurrencyTransfer = Boolean(
+    isTransfer &&
+      account &&
+      relatedAccount &&
+      conversionRate != null &&
+      conversionRate > 0 &&
+      account.currencyCode !== relatedAccount.currencyCode,
+  )
+  const otherCurrencyAmount =
+    isCrossCurrencyTransfer && conversionRate && account && relatedAccount
+      ? amount < 0
+        ? convertMinorUnits(
+            Math.abs(amount),
+            account.currencyCode,
+            relatedAccount.currencyCode,
+            conversionRate,
+          )
+        : convertMinorUnits(
+            amount,
+            account.currencyCode,
+            relatedAccount.currencyCode,
+            1 / conversionRate,
+          )
+      : null
+  const icon = isTransfer ? "arrows-right-left-outline" : category?.icon
+  const amountTone = isTransfer
+    ? amount < 0
+      ? TransactionTypeEnum.EXPENSE
+      : TransactionTypeEnum.INCOME
+    : subtype === TransactionSubTypeEnum.REFUND
+      ? TransactionTypeEnum.INCOME
+      : type
+  // ── Appearance preferences ──────────────────────────────────────────────
+  const {
+    variant: appearanceVariant,
+    showCategory: showCategoryInSubtitle,
+    showUntitledForBlankTitle,
+    leadingIcon: leadingIconPref,
+  } = useTransactionItemAppearanceStore(
+    useShallow((s) => ({
+      variant: s.variant,
+      showCategory: s.showCategory,
+      showUntitledForBlankTitle: s.showUntitledForBlankTitle,
+      leadingIcon: s.leadingIcon,
+    })),
+  )
+  const untitledLabel = t("common.transaction.untitledTransaction")
+  const trimmedTitle = title?.trim() || undefined
+  const displayTitle =
+    trimmedTitle ??
+    (showUntitledForBlankTitle
+      ? untitledLabel
+      : (category?.name ?? untitledLabel))
+  const displayIcon =
+    leadingIconPref === "account" ? (account?.icon ?? icon) : icon
+  const displayColorScheme =
+    leadingIconPref === "account" ? account?.colorScheme : category?.colorScheme
+  const { autoPaySubscriptions, autoPayRepetitive, autoPayUpcoming } =
+    usePendingTransactionsStore(
+      useShallow((s) => ({
+        autoPaySubscriptions: s.autoPaySubscriptions,
+        autoPayRepetitive: s.autoPayRepetitive,
+        autoPayUpcoming: s.autoPayUpcoming,
+      })),
+    )
+  // Show the manual confirm affordance only for rows that will NOT auto-pay.
+  const requireConfirmation = !isPreapproved(transactionWithRelations, {
+    autoPaySubscriptions,
+    autoPayRepetitive,
+    autoPayUpcoming,
+  })
+  const isUpcoming = variant === "upcoming"
+  const isAutoRecurring = Boolean(extra?.recurringId)
+  const accountLabel =
+    isCombinedTransfer && relatedAccount
+      ? `${account?.name} → ${relatedAccount.name}`
+      : account?.name
+  const categorySegment =
+    showCategoryInSubtitle && !isTransfer
+      ? !category
+        ? ` • ${t("common.transaction.uncategorized")}`
+        : ` • ${category.name}`
+      : ""
+  const timeSegment = isUpcoming
+    ? ` • ${formatFriendlyDate(transactionDate)}, ${formatReadableTime(transactionDate)}`
+    : ` • ${formatReadableTime(transactionDate)}`
+  const subtitleText = `${accountLabel}${categorySegment}${timeSegment}`
+  const showRecurringBadge = isUpcoming && isAutoRecurring
+  // CSI-2: the "Upcoming" chip follows `kind`, not the section variant, so it
+  // also shows in the main list. Pending recurring instances keep the recurring
+  // indicator instead (their kind is subscription/repetitive, not upcoming).
+  const showUpcomingBadge =
+    kind === TransactionKindEnum.UPCOMING && !isAutoRecurring
+  const handleRestorePress = async (closeSwipe: () => void) => {
+    closeSwipe()
+    await Promise.resolve(onRestore?.())
+  }
+  const renderLeftActions = (
+    progress: SharedValue<number>,
+    _translation: SharedValue<number>,
+    swipeableMethods: {
+      close: () => void
+    },
+  ) => (
+    <SwipeAction
+      kind="restore"
+      progress={progress}
+      onPress={() => {
+        void handleRestorePress(swipeableMethods.close)
+      }}
+      accessibilityLabel={leftActionAccessibilityLabel}
+    />
+  )
+  const handleTrashPress = async (closeSwipe: () => void) => {
+    if (onBeforeDelete) {
+      const handled = await Promise.resolve(
+        onBeforeDelete(transactionWithRelations),
+      )
+      if (handled) {
+        closeSwipe()
+        return
+      }
+    }
+    if (isDeleted) {
+      closeSwipe()
+      onDelete?.()
+      return
+    }
+    const promise =
+      txIsTransfer && transferId ? deleteTransfer(id) : deleteTransaction(id)
+    promise
+      .then(() =>
+        Toast.success({
+          title: isUpcoming
+            ? t("components.transactionItem.canceled")
+            : t("components.transactionForm.toast.movedToTrash"),
+        }),
+      )
+      .catch(() =>
+        Toast.error({
+          title: isUpcoming
+            ? t("components.transactionItem.failedToDelete")
+            : t("components.transactionForm.toast.moveToTrashFailed"),
+        }),
+      )
+      .finally(() => {
+        closeSwipe()
+        onDelete?.()
+      })
+  }
+  const renderRightActions = (
+    progress: SharedValue<number>,
+    _translation: SharedValue<number>,
+    swipeableMethods: {
+      close: () => void
+    },
+  ) => (
+    <SwipeAction
+      kind="trash"
+      progress={progress}
+      onPress={() => handleTrashPress(swipeableMethods.close)}
+      accessibilityLabel={
+        rightActionAccessibilityLabel ??
+        t("screens.settings.trash.a11y.moveToTrash")
+      }
+    />
+  )
+  const content = (
+    <View style={transactionItemStyles.container}>
+      <Pressable
+        style={[
+          transactionItemStyles.mainTouchable,
+          appearanceVariant === "elevated" &&
+            transactionItemStyles.mainTouchableElevated,
+        ]}
+        onPress={onPress}
+      >
+        <TransactionItemLeft
+          displayIcon={displayIcon}
+          displayColorScheme={displayColorScheme}
+          displayTitle={displayTitle}
+          subtitleText={subtitleText}
+          isRefund={subtype === TransactionSubTypeEnum.REFUND}
+        />
+        <TransactionItemRight
+          amount={amount}
+          currencyCode={account?.currencyCode ?? ""}
+          amountTone={amountTone}
+          isTransfer={isTransfer}
+          isCombinedTransfer={isCombinedTransfer}
+          isCrossCurrencyTransfer={isCrossCurrencyTransfer}
+          otherCurrencyAmount={otherCurrencyAmount}
+          relatedAccountCurrencyCode={relatedAccount?.currencyCode}
+          showRecurringBadge={showRecurringBadge}
+          showUpcomingBadge={showUpcomingBadge}
+        />
+      </Pressable>
+
+      {isUpcoming && requireConfirmation && onConfirm && (
+        <ConfirmButton
+          transaction={transactionWithRelations}
+          onConfirm={onConfirm}
+        />
+      )}
+    </View>
+  )
+  if (onDelete == null) {
+    return content
+  }
+  return (
+    <Swipeable
+      ref={swipeableRef}
+      friction={2}
+      overshootFriction={8}
+      // Threshold / friction = raw distance needed. /4 → 50px raw swipe to open (vs /2 → 100px). Reliable on slow swipes.
+      rightThreshold={TRASH_ACTION_WIDTH / 4}
+      leftThreshold={onRestore ? TRASH_ACTION_WIDTH / 4 : undefined}
+      overshootRight={false}
+      overshootLeft={false}
+      containerStyle={transactionItemStyles.swipeableContainer}
+      renderRightActions={renderRightActions}
+      renderLeftActions={onRestore ? renderLeftActions : undefined}
+      onSwipeableWillOpen={() => {
+        const methods = swipeableRef.current
+        if (methods) onWillOpen?.(methods)
+      }}
+    >
+      {content}
+    </Swipeable>
+  )
+}

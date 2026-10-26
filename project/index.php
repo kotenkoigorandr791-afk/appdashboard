@@ -33,9 +33,9 @@ if (isset($_GET['sharedFile'])) {
 $__path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
 $__pathLower = strtolower($__path);
 
-// Alias: allow external apps to call /api/steps or /api/kanboard as a shorthand
-// for /public-api/* (mobile pairing links and webhooks omit the /public-api prefix).
-if (str_starts_with($__pathLower, '/api/steps') || str_starts_with($__pathLower, '/api/kanboard')) {
+// Alias: allow external apps to call /api/steps, /api/kanboard, or /api/spends as a
+// shorthand for /public-api/* (mobile pairing links and webhooks omit the /public-api prefix).
+if (str_starts_with($__pathLower, '/api/steps') || str_starts_with($__pathLower, '/api/kanboard') || str_starts_with($__pathLower, '/api/spends')) {
     $rest = substr($__path, strlen('/api')); // "/steps"...
     $qs = (string)($_SERVER['QUERY_STRING'] ?? '');
     $_SERVER['REQUEST_URI'] = '/public-api' . $rest . ($qs !== '' ? ('?' . $qs) : '');

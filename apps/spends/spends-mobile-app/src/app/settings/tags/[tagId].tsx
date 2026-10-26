@@ -1,0 +1,209 @@
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useLocalSearchParams, useNavigation, useRouter } from "expo-router"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
+import { StyleSheet } from "react-native-unistyles"
+
+import type { IconSvgName } from "~/components/icons"
+import { ModifyFormFooter } from "~/components/modify-form/modify-form-footer"
+import {
+  RouteLoadingState,
+  RouteNotFoundState,
+} from "~/components/route-load-state"
+import { DeleteSection } from "~/components/tag/delete-section"
+import { FormTagFields } from "~/components/tag/form-tag-fields"
+import { FormTagSheets } from "~/components/tag/form-tag-sheets"
+import { TypeTabs } from "~/components/tag/type-tabs"
+import { View } from "~/components/ui/view"
+import { ScrollIntoViewProvider } from "~/contexts/scroll-into-view-context"
+import { useTagsQuery } from "~/database/drizzle/read-models/tag-read-model"
+import {
+  createTag,
+  deleteTagById,
+  updateTagById,
+} from "~/database/services/tag-service"
+import { useModifyRouteLoader } from "~/hooks/use-modify-route-loader"
+import { useNavigationGuard } from "~/hooks/use-navigation-guard"
+import { type AddTagsFormSchema, addTagsSchema } from "~/schemas/tags.schema"
+import { getThemeStrict } from "~/styles/theme/registry"
+import { NewEnum } from "~/types/new"
+import { type Tag, TagKindEnum, type TagKindType } from "~/types/tags"
+import { logger } from "~/utils/logger"
+import { Toast } from "~/utils/toast"
+
+interface EditTagScreenInnerProps {
+  tagId: string
+  tag?: Tag
+}
+function EditTagScreenInner({ tagId, tag }: EditTagScreenInnerProps) {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const navigation = useNavigation()
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false)
+  const isAddMode = tagId === NewEnum.NEW || !tagId
+  const {
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isDirty, isSubmitting },
+    watch,
+    setValue,
+  } = useForm({
+    resolver: zodResolver(addTagsSchema),
+    defaultValues: {
+      name: tag?.name ?? "",
+      type: tag?.type || TagKindEnum.GENERIC,
+      icon: tag?.icon || "tag-outline",
+      colorSchemeName: tag?.colorSchemeName || undefined,
+    },
+  })
+  const formName = watch("name")
+  const formIcon = watch("icon")
+  const formColorSchemeName = watch("colorSchemeName")
+  const formType = watch("type")
+  const iconBasedType = (type?: TagKindType): IconSvgName => {
+    if (type === TagKindEnum.CONTACT) return "address-book-outline"
+    if (type === TagKindEnum.LOCATION) return "map-outline"
+    return "tag"
+  }
+  const handleConfirm = () => {
+    router.back()
+  }
+  const handleBlock = () => {
+    setUnsavedSheetVisible(true)
+  }
+  const { allowNavigation } = useNavigationGuard({
+    navigation,
+    when: isDirty && !isSubmitting,
+    onBlock: handleBlock,
+  })
+  const [deleteSheetVisible, setDeleteSheetVisible] = useState(false)
+  const onSubmit = async (data: AddTagsFormSchema) => {
+    try {
+      if (isAddMode) {
+        await createTag(data)
+      } else {
+        await updateTagById(tagId, data)
+      }
+      allowNavigation()
+      router.back()
+    } catch (error) {
+      logger.error("Error saving tag", { error })
+      Toast.error({
+        title: t("common.toast.error"),
+        description: isAddMode
+          ? t("screens.settings.tags.form.toast.createFailed")
+          : t("screens.settings.tags.form.toast.updateFailed"),
+      })
+    }
+  }
+  const handleDelete = async () => {
+    try {
+      await deleteTagById(tagId)
+    } catch (error) {
+      logger.error("Error deleting tag", { error })
+      Toast.error({
+        title: t("common.toast.error"),
+        description: t("screens.settings.tags.form.toast.deleteFailed"),
+      })
+      return false
+    }
+  }
+  // Runs once the delete sheet has closed: leaving earlier tears it down mid-animation.
+  const handleDeleted = () => {
+    allowNavigation()
+    router.back()
+  }
+  const currentColorScheme = getThemeStrict(formColorSchemeName)
+  if (!isAddMode && !tag) {
+    return <RouteLoadingState />
+  }
+  return (
+    <View style={styles.container}>
+      <ScrollIntoViewProvider
+        scrollViewStyle={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <TypeTabs
+          value={formType}
+          onValueChange={(value) => {
+            setValue("type", value, { shouldDirty: true })
+            setValue("icon", iconBasedType(value), { shouldDirty: true })
+          }}
+        />
+
+        <FormTagFields
+          control={control}
+          errors={errors}
+          formType={formType}
+          formIcon={formIcon}
+          formColorSchemeName={formColorSchemeName}
+          currentColorScheme={currentColorScheme}
+          setValue={setValue}
+          tag={tag}
+          isAddMode={isAddMode}
+        />
+
+        {!isAddMode && (
+          <DeleteSection onDeletePress={() => setDeleteSheetVisible(true)} />
+        )}
+      </ScrollIntoViewProvider>
+
+      <ModifyFormFooter
+        formName={formName}
+        isAddMode={isAddMode}
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onCancel={() => router.back()}
+        onSave={handleFormSubmit(onSubmit)}
+      />
+
+      <FormTagSheets
+        deleteSheetVisible={deleteSheetVisible}
+        setDeleteSheetVisible={setDeleteSheetVisible}
+        tag={tag}
+        handleDelete={handleDelete}
+        onDeleted={handleDeleted}
+        unsavedSheetVisible={unsavedSheetVisible}
+        setUnsavedSheetVisible={setUnsavedSheetVisible}
+        allowNavigation={allowNavigation}
+        handleConfirm={handleConfirm}
+      />
+    </View>
+  )
+}
+export default function EditTagScreen() {
+  const { t } = useTranslation()
+  const { tagId } = useLocalSearchParams<{
+    tagId: string
+  }>()
+  const tagsQuery = useTagsQuery(true)
+  const loadState = useModifyRouteLoader({
+    id: tagId,
+    data: tagsQuery.data,
+    updatedAt: tagsQuery.updatedAt,
+    notFoundMessage: t("common.notFound.tag"),
+  })
+
+  if (loadState.mode === "new") {
+    return <EditTagScreenInner tagId={NewEnum.NEW} />
+  }
+  if (loadState.mode === "loading") return <RouteLoadingState />
+  if (loadState.mode === "not-found") {
+    return <RouteNotFoundState message={loadState.message} />
+  }
+
+  return <EditTagScreenInner key={tagId} tagId={tagId} tag={loadState.entity} />
+}
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+  },
+}))

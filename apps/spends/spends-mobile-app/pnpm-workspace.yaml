@@ -1,0 +1,10 @@
+allowBuilds:
+  "@shopify/react-native-skia": true
+  esbuild: true
+  msgpackr-extract: true
+
+# Supply Chain Hardening
+# minimumReleaseAge: 10080 # 7 days (10080 minutes)
+# trustPolicy: no-downgrade
+
+networkConcurrency: 1

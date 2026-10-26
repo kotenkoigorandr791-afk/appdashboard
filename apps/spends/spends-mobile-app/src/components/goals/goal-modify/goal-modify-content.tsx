@@ -1,0 +1,431 @@
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useNavigation, useRouter } from "expo-router"
+import { useState } from "react"
+import { Controller, useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
+import { useUnistyles } from "react-native-unistyles"
+
+import { ChangeIconInline } from "~/components/change-icon-inline"
+import { ColorVariantInline } from "~/components/color-variant-inline"
+import { CurrencyAccountSelector } from "~/components/currency-account-selector"
+import { IconSvg } from "~/components/icons"
+import {
+  FormDeleteButton,
+  FormNameField,
+} from "~/components/modify-form/form-fields"
+import { modifyFormStyles } from "~/components/modify-form/modify-form.styles"
+import { ModifyFormFooter } from "~/components/modify-form/modify-form-footer"
+import { RouteLoadingState } from "~/components/route-load-state"
+import { SmartAmountInput } from "~/components/smart-amount-input"
+import { TabsMinty } from "~/components/tabs-minty"
+import { Button } from "~/components/ui/button"
+import {
+  DateTimePickerSheet,
+  useDateTimePicker,
+} from "~/components/ui/date-time-picker"
+import { Input } from "~/components/ui/input"
+import { ListItem } from "~/components/ui/list-item"
+import { Pressable } from "~/components/ui/pressable"
+import { Separator } from "~/components/ui/separator"
+import { Text } from "~/components/ui/text"
+import { View } from "~/components/ui/view"
+import { ScrollIntoViewProvider } from "~/contexts/scroll-into-view-context"
+import {
+  archiveGoalById,
+  createGoal,
+  deleteGoalById,
+  unarchiveGoalById,
+  updateGoalById,
+} from "~/database/services/goal-service"
+import { useNavigationGuard } from "~/hooks/use-navigation-guard"
+import type { TranslationKey } from "~/i18n/config"
+import { type AddGoalFormSchema, addGoalSchema } from "~/schemas/goals.schema"
+import { getThemeStrict } from "~/styles/theme/registry"
+import { type GoalType, GoalTypeEnum } from "~/types/goals"
+import { NewEnum } from "~/types/new"
+import { logger } from "~/utils/logger"
+import { rescaleMinorUnits } from "~/utils/money"
+import { formatShortMonthDayYear } from "~/utils/time-utils"
+import { Toast } from "~/utils/toast"
+
+import { GoalFormSheets } from "./goal-form-sheets"
+import { goalModifyStyles } from "./goal-modify.styles"
+import type { GoalModifyContentProps } from "./types"
+export function GoalModifyContent({
+  goalModifyId,
+  goal,
+  accounts,
+}: GoalModifyContentProps) {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const { theme } = useUnistyles()
+  const isAddMode = goalModifyId === NewEnum.NEW || !goalModifyId
+  const handleGoBack = () => {
+    router.back()
+  }
+  const {
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isDirty, isSubmitting },
+    watch,
+    setValue,
+  } = useForm<AddGoalFormSchema>({
+    resolver: zodResolver(addGoalSchema),
+    defaultValues: {
+      goalType: goal?.goalType ?? GoalTypeEnum.SAVINGS,
+      name: goal?.name ?? "",
+      description: goal?.description ?? null,
+      icon: goal?.icon ?? "target-outline",
+      colorSchemeName: goal?.colorSchemeName ?? undefined,
+      currencyCode: goal?.currencyCode ?? "",
+      accountIds: goal?.accountIds ?? [],
+      targetAmount: goal?.targetAmount ?? 0,
+      targetDate: goal?.targetDate ? goal.targetDate.getTime() : null,
+    },
+  })
+  const formGoalType = watch("goalType")
+  const formName = watch("name")
+  const formIcon = watch("icon")
+  const formColorSchemeName = watch("colorSchemeName")
+  const formCurrencyCode = watch("currencyCode")
+  const formAccountIds = watch("accountIds")
+  const formTargetAmount = watch("targetAmount")
+  const formTargetDate = watch("targetDate")
+  const navigation = useNavigation()
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false)
+  const { allowNavigation } = useNavigationGuard({
+    navigation,
+    when: isDirty && !isSubmitting,
+    onBlock: () => setUnsavedSheetVisible(true),
+  })
+  const [deleteSheetVisible, setDeleteSheetVisible] = useState(false)
+  const [archiveSheetVisible, setArchiveSheetVisible] = useState(false)
+  const targetDatePicker = useDateTimePicker({
+    onConfirm: (date) =>
+      setValue("targetDate", date.getTime(), { shouldDirty: true }),
+  })
+  const onSubmit = async (data: AddGoalFormSchema) => {
+    const trimmedName = data.name.trim()
+    try {
+      if (isAddMode) {
+        await createGoal({
+          ...data,
+          name: trimmedName,
+        })
+        allowNavigation()
+        handleGoBack()
+      } else {
+        await updateGoalById(goalModifyId, {
+          ...data,
+          name: trimmedName,
+        })
+        allowNavigation()
+        handleGoBack()
+      }
+    } catch (error) {
+      logger.error("Error saving goal", { error })
+      Toast.error({
+        title: t("common.toast.error"),
+        description: isAddMode
+          ? t("screens.settings.goals.form.toast.createFailed")
+          : t("screens.settings.goals.form.toast.updateFailed"),
+      })
+    }
+  }
+  const handleSubmit = handleFormSubmit(onSubmit)
+  const handleDelete = async () => {
+    try {
+      if (!goal) {
+        Toast.error({
+          title: t("common.toast.error"),
+          description: t("screens.settings.goals.form.toast.notFound"),
+        })
+        return false
+      }
+      await deleteGoalById(goalModifyId)
+    } catch (error) {
+      logger.error("Error deleting goal", { error })
+      Toast.error({
+        title: t("common.toast.error"),
+        description: t("screens.settings.goals.form.toast.deleteFailed"),
+      })
+      return false
+    }
+  }
+  // Runs once the delete sheet has closed: leaving earlier tears it down mid-animation.
+  const handleDeleted = () => {
+    allowNavigation()
+    // Dismiss 2 levels: the edit screen and the goal detail screen
+    router.dismiss(2)
+  }
+  const handleArchive = async () => {
+    try {
+      if (!goal) return false
+      if (goal.isArchived) {
+        await unarchiveGoalById(goalModifyId)
+        Toast.success({
+          title: t("screens.settings.goals.unarchiveSuccess"),
+        })
+      } else {
+        await archiveGoalById(goalModifyId)
+        Toast.success({
+          title: t("screens.settings.goals.archiveSuccess"),
+        })
+      }
+    } catch (error) {
+      logger.error("Error archiving goal", { error })
+      Toast.error({ title: t("common.toast.error") })
+      return false
+    }
+  }
+  const handleArchived = () => {
+    allowNavigation()
+    router.back()
+  }
+  const handleIconSelected = (icon: string | null) => {
+    setValue("icon", icon, { shouldDirty: true })
+  }
+  const handleColorSelected = (schemeName: string) => {
+    setValue("colorSchemeName", schemeName, { shouldDirty: true })
+  }
+  const handleColorCleared = () => {
+    setValue("colorSchemeName", undefined, { shouldDirty: true })
+  }
+  const handleClearDate = () => {
+    setValue("targetDate", null, { shouldDirty: true })
+  }
+  const handleGoalTypeChange = (v: GoalType) =>
+    setValue("goalType", v, { shouldDirty: true })
+  const currentColorScheme = getThemeStrict(formColorSchemeName)
+  const formattedTargetDate = formTargetDate
+    ? formatShortMonthDayYear(formTargetDate)
+    : null
+  if (!isAddMode && !goal) {
+    return <RouteLoadingState />
+  }
+  return (
+    <View style={modifyFormStyles.container}>
+      <ScrollIntoViewProvider
+        scrollViewStyle={modifyFormStyles.scrollView}
+        contentContainerStyle={modifyFormStyles.scrollContent}
+      >
+        <View style={modifyFormStyles.form} key={goal?.id ?? NewEnum.NEW}>
+          {/* Goal type selector */}
+          <TabsMinty<GoalType>
+            items={[
+              {
+                value: GoalTypeEnum.SAVINGS,
+                label: t("screens.settings.goals.form.goalType.savings"),
+                icon: "caret-down-outline",
+              },
+              {
+                value: GoalTypeEnum.EXPENSE,
+                label: t("screens.settings.goals.form.goalType.expense"),
+                icon: "caret-up-outline",
+              },
+            ]}
+            activeValue={formGoalType}
+            onValueChange={handleGoalTypeChange}
+            variant="segmented"
+          />
+
+          {/* Icon picker */}
+          <ChangeIconInline
+            currentIcon={formIcon}
+            onIconSelected={handleIconSelected}
+            colorScheme={currentColorScheme}
+          />
+
+          {/* Name input */}
+          <FormNameField
+            control={control}
+            label={t("screens.settings.goals.form.nameLabel")}
+            placeholder={t("screens.settings.goals.form.namePlaceholder")}
+            error={errors.name}
+          />
+
+          {/* Description input (optional, multiline) */}
+          <View style={goalModifyStyles.descriptionSection}>
+            <Text variant="small" style={modifyFormStyles.label}>
+              {t("screens.settings.goals.form.descriptionLabel")}
+            </Text>
+            <Controller
+              control={control}
+              name="description"
+              render={({ field: { onChange, onBlur, value } }) => (
+                <Input
+                  value={value ?? ""}
+                  onChangeText={(text) => onChange(text || null)}
+                  onBlur={onBlur}
+                  placeholder={t(
+                    "screens.settings.goals.form.descriptionPlaceholder",
+                  )}
+                  multiline
+                  numberOfLines={3}
+                />
+              )}
+            />
+          </View>
+
+          {/* Currency and account selector */}
+          <View>
+            <CurrencyAccountSelector
+              accounts={accounts}
+              selectedCurrency={formCurrencyCode || null}
+              selectedAccountIds={formAccountIds}
+              onCurrencyChange={(code) => {
+                if (formCurrencyCode && code !== formCurrencyCode) {
+                  setValue(
+                    "targetAmount",
+                    rescaleMinorUnits(formTargetAmount, formCurrencyCode, code),
+                    { shouldDirty: true },
+                  )
+                }
+                setValue("currencyCode", code, { shouldDirty: true })
+              }}
+              onAccountIdsChange={(ids) => {
+                setValue("accountIds", ids, { shouldDirty: true })
+              }}
+            />
+          </View>
+
+          {/* Target amount */}
+          <View style={goalModifyStyles.targetAmountSection}>
+            <Controller
+              control={control}
+              name="targetAmount"
+              render={({ field: { onChange, value } }) => (
+                <SmartAmountInput
+                  valueMinor={value}
+                  onChangeMinor={onChange}
+                  currencyCode={formCurrencyCode}
+                  label={t("screens.settings.goals.form.targetAmountLabel")}
+                  error={
+                    errors.targetAmount
+                      ? t(errors.targetAmount.message as TranslationKey)
+                      : undefined
+                  }
+                />
+              )}
+            />
+          </View>
+
+          {/* Target date — Pressable row that opens a date picker modal */}
+          <ListItem
+            style={goalModifyStyles.targetDateSettingsRow}
+            onPress={() =>
+              targetDatePicker.open(
+                formTargetDate ? new Date(formTargetDate) : new Date(),
+              )
+            }
+          >
+            <View style={goalModifyStyles.targetDateLeft}>
+              <IconSvg name="calendar-month" size={24} />
+              <Text variant="default" style={goalModifyStyles.switchLabel}>
+                {t("screens.settings.goals.form.targetDateLabel")}
+              </Text>
+            </View>
+            <View style={goalModifyStyles.targetDateRight}>
+              {formattedTargetDate ? (
+                <>
+                  <Text
+                    variant="default"
+                    style={goalModifyStyles.targetDateText}
+                  >
+                    {formattedTargetDate}
+                  </Text>
+                  <Pressable
+                    onPress={handleClearDate}
+                    hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+                    accessibilityLabel={t("common.actions.clear")}
+                  >
+                    <IconSvg
+                      name="x-outline"
+                      size={20}
+                      color={theme.colors.onSecondary}
+                    />
+                  </Pressable>
+                </>
+              ) : (
+                <Text
+                  variant="default"
+                  style={goalModifyStyles.targetDatePlaceholder}
+                >
+                  {t("screens.settings.goals.card.noDeadline")}
+                </Text>
+              )}
+            </View>
+          </ListItem>
+
+          {/* Color variant picker */}
+          <ColorVariantInline
+            selectedSchemeName={formColorSchemeName ?? undefined}
+            onColorSelected={handleColorSelected}
+            onClearSelection={handleColorCleared}
+          />
+
+          {!isAddMode && <Separator />}
+        </View>
+
+        {/* Archive / delete buttons — edit mode only */}
+        {!isAddMode && (
+          <View style={modifyFormStyles.deleteSection}>
+            <Button
+              variant="ghost"
+              onPress={() => setArchiveSheetVisible(true)}
+              style={modifyFormStyles.actionButton}
+            >
+              <IconSvg
+                name={
+                  goal?.isArchived ? "archive-off-outline" : "archive-outline"
+                }
+                size={20}
+                color={goalModifyStyles.archiveIcon.color}
+              />
+              <Text variant="default" style={goalModifyStyles.archiveText}>
+                {goal?.isArchived
+                  ? t("screens.settings.goals.form.unarchiveLabel")
+                  : t("screens.settings.goals.form.archiveLabel")}
+              </Text>
+            </Button>
+            <FormDeleteButton
+              label={t("screens.settings.goals.form.deleteLabel")}
+              onPress={() => setDeleteSheetVisible(true)}
+            />
+          </View>
+        )}
+      </ScrollIntoViewProvider>
+
+      <ModifyFormFooter
+        formName={formName}
+        isAddMode={isAddMode}
+        isDirty={isDirty}
+        isSubmitting={isSubmitting}
+        onCancel={handleGoBack}
+        onSave={handleSubmit}
+      />
+
+      <GoalFormSheets
+        deleteSheetVisible={deleteSheetVisible}
+        archiveSheetVisible={archiveSheetVisible}
+        unsavedSheetVisible={unsavedSheetVisible}
+        isAddMode={isAddMode}
+        goal={goal}
+        onCloseDeleteSheet={() => setDeleteSheetVisible(false)}
+        onCloseArchiveSheet={() => setArchiveSheetVisible(false)}
+        onCloseUnsavedSheet={() => setUnsavedSheetVisible(false)}
+        onConfirmDelete={handleDelete}
+        onConfirmArchive={handleArchive}
+        onDeleted={handleDeleted}
+        onArchived={handleArchived}
+        onDiscardAndNavigate={() => {
+          allowNavigation()
+          handleGoBack()
+        }}
+      />
+
+      {targetDatePicker.pickerElement}
+      <DateTimePickerSheet {...targetDatePicker.sheetProps} />
+    </View>
+  )
+}

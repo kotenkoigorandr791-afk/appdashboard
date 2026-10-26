@@ -1,0 +1,114 @@
+import { useRouter } from "expo-router"
+import { useTranslation } from "react-i18next"
+import { FlatList } from "react-native"
+import { StyleSheet, useUnistyles } from "react-native-unistyles"
+
+import { AccountCard } from "~/components/accounts/account-card"
+import { IconSvg } from "~/components/icons"
+import { RouteLoadingState } from "~/components/route-load-state"
+import { Pressable } from "~/components/ui/pressable"
+import { Text } from "~/components/ui/text"
+import { View } from "~/components/ui/view"
+import { useAccountsQuery } from "~/database/drizzle/read-models/account-read-model"
+import { NewEnum } from "~/types/new"
+
+export default function AllAccountsScreen() {
+  const accountsResult = useAccountsQuery()
+  const accounts = accountsResult.data.filter((account) => !account.isArchived)
+  const archivedAccounts = accountsResult.data.filter(
+    (account) => account.isArchived,
+  )
+  const router = useRouter()
+  const { theme } = useUnistyles()
+  const { t } = useTranslation()
+  if (accountsResult.status === "loading") {
+    return <RouteLoadingState />
+  }
+
+  const handleAddAccount = () => {
+    router.push({
+      pathname: "/accounts/[accountId]/modify",
+      params: { accountId: NewEnum.NEW },
+    })
+  }
+
+  return (
+    <View style={styles.container}>
+      <FlatList
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+        data={accounts}
+        keyExtractor={(account) => account.id}
+        renderItem={({ item: account }) => (
+          <AccountCard account={account} isReorderMode={false} />
+        )}
+        ListHeaderComponent={
+          <Pressable style={styles.newAccountButton} onPress={handleAddAccount}>
+            <IconSvg
+              name="plus-outline"
+              size={32}
+              color={theme.colors.onSecondary}
+            />
+            <Text variant="default" style={styles.newAccountText}>
+              {t("screens.accounts.addNew")}
+            </Text>
+          </Pressable>
+        }
+        ListFooterComponent={
+          archivedAccounts.length > 0 ? (
+            <>
+              <Text variant="small" style={styles.archivedSectionLabel}>
+                {t("screens.accounts.archivedSection")}
+              </Text>
+              {archivedAccounts.map((account) => (
+                <AccountCard
+                  key={account.id}
+                  account={account}
+                  isReorderMode={false}
+                  isArchived
+                />
+              ))}
+            </>
+          ) : null
+        }
+        showsVerticalScrollIndicator={false}
+      />
+    </View>
+  )
+}
+
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+    paddingHorizontal: 20,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+    gap: 10,
+  },
+  newAccountButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 12,
+    paddingVertical: 20,
+    backgroundColor: theme.colors.secondary,
+    borderRadius: theme.radius,
+  },
+  newAccountText: {
+    ...theme.typography.titleSmall,
+    fontWeight: "600",
+    color: theme.colors.onSecondary,
+  },
+  archivedSectionLabel: {
+    ...theme.typography.labelXSmall,
+    fontWeight: "600",
+    color: theme.colors.semantic.semi,
+    letterSpacing: 0.8,
+    paddingTop: 8,
+  },
+}))

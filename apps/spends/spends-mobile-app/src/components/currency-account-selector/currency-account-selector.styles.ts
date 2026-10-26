@@ -1,0 +1,109 @@
+import { StyleSheet } from "react-native-unistyles"
+
+export const currencyAccountStyles = StyleSheet.create((t) => ({
+  container: {
+    width: "100%",
+  },
+  section: {
+    width: "100%",
+  },
+  sectionLabel: {
+    ...t.typography.labelMedium,
+    fontWeight: "600",
+    color: t.colors.onSurface,
+    letterSpacing: 0.5,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 4,
+    opacity: 0.6,
+  },
+
+  currencyCode: {
+    ...t.typography.titleSmall,
+    color: t.colors.onSurface,
+  },
+  // Account rows
+  accountRow: {
+    justifyContent: "space-between",
+  },
+  accountLeft: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+    flex: 1,
+  },
+  accountName: {
+    ...t.typography.titleSmall,
+    color: t.colors.onSurface,
+    flex: 1,
+  },
+  accountCurrency: {
+    fontSize: t.typography.bodyMedium.fontSize,
+    color: t.colors.onSecondary,
+    opacity: 0.7,
+    marginTop: 2,
+  },
+  // Select all row (in the accounts sheet)
+  selectAllRow: {
+    borderBottomWidth: 1,
+    borderBottomColor: `${t.colors.onSurface}10`,
+  },
+  selectAllText: {
+    ...t.typography.bodyLarge,
+    color: t.colors.primary,
+  },
+  // Empty state
+  emptyText: {
+    fontSize: t.typography.labelLarge.fontSize,
+    color: t.colors.onSecondary,
+    opacity: 0.6,
+    textAlign: "center",
+    paddingVertical: 24,
+    paddingHorizontal: 20,
+  },
+  // Divider
+  // divider: {
+  //   height: 1,
+  //   backgroundColor: t.colors.semantic.semi,
+  //   marginHorizontal: 20,
+  // },
+  // Account trigger value — selected names, truncated
+  accountTriggerValue: {
+    ...t.typography.bodyLarge,
+    color: t.colors.onSurface,
+  },
+  // Empty currency list
+  emptyPanel: {
+    paddingVertical: 24,
+    alignItems: "center",
+    gap: 12,
+  },
+  createButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: `${t.colors.primary}15`,
+    borderRadius: t.radius,
+  },
+  createButtonIcon: {
+    color: t.colors.primary,
+  },
+  createButtonText: {
+    ...t.typography.labelLarge,
+    fontWeight: "600",
+    color: t.colors.primary,
+  },
+  // Currency row in the currency sheet
+  panelRow: {
+    justifyContent: "space-between",
+    borderBottomWidth: 1,
+    borderBottomColor: `${t.colors.onSurface}10`,
+  },
+  doneButton: { flex: 1 },
+  panelRowLeft: {
+    flex: 1,
+    gap: 2,
+  },
+}))

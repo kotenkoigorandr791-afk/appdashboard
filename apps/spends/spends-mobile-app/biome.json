@@ -1,0 +1,98 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.6/schema.json",
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      "!node_modules",
+      "!dist",
+      "!build",
+      "!src/utils/logger.ts",
+      "!scripts/*",
+      "!src/components/icons/filled",
+      "!src/components/icons/outline"
+    ]
+  },
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "suspicious": {
+        "noUnknownAtRules": "off",
+        "noConsole": "error"
+      },
+      "style": {
+        "noRestrictedImports": {
+          "level": "error",
+          "options": {
+            "paths": {
+              "date-fns": {
+                "importNames": [
+                  "startOfWeek",
+                  "endOfWeek",
+                  "isSameWeek",
+                  "isThisWeek",
+                  "getWeek",
+                  "getISOWeek",
+                  "eachWeekOfInterval",
+                  "getWeekOfMonth",
+                  "startOfWeekYear"
+                ],
+                "message": "Week boundaries and week numbering depend on the user's week-start setting; these default to Sunday (or, for getISOWeek, hardcode Monday). Use startOfAppWeek / endOfAppWeek / isSameAppWeek / getAppWeek from ~/utils/time-utils, or add a wrapper there."
+              }
+            }
+          }
+        }
+      }
+    },
+    "domains": {
+      "next": "recommended",
+      "react": "recommended"
+    }
+  },
+  "overrides": [
+    {
+      "includes": ["src/utils/time-utils.ts"],
+      "linter": {
+        "rules": {
+          "style": {
+            "noRestrictedImports": "off"
+          }
+        }
+      }
+    }
+  ],
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": {
+          "level": "on",
+          "options": {
+            "groups": [
+              ":PACKAGE:",
+              ":BLANK_LINE:",
+              ":ALIAS:",
+              ":BLANK_LINE:",
+              ":PATH:"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "javascript": {
+    "formatter": {
+      "semicolons": "asNeeded"
+    }
+  }
+}

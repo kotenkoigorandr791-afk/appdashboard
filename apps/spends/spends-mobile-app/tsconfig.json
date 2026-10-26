@@ -1,0 +1,25 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+
+    "useDefineForClassFields": false,
+    "types": ["node"],
+    "paths": {
+      "~/*": ["./src/*"],
+      "@tests/*": ["./__tests__/*"]
+    }
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts",
+    "plugins/with-android-release-signing.mts",
+    "vitest.config.mts",
+    "scripts/check-missing-i18n-keys.mts",
+    "scripts/check-number-formatting.mts",
+    "scripts/find-unused-styles.mts",
+    "scripts/generate-structure.mts"
+  ]
+}

@@ -1,0 +1,82 @@
+# Dependencies
+node_modules/
+
+# Expo / Metro
+.expo/
+dist/
+web-build/
+expo-env.d.ts
+.metro-health-check*
+
+# Generated native projects (recreated by `expo prebuild`)
+/android/
+/ios/
+
+# Native / signing secrets
+.kotlin/
+.cxx/
+*.orig.*
+*.jks
+*.keystore
+*.p8
+*.p12
+*.key
+*.mobileprovision
+local.properties
+captures/
+
+# Build outputs
+build/
+**/build/
+*.apk
+*.aab
+*.ipa
+
+# Env / secrets
+.env
+.env.*
+!.env.local.example
+
+# Logs / caches
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.*
+*.log
+.tmp/
+.cache/
+*.tsbuildinfo
+
+# OS / IDE
+.DS_Store
+*.pem
+.idea/
+.vscode/
+*.swp
+*~
+
+# Upstream / local-only tooling (not part of AppDashboard)
+tabler-icons/
+docs/
+.husky/
+.github/
+LICENSE
+LICENSE.*
+COPYING
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+CONTEXT.md
+RELEASE_NOTES.md
+AGENTS.md
+CLAUDE.md
+.claude/
+.opencode/
+.cursor/
+.agents/
+.scratch/
+doctor.config.json
+skills-lock.json
+
+# Test / coverage artifacts
+coverage/
+__tests__/coverage/

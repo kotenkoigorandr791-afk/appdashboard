@@ -1,0 +1,206 @@
+import { zodResolver } from "@hookform/resolvers/zod"
+import { useNavigation, useRouter } from "expo-router"
+import { useState } from "react"
+import { useForm } from "react-hook-form"
+import { useTranslation } from "react-i18next"
+
+import { getAccountDeleteErrorDescription } from "~/components/accounts/account-delete-error"
+import {
+  archiveAccount,
+  createAccount,
+  destroyAccount,
+  unarchiveAccount,
+  updateAccount,
+} from "~/database/services/account-service"
+import { useNavigationGuard } from "~/hooks/use-navigation-guard"
+import {
+  type AddAccountsFormSchema,
+  addAccountsSchema,
+  editAccountsSchema,
+} from "~/schemas/accounts.schema"
+import { currencyRegistryService } from "~/services/currency-registry"
+import { getThemeStrict } from "~/styles/theme/registry"
+import { AccountTypeEnum } from "~/types/accounts"
+import { NewEnum } from "~/types/new"
+import { logger } from "~/utils/logger"
+import { rescaleMinorUnits } from "~/utils/money"
+import { Toast } from "~/utils/toast"
+
+import { buildAccountUpdate } from "./account-update-payload"
+import type { AccountModifyContentProps } from "./types"
+
+type UseAccountFormProps = Pick<
+  AccountModifyContentProps,
+  "accountId" | "account"
+>
+export function useAccountForm({ accountId, account }: UseAccountFormProps) {
+  const { t } = useTranslation()
+  const router = useRouter()
+  const isAddMode = accountId === NewEnum.NEW || !accountId
+  const handleGoBack = () => {
+    router.back()
+  }
+  const usdCurrency = currencyRegistryService.getCurrencyByCode("USD")
+  const useCode = usdCurrency?.code ?? "USD"
+  const {
+    control,
+    handleSubmit: handleFormSubmit,
+    formState: { errors, isDirty, isSubmitting, dirtyFields },
+    watch,
+    setValue,
+  } = useForm({
+    resolver: zodResolver(isAddMode ? addAccountsSchema : editAccountsSchema),
+    defaultValues: {
+      name: account?.name || "",
+      type: account?.type || AccountTypeEnum.CHECKING,
+      balance: account?.balance || 0,
+      currencyCode: account?.currencyCode || useCode,
+      icon: account?.icon || "wallet-outline",
+      colorSchemeName: account?.colorSchemeName || undefined,
+      isPrimary: account?.isPrimary || false,
+      excludeFromBalance: account?.excludeFromBalance || false,
+    },
+  })
+  const formName = watch("name")
+  const formIcon = watch("icon")
+  const formColorSchemeName = watch("colorSchemeName")
+  const formType = watch("type")
+  const formCurrencyCode = watch("currencyCode")
+  const formBalance = watch("balance")
+  const formIsPrimary = watch("isPrimary")
+  const navigation = useNavigation()
+  const [unsavedSheetVisible, setUnsavedSheetVisible] = useState(false)
+  const { allowNavigation } = useNavigationGuard({
+    navigation,
+    when: isDirty && !isSubmitting,
+    onBlock: () => setUnsavedSheetVisible(true),
+  })
+  const [deleteSheetVisible, setDeleteSheetVisible] = useState(false)
+  const [archiveSheetVisible, setArchiveSheetVisible] = useState(false)
+  const onSubmit = async (data: AddAccountsFormSchema) => {
+    try {
+      if (isAddMode) {
+        await createAccount({
+          name: data.name,
+          type: data.type,
+          balance: data.balance,
+          currencyCode: data.currencyCode,
+          icon: data.icon,
+          colorSchemeName: data.colorSchemeName,
+          isPrimary: false,
+          excludeFromBalance: data.excludeFromBalance,
+        })
+        allowNavigation()
+        handleGoBack()
+      } else {
+        await updateAccount(
+          accountId,
+          buildAccountUpdate(data, { balanceEdited: !!dirtyFields.balance }),
+        )
+        allowNavigation()
+        handleGoBack()
+      }
+    } catch (error) {
+      logger.error("Error saving account", { error })
+      Toast.error({
+        title: t("common.toast.error"),
+        description: isAddMode
+          ? t("screens.accounts.form.toast.createFailed")
+          : t("screens.accounts.form.toast.updateFailed"),
+      })
+    }
+  }
+  const handleSubmit = handleFormSubmit(onSubmit)
+  const handleArchive = async () => {
+    try {
+      if (!account) return false
+      if (account.isArchived) {
+        await unarchiveAccount(accountId)
+        Toast.success({ title: t("screens.accounts.unarchiveSuccess") })
+      } else {
+        await archiveAccount(accountId)
+        Toast.success({ title: t("screens.accounts.archiveSuccess") })
+      }
+    } catch (error) {
+      logger.error("Error archiving account", { error })
+      Toast.error({ title: t("common.toast.error") })
+      return false
+    }
+  }
+  // Runs once the archive sheet has closed: leaving earlier tears it down mid-animation.
+  const handleArchived = () => {
+    allowNavigation()
+    router.back()
+  }
+  const handleDelete = async () => {
+    try {
+      await destroyAccount(accountId)
+    } catch (error) {
+      logger.error("Error deleting account", { error })
+      Toast.error({
+        title: t("common.toast.error"),
+        description: getAccountDeleteErrorDescription(error, t),
+      })
+      return false
+    }
+  }
+  // Runs once the delete sheet has closed: leaving earlier tears it down mid-animation.
+  const handleDeleted = () => {
+    allowNavigation()
+    router.dismiss(2)
+  }
+  const handleIconSelected = (icon: string | null) => {
+    setValue("icon", icon, { shouldDirty: true })
+  }
+  const handleColorSelected = (schemeName: string) => {
+    setValue("colorSchemeName", schemeName, { shouldDirty: true })
+  }
+  const handleColorCleared = () => {
+    setValue("colorSchemeName", undefined, { shouldDirty: true })
+  }
+  const handleCurrencySelected = (code: string) => {
+    if (code !== formCurrencyCode) {
+      setValue(
+        "balance",
+        rescaleMinorUnits(formBalance, formCurrencyCode, code),
+        { shouldDirty: true },
+      )
+    }
+    setValue("currencyCode", code, { shouldDirty: true })
+  }
+  const currentColorScheme = getThemeStrict(formColorSchemeName)
+  return {
+    isAddMode,
+    control,
+    errors,
+    isDirty,
+    isSubmitting,
+    formName,
+    formIcon,
+    formColorSchemeName,
+    formType,
+    formCurrencyCode,
+    formIsPrimary,
+    currentColorScheme,
+    unsavedSheetVisible,
+    deleteSheetVisible,
+    allowNavigation,
+    handleGoBack,
+    setValue,
+    handleSubmit,
+    handleDelete,
+    handleDeleted,
+    handleArchived,
+    handleIconSelected,
+    handleColorSelected,
+    handleColorCleared,
+    handleCurrencySelected,
+    openDeleteSheet: () => setDeleteSheetVisible(true),
+    closeDeleteSheet: () => setDeleteSheetVisible(false),
+    closeUnsavedSheet: () => setUnsavedSheetVisible(false),
+    archiveSheetVisible,
+    handleArchive,
+    openArchiveSheet: () => setArchiveSheetVisible(true),
+    closeArchiveSheet: () => setArchiveSheetVisible(false),
+  }
+}

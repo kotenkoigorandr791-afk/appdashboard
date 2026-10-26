@@ -1,0 +1,489 @@
+import { useNavigation } from "expo-router"
+import { Suspense, use, useLayoutEffect, useReducer, useState } from "react"
+import { useTranslation } from "react-i18next"
+import { FlatList } from "react-native"
+import { StyleSheet } from "react-native-unistyles"
+
+import { ExternalLink } from "~/components/external-link"
+import { IconSvg } from "~/components/icons"
+import { InfoSheet } from "~/components/info-sheet"
+import { SearchInput } from "~/components/search-input"
+import { ActivityIndicatorMinty } from "~/components/ui/activity-indicator-minty"
+import { Button } from "~/components/ui/button"
+import { Input } from "~/components/ui/input"
+import { ListItem } from "~/components/ui/list-item"
+import { Pressable } from "~/components/ui/pressable"
+import { Text } from "~/components/ui/text"
+import { View } from "~/components/ui/view"
+import { currencyRegistryService } from "~/services/currency-registry"
+import type { ExchangeRates } from "~/services/exchange-rates"
+import { exchangeRatesService } from "~/services/exchange-rates"
+import { useExchangeRatesPreferencesStore } from "~/stores/exchange-rates-preferences.store"
+import { formatNumber } from "~/utils/number-format"
+
+import {
+  type EditorAction,
+  type EditorState,
+  editorReducer,
+  INITIAL_EDITOR_STATE,
+} from "../../../hooks/exchange-rates-editor.reducer"
+
+// Attribution required by the open.er-api.com terms of use.
+const EXCHANGE_RATE_API_URL = "https://www.exchangerate-api.com"
+const EXCHANGE_RATE_API_ATTRIBUTION = "Rates By Exchange Rate API"
+// Fills the codes the primary source lacks (crypto and a few ISO codes).
+const EXCHANGE_API_URL = "https://github.com/fawazahmed0/exchange-api"
+async function createRatesPromise(): Promise<{
+  rates: ExchangeRates | null
+  error: string | null
+}> {
+  const usdCurrency = currencyRegistryService.getCurrencyByCode("USD")
+  const useCode = usdCurrency?.code ?? "USD"
+  return exchangeRatesService
+    .tryFetchRates(useCode.toLowerCase())
+    .then((result) => ({
+      rates: result ?? null,
+      error: result ? null : "Could not load rates. Check your connection.",
+    }))
+    .catch((e) => ({
+      rates: null,
+      error: e instanceof Error ? e.message : "Failed to load rates",
+    }))
+}
+function getEffectiveRate(
+  code: string,
+  apiRates: Record<string, number> | null,
+  customRates: Record<string, number>,
+): number | null {
+  const upper = code.toUpperCase()
+  if (customRates[upper] !== undefined) {
+    return customRates[upper]
+  }
+  const lower = code.toLowerCase()
+  if (apiRates && typeof apiRates[lower] === "number") {
+    return apiRates[lower]
+  }
+  return null
+}
+interface RateEntry {
+  code: string
+  displayCode: string
+  rate: number
+  isCustom: boolean
+}
+interface ExchangeRatesContentProps {
+  ratesPromise: Promise<{
+    rates: ExchangeRates | null
+    error: string | null
+  }>
+  onRetry: () => void
+  customRates: Record<string, number>
+  setCustomRate: (code: string, rate: number) => void
+  removeCustomRate: (code: string) => void
+  editorState: EditorState
+  dispatch: React.Dispatch<EditorAction>
+}
+function ExchangeRatesContent({
+  ratesPromise,
+  onRetry,
+  customRates,
+  setCustomRate,
+  removeCustomRate,
+  editorState,
+  dispatch,
+}: ExchangeRatesContentProps) {
+  const { rates, error } = use(ratesPromise)
+  const { searchQuery, editingCurrencyCode, draftRates } = editorState
+  const { t } = useTranslation()
+  const [draftRateInput, setDraftRateInput] = useState<string | null>(null)
+  const entries = ((): RateEntry[] => {
+    if (!rates?.rates) return []
+    const upperCustom = Object.keys(customRates).reduce<Record<string, number>>(
+      (acc, k) => {
+        acc[k.toUpperCase()] = customRates[k]
+        return acc
+      },
+      {},
+    )
+    const list: RateEntry[] = []
+    const seen = new Set<string>()
+    for (const [key, value] of Object.entries(rates.rates)) {
+      const displayCode = key.toUpperCase()
+      if (seen.has(displayCode)) continue
+      seen.add(displayCode)
+      const custom = upperCustom[displayCode]
+      const rate = custom !== undefined ? custom : value
+      list.push({
+        code: key,
+        displayCode,
+        rate,
+        isCustom: custom !== undefined,
+      })
+    }
+    list.sort((a, b) => a.displayCode.localeCompare(b.displayCode))
+    return list
+  })()
+  const filteredEntries = (() => {
+    if (!searchQuery.trim()) return entries
+    const q = searchQuery.trim().toUpperCase()
+    return entries.filter((e) => e.displayCode.includes(q))
+  })()
+  const handleSelectEntry = (code: string, currentRate: number) => {
+    setDraftRateInput(String(currentRate))
+    dispatch({ type: "SELECT_ENTRY", code, rate: currentRate })
+  }
+  const handleDraftChange = (code: string, rawValue: string) => {
+    setDraftRateInput(rawValue)
+    const value = Number.parseFloat(rawValue.replace(",", "."))
+    dispatch({
+      type: "DRAFT_CHANGE",
+      code,
+      value: Number.isFinite(value) ? value : 0,
+    })
+  }
+  const handleSaveRate = (code: string, value: number) => {
+    if (value <= 0) return
+    setCustomRate(code, value)
+    setDraftRateInput(null)
+    dispatch({ type: "CLEAR_DRAFT", code })
+  }
+  const handleResetToApiRate = (code: string) => {
+    removeCustomRate(code)
+    setDraftRateInput(null)
+    dispatch({ type: "CLEAR_DRAFT", code })
+  }
+  const renderItem = ({ item }: { item: RateEntry }) => {
+    const isEditing = editingCurrencyCode === item.displayCode
+    const rate = getEffectiveRate(item.code, rates?.rates ?? null, customRates)
+    const displayRate = rate ?? 0
+    const draftValue = draftRates[item.displayCode] ?? displayRate
+    const isInvalidRate = draftValue <= 0
+    const originalRate = rates?.rates?.[item.code] ?? null
+    return (
+      <View style={styles.entryWrapper}>
+        <ListItem
+          style={
+            isEditing || item.isCustom ? styles.entryRowSelected : undefined
+          }
+          onPress={() => handleSelectEntry(item.displayCode, displayRate)}
+        >
+          <Text style={styles.entryEquals}>=</Text>
+          <View style={styles.entryAmountColumn}>
+            <Text style={styles.entryAmount} numberOfLines={1}>
+              {formatNumber(displayRate, {
+                minimumFractionDigits: 14,
+                maximumFractionDigits: 14,
+                useGrouping: false,
+              })}
+            </Text>
+            {/* A custom rate shows the original one it replaces. */}
+            {item.isCustom && originalRate != null && (
+              <Text style={styles.entryOriginal} numberOfLines={1}>
+                {t("screens.settings.exchangeRates.originalRate", {
+                  rate: formatNumber(originalRate, {
+                    maximumFractionDigits: 6,
+                    useGrouping: false,
+                  }),
+                })}
+              </Text>
+            )}
+          </View>
+          {item.isCustom && (
+            <Text style={styles.entryBadge}>
+              {t("screens.settings.exchangeRates.customBadge")}
+            </Text>
+          )}
+          <Text style={styles.entryCode}>{item.displayCode}</Text>
+        </ListItem>
+        {isEditing && (
+          <View style={styles.inlineInput}>
+            <Text>
+              {`1 USD = ${formatNumber(draftValue, {
+                maximumFractionDigits: 6,
+              })} ${item.displayCode}`}
+            </Text>
+            <Input
+              value={draftRateInput ?? String(draftValue || "")}
+              onChangeText={(value) =>
+                handleDraftChange(item.displayCode, value)
+              }
+              keyboardType="decimal-pad"
+              placeholder="0"
+              error={isInvalidRate}
+            />
+            <View style={styles.saveButtonRow}>
+              <Button
+                variant="outline"
+                onPress={() => handleResetToApiRate(item.displayCode)}
+              >
+                <Text>{t("common.actions.reset")}</Text>
+              </Button>
+              <Button
+                variant="default"
+                onPress={() => handleSaveRate(item.displayCode, draftValue)}
+                disabled={isInvalidRate}
+              >
+                <Text>{t("common.actions.save")}</Text>
+              </Button>
+            </View>
+          </View>
+        )}
+      </View>
+    )
+  }
+  const listHeader = (
+    <View style={styles.listHeader}>
+      <Text style={styles.instruction}>
+        {t("screens.settings.exchangeRates.instructionCaption")}
+      </Text>
+      <Text style={styles.baseHeading}>1 USD</Text>
+    </View>
+  )
+  if (error && !rates) {
+    return (
+      <View style={styles.centered}>
+        <Text style={styles.errorText}>{error}</Text>
+        <Pressable style={styles.retryButton} onPress={onRetry}>
+          <Text style={styles.retryButtonText}>
+            {t("common.actions.retry")}
+          </Text>
+        </Pressable>
+      </View>
+    )
+  }
+  return (
+    <View style={styles.container}>
+      {/* Outside the list so it stays put while the rates scroll. */}
+      <View style={styles.searchContainer}>
+        <SearchInput
+          value={searchQuery}
+          onChangeText={(query) => dispatch({ type: "SET_SEARCH", query })}
+          onClear={() => dispatch({ type: "SET_SEARCH", query: "" })}
+          placeholder={t("screens.settings.exchangeRates.searchPlaceholder")}
+        />
+      </View>
+      <FlatList
+        data={filteredEntries}
+        keyExtractor={(item) => item.displayCode}
+        renderItem={renderItem}
+        ListHeaderComponent={listHeader}
+        contentContainerStyle={styles.listContent}
+        keyboardShouldPersistTaps="handled"
+        style={styles.list}
+        contentInsetAdjustmentBehavior="automatic"
+      />
+    </View>
+  )
+}
+export default function ExchangeRatesScreen() {
+  const navigation = useNavigation()
+  const customRates = useExchangeRatesPreferencesStore((s) => s.customRates)
+  const setCustomRate = useExchangeRatesPreferencesStore((s) => s.setCustomRate)
+  const removeCustomRate = useExchangeRatesPreferencesStore(
+    (s) => s.removeCustomRate,
+  )
+  const { t } = useTranslation()
+  const [ratesPromise, setRatesPromise] = useState(createRatesPromise)
+  const [editorState, dispatch] = useReducer(
+    editorReducer,
+    INITIAL_EDITOR_STATE,
+  )
+  const [infoSheetVisible, setInfoSheetVisible] = useState(false)
+  const handleRetry = () => {
+    setRatesPromise(createRatesPromise())
+  }
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <Button
+          variant="ghost"
+          onPress={() => setInfoSheetVisible(true)}
+          accessibilityLabel={t("screens.settings.exchangeRates.a11y.info")}
+        >
+          <IconSvg name="info-circle-outline" size={24} />
+        </Button>
+      ),
+    })
+  }, [navigation, t])
+  return (
+    <>
+      <Suspense
+        fallback={
+          <View style={styles.centered}>
+            <ActivityIndicatorMinty size="large" />
+          </View>
+        }
+      >
+        <ExchangeRatesContent
+          ratesPromise={ratesPromise}
+          onRetry={handleRetry}
+          customRates={customRates}
+          setCustomRate={setCustomRate}
+          removeCustomRate={removeCustomRate}
+          editorState={editorState}
+          dispatch={dispatch}
+        />
+      </Suspense>
+      <InfoSheet
+        visible={infoSheetVisible}
+        onRequestClose={() => setInfoSheetVisible(false)}
+        title={t("screens.settings.exchangeRates.infoSheet.title")}
+        description={t("screens.settings.exchangeRates.infoSheet.description")}
+        okLabel={t("screens.settings.exchangeRates.infoSheet.ok")}
+      >
+        <View style={styles.sources}>
+          <Text variant="small" style={styles.sourcesLabel}>
+            {t("screens.settings.exchangeRates.infoSheet.sources")}
+          </Text>
+          <ExternalLink
+            href={EXCHANGE_RATE_API_URL}
+            pressableStyle={styles.sourceLink}
+            textStyle={styles.sourceUrl}
+          >
+            <Text style={styles.sourceTitle}>
+              {EXCHANGE_RATE_API_ATTRIBUTION}
+            </Text>
+            {"\n"}
+            {EXCHANGE_RATE_API_URL}
+          </ExternalLink>
+          <ExternalLink
+            href={EXCHANGE_API_URL}
+            pressableStyle={styles.sourceLink}
+            textStyle={styles.sourceUrl}
+          >
+            <Text style={styles.sourceTitle}>
+              {t("screens.settings.exchangeRates.apiTitleSecondary")}
+            </Text>
+            {"\n"}
+            {EXCHANGE_API_URL}
+          </ExternalLink>
+        </View>
+      </InfoSheet>
+    </>
+  )
+}
+const styles = StyleSheet.create((theme) => ({
+  container: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+  },
+  list: {
+    flex: 1,
+    backgroundColor: theme.colors.surface,
+  },
+  listContent: {
+    paddingBottom: 40,
+  },
+  listHeader: {
+    paddingBottom: 4,
+  },
+  sources: {
+    gap: 8,
+  },
+  sourcesLabel: {
+    color: theme.colors.semantic.semi,
+    textAlign: "center",
+  },
+  sourceLink: {
+    backgroundColor: theme.colors.secondary,
+    borderRadius: 12,
+    padding: 12,
+  },
+  sourceTitle: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    fontWeight: "700",
+    color: theme.colors.onSurface,
+  },
+  sourceUrl: {
+    fontSize: theme.typography.bodyMedium.fontSize,
+    color: theme.colors.semantic.semi,
+  },
+  searchContainer: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    marginBottom: 12,
+  },
+  instruction: {
+    fontSize: theme.typography.bodyMedium.fontSize,
+    color: theme.colors.semantic.semi,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    lineHeight: 18,
+  },
+  baseHeading: {
+    ...theme.typography.headlineMedium,
+    color: theme.colors.onSurface,
+    marginHorizontal: 20,
+    marginBottom: 8,
+  },
+  entryWrapper: {
+    marginBottom: 4,
+  },
+  entryRowSelected: {
+    backgroundColor: theme.colors.secondary,
+  },
+  entryEquals: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    color: theme.colors.onSurface,
+    marginRight: 8,
+  },
+  entryAmountColumn: {
+    flex: 1,
+  },
+  entryAmount: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    color: theme.colors.onSurface,
+  },
+  entryOriginal: {
+    fontSize: theme.typography.bodyMedium.fontSize,
+    color: theme.colors.semantic.semi,
+    marginTop: 2,
+  },
+  entryBadge: {
+    ...theme.typography.labelSmall,
+    color: theme.colors.onPrimary,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    marginRight: 8,
+    overflow: "hidden",
+  },
+  entryCode: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    fontWeight: "700",
+    color: theme.colors.onSurface,
+  },
+  inlineInput: {
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  saveButtonRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginVertical: 12,
+  },
+  centered: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: theme.colors.surface,
+  },
+  errorText: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    color: theme.colors.error,
+    textAlign: "center",
+  },
+  retryButton: {
+    marginTop: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    backgroundColor: theme.colors.primary,
+    borderRadius: 12,
+  },
+  retryButtonText: {
+    fontSize: theme.typography.bodyLarge.fontSize,
+    fontWeight: "600",
+    color: theme.colors.onPrimary,
+  },
+}))

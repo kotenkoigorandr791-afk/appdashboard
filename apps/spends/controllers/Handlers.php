@@ -4,6 +4,27 @@ $__t = static function (string $key): string {
     global $translations;
     return $translations[$key] ?? $key;
 };
+require_once __DIR__ . '/../core/mobile_sync.php';
+
+// Mobile companion: profile probe used after QR pairing.
+if (isset($_GET['mobile_profile']) || (isset($_GET['profile']) && defined('PUBLIC_API'))) {
+    exit(json_encode(spends_mobile_profile(), JSON_UNESCAPED_UNICODE));
+}
+if (isset($_GET['mobile_sync']) || isset($_GET['mobile_sync_pull'])) {
+    exit(json_encode(spends_mobile_pull($udb, $userSettings), JSON_UNESCAPED_UNICODE));
+}
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && (isset($_POST['mobile_sync_push']) || isset($_POST['mobile_sync']))) {
+    $raw = (string)($_POST['mobile_sync_push'] ?? $_POST['mobile_sync'] ?? '');
+    if ($raw === '' || $raw === '1') {
+        $raw = (string)file_get_contents('php://input');
+    }
+    $payload = json_decode($raw, true);
+    if (!is_array($payload)) {
+        exit(json_encode(['status' => 'error', 'message' => $__t('msg_invalid_data')]));
+    }
+    exit(json_encode(spends_mobile_push($udb, $payload), JSON_UNESCAPED_UNICODE));
+}
+
 if (isset($_GET['get_settings']) || isset($_POST['get_settings'])) {
     exit(json_encode([
         'status' => 'success',

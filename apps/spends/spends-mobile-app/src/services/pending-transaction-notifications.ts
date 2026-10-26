@@ -1,0 +1,124 @@
+import * as Notifications from "expo-notifications"
+
+import {
+  getPendingTransactions,
+  type TransactionWithRelations,
+} from "~/database/drizzle/read-models/transaction-read-model"
+import i18n from "~/i18n/config"
+import { usePendingTransactionsStore } from "~/stores/pending-transactions.store"
+import { startOfNextMinute } from "~/utils/pending-transactions"
+
+/**
+ * Payload type for transaction reminder notifications.
+ * Use itemType: "txn" and id: transaction.id (or uuid when available).
+ */
+interface TransactionReminderPayload {
+  itemType: "txn"
+  id: string
+  [key: string]: unknown
+}
+
+/**
+ * Clear all scheduled notifications of type "transaction".
+ */
+async function clearPlannedTransactionNotifications(): Promise<void> {
+  const scheduled = await Notifications.getAllScheduledNotificationsAsync()
+  const txnNotifs = scheduled.filter(
+    (n) =>
+      (n.content.data as TransactionReminderPayload | undefined)?.itemType ===
+      "txn",
+  )
+  await Promise.all(
+    txnNotifs.map((n) =>
+      Notifications.cancelScheduledNotificationAsync(n.identifier),
+    ),
+  )
+}
+
+/**
+ * Schedule a single notification at transactionDate and optionally at
+ * transactionDate - earlyReminderSeconds.
+ */
+async function scheduleForPlannedTransaction(
+  transaction: TransactionWithRelations,
+  earlyReminderSeconds: number,
+): Promise<void> {
+  const now = Date.now()
+  const transactionDate = transaction.transactionDate
+  const dueMs = transactionDate.getTime()
+  const title =
+    transaction.title ||
+    i18n.t("screens.settings.pending.notification.fallbackTitle")
+  const data: TransactionReminderPayload = {
+    itemType: "txn",
+    id: transaction.id,
+  }
+
+  if (dueMs > now) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `txn-${transaction.id}`,
+      content: {
+        title,
+        body: i18n.t("screens.settings.pending.notification.dueBody"),
+        data,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: transactionDate,
+      },
+    })
+  }
+
+  const earlyMs = dueMs - earlyReminderSeconds * 1000
+  if (earlyReminderSeconds >= 60 && earlyMs > now) {
+    await Notifications.scheduleNotificationAsync({
+      identifier: `txn-early-${transaction.id}`,
+      content: {
+        title: i18n.t("screens.settings.pending.notification.earlyTitle", {
+          title,
+        }),
+        body: i18n.t("screens.settings.pending.notification.earlyBody"),
+        data,
+      },
+      trigger: {
+        type: Notifications.SchedulableTriggerInputTypes.DATE,
+        date: new Date(earlyMs),
+      },
+    })
+  }
+}
+
+/**
+ * A transfer is two rows, a debit with a negative amount and a credit with a
+ * positive one. Remind about the debit only, so a pending transfer notifies
+ * once.
+ */
+function isCreditLegOfTransfer(transaction: TransactionWithRelations): boolean {
+  return transaction.type === "transfer" && transaction.amount > 0
+}
+
+/**
+ * Resync all planned-transaction notifications:
+ * - Clear existing transaction reminders
+ * - If notify preference is true, query pending transactions and schedule each (skip if transactionDate in the past).
+ * Call after: app startup/foreground, preference changes, add/edit/delete of pending transactions.
+ */
+export async function synchronizePlannedTransactionNotifications(): Promise<void> {
+  await clearPlannedTransactionNotifications()
+
+  const notify = usePendingTransactionsStore.getState().notify
+  if (!notify) return
+
+  const earlyReminderInSeconds =
+    usePendingTransactionsStore.getState().earlyReminderInSeconds
+  const pending = await getPendingTransactions()
+  const now = startOfNextMinute()
+
+  await Promise.all(
+    pending.flatMap((t) =>
+      t.transactionDate.getTime() <= now.getTime() || isCreditLegOfTransfer(t)
+        ? []
+        : [scheduleForPlannedTransaction(t, earlyReminderInSeconds)],
+    ),
+  )
+}

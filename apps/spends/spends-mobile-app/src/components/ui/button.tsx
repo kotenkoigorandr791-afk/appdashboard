@@ -1,0 +1,151 @@
+import type { ComponentRef, Ref } from "react"
+import { createContext, useContext } from "react"
+import type { PressableProps } from "react-native"
+import { StyleSheet } from "react-native-unistyles"
+
+import { Pressable } from "./pressable"
+
+// Text class context for passing variant styles to child Text components
+const ButtonTextContext = createContext<{
+  variant?: ButtonVariant
+  size?: ButtonSize
+}>({})
+export const useButtonTextContext = () => useContext(ButtonTextContext)
+type ButtonVariant =
+  | "default"
+  | "destructive"
+  | "outline"
+  | "secondary"
+  | "ghost"
+  | "link"
+type ButtonSize = "default" | "sm" | "lg" | "icon"
+interface ButtonProps extends PressableProps {
+  variant?: ButtonVariant
+  size?: ButtonSize
+  ref?: Ref<ComponentRef<typeof Pressable>>
+}
+export const Button = ({
+  variant = "default",
+  size = "default",
+  disabled,
+  style,
+  children,
+  ref,
+  ...props
+}: ButtonProps) => {
+  const contextValue = { variant, size }
+  return (
+    <ButtonTextContext.Provider value={contextValue}>
+      <Pressable
+        ref={ref}
+        // native
+        role="button"
+        style={(state) => [
+          styles.base,
+          variantStyles[variant],
+          sizeStyles[size],
+          disabled && styles.disabled,
+          // Native pressed state handling
+          state.pressed && pressedStyles[variant],
+          typeof style === "function" ? style(state) : style,
+        ]}
+        disabled={disabled}
+        {...props}
+      >
+        {children}
+      </Pressable>
+    </ButtonTextContext.Provider>
+  )
+}
+const styles = StyleSheet.create((theme) => ({
+  base: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: theme.radius,
+    gap: 8,
+    flexShrink: 1,
+  },
+  disabled: {
+    opacity: 0.5,
+  },
+}))
+const variantStyles = StyleSheet.create((theme) => ({
+  default: {
+    backgroundColor: theme.colors.primary,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  destructive: {
+    backgroundColor: theme.colors.error,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  outline: {
+    backgroundColor: theme.colors.surface,
+    borderWidth: 1,
+    borderColor: theme.colors.onSurface,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  secondary: {
+    backgroundColor: theme.colors.secondary,
+    shadowColor: theme.colors.shadow,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  ghost: {
+    backgroundColor: "transparent",
+  },
+  link: {
+    backgroundColor: "transparent",
+  },
+}))
+// Pressed state styles for native (non-web)
+const pressedStyles = StyleSheet.create((theme) => ({
+  default: {},
+  destructive: {},
+  outline: {},
+  secondary: {},
+  ghost: {
+    backgroundColor: theme.colors.secondary,
+  },
+  link: {},
+}))
+const sizeStyles = StyleSheet.create((theme) => ({
+  default: {
+    height: 40,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  sm: {
+    height: 36,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: theme.radius,
+    gap: 6,
+  },
+  lg: {
+    height: 44,
+    paddingHorizontal: 24,
+    paddingVertical: 10,
+    borderRadius: theme.radius,
+  },
+  icon: {
+    height: 40,
+    width: 40,
+    paddingHorizontal: 0,
+    paddingVertical: 0,
+  },
+}))

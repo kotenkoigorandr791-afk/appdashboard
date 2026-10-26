@@ -155,6 +155,9 @@ core
 # ...and the steps app core helpers (real source, not build junk)
 !apps/steps/core/
 !apps/steps/core/**
+# ...and the spends app core helpers (real source, not build junk)
+!apps/spends/core/
+!apps/spends/core/**
 *.core
 npm-debug.log*
 yarn-error.log*
@@ -173,3 +176,29 @@ pnpm-debug.log*
 /downloads/kanboard-mobile-build.sha256
 /apps/kanboard/kanboard-mobile-app/**/*.apk
 /apps/kanboard/kanboard-mobile-app/**/*.aab
+
+# Spends mobile client (apps/spends/spends-mobile-app)
+/apps/spends/spends-mobile-app/.gradle/
+/apps/spends/spends-mobile-app/build/
+/apps/spends/spends-mobile-app/app/build/
+/apps/spends/spends-mobile-app/android/
+/apps/spends/spends-mobile-app/ios/
+/apps/spends/spends-mobile-app/local.properties
+/apps/spends/spends-mobile-app/app/release.jks
+/apps/spends/spends-mobile-app/captures/
+/apps/spends/spends-mobile-app/.cxx/
+/apps/spends/spends-mobile-app/.idea/
+/apps/spends/spends-mobile-app/.expo/
+/apps/spends/spends-mobile-app/.kotlin/
+/apps/spends/spends-mobile-app/node_modules/
+/apps/spends/spends-mobile-app/dist/
+/apps/spends/spends-mobile-app/web-build/
+/apps/spends/spends-mobile-app/expo-env.d.ts
+/apps/spends/spends-mobile-app/**/build/
+/apps/spends/spends-mobile-app/**/*.apk
+/apps/spends/spends-mobile-app/**/*.aab
+/apps/spends/spends-mobile-app/tabler-icons/
+/apps/spends/spends-mobile-app/.tmp/
+/downloads/spends-mobile.apk
+/downloads/spends-mobile.json
+/downloads/spends-mobile-build.sha256
