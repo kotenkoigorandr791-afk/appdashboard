@@ -4,9 +4,13 @@ on:
     branches:
       - main
   workflow_dispatch:
+concurrency:
+  group: deploy-main
+  cancel-in-progress: false
 jobs:
   build-images:
     runs-on: appdashboard-build
+    timeout-minutes: 360
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -25,21 +29,20 @@ jobs:
           if [ -n '${{ secrets.DOCKERHUB_TOKEN }}' ]; then
             printf '%s' '${{ secrets.DOCKERHUB_TOKEN }}' | docker login --username '${{ secrets.DOCKERHUB_USERNAME }}' --password-stdin
           fi
-          # VERSION holds major.minor (e.g. 1.0); the patch is the commit count,
-          # so every built image gets a monotonically growing semver.
-          VERSION_BASE="$(tr -dc '0-9.' < VERSION | head -n 1)"
-          VERSION_MAJOR_MINOR="${VERSION_BASE%.*}"
-          [ -n "$VERSION_MAJOR_MINOR" ] || VERSION_MAJOR_MINOR="1.0"
-          APP_VERSION="$VERSION_MAJOR_MINOR.$(git rev-list --count HEAD)"
+          APP_VERSION="$(tr -dc '0-9.' < VERSION | head -n 1)"
+          test -n "$APP_VERSION"
           APP_GIT_COMMIT="$(git rev-parse HEAD)"
           APP_BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-          docker build -f Dockerfile --build-arg APP_VERSION="$APP_VERSION" --build-arg APP_GIT_COMMIT="$APP_GIT_COMMIT" --build-arg APP_BUILD_DATE="$APP_BUILD_DATE" -t ihorkotenko/appdashboard:latest .
-          docker build -f deploy/python-sidecar/Dockerfile -t ihorkotenko/appdashboard-py:latest .
+          docker build -f Dockerfile --build-arg APP_VERSION="$APP_VERSION" --build-arg APP_GIT_COMMIT="$APP_GIT_COMMIT" --build-arg APP_BUILD_DATE="$APP_BUILD_DATE" -t "ihorkotenko/appdashboard:$APP_VERSION" -t ihorkotenko/appdashboard:latest .
+          docker build -f deploy/python-sidecar/Dockerfile -t "ihorkotenko/appdashboard-py:$APP_VERSION" -t ihorkotenko/appdashboard-py:latest .
+          docker push "ihorkotenko/appdashboard:$APP_VERSION"
           docker push ihorkotenko/appdashboard:latest
+          docker push "ihorkotenko/appdashboard-py:$APP_VERSION"
           docker push ihorkotenko/appdashboard-py:latest
 
   deploy-main:
     runs-on: appdashboard-deploy
+    timeout-minutes: 360
     needs: build-images
     steps:
       - name: Deploy main
