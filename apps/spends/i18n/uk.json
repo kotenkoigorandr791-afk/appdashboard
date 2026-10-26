@@ -311,5 +311,18 @@
   "share_pick_user": "Виберіть одержувача",
   "share_send_chat": "Надіслати в чат",
   "support_chat_search_placeholder": "Пошук за email…",
-  "support_chat_send": "Надіслати"
+  "support_chat_send": "Надіслати",
+  "import_menu_manual": "Додати вручну",
+  "import_menu_table": "Додати за допомогою таблиці",
+  "manual_add_title": "Нова витрата",
+  "manual_step_store": "Магазин",
+  "manual_step_date": "Дата",
+  "manual_step_amount": "Сума",
+  "manual_yesterday": "Вчора",
+  "manual_store_search": "Пошук магазину",
+  "manual_pick_store": "Спочатку виберіть магазин",
+  "manual_no_stores": "Магазини не знайдено",
+  "manual_saved": "Витрату збережено",
+  "manual_back": "Назад",
+  "manual_amount_required": "Введіть суму"
 }

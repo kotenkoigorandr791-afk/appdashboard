@@ -311,5 +311,18 @@
   "share_pick_user": "Wybierz odbiorcę",
   "share_send_chat": "Wyślij na czacie",
   "support_chat_search_placeholder": "Szukaj według emaila…",
-  "support_chat_send": "Wyślij"
+  "support_chat_send": "Wyślij",
+  "import_menu_manual": "Dodaj ręcznie",
+  "import_menu_table": "Dodaj za pomocą tabeli",
+  "manual_add_title": "Nowy wydatek",
+  "manual_step_store": "Sklep",
+  "manual_step_date": "Data",
+  "manual_step_amount": "Kwota",
+  "manual_yesterday": "Wczoraj",
+  "manual_store_search": "Szukaj sklepu",
+  "manual_pick_store": "Najpierw wybierz sklep",
+  "manual_no_stores": "Brak sklepów",
+  "manual_saved": "Wydatek zapisany",
+  "manual_back": "Wstecz",
+  "manual_amount_required": "Podaj kwotę"
 }

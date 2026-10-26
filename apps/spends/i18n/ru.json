@@ -311,5 +311,18 @@
   "share_pick_user": "Выберите получателя",
   "share_send_chat": "Отправить в чат",
   "support_chat_search_placeholder": "Поиск по email…",
-  "support_chat_send": "Отправить"
+  "support_chat_send": "Отправить",
+  "import_menu_manual": "Добавить вручную",
+  "import_menu_table": "Добавить при помощи таблицы",
+  "manual_add_title": "Новый расход",
+  "manual_step_store": "Магазин",
+  "manual_step_date": "Дата",
+  "manual_step_amount": "Сумма",
+  "manual_yesterday": "Вчера",
+  "manual_store_search": "Поиск магазина",
+  "manual_pick_store": "Сначала выберите магазин",
+  "manual_no_stores": "Магазины не найдены",
+  "manual_saved": "Расход сохранён",
+  "manual_back": "Назад",
+  "manual_amount_required": "Введите сумму"
 }

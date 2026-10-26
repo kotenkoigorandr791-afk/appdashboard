@@ -311,5 +311,18 @@
   "share_pick_user": "Абярыце атрымальніка",
   "share_send_chat": "Даслаць у чат",
   "support_chat_search_placeholder": "Пошук па email…",
-  "support_chat_send": "Даслаць"
+  "support_chat_send": "Даслаць",
+  "import_menu_manual": "Дадаць уручную",
+  "import_menu_table": "Дадаць пры дапамозе табліцы",
+  "manual_add_title": "Новы расход",
+  "manual_step_store": "Крама",
+  "manual_step_date": "Дата",
+  "manual_step_amount": "Сума",
+  "manual_yesterday": "Учора",
+  "manual_store_search": "Пошук крамы",
+  "manual_pick_store": "Спачатку выберыце краму",
+  "manual_no_stores": "Крамы не знойдзены",
+  "manual_saved": "Расход захаваны",
+  "manual_back": "Назад",
+  "manual_amount_required": "Увядзіце суму"
 }

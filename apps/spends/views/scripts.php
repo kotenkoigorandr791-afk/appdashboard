@@ -913,6 +913,448 @@ function addNewDate(date=null, colIdx=0) {
 
 function isValidDate(s){return /^\d{4}-\d{2}-\d{2}$/.test(s)&&!isNaN(new Date(s));}
 
+// ══ Manual expense (store → date → amount, no table) ═════════════════════════
+let manualAddState = { step:1, store:'', date:'' };
+
+function manualAddYmd(offsetDays){
+    const d = new Date();
+    d.setDate(d.getDate() + Number(offsetDays || 0));
+    return localYmd(d);
+}
+function manualAddStores(){
+    const all = (Array.isArray(userSettings.stores) ? userSettings.stores : []).filter(s => s && s.name);
+    const visible = all.filter(s => s.visible !== false);
+    // Hidden stores still accept expenses, so fall back to them when nothing is visible.
+    return visible.length ? visible : all;
+}
+function manualAddStorePhoto(name){
+    const fn = String(name || '').replace(/[^a-zA-Z0-9]/g, '_');
+    return `users/${currentUserFolder}/store_${fn}.png`;
+}
+// CSP on the page forbids eval(), so the amount is parsed without it.
+function parseManualAmount(val){
+    const s = String(val || '').replace(/\s/g, '').replace(/,/g, '.');
+    if(!/^\d*\.?\d*$/.test(s)) return 0;
+    const n = parseFloat(s);
+    return isFinite(n) ? n : 0;
+}
+function formatManualAmount(input){
+    let v = String(input.value || '').replace(/,/g, '.').replace(/[^\d.]/g, '');
+    const dot = v.indexOf('.');
+    if(dot >= 0) v = v.slice(0, dot + 1) + v.slice(dot + 1).replace(/\./g, '');
+    input.value = v;
+}
+function manualAddFormatDate(ymd){
+    if(!isValidDate(ymd)) return ymd || '';
+    const p = ymd.split('-');
+    const m = monthNames[parseInt(p[1], 10) - 1] || p[1];
+    return `${p[2]} ${m} ${p[0]}`;
+}
+function manualAddFormatDateShort(ymd){
+    if(!isValidDate(ymd)) return ymd || '';
+    const d = new Date(ymd + 'T00:00:00');
+    const mon = manualAddIntl({ month:'short' }, d, monthNames[d.getMonth()] || '');
+    return `${String(d.getDate()).padStart(2,'0')} ${mon}`;
+}
+function manualAddWeekday(ymd){
+    return manualAddIntl({ weekday:'short' }, new Date(ymd + 'T00:00:00'), '');
+}
+function manualAddStoreAvatar(name){
+    const wrap = document.createElement('span');
+    wrap.className = 'manual-store-avatar';
+    const initials = document.createElement('span');
+    initials.className = 'manual-store-initials';
+    initials.textContent = (String(name || '').trim().charAt(0) || '?').toUpperCase();
+    const img = document.createElement('img');
+    img.className = 'manual-store-thumb';
+    img.alt = '';
+    img.loading = 'lazy';
+    img.src = manualAddStorePhoto(name);
+    img.onload = () => { initials.style.display = 'none'; };
+    img.onerror = () => {
+        if(img.dataset.jpgTried){ img.remove(); return; }
+        img.dataset.jpgTried = '1';
+        img.src = manualAddStorePhoto(name).replace(/\.png$/, '.jpg');
+    };
+    wrap.append(img, initials);
+    return wrap;
+}
+function renderManualStoreGrid(){
+    const grid = document.getElementById('manual-store-grid');
+    if(!grid) return;
+    const q = (document.getElementById('manual-store-search')?.value || '').trim().toLowerCase();
+    const stores = manualAddStores().filter(s => !q || s.name.toLowerCase().includes(q));
+    grid.innerHTML = '';
+    if(!stores.length){
+        const empty = document.createElement('div');
+        empty.className = 'manual-empty';
+        empty.textContent = t('manual_no_stores','No stores available');
+        grid.appendChild(empty);
+        return;
+    }
+    stores.forEach(s => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'manual-store-btn' + (manualAddState.store === s.name ? ' selected' : '');
+        btn.setAttribute('data-store', s.name);
+        btn.setAttribute('role','option');
+        btn.setAttribute('aria-selected', manualAddState.store === s.name ? 'true' : 'false');
+
+        const label = document.createElement('span');
+        label.className = 'manual-store-name';
+        label.textContent = s.name;
+
+        btn.append(manualAddStoreAvatar(s.name), label);
+        btn.onclick = () => manualAddPickStore(s.name);
+        grid.appendChild(btn);
+    });
+}
+function renderManualDateQuick(){
+    const wrap = document.getElementById('manual-date-quick');
+    if(!wrap) return;
+    wrap.innerHTML = '';
+    // Last seven days, oldest → today, so the row reads left to right.
+    for(let offset = -6; offset <= 0; offset++){
+        const ymd = manualAddYmd(offset);
+        const label = offset === 0
+            ? t('today','Today')
+            : (offset === -1 ? t('manual_yesterday','Yesterday') : manualAddWeekday(ymd));
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'manual-date-chip' + (manualAddState.date === ymd ? ' selected' : '');
+        b.setAttribute('data-date', ymd);
+        const main = document.createElement('span');
+        main.textContent = label;
+        const sub = document.createElement('small');
+        sub.textContent = manualAddFormatDateShort(ymd);
+        b.append(main, sub);
+        b.onclick = () => manualAddPickDate(ymd);
+        wrap.appendChild(b);
+    }
+}
+let manualAddCalView = { year:0, month:0 };
+function manualAddSyncCalendarView(){
+    const d = new Date((manualAddState.date || manualAddYmd(0)) + 'T00:00:00');
+    manualAddCalView = { year:d.getFullYear(), month:d.getMonth() };
+}
+function manualAddCalendarShift(delta){
+    let year = manualAddCalView.year || new Date().getFullYear();
+    let month = (manualAddCalView.month || 0) + Number(delta || 0);
+    year += Math.floor(month / 12);
+    month = ((month % 12) + 12) % 12;
+    manualAddCalView = { year, month };
+    renderManualCalendar();
+}
+function manualAddIntl(part, date, fallback){
+    try { return new Intl.DateTimeFormat(currentLang || 'en', part).format(date); }
+    catch(_) { return fallback; }
+}
+function manualAddFillCalendarSelects(year, month){
+    const monthSel = document.getElementById('manual-cal-month');
+    const yearSel  = document.getElementById('manual-cal-year');
+    if(!monthSel || !yearSel) return;
+    if(monthSel.options.length !== 12){
+        monthSel.textContent = '';
+        for(let m = 0; m < 12; m++){
+            const o = document.createElement('option');
+            o.value = String(m);
+            o.textContent = manualAddIntl({ month:'long' }, new Date(2024, m, 1), monthNames[m] || String(m + 1));
+            monthSel.appendChild(o);
+        }
+    }
+    const minYear = 2000;
+    const maxYear = Math.max(new Date().getFullYear() + 1, year);
+    if(!yearSel.options.length || Number(yearSel.options[0].value) !== minYear || Number(yearSel.options[yearSel.options.length - 1].value) !== maxYear){
+        yearSel.textContent = '';
+        for(let y = minYear; y <= maxYear; y++){
+            const o = document.createElement('option');
+            o.value = String(y);
+            o.textContent = String(y);
+            yearSel.appendChild(o);
+        }
+    }
+    monthSel.value = String(month);
+    yearSel.value = String(year);
+}
+function manualAddCalendarJump(){
+    const monthSel = document.getElementById('manual-cal-month');
+    const yearSel  = document.getElementById('manual-cal-year');
+    if(!monthSel || !yearSel) return;
+    const month = Number(monthSel.value);
+    const year  = Number(yearSel.value);
+    if(!Number.isFinite(month) || !Number.isFinite(year)) return;
+    manualAddCalView = { year, month };
+    renderManualCalendar();
+}
+function renderManualCalendar(){
+    const weekdays = document.getElementById('manual-cal-weekdays');
+    const grid     = document.getElementById('manual-cal-grid');
+    if(!weekdays || !grid) return;
+    if(!manualAddCalView.year) manualAddSyncCalendarView();
+    const { year, month } = manualAddCalView;
+    manualAddFillCalendarSelects(year, month);
+
+    weekdays.textContent = '';
+    const monday = new Date(2024, 0, 1); // a Monday
+    for(let i = 0; i < 7; i++){
+        const day = new Date(monday);
+        day.setDate(monday.getDate() + i);
+        const span = document.createElement('span');
+        span.textContent = manualAddIntl({ weekday:'short' }, day, ['Mo','Tu','We','Th','Fr','Sa','Su'][i]);
+        weekdays.appendChild(span);
+    }
+
+    grid.textContent = '';
+    const offset = (new Date(year, month, 1).getDay() + 6) % 7; // Monday first
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    for(let i = 0; i < offset; i++){
+        const blank = document.createElement('span');
+        blank.className = 'manual-cal-blank';
+        grid.appendChild(blank);
+    }
+    const today = manualAddYmd(0);
+    for(let day = 1; day <= daysInMonth; day++){
+        const ymd = `${year}-${String(month + 1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'manual-cal-day';
+        btn.textContent = String(day);
+        btn.setAttribute('data-date', ymd);
+        if(ymd === manualAddState.date) btn.classList.add('selected');
+        if(ymd === today) btn.classList.add('today');
+        btn.onclick = () => manualAddPickDate(ymd);
+        grid.appendChild(btn);
+    }
+}
+function renderManualSummary(){
+    const box = document.getElementById('manual-summary');
+    if(!box) return;
+    box.innerHTML = '';
+    if(manualAddState.store){
+        const avatar = manualAddStoreAvatar(manualAddState.store);
+        avatar.classList.add('manual-summary-avatar');
+        box.appendChild(avatar);
+    }
+    const add = (label, value) => {
+        const item = document.createElement('div');
+        item.className = 'manual-summary-item';
+        const lab = document.createElement('span');
+        lab.className = 'manual-summary-label';
+        lab.textContent = label;
+        const val = document.createElement('strong');
+        val.textContent = value;
+        item.append(lab, val);
+        box.appendChild(item);
+    };
+    add(t('manual_step_store','Store'), manualAddState.store || '—');
+    add(t('manual_step_date','Date'), manualAddFormatDate(manualAddState.date || manualAddYmd(0)));
+}
+function manualAddBaseCurrency(){ return String(userSettings.currency || 'USD').toUpperCase(); }
+// A native <select> popup takes system colors, so the currency list is custom.
+let manualAddCurrency = '';
+function manualCurrencyCheckIcon(){
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class','manual-currency-check');
+    svg.setAttribute('viewBox','0 0 24 24');
+    svg.setAttribute('fill','none');
+    svg.setAttribute('stroke','currentColor');
+    svg.setAttribute('stroke-width','2.6');
+    svg.setAttribute('stroke-linecap','round');
+    svg.setAttribute('stroke-linejoin','round');
+    const poly = document.createElementNS(ns, 'polyline');
+    poly.setAttribute('points','5 13 10 18 19 7');
+    svg.appendChild(poly);
+    return svg;
+}
+function renderManualCurrency(){
+    const base = manualAddBaseCurrency();
+    if(!INPUT_CURRENCIES.includes(String(manualAddCurrency).toUpperCase())) manualAddCurrency = base;
+    const label = document.getElementById('manual-amount-currency');
+    if(label) label.textContent = manualAddCurrency;
+    const menu = document.getElementById('manual-amount-currency-menu');
+    if(!menu) return;
+    menu.textContent = '';
+    INPUT_CURRENCIES.forEach(cur => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'manual-currency-opt';
+        b.setAttribute('role','option');
+        b.setAttribute('data-currency', cur);
+        b.setAttribute('aria-selected', cur === manualAddCurrency ? 'true' : 'false');
+        const name = document.createElement('span');
+        name.textContent = cur;
+        b.appendChild(name);
+        if(cur === manualAddCurrency) b.appendChild(manualCurrencyCheckIcon());
+        b.onclick = (e) => { e.stopPropagation(); manualAddSetCurrency(cur); };
+        menu.appendChild(b);
+    });
+}
+function toggleManualCurrencyMenu(e){
+    if(e) e.stopPropagation();
+    const menu = document.getElementById('manual-amount-currency-menu');
+    const btn  = document.getElementById('manual-amount-currency-btn');
+    if(!menu) return;
+    renderManualCurrency();
+    const open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if(btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeManualCurrencyMenu(){
+    const menu = document.getElementById('manual-amount-currency-menu');
+    const btn  = document.getElementById('manual-amount-currency-btn');
+    if(menu){ menu.classList.remove('open'); menu.setAttribute('aria-hidden','true'); }
+    if(btn) btn.setAttribute('aria-expanded','false');
+}
+function manualAddSetCurrency(cur){
+    cur = String(cur || '').toUpperCase();
+    if(!INPUT_CURRENCIES.includes(cur)) return;
+    manualAddCurrency = cur;
+    renderManualCurrency();
+    closeManualCurrencyMenu();
+    updateManualAmountHint();
+}
+let manualHintToken = 0;
+async function updateManualAmountHint(){
+    const hint  = document.getElementById('manual-amount-hint');
+    const input = document.getElementById('manual-amount-input');
+    if(!hint || !input) return;
+    const base = manualAddBaseCurrency();
+    const cur  = String(manualAddCurrency || base).toUpperCase();
+    const val  = parseManualAmount(input.value);
+    if(cur === base || !(val > 0)){ hint.textContent = ''; return; }
+    const token = ++manualHintToken;
+    try{
+        const rates = await fetchAmountRatesMap();
+        if(token !== manualHintToken) return;
+        if(!(rates[cur] > 0)){ hint.textContent = ''; return; }
+        hint.textContent = `≈ ${foreignAmountToBase(val, cur, rates, base).toFixed(2)} ${base}`;
+    }catch(_){
+        if(token === manualHintToken) hint.textContent = '';
+    }
+}
+function manualAddPickStore(name){
+    manualAddState.store = name;
+    document.querySelectorAll('#manual-store-grid .manual-store-btn').forEach(b => {
+        const on = b.getAttribute('data-store') === name;
+        b.classList.toggle('selected', on);
+        b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    manualAddGo(2);
+}
+function manualAddPickDate(ymd){
+    if(!isValidDate(ymd)) return;
+    manualAddState.date = ymd;
+    document.querySelectorAll('#manual-date-quick .manual-date-chip').forEach(chip => {
+        chip.classList.toggle('selected', chip.getAttribute('data-date') === ymd);
+    });
+    manualAddSyncCalendarView();
+    renderManualCalendar();
+    manualAddGo(3);
+}
+function manualAddGo(step){
+    step = Number(step) || 1;
+    closeManualCurrencyMenu();
+    if(step >= 2 && !manualAddState.store){
+        step = 1;
+        showNotification(t('manual_pick_store','Pick a store first'),'info');
+    }
+    if(step >= 3 && !manualAddState.date) manualAddState.date = manualAddYmd(0);
+    manualAddState.step = step;
+    document.querySelectorAll('#manual-add-modal .manual-panel').forEach(p => {
+        p.classList.toggle('active', Number(p.getAttribute('data-panel')) === step);
+    });
+    document.querySelectorAll('#manual-add-modal .manual-step').forEach(b => {
+        const n = Number(b.getAttribute('data-step'));
+        b.classList.toggle('active', n === step);
+        b.classList.toggle('done', n < step);
+        b.disabled = n > step;
+        b.setAttribute('aria-selected', n === step ? 'true' : 'false');
+    });
+    if(step === 1){
+        const s = document.getElementById('manual-store-search');
+        if(s && window.innerWidth > 768) s.focus();
+    }
+    if(step === 2){ renderManualDateQuick(); renderManualCalendar(); }
+    if(step === 3){
+        renderManualCurrency();
+        renderManualSummary();
+        updateManualAmountHint();
+        setTimeout(() => {
+            const a = document.getElementById('manual-amount-input');
+            if(a && window.innerWidth > 768) a.focus();
+        }, 80);
+    }
+}
+function openManualAddModal(){
+    manualAddState = { step:1, store:'', date:manualAddYmd(0) };
+    manualAddCalView = { year:0, month:0 };
+    const search = document.getElementById('manual-store-search');
+    if(search) search.value = '';
+    const amount = document.getElementById('manual-amount-input');
+    if(amount) amount.value = '';
+    const hint = document.getElementById('manual-amount-hint');
+    if(hint) hint.textContent = '';
+    manualAddCurrency = manualAddBaseCurrency();
+    closeManualCurrencyMenu();
+    renderManualCurrency();
+    renderManualStoreGrid();
+    showModal('manual-add-modal');
+    manualAddGo(1);
+}
+function closeManualAddModal(){closeManualCurrencyMenu();closeModal('manual-add-modal');}
+async function saveManualExpense(){
+    const store = manualAddState.store;
+    const date  = manualAddState.date || manualAddYmd(0);
+    const input = document.getElementById('manual-amount-input');
+    const base  = manualAddBaseCurrency();
+    const cur   = String(manualAddCurrency || base).toUpperCase();
+    let   amount = parseManualAmount(input ? input.value : '');
+    if(!store){ manualAddGo(1); showNotification(t('manual_pick_store','Pick a store first'),'info'); return; }
+    if(!isValidDate(date)){ showNotification(t('invalid_date_format','Invalid date format'),'error'); return; }
+    if(!(amount > 0)){ showNotification(t('manual_amount_required','Enter the amount'),'error'); if(input) input.focus(); return; }
+    if(cur !== base){
+        try{
+            const rates = await fetchAmountRatesMap();
+            if(!(rates[cur] > 0)) throw new Error('rates');
+            amount = foreignAmountToBase(amount, cur, rates, base);
+        }catch(_){
+            showNotification(t('rates_not_loaded','Could not load exchange rates'),'error');
+            return;
+        }
+    }
+    amount = Math.round(amount * 100) / 100;
+    if(!(amount > 0)){ showNotification(t('manual_amount_required','Enter the amount'),'error'); if(input) input.focus(); return; }
+    const btn = document.getElementById('manual-save-btn');
+    if(btn) btn.disabled = true;
+    fetch('', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({update_expense:'1', date, store, amount})})
+    .then(r => r.json())
+    .then(d => {
+        if(d.status !== 'success'){ showNotification(d.message || t('error_generic','Error'),'error'); return; }
+        expensesData = (expensesData && typeof expensesData === 'object') ? expensesData : {};
+        if(date.startsWith(String(currentChartYear))){
+            if(!expensesData[date]) expensesData[date] = {};
+            expensesData[date][store] = amount;
+        }
+        if(!allDates.includes(date)){ allDates.push(date); allDates.sort(); }
+        updateFinancialSummary();
+        loadAvailableYears().then(() => updateChart());
+        // Show the new row in the table right away.
+        const dd = new Date(date + 'T00:00:00');
+        currentMonth = dd.getMonth();
+        currentYear  = dd.getFullYear();
+        pendingScrollDate = date;
+        renderMonthPagination();
+        loadPage();
+        showNotification(t('manual_saved','Expense saved'),'success');
+        closeManualAddModal();
+    })
+    .catch(e => showNotification(`${t('network_error','Network error')}: ${e}`,'error'))
+    .finally(() => { if(btn) btn.disabled = false; });
+}
+
 // ══ Settings ══════════════════════════════════════════════════════════════
 let debounceBudgetTimer=null;
 let debounceTableTimer=null;
@@ -1649,8 +2091,12 @@ loadAvailableYears().then(()=>{updateChart();});
     ib.addEventListener('click',e=>{e.stopPropagation();toggleImportMenu(e);});
     const iw=document.getElementById('import-opt-wallet');
     const ic=document.getElementById('import-opt-csv');
+    const iman=document.getElementById('import-opt-manual');
+    const itab=document.getElementById('import-opt-table');
     if(iw)iw.addEventListener('click',e=>{e.stopPropagation();closeImportMenu();openImportModal();});
     if(ic)ic.addEventListener('click',e=>{e.stopPropagation();closeImportMenu();document.getElementById('bank-csv-input').click();});
+    if(iman)iman.addEventListener('click',e=>{e.stopPropagation();closeImportMenu();openManualAddModal();});
+    if(itab)itab.addEventListener('click',e=>{e.stopPropagation();closeImportMenu();showModal('expenses-table-modal');});
     const bci=document.getElementById('bank-csv-input');
     if(bci)bci.addEventListener('change',onBankCsvFileChange);
     const mb=document.getElementById('monthly-budget');
@@ -1689,6 +2135,7 @@ loadAvailableYears().then(()=>{updateChart();});
         bf.value=new Date(n.getFullYear(),n.getMonth(),1).toISOString().slice(0,10);
     }
     document.addEventListener('click',e=>{if(!e.target.closest('.add-menu-wrap'))closeImportMenu();});
+    document.addEventListener('click',e=>{if(!e.target.closest('#manual-currency'))closeManualCurrencyMenu();});
     im.addEventListener('click',e=>{if(e.target===im)closeImportModal();});
     if(location.hash==='#ocr'){openImportModal();}
     window.addEventListener('hashchange',()=>{

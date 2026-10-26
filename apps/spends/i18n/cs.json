@@ -311,5 +311,18 @@
   "share_pick_user": "Vyberte příjemce",
   "share_send_chat": "Odeslat v chatu",
   "support_chat_search_placeholder": "Hledat podle e-mailu…",
-  "support_chat_send": "Odeslat"
+  "support_chat_send": "Odeslat",
+  "import_menu_manual": "Přidat ručně",
+  "import_menu_table": "Přidat pomocí tabulky",
+  "manual_add_title": "Nový výdaj",
+  "manual_step_store": "Obchod",
+  "manual_step_date": "Datum",
+  "manual_step_amount": "Částka",
+  "manual_yesterday": "Včera",
+  "manual_store_search": "Hledat obchod",
+  "manual_pick_store": "Nejprve vyberte obchod",
+  "manual_no_stores": "Žádné obchody",
+  "manual_saved": "Výdaj uložen",
+  "manual_back": "Zpět",
+  "manual_amount_required": "Zadejte částku"
 }

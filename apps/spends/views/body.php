@@ -90,6 +90,8 @@
                 </svg>
             </button>
             <div id="import-menu" class="import-dropdown" role="menu">
+                <button type="button" role="menuitem" id="import-opt-manual"><?= htmlspecialchars($translations['import_menu_manual'] ?? 'Add manually') ?></button>
+                <button type="button" role="menuitem" id="import-opt-table"><?= htmlspecialchars($translations['import_menu_table'] ?? 'Add using table') ?></button>
                 <button type="button" role="menuitem" id="import-opt-wallet"><?= htmlspecialchars($translations['import_menu_wallet'] ?? 'Google Wallet') ?></button>
                 <button type="button" role="menuitem" id="import-opt-csv"><?= htmlspecialchars($translations['import_menu_csv'] ?? 'CSV') ?></button>
             </div>
@@ -143,17 +145,12 @@
             </button>
         </div>
         <div class="chart-controls-actions">
-            <button class="add-date-btn open-table-desktop" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
             <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
         </div>
         <div class="chart-year" id="chart-year2"></div>
     </div>
 
     <div class="divider"></div>
-
-    <div class="controls-container open-table-mobile">
-        <button class="add-date-btn" onclick="showModal('expenses-table-modal')"><?= htmlspecialchars($openTableTitle) ?></button>
-    </div>
 
     <div id="preview-tooltip" style="display:none;position:absolute;background:var(--modal-bg);border:1px solid var(--primary-color);border-radius:4px;padding:5px 10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:1000;pointer-events:none;">
         <span id="preview-tooltip-result"></span>
@@ -269,6 +266,78 @@
 <input type="file" id="bank-csv-input" accept=".csv,.ofx,.qfx,.mt940,.sta,.xml,text/csv,application/xml" style="display:none;">
 <div class="notification-container" id="notification-container"></div>
 <div id="amount-currency-popover" class="amount-currency-popover" style="display:none" role="listbox" aria-hidden="true"></div>
+
+<!-- Manual add expense modal (no table): store → date → amount -->
+<div id="manual-add-modal" class="modal manual-add-modal" aria-hidden="true">
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closeManualAddModal()">×</button>
+        <h3><?= htmlspecialchars($translations['manual_add_title'] ?? 'New expense') ?></h3>
+        <div class="manual-steps" role="tablist">
+            <button type="button" role="tab" class="manual-step active" data-step="1" onclick="manualAddGo(1)">
+                <span class="manual-step-node">1</span><span class="manual-step-label"><?= htmlspecialchars($translations['manual_step_store'] ?? 'Store') ?></span>
+            </button>
+            <span class="manual-step-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>
+            <button type="button" role="tab" class="manual-step" data-step="2" disabled onclick="manualAddGo(2)">
+                <span class="manual-step-node">2</span><span class="manual-step-label"><?= htmlspecialchars($translations['manual_step_date'] ?? 'Date') ?></span>
+            </button>
+            <span class="manual-step-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 6 15 12 9 18"/></svg></span>
+            <button type="button" role="tab" class="manual-step" data-step="3" disabled onclick="manualAddGo(3)">
+                <span class="manual-step-node">3</span><span class="manual-step-label"><?= htmlspecialchars($translations['manual_step_amount'] ?? 'Amount') ?></span>
+            </button>
+        </div>
+        <div class="manual-panel active" data-panel="1">
+            <div class="manual-store-search">
+                <svg class="manual-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><line x1="16.2" y1="16.2" x2="21" y2="21"/></svg>
+                <input type="search" id="manual-store-search" autocomplete="off" spellcheck="false" placeholder="<?= htmlspecialchars($translations['manual_store_search'] ?? 'Search store') ?>" oninput="renderManualStoreGrid()">
+            </div>
+            <div id="manual-store-grid" class="manual-store-grid" role="listbox"></div>
+        </div>
+        <div class="manual-panel" data-panel="2">
+            <div id="manual-date-quick" class="manual-date-quick"></div>
+            <div class="manual-calendar">
+                <div class="manual-cal-head">
+                    <button type="button" class="manual-cal-nav" onclick="manualAddCalendarShift(-1)" title="<?= htmlspecialchars($translations['prev_month'] ?? 'Previous month') ?>" aria-label="<?= htmlspecialchars($translations['prev_month'] ?? 'Previous month') ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 6 9 12 15 18"/></svg>
+                    </button>
+                    <div class="manual-cal-jump">
+                        <select id="manual-cal-month" class="manual-cal-select" aria-label="<?= htmlspecialchars($translations['month_label'] ?? 'Month') ?>" onchange="manualAddCalendarJump()"></select>
+                        <select id="manual-cal-year" class="manual-cal-select manual-cal-select-year" aria-label="<?= htmlspecialchars($translations['year_label'] ?? 'Year') ?>" onchange="manualAddCalendarJump()"></select>
+                    </div>
+                    <button type="button" class="manual-cal-nav" onclick="manualAddCalendarShift(1)" title="<?= htmlspecialchars($translations['next_month'] ?? 'Next month') ?>" aria-label="<?= htmlspecialchars($translations['next_month'] ?? 'Next month') ?>">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18"/></svg>
+                    </button>
+                </div>
+                <div class="manual-cal-weekdays" id="manual-cal-weekdays" aria-hidden="true"></div>
+                <div class="manual-cal-grid" id="manual-cal-grid" role="grid"></div>
+            </div>
+            <div class="manual-actions">
+                <button type="button" class="cancel-btn" onclick="manualAddGo(1)"><?= htmlspecialchars($translations['manual_back'] ?? 'Back') ?></button>
+                <button type="button" class="action-primary-btn" onclick="manualAddGo(3)"><?= htmlspecialchars($translations['next'] ?? 'Next') ?></button>
+            </div>
+        </div>
+        <div class="manual-panel" data-panel="3">
+            <div id="manual-summary" class="manual-summary"></div>
+            <div class="manual-amount-wrap">
+                <label for="manual-amount-input"><?= htmlspecialchars($translations['manual_step_amount'] ?? 'Amount') ?></label>
+                <div class="manual-amount-field">
+                    <input type="text" id="manual-amount-input" inputmode="decimal" autocomplete="off" spellcheck="false" placeholder="0.00" oninput="formatManualAmount(this);updateManualAmountHint()" onkeydown="if(event.key==='Enter'){event.preventDefault();saveManualExpense();}">
+                    <div class="manual-currency" id="manual-currency">
+                        <button type="button" class="manual-currency-btn" id="manual-amount-currency-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="<?= htmlspecialchars($translations['currency'] ?? 'Currency') ?>" onclick="toggleManualCurrencyMenu(event)">
+                            <span id="manual-amount-currency"></span>
+                            <svg class="manual-currency-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="manual-currency-menu" id="manual-amount-currency-menu" role="listbox" aria-hidden="true"></div>
+                    </div>
+                </div>
+                <p class="manual-amount-hint" id="manual-amount-hint"></p>
+            </div>
+            <div class="manual-actions">
+                <button type="button" class="cancel-btn" onclick="manualAddGo(2)"><?= htmlspecialchars($translations['manual_back'] ?? 'Back') ?></button>
+                <button type="button" class="action-primary-btn" id="manual-save-btn" onclick="saveManualExpense()"><?= htmlspecialchars($translations['save']) ?></button>
+            </div>
+        </div>
+    </div>
+</div>
 
 <!-- Settings Modal -->
 <div id="settings-modal" class="modal">
