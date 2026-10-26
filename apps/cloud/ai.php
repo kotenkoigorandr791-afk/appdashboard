@@ -60,7 +60,7 @@ const AI_CHAT_SESSION_TABLE = 'cloud_ai_assistant_chat_sessions';
 const AI_USER_SETTINGS_TABLE = 'cloud_ai_assistant_user_settings';
 const AI_USER_SETTINGS_OLD_TABLE = 'ai_assistant_user_settings';
 
-if ($action === 'ai_completions' || $action === 'ai_models') {
+if ($action === 'ai_completions' || $action === 'ai_models' || $action === 'ai_fallback_models') {
     $email = getCurrentUserEmailFromMainAPI();
     if (!$email) {
         header('Content-Type: application/json; charset=utf-8');
@@ -75,6 +75,19 @@ if ($action === 'ai_completions' || $action === 'ai_models') {
         cloud_ai_proxy_models($config);
         exit;
     }
+    if ($action === 'ai_fallback_models') {
+        // Full list of models exposed by the upstream gateway. Used by the
+        // client as a fallback source when the admin configured only one
+        // model, so a broken model can be replaced by a working one.
+        // Guests (role 0) may not choose models, so they get an empty list.
+        if (aiLookupUserRole($email) === 0) {
+            header('Content-Type: application/json; charset=utf-8');
+            echo json_encode(['data' => []]);
+            exit;
+        }
+        cloud_ai_proxy_fallback_models($config);
+        exit;
+    }
     cloud_ai_require_rate_limit((string)$email, 'chat');
     $raw = file_get_contents('php://input');
     $payload = json_decode($raw ?: '', true);
@@ -87,6 +100,11 @@ if ($action === 'ai_completions' || $action === 'ai_models') {
     if (!empty($payload['messages']) && is_array($payload['messages'])) {
         require_once __DIR__ . '/includes/ai_context_pack.php';
         $payload['messages'] = cloud_ai_pack_messages_for_budget($payload['messages']);
+    }
+    // Guests (role 0) may not choose a model: always force the configured default.
+    $cloudAiRole = aiLookupUserRole($email);
+    if ($cloudAiRole === 0) {
+        $payload['model'] = (string)($config['default_model'] ?? '');
     }
     cloud_ai_proxy_completions($config, $payload);
     exit;
@@ -360,6 +378,24 @@ function getCurrentUserFromMainAPI() {
         cloud_safe_error_log('getCurrentUserFromMainAPI error: ' . $e->getMessage());
     }
     return '';
+}
+
+function aiLookupUserRole($email) {
+    $email = strtolower(trim((string)$email));
+    if ($email === '') return null;
+    try {
+        require_once __DIR__ . '/../../lib/app_db.php';
+        $db = app_main_db();
+        $stmt = $db->prepare("SELECT role FROM users WHERE lower(email) = :email LIMIT 1");
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $result = $stmt->execute();
+        $row = $result ? $result->fetch(PDO::FETCH_ASSOC) : null;
+        if (!$row || !array_key_exists('role', $row)) return null;
+        return (int)$row['role'];
+    } catch (Throwable $e) {
+        cloud_safe_error_log('aiLookupUserRole error: ' . $e->getMessage());
+        return null;
+    }
 }
 
 function getCurrentUserEmailFromMainAPI() {

@@ -77,6 +77,32 @@ function cloud_ai_proxy_models(array $config): void
 }
 
 
+function cloud_ai_proxy_fallback_models(array $config): void
+{
+    header('Content-Type: application/json; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate');
+    header('Pragma: no-cache');
+    $result = cloud_ai_proxy_json($config, cloud_ai_upstream_models_url($config), null, 'GET', 20);
+    if (!$result['ok']) {
+        echo json_encode(['data' => [], 'error' => ['message' => $result['error'] ?: ('HTTP ' . $result['http'])]]);
+        return;
+    }
+    $decoded = json_decode((string)$result['body'], true);
+    if (!is_array($decoded) || !isset($decoded['data']) || !is_array($decoded['data'])) {
+        echo json_encode(['data' => []]);
+        return;
+    }
+    $models = [];
+    foreach ($decoded['data'] as $model) {
+        $id = is_array($model) ? trim((string)($model['id'] ?? '')) : trim((string)$model);
+        if ($id !== '') {
+            $models[] = ['id' => $id, 'object' => 'model'];
+        }
+    }
+    echo json_encode(['data' => $models], JSON_UNESCAPED_SLASHES);
+}
+
+
 function cloud_ai_rate_limit_limits(string $kind): array
 {
     // Generous for normal work; speech is stricter (costlier upstream).
@@ -251,7 +277,24 @@ function cloud_ai_proxy_completions(array $config, array $payload): void
     $timedOut = (int)($result['errno'] ?? 0) === CURLE_OPERATION_TIMEDOUT;
     http_response_code($result['http'] > 0 ? $result['http'] : ($timedOut ? 504 : 502));
     if ($result['body'] !== '') {
-        echo $result['body'];
+        // Always answer with JSON: an upstream/WAF error page is HTML and would
+        // otherwise reach the browser as a non-JSON body ("network error").
+        $decoded = json_decode($result['body'], true);
+        if (is_array($decoded) && isset($decoded['error'])) {
+            echo json_encode($decoded);
+            return;
+        }
+        if (is_array($decoded) && !isset($decoded['error']) && $result['ok']) {
+            echo json_encode($decoded);
+            return;
+        }
+        $message = is_array($decoded)
+            ? (string)($decoded['error']['message'] ?? $decoded['message'] ?? '')
+            : '';
+        if ($message === '') {
+            $message = 'Upstream HTTP ' . ($result['http'] ?: 502) . ': the request was blocked or failed by the gateway';
+        }
+        echo json_encode(['error' => ['message' => $message, 'code' => $result['http']]]);
         return;
     }
     echo json_encode(['error' => ['message' => $result['error'] ?: 'Upstream request failed']]);
