@@ -614,17 +614,30 @@
                 <input type="hidden" name="lang" id="recipeFormLang">
                 <input type="hidden" name="recipe_id" id="recipeFormId">
                 <input type="hidden" name="clear_recipe_image" id="recipeClearImageFlag" value="0">
-                <input type="text" name="title" id="recipeTitle" placeholder="<?php echo $translations[$lang]['recipe_title']; ?>" required>
-                <div class="image-source-switch-row recipe-form-image-source" id="recipeImageSourceSwitchRow">
-                    <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_file']); ?></span>
-                    <label class="form-switch">
-                        <input type="checkbox" id="recipeImageUseUrl" aria-label="<?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?>">
-                        <span class="form-switch-slider"></span>
-                    </label>
-                    <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?></span>
+                <div class="recipe-title-row" id="recipeTitleRow">
+                    <input type="text" name="title" id="recipeTitle" placeholder="<?php echo $translations[$lang]['recipe_title']; ?>" required>
+                    <select id="recipeLang" class="custom-select">
+                        <option value="en">English</option>
+                        <option value="uk">Українська</option>
+                        <option value="ru">Русский</option>
+                        <option value="be">Беларуская</option>
+                    </select>
                 </div>
-                <div id="recipeImageFileRow" class="image-file-row recipe-image-file-row">
-                <input type="file" name="image" accept="image/*" id="recipeImageInput">
+                <div class="recipe-upload-grid" id="recipeUploadGrid">
+                    <div class="image-source-switch-row recipe-form-image-source" id="recipeImageSourceSwitchRow">
+                        <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_file']); ?></span>
+                        <label class="form-switch">
+                            <input type="checkbox" id="recipeImageUseUrl" aria-label="<?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?>">
+                            <span class="form-switch-slider"></span>
+                        </label>
+                        <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?></span>
+                    </div>
+                    <div id="recipeImageFileRow" class="image-file-row recipe-image-file-row">
+                        <input type="file" name="image" accept="image/*" id="recipeImageInput">
+                    </div>
+                </div>
+                <div id="recipeImageUrlRow" class="image-url-row recipe-image-url-row" style="display:none;">
+                    <input type="url" id="recipeImageUrlInput" placeholder="<?php echo htmlspecialchars($translations[$lang]['image_url_placeholder']); ?>" autocomplete="off" class="image-url-input">
                 </div>
                 <div id="recipeImageUrlRow" class="image-url-row recipe-image-url-row" style="display:none;">
                     <input type="url" id="recipeImageUrlInput" placeholder="<?php echo htmlspecialchars($translations[$lang]['image_url_placeholder']); ?>" autocomplete="off" class="image-url-input">

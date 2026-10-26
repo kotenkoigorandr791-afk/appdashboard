@@ -671,8 +671,8 @@
                 </div>
                 <button type="button" onclick="openProductSelection(${stepIndex})">${translations.select_product}</button>
                 <textarea placeholder="${translations.instruction}">${data.type === 'instruction' ? data.content : ''}</textarea>
-                <label><input type="checkbox" ${data.timer ? 'checked' : ''} onchange="toggleTimer(this, ${stepIndex})">${translations.set_timer}</label>
-                <div class="timer-input" style="display: ${data.timer ? 'flex' : 'none'};" id="timer-step${stepIndex}">
+                <label class="timer-toggle"><input type="checkbox" ${data.timer ? 'checked' : ''} onchange="toggleTimer(this, ${stepIndex})"><span class="timer-toggle-box" aria-hidden="true"></span>${translations.set_timer}</label>
+                <div class="timer-input" style="visibility: ${data.timer ? 'visible' : 'hidden'};" id="timer-step${stepIndex}">
                     <input type="number" class="timer-hours" min="0" max="99" placeholder="${translations.hours}" value="${data.timer ? data.timer.hours : '0'}" onkeydown="handleTimerKeydown(event, ${stepIndex})" onchange="updateTimer(${stepIndex})">
                     <span>:</span>
                     <input type="number" class="timer-minutes" min="0" max="59" placeholder="${translations.minutes}" value="${data.timer ? data.timer.minutes : '0'}" onkeydown="handleTimerKeydown(event, ${stepIndex})" onchange="updateTimer(${stepIndex})">
@@ -778,14 +778,14 @@
         function toggleTimer(checkbox, stepIndex) {
             const timerDiv = document.getElementById(`timer-step${stepIndex}`);
             if (checkbox.checked) {
-                timerDiv.style.display = 'flex';
+                timerDiv.style.visibility = 'visible';
                 const hoursInput = timerDiv.querySelector('.timer-hours');
                 const minutesInput = timerDiv.querySelector('.timer-minutes');
                 if (!hoursInput.value) hoursInput.value = 0;
                 if (!minutesInput.value) minutesInput.value = 0;
                 updateTimer(stepIndex);
             } else {
-                timerDiv.style.display = 'none';
+                timerDiv.style.visibility = 'hidden';
                 steps[stepIndex].timer = null;
             }
         }
@@ -970,8 +970,11 @@
                     langButtons += '</div>';
                     langButtons += '</div>';
 
-                    let html = langButtons;
+                    let html = '<div class="recipe-view-header">';
+                    html += langButtons;
                     html += `<h2>${recipeData.title[currentLang]}</h2>`;
+                    html += '</div>';
+                    html += '<div class="recipe-view-body">';
 
                     const imageSrc = recipeImg(recipeData);
                     html += `<img src="${imageSrc}" alt="${recipeData.title[currentLang]}" class="recipe-image">`;
@@ -1045,6 +1048,7 @@
                             html += `</div>`;
                         });
                     }
+                    html += '</div>'; // close recipe-view-body
                     recipeView.innerHTML = html;
                     syncIngredientProductImages();
                 })
@@ -1069,8 +1073,11 @@
                     langButtons += '</div>';
                     langButtons += '</div>';
                     
-                    let html = langButtons;
+                    let html = '<div class="recipe-view-header">';
+                    html += langButtons;
                     html += `<h2>${recipe.title[langCode] || recipe.title.en}</h2>`;
+                    html += '</div>';
+                    html += '<div class="recipe-view-body">';
                     
                     const imageSrc = recipeImg(recipe);
                     html += `<img src="${imageSrc}" alt="${recipe.title[langCode] || recipe.title.en}" class="recipe-image">`;
@@ -1144,6 +1151,7 @@
                             html += `</div>`;
                         });
                     }
+                    html += '</div>'; // close recipe-view-body
                     recipeView.innerHTML = html;
                     syncIngredientProductImages();
                 });
@@ -1998,12 +2006,12 @@
                 const isCleared = document.getElementById('recipeClearImageFlag')?.value === '1';
                 if (isEdit && hasExisting && !isCleared) visible = false;
             }
-            if (row) row.style.display = visible ? 'flex' : 'none';
+            if (row) row.style.display = (rowId === 'recipeImageSourceSwitchRow') ? (visible ? 'inline-flex' : 'none') : (visible ? 'flex' : 'none');
         }
         function setRecipeUploadControlsVisible(visible) {
             const fileRow = document.getElementById('recipeImageFileRow');
             const urlRow = document.getElementById('recipeImageUrlRow');
-            if (fileRow) fileRow.style.display = visible ? 'block' : 'none';
+            if (fileRow) fileRow.style.display = visible ? 'inline-block' : 'none';
             if (urlRow) urlRow.style.display = 'none';
             if (!visible) {
                 const useUrl = document.getElementById('recipeImageUseUrl');
@@ -2019,7 +2027,7 @@
             const useUrl = cb.checked;
             const fr = document.getElementById(prefix + 'ImageFileRow');
             const ur = document.getElementById(prefix + 'ImageUrlRow');
-            if (fr) fr.style.display = useUrl ? 'none' : 'block';
+            if (fr) fr.style.display = useUrl ? 'none' : (prefix === 'recipe' ? 'inline-block' : 'block');
             if (ur) ur.style.display = useUrl ? 'block' : 'none';
             const fin = document.getElementById(prefix + 'ImageInput');
             if (fin && prefix === 'product') fin.required = !useUrl;
@@ -3591,7 +3599,7 @@
                 const hasTimer = th > 0 || tm > 0;
                 div.innerHTML = `<div class="ai-preview-step-head">${translations.step} ${i + 1} — ${translations.instruction}${removeBtn}</div>
                     <textarea class="ai-step-instruction" rows="2">${escapeHtml(typeof step.content === 'string' ? step.content : '')}</textarea>
-                    <label><input type="checkbox" class="ai-step-timer-cb" ${hasTimer ? 'checked' : ''}> ${translations.set_timer}</label>
+                    <label class="timer-toggle"><input type="checkbox" class="ai-step-timer-cb" ${hasTimer ? 'checked' : ''}><span class="timer-toggle-box" aria-hidden="true"></span>${translations.set_timer}</label>
                     <div class="ai-step-timer-row" style="display:${hasTimer ? 'flex' : 'none'};gap:6px;">
                         <input type="number" class="ai-step-hours" min="0" max="99" value="${th}" placeholder="${translations.hours}">
                         <input type="number" class="ai-step-minutes" min="0" max="59" value="${tm}" placeholder="${translations.minutes}">
