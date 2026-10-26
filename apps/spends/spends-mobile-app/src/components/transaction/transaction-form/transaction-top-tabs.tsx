@@ -61,6 +61,7 @@ export const TransactionTopTabs = ({
               size={18}
             />
             <Text
+              numberOfLines={1}
               style={[styles.segmentLabel, isSelected && styles.activeText]}
             >
               {labels[slot]}
@@ -86,14 +87,16 @@ const styles = StyleSheet.create((theme) => ({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
-    gap: 6,
+    gap: 4,
     paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingHorizontal: 6,
     borderRadius: theme.radius,
   },
 
   segmentLabel: {
+    flexShrink: 1,
     ...theme.typography.bodyLarge,
+    fontSize: 14,
     fontWeight: "600",
     color: theme.colors.onSecondary,
   },

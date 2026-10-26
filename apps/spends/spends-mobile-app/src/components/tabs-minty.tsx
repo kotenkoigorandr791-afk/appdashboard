@@ -66,6 +66,9 @@ export const TabsMinty = <T,>({
             )}
             <Text
               variant="default"
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
               style={[styles.label, isActive && styles.labelActive]}
             >
               {item.label}
@@ -117,8 +120,9 @@ const styles = StyleSheet.create((theme) => ({
     alignItems: "center",
     justifyContent: "center",
     paddingVertical: 10,
+    paddingHorizontal: 4,
     borderRadius: theme.radius,
-    gap: 6,
+    gap: 4,
   },
   segmentedTabActive: {
     backgroundColor: theme.colors.primary,
@@ -133,6 +137,7 @@ const styles = StyleSheet.create((theme) => ({
   },
   label: {
     ...theme.typography.labelLarge,
+    flexShrink: 1,
     color: theme.colors.onSurface,
   },
   labelActive: {

@@ -1700,8 +1700,50 @@ function switchSettingsSection(section){
     if(target)target.classList.add('active');
     if(activeBtn)activeBtn.classList.add('active');
     if(section==='goals') loadGoalsList();
+    if(section==='tags') loadTagsList();
 }
 
+// ══ Tags
+let tagsCache=[];
+function tagsPost(body){return fetch('',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)}).then(r=>r.json());}
+function loadTagsList(){
+    fetch('?get_tags=1').then(r=>r.json()).then(d=>{tagsCache=Array.isArray(d.tags)?d.tags:[];renderTagsList();}).catch(()=>{tagsCache=[];renderTagsList();});
+}
+function renderTagsList(){
+    const host=document.getElementById('tags-list');
+    if(!host)return;
+    host.innerHTML='';
+    if(!tagsCache.length){host.innerHTML=`<div class="goals-empty">${t('tags_empty','No tags yet')}</div>`;return;}
+    tagsCache.forEach(tag=>{
+        const row=document.createElement('div');
+        row.className='tag-row';
+        row.dataset.tagId=tag.id;
+        const chip=document.createElement('span');
+        chip.className='tag-chip';
+        chip.style.background=tag.color||'#607d8b';
+        chip.textContent=tag.name;
+        const used=document.createElement('span');
+        used.className='tag-usage';
+        used.textContent=tag.usage_count?String(tag.usage_count):'';
+        const del=document.createElement('button');
+        del.type='button';
+        del.className='cancel-btn tag-delete';
+        del.textContent=t('delete','Delete');
+        del.onclick=()=>{if(!confirm(t('tags_delete_confirm','Delete this tag?')))return;tagsPost({delete_tag:tag.id}).then(loadTagsList);};
+        row.append(chip,used,del);
+        host.appendChild(row);
+    });
+}
+function saveTagFromForm(){
+    const name=(document.getElementById('tag-name').value||'').trim();
+    if(!name){showNotification(t('tags_name_required','Name is required'),'error');return;}
+    tagsPost({save_tag:'1',name,color:document.getElementById('tag-color').value}).then(res=>{
+        if(res.status!=='success'){showNotification(t('tags_save_failed','Could not save tag'),'error');return;}
+        document.getElementById('tag-name').value='';
+        loadTagsList();
+        showNotification(t('tags_saved','Tag saved'),'success');
+    });
+}
 // ══ Goals ═══════════════════════════════════════════════════════════════════
 let goalsCache=[];
 function goalsPost(body){

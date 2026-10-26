@@ -29,6 +29,7 @@ export type SpendsSyncPull = {
   }>
   incomes: Array<{ date: string; amount: number; signature: string }>
   subscriptions: unknown[]
+  tags?: Array<{ id: string; name: string; color?: string }>
   known_signatures: string[]
 }
 
@@ -62,6 +63,7 @@ export type SpendsSyncPushPayload = {
     category?: string
   }>
   settings?: Partial<SpendsSyncPull["settings"]>
+  tags?: Array<{ name: string; color?: string }>
 }
 
 export type SpendsSyncPushResult = {
@@ -73,7 +75,7 @@ export type SpendsSyncPushResult = {
   server_time: number
 }
 
-function authHeaders(): HeadersInit {
+export function authHeaders(): HeadersInit {
   const { token, ensureDeviceId } = useServerSyncStore.getState()
   const deviceId = ensureDeviceId()
   return {
@@ -83,7 +85,7 @@ function authHeaders(): HeadersInit {
   }
 }
 
-function baseUrl(): string {
+export function baseUrl(): string {
   const endpoint = useServerSyncStore.getState().endpoint.replace(/\/+$/, "")
   if (!endpoint) throw new Error("not_paired")
   return endpoint
@@ -237,4 +239,120 @@ export async function pushSpendsSync(
     })
     return parseJson<SpendsSyncPushResult>(res)
   }
+}
+
+export type ServerBackup = { name: string; size: number; mtime: number }
+
+async function backupCall<T>(params: Record<string, string>): Promise<T> {
+  const res = await fetch(baseUrl(), {
+    method: "POST",
+    headers: {
+      ...authHeaders(),
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: new URLSearchParams(params).toString(),
+  })
+  return parseJson<T>(res)
+}
+
+export async function listServerBackups(): Promise<ServerBackup[]> {
+  const data = await backupCall<{ backups?: ServerBackup[] }>({
+    backup_action: "list",
+  })
+  return [...(data.backups || [])].sort((a, b) => b.mtime - a.mtime)
+}
+
+export function saveServerBackup(name: string) {
+  return backupCall<{ status: string; message?: string }>({
+    backup_action: "save",
+    backup_name: name,
+  })
+}
+
+export function restoreServerBackup(file: string) {
+  return backupCall<{ status: string; message?: string }>({
+    backup_action: "restore",
+    backup_file: file,
+  })
+}
+
+export function deleteServerBackup(file: string) {
+  return backupCall<{ status: string; message?: string }>({
+    backup_action: "delete",
+    backup_file: file,
+  })
+}
+
+export type OcrUnresolved = {
+  merchant_raw: string
+  amount: number
+  currency?: string
+  date?: string
+}
+
+export type OcrJob = {
+  state: string
+  message?: string
+  progress?: { total: number; processed: number; percent: number }
+  unresolved?: OcrUnresolved[]
+  added_count?: number
+  duplicate_count?: number
+}
+
+const ocrUrl = (api: string, extra = "") =>
+  `${baseUrl()}/utils/expense_ocr_app?api=${api}${extra}`
+
+async function ocrJson<T>(api: string, extra = "", body?: unknown): Promise<T> {
+  const res = await fetch(ocrUrl(api, extra), {
+    method: body === undefined ? "GET" : "POST",
+    headers: {
+      ...authHeaders(),
+      ...(body === undefined ? {} : { "Content-Type": "application/json" }),
+    },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  })
+  return parseJson<T>(res)
+}
+
+export async function startOcrJob(
+  files: Array<{ uri: string; name: string; type: string }>,
+): Promise<{ status: string; job_id?: string; message?: string }> {
+  const form = new FormData()
+  files.forEach((f) =>
+    form.append("photos[]", f as unknown as Blob, f.name),
+  )
+  const res = await fetch(ocrUrl("start"), {
+    method: "POST",
+    headers: authHeaders(),
+    body: form,
+  })
+  return parseJson(res)
+}
+
+export async function getOcrJob(jobId: string): Promise<OcrJob> {
+  const data = await ocrJson<{ job: OcrJob }>(
+    "status",
+    `&job_id=${encodeURIComponent(jobId)}`,
+  )
+  return data.job
+}
+
+export function resolveOcrJob(
+  jobId: string,
+  map: Record<string, string>,
+  skip: string[],
+) {
+  return ocrJson<{ status: string; added: number }>("resolve", "", {
+    job_id: jobId,
+    map,
+    skip,
+  })
+}
+
+export function finalizeOcrJob(jobId: string) {
+  return ocrJson<{ status: string }>("finalize", "", { job_id: jobId })
+}
+
+export function cancelOcrJob(jobId: string) {
+  return ocrJson<{ status: string }>("cancel", "", { job_id: jobId })
 }

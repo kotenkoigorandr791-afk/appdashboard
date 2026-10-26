@@ -25,12 +25,6 @@ export default function AllAccountsScreen() {
     return <RouteLoadingState />
   }
 
-  const handleAddAccount = () => {
-    router.push({
-      pathname: "/accounts/[accountId]/modify",
-      params: { accountId: NewEnum.NEW },
-    })
-  }
 
   return (
     <View style={styles.container}>
@@ -42,19 +36,7 @@ export default function AllAccountsScreen() {
         renderItem={({ item: account }) => (
           <AccountCard account={account} isReorderMode={false} />
         )}
-        ListHeaderComponent={
-          <Pressable style={styles.newAccountButton} onPress={handleAddAccount}>
-            <IconSvg
-              name="plus-outline"
-              size={32}
-              color={theme.colors.onSecondary}
-            />
-            <Text variant="default" style={styles.newAccountText}>
-              {t("screens.accounts.addNew")}
-            </Text>
-          </Pressable>
-        }
-        ListFooterComponent={
+                ListFooterComponent={
           archivedAccounts.length > 0 ? (
             <>
               <Text variant="small" style={styles.archivedSectionLabel}>

@@ -10,7 +10,7 @@ import {
   defaultExportBaseName,
   type ExportType,
   type ImportResult,
-  type MintyFlowBackup,
+  type SpendsBackup,
   type RawRow,
   type SavedExport,
   SCHEMA_VERSION,
@@ -36,7 +36,7 @@ export {
   countBackupRecords,
   defaultExportBaseName,
   type ExportType,
-  type MintyFlowBackup,
+  type SpendsBackup,
   validateBackup,
 } from "~/database/backup/backup-format"
 
@@ -138,8 +138,8 @@ async function saveGeneratedExport(
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 
-/** Fetch all 13 tables from the SQLite DB and return a MintyFlowBackup object. */
-async function buildBackupInMemory(): Promise<MintyFlowBackup> {
+/** Fetch all 13 tables from the SQLite DB and return a SpendsBackup object. */
+async function buildBackupInMemory(): Promise<SpendsBackup> {
   const [
     categories,
     tags,
@@ -175,7 +175,7 @@ async function buildBackupInMemory(): Promise<MintyFlowBackup> {
       version: 1,
       schemaVersion: SCHEMA_VERSION,
       exportedAt: new Date().toISOString(),
-      appId: "minty-flow-app",
+      appId: "spends-app",
     },
     data: {
       categories,
@@ -448,7 +448,7 @@ export async function pickBackupFile(): Promise<{
  * Crash between A and B leaves empty DB; snapshot on disk triggers recovery on next launch.
  */
 export async function recoverInterruptedImport(): Promise<boolean> {
-  const snapshot = await readSqliteSnapshot<MintyFlowBackup>()
+  const snapshot = await readSqliteSnapshot<SpendsBackup>()
   if (!snapshot) return false
 
   await resetDatabaseForBackupImport()
@@ -461,7 +461,7 @@ export async function recoverInterruptedImport(): Promise<boolean> {
 }
 
 export async function importBackup(
-  backup: MintyFlowBackup,
+  backup: SpendsBackup,
 ): Promise<ImportResult> {
   try {
     const { data } = backup

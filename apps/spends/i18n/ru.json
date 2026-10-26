@@ -367,5 +367,14 @@
   "mobile_app_copy_link": "Скопировать ссылку",
   "manual_pair_link_label": "Ссылка для подключения",
   "cancel": "Отмена",
-  "edit": "Изменить"
+  "edit": "Изменить",
+  "tags_title": "Tags",
+  "tags_intro": "Tags are shared with the mobile app.",
+  "tags_name": "Tag name",
+  "tags_add": "Add tag",
+  "tags_empty": "No tags yet",
+  "tags_delete_confirm": "Delete this tag?",
+  "tags_name_required": "Name is required",
+  "tags_save_failed": "Could not save tag",
+  "tags_saved": "Tag saved"
 }

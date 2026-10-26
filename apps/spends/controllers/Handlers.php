@@ -5,6 +5,8 @@ $__t = static function (string $key): string {
     return $translations[$key] ?? $key;
 };
 require_once __DIR__ . '/../core/goals.php';
+require_once __DIR__ . '/../core/rates.php';
+require_once __DIR__ . '/../core/tags.php';
 require_once __DIR__ . '/../core/mobile_sync.php';
 
 // Mobile companion: profile probe used after QR pairing.
@@ -129,34 +131,7 @@ if (isset($_GET['get_exchange_rates'])) {
     $cached = spendsCacheGet('rates:' . $base);
     if ($cached !== null) exit($cached);
     try {
-        $rates = [];
-        // Try multiple sources
-        $url = "https://api.exchangerate-api.com/v4/latest/$base";
-        $ch = curl_init($url);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 5);
-        $response = curl_exec($ch);
-        
-        if ($response) {
-            $data = json_decode($response, true);
-            if (isset($data['rates'])) {
-                $rates = $data['rates'];
-            }
-        }
-        
-        // Fallback to NBU for UAH
-        if (empty($rates)) {
-            $nbu = file_get_contents('https://bank.gov.ua/NBUStatService/v1/statdirectory/exchange?json');
-            if ($nbu) {
-                $nbuRates = json_decode($nbu, true);
-                foreach ($nbuRates as $r) {
-                    if ($r['cc'] === 'USD') $rates['UAH'] = $r['rate'];
-                    if ($r['cc'] === 'EUR') $rates['EUR'] = $r['rate'];
-                }
-                $rates['USD'] = 1;
-            }
-        }
-        
+        $rates = spendsRatesFetch($base);
         $payload = json_encode([
             'status' => 'success',
             'base' => $base,
@@ -732,6 +707,24 @@ if (isset($_POST['update_income'])) {
     exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
 }
 
+if (isset($_GET['get_tags'])) {
+    exit(json_encode(['status'=>'success','tags'=>spendsTagList($udb)]));
+}
+if (isset($_GET['get_expense_tags'])) {
+    $from = (string)($_GET['from'] ?? '0000-01-01');
+    $to = (string)($_GET['to'] ?? '9999-12-31');
+    exit(json_encode(['status'=>'success','expense_tags'=>(object)spendsExpenseTagsFor($udb, $from, $to)]));
+}
+if (isset($_POST['save_tag'])) {
+    exit(json_encode(spendsTagUpsert($udb, ['id'=>$_POST['id'] ?? '','name'=>$_POST['name'] ?? '','color'=>$_POST['color'] ?? ''])));
+}
+if (isset($_POST['delete_tag'])) {
+    exit(json_encode(spendsTagDelete($udb, (string)$_POST['delete_tag'])));
+}
+if (isset($_POST['set_expense_tags'])) {
+    $ids = json_decode((string)($_POST['tag_ids'] ?? '[]'), true);
+    exit(json_encode(spendsExpenseTagsSet($udb, (string)($_POST['date'] ?? ''), (string)($_POST['store'] ?? ''), is_array($ids) ? $ids : [])));
+}
 if (isset($_GET['get_goals'])) {
     $includeArchived = isset($_GET['include_archived']) && (string)$_GET['include_archived'] !== '0';
     exit(json_encode(['status'=>'success','goals'=>spendsGoalList($udb, $includeArchived)]));

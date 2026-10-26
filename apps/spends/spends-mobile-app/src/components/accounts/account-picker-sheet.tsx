@@ -61,13 +61,6 @@ export function AccountPickerSheet({
     onSelect(id)
     handleClose()
   }
-  const handleAddAccount = () => {
-    handleClose()
-    router.push({
-      pathname: "/accounts/[accountId]/modify",
-      params: { accountId: NewEnum.NEW },
-    })
-  }
 
   const renderRow = (account: Account) => (
     <SingleSelectItem
@@ -113,14 +106,7 @@ export function AccountPickerSheet({
       renderRow={renderRow}
       empty={
         accounts.length === 0 ? (
-          <ListItem style={styles.row} onPress={handleAddAccount}>
-            <View style={styles.addIcon}>
-              <IconSvg name="plus-outline" size={20} />
-            </View>
-            <Text style={styles.addLabel}>
-              {t("screens.accounts.a11y.add")}
-            </Text>
-          </ListItem>
+          <EmptyState variant="compact" icon="search-outline" title={t("components.accountPicker.noResults")} />
         ) : (
           <EmptyState
             variant="compact"

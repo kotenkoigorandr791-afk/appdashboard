@@ -1,6 +1,6 @@
 {
   "expo": {
-    "version": "0.1.0",
+    "version": "0.2.0",
     "name": "Spends",
     "slug": "spends-mobile-app",
     "extra": {
@@ -20,7 +20,7 @@
       }
     },
     "android": {
-      "versionCode": 1,
+      "versionCode": 2,
       "permissions": [
         "READ_CONTACTS",
         "WRITE_CONTACTS",
@@ -54,6 +54,7 @@
     },
     "plugins": [
       "./plugins/with-wallet-notification-listener",
+      ["expo-camera", {"cameraPermission": "Allow $(PRODUCT_NAME) to scan the pairing QR code"}],
       "expo-router",
       "expo-localization",
       "expo-font",

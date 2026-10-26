@@ -83,11 +83,6 @@ const settingsGroups: SettingsGroup[] = [
         icon: "tags-outline",
       },
       {
-        titleKey: "screens.settings.loans.title",
-        route: "/settings/loans",
-        icon: "scale-outline",
-      },
-      {
         titleKey: "screens.settings.trash.title",
         route: "/settings/trash",
         icon: "trash-outline",

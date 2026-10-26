@@ -1,4 +1,5 @@
 import * as Linking from "expo-linking"
+import { useRouter } from "expo-router"
 import { useCallback, useEffect, useState } from "react"
 import { useTranslation } from "react-i18next"
 import { StyleSheet } from "react-native-unistyles"
@@ -33,6 +34,7 @@ export function ServerPairingPanel({
   allowDisconnect = true,
 }: Props) {
   const { t } = useTranslation()
+  const router = useRouter()
   const endpoint = useServerSyncStore((s) => s.endpoint)
   const email = useServerSyncStore((s) => s.email)
   const wifiOnly = useServerSyncStore((s) => s.wifiOnly)
@@ -221,6 +223,13 @@ export function ServerPairingPanel({
                 disabled={busy || !linkInput.trim()}
               >
                 <Text>{t("screens.settings.serverSync.pairCta")}</Text>
+              </Button>
+              <Button variant="secondary" onPress={() => router.push("/scan-qr")}>
+                <Text>
+                  {t("screens.settings.serverSync.scanQr", {
+                    defaultValue: "Scan QR from web page",
+                  })}
+                </Text>
               </Button>
             </View>
           </SettingsSection>

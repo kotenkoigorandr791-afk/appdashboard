@@ -81,6 +81,7 @@ const FAB_OPTION_POSITIONS = [
   { left: 2, top: -78 },
   { left: 82, top: -38 },
   { left: -78, top: -38 },
+  { left: 2, top: -148 },
 ]
 const OPEN_SPRING = { stiffness: 260, damping: 18, mass: 0.7 }
 const CLOSE_TIMING = {
@@ -226,6 +227,18 @@ const TabLayout = () => {
         toggleFab()
       },
     },
+    ocr: {
+      icon: "camera-outline" as IconSvgName,
+      color: theme.colors.primary,
+      iconColor: theme.colors.onPrimary,
+      label: t("screens.ocr.title", {
+        defaultValue: "Add via Google screenshot",
+      }),
+      onPress: () => {
+        router.push("/ocr")
+        toggleFab()
+      },
+    },
     transfer: {
       icon: "arrows-right-left-outline",
       color: theme.colors.secondary,
@@ -239,9 +252,10 @@ const TabLayout = () => {
       },
     },
   }
-  const fabOptions: FABOption[] = buttonOrder.map(
-    (type) => fabOptionsByType[type],
-  )
+  const fabOptions: FABOption[] = [
+    ...buttonOrder.map((type) => fabOptionsByType[type]),
+    fabOptionsByType.ocr,
+  ]
   return (
     <View style={styles.container}>
       {/* PAGER */}

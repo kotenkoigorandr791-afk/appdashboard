@@ -3,7 +3,12 @@ import { and, eq, or } from "drizzle-orm"
 import { AppState, type AppStateStatus, Platform } from "react-native"
 
 import { drizzleDb } from "~/database/drizzle/db"
-import { accounts, categories, transactions } from "~/database/drizzle/schema"
+import {
+  accounts,
+  categories,
+  tags,
+  transactions,
+} from "~/database/drizzle/schema"
 import { generateId } from "~/database/utils/generate-id"
 import { createTransaction } from "~/database/services/ledger-service"
 import type { TransactionFormValues } from "~/schemas/transactions.schema"
@@ -141,6 +146,32 @@ export async function pairManual(
   return { email: profile.email || "" }
 }
 
+function reconcileTags(
+  serverTags: Array<{ name: string }>,
+): Array<{ name: string }> {
+  const local = drizzleDb.select().from(tags).all()
+  const key = (n: string) => n.trim().toLowerCase()
+  const localNames = new Set(local.map((t) => key(t.name)))
+  const serverNames = new Set(serverTags.map((t) => key(t.name)))
+  const now = new Date().toISOString()
+  for (const st of serverTags) {
+    if (!st.name.trim() || localNames.has(key(st.name))) continue
+    drizzleDb
+      .insert(tags)
+      .values({
+        id: generateId(),
+        name: st.name.trim(),
+        type: "generic",
+        createdAt: now,
+        updatedAt: now,
+      })
+      .run()
+  }
+  return local
+    .filter((t) => t.type === "generic" && !serverNames.has(key(t.name)))
+    .map((t) => ({ name: t.name }))
+}
+
 export async function performSpendsSync(): Promise<{
   created: number
   skipped: number
@@ -236,6 +267,7 @@ export async function performSpendsSync(): Promise<{
       expenses: [],
       incomes: [],
       settings: pull.settings,
+      tags: reconcileTags(pull.tags || []),
     }
 
     const accMap = new Map(

@@ -41,40 +41,11 @@ export default function SummaryScreen() {
   const totalBill = getBillTotal(items)
   // Amount the payer themselves owes (their own share of the bill)
   const payerEntry = summary.find((s) => s.participantId === payerId) ?? null
-  const handleGenerateLoan = (entry: BillSummaryEntry) => {
-    if (!accountId) {
-      Toast.warn({
-        title: t("screens.settings.billSplitter.summary.noAccount"),
-      })
-      return
-    }
-    if (!payerId) {
-      Toast.warn({
-        title: t("screens.settings.billSplitter.summary.noPayer"),
-      })
-      return
-    }
-    router.push({
-      pathname: "/settings/loans/[loanId]/modify",
-      params: {
-        loanId: NewEnum.NEW,
-        prefillName: entry.name,
-        prefillDescription: t(
-          "screens.settings.billSplitter.summary.loanDescription",
-        ),
-        prefillAccountId: accountId,
-        prefillAmount: entry.owedAmount.toString(),
-        prefillLoanType: LoanTypeEnum.LENT,
-      },
-    })
-  }
   const renderItem = ({ item }: { item: BillSummaryEntry }) => {
     const isPayer = item.participantId === payerId
     return (
       <Pressable
         style={[styles.summaryCard, isPayer && styles.summaryCardPayer]}
-        onPress={() => !isPayer && handleGenerateLoan(item)}
-        disabled={isPayer}
       >
         <Text style={styles.nameText} numberOfLines={1}>
           {item.name}
@@ -87,13 +58,6 @@ export default function SummaryScreen() {
             hideSign
             style={styles.amountText}
           />
-          {!isPayer ? (
-            <IconSvg
-              name="chevron-right-outline"
-              size={16}
-              color={theme.colors.onSecondary}
-            />
-          ) : null}
         </View>
       </Pressable>
     )
@@ -184,27 +148,6 @@ export default function SummaryScreen() {
         }
         ItemSeparatorComponent={() => <View style={styles.separator} />}
       />
-
-      {/* Bottom action — disabled until payer is selected */}
-      <View style={styles.footer}>
-        <Button
-          onPress={() => {
-            const debtors = summary.filter(
-              (s) => s.participantId !== payerId && s.owedAmount > 0,
-            )
-            if (debtors.length === 0) return
-            for (const debtor of debtors) {
-              handleGenerateLoan(debtor)
-            }
-          }}
-          disabled={!payerId}
-          style={styles.footerButton}
-        >
-          <Text>
-            {t("screens.settings.billSplitter.actions.generateLoans")}
-          </Text>
-        </Button>
-      </View>
     </View>
   )
 }

@@ -111,16 +111,6 @@ function LockedKindRow({
     <ListItem
       style={transactionFormStyles.lockedKindRow}
       disabled={!linkedLoan}
-      onPress={
-        linkedLoan
-          ? () =>
-              router.push({
-                pathname: "/settings/loans/[loanId]",
-                params: { loanId: linkedLoan.id },
-              })
-          : undefined
-      }
-      accessibilityRole={linkedLoan ? "link" : undefined}
     >
       <View style={transactionFormStyles.lockedKindLeft}>
         <DynamicIcon

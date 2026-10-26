@@ -6,6 +6,8 @@ import { Text } from "~/components/ui/text"
 import { View } from "~/components/ui/view"
 import { formatPercent } from "~/utils/number-format"
 
+const SHOW_COMPARISONS = false
+
 interface DeltaBadgeProps {
   current: number
   previous: number | null | undefined
@@ -21,6 +23,8 @@ export function DeltaBadge({
   size = "sm",
 }: DeltaBadgeProps) {
   const { t } = useTranslation()
+
+  if (!SHOW_COMPARISONS) return null
 
   if (previous == null || previous === 0) {
     return (

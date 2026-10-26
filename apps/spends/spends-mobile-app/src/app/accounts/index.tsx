@@ -107,12 +107,6 @@ function AccountsScreen() {
     setIsReorderMode(false)
     setReorderedAccounts([])
   }
-  const handleAddAccount = () => {
-    router.push({
-      pathname: "/accounts/[accountId]/modify",
-      params: { accountId: NewEnum.NEW },
-    })
-  }
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
@@ -216,14 +210,7 @@ function AccountsScreen() {
         showsVerticalScrollIndicator={false}
         ListFooterComponent={
           !isReorderMode ? (
-            <View style={styles.footer}>
-              <Button onPress={handleAddAccount} variant="secondary">
-                <IconSvg name="plus-outline" size={24} />
-                <Text variant="default">
-                  {t("screens.accounts.addNewAccount")}
-                </Text>
-              </Button>
-            </View>
+            null
           ) : null
         }
       />

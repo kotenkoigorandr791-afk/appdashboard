@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 
 import {
-  type MintyFlowBackup,
+  type SpendsBackup,
   SCHEMA_VERSION,
   validateBackup,
 } from "~/database/backup/backup-format"
@@ -48,12 +48,12 @@ const rule = (
 })
 
 function backupWith(rules: Record<string, unknown>[]): string {
-  const backup: MintyFlowBackup = {
+  const backup: SpendsBackup = {
     meta: {
       version: 1,
       schemaVersion: SCHEMA_VERSION,
       exportedAt: now,
-      appId: "minty-flow-app",
+      appId: "spends-app",
     },
     data: {
       categories: [],

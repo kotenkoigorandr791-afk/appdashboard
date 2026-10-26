@@ -10,14 +10,23 @@ import { logger } from "~/utils/logger"
 import { Toast } from "~/utils/toast"
 
 import { currencyRegistryService } from "./currency-registry"
+import { authHeaders, baseUrl } from "./spends-api"
 import {
   fillMissingRates,
   GAP_FILL_SOURCES,
   OPEN_ER_API,
-  RATE_SOURCES,
+  parseServerRates,
   type RateSource,
   type SourceRates,
 } from "./exchange-rate-sources"
+
+const SERVER_RATES: RateSource = {
+  name: "spends-server",
+  url: (base) => `${baseUrl()}?get_exchange_rates=1&base=${base.toUpperCase()}`,
+  headers: () => authHeaders() as Record<string, string>,
+  parse: (json) => parseServerRates(json),
+}
+const RATE_SOURCES: readonly RateSource[] = [SERVER_RATES]
 
 // Normalized structure we use internally
 export interface ExchangeRates {
@@ -121,7 +130,7 @@ class ExchangeRatesService {
         logger.debug("Fetching exchange rates", { source: source.name, url })
         const response = await fetch(url, {
           method: "GET",
-          headers: { Accept: "application/json" },
+          headers: { Accept: "application/json", ...source.headers?.() },
           signal,
         })
         if (!response.ok) {

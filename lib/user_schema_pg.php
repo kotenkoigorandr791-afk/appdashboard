@@ -21,11 +21,17 @@ function app_spends_user_id(string $email): string {
 function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
     if ($appPrefix === 'spends') {
         $uid = app_spends_user_id($email);
-        $main = app_main_db();
-        app_spends_shared_ensure($main);
-        app_spends_subscriptions_ensure($main);
-        app_spends_goals_ensure($main);
-        app_spends_migrate_legacy($main, $uid, $email);
+        require_once __DIR__ . '/schema_once.php';
+        $readyKey = 'spends_ready:' . $uid;
+        if (!app_once_done($readyKey, __FILE__)) {
+            $main = app_main_db();
+            app_spends_shared_ensure($main);
+            app_spends_subscriptions_ensure($main);
+            app_spends_goals_ensure($main);
+            app_spends_tags_ensure($main);
+            app_spends_migrate_legacy($main, $uid, $email);
+            app_once_mark($readyKey, __FILE__);
+        }
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
         return AppDatabase::connectUserSchema(APP_SPENDS_SHARED_SCHEMA, ["SELECT set_config('spends.user_id', $lit, false)", 'SET ROLE ' . APP_SPENDS_ROLE]);
     }
@@ -48,9 +54,44 @@ function app_spends_subscriptions_ensure(AppDatabase $db): void {
     require_once __DIR__ . '/schema_once.php';
     app_once_wrap('spends_subscriptions', __FILE__, fn() => app_spends_subscriptions_ensure_impl($db));
 }
+function app_spends_tags_ensure(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    app_once_wrap('spends_tags', __FILE__, fn() => app_spends_tags_ensure_impl($db));
+}
 function app_spends_goals_ensure(AppDatabase $db): void {
     require_once __DIR__ . '/schema_once.php';
     app_once_wrap('spends_goals', __FILE__, fn() => app_spends_goals_ensure_impl($db));
+}
+function app_spends_tags_ensure_impl(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
+    $sc = APP_SPENDS_SHARED_SCHEMA;
+    $role = APP_SPENDS_ROLE;
+    $reg = $db->query("SELECT to_regclass('$sc.tags')")->fetch(PDO::FETCH_NUM);
+    if ($reg && $reg[0] !== null) {
+        $done = true;
+        return;
+    }
+    $uid = "user_id TEXT NOT NULL DEFAULT current_setting('spends.user_id')";
+    $db->exec('BEGIN');
+    try {
+        $db->exec('SELECT pg_advisory_xact_lock(7710004)');
+        $db->exec("CREATE TABLE IF NOT EXISTS $sc.tags ($uid, id TEXT NOT NULL, name TEXT NOT NULL, color TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (user_id, id))");
+        $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS spends_tags_name ON $sc.tags(user_id, lower(name))");
+        $db->exec("CREATE TABLE IF NOT EXISTS $sc.expense_tags ($uid, date TEXT NOT NULL, store TEXT NOT NULL, tag_id TEXT NOT NULL, PRIMARY KEY (user_id, date, store, tag_id))");
+        foreach (['tags', 'expense_tags'] as $tbl) {
+            $db->exec("ALTER TABLE $sc.$tbl ENABLE ROW LEVEL SECURITY");
+            $db->exec("ALTER TABLE $sc.$tbl FORCE ROW LEVEL SECURITY");
+            $db->exec("DROP POLICY IF EXISTS spends_owner ON $sc.$tbl");
+            $db->exec("CREATE POLICY spends_owner ON $sc.$tbl USING (user_id = current_setting('spends.user_id', true)) WITH CHECK (user_id = current_setting('spends.user_id', true))");
+            $db->exec("GRANT SELECT, INSERT, UPDATE, DELETE ON $sc.$tbl TO $role");
+        }
+        $db->exec('COMMIT');
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
+    }
+    $done = true;
 }
 function app_spends_goals_ensure_impl(AppDatabase $db): void {
     static $done = false;

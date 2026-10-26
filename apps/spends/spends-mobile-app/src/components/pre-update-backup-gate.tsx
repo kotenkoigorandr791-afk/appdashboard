@@ -37,7 +37,7 @@ export function PreUpdateBackupGate({ children }: { children: ReactNode }) {
 
   const handleSaveBackup = async () => {
     try {
-      const saved = await saveZipToDevice("minty-flow-before-update")
+      const saved = await saveZipToDevice("spends-before-update")
       // Cancelling the save dialog keeps the prompt open.
       if (saved.savedToDevice) setPhase("ready")
     } catch (error) {

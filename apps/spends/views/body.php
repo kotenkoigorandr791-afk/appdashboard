@@ -398,6 +398,7 @@
         <h3><?= htmlspecialchars($translations['settings_title']) ?></h3>
         <nav class="settings-menu-bar">
             <button type="button" class="settings-menu-btn active" data-settings-section="stores" onclick="switchSettingsSection('stores')"><?= htmlspecialchars($translations['stores']) ?></button>
+            <button type="button" class="settings-menu-btn" data-settings-section="tags" onclick="switchSettingsSection('tags')"><?= htmlspecialchars($translations['tags_title'] ?? 'Tags') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="goals" onclick="switchSettingsSection('goals')"><?= htmlspecialchars($translations['goals_title'] ?? 'Goals') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="chart" onclick="switchSettingsSection('chart')"><?= htmlspecialchars($translations['chart_settings'] ?? 'Chart') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="delete" onclick="switchSettingsSection('delete')"><?= htmlspecialchars($translations['data_deletion'] ?? 'Data deletion') ?></button>
@@ -443,6 +444,17 @@
                 <?php endforeach; ?>
             </div>
             <button class="add-store-btn" onclick="showAddEditStoreModal()">+ <?= htmlspecialchars($translations['add_store']) ?></button>
+        </div>
+        <div class="settings-section" id="settings-section-tags">
+            <div class="goals-toolbar">
+                <p class="goals-intro"><?= htmlspecialchars($translations['tags_intro'] ?? 'Tags are shared with the mobile app.') ?></p>
+            </div>
+            <div class="form-row tags-add-row">
+                <input type="text" id="tag-name" maxlength="60" placeholder="<?= htmlspecialchars($translations['tags_name'] ?? 'Tag name') ?>">
+                <input type="color" id="tag-color" value="#4caf50">
+                <button type="button" class="action-primary-btn" id="tags-add-btn" onclick="saveTagFromForm()"><?= htmlspecialchars($translations['tags_add'] ?? 'Add tag') ?></button>
+            </div>
+            <div id="tags-list" class="tags-list"></div>
         </div>
         <div class="settings-section" id="settings-section-goals">
             <div class="goals-toolbar">

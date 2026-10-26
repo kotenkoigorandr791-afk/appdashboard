@@ -7,8 +7,6 @@ export const KIND_ORDER: TransactionKind[] = [
   "upcoming",
   "subscription",
   "repetitive",
-  "lent",
-  "borrowed",
 ]
 
 export const KIND_LABEL_KEYS: Record<TransactionKind, TranslationKey> = {

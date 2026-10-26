@@ -30,7 +30,7 @@
       "checking": "Checking your data...",
       "title": "Save a backup first",
       "description": "This update changes your database. Save a backup to your phone before it starts so you have a recovery copy. If you continue without one and the update fails, your data may be lost.",
-      "note": "Keep Minty Flow open until the update finishes.",
+      "note": "Keep Spends open until the update finishes.",
       "saveBackup": "Save backup",
       "continueWithout": "Continue without backup",
       "failed": "Couldn't save the backup. Try again."
@@ -348,8 +348,7 @@
       },
       "about": {
         "version": "v{{version}}",
-        "tagline": "Made to help your money make cents.",
-        "handle": "@adelefaell"
+        "tagline": "Made to help your money make cents."
       },
       "preferences": {
         "title": "Preferences",

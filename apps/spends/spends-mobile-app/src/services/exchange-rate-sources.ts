@@ -20,6 +20,7 @@ export interface SourceRates {
 export interface RateSource {
   name: string
   url: (baseCurrency: string) => string
+  headers?: () => Record<string, string>
   parse: (json: unknown, baseCurrency: string) => SourceRates | null
 }
 
@@ -95,6 +96,14 @@ export const FAWAZ_PAGES: RateSource = {
   url: (base) =>
     `https://latest.currency-api.pages.dev/v1/currencies/${base.toLowerCase()}.min.json`,
   parse: parseFawaz,
+}
+
+export function parseServerRates(json: unknown): SourceRates | null {
+  if (!isRecord(json) || json.status !== "success" || !isRecord(json.rates)) {
+    return null
+  }
+  const rates = cleanRates(json.rates)
+  return Object.keys(rates).length ? { date: today(), rates } : null
 }
 
 /** Primary source, then fallbacks in order. */

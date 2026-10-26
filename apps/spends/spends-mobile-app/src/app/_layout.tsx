@@ -228,22 +228,6 @@ function AppRootLayout() {
                   options={{ title: t("profile.edit.title") }}
                 />
                 <Stack.Screen
-                  name="settings/loans/index"
-                  options={{ title: t("screens.settings.loans.title") }}
-                />
-                <Stack.Screen
-                  name="settings/loans/[loanId]/index"
-                  options={{ title: t("screens.settings.loans.detail.title") }}
-                />
-                <Stack.Screen
-                  name="settings/loans/[loanId]/modify"
-                  options={modifyTitle(
-                    "loanId",
-                    t("screens.settings.loans.addNew"),
-                    t("screens.settings.loans.title"),
-                  )}
-                />
-                <Stack.Screen
                   name="settings/all-accounts"
                   options={{ title: t("screens.accounts.title") }}
                 />
@@ -281,6 +265,8 @@ function AppRootLayout() {
                   name="settings/trash"
                   options={{ title: t("screens.settings.trash.title") }}
                 />
+                <Stack.Screen name="scan-qr" options={{ title: t("screens.settings.serverSync.scanQr", { defaultValue: "Scan QR from web page" }) }} />
+                <Stack.Screen name="ocr" options={{ title: t("screens.ocr.title", { defaultValue: "Add via Google screenshot" }) }} />
                 <Stack.Screen
                   name="auth"
                   options={{ headerShown: false, title: t("screens.settings.serverSync.pair") }}

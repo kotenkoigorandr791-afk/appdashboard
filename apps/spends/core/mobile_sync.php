@@ -155,6 +155,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         'incomes' => $incomes,
         'subscriptions' => function_exists('spendsSubscriptionList') ? spendsSubscriptionList($udb) : [],
         'goals' => function_exists('spendsGoalList') ? spendsGoalList($udb, true) : [],
+        'tags' => function_exists('spendsTagList') ? spendsTagList($udb) : [],
         'known_signatures' => $known,
     ];
 }
@@ -336,6 +337,14 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
                 $updated++;
             } else {
                 $errors[] = ['goal' => $goalRow, 'error' => $res['message'] ?? 'goal_failed'];
+            }
+        }
+    }
+
+    if (!empty($payload['tags']) && is_array($payload['tags']) && function_exists('spendsTagUpsert')) {
+        foreach ($payload['tags'] as $tagRow) {
+            if (is_array($tagRow)) {
+                spendsTagUpsert($udb, $tagRow);
             }
         }
     }

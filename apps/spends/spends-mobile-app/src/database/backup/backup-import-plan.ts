@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm"
 import {
   ALLOWED_COLUMNS,
   deriveHasAttachments,
-  type MintyFlowBackup,
+  type SpendsBackup,
   normalizeColumnValue,
   type RawRow,
   RESET_ORDER,
@@ -107,7 +107,7 @@ function insertRows(
   }
 }
 
-export function insertBackupData(db: Db, data: MintyFlowBackup["data"]): void {
+export function insertBackupData(db: Db, data: SpendsBackup["data"]): void {
   // Tier 1: no FK dependencies
   insertRows(db, "categories", data.categories)
   insertRows(db, "tags", data.tags)

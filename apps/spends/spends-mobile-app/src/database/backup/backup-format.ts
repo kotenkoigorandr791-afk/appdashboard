@@ -4,7 +4,7 @@ export interface BackupMeta {
   version: 1
   schemaVersion: number
   exportedAt: string
-  appId: "minty-flow-app"
+  appId: "spends-app"
 }
 
 export type RawRow = Record<string, unknown>
@@ -18,7 +18,7 @@ export interface SavedExport {
   savedToDevice: boolean
 }
 
-export interface MintyFlowBackup {
+export interface SpendsBackup {
   meta: BackupMeta
   data: {
     categories: RawRow[]
@@ -42,7 +42,7 @@ export type ImportResult =
   | { success: false; error: string }
 
 export type ValidateBackupResult =
-  | { success: true; backup: MintyFlowBackup }
+  | { success: true; backup: SpendsBackup }
   | {
       success: false
       reason: "parse_error" | "validation_error"
@@ -224,7 +224,7 @@ export const RESET_ORDER = [
 
 export function defaultExportBaseName(type: ExportType): string {
   const date = new Date().toISOString().slice(0, 10)
-  const stem = type === "csv" ? "minty-flow-transactions" : "minty-flow-backup"
+  const stem = type === "csv" ? "spends-transactions" : "spends-backup"
   return `${stem}-${date}`
 }
 
@@ -315,11 +315,11 @@ export function validateBackup(json: string): ValidateBackupResult {
     }
     const p = parsed as Record<string, unknown>
     const meta = p.meta as Record<string, unknown> | undefined
-    if (meta?.appId !== "minty-flow-app") {
+    if (meta?.appId !== "spends-app") {
       return {
         success: false,
         reason: "validation_error",
-        message: "Not a Minty Flow backup file",
+        message: "Not a Spends backup file",
       }
     }
     if (meta.version !== 1) {
@@ -525,7 +525,7 @@ export function validateBackup(json: string): ValidateBackupResult {
       }
     }
 
-    return { success: true, backup: parsed as MintyFlowBackup }
+    return { success: true, backup: parsed as SpendsBackup }
   } catch (e) {
     return {
       success: false,
@@ -535,7 +535,7 @@ export function validateBackup(json: string): ValidateBackupResult {
   }
 }
 
-export function countBackupRecords(backup: MintyFlowBackup): {
+export function countBackupRecords(backup: SpendsBackup): {
   total: number
   tableCount: number
 } {
