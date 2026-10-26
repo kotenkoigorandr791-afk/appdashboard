@@ -9,7 +9,7 @@ concurrency:
   cancel-in-progress: false
 jobs:
   build-images:
-    runs-on: local
+    runs-on: appdashboard-deploy
     timeout-minutes: 360
     steps:
       - name: Checkout
