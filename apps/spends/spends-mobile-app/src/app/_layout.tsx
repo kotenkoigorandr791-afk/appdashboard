@@ -1,7 +1,7 @@
 import "react-native-reanimated"
 import { useMigrations } from "drizzle-orm/expo-sqlite/migrator"
 import { useDrizzleStudio } from "expo-drizzle-studio-plugin"
-import { NavigationBar } from "expo-navigation-bar"
+import * as NavigationBar from "expo-navigation-bar"
 import * as Notifications from "expo-notifications"
 import { Stack, useRouter, useSegments } from "expo-router"
 import { useEffect } from "react"
@@ -107,6 +107,12 @@ function AppRootLayout() {
         name: "Transaction Reminders",
         importance: Notifications.AndroidImportance.HIGH,
       }).catch(() => {})
+      try {
+        NavigationBar.setStyle("auto")
+      } catch {
+        /* emulator / OEM may reject navigation-bar style */
+      }
+      void NavigationBar.setVisibilityAsync("visible").catch(() => {})
     }
   }, [])
 
@@ -503,7 +509,6 @@ function AppRootLayout() {
             <AppLockGate />
             <ToastManager />
 
-            <NavigationBar style="auto" />
           </TooltipProvider>
         </KeyboardProvider>
       </SafeAreaProvider>

@@ -9,6 +9,7 @@ require_once APP_ROOT . '/apps/spends/core/db.php';
 require_once APP_ROOT . '/apps/spends/core/user_db.php';
 require_once APP_ROOT . '/apps/spends/core/auth.php';
 require_once APP_ROOT . '/apps/spends/core/subscriptions.php';
+require_once APP_ROOT . '/apps/spends/core/goals.php';
 require_once APP_ROOT . '/apps/spends/core/locale.php';
 require_once APP_ROOT . '/apps/spends/core/user_state.php';
 require_once APP_ROOT . '/apps/spends/core/mobile_sync.php';

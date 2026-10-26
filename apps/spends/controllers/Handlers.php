@@ -4,6 +4,7 @@ $__t = static function (string $key): string {
     global $translations;
     return $translations[$key] ?? $key;
 };
+require_once __DIR__ . '/../core/goals.php';
 require_once __DIR__ . '/../core/mobile_sync.php';
 
 // Mobile companion: profile probe used after QR pairing.
@@ -729,6 +730,46 @@ if (isset($_POST['update_income'])) {
         exit(json_encode(['status'=>'success']));
     }
     exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
+}
+
+if (isset($_GET['get_goals'])) {
+    $includeArchived = isset($_GET['include_archived']) && (string)$_GET['include_archived'] !== '0';
+    exit(json_encode(['status'=>'success','goals'=>spendsGoalList($udb, $includeArchived)]));
+}
+if (isset($_POST['save_goal'])) {
+    exit(json_encode(spendsGoalUpsert($udb, [
+        'id' => $_POST['id'] ?? '',
+        'name' => $_POST['name'] ?? '',
+        'description' => $_POST['description'] ?? '',
+        'target_amount' => $_POST['target_amount'] ?? 0,
+        'current_amount' => $_POST['current_amount'] ?? 0,
+        'currency' => $_POST['currency'] ?? ($userSettings['currency'] ?? 'USD'),
+        'target_date' => $_POST['target_date'] ?? '',
+        'goal_type' => $_POST['goal_type'] ?? 'savings',
+        'is_archived' => $_POST['is_archived'] ?? 0,
+        'icon' => $_POST['icon'] ?? '',
+    ])));
+}
+if (isset($_POST['contribute_goal'])) {
+    $id = trim((string)($_POST['id'] ?? $_POST['contribute_goal'] ?? ''));
+    $delta = filter_var($_POST['amount'] ?? 0, FILTER_VALIDATE_FLOAT);
+    if ($id === '' || $delta === false) {
+        exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
+    }
+    exit(json_encode(spendsGoalContribute($udb, $id, (float)$delta)));
+}
+if (isset($_POST['delete_goal'])) {
+    exit(json_encode(spendsGoalDelete($udb, (string)($_POST['delete_goal'] ?? ''))));
+}
+if (isset($_POST['archive_goal'])) {
+    $id = trim((string)($_POST['archive_goal'] ?? ''));
+    $archived = !isset($_POST['is_archived']) || (string)$_POST['is_archived'] !== '0';
+    if ($id === '') exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
+    $get = $udb->prepare('SELECT id, name, description, target_amount, current_amount, currency, target_date, goal_type, is_archived, icon, created_at, updated_at FROM goals WHERE id = :id LIMIT 1');
+    $get->bindValue(':id', $id);
+    $row = $get->execute()->fetch(PDO::FETCH_ASSOC);
+    if (!$row) exit(json_encode(['status'=>'error','message'=>'not_found']));
+    exit(json_encode(spendsGoalUpsert($udb, array_merge($row, ['is_archived' => $archived ? 1 : 0]))));
 }
 
 if (isset($_GET['get_subscriptions'])) {

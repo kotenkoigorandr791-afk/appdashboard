@@ -1699,6 +1699,101 @@ function switchSettingsSection(section){
     const activeBtn=document.querySelector(`.settings-menu-btn[data-settings-section="${section}"]`);
     if(target)target.classList.add('active');
     if(activeBtn)activeBtn.classList.add('active');
+    if(section==='goals') loadGoalsList();
+}
+
+// ══ Goals ═══════════════════════════════════════════════════════════════════
+let goalsCache=[];
+function goalsPost(body){
+    return fetch('',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams(body)}).then(r=>r.json());
+}
+function loadGoalsList(){
+    fetch('?get_goals=1&include_archived=1').then(r=>r.json()).then(d=>{
+        goalsCache=Array.isArray(d.goals)?d.goals:[];
+        renderGoalsList();
+    }).catch(()=>{goalsCache=[];renderGoalsList();});
+}
+function renderGoalsList(){
+    const host=document.getElementById('goals-list');
+    if(!host)return;
+    host.innerHTML='';
+    if(!goalsCache.length){
+        host.innerHTML=`<div class="goals-empty">${t('goals_empty','No goals yet')}</div>`;
+        return;
+    }
+    goalsCache.forEach(g=>{
+        const card=document.createElement('div');
+        card.className='goal-card'+(g.is_archived?' is-archived':'');
+        const pct=Math.max(0,Math.min(100,Number(g.progress_percent)||0));
+        const typeLabel=g.goal_type==='expense'?t('goals_type_expense','Spending limit'):t('goals_type_savings','Savings');
+        card.innerHTML=`<div class="goal-card-head"><strong></strong><span class="goal-type"></span></div>
+            <div class="goal-amounts"><span class="goal-current"></span><span class="goal-target"></span></div>
+            <div class="goal-bar"><div class="goal-bar-fill" style="width:${pct}%"></div></div>
+            <div class="goal-meta"></div>
+            <div class="goal-actions"></div>`;
+        card.querySelector('strong').textContent=g.name||'';
+        card.querySelector('.goal-type').textContent=typeLabel+(g.is_archived?' · '+t('goals_archived','Archived'):'');
+        card.querySelector('.goal-current').textContent=`${Number(g.current_amount||0).toFixed(2)} ${g.currency||''}`;
+        card.querySelector('.goal-target').textContent=`/ ${Number(g.target_amount||0).toFixed(2)} (${pct}%)`;
+        card.querySelector('.goal-meta').textContent=g.target_date?`${t('goals_date','Target date')}: ${g.target_date}`:(g.description||'');
+        const actions=card.querySelector('.goal-actions');
+        const mk=(label,fn)=>{const b=document.createElement('button');b.type='button';b.className='cancel-btn';b.textContent=label;b.onclick=fn;return b;};
+        actions.appendChild(mk(t('edit','Edit'),()=>openGoalEditor(g)));
+        actions.appendChild(mk(t('goals_contribute','+ Progress'),()=>{
+            const raw=prompt(t('goals_contribute_prompt','Amount to add'),'10');
+            if(raw==null)return;
+            const amount=parseFloat(raw);
+            if(!(amount>0))return;
+            goalsPost({contribute_goal:g.id,id:g.id,amount}).then(res=>{
+                if(res.status!=='success'){showNotification(res.message||t('error_generic','Error'),'error');return;}
+                loadGoalsList();
+            });
+        }));
+        actions.appendChild(mk(g.is_archived?t('goals_unarchive','Restore'):t('goals_archive','Archive'),()=>{
+            goalsPost({archive_goal:g.id,is_archived:g.is_archived?0:1}).then(()=>loadGoalsList());
+        }));
+        actions.appendChild(mk(t('delete','Delete'),()=>{
+            if(!confirm(t('goals_delete_confirm','Delete this goal?')))return;
+            goalsPost({delete_goal:g.id}).then(()=>loadGoalsList());
+        }));
+        host.appendChild(card);
+    });
+}
+function openGoalEditor(goal){
+    const box=document.getElementById('goal-editor');
+    if(!box)return;
+    box.hidden=false;
+    document.getElementById('goal-id').value=goal&&goal.id?goal.id:'';
+    document.getElementById('goal-name').value=goal&&goal.name?goal.name:'';
+    document.getElementById('goal-type').value=goal&&goal.goal_type?goal.goal_type:'savings';
+    document.getElementById('goal-target').value=goal?Number(goal.target_amount||0):0;
+    document.getElementById('goal-current').value=goal?Number(goal.current_amount||0):0;
+    document.getElementById('goal-date').value=goal&&goal.target_date?goal.target_date:'';
+    document.getElementById('goal-description').value=goal&&goal.description?goal.description:'';
+}
+function closeGoalEditor(){
+    const box=document.getElementById('goal-editor');
+    if(box)box.hidden=true;
+}
+function saveGoalEditor(){
+    const payload={
+        save_goal:'1',
+        id:document.getElementById('goal-id').value||'',
+        name:document.getElementById('goal-name').value.trim(),
+        goal_type:document.getElementById('goal-type').value,
+        target_amount:document.getElementById('goal-target').value||0,
+        current_amount:document.getElementById('goal-current').value||0,
+        target_date:document.getElementById('goal-date').value||'',
+        description:document.getElementById('goal-description').value||'',
+        currency:(userSettings&&userSettings.currency)||'USD'
+    };
+    if(!payload.name){showNotification(t('goals_name_required','Name is required'),'error');return;}
+    goalsPost(payload).then(res=>{
+        if(res.status!=='success'){showNotification(res.message||t('error_generic','Error'),'error');return;}
+        closeGoalEditor();
+        loadGoalsList();
+        showNotification(t('goals_saved','Goal saved'),'success');
+    }).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
 }
 
 // ══ Stores ════════════════════════════════════════════════════════════════

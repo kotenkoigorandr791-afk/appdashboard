@@ -307,6 +307,21 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .bulk-delete-hint { font-size:12px; opacity:.85; margin:8px 0 12px; line-height:1.4; }
         .bulk-delete-danger { color:var(--danger-color); font-weight:600; margin:0 0 10px; line-height:1.4; }
         #settings-section-delete .confirm-btn { margin-top:12px; }
+        .goals-toolbar { display:flex; flex-wrap:wrap; gap:12px; align-items:flex-start; justify-content:space-between; margin:0 0 14px; }
+        .goals-intro { margin:0; flex:1; min-width:220px; font-size:13.5px; line-height:1.45; color:var(--muted-text); }
+        .goals-list { display:grid; gap:12px; }
+        .goals-empty { padding:18px; border:1px dashed var(--border-color); border-radius:12px; color:var(--muted-text); text-align:center; }
+        .goal-card { padding:14px; border:1px solid var(--border-color); border-radius:12px; background:var(--group-block-bg); display:grid; gap:8px; }
+        .goal-card.is-archived { opacity:.72; }
+        .goal-card-head { display:flex; justify-content:space-between; gap:10px; align-items:baseline; }
+        .goal-card-head strong { font-size:15px; color:var(--text-color); }
+        .goal-type { font-size:12px; color:var(--muted-text); }
+        .goal-amounts { display:flex; gap:8px; font-size:13px; color:var(--text-color); }
+        .goal-bar { height:8px; border-radius:999px; background:color-mix(in srgb,var(--border-color) 70%,transparent); overflow:hidden; }
+        .goal-bar-fill { height:100%; background:linear-gradient(90deg,#2563eb,#06b6d4); }
+        .goal-meta { font-size:12px; color:var(--muted-text); }
+        .goal-actions { display:flex; flex-wrap:wrap; gap:8px; }
+        .goal-editor { margin-top:14px; padding:14px; border:1px solid var(--border-color); border-radius:12px; background:var(--surface-solid); display:grid; gap:10px; }
         #settings-modal .modal-content { width:min(1100px,96vw); max-width:min(1100px,96vw); min-height:480px; }
         #settings-modal .store-list { max-width:100%; }
         .chart-container { margin:20px 0; display:flex; align-items:center; justify-content:space-between; flex-wrap:nowrap; max-width:80%; margin-left:auto; margin-right:auto; }

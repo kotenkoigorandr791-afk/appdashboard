@@ -24,6 +24,7 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
         $main = app_main_db();
         app_spends_shared_ensure($main);
         app_spends_subscriptions_ensure($main);
+        app_spends_goals_ensure($main);
         app_spends_migrate_legacy($main, $uid, $email);
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
         return AppDatabase::connectUserSchema(APP_SPENDS_SHARED_SCHEMA, ["SELECT set_config('spends.user_id', $lit, false)", 'SET ROLE ' . APP_SPENDS_ROLE]);
@@ -46,6 +47,41 @@ function app_spends_shared_ensure(AppDatabase $db): void {
 function app_spends_subscriptions_ensure(AppDatabase $db): void {
     require_once __DIR__ . '/schema_once.php';
     app_once_wrap('spends_subscriptions', __FILE__, fn() => app_spends_subscriptions_ensure_impl($db));
+}
+function app_spends_goals_ensure(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    app_once_wrap('spends_goals', __FILE__, fn() => app_spends_goals_ensure_impl($db));
+}
+function app_spends_goals_ensure_impl(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
+    $sc = APP_SPENDS_SHARED_SCHEMA;
+    $role = APP_SPENDS_ROLE;
+    $reg = $db->query("SELECT to_regclass('$sc.goals')")->fetch(PDO::FETCH_NUM);
+    if ($reg && $reg[0] !== null) {
+        $done = true;
+        return;
+    }
+    $uid = "user_id TEXT NOT NULL DEFAULT current_setting('spends.user_id')";
+    $db->exec('BEGIN');
+    try {
+        $db->exec('SELECT pg_advisory_xact_lock(7710003)');
+        $again = $db->query("SELECT to_regclass('$sc.goals')")->fetch(PDO::FETCH_NUM);
+        if (!$again || $again[0] === null) {
+            $db->exec("CREATE TABLE IF NOT EXISTS $sc.goals ($uid, id TEXT NOT NULL, name TEXT NOT NULL, description TEXT, target_amount DOUBLE PRECISION NOT NULL DEFAULT 0, current_amount DOUBLE PRECISION NOT NULL DEFAULT 0, currency TEXT NOT NULL DEFAULT 'USD', target_date TEXT, goal_type TEXT NOT NULL DEFAULT 'savings', is_archived BIGINT NOT NULL DEFAULT 0, icon TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL, PRIMARY KEY (user_id, id))");
+            $db->exec("CREATE INDEX IF NOT EXISTS spends_goals_user ON $sc.goals(user_id)");
+            $db->exec("ALTER TABLE $sc.goals ENABLE ROW LEVEL SECURITY");
+            $db->exec("ALTER TABLE $sc.goals FORCE ROW LEVEL SECURITY");
+            $db->exec("DROP POLICY IF EXISTS spends_owner ON $sc.goals");
+            $db->exec("CREATE POLICY spends_owner ON $sc.goals USING (user_id = current_setting('spends.user_id', true)) WITH CHECK (user_id = current_setting('spends.user_id', true))");
+            $db->exec("GRANT SELECT, INSERT, UPDATE, DELETE ON $sc.goals TO $role");
+        }
+        $db->exec('COMMIT');
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
+    }
+    $done = true;
 }
 function app_spends_subscriptions_ensure_impl(AppDatabase $db): void {
     static $done = false;

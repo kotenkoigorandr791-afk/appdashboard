@@ -59,15 +59,20 @@ try {
     .mobile-app-content .ma-header p { margin:0; font-size:14px; line-height:1.5; color:var(--muted-text); }
     .mobile-app-content .ma-grid { display:grid; grid-template-columns:1fr 1.15fr; gap:20px; }
     .mobile-app-content .ma-action { position:relative; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; padding:20px; border:1px solid var(--border-color); border-radius:var(--radius-md); background:var(--group-block-bg); }
-    .mobile-app-content .ma-qr-frame { position:relative; width:212px; height:212px; margin:0 0 16px; padding:10px; box-sizing:border-box; background:#fff; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; overflow:hidden; }
+    .mobile-app-content .ma-qr-frame { position:relative; width:220px; height:220px; margin:0 0 16px; padding:0; box-sizing:border-box; background:#fff; border-radius:var(--radius-sm); display:flex; align-items:center; justify-content:center; overflow:hidden; }
     .mobile-app-content .ma-qr-placeholder { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; filter:blur(6px); pointer-events:none; }
-    .mobile-app-content .ma-qr-placeholder svg { width:100%; height:100%; }
+    .mobile-app-content .ma-qr-placeholder svg { width:220px; height:220px; }
     .mobile-app-content .ma-qr-code { position:absolute; inset:0; display:none; align-items:center; justify-content:center; }
-    .mobile-app-content .ma-qr-code svg { width:100%; height:100%; display:block; }
+    .mobile-app-content .ma-qr-code > div, .mobile-app-content .ma-qr-code canvas, .mobile-app-content .ma-qr-code svg { width:220px !important; height:220px !important; max-width:100%; max-height:100%; display:block; }
     .mobile-app-content .ma-qr-generate { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:9px 14px; border:0; border-radius:var(--radius-sm); background:var(--primary-fill); color:var(--primary-ink); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; white-space:nowrap; box-shadow:0 6px 18px rgba(0,0,0,.28); z-index:1; }
     .mobile-app-content .ma-qr-generate:disabled { opacity:.6; cursor:wait; }
-    .mobile-app-content .ma-qr-revoke { display:none; align-items:center; justify-content:center; gap:6px; margin:0 0 14px; padding:8px 14px; border:1px solid color-mix(in srgb,#ef4444 45%,var(--border-color)); border-radius:var(--radius-sm); background:color-mix(in srgb,#ef4444 12%,var(--surface-solid)); color:var(--danger-text); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .mobile-app-content .ma-qr-actions { display:none; flex-direction:column; align-items:stretch; gap:8px; width:min(220px,100%); margin:0 0 14px; }
+    .mobile-app-content .ma-qr-actions.is-visible { display:flex; }
+    .mobile-app-content .ma-qr-revoke { display:inline-flex; align-items:center; justify-content:center; gap:6px; margin:0; padding:8px 14px; border:1px solid color-mix(in srgb,#ef4444 45%,var(--border-color)); border-radius:var(--radius-sm); background:color-mix(in srgb,#ef4444 12%,var(--surface-solid)); color:var(--danger-text); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
     .mobile-app-content .ma-qr-revoke:disabled { opacity:.6; cursor:wait; }
+    .mobile-app-content .ma-copy-link-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 14px; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-solid); color:var(--primary-text); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; }
+    .mobile-app-content .ma-copy-link-btn:hover { background:color-mix(in srgb,var(--primary-color) 12%,var(--surface-solid)); }
+    .mobile-app-content .ma-copy-link-btn.is-copied { background:#166534; border-color:#166534; color:#fff; }
     .mobile-app-content .ma-qr-hint { position:absolute; top:10px; right:10px; width:28px; height:28px; padding:0; border:1px solid var(--border-color); border-radius:50%; background:var(--surface-solid); color:var(--primary-text); display:inline-flex; align-items:center; justify-content:center; cursor:pointer; z-index:2; }
     .mobile-app-content .ma-qr-hint:hover { background:color-mix(in srgb,var(--primary-color) 12%,var(--surface-solid)); }
     .mobile-app-content .ma-action h3 { margin:0 0 6px; font-size:16px; color:var(--text-color); }
@@ -135,10 +140,16 @@ try {
                         <?= htmlspecialchars($translations['mobile_app_qr_generate'] ?? 'Generate') ?>
                     </button>
                 </div>
-                <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
-                    <?= htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke token') ?>
-                </button>
+                <div class="ma-qr-actions" id="mobile-app-qr-actions">
+                    <button type="button" id="mobile-app-copy-link" class="ma-copy-link-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                        <span><?= htmlspecialchars($translations['mobile_app_copy_link'] ?? 'Copy pairing link') ?></span>
+                    </button>
+                    <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>
+                        <?= htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke token') ?>
+                    </button>
+                </div>
                 <h3><?= htmlspecialchars($translations['mobile_app_scan_title'] ?? 'Scan to pair') ?></h3>
                 <p><?= htmlspecialchars($translations['mobile_app_scan_desc'] ?? 'Open the app and scan this code to sync instantly.') ?></p>
                 <p class="ma-qr-error" id="mobile-app-qr-error" hidden></p>
@@ -211,6 +222,16 @@ try {
             </div>
             <div class="manual-pair-row">
                 <div class="manual-pair-field">
+                    <label><?= htmlspecialchars($translations['manual_pair_link_label'] ?? 'Connection link') ?></label>
+                    <pre id="manual-pair-link"></pre>
+                </div>
+                <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-link" aria-label="<?= htmlspecialchars($translations['copy'] ?? 'Copy') ?>">
+                    <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                    <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                </button>
+            </div>
+            <div class="manual-pair-row">
+                <div class="manual-pair-field">
                     <label><?= htmlspecialchars($translations['manual_pair_token_label'] ?? 'Access token') ?></label>
                     <pre id="manual-pair-token"></pre>
                 </div>
@@ -236,11 +257,14 @@ try {
     const placeholder = modal ? modal.querySelector('.ma-qr-placeholder') : null;
     const genBtn = document.getElementById('mobile-app-qr-generate');
     const revokeBtn = document.getElementById('mobile-app-token-revoke');
+    const copyLinkBtn = document.getElementById('mobile-app-copy-link');
+    const qrActions = document.getElementById('mobile-app-qr-actions');
     const hintBtn = document.getElementById('mobile-app-manual-hint');
     const errEl = document.getElementById('mobile-app-qr-error');
     const hintModal = document.getElementById('manual-pair-modal');
     const hintClose = document.getElementById('manual-pair-close');
     const hintEndpoint = document.getElementById('manual-pair-endpoint');
+    const hintLink = document.getElementById('manual-pair-link');
     const hintToken = document.getElementById('manual-pair-token');
     const regenBtn = document.getElementById('manual-pair-regenerate');
 
@@ -265,7 +289,28 @@ try {
     }
     function refreshHintFields() {
         if (hintEndpoint) hintEndpoint.textContent = endpoint;
+        if (hintLink) hintLink.textContent = pairing.link || '—';
         if (hintToken) hintToken.textContent = pairing.token || noTokenMsg;
+    }
+    async function copyText(text, btn) {
+        if (!text || text === '—' || text === noTokenMsg) return false;
+        try {
+            await navigator.clipboard.writeText(text);
+        } catch (error) {
+            const area = document.createElement('textarea');
+            area.value = text;
+            area.style.position = 'fixed';
+            area.style.opacity = '0';
+            document.body.appendChild(area);
+            area.select();
+            try { document.execCommand('copy'); } catch (e) {}
+            area.remove();
+        }
+        if (btn) {
+            btn.classList.add('is-copied');
+            setTimeout(function () { btn.classList.remove('is-copied'); }, 1600);
+        }
+        return true;
     }
     function showError(message) {
         if (!errEl) return;
@@ -291,7 +336,7 @@ try {
             const QRCodeStylingCtor = await ensureQrStyling();
             hostEl.innerHTML = '';
             const qr = new QRCodeStylingCtor({
-                width: 192, height: 192, type: 'svg', data: data, margin: 0,
+                width: 220, height: 220, type: 'svg', data: data, margin: 0,
                 qrOptions: { errorCorrectionLevel: 'H' },
                 dotsOptions: { type: 'rounded', gradient: { type: 'linear', rotation: Math.PI / 4, colorStops: [
                     { offset: 0, color: '#7c3aed' }, { offset: 0.5, color: '#2563eb' }, { offset: 1, color: '#06b6d4' }
@@ -311,7 +356,7 @@ try {
         qrFrame.style.display = 'flex';
         await renderQr(qrFrame, pairing.link);
         if (genBtn) genBtn.style.display = 'none';
-        if (revokeBtn) revokeBtn.style.display = 'inline-flex';
+        if (qrActions) qrActions.classList.add('is-visible');
         refreshHintFields();
     }
     function clearPairingUi() {
@@ -319,7 +364,7 @@ try {
         if (qrFrame) { qrFrame.innerHTML = ''; qrFrame.style.display = 'none'; }
         if (placeholder) placeholder.style.display = '';
         if (genBtn) genBtn.style.display = '';
-        if (revokeBtn) revokeBtn.style.display = 'none';
+        if (qrActions) qrActions.classList.remove('is-visible');
         refreshHintFields();
     }
     async function shellCsrf() {
@@ -403,26 +448,14 @@ try {
         btn.addEventListener('click', async function () {
             const target = document.getElementById(btn.getAttribute('data-copy-target'));
             const text = target ? target.textContent.trim() : '';
-            if (!text || text === noTokenMsg) return;
-            try {
-                await navigator.clipboard.writeText(text);
-            } catch (error) {
-                const area = document.createElement('textarea');
-                area.value = text;
-                area.style.position = 'fixed';
-                area.style.opacity = '0';
-                document.body.appendChild(area);
-                area.select();
-                try { document.execCommand('copy'); } catch (e) {}
-                area.remove();
-            }
-            btn.classList.add('is-copied');
+            const ok = await copyText(text, btn);
+            if (!ok) return;
             btn.setAttribute('aria-label', copiedLabel);
-            setTimeout(function () {
-                btn.classList.remove('is-copied');
-                btn.setAttribute('aria-label', copyLabel);
-            }, 1600);
+            setTimeout(function () { btn.setAttribute('aria-label', copyLabel); }, 1600);
         });
+    });
+    copyLinkBtn && copyLinkBtn.addEventListener('click', async function () {
+        await copyText(pairing.link, copyLinkBtn);
     });
 
     genBtn && genBtn.addEventListener('click', async function () {

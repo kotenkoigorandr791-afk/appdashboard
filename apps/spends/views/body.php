@@ -398,6 +398,7 @@
         <h3><?= htmlspecialchars($translations['settings_title']) ?></h3>
         <nav class="settings-menu-bar">
             <button type="button" class="settings-menu-btn active" data-settings-section="stores" onclick="switchSettingsSection('stores')"><?= htmlspecialchars($translations['stores']) ?></button>
+            <button type="button" class="settings-menu-btn" data-settings-section="goals" onclick="switchSettingsSection('goals')"><?= htmlspecialchars($translations['goals_title'] ?? 'Goals') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="chart" onclick="switchSettingsSection('chart')"><?= htmlspecialchars($translations['chart_settings'] ?? 'Chart') ?></button>
             <button type="button" class="settings-menu-btn" data-settings-section="delete" onclick="switchSettingsSection('delete')"><?= htmlspecialchars($translations['data_deletion'] ?? 'Data deletion') ?></button>
             <div id="indicator"></div>
@@ -442,6 +443,31 @@
                 <?php endforeach; ?>
             </div>
             <button class="add-store-btn" onclick="showAddEditStoreModal()">+ <?= htmlspecialchars($translations['add_store']) ?></button>
+        </div>
+        <div class="settings-section" id="settings-section-goals">
+            <div class="goals-toolbar">
+                <p class="goals-intro"><?= htmlspecialchars($translations['goals_intro'] ?? 'Set savings or spending targets and track progress from the web or the mobile app.') ?></p>
+                <button type="button" class="action-primary-btn" id="goals-add-btn" onclick="openGoalEditor()"><?= htmlspecialchars($translations['goals_add'] ?? 'Add goal') ?></button>
+            </div>
+            <div id="goals-list" class="goals-list"></div>
+            <div id="goal-editor" class="goal-editor" hidden>
+                <input type="hidden" id="goal-id" value="">
+                <div class="form-row"><label><?= htmlspecialchars($translations['goals_name'] ?? 'Name') ?></label><input type="text" id="goal-name" maxlength="120"></div>
+                <div class="form-row"><label><?= htmlspecialchars($translations['goals_type'] ?? 'Type') ?></label>
+                    <select id="goal-type">
+                        <option value="savings"><?= htmlspecialchars($translations['goals_type_savings'] ?? 'Savings') ?></option>
+                        <option value="expense"><?= htmlspecialchars($translations['goals_type_expense'] ?? 'Spending limit') ?></option>
+                    </select>
+                </div>
+                <div class="form-row"><label><?= htmlspecialchars($translations['goals_target'] ?? 'Target amount') ?></label><input type="number" id="goal-target" min="0" step="0.01"></div>
+                <div class="form-row"><label><?= htmlspecialchars($translations['goals_current'] ?? 'Current amount') ?></label><input type="number" id="goal-current" min="0" step="0.01"></div>
+                <div class="form-row"><label><?= htmlspecialchars($translations['goals_date'] ?? 'Target date') ?></label><input type="date" id="goal-date"></div>
+                <div class="form-row"><label><?= htmlspecialchars($translations['goals_description'] ?? 'Description') ?></label><input type="text" id="goal-description" maxlength="240"></div>
+                <div class="manual-actions">
+                    <button type="button" class="cancel-btn" onclick="closeGoalEditor()"><?= htmlspecialchars($translations['cancel'] ?? 'Cancel') ?></button>
+                    <button type="button" class="action-primary-btn" onclick="saveGoalEditor()"><?= htmlspecialchars($translations['save'] ?? 'Save') ?></button>
+                </div>
+            </div>
         </div>
         <div class="settings-section" id="settings-section-chart">
             <div class="form-row">

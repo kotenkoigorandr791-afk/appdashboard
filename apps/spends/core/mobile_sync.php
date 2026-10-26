@@ -154,6 +154,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         'expenses' => $expenses,
         'incomes' => $incomes,
         'subscriptions' => function_exists('spendsSubscriptionList') ? spendsSubscriptionList($udb) : [],
+        'goals' => function_exists('spendsGoalList') ? spendsGoalList($udb, true) : [],
         'known_signatures' => $known,
     ];
 }
@@ -321,6 +322,20 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         foreach (['show_incomes', 'show_trend', 'trim_empty_months'] as $flag) {
             if (array_key_exists($flag, $s)) {
                 dbSetSetting($udb, $flag, !empty($s[$flag]) ? '1' : '0');
+            }
+        }
+    }
+
+    if (!empty($payload['goals']) && is_array($payload['goals']) && function_exists('spendsGoalUpsert')) {
+        foreach ($payload['goals'] as $goalRow) {
+            if (!is_array($goalRow)) {
+                continue;
+            }
+            $res = spendsGoalUpsert($udb, $goalRow);
+            if (($res['status'] ?? '') === 'success') {
+                $updated++;
+            } else {
+                $errors[] = ['goal' => $goalRow, 'error' => $res['message'] ?? 'goal_failed'];
             }
         }
     }
