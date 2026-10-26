@@ -1874,6 +1874,24 @@ if ($action === 'get_user_role') {
     ]);
 }
 
+// Real numeric role (0 = guest, 1 = user, 2 = admin) of the current session.
+// Unlike get_user_role (which only distinguishes root vs. everyone else)
+// this returns the actual role so role 1 users are not treated as guests.
+if ($action === 'get_user_access_role') {
+    $role = 0;
+    $email = get_session_email();
+    if (is_string($email) && $email !== '') {
+        $role = getUserRoleByEmail($email);
+    } elseif (isUserRoot()) {
+        $role = 2;
+    }
+    json_out([
+        'role' => (int)$role,
+        'email' => $email,
+        'is_root' => $role === 2
+    ]);
+}
+
 if ($action === 'save_file') {
   $user = get_current_user_from_sessions();
   $path = safe_path((string)($_POST['path'] ?? ''));
