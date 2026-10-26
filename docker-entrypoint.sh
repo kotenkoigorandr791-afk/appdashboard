@@ -163,10 +163,16 @@ if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
-if [ -d /usr/local/share/lopaka ] && [ ! -f /var/www/AppDashboard/apps/lopaka/index.html ]; then
-  rm -rf /var/www/AppDashboard/apps/lopaka
-  mkdir -p /var/www/AppDashboard/apps/lopaka
-  cp -a /usr/local/share/lopaka/. /var/www/AppDashboard/apps/lopaka/
+# Seed the bundled lopaka build only when the app directory is absent or
+# empty. A bind-mounted checkout must never be wiped: the previous guard keyed
+# off index.html, which the lopaka rewrite no longer ships, so it deleted the
+# mounted tree on every container start.
+if [ -d /usr/local/share/lopaka ]; then
+  LOPAKA_TARGET=/var/www/AppDashboard/apps/lopaka
+  if [ ! -d "$LOPAKA_TARGET" ] || [ -z "$(ls -A "$LOPAKA_TARGET" 2>/dev/null)" ]; then
+    mkdir -p "$LOPAKA_TARGET"
+    cp -a /usr/local/share/lopaka/. "$LOPAKA_TARGET/"
+  fi
 fi
 git config --system --add safe.directory /var/www/AppDashboard 2>/dev/null || true
 if [ "${RUN_MCP_PACKAGE_BUILD:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/build-appdashboard-mcp.sh ]; then
