@@ -14,6 +14,36 @@ function apRedirectToSetPassword(array $user): void {
     exit;
 }
 
+function shellAppsStatic(string $appsFsDir): array {
+    $r = app_redis();
+    $key = app_redis_key('shell_apps_static:' . md5($appsFsDir));
+    if ($r) {
+        try {
+            $hit = $r->get($key);
+            if (is_string($hit) && $hit !== '') {
+                $data = json_decode($hit, true);
+                if (is_array($data)) return $data;
+            }
+        } catch (Throwable $e) {}
+    }
+    $out = [];
+    foreach (array_filter(glob($appsFsDir . '*') ?: [], 'is_dir') as $subdir) {
+        $nameFile = $subdir . '/name.json';
+        if (!file_exists($nameFile)) continue;
+        $nameData = json_decode((string)file_get_contents($nameFile), true);
+        $descData = is_file($subdir . '/description.json') ? json_decode((string)file_get_contents($subdir . '/description.json'), true) : null;
+        $icons = [];
+        foreach (['monochrome', 'multicolor', 'animated'] as $style) {
+            $icons[$style] = is_file($subdir . '/icons/' . $style . '.svg');
+        }
+        $out[basename($subdir)] = ['name' => is_array($nameData) ? $nameData : [], 'desc' => is_array($descData) ? $descData : null, 'icons' => $icons];
+    }
+    if ($r) {
+        try { $r->set($key, json_encode($out, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES), ['EX' => 60]); } catch (Throwable $e) {}
+    }
+    return $out;
+}
+
 if(isset($_SESSION['user']['email'])&&$path!=='/register'&&!isset($_GET['code'])){
     $freshUserForPwd = getUserByEmail((string)$_SESSION['user']['email']);
     if($freshUserForPwd && (userNeedsPasswordSet($freshUserForPwd)||!empty($freshUserForPwd['must_change_password']))){
@@ -117,28 +147,27 @@ $defaultMenuButton=['left'=>20,'top'=>13,'width'=>40,'height'=>40];
 $_shellUserRole=(int)($_SESSION['user']['role']??0);
 $iconStyle=in_array(($config['icon_style']??''),['monochrome','multicolor','animated'],true)?$config['icon_style']:'animated';
 if(is_dir($appsFsDir)){
-    $subdirs=array_filter(glob($appsFsDir.'*'),'is_dir');
-    foreach($subdirs as $subdir){
-        $nameFile=$subdir.'/name.json';
-        $folder=basename($subdir);
+    $appsStatic=shellAppsStatic($appsFsDir);
+    foreach($appsStatic as $folder=>$static){
+        $subdir=$appsFsDir.$folder;
         if(isset($_SESSION['user']['email'])&&!userMeetsAppMinRole($_shellUserRole,$folder)){continue;}
-        if(file_exists($nameFile)){
-            $nameData=json_decode(file_get_contents($nameFile),true);
-            if(!is_array($nameData)){$nameData=[];}
-            $name=$nameData[$language]??($nameData['en']??basename($subdir));
+        {
+            $nameData=$static['name'];
+            $name=$nameData[$language]??($nameData['en']??$folder);
             $menuButton=$shellParseMenuButton($nameData,'menu_button',$defaultMenuButton);
             $menuButtonMobile=$shellParseMenuButton($nameData,'menu_button_mobile',$menuButton);
-            // Icons always come from the app's icons/ folder; fall back to
-            // the multicolor icon when the selected style is missing.
-            $iconFs=$subdir.'/icons/'.$iconStyle.'.svg';
-            if(!is_file($iconFs)){
-                $iconFs=$subdir.'/icons/multicolor.svg';
+            if(!empty($static['icons'][$iconStyle])){
+                $iconFile=$iconStyle.'.svg';
+                $iconStyleForApp=$iconStyle;
+            }elseif(!empty($static['icons']['multicolor'])){
+                $iconFile='multicolor.svg';
                 $iconStyleForApp='multicolor';
             }else{
+                $iconFile='';
                 $iconStyleForApp=$iconStyle;
             }
-            if(is_file($iconFs)){
-                $icon=$appsDir.$folder.'/icons/'.basename($iconFs);
+            if($iconFile!==''){
+                $icon=$appsDir.$folder.'/icons/'.$iconFile;
                 $iconMasked=($iconStyleForApp==='monochrome');
             }else{
                 $icon=defaultAppIconSrc();
@@ -150,13 +179,9 @@ if(is_dir($appsFsDir)){
             // cloud, ...) bring their own menu, so the rail is not rendered.
             $appRailApps=['gitea','immich','dawarich','sentry','x','X'];
             $href='/main?app='.urlencode($folder).'&lang='.urlencode($language).'&theme='.urlencode($themeForAppLink).'&color='.urlencode($config['color']);
-            $descFile=$subdir.'/description.json';
             $description='';
-            if(is_file($descFile)){
-                $descData=json_decode((string)file_get_contents($descFile),true);
-                if(is_array($descData)){
-                    $description=(string)($descData[$language]??($descData['en']??''));
-                }
+            if(is_array($static['desc'])){
+                $description=(string)($static['desc'][$language]??($static['desc']['en']??''));
             }
 	            $apps[$name]=['name'=>$name,'folder'=>$folder,'icon'=>$icon,'is_svg'=>(strtolower(pathinfo($icon,PATHINFO_EXTENSION))==='svg'),'icon_masked'=>$iconMasked,'icon_style'=>$iconStyle,'visits'=>$totalVisits,'menu_button'=>$menuButton,'menu_button_mobile'=>$menuButtonMobile,'menu_button_scroll'=>(bool)($nameData['menu_button_scroll']??false),'menu_button_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_style'),'menu_button_mobile_style'=>$shellParseMenuButtonStyle($nameData,'menu_button_mobile_style'),'href'=>$href,'target'=>'_self','app_rail'=>in_array($folder,$appRailApps,true),'description'=>$description];
         }
@@ -225,18 +250,13 @@ $trustedDevices=[];
 $currentIp=getClientIp();
 $isCurrentDeviceTrusted=false;
 if(isset($_SESSION['user']['email'])){
-    $activeSessions=getUserActiveSessions($_SESSION['user']['email']);
     $trustedDevices=getUserTrustedDevices($_SESSION['user']['email']);
     $isCurrentDeviceTrusted=isTrustedDevice($_SESSION['user']['email'], getDeviceFingerprint());
 }
 $currentUserEmail = $_SESSION['user']['email'] ?? null;
 $isAdmin = isset($_SESSION['user']['role']) && $_SESSION['user']['role'] == 2;
 
-if ($isAdmin) {
-    $sharedFiles = loadSharedFiles(null, true);
-} else {
-    $sharedFiles = $currentUserEmail ? loadSharedFiles($currentUserEmail) : [];
-}
+$sharedFiles = [];
 
 $userOAuthConnections = [];
 if(isset($_SESSION['user']['email'])){

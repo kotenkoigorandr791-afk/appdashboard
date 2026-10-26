@@ -119,9 +119,23 @@ function public_api_form_body(): array {
     return is_array($data) ? $data : [];
 }
 function public_api_apply_user(string $email): void {
-    $users = loadUsers();
-    if (!isset($users[$email])) public_api_json(['ok' => false, 'error' => 'user_not_found'], 404);
-    $_SESSION['user'] = $users[$email];
+    // Hot path: every authenticated public-api request lands here. Resolving the
+    // caller used to call loadUsers(), which SELECTs the whole users table and
+    // hashes every row on each request - database cost grew linearly with the
+    // number of accounts and became the concurrency bottleneck. A PK-indexed
+    // single-row lookup keeps the cost constant per request.
+    $user = getUserByEmail($email);
+    if ($user === null && $email === 'root@root') {
+        // Rare bootstrap path: make sure the built-in admin row exists.
+        $user = loadUsers()[$email] ?? null;
+    }
+    if (!$user) public_api_json(['ok' => false, 'error' => 'user_not_found'], 404);
+    if ($email === 'root@root') {
+        $user['role'] = 2;
+        $user['verified'] = true;
+    }
+    $user['verified'] = (bool)($user['verified'] ?? false);
+    $_SESSION['user'] = $user;
     $_SESSION['user']['email'] = $email;
     $_SESSION['auth_time'] = time();
 }

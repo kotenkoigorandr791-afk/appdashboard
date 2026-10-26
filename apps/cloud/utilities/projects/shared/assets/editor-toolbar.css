@@ -1,0 +1,15 @@
+html body .editor-toolbar,html body .tb-overflow{display:flex;flex-wrap:nowrap!important;align-items:center!important;box-sizing:border-box!important;padding:4px 8px!important;gap:2px!important;white-space:nowrap!important;position:relative;flex-shrink:0;background:var(--tb-bg,#252526);border-bottom:1px solid var(--tb-border,#333);}
+body.light-theme{--tb-bg:#f0f0f0;--tb-border:#ddd;--tb-sep:#ccc;--tb-menu-bg:#ffffff;--tb-menu-border:#ccc;--tb-fg:#333;--tb-hover:#e6e6e6;}
+.editor-toolbar>*,.tb-overflow>*{flex-shrink:0!important;}
+.editor-toolbar .toolbar-group{display:flex!important;align-items:center;gap:2px;height:30px;padding-right:6px!important;border-right:1px solid var(--tb-sep,#444)!important;}
+.editor-toolbar .toolbar-group:last-of-type{border-right:none!important;}
+.toolbar-more{display:none;margin-left:auto;align-items:center;justify-content:center;min-width:32px;height:30px;padding:0 6px 6px;border:1px solid var(--tb-sep,#444);border-radius:4px;background:transparent;color:var(--tb-fg,#e0e0e0);font-size:18px;font-weight:700;line-height:1;cursor:pointer;}
+.toolbar-more:hover,.toolbar-more.active{background:var(--tb-hover,#3d3d3d);}
+.toolbar-more-menu{position:fixed;z-index:3000;display:none;flex-wrap:wrap;gap:4px;max-width:min(340px,calc(100vw - 16px));padding:6px;background:var(--tb-menu-bg,#2d2d2d);border:1px solid var(--tb-menu-border,#444);border-radius:6px;box-shadow:0 4px 16px rgba(0,0,0,.5);}
+.toolbar-more-menu.show{display:flex;}
+.toolbar-more-menu .toolbar-group{display:flex!important;gap:3px;height:auto!important;padding:0!important;border:none!important;flex-wrap:wrap;}
+html body .editor-toolbar{height:49px!important;min-height:49px!important;max-height:49px!important;overflow:hidden!important;}
+.editor-toolbar .toolbar-btn,.editor-toolbar .formatting-btn,.toolbar-more-menu .toolbar-btn,.toolbar-more-menu .formatting-btn,.toolbar-more{border:none!important;min-width:28px!important;height:28px!important;padding:4px 6px!important;}
+html body .tb-overflow{flex-wrap:nowrap!important;}
+.tb-overflow .tb-pin{margin-left:auto;flex:0 1 auto!important;min-width:0!important;max-width:min(220px,28vw);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+#helper-bar.tb-overflow #status-indicator.tb-pin{flex:0 1 auto!important;min-width:0!important;max-width:min(220px,28%);overflow:hidden;text-overflow:ellipsis;}

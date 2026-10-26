@@ -2,6 +2,9 @@
 <!-- ====================== ADMIN PANEL ====================== -->
 <link rel="stylesheet" href="/project/backup/assets/backup.css">
 <script src="/project/backup/assets/backup.js" defer></script>
+<link rel="stylesheet" href="/project/performance/style.css?v=<?= is_file(dirname(__DIR__, 2) . '/performance/style.css') ? filemtime(dirname(__DIR__, 2) . '/performance/style.css') : '9' ?>">
+<script src="/project/assets/docker/panel.js?v=<?= (int)@filemtime(dirname(__DIR__, 2) . '/assets/docker/panel.js') ?>" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════
    ADMIN PANEL — uses CSS variables from main app theme
@@ -508,6 +511,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     min-height: 0;
 }
 #ap-content:has(#ap-docker-manager.active),
+#ap-backup > #bdp-app { overflow-x: hidden !important; overflow-y: auto !important; }
 #ap-content:has(#ap-backup.active),
 #ap-content:has(#ap-docs.active),
 #ap-content:has(#ap-db.active),
@@ -570,7 +574,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
     padding: 0 0 4px;
     border-bottom: 1px solid var(--border-color);
 }
-#ap-ssh .ap-ssh-topbar .ap-breadcrumb { display: none; }
+#ap-ssh .ap-ssh-topbar .ap-breadcrumb { display: block; margin-bottom: 6px; }
 #ap-ssh .ap-ssh-topbar .ap-page-title { margin: 0; font-size: 14px; line-height: 1.2; }
 #ap-ssh-quick-commands-bar {
     display: flex;
@@ -642,12 +646,35 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
 .ap-breadcrumb {
     font-size: 12px;
     color: var(--text-color);
-    opacity: .4;
-    margin-bottom: 14px;
+    opacity: .7;
+    margin: 0 0 14px;
     letter-spacing: 0.5px;
     font-family: sans-serif;
+    flex: 0 0 auto;
 }
 .ap-breadcrumb span { color: var(--primary-color); opacity: 1; }
+.ap-breadcrumb-home {
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    opacity: .85;
+}
+.ap-breadcrumb-home:hover { color: var(--primary-color); opacity: 1; text-decoration: underline; }
+.ap-embed-frame {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+}
+.ap-embed-frame iframe {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    border: 0;
+    display: block;
+}
 
 /* Card */
 .ap-card {
@@ -1037,20 +1064,28 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 }
 .ap-role-select:focus { outline: none; border-color: var(--primary-color); }
 .ap-role-select:disabled { opacity: .45; cursor: not-allowed; }
+.ap-users-toolbar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:14px;}
+.ap-search-wrap{position:relative;flex:1 1 220px;min-width:180px;}
+.ap-search-icon{position:absolute;left:12px;top:50%;transform:translateY(-50%);opacity:.55;pointer-events:none;}
 .ap-search-bar {
     width: 100%;
     background: var(--bg-color);
     border: 1px solid var(--border-color);
     border-radius: 6px;
-    padding: 8px 12px;
+    padding: 8px 12px 8px 36px;
     color: var(--text-color);
     font-size: 14px;
     font-family: sans-serif;
     box-sizing: border-box;
-    margin-bottom: 14px;
+    margin-bottom: 0;
     transition: border-color .2s;
 }
 .ap-search-bar:focus { outline: none; border-color: var(--primary-color); }
+.ap-users-sort{display:inline-flex;align-items:center;gap:4px;flex-wrap:wrap;}
+.ap-sort-btn,.ap-sort-dir{border:1px solid var(--border-color);background:var(--bg-color);color:var(--text-color);border-radius:6px;padding:6px 10px;font-size:12px;cursor:pointer;font-family:sans-serif;}
+.ap-sort-btn.active{border-color:var(--primary-color);background:color-mix(in srgb,var(--primary-color) 18%,transparent);font-weight:600;}
+.ap-users-pager{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.ap-users-pager .ap-btn{padding:5px 10px;font-size:12px;min-width:36px;}
 
 /* Recipients box */
 .ap-recipients-box {
@@ -1216,365 +1251,67 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 #ap-sidebar:hover::-webkit-scrollbar {
     width: 2px;
 }
-#ap-backup.ap-panel.active {
+#ap-backup.ap-panel.active,
+#ap-docs.ap-panel.active,
+#ap-db.ap-panel.active,
+#ap-performance.ap-panel.active,
+#ap-docker-manager.ap-panel.active {
     display: flex;
     flex-direction: column;
     flex: 1;
     min-height: 0;
     width: 100%;
     margin: 0;
-    padding: 0;
+    padding: 12px 16px 0;
+    box-sizing: border-box;
 }
+#ap-backup > #bdp-app,
+#ap-docs > #doc-app,
+#ap-performance > #perf-app,
+#ap-db > .ap-embed-frame,
+#ap-docker-manager > #ap-docker-root {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow: hidden;
+}
+#ap-content:has(#ap-backup.active),
+#ap-content:has(#ap-docs.active),
+#ap-content:has(#ap-db.active),
+#ap-content:has(#ap-performance.active),
+#ap-content:has(#ap-docker-manager.active) {
+    padding: 0 !important;
+}
+
 #ap-backup .ap-breadcrumb,
-#ap-backup .ap-page-title,
-#ap-backup .ap-page-subtitle {
-    display: none;
-}
-
-/* iframe container - full available area */
-#ap-backup > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-backup iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-backup.active) {
-    padding: 0 !important;
-}
-
-/* Alternative option - directly for #ap-backup.active */
-#ap-backup.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Also remove padding from the parent container */
-#ap-backup.active + *,
-#ap-backup.active {
-    padding: 0 !important;
-}
-
-/* Remove padding from all parent elements when backup is active */
-#ap-backup.active,
-#ap-backup.active ~ *,
-#ap-content:has(#ap-backup.active) {
-    padding: 0 !important;
-}
-
-/* Documentation panel styles */
-#ap-docs.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
 #ap-docs .ap-breadcrumb,
-#ap-docs .ap-page-title,
-#ap-docs .ap-page-subtitle {
-    display: none;
-}
-#ap-docs > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-docs iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-#ap-docs.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-docs.active + *,
-#ap-docs.active {
-    padding: 0 !important;
-}
-#ap-docs.active,
-#ap-docs.active ~ *,
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-
-/* Database panel – same embedded styles */
-#ap-db.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
 #ap-db .ap-breadcrumb,
-#ap-db .ap-page-title,
-#ap-db .ap-page-subtitle {
-    display: none;
+#ap-performance .ap-breadcrumb,
+#ap-docker-manager .ap-breadcrumb {
+    display: block !important;
+    margin: 0 0 10px;
+    padding: 0 2px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
 }
-#ap-db > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-db iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
-}
-#ap-db.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-db.active + *,
-#ap-db.active {
-    padding: 0 !important;
-}
-#ap-db.active,
-#ap-db.active ~ *,
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
-}
-
-#ap-performance.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
-#ap-performance > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-performance iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-    background: var(--bg-color);
-}
-#ap-content:has(#ap-performance.active) {
-    padding: 0 !important;
-    overflow: hidden;
-}
-#ap-performance.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* OmniRoute panel – same embedded styles */
-/* Backup panel: the restic UI is inline (no iframe) and manages its own
-   padding/scroll inside #bdp-app (project/backup/assets/backup.css). */
-#ap-backup.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+#ap-backup.ap-panel.active,
+#ap-docs.ap-panel.active,
+#ap-db.ap-panel.active,
+#ap-performance.ap-panel.active,
+#ap-docker-manager.ap-panel.active {
+    padding: 12px 0 0 !important;
     overflow: hidden;
 }
 #ap-backup .ap-breadcrumb,
-#ap-backup .ap-page-title,
-#ap-backup .ap-page-subtitle {
-    display: none;
-}
-#ap-content:has(#ap-backup.active) {
-    padding: 0 !important;
-}
-#ap-backup.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* Documentation panel styles */
-#ap-docs.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
 #ap-docs .ap-breadcrumb,
-#ap-docs .ap-page-title,
-#ap-docs .ap-page-subtitle {
-    display: none;
-}
-#ap-docs > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-docs iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-#ap-docs.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-docs.active + *,
-#ap-docs.active {
-    padding: 0 !important;
-}
-#ap-docs.active,
-#ap-docs.active ~ *,
-#ap-content:has(#ap-docs.active) {
-    padding: 0 !important;
-}
-
-/* Database panel – same embedded styles */
-#ap-db.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
 #ap-db .ap-breadcrumb,
-#ap-db .ap-page-title,
-#ap-db .ap-page-subtitle {
-    display: none;
-}
-#ap-db > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-db iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-}
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
-}
-#ap-db.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-#ap-db.active + *,
-#ap-db.active {
-    padding: 0 !important;
-}
-#ap-db.active,
-#ap-db.active ~ *,
-#ap-content:has(#ap-db.active) {
-    padding: 0 !important;
+#ap-performance .ap-breadcrumb,
+#ap-docker-manager .ap-breadcrumb {
+    padding: 0 16px 10px !important;
+    border-bottom: 1px solid var(--border-color);
 }
 
-#ap-performance.ap-panel.active {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-}
-#ap-performance > div {
-    flex: 1;
-    min-height: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    overflow: hidden;
-    border: none;
-}
-#ap-performance iframe {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-    border: 0;
-    display: block;
-    border-radius: 0;
-    background: var(--bg-color);
-}
-#ap-content:has(#ap-performance.active) {
-    padding: 0 !important;
-    overflow: hidden;
-}
-#ap-performance.active {
-    margin: 0 !important;
-    padding: 0 !important;
-}
-
-/* OmniRoute panel – same embedded styles */
-
+/* OmniRoute panel – same embedded styles (no breadcrumb) */
 #ap-omniroute.ap-panel.active {
     display: flex;
     flex-direction: column;
@@ -1914,6 +1651,29 @@ function openPanel(id){
             try{window.BackupPanel.refresh();}catch(e){}
         }
     }
+    if(id==='ap-performance'&&window.PerformancePanel){
+        if(!apPanelInited['ap-performance']){
+            apPanelInited['ap-performance']=true;
+            try{window.PerformancePanel.init();}catch(e){console.error('[AdminPanel] PerformancePanel.init:',e);}
+        }else if(typeof window.PerformancePanel.refresh==='function'){
+            try{window.PerformancePanel.refresh();}catch(e){}
+        }
+    }
+    if(id==='ap-docker-manager'&&window.DockerPanel){
+        var dr=document.getElementById('ap-docker-root');
+        if(!apPanelInited['ap-docker-manager']||!window.DockerPanel.mounted()){
+            apPanelInited['ap-docker-manager']=true;
+            try{window.DockerPanel.init(dr);}catch(e){console.error('[AdminPanel] DockerPanel.init:',e);}
+        }
+    }
+    if(id==='ap-docs'&&window.DocsPanel){
+        if(!apPanelInited['ap-docs']){
+            apPanelInited['ap-docs']=true;
+            try{window.DocsPanel.init();}catch(e){console.error('[AdminPanel] DocsPanel.init:',e);}
+        }else if(typeof window.DocsPanel.refresh==='function'){
+            try{window.DocsPanel.refresh();}catch(e){}
+        }
+    }
 }
 
 /* ── Open/close ── */
@@ -1984,6 +1744,7 @@ function apGateShow(msg){
     if(err){ err.style.display=msg?'block':'none'; err.textContent=msg||''; }
     var pwd=document.getElementById('ap-gate-password'); if(pwd){ pwd.value=''; setTimeout(function(){pwd.focus();},50); }
 }
+window.apGateShow=apGateShow;
 function apGateHide(){
     var gate=document.getElementById('ap-gate-login'); if(gate) gate.style.display='none';
     var spin=document.getElementById('ap-loading-spinner'); if(spin) spin.style.display='';
@@ -2112,6 +1873,12 @@ function loadPanel(target, year){
                 apAvailableYears = d.available_years;
             }
             dynRoot.innerHTML=d.html;
+            Array.prototype.slice.call(dynRoot.querySelectorAll('script')).forEach(function(oldScript){
+                var s=document.createElement('script');
+                if(oldScript.src){ s.src=oldScript.src; s.async=false; }
+                else { s.textContent=oldScript.textContent; }
+                oldScript.parentNode.replaceChild(s, oldScript);
+            });
             skeleton.style.display='none';
             dynRoot.style.cssText='display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden;';
             apPanelInited={};
@@ -2912,6 +2679,12 @@ function wireEvents(){
         var pid=this.dataset.panel;
         openPanel(pid);
     });});
+    dynRoot.addEventListener('click', function(ev){
+        var home = ev.target && ev.target.closest ? ev.target.closest('[data-ap-home]') : null;
+        if(!home || !dynRoot.contains(home)) return;
+        ev.preventDefault();
+        openPanel('ap-users');
+    });
     var _apFetch=window.fetch;
     if(!_apFetch._apStepupWrapped){
         window.fetch=function(i,n){
@@ -3031,9 +2804,77 @@ function wireEvents(){
         var activeTab = dynRoot.querySelector('.ap-settings-tab.active');
         showSettingsSection(activeTab && activeTab.dataset ? (activeTab.dataset.settingsSection || 'email') : 'email');
     })();
-    /* users search */
-    var uSearch=dynRoot.querySelector('#ap-users-search'), uTable=dynRoot.querySelector('#ap-users-table');
-    if(uSearch&&uTable) uSearch.addEventListener('input',function(){var q=this.value.toLowerCase();uTable.querySelectorAll('tbody tr').forEach(function(r){var e=(r.dataset.email||'').toLowerCase(),n=(r.dataset.name||'').toLowerCase();r.style.display=(e.includes(q)||n.includes(q))?'':'none';});});
+    /* users search + sort + pagination */
+    (function(){
+        var uSearch=dynRoot.querySelector('#ap-users-search');
+        var uTable=dynRoot.querySelector('#ap-users-table');
+        if(!uTable) return;
+        var tbody=uTable.querySelector('tbody');
+        var state={q:'',sort:'name',dir:'asc',page:1,pageSize:25};
+        function rows(){return Array.prototype.slice.call(tbody?tbody.querySelectorAll('tr[data-email]'):[]);}
+        function match(r){
+            if(!state.q) return true;
+            var e=(r.dataset.email||'').toLowerCase(), n=(r.dataset.name||'').toLowerCase();
+            return e.indexOf(state.q)!==-1 || n.indexOf(state.q)!==-1;
+        }
+        function sortVal(r){
+            if(state.sort==='role') return parseInt(r.dataset.role||'0',10)||0;
+            if(state.sort==='created') return r.dataset.created||'';
+            return (r.dataset.name||'').toLowerCase();
+        }
+        function applyUsersView(){
+            if(!tbody) return;
+            var list=rows().filter(match);
+            list.sort(function(a,b){
+                var av=sortVal(a), bv=sortVal(b);
+                if(av<bv) return state.dir==='asc'?-1:1;
+                if(av>bv) return state.dir==='asc'?1:-1;
+                return 0;
+            });
+            var total=list.length;
+            var pages=Math.max(1, Math.ceil(total/state.pageSize)||1);
+            if(state.page>pages) state.page=pages;
+            var start=(state.page-1)*state.pageSize;
+            var end=start+state.pageSize;
+            rows().forEach(function(r){r.style.display='none';});
+            list.forEach(function(r,i){
+                tbody.appendChild(r);
+                r.style.display=(i>=start && i<end)?'':'none';
+            });
+            var info=dynRoot.querySelector('#ap-users-page-info');
+            var prev=dynRoot.querySelector('#ap-users-prev');
+            var next=dynRoot.querySelector('#ap-users-next');
+            if(info) info.textContent=(total? (start+1) : 0)+'–'+Math.min(end,total)+' / '+total;
+            if(prev) prev.disabled=state.page<=1;
+            if(next) next.disabled=state.page>=pages;
+        }
+        window.apApplyUsersView=applyUsersView;
+        if(uSearch) uSearch.addEventListener('input',function(){state.q=(this.value||'').toLowerCase().trim();state.page=1;applyUsersView();});
+        dynRoot.querySelectorAll('.ap-sort-btn').forEach(function(btn){
+            btn.addEventListener('click',function(){
+                dynRoot.querySelectorAll('.ap-sort-btn').forEach(function(b){b.classList.remove('active');});
+                btn.classList.add('active');
+                state.sort=btn.dataset.sort||'name';
+                state.page=1;
+                applyUsersView();
+            });
+        });
+        var dirBtn=dynRoot.querySelector('#ap-users-sort-dir');
+        if(dirBtn) dirBtn.addEventListener('click',function(){
+            state.dir=state.dir==='asc'?'desc':'asc';
+            dirBtn.dataset.dir=state.dir;
+            dirBtn.textContent=state.dir==='asc'?'↑':'↓';
+            dirBtn.title=state.dir.toUpperCase();
+            applyUsersView();
+        });
+        var prev=dynRoot.querySelector('#ap-users-prev');
+        var next=dynRoot.querySelector('#ap-users-next');
+        var sizeSel=dynRoot.querySelector('#ap-users-page-size');
+        if(prev) prev.addEventListener('click',function(){if(state.page>1){state.page--;applyUsersView();}});
+        if(next) next.addEventListener('click',function(){state.page++;applyUsersView();});
+        if(sizeSel) sizeSel.addEventListener('change',function(){state.pageSize=parseInt(this.value,10)||25;state.page=1;applyUsersView();});
+        applyUsersView();
+    })();
     /* users field change (event delegation) */
     var uTbl=dynRoot.querySelector('#ap-users-table');
     if(uTbl){
@@ -3122,6 +2963,7 @@ function wireEvents(){
                         var tbody=dynRoot&&dynRoot.querySelector('#ap-users-table tbody');
                         if(tbody) tbody.innerHTML=d.rows;
                         apUpdateUserAnalytics();
+                        if(typeof window.apApplyUsersView==='function') window.apApplyUsersView();
                         if(typeof showTempNotification!=='undefined')
                             showTempNotification(<?php echo json_encode($translations['refresh_users']??'Users list updated', JSON_HEX_TAG); ?>,'info');
                     }
@@ -3359,10 +3201,12 @@ window.refreshUsersList=function(){
     var tbody=dynRoot&&dynRoot.querySelector('#ap-users-table tbody');
     if(btn){btn.disabled=true;btn.style.opacity='0.6';}
     var fd=new FormData();fd.append('get_users_table','1');fd.append('ajax','1');
+    if(typeof window.__AP_CSRF__==='string'&&window.__AP_CSRF__) fd.append('_csrf',window.__AP_CSRF__);
     fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
         if(d.success&&tbody)tbody.innerHTML=d.rows;
         if(btn){btn.disabled=false;btn.style.opacity='1';}
         apUpdateUserAnalytics();
+        if(typeof window.apApplyUsersView==='function') window.apApplyUsersView();
         if(typeof showTempNotification!=='undefined')showTempNotification(T.refresh_users,'success');
     }).catch(function(){if(btn){btn.disabled=false;btn.style.opacity='1';}});
 };
@@ -3412,27 +3256,38 @@ window.apOpenDeleteUser=function(email,name){
     },100);
 
     var fd=new FormData();fd.append('scan_user_files','1');fd.append('ajax','1');fd.append('user_email',email);
-    fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(data){
+    if(typeof window.__AP_CSRF__==='string'&&window.__AP_CSRF__) fd.append('_csrf',window.__AP_CSRF__);
+    fetch('/main',{method:'POST',body:fd,credentials:'same-origin',headers:{'X-Requested-With':'XMLHttpRequest'}}).then(function(r){return r.json();}).then(function(data){
         clearInterval(progressInterval);
-
         if(pb)pb.style.width='100%';
         if(pp)pp.textContent='100%';
         if(tr)tr.textContent='<?php echo my_htmlspecialchars($translations['complete'] ?? 'Complete'); ?>!';
-
         setTimeout(function(){
             if(sm)sm.style.display='none';
             if(ps)ps.style.display='none';
             if(fl)fl.style.display='block';
             var c=document.getElementById('delete-user-file-count'),s=document.getElementById('delete-user-total-size'),l=document.getElementById('delete-user-files-list');
-            if(c)c.textContent=(data.files||[]).length+' file(s)';if(s)s.textContent=data.total_size_human;
-            if(l)l.innerHTML=(data.files||[]).slice(0,20).map(function(f){return '<div style="font-size:12px;opacity:.6;padding:1px 0;">'+esc(f.name)+' ('+esc(f.app)+')</div>';}).join('');
+            var files=(data&&data.files)||[];
+            if(c)c.textContent=files.length+(data&&data.truncated?'+':'')+' file(s)';
+            if(s)s.textContent=(data&&data.total_size_human)||'0 B';
+            if(l){
+                if(!data||data.success===false){
+                    l.innerHTML='<div class="no-files-msg">'+esc((data&&(data.message||data.error))||'Scan failed')+'</div>';
+                }else if(!files.length){
+                    l.innerHTML='<div class="no-files-msg"><?php echo my_htmlspecialchars($translations['no_user_files'] ?? 'No user files found in configured paths'); ?></div>';
+                }else{
+                    l.innerHTML=files.slice(0,20).map(function(f){return '<div style="font-size:12px;opacity:.6;padding:1px 0;">'+esc(f.name)+' ('+esc(f.app)+')</div>';}).join('');
+                }
+            }
             if(dob)dob.disabled=false;
         },300);
-    }).catch(function(){
+    }).catch(function(err){
         clearInterval(progressInterval);
         if(sm)sm.style.display='none';
         if(ps)ps.style.display='none';
         if(fl)fl.style.display='block';
+        var l=document.getElementById('delete-user-files-list');
+        if(l) l.innerHTML='<div class="no-files-msg">'+esc((err&&err.message)||'Scan failed')+'</div>';
         if(dob)dob.disabled=false;
     });
 };

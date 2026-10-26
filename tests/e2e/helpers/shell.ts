@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, type TestInfo } from '@playwright/test';
 
-const DEFAULT_E2E_USER_EMAIL = 'dashboard-e2e@test.local';
-const DEFAULT_E2E_USER_PASSWORD = 'dashboard-e2e-e2e-password';
+const DEFAULT_E2E_USER_EMAIL = 'root@root';
+const DEFAULT_E2E_USER_PASSWORD = '12345T';
 
 export const authUser = {
   // Prefer env vars, but fall back to defaults so tests don't skip.

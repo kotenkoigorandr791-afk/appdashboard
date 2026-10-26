@@ -114,7 +114,7 @@ function get_current_user_data(): array {
             JOIN users u ON s.email = u.email
             WHERE s.session_id = :session_id";
 
-    $trySession = function(string $sid) use ($db, $sql): ?array {
+    $lookupSession = function(string $sid) use ($db, $sql): ?array {
         try {
             $stmt = $db->prepare($sql);
             $stmt->bindValue(':session_id', $sid, PDO::PARAM_STR);
@@ -135,6 +135,25 @@ function get_current_user_data(): array {
         return null;
     };
 
+    $trySession = function(string $sid) use ($lookupSession): ?array {
+        require_once dirname(__DIR__, 3) . '/lib/redis.php';
+        $r = app_redis();
+        $ck = app_redis_key('films_sess:' . hash('sha256', $sid));
+        if ($r) {
+            try {
+                $hit = $r->get($ck);
+                if (is_string($hit) && $hit !== '') {
+                    $cached = json_decode($hit, true);
+                    if (is_array($cached)) return $cached;
+                }
+            } catch (Throwable $e) {}
+        }
+        $found = $lookupSession($sid);
+        if ($found !== null && $r) {
+            try { $r->set($ck, json_encode($found, JSON_UNESCAPED_UNICODE), ['EX' => 5]); } catch (Throwable $e) {}
+        }
+        return $found;
+    };
     if ($session_id) {
         $data = $trySession($session_id);
         if ($data !== null) return $data;

@@ -6,6 +6,7 @@ require_once APP_ROOT . '/apps/steps/models/StepsModel.php';
 require_once APP_ROOT . '/apps/steps/core/user_helpers.php';
 require_once APP_ROOT . '/apps/steps/auth_common.php';
 require_once APP_ROOT . '/apps/steps/core/health_connect_ingest.php';
+require_once APP_ROOT . '/apps/steps/core/settings_api.php';
 $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
 $stepsAppDir = APP_ROOT . '/apps/steps';
@@ -171,28 +172,13 @@ if ($method === 'GET') {
         exit;
     }
     if (strtolower((string)$sub) === 'profile') {
-        $email = get_current_user_email();
-        $profile = ['email' => $email ?: '', 'name' => $email ?: 'StepMonitor', 'photo' => ''];
-        if ($email && function_exists('app_main_db')) {
-            try {
-                $mainDb = app_main_db();
-                $stmt = $mainDb->prepare('SELECT name, photo FROM users WHERE lower(email) = :email LIMIT 1');
-                $stmt->bindValue(':email', strtolower($email), PDO::PARAM_STR);
-                $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-                if ($row) {
-                    $profile['name'] = (string)($row['name'] ?: $profile['name']);
-                    $profile['photo'] = function_exists('app_avatar_src') ? app_avatar_src($row['photo'] ?? '') : (string)($row['photo'] ?? '');
-                }
-            } catch (Throwable $ignored) {
-            }
-        }
-        exit(json_encode(['status' => 'success', 'profile' => $profile], JSON_UNESCAPED_UNICODE));
+        exit(json_encode(['status' => 'success', 'profile' => steps_read_profile(get_current_user_email())], JSON_UNESCAPED_UNICODE));
     }
     if (strtolower((string)$sub) === 'conflicts') {
         $pending = array_values(array_filter(steps_conflicts_read($userDir), static fn($c) => ($c['status'] ?? '') === 'pending'));
         exit(json_encode(['status' => 'success', 'conflicts' => array_map('steps_conflict_public', $pending)], JSON_UNESCAPED_UNICODE));
     }
-    if (isset($_GET['settings']) || isset($_GET['get_settings'])) {
+    if (strtolower((string)$sub) === 'settings' || isset($_GET['settings']) || isset($_GET['get_settings'])) {
         $settings = loadUserSettings($userDb, $defaultSettings);
         exit(json_encode(['status' => 'success', 'settings' => $settings], JSON_UNESCAPED_UNICODE));
     }
@@ -240,11 +226,11 @@ if ($method === 'GET') {
     usort($rows, static fn($a, $b) => strcmp((string)$a['date'], (string)$b['date']));
     exit(json_encode(['status' => 'success', 'from' => $from, 'to' => $to, 'steps' => $rows, 'count' => count($rows)], JSON_UNESCAPED_UNICODE));
 }
-if ($method === 'POST') {
+if ($method === 'POST' || $method === 'PUT') {
     $contentLen = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
     if ($contentLen > 0 && $contentLen > 8 * 1024 * 1024) public_api_json(['status' => 'error', 'message' => 'payload too large'], 413);
     $subLower = strtolower((string)$sub);
-    if (!in_array($subLower, ['', 'ingest', 'webhook', 'sync', 'conflicts'], true)) public_api_json(['status' => 'error', 'message' => 'unknown_post_path'], 404);
+    if (!in_array($subLower, ['', 'ingest', 'webhook', 'sync', 'conflicts', 'settings', 'profile'], true)) public_api_json(['status' => 'error', 'message' => 'unknown_post_path'], 404);
     // Accept both JSON (Health Connect app) and form-encoded (web UI / MCP) bodies.
     $contentType = strtolower((string)($_SERVER['CONTENT_TYPE'] ?? ''));
     $isFormPost = str_contains($contentType, 'application/x-www-form-urlencoded');
@@ -262,6 +248,13 @@ if ($method === 'POST') {
         if (isset($payload['create_backup'])) {
             exit(json_encode(steps_create_backup($userDb, $userDir), JSON_UNESCAPED_UNICODE));
         }
+    }
+    if ($subLower === 'settings') {
+        // Personal settings written by the mobile Settings screen and the web UI.
+        exit(json_encode(steps_update_settings($userDb, $payload), JSON_UNESCAPED_UNICODE));
+    }
+    if ($subLower === 'profile') {
+        exit(json_encode(steps_update_profile($payload), JSON_UNESCAPED_UNICODE));
     }
     if ($subLower === 'conflicts') {
         $id = (string)($parts[2] ?? ($payload['id'] ?? ''));

@@ -93,152 +93,56 @@ function cloud_ai_latex_exec(string $cmd, string $dir, int &$code): array
     }
 }
 
-function cloud_ai_compile_latex(string $latex): array
+function cloud_ai_latex_sidecar(string $latex): array
 {
-    $latexmk = '/usr/bin/latexmk';
-    $lualatex = '/usr/bin/lualatex';
-    $pdflatex = '/usr/bin/pdflatex';
-    if (!is_executable($lualatex) && !is_executable($pdflatex)) {
-        return ['ok' => false, 'success' => false, 'error' => 'LaTeX compiler not available', 'output' => ''];
+    if (!getenv('PY_SIDECAR_URL')) {
+        return ['pdf' => '', 'output' => 'LaTeX compile sidecar is not configured.'];
     }
-    $dir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'cloud_ai_latex_' . bin2hex(random_bytes(6));
-    if (!mkdir($dir, 0775, true) && !is_dir($dir)) {
-        return ['ok' => false, 'success' => false, 'error' => 'Cannot create temp directory', 'output' => ''];
-    }
-    $cacheDir = $dir . DIRECTORY_SEPARATOR . '.texmf-var';
-    @mkdir($cacheDir, 0775, true);
-    $base = 'input_' . uniqid('', true);
-    $tex = $dir . DIRECTORY_SEPARATOR . $base . '.tex';
-    $pdf = $dir . DIRECTORY_SEPARATOR . $base . '.pdf';
-    $log = $dir . DIRECTORY_SEPARATOR . $base . '.log';
-    $needsLua = cloud_ai_latex_needs_lualatex($latex);
-    $source = $needsLua ? cloud_ai_prepare_latex_for_lualatex($latex) : cloud_ai_prepare_latex_for_pdflatex($latex);
-    file_put_contents($tex, $source);
-    $output = [];
-    $code = 1;
-    $env = 'HOME=' . escapeshellarg($cacheDir) . ' TEXMFVAR=' . escapeshellarg($cacheDir) . ' TEXMFCACHE=' . escapeshellarg($cacheDir);
-    if (!$needsLua && is_executable($pdflatex)) {
-        $cmd = $env . ' ' . escapeshellarg($pdflatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } elseif ($needsLua && is_executable($latexmk) && is_executable($lualatex)) {
-        $rule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
-        $cmd = $env . ' ' . escapeshellarg($latexmk) . ' -e ' . $rule . ' -lualatex -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } elseif ($needsLua && is_executable($lualatex)) {
-        $cmd = $env . ' ' . escapeshellarg($lualatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } elseif (is_executable($pdflatex)) {
-        $cmd = escapeshellarg($pdflatex) . ' -interaction=nonstopmode -halt-on-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } else {
-        $output = [$needsLua ? 'LuaLaTeX is required for this document but is not available.' : 'pdfLaTeX is required for this document but is not available.'];
-        $code = 127;
-    }
-    $logText = is_file($log) ? (string)file_get_contents($log) : implode("\n", $output);
-    $success = $code === 0 && is_file($pdf) && filesize($pdf) > 0;
-    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
-    foreach ($it as $f) {
-        $f->isDir() ? @rmdir($f->getPathname()) : @unlink($f->getPathname());
-    }
-    @rmdir($dir);
+    require_once dirname(__DIR__, 3) . '/lib/py_sidecar.php';
+    $lua = cloud_ai_latex_needs_lualatex($latex);
+    $res = py_sidecar('latex', ['latex' => $lua ? cloud_ai_prepare_latex_for_lualatex($latex) : cloud_ai_prepare_latex_for_pdflatex($latex), 'engine' => $lua ? 'lualatex' : 'pdflatex'], null, null, 300);
+    $body = is_array($res['body']) ? $res['body'] : [];
+    $ok = !empty($body['success']) && !empty($body['pdf']);
+    return ['pdf' => $ok ? (string)base64_decode((string)$body['pdf']) : '', 'output' => (string)($body['output'] ?? '') !== '' ? (string)$body['output'] : (string)$res['error']];
+}
+
+function cloud_ai_latex_result(array $run, string $okMessage, array $extra = []): array
+{
+    $success = $run['pdf'] !== '';
     $errLines = [];
-    if (!$success && $logText !== '') {
-        foreach (preg_split('/\r\n|\r|\n/', $logText) as $line) {
-            if (preg_match('/^! |^l\.[0-9]+|Error|Fatal|Undefined/', $line)) {
-                $errLines[] = $line;
-            }
+    if (!$success) {
+        foreach (preg_split('/\r\n|\r|\n/', $run['output']) as $line) {
+            if (preg_match('/^! |^l\.[0-9]+|Error|Fatal|Undefined|Failed/', $line)) $errLines[] = $line;
         }
     }
-    $summary = $success
-        ? 'LaTeX compiled successfully.'
-        : (implode("\n", array_slice($errLines, 0, 40)) ?: implode("\n", array_slice($output, -40)));
-    $summary = cloud_ai_sanitize_latex_output($summary, $dir, $base);
-    $cleanOutput = cloud_ai_sanitize_latex_output($logText !== '' ? $logText : implode("\n", $output), $dir, $base);
+    $summary = $success ? $okMessage : (implode("\n", array_slice($errLines, 0, 40)) ?: implode("\n", array_slice(preg_split('/\r\n|\r|\n/', $run['output']), -40)));
     return [
         'ok' => true,
         'success' => $success,
         'kind' => 'latex',
-        'output' => cloud_ai_text_slice($cleanOutput, 0, 120000),
+        'output' => cloud_ai_text_slice($run['output'], 0, 120000),
         'error' => $success ? '' : cloud_ai_text_slice($summary, 0, 16000),
-    ];
+    ] + $extra;
+}
+
+function cloud_ai_compile_latex(string $latex): array
+{
+    return cloud_ai_latex_result(cloud_ai_latex_sidecar($latex), 'LaTeX compiled successfully.');
 }
 
 function cloud_ai_compile_latex_to_pdf_file(string $latex, string $pdfTarget): array
 {
-    $latexmk = '/usr/bin/latexmk';
-    $lualatex = '/usr/bin/lualatex';
-    $pdflatex = '/usr/bin/pdflatex';
-    if (!is_executable($lualatex) && !is_executable($pdflatex)) {
-        return ['ok' => false, 'success' => false, 'error' => 'LaTeX compiler not available', 'output' => ''];
-    }
-    $dir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'cloud_ai_latex_' . bin2hex(random_bytes(6));
-    if (!mkdir($dir, 0775, true) && !is_dir($dir)) {
-        return ['ok' => false, 'success' => false, 'error' => 'Cannot create temp directory', 'output' => ''];
-    }
-    $cacheDir = $dir . DIRECTORY_SEPARATOR . '.texmf-var';
-    @mkdir($cacheDir, 0775, true);
-    $base = 'input_' . uniqid('', true);
-    $tex = $dir . DIRECTORY_SEPARATOR . $base . '.tex';
-    $pdf = $dir . DIRECTORY_SEPARATOR . $base . '.pdf';
-    $log = $dir . DIRECTORY_SEPARATOR . $base . '.log';
-    $needsLua = cloud_ai_latex_needs_lualatex($latex);
-    $source = $needsLua ? cloud_ai_prepare_latex_for_lualatex($latex) : cloud_ai_prepare_latex_for_pdflatex($latex);
-    file_put_contents($tex, $source);
-    $output = [];
-    $code = 1;
-    $env = 'HOME=' . escapeshellarg($cacheDir) . ' TEXMFVAR=' . escapeshellarg($cacheDir) . ' TEXMFCACHE=' . escapeshellarg($cacheDir);
-    if (!$needsLua && is_executable($pdflatex)) {
-        $cmd = $env . ' ' . escapeshellarg($pdflatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } elseif ($needsLua && is_executable($latexmk) && is_executable($lualatex)) {
-        $rule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
-        $cmd = $env . ' ' . escapeshellarg($latexmk) . ' -e ' . $rule . ' -lualatex -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } elseif ($needsLua && is_executable($lualatex)) {
-        $cmd = $env . ' ' . escapeshellarg($lualatex) . ' -interaction=nonstopmode -halt-on-error -file-line-error -output-directory=' . escapeshellarg($dir) . ' ' . escapeshellarg($tex);
-        $output = cloud_ai_latex_exec($cmd, $dir, $code);
-    } else {
-        $output = [$needsLua ? 'LuaLaTeX is required for this document but is not available.' : 'pdfLaTeX is required for this document but is not available.'];
-        $code = 127;
-    }
-    $logText = is_file($log) ? (string)file_get_contents($log) : implode("\n", $output);
-    $success = $code === 0 && is_file($pdf) && filesize($pdf) > 0;
-    if ($success) {
+    $run = cloud_ai_latex_sidecar($latex);
+    $size = 0;
+    if ($run['pdf'] !== '') {
         $targetDir = dirname($pdfTarget);
-        if (!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) {
-            $success = false;
-            $logText .= "\nFailed to create PDF output directory.";
-        } elseif (!copy($pdf, $pdfTarget)) {
-            $success = false;
-            $logText .= "\nFailed to save PDF file.";
+        if ((!is_dir($targetDir) && !mkdir($targetDir, 0775, true) && !is_dir($targetDir)) || file_put_contents($pdfTarget, $run['pdf']) === false) {
+            $run = ['pdf' => '', 'output' => $run['output'] . "\nFailed to save PDF file."];
+        } else {
+            $size = (int)filesize($pdfTarget);
         }
     }
-    $it = new RecursiveIteratorIterator(new RecursiveDirectoryIterator($dir, FilesystemIterator::SKIP_DOTS), RecursiveIteratorIterator::CHILD_FIRST);
-    foreach ($it as $f) {
-        $f->isDir() ? @rmdir($f->getPathname()) : @unlink($f->getPathname());
-    }
-    @rmdir($dir);
-    $errLines = [];
-    if (!$success && $logText !== '') {
-        foreach (preg_split('/\r\n|\r|\n/', $logText) as $line) {
-            if (preg_match('/^! |^l\.[0-9]+|Error|Fatal|Undefined|Failed/', $line)) {
-                $errLines[] = $line;
-            }
-        }
-    }
-    $summary = $success
-        ? 'LaTeX PDF saved.'
-        : (implode("\n", array_slice($errLines, 0, 40)) ?: implode("\n", array_slice($output, -40)));
-    $summary = cloud_ai_sanitize_latex_output($summary, $dir, $base);
-    $cleanOutput = cloud_ai_sanitize_latex_output($logText !== '' ? $logText : implode("\n", $output), $dir, $base);
-    return [
-        'ok' => true,
-        'success' => $success,
-        'kind' => 'latex',
-        'output' => cloud_ai_text_slice($cleanOutput, 0, 120000),
-        'error' => $success ? '' : cloud_ai_text_slice($summary, 0, 16000),
-        'pdf_size' => $success && is_file($pdfTarget) ? (int)filesize($pdfTarget) : 0,
-    ];
+    return cloud_ai_latex_result($run, 'LaTeX PDF saved.', ['pdf_size' => $size]);
 }
 
 function cloud_ai_compile_code(string $language, string $fileContent, string $filePath, string $rootKey, ?string $resolvedPath = null): array

@@ -199,6 +199,10 @@ function ensureSupportChatSchema(AppDatabase $db): void {
     $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_chat_hidden_unique ON chat_hidden(email,chat_type,user_email,COALESCE(recipient_email,''))");
 }
 function ensureTelegramBotSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    app_schema_once('tg_bot', __FILE__, fn() => ensureTelegramBotSchemaImpl($db));
+}
+function ensureTelegramBotSchemaImpl(AppDatabase $db): void {
     if (app_db_is_pgsql()) {
         $db->exec("CREATE TABLE IF NOT EXISTS tg_bot_sessions (
             chat_id TEXT PRIMARY KEY,
@@ -1202,7 +1206,33 @@ function userNeedsPasswordSet(?array $user): bool {
     return (($info['algoName'] ?? 'unknown') === 'unknown');
 }
 
+function userCacheKey(string $email): string {
+    return app_redis_key('user_row:' . md5(strtolower($email)));
+}
+function userCacheBust(string $email): void {
+    $r = app_redis();
+    if (!$r) return;
+    try { $r->del(userCacheKey($email)); } catch (Throwable $e) {}
+}
 function getUserByEmail(string $email): ?array {
+    $r = app_redis();
+    $key = userCacheKey($email);
+    if ($r) {
+        try {
+            $hit = $r->get($key);
+            if (is_string($hit) && $hit !== '') {
+                $row = json_decode($hit, true);
+                if (is_array($row)) return $row;
+            }
+        } catch (Throwable $e) {}
+    }
+    $row = getUserByEmailDb($email);
+    if ($r && $row) {
+        try { $r->set($key, json_encode($row, JSON_UNESCAPED_UNICODE), ['EX' => 5]); } catch (Throwable $e) {}
+    }
+    return $row;
+}
+function getUserByEmailDb(string $email): ?array {
     $db   = getDB();
     $stmt = $db->prepare("SELECT * FROM users WHERE email=:e LIMIT 1");
     $stmt->bindValue(':e', $email);
@@ -1213,10 +1243,11 @@ function getUserByEmail(string $email): ?array {
 }
 
 function upsertUser(string $email, array $fields): void {
+    userCacheBust($email);
     $db      = getDB();
     usersEnsureAdminCapsColumn($db);
     usersCache(null, true);
-    $current = getUserByEmail($email) ?? [];
+    $current = getUserByEmailDb($email) ?? [];
     $merged  = array_merge([
         'name'       => '',
         'password'   => '',
@@ -1291,6 +1322,7 @@ function upsertUser(string $email, array $fields): void {
 }
 
 function deleteUser(string $email): void {
+    userCacheBust($email);
     $db   = getDB();
     $stmt = $db->prepare("DELETE FROM users WHERE email=:e");
     $stmt->bindValue(':e', $email);
@@ -1647,8 +1679,10 @@ function getUserActiveSessions(string $email): array {
     if ($redis = app_redis()) {
         $out = [];
         $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
-        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
-            $raw = $redis->get(app_redis_key('active_session:' . (string)$sid));
+        $sids = array_values($redis->sMembers($setKey) ?: []);
+        $raws = $sids ? $redis->mGet(array_map(fn($sid) => app_redis_key('active_session:' . (string)$sid), $sids)) : [];
+        foreach ($sids as $i => $sid) {
+            $raw = $raws[$i] ?? false;
             if (!$raw) {
                 $redis->sRem($setKey, $sid);
                 continue;
@@ -1681,9 +1715,11 @@ function cleanupExpiredUserSessions(string $email, ?int $authTimeout = null): in
         $deleted = 0;
         $cutoff = time() - $authTimeout;
         $setKey = app_redis_key('active_sessions_by_email:' . strtolower($email));
-        foreach ($redis->sMembers($setKey) ?: [] as $sid) {
+        $sids = array_values($redis->sMembers($setKey) ?: []);
+        $raws = $sids ? $redis->mGet(array_map(fn($sid) => app_redis_key('active_session:' . (string)$sid), $sids)) : [];
+        foreach ($sids as $i => $sid) {
             $key = app_redis_key('active_session:' . (string)$sid);
-            $raw = $redis->get($key);
+            $raw = $raws[$i] ?? false;
             if (!$raw) {
                 $redis->sRem($setKey, $sid);
                 $deleted++;
@@ -2451,13 +2487,31 @@ function configCache(?string $key = null, ?string $value = null, bool $reset = f
     elseif ($key !== null) $cache[$key] = $value;
     return $cache;
 }
+function configRedisKey(string $key): string {
+    return app_redis_key('cfg:' . md5($key));
+}
 function getConfig(string $key, string $default = ''): string {
     $cache = configCache();
     if (array_key_exists($key, $cache)) return $cache[$key] ?? $default;
+    $r = app_redis();
+    if ($r) {
+        try {
+            $hit = $r->get(configRedisKey($key));
+            if (is_string($hit) && $hit !== '') {
+                $val = $hit === "\0" ? null : substr($hit, 1);
+                configCache($key, $val);
+                return $val ?? $default;
+            }
+        } catch (Throwable $e) {}
+    }
     $stmt = getDB()->prepare("SELECT value FROM config WHERE key=:k LIMIT 1");
     $stmt->bindValue(':k', $key);
     $row  = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    configCache($key, $row ? (string)$row['value'] : null);
+    $val = $row ? (string)$row['value'] : null;
+    configCache($key, $val);
+    if ($r) {
+        try { $r->set(configRedisKey($key), $val === null ? "\0" : 'v' . $val, ['EX' => 15]); } catch (Throwable $e) {}
+    }
     return $row ? $row['value'] : $default;
 }
 
@@ -2468,6 +2522,10 @@ function setConfig(string $key, string $value): void {
     $stmt->bindValue(':v', $value);
     $stmt->execute();
     configCache($key, $value);
+    $r = app_redis();
+    if ($r) {
+        try { $r->set(configRedisKey($key), 'v' . $value, ['EX' => 15]); } catch (Throwable $e) {}
+    }
 }
 
 function loadAuthConfig(): array {
@@ -3585,9 +3643,10 @@ function clearTrustedDevices(string $email): void {
 // ── Trusted Devices Schema Helpers ──────────────────────────────────────────
 
 function ensureTrustedDevicesSchema(AppDatabase $db): void {
-    static $done = false;
-    if ($done) return;
-    $done = true;
+    require_once __DIR__ . '/lib/schema_once.php';
+    app_once_wrap('trusted_devices_schema', __FILE__, fn() => ensureTrustedDevicesSchemaImpl($db));
+}
+function ensureTrustedDevicesSchemaImpl(AppDatabase $db): void {
     if (!app_db_is_pgsql()) return;
     try {
         $db->exec("DELETE FROM trusted_devices WHERE id NOT IN (

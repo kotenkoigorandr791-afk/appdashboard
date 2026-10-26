@@ -137,5 +137,9 @@
     "from": "З",
     "to": "Па",
     "delete": "Выдаліць",
-    "close": "Зачыніць"
+    "close": "Зачыніць",
+    "add_manually": "Дадаць уручную",
+    "import_from_json": "Імпарт з JSON",
+    "expand_all": "Разгарнуць усё",
+    "collapse_all": "Згарнуць усё"
 }

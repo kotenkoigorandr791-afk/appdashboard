@@ -1,11 +1,12 @@
-        :root {
+@scope (#docker-app) {
+        :scope {
             --bg: #0f1419;
-            --surface: rgba(18,24,32,0.8);
-            --surface-hover: rgba(255,255,255,0.10);
+            --surface: #121820;
+            --surface-hover: #1c2531;
             --border: rgba(255,255,255,0.14);
             --text: #f4f7fb;
             --muted: rgba(255,255,255,0.42);
-            /* --accent / --accent-muted are overridden inline from the ?color= param */
+            
             --accent: #007bff;
             --accent-muted: rgba(0,123,255,0.14);
             --danger: #f87171;
@@ -18,8 +19,8 @@
             --scroll-thumb: rgba(255,255,255,0.22);
             --scroll-thumb-hover: rgba(255,255,255,0.35);
         }
-        /* Light theme: html[data-theme="light"] is set by docker_manager.php */
-        html[data-theme="light"] {
+        
+        :scope[data-theme="light"] {
             --bg: #f3f6fb;
             --surface: #ffffff;
             --surface-hover: #eef3fb;
@@ -31,11 +32,11 @@
             --scroll-thumb-hover: #8794a8;
         }
         * { margin: 0; padding: 0; box-sizing: border-box; scrollbar-width: thin; scrollbar-color: var(--scroll-thumb) var(--scroll-track); }
-        body {
+        :scope {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
             background: var(--bg);
             color: var(--text);
-            min-height: 100vh;
+            position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; isolation: isolate;
         }
         ::-webkit-scrollbar { width: 8px; height: 8px; }
         ::-webkit-scrollbar-track { background: var(--scroll-track); border-radius: 8px; }
@@ -93,8 +94,8 @@
         .scc-name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
         .stack-card-image { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted); min-width: 0; }
         .stack-card-image .mono-clip { font-size: 11px; color: var(--muted); }
-        .sidebar {
-            position: fixed;
+        .dk-sidebar {
+            position: absolute;
             left: 0;
             top: 0;
             width: 260px;
@@ -105,7 +106,7 @@
             display: flex;
             flex-direction: column;
         }
-        .sidebar-header {
+        .dk-sidebar-header {
             padding: 22px 20px;
             border-bottom: 1px solid var(--border);
             background: linear-gradient(135deg, rgba(34, 211, 238, 0.12) 0%, transparent 100%);
@@ -116,12 +117,12 @@
             gap: 10px;
             color: var(--accent);
         }
-        .sidebar-header h2 {
+        .dk-sidebar-header h2 {
             font-size: 18px;
             font-weight: 600;
             color: var(--text);
         }
-        .sidebar-nav { padding: 16px 0; }
+        .dk-sidebar-nav { padding: 16px 0; }
         .nav-item {
             padding: 12px 20px;
             display: flex;
@@ -139,7 +140,7 @@
             border-left-color: var(--accent);
         }
         .nav-icon { display: flex; align-items: center; justify-content: center; width: 22px; height: 22px; }
-        .sidebar-footer {
+        .dk-sidebar-footer {
             margin-top: auto;
             padding: 14px 16px 20px;
             border-top: 1px solid var(--border);
@@ -147,7 +148,7 @@
             flex-direction: column;
             gap: 4px;
         }
-        .sidebar-footer a {
+        .dk-sidebar-footer a {
             font-size: 12px;
             color: var(--muted);
             text-decoration: none;
@@ -157,9 +158,9 @@
             padding: 8px 4px;
             border-radius: 8px;
         }
-        .sidebar-footer a:hover { color: var(--text); background: var(--surface-hover); }
-        .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
-        .sidebar-backdrop.show { display: block; }
+        .dk-sidebar-footer a:hover { color: var(--text); background: var(--surface-hover); }
+        .dk-sidebar-backdrop { display: none; position: absolute; inset: 0; background: rgba(0,0,0,0.5); z-index: 99; }
+        .dk-sidebar-backdrop.show { display: block; }
         .filter-bar {
             display: flex;
             align-items: center;
@@ -193,7 +194,7 @@
             font-size: 14px;
         }
         .toolbar-search input::placeholder { color: var(--muted); }
-        .main-content { margin-left: 260px; padding: 20px; }
+        .main-content { margin-left: 260px; padding: 20px; height: 100%; overflow: auto; }
         .top-bar {
             background: var(--surface);
             border: 1px solid var(--border);
@@ -206,7 +207,7 @@
             height: 44px;
         }
         .page-title { font-size: 22px; font-weight: 600; }
-        .connection-status {
+        .dk-connection-status {
             display: flex;
             align-items: center;
             gap: 8px;
@@ -217,7 +218,7 @@
             color: var(--accent);
             font-size: 13px;
         }
-        .connection-status.err {
+        .dk-connection-status.err {
             background: var(--danger-bg);
             border-color: rgba(248, 113, 113, 0.35);
             color: var(--danger);
@@ -229,7 +230,7 @@
             border-radius: 50%;
             animation: pulse 2s infinite;
         }
-        .connection-status.err .status-dot {
+        .dk-connection-status.err .status-dot {
             background: var(--danger);
             animation: none;
         }
@@ -304,7 +305,7 @@
             font-size: 13px;
         }
         tr:hover td { background: rgba(255,255,255,0.02); }
-        html[data-theme="light"] tr:hover td { background: rgba(15,23,42,0.03); }
+        :scope[data-theme="light"] tr:hover td { background: rgba(15,23,42,0.03); }
         .status-badge {
             display: inline-flex;
             align-items: center;
@@ -368,7 +369,7 @@
         .info-grid { display: grid; gap: 10px; color: var(--muted); font-size: 14px; }
         .info-grid strong { color: var(--text); }
         .docker-modal {
-            position: fixed;
+            position: absolute;
             inset: 0;
             display: none;
             align-items: center;
@@ -428,9 +429,9 @@
             border-top: 1px solid var(--border);
             background: rgba(0,0,0,0.16);
         }
-        html[data-theme="light"] .message-modal-actions { background: rgba(15,23,42,0.025); }
+        :scope[data-theme="light"] .message-modal-actions { background: rgba(15,23,42,0.025); }
         .notification {
-            position: fixed;
+            position: absolute;
             bottom: 24px;
             right: 20px;
             padding: 10px 14px 10px 16px;
@@ -494,15 +495,20 @@
             cursor: pointer;
             font-size: 20px;
             line-height: 1;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
         }
-        .docker-modal-frame { flex: 1; width: 100%; border: 0; background: var(--bg); }
+        .docker-modal-body { flex: 1; width: 100%; overflow: auto; background: var(--bg); padding: 16px; }
         h3 { font-size: 15px; color: var(--text); margin-bottom: 12px; }
         @media (max-width: 900px) {
             .filter-bar .btn-icon { display: block; }
-            .sidebar { transform: translateX(-100%); transition: transform 0.25s ease; }
-            .sidebar.open { transform: translateX(0); }
+            .dk-sidebar { transform: translateX(-100%); transition: transform 0.25s ease; }
+            .dk-sidebar.open { transform: translateX(0); }
             .main-content { margin-left: 0; padding: 16px; }
             .top-bar { flex-wrap: wrap; gap: 12px; }
             .containers-table-wrap .c-panel { min-width: 480px; }
         }
-    </style>
+}

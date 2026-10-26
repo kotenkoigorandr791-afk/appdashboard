@@ -119,6 +119,16 @@ if (!function_exists('cloud_require_cookie_csrf')) {
 if (!function_exists('cloud_rate_limit_hit')) {
     function cloud_rate_limit_hit(string $bucket, int $max, int $windowSec): bool
     {
+        $redis = function_exists('app_redis') ? @app_redis() : null;
+        if ($redis) {
+            try {
+                $rk = 'cloud_rl:' . hash('sha256', $bucket) . ':' . intdiv(time(), max(1, $windowSec));
+                $n = (int)$redis->incr($rk);
+                if ($n === 1) $redis->expire($rk, $windowSec + 1);
+                return $n > $max;
+            } catch (Throwable $e) {
+            }
+        }
         $dir = sys_get_temp_dir() . '/cloud_rate_limit';
         if (!is_dir($dir)) {
             @mkdir($dir, 0775, true);

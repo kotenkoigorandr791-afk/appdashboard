@@ -3,11 +3,6 @@ set -e
 if [ "${RUN_ENSURE_CONTAINER_PACKAGES:-0}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh || true
 fi
-if [ "${RUN_ENSURE_TINYTEX:-1}" = "1" ] && [ -f /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh ]; then
-  chmod +x /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh 2>/dev/null || true
-  # Sync on first boot so /usr/bin/xelatex exists; later starts are cheap.
-  sh /var/www/AppDashboard/deploy/scripts/ensure-tinytex.sh >/var/log/supervisor/tinytex.log 2>&1 || true
-fi
 if [ "${PHP_OPCACHE_ENABLE:-1}" = "0" ]; then
   {
     printf 'opcache.enable=0\n'
@@ -23,8 +18,12 @@ else
     printf 'opcache.memory_consumption=192\n'
     printf 'opcache.interned_strings_buffer=16\n'
     printf 'opcache.max_accelerated_files=20000\n'
-    printf 'opcache.validate_timestamps=1\n'
+    printf 'opcache.validate_timestamps=%s\n' "${PHP_OPCACHE_VALIDATE_TIMESTAMPS:-1}"
     printf 'opcache.revalidate_freq=30\n'
+    printf 'opcache.jit=tracing\n'
+    printf 'opcache.jit_buffer_size=%s\n' "${PHP_OPCACHE_JIT_BUFFER:-64M}"
+    printf 'realpath_cache_size=16M\n'
+    printf 'realpath_cache_ttl=300\n'
   } > /usr/local/etc/php/conf.d/appdashboard-opcache.ini
 fi
 APP_WAF_RULE_ENGINE="${APP_WAF_RULE_ENGINE:-On}"
@@ -50,10 +49,14 @@ sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/
 [ -d /var/www/AppDashboard/apps/cloud/temp_convert ] || rm -f /var/www/AppDashboard/apps/cloud/temp_convert
 if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   sed -i 's/^pm = .*/pm = dynamic/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-50}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-10}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-5}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-20}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-200}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-30}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-20}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-60}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^;\?pm.max_requests = .*/pm.max_requests = '"${PHP_FPM_MAX_REQUESTS:-500}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  grep -q '^pm.max_requests' /usr/local/etc/php-fpm.d/www.conf || printf '\npm.max_requests = %s\n' "${PHP_FPM_MAX_REQUESTS:-500}" >> /usr/local/etc/php-fpm.d/www.conf
+  sed -i 's/^;\?listen.backlog = .*/listen.backlog = 4096/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  grep -q '^listen.backlog' /usr/local/etc/php-fpm.d/www.conf || printf 'listen.backlog = 4096\n' >> /usr/local/etc/php-fpm.d/www.conf
   if grep -q '^;request_terminate_timeout' /usr/local/etc/php-fpm.d/www.conf; then
     sed -i 's/^;request_terminate_timeout = .*/request_terminate_timeout = '"${PHP_FPM_REQUEST_TERMINATE_TIMEOUT:-30}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   elif grep -q '^request_terminate_timeout' /usr/local/etc/php-fpm.d/www.conf; then
@@ -61,6 +64,11 @@ if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   else
     printf '\nrequest_terminate_timeout = %s\n' "${PHP_FPM_REQUEST_TERMINATE_TIMEOUT:-30}" >> /usr/local/etc/php-fpm.d/www.conf
   fi
+fi
+if [ -f /etc/nginx/nginx.conf ]; then
+  sed -i 's/^worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
+  sed -i 's/^\s*worker_connections .*/    worker_connections '"${NGINX_WORKER_CONNECTIONS:-16384}"';/' /etc/nginx/nginx.conf
+  grep -q '^worker_rlimit_nofile' /etc/nginx/nginx.conf || sed -i '1i worker_rlimit_nofile 65535;' /etc/nginx/nginx.conf
 fi
 {
   printf 'max_execution_time=%s\n' "${PHP_MAX_EXECUTION_TIME:-30}"

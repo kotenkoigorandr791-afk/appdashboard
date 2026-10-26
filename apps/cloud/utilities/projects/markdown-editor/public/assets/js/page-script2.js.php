@@ -4,17 +4,11 @@
         const clearBtn = document.getElementById('clearBtn');
         const saveBtn = document.getElementById('saveBtn');
         const exportPdfBtn = document.getElementById('exportPdfBtn');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
-        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
-        const fullscreenBtnMobile = document.getElementById('fullscreenBtnMobile');
         const refreshPreviewBtnMobile = document.getElementById('refreshPreviewBtnMobile');
-        const exitFullscreenBtnMobile = document.getElementById('exitFullscreenBtnMobile');
         const mobilePreviewActions = document.getElementById('mobilePreviewActions');
         const desktopPreviewActions = document.getElementById('desktopPreviewActions');
-        const fullscreenHeader = document.querySelector('.fullscreen-header');
-        const fullscreenExitBtn = document.getElementById('fullscreenExitBtn');
-        const fullscreenRefreshBtn = document.getElementById('fullscreenRefreshBtn');
+        let previewSync = null;
         const translateBtnToolbar = document.getElementById('translateBtnToolbar');
         const translationModal = document.getElementById('translationModal');
         const translationSettingsModal = document.getElementById('translationSettingsModal');
@@ -36,7 +30,6 @@
         const AUTO_SAVE_DELAY = 10000;
         let hasUnsavedChanges = false;
         let isInitialLoad = true;
-        let isFullscreen = false;
         let currentSelectedText = '';
         let lastTranslationResult = '';
         let lastTranslationParams = { sourceLang: 'auto', targetLang: 'ru' };
@@ -205,31 +198,20 @@
         }
         function updateButtonStates() {
             if (!editor) return;
-            
-            // Get the undo/redo state
-            const undoState = editor.getModel().canUndo();
-            const redoState = editor.getModel().canRedo();
-            
-            // Update the undo/redo buttons
-            const undoBtn = document.getElementById('undoBtn');
-            const redoBtn = document.getElementById('redoBtn');
-            
-            if (undoState) {
-                undoBtn.classList.remove('disabled');
-                undoBtn.disabled = false;
-            } else {
-                undoBtn.classList.add('disabled');
-                undoBtn.disabled = true;
+            const model = editor.getModel();
+            if (!model) return;
+            const undoBtnEl = document.getElementById('undoBtn');
+            const redoBtnEl = document.getElementById('redoBtn');
+            if (undoBtnEl) {
+                const undoState = model.canUndo();
+                undoBtnEl.classList.toggle('disabled', !undoState);
+                undoBtnEl.disabled = !undoState;
             }
-            
-            if (redoState) {
-                redoBtn.classList.remove('disabled');
-                redoBtn.disabled = false;
-            } else {
-                redoBtn.classList.add('disabled');
-                redoBtn.disabled = true;
+            if (redoBtnEl) {
+                const redoState = model.canRedo();
+                redoBtnEl.classList.toggle('disabled', !redoState);
+                redoBtnEl.disabled = !redoState;
             }
-            
             // Update formatting button state (requires selection)
             const selection = editor.getSelection();
             const hasSelection = selection && !selection.isEmpty();
@@ -362,13 +344,9 @@
             // Process LaTeX
             const { processed, blocks } = processLatex(safeMarkdownText);
 
-            // Convert Markdown to HTML
             let html = marked.parse(processed);
-
-            // Restore LaTeX
+            if (window.cloudPreviewSync) html = cloudPreviewSync.annotateMarkdownSourceLines(processed, html);
             html = restoreLatex(html, blocks);
-
-            // Insert into the preview
             previewContent.innerHTML = html;
 
             // Render math via MathJax
@@ -407,25 +385,6 @@
                 if (trimmedLine.length > 0) edits.push({ range: new monaco.Range(lineNum, 1, lineNum, lineContent.length + 1), text: prefix + lineContent, forceMoveMarkers: true });
             }
             if (edits.length > 0) { editor.executeEdits("", edits); editor.focus(); updatePreview(); updateButtonStates(); }
-        }
-        function toggleFullscreen() {
-            isFullscreen = !isFullscreen;
-            if (isFullscreen) {
-                preview.classList.add('fullscreen');
-                fullscreenHeader.style.display = 'flex';
-                fullscreenBtn.style.display = 'none';
-                exitFullscreenBtn.style.display = 'flex';
-                fullscreenBtnMobile.style.display = 'none';
-                exitFullscreenBtnMobile.style.display = 'flex';
-                preview.scrollTop = 0;
-            } else {
-                preview.classList.remove('fullscreen');
-                fullscreenHeader.style.display = 'none';
-                fullscreenBtn.style.display = 'flex';
-                exitFullscreenBtn.style.display = 'none';
-                fullscreenBtnMobile.style.display = 'flex';
-                exitFullscreenBtnMobile.style.display = 'none';
-            }
         }
         boldBtn.addEventListener('click', () => insertTextAtCursor('**', '**'));
         italicBtn.addEventListener('click', () => insertTextAtCursor('*', '*'));
@@ -471,28 +430,22 @@
             updateButtonStates();
         });
         mathBtn.addEventListener('click', () => { mathFormula.value = ''; mathModal.style.display = 'flex'; });
-        undoBtn.addEventListener('click', () => { 
+        undoBtn?.addEventListener('click', () => { 
             editor.trigger('keyboard', 'undo', null); 
             setTimeout(() => {
                 updatePreview(); 
                 updateButtonStates();
             }, 10);
         });
-        redoBtn.addEventListener('click', () => { 
+        redoBtn?.addEventListener('click', () => { 
             editor.trigger('keyboard', 'redo', null); 
             setTimeout(() => {
                 updatePreview(); 
                 updateButtonStates();
             }, 10);
         });
-        fullscreenBtn.addEventListener('click', toggleFullscreen);
-        exitFullscreenBtn.addEventListener('click', toggleFullscreen);
         refreshPreviewBtn.addEventListener('click', refreshPreview);
-        fullscreenBtnMobile.addEventListener('click', toggleFullscreen);
-        exitFullscreenBtnMobile.addEventListener('click', toggleFullscreen);
         refreshPreviewBtnMobile.addEventListener('click', refreshPreview);
-        fullscreenExitBtn.addEventListener('click', toggleFullscreen);
-        fullscreenRefreshBtn.addEventListener('click', refreshPreview);
         clearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'flex'; });
         cancelClearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'none'; });
         confirmClearBtn.addEventListener('click', () => { if (editor) { editor.setValue(''); updatePreview(); editor.focus(); } confirmClearModal.style.display = 'none'; updateButtonStates(); });
@@ -626,6 +579,7 @@
         let isResizing = false;
         function expandPreviewPanel() {
             if (!editorPanel || !previewPanel) return;
+            if (window.cloudEditorPanes && cloudEditorPanes.paneMode() !== 'split') return;
             const containerWidth = editorPanel.parentElement?.offsetWidth || 0;
             if (containerWidth < 640) return;
             const minWidth = 300;
@@ -637,6 +591,7 @@
             }
         }
         resizer.addEventListener('mousedown', (e) => {
+            if (e.target && e.target.closest && e.target.closest('.rz-tools')) return;
             isResizing = true;
             document.body.style.cursor = 'col-resize';
             document.body.style.userSelect = 'none';
@@ -795,13 +750,23 @@
                 window.originalContent = editor.getValue();
                 if (window.attachCloudIframeMonacoAi) window.attachCloudIframeMonacoAi(editor);
                 window.cloudIframeMonacoAiSave = saveFile;
+                shared.installStandardActions({
+                    editor: editor,
+                    monaco: monaco,
+                    container: document.getElementById('editor-container'),
+                    aiEndpoint: <?= json_encode(cloud_url('ai.php')) ?>
+                });
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyB, () => insertTextAtCursor('**', '**'));
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyI, () => insertTextAtCursor('*', '*'));
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyU, () => insertTextAtCursor('<u>', '</u>'));
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
-                
-                // Set the initial button state
                 updateButtonStates();
+                if (window.cloudPreviewSync) previewSync = cloudPreviewSync.enableMarkdown({ previewRoot: previewContent });
+                if (window.cloudEditorPanes) cloudEditorPanes.enable({
+                    getEditor: () => editor,
+                    onToPreview: () => previewSync && previewSync.toPreview(),
+                    onToCode: () => previewSync && previewSync.toCode()
+                });
             }).catch(function (e) {
                 console.error('Monaco failed to load:', e);
             });
@@ -828,7 +793,6 @@
             if (isMobile) { document.querySelector('.preview-header').style.display = 'none'; mobilePreviewActions.style.display = 'flex'; }
             else { document.querySelector('.preview-header').style.display = 'flex'; mobilePreviewActions.style.display = 'none'; }
         });
-        document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && isFullscreen) toggleFullscreen(); });
         previewContent.addEventListener('click', function(e) {
             const link = e.target.closest('a[href]');
             if (!link) return;

@@ -30,7 +30,7 @@
       .tablet-layout #main { flex-direction: column; }
       .tablet-layout #editor-panel { width: 100%; height: 50%; order: 1; }
       .tablet-layout #pdf-panel { width: 100%; height: 50%; order: 3; }
-      .tablet-layout #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; }
+      .tablet-layout #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; overflow: visible; z-index: 40; }
     }
     
     /* Mobile layout - vertical split with editor on top */
@@ -72,6 +72,8 @@
       height: 5px;
       cursor: row-resize;
       order: 2;
+      overflow: visible;
+      z-index: 40;
     }
     body.mobile-layout #resizer:hover {
       background: var(--accent-color);
@@ -81,7 +83,7 @@
       #main { flex-direction: column; }
       #editor-panel { width: 100% !important; height: 50%; min-width: 0; order: 1; }
       #pdf-panel { width: 100% !important; height: 50%; min-width: 0; order: 3; }
-      #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; }
+      #resizer { width: 100%; height: 5px; cursor: row-resize; order: 2; overflow: visible; z-index: 40; }
       body.mobile-layout #editor-panel,
       body.mobile-layout #pdf-panel {
         height: auto;
@@ -150,7 +152,7 @@
     #insert-select:hover, #template-select:hover { background-color: #4a4d51; }
     #insert-select option, #template-select option { background: var(--panel-bg); color: var(--text-color); }
     #insert-select optgroup, #template-select optgroup { font-weight: bold; color: var(--accent-color); }
-    #status-indicator { margin-left: auto; font-size: 0.9em; white-space: nowrap; flex-shrink: 0; }
+    #status-indicator { margin-left: auto; font-size: 0.9em; white-space: nowrap; flex: 0 1 auto; min-width: 0; max-width: min(220px, 28%); overflow: hidden; text-overflow: ellipsis; }
     .status-compiling { color: var(--warning-color); } 
     .status-ok { color: #32cd32; } 
     .status-error { color: #ff6b6b; }
@@ -176,8 +178,26 @@
     .mtk8 { color: <?php echo $theme === 'light' ? '#267f99' : '#4ec9b0'; ?>; } /* Other */
     
     #pdf-view { flex-grow: 1; overflow-y: auto; padding: 15px; text-align: center; position: relative; }
+    #pdf-view.pdf-updating { opacity: 0.82; transition: opacity 0.15s ease; }
+    #pdf-view .pdf-stage { transition: opacity 0.2s ease; }
     #pdf-view canvas { display: block; }
-    .pdf-page-wrapper { position: relative; margin: 0 auto 15px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: #fff; }
+
+    .pdf-page-gap { height: 28px; width: 100%; position: relative; display: flex; align-items: center; justify-content: center; cursor: pointer; flex-shrink: 0; user-select: none; }
+    .pdf-page-gap::before { content: ''; position: absolute; left: 50%; top: 50%; width: 0; height: 2px; transform: translate(-50%, -50%); border-radius: 2px; background: color-mix(in srgb, var(--accent-color, #85b503) 85%, white); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent-color, #85b503) 22%, transparent); opacity: 0; transition: width .15s ease, opacity .15s ease; }
+    .pdf-page-gap:hover::before, .pdf-page-gap:focus-visible::before { width: min(72%, 460px); opacity: 1; }
+    .pdf-stage.pdf-pages-joined .pdf-page-wrapper { margin-bottom: 0 !important; box-shadow: 0 1px 0 rgba(0,0,0,0.12); }
+    .pdf-stage.pdf-pages-joined .pdf-page-gap { height: 12px; }
+    .pdf-stage.pdf-pages-joined .pdf-page-gap::before { width: min(72%, 460px); opacity: 0.85; height: 2px; }
+    .pdf-stage.pdf-pages-joined .pdf-page-gap:hover::before { opacity: 1; height: 3px; }
+    #pdf-context-menu { position: fixed; z-index: 4000; min-width: 180px; display: none; flex-direction: column; gap: 2px; padding: 6px; border-radius: 10px; background: var(--panel-bg, #252526); color: var(--text-color, #ccc); border: 1px solid var(--border-color, #3c3c3c); box-shadow: 0 8px 24px rgba(0,0,0,.45); }
+    #pdf-context-menu.show { display: flex; }
+    #pdf-context-menu .pdf-ctx-label { padding: 6px 10px 2px; font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; opacity: .65; }
+    #pdf-context-menu button { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; border: none; border-radius: 7px; background: transparent; color: inherit; padding: 7px 10px; font: inherit; font-size: 13px; cursor: pointer; text-align: left; }
+    #pdf-context-menu button:hover { background: var(--btn-bg, #3a3d41); }
+    #pdf-context-menu button.active::after { content: '✓'; opacity: .9; }
+
+    .pdf-page-wrapper { position: relative; margin: 0 auto 12px auto; box-shadow: 0 4px 15px rgba(0,0,0,0.3); background: #fff; }
+    .pdf-stage > .pdf-page-wrapper:last-child { margin-bottom: 0; }
     .pdf-page-wrapper .pdf-page { margin: 0; box-shadow: none; max-width: none; }
     .pdf-page-wrapper .text-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; overflow: hidden; line-height: 1; text-size-adjust: none; -webkit-text-size-adjust: none; forced-color-adjust: none; transform-origin: 0 0; z-index: 2; pointer-events: auto; cursor: text; user-select: text; -webkit-user-select: text; -moz-user-select: text; -ms-user-select: text; -webkit-touch-callout: default; }
     .pdf-page-wrapper .text-layer span, .pdf-page-wrapper .text-layer br { position: absolute; color: transparent; white-space: pre; cursor: text; transform-origin: 0% 0%; }
@@ -1282,6 +1302,8 @@
 }
   </style>
 <style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-toolbar.css'); ?></style>
+<?php if ($theme === 'light'): ?><style>:root{--tb-bg:#f0f0f0;--tb-border:#ddd;--tb-sep:#ccc;--tb-menu-bg:#fff;--tb-menu-border:#ccc;--tb-fg:#333;--tb-hover:#e6e6e6;}</style><?php endif; ?>
 </head>
 <body class="<?php 
   if ($isMobile) {
@@ -1695,7 +1717,7 @@
   </div>
   <div id="main">
     <div id="editor-panel">
-      <div id="formatting-toolbar" class="formatting-toolbar">
+      <div id="formatting-toolbar" class="formatting-toolbar editor-toolbar">
         <div class="toolbar-group">
           <button class="formatting-btn" data-command="bold" title="<?php echo $t['bold']; ?>"><i class="fas fa-bold"></i></button>
           <button class="formatting-btn" data-command="italic" title="<?php echo $t['italic']; ?>"><i class="fas fa-italic"></i></button>
@@ -1718,8 +1740,6 @@
         </div>
         <div class="toolbar-group">
           <button class="formatting-btn" data-command="clearFormatting" title="<?php echo $t['clear_formatting']; ?>"><i class="fas fa-eraser"></i></button>
-          <button class="formatting-btn" data-command="undo" title="<?php echo $t['undo']; ?>"><i class="fas fa-undo"></i></button>
-          <button class="formatting-btn" data-command="redo" title="<?php echo $t['redo']; ?>"><i class="fas fa-redo"></i></button>
         </div>
         <div class="toolbar-group">
           <button class="formatting-btn" id="translate-btn-toolbar" data-command="translate" title="<?php echo $t['translate']; ?>">
@@ -1727,7 +1747,7 @@
           </button>
         </div>
       </div>
-      <div id="helper-bar">
+      <div id="helper-bar" class="tb-overflow">
         <button id="compile-btn" class="btn">
           <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
             <path stroke="none" d="M0 0h24v24H0z" fill="none"/>
@@ -1739,7 +1759,6 @@
             <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg>
             <?php echo $t['save_pdf']; ?>
         </button>
-        <button id="fullscreen-btn" class="btn"><?php echo $t['fullscreen_editor']; ?></button>
         <div class="dropdown">
           <button id="template-btn" class="btn"><?php echo $t['select_template']; ?></button>
           <div id="template-dropdown" class="dropdown-content">
@@ -1789,7 +1808,7 @@
             <div class="dropdown-item" data-value="listing"><?php echo $t['insert_listing']; ?></div>
           </div>
         </div>
-        <div id="status-indicator" class="status-ok"><?php echo $t['ready']; ?></div>
+        <div id="status-indicator" class="status-ok tb-pin"><?php echo $t['ready']; ?></div>
       </div>
       <div id="latex-editor-container">
         <div id="monaco-editor"></div>
@@ -1809,7 +1828,6 @@
     </button>
     <button id="mobile-save-pdf-btn" class="mobile-btn success"><svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg> &nbsp;<?php echo $t['save_pdf']; ?></button>
     <button id="mobile-insert-btn" class="mobile-btn"><?php echo $t['mobile_insert']; ?></button>
-    <button id="mobile-fullscreen-btn" class="mobile-btn"><?php echo $t['fullscreen_editor']; ?></button>
   </div>
   <div id="mobile-insert-menu">
     <div class="mobile-insert-group">
@@ -1864,16 +1882,20 @@
 
   
   <!-- Monaco Editor Scripts -->
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=4"></script>
   <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
   <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=1"></script>
-  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
+  <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js?v=2"></script>
 
   
   <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-review.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-panes.js'); ?></script>
+<script><?php readfile(__DIR__ . '/../public/assets/js/synctex.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-toolbar.js'); ?></script>
 </body>
 </html>

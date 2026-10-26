@@ -165,9 +165,33 @@
             if (ev.source) ev.source.postMessage(msg, '*');
         } catch (e) {}
     }
+    function undoRedoState(ed) {
+        var model = ed && ed.getModel && ed.getModel();
+        return {
+            canUndo: !!(model && model.canUndo && model.canUndo()),
+            canRedo: !!(model && model.canRedo && model.canRedo())
+        };
+    }
+    function notifyParentUndoRedo(ed) {
+        var state = undoRedoState(ed);
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({ source: 'cloudIframeMonacoAi', type: 'undoRedoState', canUndo: state.canUndo, canRedo: state.canRedo }, '*');
+            }
+        } catch (e) {}
+        if (window.cloudMonacoShared && typeof window.cloudMonacoShared.notifyUndoRedo === 'function') {
+            window.cloudMonacoShared.notifyUndoRedo(ed);
+        }
+    }
     window.attachCloudIframeMonacoAi = function(editor) {
         ensureStyles();
         editorRef = editor;
+        if (editor && !editor.__cloudAiUndoWatch) {
+            editor.__cloudAiUndoWatch = true;
+            editor.onDidChangeModelContent(function() { notifyParentUndoRedo(editor); });
+            editor.onDidFocusEditorText(function() { notifyParentUndoRedo(editor); });
+            notifyParentUndoRedo(editor);
+        }
     };
     if (!window.__cloudIframeMonacoAiListener) {
         window.__cloudIframeMonacoAiListener = true;
@@ -187,6 +211,22 @@
                     ok({ content: ed.getValue() });
                     return;
                 }
+                if (d.action === 'undo') {
+                    ed.trigger('parent-toolbar', 'undo', null);
+                    notifyParentUndoRedo(ed);
+                    ok(undoRedoState(ed));
+                    return;
+                }
+                if (d.action === 'redo') {
+                    ed.trigger('parent-toolbar', 'redo', null);
+                    notifyParentUndoRedo(ed);
+                    ok(undoRedoState(ed));
+                    return;
+                }
+                if (d.action === 'getUndoRedoState') {
+                    ok(undoRedoState(ed));
+                    return;
+                }
                 if (d.action === 'applyPreview') {
                     var model = ed.getModel();
                     if (!model) {
@@ -198,6 +238,7 @@
                     ed.pushUndoStop();
                     ed.setPosition({ lineNumber: 1, column: 1 });
                     ed.revealLineInCenter(1);
+                    notifyParentUndoRedo(ed);
                     ok({ applied: true });
                     return;
                 }
@@ -218,6 +259,7 @@
                         ed.pushUndoStop();
                     }
                     clearHighlight(ed);
+                    notifyParentUndoRedo(ed);
                     ok({});
                     return;
                 }

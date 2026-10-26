@@ -1,8 +1,19 @@
 import { expect, test } from '@playwright/test';
 import { autoAcceptCookies } from '../helpers/shell';
+import { resetRootToFactoryPassword, restoreRootSuitePassword } from '../helpers/rootPassword';
 
 const ROOT_EMAIL = 'root@root';
 const OTHER_EMAIL = 'dashboard-e2e@test.local';
+
+test.beforeAll(() => {
+  // The last case logs in with the factory password to prove the server
+  // ignores a forced remember_me for the built-in admin.
+  resetRootToFactoryPassword();
+});
+
+test.afterAll(() => {
+  restoreRootSuitePassword();
+});
 
 test.describe('remember-me hidden for root@root on login', () => {
   test('checkbox smoothly hides for root@root and restores for other emails', async ({ page }) => {

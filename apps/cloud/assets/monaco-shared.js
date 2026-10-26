@@ -123,14 +123,23 @@
         return true;
     }
 
+    let lastI18n = {};
+    let lastLang = 'en';
+    function tKey(key, fallback) {
+        const value = lastI18n && lastI18n[key];
+        return (typeof value === 'string' && value) ? value : (fallback || key);
+    }
+
     // Loads Monaco once, translating its built-in UI first. Editors that already have
     // the locale in memory can pass `i18n`; otherwise `i18nUrl` is fetched for `lang`.
     function loadMonaco(options) {
         const opts = options || {};
         const lang = opts.lang || 'en';
+        lastLang = lang;
 
         const applyAndLoad = (i18n) => {
-            applyNlsTranslations(i18n || {}, lang);
+            lastI18n = i18n || {};
+            applyNlsTranslations(lastI18n, lang);
             configureLoader();
             return new Promise((resolve, reject) => {
                 require(['vs/editor/editor.main'], function () {
@@ -554,6 +563,222 @@
         };
     }
 
+    function getSelectedText(editor) {
+        const model = editor && editor.getModel && editor.getModel();
+        const sel = editor && editor.getSelection && editor.getSelection();
+        if (!model || !sel || sel.isEmpty()) return '';
+        return model.getValueInRange(sel);
+    }
+
+    function ensureAiOverlay(hostContainer, labels) {
+        let overlay = hostContainer && hostContainer.querySelector('.monaco-ai-action-overlay');
+        if (overlay) return overlay;
+        overlay = document.createElement('div');
+        overlay.className = 'monaco-ai-action-overlay hidden';
+        overlay.style.cssText = 'position:absolute;z-index:20000;width:min(320px,calc(100% - 24px));padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:14px;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--panel,#252526) 78%,transparent);box-shadow:0 18px 48px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:10px;touch-action:none';
+        overlay.innerHTML = '<div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;user-select:none;"><strong data-role="title" style="font-size:13px;"></strong><button type="button" data-role="close" style="width:28px;height:28px;min-width:28px;cursor:pointer;border:none;background:transparent;color:inherit;font-size:18px;">×</button></div><textarea data-role="prompt" rows="2" style="width:100%;min-height:52px;max-height:120px;padding:8px 10px;border-radius:10px;border:1px solid var(--border,#444);background:var(--bg,#1e1e1e);color:var(--fg,#eee);resize:vertical;box-sizing:border-box;font:inherit;"></textarea><div data-role="status" style="min-height:18px;font-size:12px;color:var(--muted,#999);"></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" data-role="undo" class="hidden" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border,#444);background:transparent;color:inherit;cursor:pointer;"></button><button type="button" data-role="apply" style="padding:6px 10px;border-radius:8px;border:1px solid transparent;background:var(--accent,#569cd6);color:#fff;cursor:pointer;"></button></div>';
+        const mount = hostContainer || document.body;
+        if (getComputedStyle(mount).position === 'static') mount.style.position = 'relative';
+        mount.appendChild(overlay);
+        overlay.querySelector('[data-role="close"]').addEventListener('click', () => overlay.classList.add('hidden'));
+        document.addEventListener('keydown', (ev) => { if (ev.key === 'Escape') overlay.classList.add('hidden'); });
+        const handle = overlay.querySelector('[data-role="drag-handle"]');
+        let drag = null;
+        handle.addEventListener('pointerdown', (ev) => {
+            if (ev.target.closest('[data-role="close"]')) return;
+            const parentRect = overlay.parentElement.getBoundingClientRect();
+            drag = { id: ev.pointerId, x: ev.clientX, y: ev.clientY, l: overlay.offsetLeft, t: overlay.offsetTop, maxL: Math.max(0, parentRect.width - overlay.offsetWidth), maxT: Math.max(0, parentRect.height - overlay.offsetHeight) };
+            handle.setPointerCapture(ev.pointerId);
+            ev.preventDefault();
+        });
+        handle.addEventListener('pointermove', (ev) => {
+            if (!drag || drag.id !== ev.pointerId) return;
+            overlay.style.left = Math.min(drag.maxL, Math.max(0, drag.l + (ev.clientX - drag.x))) + 'px';
+            overlay.style.top = Math.min(drag.maxT, Math.max(0, drag.t + (ev.clientY - drag.y))) + 'px';
+        });
+        const endDrag = (ev) => { if (!drag || drag.id !== ev.pointerId) return; drag = null; try { handle.releasePointerCapture(ev.pointerId); } catch (_) {} };
+        handle.addEventListener('pointerup', endDrag);
+        handle.addEventListener('pointercancel', endDrag);
+        refreshAiOverlayLabels(overlay, labels);
+        return overlay;
+    }
+
+    function refreshAiOverlayLabels(overlay, labels) {
+        if (!overlay) return;
+        const L = labels || {};
+        const title = overlay.querySelector('[data-role="title"]');
+        if (title) title.textContent = L.askAi || tKey('monacoAskAi', 'Ask AI');
+        const prompt = overlay.querySelector('[data-role="prompt"]');
+        if (prompt) prompt.placeholder = L.prompt || tKey('monacoAiPromptPlaceholder', 'What should AI change?');
+        const apply = overlay.querySelector('[data-role="apply"]');
+        if (apply) apply.textContent = L.apply || tKey('apply', 'Apply');
+        const undo = overlay.querySelector('[data-role="undo"]');
+        if (undo) undo.textContent = L.undo || tKey('monacoAiUndo', 'Undo');
+        if (!document.getElementById('cloud-monaco-ai-overlay-style')) {
+            const st = document.createElement('style');
+            st.id = 'cloud-monaco-ai-overlay-style';
+            st.textContent = '.monaco-ai-action-overlay.hidden{display:none!important}.monaco-ai-action-overlay .hidden{display:none!important}';
+            document.head.appendChild(st);
+        }
+    }
+
+    async function requestAiReplacement(aiEndpoint, instruction, text) {
+        const response = await fetch(aiEndpoint, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+            body: new URLSearchParams({
+                action: 'chat',
+                role: 'general',
+                model: '',
+                message: [
+                    'You are a code editing assistant.',
+                    'Rewrite only the provided selection according to the instruction.',
+                    'Return only the replacement text, with no markdown fences and no explanations.',
+                    'Instruction: ' + String(instruction || 'Improve this code.'),
+                    'Selection:',
+                    String(text || '')
+                ].join('\n')
+            })
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok || data?.error) throw new Error(data?.error || 'AI request failed');
+        return String(data.response ?? '').trim();
+    }
+
+    function openAiActionMenu(editor, container, options) {
+        const opts = options || {};
+        const selectedText = getSelectedText(editor);
+        if (!selectedText) return;
+        const overlay = ensureAiOverlay(container, opts.labels);
+        refreshAiOverlayLabels(overlay, opts.labels);
+        const promptEl = overlay.querySelector('[data-role="prompt"]');
+        const statusEl = overlay.querySelector('[data-role="status"]');
+        const applyBtn = overlay.querySelector('[data-role="apply"]');
+        const undoBtn = overlay.querySelector('[data-role="undo"]');
+        const selection = editor.getSelection();
+        if (!selection || selection.isEmpty()) return;
+        const coords = editor.getScrolledVisiblePosition(selection.getStartPosition());
+        const rect = container.getBoundingClientRect();
+        overlay.classList.remove('hidden');
+        overlay.style.left = '0px';
+        overlay.style.top = '0px';
+        const margin = 12;
+        const ow = overlay.offsetWidth || 280;
+        const oh = overlay.offsetHeight || 160;
+        const maxLeft = Math.max(margin, container.clientWidth - ow - margin);
+        const maxTop = Math.max(margin, container.clientHeight - oh - margin);
+        overlay.style.left = Math.min(Math.max(margin, (coords?.left || 0) + 12), maxLeft) + 'px';
+        overlay.style.top = Math.min(Math.max(margin, (coords?.top || 0) + 28), maxTop) + 'px';
+        statusEl.textContent = '';
+        undoBtn.classList.add('hidden');
+        requestAnimationFrame(() => { try { promptEl.focus(); } catch (_) {} });
+        let canUndo = false;
+        undoBtn.onclick = () => {
+            if (!canUndo) return;
+            editor.trigger('ai-inline-undo', 'undo', null);
+            canUndo = false;
+            undoBtn.classList.add('hidden');
+            statusEl.textContent = '';
+            notifyUndoRedo(editor);
+        };
+        applyBtn.onclick = async () => {
+            const latest = editor.getSelection();
+            if (!latest || latest.isEmpty()) return;
+            const original = getSelectedText(editor);
+            const instruction = (promptEl?.value || '').trim();
+            applyBtn.disabled = true;
+            statusEl.textContent = tKey('monacoAiProcessing', 'Processing…');
+            try {
+                const replacement = await requestAiReplacement(opts.aiEndpoint, instruction, original);
+                editor.pushUndoStop();
+                editor.executeEdits('ai-inline-rewrite', [{ range: latest, text: replacement, forceMoveMarkers: true }]);
+                editor.pushUndoStop();
+                canUndo = true;
+                statusEl.textContent = tKey('monacoAiReplaced', 'Replaced');
+                undoBtn.classList.remove('hidden');
+                notifyUndoRedo(editor);
+            } catch (error) {
+                statusEl.textContent = error.message || 'AI error';
+            } finally {
+                applyBtn.disabled = false;
+            }
+        };
+    }
+
+    function notifyUndoRedo(editor) {
+        try {
+            const model = editor && editor.getModel && editor.getModel();
+            const canUndo = !!(model && model.canUndo && model.canUndo());
+            const canRedo = !!(model && model.canRedo && model.canRedo());
+            window.parent && window.parent !== window && window.parent.postMessage({
+                source: 'cloudIframeMonacoAi',
+                type: 'undoRedoState',
+                canUndo: canUndo,
+                canRedo: canRedo
+            }, '*');
+            window.dispatchEvent(new CustomEvent('cloudMonacoUndoRedoChanged', { detail: { canUndo, canRedo } }));
+        } catch (_) {}
+    }
+
+    // Single entry point for context-menu actions shared by every Monaco editor:
+    // translated Select All and Ask AI (selection rewrite).
+    function installStandardActions(options) {
+        const opts = options || {};
+        const editor = opts.editor;
+        const monacoRef = opts.monaco || (typeof monaco !== 'undefined' ? monaco : null);
+        const container = opts.container;
+        if (!editor || !monacoRef) return { dispose: function () {} };
+        const selectAllLabel = opts.selectAllLabel || tKey('monacoCtxSelectAll', 'Select All');
+        const askAiLabel = opts.askAiLabel || tKey('monacoAskAi', 'Ask AI');
+        const disposables = [];
+
+        const selectAll = editor.addAction({
+            id: 'cloud-select-all',
+            label: selectAllLabel,
+            keybindings: [monacoRef.KeyMod.CtrlCmd | monacoRef.KeyCode.KeyA],
+            contextMenuGroupId: '9_cutcopypaste',
+            contextMenuOrder: 1.5,
+            run: function (ed) {
+                const model = ed.getModel();
+                if (!model) return;
+                const range = model.getFullModelRange();
+                ed.setSelection(range);
+                ed.revealRange(range);
+                ed.focus();
+            }
+        });
+        if (selectAll) disposables.push(selectAll);
+
+        if (opts.aiEndpoint !== false) {
+            const askAi = editor.addAction({
+                id: 'cloud-ask-ai',
+                label: askAiLabel,
+                contextMenuGroupId: 'navigation',
+                contextMenuOrder: 0,
+                precondition: 'editorHasSelection',
+                run: function () {
+                    if (!opts.aiEndpoint) return;
+                    openAiActionMenu(editor, container || editor.getDomNode()?.parentElement || document.body, {
+                        aiEndpoint: opts.aiEndpoint,
+                        labels: opts.labels
+                    });
+                }
+            });
+            if (askAi) disposables.push(askAi);
+        }
+
+        const contentWatch = editor.onDidChangeModelContent(() => notifyUndoRedo(editor));
+        const focusWatch = editor.onDidFocusEditorText(() => notifyUndoRedo(editor));
+        disposables.push(contentWatch, focusWatch);
+        notifyUndoRedo(editor);
+
+        return {
+            dispose: function () {
+                disposables.forEach((d) => { try { d && d.dispose && d.dispose(); } catch (_) {} });
+            }
+        };
+    }
+
     window.cloudMonacoShared = {
         VERSION: VERSION,
         CDN_BASE: CDN_BASE,
@@ -570,6 +795,12 @@
         installTransliteration: installTransliteration,
         installNumberedListContinuation: installNumberedListContinuation,
         // Kept for pages that still cache the previous bundle version.
-        installTxtNumberedListContinuation: installNumberedListContinuation
+        installTxtNumberedListContinuation: installNumberedListContinuation,
+        installStandardActions: installStandardActions,
+        openAiActionMenu: openAiActionMenu,
+        t: tKey,
+        getI18n: function () { return lastI18n; },
+        getLang: function () { return lastLang; },
+        notifyUndoRedo: notifyUndoRedo
     };
 })();

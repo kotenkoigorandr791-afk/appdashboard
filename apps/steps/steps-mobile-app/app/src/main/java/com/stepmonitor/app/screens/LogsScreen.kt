@@ -84,43 +84,15 @@ fun LogsScreen(modifier: Modifier = Modifier) {
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
                     stringResource(R.string.nav_logs),
                     style = MaterialTheme.typography.titleLarge,
                     maxLines = 1,
-                    softWrap = false
+                    softWrap = false,
+                    modifier = Modifier.weight(1f)
                 )
-                Card(
-                    modifier = Modifier.weight(1f),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    shape = RoundedCornerShape(28.dp)
-                ) {
-                    Box(
-                        modifier = Modifier.padding(4.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        OutlinedTextField(
-                            value = query,
-                            onValueChange = { query = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                            label = { Text(stringResource(R.string.logs_search)) },
-                            singleLine = true,
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = MaterialTheme.colorScheme.outline,
-                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                focusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                                focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                            ),
-                            shape = RoundedCornerShape(28.dp)
-                        )
-                    }
-                }
                 IconButton(onClick = {
                     newestFirst = !newestFirst
                     val msg = if (newestFirst) context.getString(R.string.logs_sort_newest) else context.getString(R.string.logs_sort_oldest)
@@ -154,7 +126,35 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                     Icon(icon, contentDescription = stringResource(label))
                 }
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = query,
+                onValueChange = { query = it },
+                modifier = Modifier.fillMaxWidth(),
+                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
+                placeholder = { Text(stringResource(R.string.logs_search)) },
+                singleLine = true,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.outline,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                ),
+                shape = RoundedCornerShape(28.dp)
+            )
+            if (logs.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxWidth().weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        stringResource(if (allLogs.isEmpty()) R.string.logs_empty else R.string.logs_no_matches),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            } else {
+            LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             items(logs, key = { it.id }) { log ->
                 val expanded = expandedId == log.id
                 val blockText = listOfNotNull(prettyJson(log.errorMessage), prettyJson(log.payload))
@@ -203,6 +203,7 @@ fun LogsScreen(modifier: Modifier = Modifier) {
 }
                     }
                 }
+            }
             }
         }
         SnackbarHost(

@@ -6,7 +6,7 @@ services:
     image: postgres:16
     container_name: appdashboard-db
     restart: unless-stopped
-    command: ["postgres", "-c", "max_connections=200", "-c", "shared_buffers=512MB", "-c", "effective_cache_size=2GB", "-c", "work_mem=8MB", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
+    command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=2GB", "-c", "effective_cache_size=6GB", "-c", "work_mem=8MB", "-c", "maintenance_work_mem=256MB", "-c", "wal_compression=on", "-c", "checkpoint_timeout=15min", "-c", "max_wal_size=4GB", "-c", "autovacuum_vacuum_scale_factor=0.05", "-c", "autovacuum_analyze_scale_factor=0.02", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
     environment:
       POSTGRES_DB: appdashboard
       POSTGRES_USER: appdashboard
@@ -22,11 +22,46 @@ services:
       timeout: 5s
       retries: 5
 
+  appdashboard-pgbouncer:
+    image: edoburu/pgbouncer:latest
+    container_name: appdashboard-pgbouncer
+    restart: unless-stopped
+    environment:
+      DB_HOST: appdashboard-db
+      DB_PORT: "5432"
+      DB_NAME: appdashboard
+      DB_USER: appdashboard
+      DB_PASSWORD: "${DB_PASSWORD:-appdashboard_dev_password}"
+      AUTH_TYPE: scram-sha-256
+      POOL_MODE: session
+      SERVER_RESET_QUERY: DISCARD ALL
+      MAX_CLIENT_CONN: "10000"
+      DEFAULT_POOL_SIZE: "${PGBOUNCER_POOL_SIZE:-300}"
+      RESERVE_POOL_SIZE: "20"
+      MIN_POOL_SIZE: "20"
+      QUERY_WAIT_TIMEOUT: "30"
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits,options
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    expose:
+      - "5432"
+    depends_on:
+      appdashboard-db:
+        condition: service_healthy
+        required: false
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -p 5432"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   appdashboard-redis:
     image: redis:7-alpine
     container_name: appdashboard-redis
     restart: unless-stopped
-    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "512mb", "--maxmemory-policy", "volatile-lru"]
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory", "2gb", "--tcp-backlog", "4096", "--maxclients", "20000", "--maxmemory-policy", "volatile-lru"]
     # Redis используется приложением внутри docker-сети.
     # Публикация порта на хост ломает `docker compose up`, если 16379 уже занят.
     expose:
@@ -66,8 +101,20 @@ services:
       XDG_CACHE_HOME: /opt/ApplicationData/models/cache
       XDG_DATA_HOME: /opt/ApplicationData/models
       PREFETCH_MODELS: "${PREFETCH_MODELS:-1}"
+      # Cap parallel latexmk so many users cannot melt the host.
+      LATEX_MAX_CONCURRENT: "${LATEX_MAX_CONCURRENT:-2}"
+      LATEX_QUEUE_WAIT: "${LATEX_QUEUE_WAIT:-90}"
+      LATEX_MAX_SOURCE_BYTES: "${LATEX_MAX_SOURCE_BYTES:-1500000}"
+      LATEX_COMPILE_TIMEOUT: "${LATEX_COMPILE_TIMEOUT:-180}"
+      LATEX_PDF_CACHE_MAX: "${LATEX_PDF_CACHE_MAX:-64}"
+      LATEX_CACHE_TTL: "${LATEX_CACHE_TTL:-3600}"
+      SYNCTEX_MAX_ENTRIES: "${SYNCTEX_MAX_ENTRIES:-120}"
+      SYNCTEX_TTL: "${SYNCTEX_TTL:-1800}"
+      LATEX_TEXMF_CACHE: /opt/ApplicationData/latex-texmf
+      LATEX_PDF_CACHE: /opt/ApplicationData/latex-pdf-cache
     volumes:
       - .:/var/www/AppDashboard
+      - ./deploy/python-sidecar/server.py:/app/server.py:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData
     depends_on:
@@ -96,7 +143,15 @@ services:
         max-size: 20m
         max-file: "5"
     privileged: true
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
+    sysctls:
+      net.core.somaxconn: 4096
     depends_on:
+      appdashboard-pgbouncer:
+        condition: service_healthy
       appdashboard-redis:
         condition: service_healthy
       appdashboard-py:
@@ -125,7 +180,7 @@ services:
       APP_DB_SKIP_SESSION_INIT: "1"
       APPDATA_BASE_DIR: /opt/ApplicationData
       UPLOADS_BASE_DIR: /opt/ApplicationData/dashboard/uploads
-      DB_HOST: "${DB_HOST:-appdashboard-db}"
+      DB_HOST: "${APP_DB_HOST:-appdashboard-pgbouncer}"
       DB_PORT: "5432"
       DB_NAME: appdashboard
       DB_USER: appdashboard
@@ -135,8 +190,6 @@ services:
       REDIS_DATABASE: "0"
       REDIS_PREFIX: "appdashboard:"
       PY_SIDECAR_URL: "${PY_SIDECAR_URL:-http://appdashboard-py:8100}"
-      TINYTEX_HOME: /opt/ApplicationData/tinytex
-      RUN_ENSURE_TINYTEX: "${RUN_ENSURE_TINYTEX:-0}"
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"
       APP_WAF_RULE_ENGINE: "${APP_WAF_RULE_ENGINE:-On}"

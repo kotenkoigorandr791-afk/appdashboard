@@ -10,7 +10,7 @@ function dockerUrl(array $params = []) {
     foreach ($params as $k => $v) {
         if ($v === null) unset($query[$k]); else $query[$k] = $v;
     }
-    return '?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+    return '/project/docker/?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
 }
 
 /**
@@ -41,4 +41,33 @@ function clampPercent($value) {
 function statBarHtml($label, $valueText, $percent, $class = '') {
     $p = clampPercent($percent);
     return '<div class="metric ' . htmlspecialchars($class, ENT_QUOTES, 'UTF-8') . '"><div class="metric-head"><span>' . htmlspecialchars($label, ENT_QUOTES, 'UTF-8') . '</span><strong>' . htmlspecialchars($valueText, ENT_QUOTES, 'UTF-8') . '</strong></div><div class="metric-bar"><span style="width:' . htmlspecialchars((string)$p, ENT_QUOTES, 'UTF-8') . '%"></span></div></div>';
+}
+
+function dockerIsFragment(): bool {
+    return (string)($_GET['fragment'] ?? '') === '1';
+}
+function dockerAssetLinks(): string {
+    $out = '';
+    foreach (['manager', 'views'] as $name) {
+        $url = '/project/assets/docker/' . $name . '.css?v=' . @filemtime(__DIR__ . '/../assets/docker/' . $name . '.css');
+        $out .= '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">';
+    }
+    return $out;
+}
+function dockerAppAttrs(): string {
+    global $theme, $accent;
+    $a = htmlspecialchars((string)$accent, ENT_QUOTES, 'UTF-8');
+    $muted = $theme === 'light' ? 'rgba(37,99,235,0.1)' : sprintf('rgba(%d,%d,%d,0.14)', hexdec(substr($accent, 1, 2)), hexdec(substr($accent, 3, 2)), hexdec(substr($accent, 5, 2)));
+    return 'id="docker-app" data-theme="' . htmlspecialchars((string)$theme, ENT_QUOTES, 'UTF-8') . '" style="--accent:' . $a . ';--accent-muted:' . $muted . '"';
+}
+function dockerOutput(string $html, string $title, bool $wrapApp): void {
+    if (!headers_sent()) {
+        header('Content-Type: text/html; charset=UTF-8');
+    }
+    if (dockerIsFragment()) {
+        echo $html;
+        return;
+    }
+    $body = $wrapApp ? '<div ' . dockerAppAttrs() . '>' . $html . '</div>' : $html;
+    echo '<!DOCTYPE html><html lang="' . htmlspecialchars($GLOBALS['lang'], ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title><style>html,body{margin:0;height:100%}#docker-app{height:100vh}</style>' . dockerAssetLinks() . '</head><body>' . $body . '</body></html>';
 }

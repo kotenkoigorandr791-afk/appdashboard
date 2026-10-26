@@ -187,6 +187,7 @@ abstract class BaseRenderer
 </main>
 <footer class="sp-footer">
   <span class="sp-footer__brand"><span class="material-symbols-outlined">hub</span>SharePoint</span>
+  ' . sp_footer_version_html() . '
   <span class="sp-footer__meta">' . sp_h(sp_t('shared_link')) . ' · ' . sp_h(sp_t('created')) . ' ' . sp_h(sp_time_ago($this->share->created_at)) . '</span>
 </footer>
 <script>window.SP_I18N = ' . json_encode(sp_translations(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>

@@ -3,21 +3,14 @@
         const preview = document.getElementById('preview');
         const clearBtn = document.getElementById('clearBtn');
         const saveBtn = document.getElementById('saveBtn');
-        const fullscreenBtn = document.getElementById('fullscreenBtn');
         const refreshPreviewBtn = document.getElementById('refreshPreviewBtn');
-        const exitFullscreenBtn = document.getElementById('exitFullscreenBtn');
-        const fullscreenBtnMobile = document.getElementById('fullscreenBtnMobile');
-        const refreshPreviewBtnMobile = document.getElementById('refreshPreviewBtnMobile');
-        const exitFullscreenBtnMobile = document.getElementById('exitFullscreenBtnMobile');
-        const mobilePreviewActions = document.getElementById('mobilePreviewActions');
-        const fullscreenHeader = document.querySelector('.fullscreen-header');
-        const fullscreenExitBtn = document.getElementById('fullscreenExitBtn');
-        const fullscreenRefreshBtn = document.getElementById('fullscreenRefreshBtn');
+        let previewSync = null;
         const confirmClearModal = document.getElementById('confirmClearModal');
         const cancelClearBtn = document.getElementById('cancelClearBtn');
         const confirmClearBtn = document.getElementById('confirmClearBtn');
         const undoBtn = document.getElementById('undoBtn');
         const redoBtn = document.getElementById('redoBtn');
+        // Undo/redo live in the shell file-toolbar, not inside the editor.
         const urlParams = new URLSearchParams(window.location.search);
         const filePath = urlParams.get('path') || '';
         const user = urlParams.get('user') || 'default';
@@ -29,7 +22,6 @@
         const AUTO_SAVE_DELAY = 10000;
         let hasUnsavedChanges = false;
         let isInitialLoad = true;
-        let isFullscreen = false;
         let previewTimer = null;
         const translations = {
             en: { saveTooltip: "Save (Ctrl+S)", clearTooltip: "Clear all content", fullscreenTooltip: "Fullscreen preview", exitFullscreenTooltip: "Exit fullscreen", refreshPreviewTooltip: "Refresh preview", preview: "Preview", undoTooltip: "Undo (Ctrl+Z)", redoTooltip: "Redo (Ctrl+Y)", confirmClearTitle: "Confirm Clear", confirmClearText: "Are you sure you want to clear all content? This action cannot be undone.", cancel: "Cancel", clear: "Clear", saving: "Saving...", saved: "Saved successfully", saveError: "Error saving file", fileSaved: "File saved successfully", noChanges: "No changes to save", unsavedChanges: "Unsaved changes", previewRefreshed: "Preview refreshed" },
@@ -61,15 +53,27 @@
             statusEl.style.display = 'block';
             setTimeout(() => { statusEl.style.display = 'none'; }, 4000);
         }
+        function injectPreviewScrollbarStyle(doc) {
+            if (theme === 'light') return doc;
+            const style = '<style id="ap-preview-scrollbar">html{color-scheme:dark;scrollbar-color:#555 #1e1e1e}html::-webkit-scrollbar,body::-webkit-scrollbar{width:10px;height:10px}html::-webkit-scrollbar-track,body::-webkit-scrollbar-track{background:#1e1e1e}html::-webkit-scrollbar-thumb,body::-webkit-scrollbar-thumb{background:#555;border-radius:4px}html::-webkit-scrollbar-thumb:hover,body::-webkit-scrollbar-thumb:hover{background:#777}</style>';
+            if (/id=["']ap-preview-scrollbar["']/.test(doc)) return doc;
+            if (/<\/head>/i.test(doc)) return doc.replace(/<\/head>/i, style + '</head>');
+            if (/<html[^>]*>/i.test(doc)) return doc.replace(/<html[^>]*>/i, m => m + '<head>' + style + '</head>');
+            return style + doc;
+        }
         function normalizeHtmlForPreview(html) {
             const trimmed = (html || '').trim();
-            if (!trimmed) return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body></body></html>';
-            if (/<html[\s>]/i.test(trimmed)) return trimmed;
-            return '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + trimmed + '</body></html>';
+            let doc = !trimmed
+                ? '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body></body></html>'
+                : /<html[\s>]/i.test(trimmed)
+                    ? trimmed
+                    : '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body>' + trimmed + '</body></html>';
+            return injectPreviewScrollbarStyle(doc);
         }
         function updatePreview() {
             if (!editor || !previewFrame) return;
             previewFrame.srcdoc = normalizeHtmlForPreview(editor.getValue());
+            if (previewSync && previewSync.rebind) setTimeout(() => previewSync.rebind(), 50);
         }
         function schedulePreviewUpdate() {
             if (isResizing) return;
@@ -119,41 +123,22 @@
         }
         function updateButtonStates() {
             if (!editor) return;
-            const undoState = editor.getModel().canUndo();
-            const redoState = editor.getModel().canRedo();
-            undoBtn.classList.toggle('disabled', !undoState);
-            undoBtn.disabled = !undoState;
-            redoBtn.classList.toggle('disabled', !redoState);
-            redoBtn.disabled = !redoState;
-        }
-        function toggleFullscreen() {
-            isFullscreen = !isFullscreen;
-            if (isFullscreen) {
-                preview.classList.add('fullscreen');
-                fullscreenHeader.style.display = 'flex';
-                fullscreenBtn.style.display = 'none';
-                exitFullscreenBtn.style.display = 'flex';
-                fullscreenBtnMobile.style.display = 'none';
-                exitFullscreenBtnMobile.style.display = 'flex';
-            } else {
-                preview.classList.remove('fullscreen');
-                fullscreenHeader.style.display = 'none';
-                fullscreenBtn.style.display = 'flex';
-                exitFullscreenBtn.style.display = 'none';
-                fullscreenBtnMobile.style.display = 'flex';
-                exitFullscreenBtnMobile.style.display = 'none';
+            const model = editor.getModel();
+            if (!model) return;
+            if (undoBtn) {
+                const undoState = model.canUndo();
+                undoBtn.classList.toggle('disabled', !undoState);
+                undoBtn.disabled = !undoState;
+            }
+            if (redoBtn) {
+                const redoState = model.canRedo();
+                redoBtn.classList.toggle('disabled', !redoState);
+                redoBtn.disabled = !redoState;
             }
         }
-        undoBtn.addEventListener('click', () => { editor.trigger('keyboard', 'undo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
-        redoBtn.addEventListener('click', () => { editor.trigger('keyboard', 'redo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
-        fullscreenBtn.addEventListener('click', toggleFullscreen);
-        exitFullscreenBtn.addEventListener('click', toggleFullscreen);
+        undoBtn?.addEventListener('click', () => { editor.trigger('keyboard', 'undo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
+        redoBtn?.addEventListener('click', () => { editor.trigger('keyboard', 'redo', null); setTimeout(() => { schedulePreviewUpdate(); updateButtonStates(); }, 10); });
         refreshPreviewBtn.addEventListener('click', refreshPreview);
-        fullscreenBtnMobile.addEventListener('click', toggleFullscreen);
-        exitFullscreenBtnMobile.addEventListener('click', toggleFullscreen);
-        refreshPreviewBtnMobile.addEventListener('click', refreshPreview);
-        fullscreenExitBtn.addEventListener('click', toggleFullscreen);
-        fullscreenRefreshBtn.addEventListener('click', refreshPreview);
         clearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'flex'; });
         cancelClearBtn.addEventListener('click', () => { confirmClearModal.style.display = 'none'; });
         confirmClearBtn.addEventListener('click', () => { if (editor) { editor.setValue(''); updatePreview(); editor.focus(); } confirmClearModal.style.display = 'none'; updateButtonStates(); });
@@ -168,6 +153,7 @@
         let isResizing = false;
         function expandPreviewPanel() {
             if (!editorPanel || !previewPanel) return;
+            if (window.cloudEditorPanes && cloudEditorPanes.paneMode() !== 'split') return;
             const containerWidth = editorPanel.parentElement?.offsetWidth || 0;
             if (containerWidth < 640) return;
             const minWidth = 300;
@@ -221,6 +207,7 @@
         }
         resizer.addEventListener('pointerdown', (e) => {
             if (e.button !== 0) return;
+            if (e.target && e.target.closest && e.target.closest('.rz-tools')) return;
             e.preventDefault();
             e.stopPropagation();
             if (resizer.setPointerCapture) {
@@ -295,8 +282,20 @@
                 window.originalContent = editor.getValue();
                 if (window.attachCloudIframeMonacoAi) window.attachCloudIframeMonacoAi(editor);
                 window.cloudIframeMonacoAiSave = saveFile;
+                shared.installStandardActions({
+                    editor: editor,
+                    monaco: monaco,
+                    container: document.getElementById('editor-container'),
+                    aiEndpoint: <?= json_encode(cloud_url('ai.php')) ?>
+                });
                 editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, saveFile);
                 updateButtonStates();
+                if (window.cloudPreviewSync) previewSync = cloudPreviewSync.enableHtml({ iframe: previewFrame });
+                if (window.cloudEditorPanes) cloudEditorPanes.enable({
+                    getEditor: () => editor,
+                    onToPreview: () => previewSync && previewSync.toPreview(),
+                    onToCode: () => previewSync && previewSync.toCode()
+                });
             }).catch(function (e) {
                 console.error('Monaco failed to load:', e);
             });
@@ -314,22 +313,8 @@
         window.addEventListener('load', () => {
             translatePage();
             initMonaco();
-            const isMobile = window.innerWidth <= 768;
-            if (isMobile) {
-                document.querySelector('.preview-header').style.display = 'none';
-                mobilePreviewActions.style.display = 'flex';
-            }
         });
         window.addEventListener('resize', function() {
             if (editor) editor.layout();
             if (!isResizing && window.innerWidth > 768) expandPreviewPanel();
-            const isMobile = window.innerWidth <= 768;
-            if (isMobile) {
-                document.querySelector('.preview-header').style.display = 'none';
-                mobilePreviewActions.style.display = 'flex';
-            } else {
-                document.querySelector('.preview-header').style.display = 'flex';
-                mobilePreviewActions.style.display = 'none';
-            }
         });
-        document.addEventListener('keydown', function(e) { if (e.key === 'Escape' && isFullscreen) toggleFullscreen(); });

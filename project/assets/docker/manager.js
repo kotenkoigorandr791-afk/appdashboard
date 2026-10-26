@@ -1,3 +1,22 @@
+        if (window.monitorTimer) clearInterval(window.monitorTimer);
+        var DOCKER_CFG = window.DOCKER_CFG || {};
+        var I18N = DOCKER_CFG.I18N || {};
+        var I18N_EN = DOCKER_CFG.I18N_EN || {};
+        var sectionTitles = DOCKER_CFG.sectionTitles || {};
+        var startupModals = DOCKER_CFG.startupModals || [];
+        var modalIcons = DOCKER_CFG.modalIcons || {};
+        var modalLabels = DOCKER_CFG.modalLabels || {};
+        function t(key){return I18N[key] ?? I18N_EN[key] ?? key;}
+        function tf(key, vars){let text=t(key);for(const n in (vars||{})){text=text.split('{'+n+'}').join(vars[n]);}return text;}
+        function dockerNavigate(href){
+            if(window.DockerPanel && window.DockerPanel.mounted()) window.DockerPanel.navigate(href);
+            else window.location.href = href;
+        }
+        function dockerReload(){
+            if(window.DockerPanel && window.DockerPanel.mounted()) window.DockerPanel.refresh();
+            else window.location.reload();
+        }
+        var dockerRoot = function(){ return document.getElementById('docker-app'); };
         var pendingActionHref = '';
         var liveBusy = false;
         var monitorContainerId = '';
@@ -21,7 +40,7 @@
             const cw=c.clientWidth||300; const ch=c.clientHeight||86;
             c.width=Math.floor(cw*dpr); c.height=Math.floor(ch*dpr);
             const ctx=c.getContext('2d'); ctx.setTransform(dpr,0,0,dpr,0,0);
-            const w=cw; const h=ch; const p={l:38,r:8,t:8,b:12};
+            const w=cw; const h=ch; const p={l:56,r:8,t:8,b:12};
             const pw=w-p.l-p.r; const ph=h-p.t-p.b;
             ctx.clearRect(0,0,w,h);
             ctx.fillStyle='rgba(0,0,0,0.08)'; ctx.fillRect(p.l,p.t,pw,ph);
@@ -37,12 +56,10 @@
                 ctx.stroke();
             });
             const topLabel=unit==='bytes'?toBytesText(max):(unit==='percent'?`${max.toFixed(0)}%`:Math.round(max).toString());
-            ctx.save();
-            ctx.translate(11,p.t+ph); ctx.rotate(-Math.PI/2);
-            ctx.fillStyle='rgba(148,163,184,0.85)'; ctx.font='10px sans-serif';
-            ctx.textAlign='center'; ctx.textBaseline='middle';
-            ctx.fillText(topLabel,0,ph); ctx.fillText('0',0,0);
-            ctx.restore();
+            ctx.fillStyle='rgba(148,163,184,0.9)'; ctx.font='10px sans-serif';
+            ctx.textAlign='right'; ctx.textBaseline='middle';
+            const fmt=v=>unit==='bytes'?toBytesText(v):(unit==='percent'?`${v.toFixed(0)}%`:Math.round(v).toString());
+            [[0,max],[2,max/2],[4,0]].forEach(([i,v])=>ctx.fillText(fmt(v),p.l-6,Math.min(h-6,Math.max(6,p.t+ph*i/4))));
             const sl=document.getElementById(scaleLabelId);
             if(sl)sl.textContent=unit==='bytes'?tf('max_label',{value:toBytesText(max)}):(unit==='percent'?tf('max_label',{value:max.toFixed(1)+'%'}):tf('max_label',{value:String(Math.round(max))}));
             return max;
@@ -69,7 +86,7 @@
             if(document.hidden||liveBusy||!monitorContainerId)return;
             liveBusy=true;
             try{
-                const u=new URL(window.location.href);
+                const u=new URL(window.DockerPanel && window.DockerPanel.mounted() ? window.DockerPanel.baseUrl() : window.location.href, window.location.origin);
                 u.searchParams.set('view','stats_data');
                 u.searchParams.set('id',monitorContainerId);
                 u.searchParams.set('_ts',Date.now().toString());
@@ -159,29 +176,30 @@
             });
         }
         function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
+            document.getElementById('dockerSidebar').classList.toggle('open');
             document.getElementById('sidebarBackdrop').classList.toggle('show');
         }
         function closeSidebar() {
-            document.getElementById('sidebar').classList.remove('open');
+            document.getElementById('dockerSidebar').classList.remove('open');
             document.getElementById('sidebarBackdrop').classList.remove('show');
         }
         function openDockerModal(e, href, title) {
             e.preventDefault();
             e.stopPropagation();
             const modal = document.getElementById('dockerModal');
-            const frame = document.getElementById('dockerModalFrame');
+            const body = document.getElementById('dockerModalBody');
             document.getElementById('dockerModalTitle').textContent = title || '';
-            frame.src = href;
+            body.innerHTML = '';
             modal.classList.add('active');
             modal.setAttribute('aria-hidden', 'false');
+            if (window.DockerPanel) window.DockerPanel.loadInto(body, href);
         }
         function closeDockerModal() {
             const modal = document.getElementById('dockerModal');
-            const frame = document.getElementById('dockerModalFrame');
+            if (!modal) return;
             modal.classList.remove('active');
             modal.setAttribute('aria-hidden', 'true');
-            frame.src = 'about:blank';
+            document.getElementById('dockerModalBody').innerHTML = '';
         }
         function closeDockerModalOnBackdrop(e) {
             if (e.target && e.target.id === 'dockerModal') closeDockerModal();
@@ -201,7 +219,7 @@
                 '<button class="notification-close" type="button">&times;</button>';
             notification.querySelector('.notification-content').textContent =
                 (notice.title ? notice.title + ': ' : '') + (notice.message || '');
-            document.body.appendChild(notification);
+            dockerRoot().appendChild(notification);
             const dismiss = () => {
                 if (!notification.parentNode) return;
                 notification.classList.remove('show');
@@ -241,13 +259,30 @@
         function submitConfirmedAction() {
             const href = pendingActionHref;
             closeConfirmModal();
-            if (href) window.location.href = href;
+            if (href) dockerNavigate(href);
         }
-        document.addEventListener('keydown', function(e) {
-            if (e.key === 'Escape') {
-                closeDockerModal();
-                closeConfirmModal();
-            }
+        if (!window.__dockerKeyBound) {
+            window.__dockerKeyBound = true;
+            document.addEventListener('keydown', function(e) {
+                if (e.key === 'Escape' && dockerRoot()) {
+                    closeDockerModal();
+                    closeConfirmModal();
+                }
+            });
+        }
+        dockerRoot().addEventListener('click', function(e) {
+            const a = e.target.closest('a[href*="/project/docker/?"]');
+            if (!a || a.target === '_blank' || e.defaultPrevented) return;
+            e.preventDefault();
+            const inModal = a.closest('#dockerModalBody');
+            if (inModal && window.DockerPanel) window.DockerPanel.loadInto(inModal, a.href);
+            else dockerNavigate(a.href);
+        });
+        dockerRoot().addEventListener('submit', function(e) {
+            const form = e.target.closest('#dockerModalBody form');
+            if (!form || !window.DockerPanel) return;
+            e.preventDefault();
+            window.DockerPanel.submitInto(document.getElementById('dockerModalBody'), form);
         });
         document.querySelectorAll('.containers-table-wrap').forEach(wrap => {
             const syncPanelOffset = () => {
@@ -276,7 +311,7 @@
                 if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click(); }
             });
         });
-        const cf = document.getElementById('containerFilter');
+        var cf = document.getElementById('containerFilter');
         if (cf) cf.addEventListener('input', function() {
             const q = this.value.trim().toLowerCase();
             document.querySelectorAll('#containersSection .c-row, #imagesSection .c-row, #volumesSection .c-row, #stacksSection .c-row').forEach(row => {

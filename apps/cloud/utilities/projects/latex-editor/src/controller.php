@@ -8,6 +8,7 @@ require_once dirname(__DIR__, 4) . '/includes/session.php';
 require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
 cloud_session_start();
 cloud_require_session_auth();
+$currentUser = cloud_session_storage_user();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $currentUser = $_SESSION['current_user'] ?? $_GET['user'] ?? 'default';
 $templatesFile = CLOUD_APP_ROOT . '/templates.json';
@@ -185,65 +186,6 @@ function latex_is_noise_line(string $line): bool {
     return false;
 }
 
-function latex_get_user_storage_root(string $user, string $rootKey): string {
-    return appdata_user_root_dir('cloud', $user, $rootKey, false);
-}
-
-function latex_path_is_within(string $path, string $root): bool {
-    $pathReal = realpath($path);
-    $rootReal = realpath($root);
-    if ($pathReal === false || $rootReal === false) return false;
-    if ($pathReal === $rootReal) return true;
-    return str_starts_with($pathReal, $rootReal . DIRECTORY_SEPARATOR);
-}
-
-function latex_build_texinputs(string $compileDir, string $userRootDir): string {
-    $parts = ['.'];
-    $compileReal = realpath($compileDir);
-    $rootReal = realpath($userRootDir);
-    if ($compileReal !== false) $parts[] = str_replace('\\', '/', $compileReal);
-    if ($rootReal !== false) $parts[] = str_replace('\\', '/', $rootReal) . '//';
-    return implode(':', $parts) . ':';
-}
-
-function latex_shell_env(string $cacheDir, ?string $texInputs = null): string {
-    $cacheArg = escapeshellarg($cacheDir);
-    $homeArg = escapeshellarg($cacheDir);
-    $path = '/opt/ApplicationData/tinytex/bin/x86_64-linux:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin';
-    $env = 'export PATH=' . escapeshellarg($path) . " HOME=$homeArg TEXMFHOME=$homeArg/texmf-home TEXMFVAR=$cacheArg TEXMFCACHE=$cacheArg";
-    if ($texInputs !== null && $texInputs !== '') {
-        $env .= ' TEXINPUTS=' . escapeshellarg($texInputs);
-        $env .= ' BIBINPUTS=' . escapeshellarg($texInputs);
-    }
-    return $env;
-}
-
-function latex_install_missing_packages(string $output, string $cacheDir): bool {
-    if (!preg_match_all('/(?:File `([^`]+)` not found|Unknown option [\'\"]([^\'\"]+)[\'\"])/i', $output, $matches, PREG_SET_ORDER)) return false;
-    $packages = [];
-    foreach ($matches as $match) {
-        $name = $match[1] !== '' ? pathinfo($match[1], PATHINFO_FILENAME) : $match[2];
-        if (strcasecmp($name, 'polish') === 0) $packages[] = 'babel-polish';
-        elseif ($name !== '') $packages[] = $name;
-    }
-    $packages = array_values(array_unique($packages));
-    if (!$packages) return false;
-    $tlmgr = null;
-    foreach (['/opt/ApplicationData/tinytex/bin/x86_64-linux/tlmgr', '/usr/bin/tlmgr'] as $candidate) {
-        if (is_executable($candidate)) { $tlmgr = $candidate; break; }
-    }
-    if ($tlmgr === null) return false;
-    $home = rtrim($cacheDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'texmf-home';
-    if (!is_dir($home) && !@mkdir($home, 0700, true) && !is_dir($home)) return false;
-    $env = latex_shell_env($cacheDir);
-    $packageArg = implode(' ', array_map('escapeshellarg', $packages));
-    $cmd = "$env $tlmgr init-usertree 2>&1; $env $tlmgr install --usermode $packageArg 2>&1";
-    $installOutput = [];
-    $ret = 1;
-    exec($cmd, $installOutput, $ret);
-    return $ret === 0;
-}
-
 function latex_is_error_line(string $line): bool {
     if (latex_is_noise_line($line)) return false;
     if (preg_match('/^! /', $line)) return true;
@@ -297,180 +239,49 @@ function latex_extract_errors(string $logContent, array $outputLines, string $wo
     return latex_sanitize_output(implode("\n", $lines), $workDir, $baseName);
 }
 
-function latex_insert_after_documentclass(string $latex, string $insert): string {
-    if (preg_match('/(\\\\documentclass(?:\[[^\]]*\])?\{[^}]+\}\s*\r?\n)/', $latex, $m, PREG_OFFSET_CAPTURE)) {
-        $pos = $m[0][1] + strlen($m[0][0]);
-        return substr($latex, 0, $pos) . $insert . substr($latex, $pos);
-    }
-    return $insert . $latex;
-}
-
-function latex_ensure_cache_dir(string $dir): string {
-    $cacheDir = $dir . DIRECTORY_SEPARATOR . '.texmf-var';
-    if (!is_dir($cacheDir)) @mkdir($cacheDir, 0777, true);
-    return $cacheDir;
-}
-
-function latex_prepare_source_for_lualatex(string $latex): string {
-    $latex = latex_escape_texttt($latex);
-    if (preg_match('/\\\\usepackage(\[[^\]]*\])?\{fontspec\}/', $latex)) return $latex;
-    $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{inputenc\}\s*\r?\n/m', '', $latex);
-    $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{fontenc\}\s*\r?\n/m', '', $latex);
-    if (!preg_match('/\\\\usepackage(\[([^\]]*)\])?\{babel\}/', $latex, $babelMatch)) return $latex;
-    $cyrillicLangs = ['russian', 'ukrainian', 'belarusian'];
-    $defaultLang = 'english';
-    $needsCyrillic = false;
-    if (!empty($babelMatch[2])) {
-        foreach (explode(',', $babelMatch[2]) as $opt) {
-            $opt = trim($opt);
-            if (in_array($opt, $cyrillicLangs, true)) {
-                $needsCyrillic = true;
-                $defaultLang = $opt;
-                break;
-            }
-        }
-    }
-    if (!$needsCyrillic) return $latex;
-    $latex = preg_replace('/^\s*\\\\usepackage(\[[^\]]*\])?\{babel\}\s*\r?\n/m', '', $latex);
-    $preamble = "\\usepackage{fontspec}\n\\usepackage{polyglossia}\n\\setdefaultlanguage{" . $defaultLang . "}\n\\setmainfont{DejaVu Serif}\n\\newfontfamily\\cyrillicfont{DejaVu Serif}\n";
-    return latex_insert_after_documentclass($latex, $preamble);
-}
-
 function latex_needs_lualatex(string $latex): bool {
     return (bool)preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{(?:fontspec|polyglossia|luaotfload|unicode-math)\}/', $latex);
-}
-
-function latex_prepare_source_for_pdflatex(string $latex): string {
-    $latex = latex_escape_texttt($latex);
-    $latex = latex_replace_unicode_text_symbols($latex);
-    if (!latex_needs_lualatex($latex)
-        && preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{babel\}/', $latex)
-        && preg_match('/[А-Яа-яЁёІіЇїЄєЎў]/u', $latex)
-    ) {
-        if (!preg_match('/\\\\usepackage\[utf8\]\{inputenc\}/', $latex)) {
-            $latex = latex_insert_after_documentclass($latex, "\\usepackage[utf8]{inputenc}\n");
-        }
-        if (!preg_match('/\\\\usepackage\[T2A\]\{fontenc\}/', $latex)) {
-            $latex = latex_insert_after_documentclass($latex, "\\usepackage[T2A]{fontenc}\n");
-        }
-    }
-    return $latex;
-}
-
-function latex_escape_texttt(string $latex): string {
-    return preg_replace_callback('/\\\\texttt\{([^{}]*)\}/u', static function (array $m): string {
-        $body = preg_replace('/(?<!\\\\)([_#%&])/', '\\\\$1', $m[1]);
-        return '\\texttt{' . $body . '}';
-    }, $latex) ?? $latex;
-}
-
-function latex_replace_unicode_text_symbols(string $latex): string {
-    return strtr($latex, [
-        '→' => '$\\to$',
-        '←' => '$\\leftarrow$',
-        '⇒' => '$\\Rightarrow$',
-        '≤' => '$\\le$',
-        '≥' => '$\\ge$',
-        '≠' => '$\\ne$',
-    ]);
-}
-
-function latex_run_compile(string $texfilePath, string $dir, ?string $texInputs = null, bool $needsLua = false): array {
-    $dir = rtrim($dir, DIRECTORY_SEPARATOR);
-    if ($dir === '' || !is_dir($dir)) {
-        return ['output' => ['Invalid compile directory.'], 'return_code' => 1, 'engine' => 'invalid-dir'];
-    }
-    $texBasename = basename($texfilePath);
-    $dirArg = escapeshellarg($dir);
-    $texArg = escapeshellarg($texBasename);
-    $cacheDir = latex_ensure_cache_dir($dir);
-    $env = latex_shell_env($cacheDir, $texInputs);
-    $latexmkPath = '/usr/bin/latexmk';
-    $lualatexPath = '/usr/bin/lualatex';
-    $pdflatexPath = '/usr/bin/pdflatex';
-    $output = [];
-    $ret = 1;
-    if (!$needsLua && is_executable($pdflatexPath)) {
-        $cmd = "$env && cd $dirArg && LATEX_ENGINE=pdflatex $pdflatexPath -interaction=nonstopmode -halt-on-error -file-line-error $texArg 2>&1";
-        for ($attempt = 0; $attempt < 2; $attempt++) {
-            $output = [];
-            exec($cmd, $output, $ret);
-            if ($ret === 0 || $attempt === 1 || !latex_install_missing_packages(implode("\n", $output), $cacheDir)) break;
-        }
-        return ['output' => $output, 'return_code' => $ret, 'engine' => 'pdflatex'];
-    }
-    if ($needsLua && is_executable($latexmkPath)) {
-        $lualatexRule = escapeshellarg('$lualatex="/usr/bin/lualatex %O %S";');
-        $cmd = "$env && cd $dirArg && LATEX_ENGINE=latexmk $latexmkPath -e $lualatexRule -lualatex -interaction=nonstopmode -file-line-error $texArg 2>&1";
-        for ($attempt = 0; $attempt < 2; $attempt++) {
-            $output = [];
-            exec($cmd, $output, $ret);
-            if ($ret === 0 || $attempt === 1 || !latex_install_missing_packages(implode("\n", $output), $cacheDir)) break;
-        }
-        return ['output' => $output, 'return_code' => $ret, 'engine' => 'latexmk-lualatex'];
-    }
-    if ($needsLua && !is_executable($lualatexPath)) {
-        return ['output' => ['LuaLaTeX is required for this document but is not available.'], 'return_code' => 127, 'engine' => 'missing'];
-    }
-    if (!$needsLua && !is_executable($pdflatexPath)) {
-        return ['output' => ['pdfLaTeX is required for this document but is not available.'], 'return_code' => 127, 'engine' => 'missing'];
-    }
-    $cmd = "$env && cd $dirArg && LATEX_ENGINE=lualatex $lualatexPath -interaction=nonstopmode -file-line-error $texArg 2>&1";
-    for ($i = 0; $i < 2; $i++) {
-        $output = [];
-        exec($cmd, $output, $ret);
-        if ($ret !== 0) break;
-    }
-    return ['output' => $output, 'return_code' => $ret, 'engine' => 'lualatex'];
-}
-
-function latex_cleanup_compile_files(string $dir, string $baseName, bool $includePdf = false): void {
-    $tempExtensions = ['.tex', '.aux', '.log', '.out', '.toc', '.lof', '.lot', '.nav', '.snm', '.vrb', '.bbl', '.blg', '.bcf', '.run.xml', '.synctex.gz', '.synctex', '.fls', '.fdb_latexmk', '.idx', '.ilg', '.ind', '.xdv'];
-    if ($includePdf) $tempExtensions[] = '.pdf';
-    foreach ($tempExtensions as $ext) {
-        $tempFile = $dir . DIRECTORY_SEPARATOR . $baseName . $ext;
-        if (file_exists($tempFile) && is_file($tempFile)) @unlink($tempFile);
-    }
-    foreach ([$dir . DIRECTORY_SEPARATOR . $baseName . '-blx.bib', $dir . DIRECTORY_SEPARATOR . 'texput.log'] as $extraFile) {
-        if (file_exists($extraFile) && is_file($extraFile)) @unlink($extraFile);
-    }
-    $cacheDir = $dir . DIRECTORY_SEPARATOR . '.texmf-var';
-    if (is_dir($cacheDir)) {
-        $files = @scandir($cacheDir);
-        if (is_array($files)) {
-            foreach ($files as $file) {
-                if ($file === '.' || $file === '..') continue;
-                $path = $cacheDir . DIRECTORY_SEPARATOR . $file;
-                if (is_file($path)) @unlink($path);
-            }
-        }
-        @rmdir($cacheDir);
-    }
-    $latexmkPath = '/usr/bin/latexmk';
-    if (is_executable($latexmkPath)) {
-        $dirArg = escapeshellarg($dir);
-        $texArg = escapeshellarg($baseName . '.tex');
-        $env = latex_shell_env($dir . DIRECTORY_SEPARATOR . '.texmf-var', null);
-        @exec("$env && cd $dirArg && $latexmkPath -c $texArg 2>/dev/null");
-    }
-}
-
-function latex_remove_compile_dir(string $dir): void {
-    if ($dir === '' || !is_dir($dir)) return;
-    $items = @scandir($dir);
-    if (!is_array($items)) return;
-    foreach ($items as $item) {
-        if ($item === '.' || $item === '..') continue;
-        $path = $dir . DIRECTORY_SEPARATOR . $item;
-        if (is_dir($path)) latex_remove_compile_dir($path);
-        else @unlink($path);
-    }
-    @rmdir($dir);
 }
 
 function latex_respond_compile_error(string $errorText, bool $savePdf): void {
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode(['success' => false, 'error' => $errorText]);
+    exit;
+}
+
+if (isset($_POST['synctex_query'])) {
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    header('Content-Type: application/json; charset=utf-8');
+    if (!getenv('PY_SIDECAR_URL')) { echo json_encode(['ok' => false]); exit; }
+    require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
+    $fields = ['id' => (string)($_POST['synctex_id'] ?? ''), 'mode' => ($_POST['mode'] ?? '') === 'edit' ? 'edit' : 'view'];
+    foreach (['line', 'col', 'page'] as $k) if (isset($_POST[$k])) $fields[$k] = (int)$_POST[$k];
+    foreach (['x', 'y'] as $k) if (isset($_POST[$k])) $fields[$k] = (float)$_POST[$k];
+    $res = py_sidecar('synctex', $fields, null, null, 30);
+    echo json_encode(is_array($res['body']) ? $res['body'] : ['ok' => false]);
+    exit;
+}
+
+if (isset($_POST['synctex_pdf'])) {
+    if (session_status() === PHP_SESSION_ACTIVE) session_write_close();
+    if (!getenv('PY_SIDECAR_URL')) {
+        http_response_code(503);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'sidecar unavailable']);
+        exit;
+    }
+    require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
+    $sid = (string)($_POST['synctex_id'] ?? '');
+    $res = py_sidecar_raw('synctex/pdf', ['id' => $sid], 30);
+    if (!$res['ok'] || stripos($res['content_type'], 'pdf') === false) {
+        http_response_code($res['code'] >= 400 ? $res['code'] : 404);
+        header('Content-Type: application/json');
+        echo json_encode(['success' => false, 'error' => 'pdf unavailable']);
+        exit;
+    }
+    header('Content-Type: application/pdf');
+    if (!empty($res['headers']['x-synctex-id'])) header('X-Synctex-Id: ' . $res['headers']['x-synctex-id']);
+    echo $res['raw'];
     exit;
 }
 
@@ -480,45 +291,18 @@ if (isset($_POST['latex'])) {
     if (session_status() === PHP_SESSION_ACTIVE) {
         session_write_close();
     }
-    if (!$savePdf && getenv('PY_SIDECAR_URL')) {
-        require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
-        $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex'], null, null, 300);
-        if (($sidecar['body']['success'] ?? false) && !empty($sidecar['body']['pdf'])) {
-            header('Content-Type: application/pdf');
-            echo base64_decode($sidecar['body']['pdf']);
-            exit;
-        }
-        if (($sidecar['body']['output'] ?? '') !== '') {
-            latex_respond_compile_error((string)$sidecar['body']['output'], false);
-        }
+    if (!getenv('PY_SIDECAR_URL')) {
+        latex_respond_compile_error('LaTeX compile sidecar is not configured.', $savePdf);
     }
-    $compileId = uniqid();
-    $userRootDir = latex_get_user_storage_root($currentUser, $root);
-    $compileInUserDir = false;
-    $dir = rtrim(sys_get_temp_dir(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . 'latex_editor_' . md5(session_id() . $compileId);
-    if (!is_dir($dir)) @mkdir($dir, 0777, true);
-    $baseName = 'input_' . $compileId;
-    $texfilePath = $dir . DIRECTORY_SEPARATOR . $baseName . '.tex';
-    $pdffilePath = $dir . DIRECTORY_SEPARATOR . $baseName . '.pdf';
-    $logfilePath = $dir . DIRECTORY_SEPARATOR . $baseName . '.log';
-    $texInputs = latex_build_texinputs($dir, $userRootDir);
-    $needsLua = latex_needs_lualatex($latex);
-    file_put_contents($texfilePath, $needsLua ? latex_prepare_source_for_lualatex($latex) : latex_prepare_source_for_pdflatex($latex));
-    $compileResult = latex_run_compile($texfilePath, $dir, $texInputs, $needsLua);
-    $output = $compileResult['output'];
-    $ret = $compileResult['return_code'];
-    $logContent = file_exists($logfilePath) ? file_get_contents($logfilePath) : '';
-    $compileOk = $ret === 0 && file_exists($pdffilePath) && filesize($pdffilePath) > 0;
-    if (!$compileOk) {
-        $errorText = latex_extract_errors($logContent, $output, $dir, $baseName);
-        latex_cleanup_compile_files($dir, $baseName, true);
-        if (!$compileInUserDir) latex_remove_compile_dir($dir);
-        latex_respond_compile_error($errorText, $savePdf);
-    }
-    $pdfContent = file_get_contents($pdffilePath);
-    latex_cleanup_compile_files($dir, $baseName, true);
-    if (!$compileInUserDir) latex_remove_compile_dir($dir);
+    require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
+    $engine = latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex';
     if ($savePdf) {
+        $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => $engine, 'synctex' => '1', 'format' => 'json'], null, null, 300);
+        $body = is_array($sidecar['body']) ? $sidecar['body'] : [];
+        if (empty($body['success']) || empty($body['pdf'])) {
+            latex_respond_compile_error((string)($body['output'] ?? '') !== '' ? (string)$body['output'] : ($sidecar['error'] ?: 'Compilation failed'), true);
+        }
+        $pdfContent = base64_decode((string)$body['pdf']);
         $pdfFilename = pathinfo($filePath, PATHINFO_FILENAME) . '.pdf';
         $pdfSavePath = dirname($userStoragePath) . "/" . $pdfFilename;
         $pdfDir = dirname($pdfSavePath);
@@ -531,7 +315,7 @@ if (isset($_POST['latex'])) {
                 if ($email) invalidate_file_tree($email);
             }
             header('Content-Type: application/json');
-            echo json_encode(['success' => true, 'pdf_saved' => true, 'pdf_path' => dirname($filePath) . "/" . $pdfFilename, 'pdf_name' => $pdfFilename, 'size' => filesize($pdfSavePath), 'message' => 'PDF saved successfully']);
+            echo json_encode(['success' => true, 'pdf_saved' => true, 'pdf_path' => dirname($filePath) . "/" . $pdfFilename, 'pdf_name' => $pdfFilename, 'size' => filesize($pdfSavePath), 'message' => 'PDF saved successfully', 'synctex_id' => (string)($body['synctex_id'] ?? '')]);
         } else {
             if (is_file($pdfSavePath)) @unlink($pdfSavePath);
             header('Content-Type: application/json');
@@ -539,8 +323,27 @@ if (isset($_POST['latex'])) {
         }
         exit;
     }
+    $res = py_sidecar_raw('latex', ['latex' => $latex, 'engine' => $engine, 'synctex' => '1', 'format' => 'raw'], 300);
+    if (!$res['ok'] || stripos($res['content_type'], 'pdf') === false) {
+        $err = $res['error'] ?: 'Compilation failed';
+        if ($res['raw'] !== '') {
+            $decoded = json_decode($res['raw'], true);
+            if (is_array($decoded)) {
+                if (!empty($decoded['output'])) $err = (string)$decoded['output'];
+                elseif (!empty($decoded['detail'])) $err = is_string($decoded['detail']) ? $decoded['detail'] : json_encode($decoded['detail']);
+                elseif (empty($decoded['success']) && !empty($decoded['error'])) $err = (string)$decoded['error'];
+            }
+        }
+        if ((int)$res['code'] === 503) {
+            $err = $err !== '' && $err !== 'Compilation failed' ? $err : 'Server is busy compiling other documents. Please try again in a moment.';
+        } elseif ((int)$res['code'] === 413) {
+            $err = 'LaTeX source is too large to compile.';
+        }
+        latex_respond_compile_error($err, false);
+    }
     header('Content-Type: application/pdf');
-    echo $pdfContent;
+    if (!empty($res['headers']['x-synctex-id'])) header('X-Synctex-Id: ' . $res['headers']['x-synctex-id']);
+    echo $res['raw'];
     exit;
 }
 

@@ -37,6 +37,9 @@ body.tabs-open::before{opacity:0.45;transition:opacity 0.3s ease}
 .upload-modal-actions .minimize-btn.is-visible{opacity:1;visibility:visible;pointer-events:auto;transform:none;transition:opacity .3s ease,transform .3s ease,visibility 0s}
 .success-check-active{color:#22c55e!important;border-color:#22c55e!important;background:color-mix(in srgb,#22c55e 16%,var(--bg))!important;transition:all .2s ease}
 .success-check-icon{color:#22c55e;animation:successCheckPop .28s ease}
+.error-cross-active{color:#ef4444!important;border-color:#ef4444!important;background:color-mix(in srgb,#ef4444 16%,var(--bg))!important;animation:errorCrossShake .4s ease}
+.error-cross-icon{color:#ef4444;animation:successCheckPop .28s ease}
+@keyframes errorCrossShake{0%,100%{transform:translateX(0)}20%{transform:translateX(-4px)}40%{transform:translateX(4px)}60%{transform:translateX(-3px)}80%{transform:translateX(3px)}}
 @keyframes successCheckPop{0%{transform:scale(.6);opacity:.4}100%{transform:scale(1);opacity:1}}
 .move-tree-container{font-family:inherit;font-size:14px}
 .move-tree-node{user-select:none}

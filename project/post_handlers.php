@@ -1274,6 +1274,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $_apAllU     = $_apUList;
         foreach($_apPList as $_pe=>$_pd){ if(!isset($_apAllU[$_pe])){ $_pd['_pending']=true; $_apAllU[$_pe]=$_pd; } }
         $_apCurEmail = $_SESSION['user']['email'] ?? '';
+        $_apCrumbHome = my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel');
+        $apBreadcrumb = static function (string $pageLabel) use ($_apCrumbHome): string {
+            return '<div class="ap-breadcrumb"><a href="#" class="ap-breadcrumb-home" data-ap-home="1">'.$_apCrumbHome.'</a> / <span>'.my_htmlspecialchars($pageLabel).'</span></div>';
+        };
     
         ob_start();
 ?>
@@ -1321,7 +1325,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     <div id="ap-content">
         <!-- Users Panel -->
         <div class="ap-panel active" id="ap-users">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['user_management']??'User Management'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['user_management']??'User Management'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['user_management']??'User Management'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_users_subtitle']??'View, edit roles, and delete registered users.'); ?></div>
             <!-- User Analytics Summary -->
@@ -1355,8 +1359,17 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             </div>
             <div class="ap-card">
                 <div class="ap-card-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/></svg><?php echo my_htmlspecialchars($translations['users_list']??'Users List'); ?></div>
-                <input type="text" class="ap-search-bar" id="ap-users-search" placeholder="<?php echo my_htmlspecialchars($translations['search_users']??'Search users...'); ?>">
-                <div style="margin-bottom:10px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+                <div class="ap-users-toolbar">
+                    <div class="ap-search-wrap">
+                        <svg class="ap-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input type="search" class="ap-search-bar" id="ap-users-search" placeholder="<?php echo my_htmlspecialchars($translations['search_users']??'Search users...'); ?>" autocomplete="off">
+                    </div>
+                    <div class="ap-users-sort" role="group" aria-label="<?php echo my_htmlspecialchars($translations['ap_sort_by']??'Sort'); ?>">
+                        <button type="button" class="ap-sort-btn active" data-sort="name"><?php echo my_htmlspecialchars($translations['name']??'Name'); ?></button>
+                        <button type="button" class="ap-sort-btn" data-sort="role"><?php echo my_htmlspecialchars($translations['user_role']??'Role'); ?></button>
+                        <button type="button" class="ap-sort-btn" data-sort="created"><?php echo my_htmlspecialchars($translations['ap_col_date']??'Created'); ?></button>
+                        <button type="button" class="ap-sort-dir" id="ap-users-sort-dir" data-dir="asc" title="ASC">↑</button>
+                    </div>
                     <button type="button" id="ap-refresh-users-btn" class="ap-btn ap-btn-secondary" style="padding:5px 12px;font-size:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> <?php echo my_htmlspecialchars($translations['refresh']??'Refresh'); ?></button>
                     <div class="ap-status" id="ap-roles-status" style="margin:0;padding:5px 12px;font-size:12px;"></div>
                 </div>
@@ -1379,8 +1392,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
     $_isVer=!empty($_ud['verified']); $_isPend=!empty($_ud['_pending']); $_role=(int)($_ud['role']??0);
     $_eH=my_htmlspecialchars($_email); $_nH=my_htmlspecialchars($_ud['name']??'');
     $_ph=my_htmlspecialchars(app_avatar_src($_ud['photo']??'default_avatar.png')); $_dis=$_isSelf?' disabled':'';
+    $_createdRaw=(string)($_ud['created_at']??''); $_createdDay=$_createdRaw!==''?substr($_createdRaw,0,10):'';
 ?>
-                        <tr data-email="<?php echo $_eH; ?>" data-name="<?php echo $_nH; ?>">
+                        <tr data-email="<?php echo $_eH; ?>" data-name="<?php echo $_nH; ?>" data-role="<?php echo $_isPend?'-1':(string)$_role; ?>" data-created="<?php echo my_htmlspecialchars($_createdDay); ?>">
                             <td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><img src="<?php echo $_ph; ?>" style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-color);object-fit:cover;flex-shrink:0;" alt=""><?php echo $_nH; ?></div></td>
                             <td><span class="ap-copy-email" data-copy-email="<?php echo $_eH; ?>" tabindex="0" role="button" aria-label="Copy email" title="Click to copy email"><?php echo $_eH; ?></span></td>
                             <td><?php if($_isRoot): ?><span style="color:var(--primary-color);font-size:12px;font-weight:700;"><?php echo my_htmlspecialchars($translations['admin']??'Admin'); ?> &#x1F512;</span><?php elseif($_isPend): ?><span style="color:#aaa;font-size:12px;">Guest</span><?php else: ?><select class="ap-role-select ap-user-field" data-email="<?php echo $_eH; ?>" data-field="role"<?php echo $_dis; ?>><option value="0" <?php echo $_role===0?'selected':''; ?>><?php echo my_htmlspecialchars($translations['guest']??'Guest'); ?></option><option value="1" <?php echo $_role===1?'selected':''; ?>><?php echo my_htmlspecialchars($translations['manager']??'Manager'); ?></option><option value="2" <?php echo $_role===2?'selected':''; ?>><?php echo my_htmlspecialchars($translations['admin']??'Admin'); ?></option></select><?php endif; ?></td>
@@ -1388,19 +1402,29 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                             <td><?php if(!$_isRoot&&!$_isPend): ?><select class="ap-role-select ap-user-field" data-email="<?php echo $_eH; ?>" data-field="theme"<?php echo $_dis; ?>><?php foreach(['light'=>'theme_light','dark'=>'theme_dark','auto'=>'theme_auto'] as $_tv=>$_tk): ?><option value="<?php echo $_tv; ?>" <?php echo ($_ud['theme']??'light')===$_tv?'selected':''; ?>><?php echo my_htmlspecialchars($translations[$_tk]??$_tk); ?></option><?php endforeach; ?></select><?php else: ?><span style="opacity:.35;font-size:12px;">&#x2014;</span><?php endif; ?></td>
                             <td><?php if(!$_isRoot&&!$_isPend): ?><input type="color" class="ap-user-field ap-color-picker" data-email="<?php echo $_eH; ?>" data-field="color" value="<?php echo my_htmlspecialchars($_ud['color']??'#007bff'); ?>"<?php echo $_dis; ?> style="width:36px;height:28px;padding:2px;border:1px solid var(--border-color);border-radius:4px;background:var(--bg-color);cursor:pointer;"><?php else: ?><span style="opacity:.35;font-size:12px;">&#x2014;</span><?php endif; ?></td>
                             <td><?php if($_isRoot): ?><span class="ap-verified-yes" style="font-size:16px;">&#x2713;</span><?php elseif($_isPend): ?><span style="color:#ff9800;font-weight:bold;font-size:12px;">&#x23F3; Pending</span><?php else: ?><button type="button" class="ap-verified-toggle ap-user-field" data-email="<?php echo $_eH; ?>" data-field="verified" data-value="<?php echo $_isVer?'1':'0'; ?>" style="background:none;border:none;cursor:pointer;padding:2px;font-size:16px;"><span class="<?php echo $_isVer?'ap-verified-yes':'ap-verified-no'; ?>" style="font-size:16px;"><?php echo $_isVer?'&#x2713;':'&#x2717;'; ?></span></button><?php endif; ?></td>
-                            <td style="font-size:11px;opacity:.55;white-space:nowrap;"><?php echo my_htmlspecialchars(substr($_ud['created_at']??'&#x2014;',0,10)); ?></td>
+                            <td style="font-size:11px;opacity:.55;white-space:nowrap;"><?php echo my_htmlspecialchars($_createdDay!==''?$_createdDay:'—'); ?></td>
                             <td><?php echo renderApUserActionsCell($_email, $_ud['name'] ?? '', $_isRoot, $_isSelf, $_isPend, $translations); ?></td>
                         </tr>
 <?php endforeach; ?>
                         </tbody>
                     </table>
                 </div>
+                <div class="ap-users-pager" id="ap-users-pager">
+                    <button type="button" class="ap-btn ap-btn-secondary" id="ap-users-prev" disabled>«</button>
+                    <span id="ap-users-page-info" style="font-size:12px;opacity:.7;"></span>
+                    <button type="button" class="ap-btn ap-btn-secondary" id="ap-users-next" disabled>»</button>
+                    <select id="ap-users-page-size" class="ap-role-select" style="width:auto;" title="Page size">
+                        <option value="25">25</option>
+                        <option value="50">50</option>
+                        <option value="100">100</option>
+                    </select>
+                </div>
                 <div class="ap-users-autosave-hint"><span style="font-size:12px;opacity:.4;font-family:sans-serif;"><?php echo my_htmlspecialchars($translations['ap_autosave']??'Changes are saved automatically on edit'); ?></span></div>
             </div>
         </div>
         <!-- Settings Panel (Email, Telegram, OnlyOffice, AI) -->
         <div class="ap-panel" id="ap-settings">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['settings_title']??'Settings'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['settings_title']??'Settings'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['settings_title']??'System Settings'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_settings_subtitle']??'Configure email, Telegram bot, OnlyOffice, Docker, Backup, and AI assistant integrations.'); ?></div>
 
@@ -1527,23 +1551,15 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <!-- Docker Manager Panel -->
         
 <div class="ap-panel" id="ap-docker-manager" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-docker-frame" name="devtools-docker" title="Docker Manager" src="/project/docker/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['docker_manager_title'] ?? 'Docker Manager'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
-                </iframe>
-            </div>
+            <?php echo $apBreadcrumb($translations['docker_manager_title']??'Docker Manager'); ?>
+            <div id="ap-docker-root" data-query="<?php echo my_htmlspecialchars('lang=' . urlencode($language) . '&theme=' . urlencode($themeForAppLink) . '&color=' . urlencode($config['color'] ?? '#007bff')); ?>"></div>
         </div>
         <div class="ap-panel" id="ap-performance" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe id="ap-performance-frame" name="devtools-performance" title="Performance Monitor" src="/project/performance/index.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['performance_monitor_title'] ?? 'Performance'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
-                </iframe>
-            </div>
+            <?php echo $apBreadcrumb($translations['performance_monitor_title']??'Performance'); ?>
+            <?php require __DIR__ . '/views/modals/performance_monitor.php'; ?>
         </div>
         <div class="ap-panel" id="ap-apps-access">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['ap_app_access_title']??'App access'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['ap_app_access_title']??'App access'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['ap_app_access_title']??'App access'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_app_access_subtitle']??'Minimum role required to open each app. Default is Administrator (2).'); ?></div>
             <div class="ap-card">
@@ -1579,7 +1595,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         </div>
         <!-- Statistics Panel -->
         <div class="ap-panel" id="ap-stats">
-            <div class="ap-breadcrumb"><?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span><?php echo my_htmlspecialchars($translations['stats_graph']??'Statistics'); ?></span></div>
+            <?php echo $apBreadcrumb($translations['stats_graph']??'Statistics'); ?>
             <div class="ap-page-title"><?php echo my_htmlspecialchars($translations['stats_graph']??'Visit Statistics'); ?></div>
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_stats_subtitle']??'Visit statistics and disk usage per user.'); ?></div>
             <!-- Live chart preview -->
@@ -1662,9 +1678,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-ssh-layout">
                 <div class="ap-ssh-topbar">
                     <div style="min-width:0;">
-                        <div class="ap-breadcrumb" style="margin:0 0 6px 0;">
-                            <?php echo my_htmlspecialchars($translations['admin_panel_title']??'Admin Panel'); ?> / <span style="opacity:.9;">SSH Terminal</span>
-                        </div>
+                        <?php echo $apBreadcrumb($translations['ssh_terminal']??'SSH Terminal'); ?>
                         <div class="ap-page-title" style="margin:0;font-size:16px;">SSH Terminal</div>
                     </div>
                     <div style="display:flex;gap:8px;align-items:center;">
@@ -1738,21 +1752,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             </div>
         </div>
         <div class="ap-panel" id="ap-backup">
+            <?php echo $apBreadcrumb($translations['backup']??'Backup'); ?>
             <?php require __DIR__ . '/views/modals/backup_manager.php'; ?>
         </div>
         <div class="ap-panel" id="ap-docs" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
-                <iframe name="devtools-docs" title="Documentation Viewer" src="/doc_viewer.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['documentation'] ?? 'Documentation'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
-                </iframe>
-            </div>
+            <?php echo $apBreadcrumb($translations['view_documentation']??$translations['documentation']??'Documentation'); ?>
+            <?php require __DIR__ . '/views/modals/docs_viewer.php'; ?>
         </div>
         <div class="ap-panel" id="ap-db" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
-            <div style="flex:1; min-height:0; width:100%; position:relative; overflow:hidden;">
+            <?php echo $apBreadcrumb($translations['database']??'Database'); ?>
+            <div class="ap-embed-frame">
                 <iframe name="devtools-db" title="Database Admin" src="/db_admin.php?embed=1&amp;lang=<?php echo urlencode($language); ?>&amp;theme=<?php echo urlencode($themeForAppLink); ?>&amp;color=<?php echo urlencode($config['color'] ?? '#007bff'); ?>"
-                        title="<?php echo my_htmlspecialchars($translations['database'] ?? 'Database'); ?>"
-                        style="position:absolute; inset:0; width:100%; height:100%; border:0; display:block; border-radius:0;">
+                        title="<?php echo my_htmlspecialchars($translations['database'] ?? 'Database'); ?>">
                 </iframe>
             </div>
         </div>
@@ -1807,43 +1818,66 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
 
     // Scan user files (admin only, AJAX)
     if(isset($_POST['scan_user_files']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $emailToScan = $_POST['user_email'] ?? '';
-        $users = loadUsers();
-        $name = isset($users[$emailToScan]) ? ($users[$emailToScan]['name'] ?? '') : '';
-        $cfg = loadUserFoldersConfig();
-        $files = scanUserFiles($emailToScan, $name, $cfg['apps'] ?? []);
-        $totalSize = array_sum(array_column($files, 'size'));
+        $emailToScan = trim((string)($_POST['user_email'] ?? ''));
         while(ob_get_level() > 1) ob_end_clean();
         header('Content-Type: application/json');
-        echo json_encode(['success' => true, 'files' => $files, 'total_size' => $totalSize, 'total_size_human' => formatBytes($totalSize)]);
+        if($emailToScan === '' || !filter_var($emailToScan, FILTER_VALIDATE_EMAIL)){
+            echo json_encode(['success'=>false,'error'=>'invalid_email','files'=>[],'total_size'=>0,'total_size_human'=>'0 B']);
+            exit;
+        }
+        try{
+            $users = loadUsers();
+            $pending = loadPendingUsers();
+            $name = (string)(($users[$emailToScan]['name'] ?? null) ?? ($pending[$emailToScan]['name'] ?? ''));
+            $cfg = loadUserFoldersConfig();
+            $files = scanUserFiles($emailToScan, $name, $cfg['apps'] ?? [], 500);
+            $totalSize = (int)array_sum(array_column($files, 'size'));
+            echo json_encode([
+                'success' => true,
+                'files' => $files,
+                'total_files' => count($files),
+                'truncated' => count($files) >= 500,
+                'total_size' => $totalSize,
+                'total_size_human' => formatBytes($totalSize),
+            ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        }catch(Throwable $e){
+            error_log('scan_user_files: '.$e->getMessage());
+            echo json_encode(['success'=>false,'error'=>'scan_failed','message'=>$e->getMessage(),'files'=>[],'total_size'=>0,'total_size_human'=>'0 B']);
+        }
         exit;
     }
 
     // Scan user files progressively with count (admin only, AJAX)
     if(isset($_POST['scan_user_files_progressive']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $emailToScan = $_POST['user_email'] ?? '';
-        $users = loadUsers();
-        $name = isset($users[$emailToScan]) ? ($users[$emailToScan]['name'] ?? '') : '';
-        $cfg = loadUserFoldersConfig();
-        
-        // Count files first for time estimation
-        $countData = countUserFiles($emailToScan, $name, $cfg['apps'] ?? []);
-        
-        // Then perform the scan
-        $files = scanUserFiles($emailToScan, $name, $cfg['apps'] ?? []);
-        $totalSize = array_sum(array_column($files, 'size'));
-        
+        $emailToScan = trim((string)($_POST['user_email'] ?? ''));
         while(ob_get_level() > 1) ob_end_clean();
         header('Content-Type: application/json');
-        echo json_encode([
-            'success' => true, 
-            'files' => $files, 
-            'total_files' => count($files),
-            'total_size' => $totalSize, 
-            'total_size_human' => formatBytes($totalSize),
-            'estimated_total_files' => $countData['files'],
-            'total_folders' => $countData['folders']
-        ]);
+        if($emailToScan === '' || !filter_var($emailToScan, FILTER_VALIDATE_EMAIL)){
+            echo json_encode(['success'=>false,'error'=>'invalid_email','files'=>[],'total_size'=>0,'total_size_human'=>'0 B']);
+            exit;
+        }
+        try{
+            $users = loadUsers();
+            $pending = loadPendingUsers();
+            $name = (string)(($users[$emailToScan]['name'] ?? null) ?? ($pending[$emailToScan]['name'] ?? ''));
+            $cfg = loadUserFoldersConfig();
+            $countData = countUserFiles($emailToScan, $name, $cfg['apps'] ?? []);
+            $files = scanUserFiles($emailToScan, $name, $cfg['apps'] ?? [], 500);
+            $totalSize = (int)array_sum(array_column($files, 'size'));
+            echo json_encode([
+                'success' => true,
+                'files' => $files,
+                'total_files' => count($files),
+                'truncated' => count($files) >= 500,
+                'total_size' => $totalSize,
+                'total_size_human' => formatBytes($totalSize),
+                'estimated_total_files' => $countData['files'],
+                'total_folders' => $countData['folders'],
+            ], JSON_UNESCAPED_UNICODE | JSON_INVALID_UTF8_SUBSTITUTE);
+        }catch(Throwable $e){
+            error_log('scan_user_files_progressive: '.$e->getMessage());
+            echo json_encode(['success'=>false,'error'=>'scan_failed','message'=>$e->getMessage(),'files'=>[],'total_size'=>0,'total_size_human'=>'0 B']);
+        }
         exit;
     }
 
@@ -1875,11 +1909,13 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             elseif($isPend) $sC='<span style="color:#ff9800;font-weight:bold;font-size:12px;">&#x23F3; Pending</span>';
             else { $val=$isVer?'1':'0'; $cls=$isVer?'ap-verified-yes':'ap-verified-no'; $sym=$isVer?'&#x2713;':'&#x2717;'; $selfDis=$isSelf?' disabled title="You cannot change your own status" style="background:none;border:none;cursor:not-allowed;opacity:.45;padding:2px;font-size:16px;"':' style="background:none;border:none;cursor:pointer;padding:2px;font-size:16px;"'; $sC='<button type="button" class="ap-verified-toggle ap-user-field" data-email="'.$eH.'" data-field="verified" data-value="'.$val.'"'.$selfDis.'><span class="'.$cls.'" style="font-size:16px;">'.$sym.'</span></button>'; }
             $aC=renderApUserActionsCell($email, $ud['name']??'', $isRoot, $isSelf, $isPend, $translations);
-            $rows.='<tr data-email="'.$eH.'" data-name="'.$nH.'">'
+            $createdRaw=(string)($ud['created_at']??'');
+            $createdDay=$createdRaw!==''?substr($createdRaw,0,10):'';
+            $rows.='<tr data-email="'.$eH.'" data-name="'.$nH.'" data-role="'.($isPend?'-1':(string)$role).'" data-created="'.my_htmlspecialchars($createdDay).'">'
                 .'<td><div style="display:flex;align-items:center;gap:8px;white-space:nowrap;"><img src="'.$ph.'" style="width:24px;height:24px;border-radius:50%;border:1px solid var(--border-color);object-fit:cover;flex-shrink:0;" alt="">'.$nH.'</div></td>'
                 .'<td><span class="ap-copy-email" data-copy-email="'.$eH.'" tabindex="0" role="button" aria-label="Copy email" title="Click to copy email">'.$eH.'</span></td>'
                 .'<td>'.$rC.'</td><td>'.$lC.'</td><td>'.$tC.'</td><td>'.$cC.'</td><td>'.$sC.'</td>'
-                .'<td style="font-size:11px;opacity:.55;white-space:nowrap;">'.my_htmlspecialchars(substr($ud['created_at']??'&#x2014;',0,10)).'</td>'
+                .'<td style="font-size:11px;opacity:.55;white-space:nowrap;">'.my_htmlspecialchars($createdDay!==''?$createdDay:'—').'</td>'
                 .'<td>'.$aC.'</td></tr>';
         }
         while(ob_get_level() > 1) ob_end_clean();
@@ -1925,40 +1961,64 @@ if($emailToReset){
 
     // Delete user with optional file deletion (admin only, AJAX)
     if(isset($_POST['delete_user_with_files']) && isset($_POST['ajax']) && $sessionIsAdmin){
-        $emailToDelete = $_POST['user_email'] ?? '';
+        apSecRequireSameOrigin();
+        $emailToDelete = trim((string)($_POST['user_email'] ?? ''));
         $deleteFiles = isset($_POST['delete_files']) && $_POST['delete_files'] === '1';
-        $currentUserEmail = $_SESSION['user']['email'] ?? '';
-        $response = ['success' => false, 'message' => ''];
-        if($emailToDelete && $emailToDelete !== $currentUserEmail && $emailToDelete !== 'root@root'){
+        $currentUserEmail = (string)($_SESSION['user']['email'] ?? '');
+        $response = ['success' => false, 'message' => $translations['invalid_request'] ?? 'Invalid request'];
+        while(ob_get_level() > 1) ob_end_clean();
+        header('Content-Type: application/json');
+        if($emailToDelete === '' || !filter_var($emailToDelete, FILTER_VALIDATE_EMAIL)){
+            $response['message'] = $translations['invalid_request'] ?? 'Invalid request';
+            echo json_encode($response);
+            exit;
+        }
+        if($emailToDelete === $currentUserEmail){
+            $response['message'] = $translations['cannot_delete_self'] ?? 'You cannot delete your own account';
+            echo json_encode($response);
+            exit;
+        }
+        if($emailToDelete === 'root@root'){
+            $response['message'] = $translations['cannot_delete_root'] ?? 'The root account cannot be deleted';
+            echo json_encode($response);
+            exit;
+        }
+        try{
             $deleted = false;
-            // Delete from users table directly
             $userRow = getUserByEmail($emailToDelete);
             if($userRow){
                 if($deleteFiles){
                     $cfg = loadUserFoldersConfig();
-                    deleteUserFolders($emailToDelete, $userRow['name'] ?? '', $cfg['apps'] ?? []);
+                    deleteUserFolders($emailToDelete, (string)($userRow['name'] ?? ''), $cfg['apps'] ?? []);
                 }
                 deleteUser($emailToDelete);
-                removeUserFromActiveSessions($emailToDelete);
+                if(function_exists('removeUserFromActiveSessions')){
+                    removeUserFromActiveSessions($emailToDelete);
+                }
                 $deleted = true;
             }
-            // Delete from pending_users if present
-            $pendingRow = getPendingUser($emailToDelete);
+            $pendingRow = function_exists('getPendingUser') ? getPendingUser($emailToDelete) : null;
             if($pendingRow){
                 deletePendingUser($emailToDelete);
-                // Remove verification token
-                $db = getDB();
-                $st = $db->prepare('DELETE FROM verification_tokens WHERE email=:e');
-                $st->bindValue(':e', $emailToDelete); $st->execute();
+                try{
+                    $db = getDB();
+                    $st = $db->prepare('DELETE FROM verification_tokens WHERE email=:e');
+                    $st->bindValue(':e', $emailToDelete);
+                    $st->execute();
+                }catch(Throwable $e){}
                 $deleted = true;
             }
             if($deleted){
                 $response['success'] = true;
-                $response['message'] = $translations['user_deleted'];
+                $response['message'] = $translations['user_deleted'] ?? 'User deleted successfully';
+            }else{
+                $response['message'] = $translations['user_not_found'] ?? 'User not found';
             }
+        }catch(Throwable $e){
+            error_log('delete_user_with_files: '.$e->getMessage());
+            $response['success'] = false;
+            $response['message'] = $translations['error_del_user'] ?? ('Delete failed: '.$e->getMessage());
         }
-        while(ob_get_level() > 1) ob_end_clean();
-        header('Content-Type: application/json');
         echo json_encode($response);
         exit;
     }

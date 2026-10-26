@@ -1,4 +1,10 @@
 <?php
+require_once __DIR__ . '/cache.php';
+require_once __DIR__ . '/helpers.php';
+if (!function_exists('app_schema_once')) {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+}
+
 function isDriveMountVisible($mount) {
     return is_string($mount) && $mount !== '';
 }
@@ -1122,6 +1128,10 @@ function monitorTableColumns($db, string $table): array {
 }
 
 function monitorEnsureColumn($db, string $table, string $column, string $definition): void {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    app_once_wrap('moncol:' . $table . ':' . $column, __FILE__, fn() => monitorEnsureColumnImpl($db, $table, $column, $definition));
+}
+function monitorEnsureColumnImpl($db, string $table, string $column, string $definition): void {
     $columns = monitorTableColumns($db, $table);
     if (!isset($columns[$column])) {
         $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
@@ -1129,6 +1139,10 @@ function monitorEnsureColumn($db, string $table, string $column, string $definit
 }
 
 function monitorEnsureBaseSchema(): void {
+    app_schema_once('monitor_base_schema', __FILE__, 'monitorEnsureBaseSchemaImpl');
+}
+
+function monitorEnsureBaseSchemaImpl(): void {
     try {
         $db = monitorGetDbSafe();
         if (!$db) return;
@@ -2188,6 +2202,7 @@ function monitorRunCollectorCycle(bool $includeSmart = false, bool $includeDrive
         monitorSaveModulesToDb();
     }
     monitorRetentionCleanup();
+    monitor_cache_bust();
     return $snapshotId;
 }
 
@@ -2272,11 +2287,13 @@ function monitorFetchDisplayPayloadFromDb(): array {
             }
         }
         $modules = monitorLoadModulesFromDb();
-        $dockerContainers = monitorCollectDockerContainers();
-        if ($dockerContainers === [] && is_array($context['docker_containers'] ?? null)) {
-            $dockerContainers = $context['docker_containers'];
-        }
+        $dockerContainers = is_array($context['docker_containers'] ?? null) ? $context['docker_containers'] : [];
         $createdAt = (int)($row['created_at'] ?? time());
+        $uptimePayload = monitor_cache_get_json('uptime_payload');
+        if (!is_array($uptimePayload)) {
+            $uptimePayload = monitorFetchUptimePayloadForContainers($dockerContainers);
+            monitor_cache_set_json('uptime_payload', $uptimePayload, 15);
+        }
         return [
             'cpu_usage' => (float)($row['cpu_percent'] ?? 0),
             'memory_usage' => (float)($row['memory_percent'] ?? 0),
@@ -2287,7 +2304,7 @@ function monitorFetchDisplayPayloadFromDb(): array {
             'drives' => $drives,
             'smart' => $smart,
             'docker_containers' => $dockerContainers,
-            'uptime_monitoring' => monitorFetchUptimePayloadForContainers($dockerContainers),
+            'uptime_monitoring' => $uptimePayload,
             'nginx_modules' => $modules['nginx_modules'] ?? [],
             'php_modules' => $modules['php_modules'] ?? [],
             'monitor_snapshot_id' => $snapshotId,
@@ -2300,6 +2317,166 @@ function monitorFetchDisplayPayloadFromDb(): array {
         error_log('monitorFetchDisplayPayloadFromDb failed: ' . $e->getMessage());
         return monitorEmptyDisplayPayload();
     }
+}
+
+function monitorFetchDisplayPayloadCached(bool $forceRefresh = false): array {
+    if ($forceRefresh) {
+        monitor_cache_bust('display_payload');
+    }
+    return monitor_cache_singleflight('display_payload', static function (): array {
+        return monitorFetchDisplayPayloadFromDb();
+    }, 12, 2500);
+}
+
+function monitorFetchStatsPayload(string $period = '24h'): array {
+    $period = strtolower(trim($period));
+    $allowed = ['1h', '6h', '24h', '7d', '30d'];
+    if (!in_array($period, $allowed, true)) {
+        $period = '24h';
+    }
+    return monitor_cache_singleflight('stats:' . $period, static function () use ($period): array {
+        return monitorBuildStatsPayload($period);
+    }, 20, 3000);
+}
+
+function monitorBuildStatsPayload(string $period): array {
+    $db = getDB();
+    if (!$db) {
+        throw new RuntimeException('db_unavailable');
+    }
+    $db->busyTimeout(5000);
+    $db->exec('SELECT 1');
+    $now = time();
+    $periodSecondsMap = [
+        '1h' => 3600,
+        '6h' => 6 * 3600,
+        '24h' => 24 * 3600,
+        '7d' => 7 * 24 * 3600,
+        '30d' => 30 * 24 * 3600,
+    ];
+    $periodSeconds = $periodSecondsMap[$period] ?? (24 * 3600);
+    $since = $now - $periodSeconds;
+    $bucketSeconds = max(60, (int)ceil(($periodSeconds / 240) / 60) * 60);
+    $bucketExpr = "(created_at / $bucketSeconds) * $bucketSeconds";
+    $diskBucketExpr = "(s.created_at / $bucketSeconds) * $bucketSeconds";
+    $smoothWindow = $periodSeconds >= 604800 ? 5 : ($periodSeconds >= 86400 ? 3 : 1);
+    $smoothPoints = static function (array $points) use ($smoothWindow): array {
+        if ($smoothWindow <= 1 || count($points) < 3) {
+            return $points;
+        }
+        $half = intdiv($smoothWindow, 2);
+        $count = count($points);
+        for ($i = 0; $i < $count; $i++) {
+            $sum = 0.0;
+            $samples = 0;
+            for ($j = max(0, $i - $half); $j <= min($count - 1, $i + $half); $j++) {
+                $sum += (float)$points[$j]['y'];
+                $samples++;
+            }
+            $points[$i]['y'] = round($sum / max(1, $samples), 2);
+        }
+        return $points;
+    };
+
+    $disk = [];
+    $stmt = $db->prepare("
+        SELECT $diskBucketExpr AS created_at, d.drive_letter, AVG(d.used_percent) AS used_percent,
+               AVG(d.free_bytes) AS free_bytes, AVG(d.total_bytes) AS total_bytes
+        FROM monitor_disk_snapshots d
+        JOIN monitor_system_snapshots s ON s.id = d.snapshot_id
+        WHERE s.created_at >= :since
+        GROUP BY $diskBucketExpr, d.drive_letter
+        ORDER BY created_at ASC, d.drive_letter ASC");
+    $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+    $res = $stmt->execute();
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+        $drive = (string)($row['drive_letter'] ?? '');
+        if ($drive === '') {
+            continue;
+        }
+        if (!isset($disk[$drive])) {
+            $disk[$drive] = [];
+        }
+        $disk[$drive][] = [
+            'x' => monitor_format_time_label((int)$row['created_at']),
+            'y' => round((float)$row['used_percent'], 2),
+            'free_bytes' => (int)$row['free_bytes'],
+            'total_bytes' => (int)$row['total_bytes'],
+        ];
+    }
+    foreach ($disk as $drive => $points) {
+        $disk[$drive] = $smoothPoints($points);
+    }
+
+    $hourly = [];
+    $stmt = $db->prepare("
+        SELECT metric_hour, metric, app_id, min_value, avg_value, max_value, sample_count
+        FROM monitor_metric_hourly
+        WHERE metric_hour >= :since
+        ORDER BY metric_hour ASC, metric ASC, app_id ASC");
+    $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+    $res = $stmt->execute();
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+        $metric = (string)($row['metric'] ?? '');
+        if ($metric === '') {
+            continue;
+        }
+        if (!isset($hourly[$metric])) {
+            $hourly[$metric] = [];
+        }
+        $hourly[$metric][] = [
+            'x' => monitor_format_time_label((int)$row['metric_hour']),
+            'y' => round((float)$row['avg_value'], 2),
+            'min' => round((float)$row['min_value'], 2),
+            'max' => round((float)$row['max_value'], 2),
+            'samples' => (int)$row['sample_count'],
+        ];
+    }
+
+    $system = [
+        'cpu_percent' => [],
+        'memory_percent' => [],
+        'swap_percent' => [],
+        'disk_io_percent' => [],
+        'network_recv_kbps' => [],
+        'network_sent_kbps' => [],
+    ];
+    $stmt = $db->prepare("
+        SELECT $bucketExpr AS created_at,
+               AVG(cpu_percent) AS cpu_percent,
+               AVG(memory_percent) AS memory_percent,
+               AVG(swap_percent) AS swap_percent,
+               AVG(disk_io_percent) AS disk_io_percent,
+               AVG(network_recv_bytes_per_sec) AS network_recv_bytes_per_sec,
+               AVG(network_sent_bytes_per_sec) AS network_sent_bytes_per_sec
+        FROM monitor_system_snapshots
+        WHERE created_at >= :since
+        GROUP BY $bucketExpr
+        ORDER BY created_at ASC");
+    $stmt->bindValue(':since', $since, PDO::PARAM_INT);
+    $res = $stmt->execute();
+    while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
+        $label = monitor_format_time_label((int)$row['created_at']);
+        $system['cpu_percent'][] = ['x' => $label, 'y' => round((float)$row['cpu_percent'], 2)];
+        $system['memory_percent'][] = ['x' => $label, 'y' => round((float)$row['memory_percent'], 2)];
+        $system['swap_percent'][] = ['x' => $label, 'y' => round((float)$row['swap_percent'], 2)];
+        $system['disk_io_percent'][] = ['x' => $label, 'y' => round((float)$row['disk_io_percent'], 2)];
+        $system['network_recv_kbps'][] = ['x' => $label, 'y' => round(((float)$row['network_recv_bytes_per_sec']) / 1024, 2)];
+        $system['network_sent_kbps'][] = ['x' => $label, 'y' => round(((float)$row['network_sent_bytes_per_sec']) / 1024, 2)];
+    }
+    foreach ($system as $metric => $points) {
+        $system[$metric] = $smoothPoints($points);
+    }
+
+    return [
+        'ok' => true,
+        'generated_at' => $now,
+        'period' => $period,
+        'bucket_seconds' => $bucketSeconds,
+        'disk' => $disk,
+        'hourly' => $hourly,
+        'system' => $system,
+    ];
 }
 
 function monitorCleanupSmartDevice(string $devicePath): array {

@@ -84,6 +84,8 @@ if ($action === 'get_state') {
     $current_user = cloud_api_user();
     $email = cloud_api_email();
     $display_email = $email;
+    if (empty($_SESSION['csrf_token'])) $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    $csrfToken = (string)$_SESSION['csrf_token'];
     cloud_session_close_early();
 
     $user_quota    = cloud_storage_default_quota_mb();
@@ -139,6 +141,7 @@ if ($action === 'get_state') {
     ]];
 
     json_out([
+        'csrf_token' => $csrfToken,
         'active' => $current_user,
         'active_email' => $display_email,
         'photo' => $user_photo,
@@ -1872,6 +1875,11 @@ if ($action === 'get_user_role') {
         'email' => $email,
         'is_root' => $is_root
     ]);
+}
+
+if (in_array($action, ['review_list', 'review_add', 'review_resolve', 'review_delete'], true)) {
+  require_once dirname(__DIR__, 2) . '/includes/cloud_reviews.php';
+  cloud_reviews_handle($action);
 }
 
 if ($action === 'save_file') {
@@ -4206,6 +4214,10 @@ if ($action === 'refresh_storage_usage') {
 
 if (!function_exists('cloud_ai_ensure_chat_tables')) {
     function cloud_ai_ensure_chat_tables(AppDatabase $db): void {
+    if (function_exists('cloud_schema_once')) cloud_schema_once(__FUNCTION__, fn() => cloud_ai_ensure_chat_tables_impl($db));
+    else cloud_ai_ensure_chat_tables_impl($db);
+}
+function cloud_ai_ensure_chat_tables_impl(AppDatabase $db): void {
         $db->exec("CREATE TABLE IF NOT EXISTS cloud_ai_assistant_chats (
             id BIGSERIAL PRIMARY KEY,
             email TEXT NOT NULL,

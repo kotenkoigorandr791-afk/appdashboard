@@ -16,6 +16,7 @@ require_once dirname(__DIR__, 4) . '/includes/session.php';
 require_once dirname(__DIR__, 4) . '/includes/auth_gate.php';
 cloud_session_start();
 cloud_require_session_auth();
+$currentUser = cloud_session_storage_user();
 require_once dirname(__DIR__, 4) . '/includes/cloud_groups.php';
 $folder = isset($_GET['folder']) ? $_GET['folder'] : '';
 $imagesJson = isset($_GET['images']) ? $_GET['images'] : '[]';

@@ -3083,7 +3083,7 @@ async function monacoCreateEditor(container, content, filePath, tabId, readOnly 
         editor.addCommand(monaco.KeyMod.CtrlCmd | monaco.KeyCode.KeyS, function() {
             if (typeof saveFile === 'function') {
                 saveFile().then((ok) => {
-                    if (ok && typeof showSuccessCheck === 'function') showSuccessCheck(document.getElementById('btn-save'));
+                    if (typeof showSaveResult === 'function') showSaveResult(document.getElementById('btn-save'), ok);
                 });
             }
         });

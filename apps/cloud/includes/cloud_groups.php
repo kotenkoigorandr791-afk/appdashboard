@@ -20,6 +20,11 @@ function cloud_group_root_key(string $groupId): string
 
 function ensureCloudGroupsSchema($db): void
 {
+    if (function_exists('cloud_schema_once')) cloud_schema_once(__FUNCTION__, fn() => ensureCloudGroupsSchema_impl($db));
+    else ensureCloudGroupsSchema_impl($db);
+}
+function ensureCloudGroupsSchema_impl($db): void
+{
     static $done = false;
     if ($done) return;
     $done = true;
@@ -265,6 +270,8 @@ function cloud_resolve_file_path(string $user, string $rootKey, string $path): s
         $storage = cloud_group_resolve_storage($groupId);
         return $storage['base'] . ($rel !== '' ? '/' . $rel : '');
     }
+    $sessionEmail = PHP_SAPI === 'cli' ? null : cloud_path_session_email();
+    if ($sessionEmail) $user = cloud_path_username($sessionEmail);
     return appdata_user_full_path('cloud', $user, $rootKey, $rel, false);
 }
 function cloud_resolve_file_path_public(string $user, string $rootKey, string $path): string

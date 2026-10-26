@@ -14,7 +14,7 @@ var translations = {
         'total', 'speed', 'session_break', 'usage', 'network_speed',
         'time', 'loading_ellipsis', 'error_loading_data', 'unknown',
         'cleanup_device_confirm', 'cleanup_time_confirm', 'cleanup_success', 'cleanup_error',
-        'select_time_period', 'delete', 'cancel', 'close'
+        'select_time_period', 'delete', 'cancel', 'close', 'expand_all', 'collapse_all'
     ];
     $jsUi = [];
     foreach ($translations as $langCode => $langData) {
@@ -59,6 +59,8 @@ function t(key, params = {}) {
     return str;
 }
 
+var perfAppBase = (typeof window.__PERF_APP_BASE__ === 'string' && window.__PERF_APP_BASE__) ? window.__PERF_APP_BASE__ : <?= json_encode($perfAppBase ?? '/project/performance', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
+var perfIndexUrl = perfAppBase.replace(/\/$/, '') + '/';
 var serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 var serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 
@@ -101,9 +103,28 @@ var expandedDockerChecks = {};
 var dockerChartPeriods = {};
 var dockerMetricCharts = {};
 var uptimeGroupCollapsed = { docker: false, other: false };
+var uptimeStatusFilter = 'all';
 var monitorChartsLoaded = false;
 var monitorChartsPeriod = '24h';
 var monitorCharts = {};
+var perfStarted = false;
+var perfPollIntervalId = null;
+
+function perfRootEl() {
+    return document.getElementById('perf-app') || document.body;
+}
+function perfSetModalOpen(on) {
+    const root = perfRootEl();
+    if (!root) return;
+    root.classList.toggle('modal-open', !!on);
+    document.body.classList.toggle('perf-modal-open', !!on);
+}
+function perfApiPost(formData) {
+    return fetch(perfIndexUrl, { method: 'POST', body: formData, credentials: 'same-origin' }).then(response => {
+        if (response.status === 401 && typeof window.apGateShow === 'function') window.apGateShow('');
+        return response;
+    });
+}
 
 // Auto-zoom state (only for admins)
 var autoZoomEnabled = userRole >= 2;
@@ -241,74 +262,37 @@ function saveStoredData() {
  */
 function calculateAutoZoomScale(data, type) {
     if (!data || data.length === 0) {
-        return { min: 0, max: type === 'network' ? 100 : 100 };
+        return { min: 0, max: 100 };
     }
-
-    // Filter out break points and get numeric values
-    const values = data.filter(item => !item.isBreak).map(item => item.y);
-
+    const values = data.filter(item => !item.isBreak).map(item => Number(item.y) || 0);
     if (values.length === 0) {
-        return { min: 0, max: type === 'network' ? 100 : 100 };
+        return { min: 0, max: 100 };
     }
-
     const minVal = Math.min(...values);
     const maxVal = Math.max(...values);
-    const range = maxVal - minVal;
-
-    if (type === 'cpu') {
-        const upper = Math.min(100, Math.max(10, Math.ceil((maxVal + Math.max(5, range * 0.25)) / 5) * 5));
+    const range = Math.max(0, maxVal - minVal);
+    const curvePad = type === 'network' ? Math.max(range * 0.18, 512) : Math.max(range * 0.18, 2.5);
+    if (type === 'cpu' || type === 'memory' || type === 'disk' || type === 'swap') {
+        let upper = Math.ceil((maxVal + curvePad) / 5) * 5;
+        upper = Math.min(100, Math.max(type === 'cpu' ? 10 : 5, upper));
         return { min: 0, max: upper };
     }
-
-    // If all values are the same or very close, create a reasonable range around the value
-    if (range === 0 || range < 1) {
-        const center = maxVal;
-        const spread = Math.max(center * 0.35, type === 'network' ? 1024 : 15);
-        return {
-            min: Math.max(0, center - spread),
-            max: Math.ceil(center + spread)
-        };
-    }
-
-    // Add extra headroom to avoid clipping on smoothed lines
-    const paddingPercent = 0.22;
-    const padding = range * paddingPercent;
-    let newMin = minVal - padding;
-    let newMax = maxVal + padding;
-
-    // Clamp to valid range
-    newMin = Math.max(0, newMin);
-
-    // Ensure minimum spread so chart doesn't look like a "wall"
-    const minSpread = type === 'network' ? 5120 : 20; // At least 5 KB/s or 20%
+    let newMin = Math.max(0, minVal - curvePad);
+    let newMax = maxVal + curvePad;
+    const minSpread = type === 'network' ? 5120 : 20;
     if ((newMax - newMin) < minSpread) {
         const center = (newMin + newMax) / 2;
-        const halfSpread = minSpread / 2;
-        newMin = Math.max(0, center - halfSpread);
-        newMax = center + halfSpread;
+        newMin = Math.max(0, center - minSpread / 2);
+        newMax = center + minSpread / 2;
     }
-
-    // Round to nice numbers for readability
     if (type === 'network') {
-        // For network, round to nearest KB
         newMin = Math.max(0, Math.floor(newMin / 1024) * 1024);
         newMax = Math.ceil(newMax / 1024) * 1024;
     } else {
-        // For percentage values, round to nearest 5
         newMin = Math.max(0, Math.floor(newMin / 5) * 5);
         newMax = Math.ceil(newMax / 5) * 5;
     }
-
-    // Final guard: keep extra headroom above real max value
-    const requiredMax = maxVal + (type === 'network' ? Math.max(range * 0.1, 256) : Math.max(range * 0.1, 2));
-    if (newMax < requiredMax) {
-        if (type === 'network') {
-            newMax = Math.ceil(requiredMax / 1024) * 1024;
-        } else {
-            newMax = Math.ceil(requiredMax / 5) * 5;
-        }
-    }
-
+    if (newMax <= newMin) newMax = newMin + (type === 'network' ? 1024 : 5);
     return { min: newMin, max: newMax };
 }
 
@@ -896,7 +880,7 @@ function buildSmartDeviceCard(device) {
             <div class="smart-test-meta">${formatSmartHours(test.lifetime_hours)}${test.remaining_percent !== null && test.remaining_percent !== undefined ? ` • ${test.remaining_percent}% remaining` : ''}</div>
         </div>`).join('') : `<p class="no-data"><?= htmlspecialchars($t['smart_no_tests']) ?></p>`;
 
-    const cleanupButton = <?= $userRole >= 2 ? 'true' : 'false' ?> ? `<button class="smart-cleanup-btn" type="button" onclick="cleanupSmartDevice('${escapeHtml(device.device || '')}')" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
+                const cleanupButton = <?= $userRole >= 2 ? 'true' : 'false' ?> ? `<button class="smart-cleanup-btn" type="button" data-perf-action="cleanup-smart" data-device="${escapeHtml(device.device || '')}" title="<?= htmlspecialchars($t['cleanup_device_data'] ?? 'Delete device data') ?>"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>` : '';
 
     return `
         <div class="smart-card">
@@ -1174,18 +1158,16 @@ function displayUptimeMonitoring(payload, dockerContainers) {
         if (container?.name) dockerByName[String(container.name)] = container;
     });
     const summary = payload?.summary || { up: 0, down: 0, unknown: 0, total: 0 };
-    summaryEl.innerHTML = `
-        <div class="uptime-summary-card up"><span>UP</span><strong>${summary.up || 0}</strong></div>
-        <div class="uptime-summary-card down"><span>DOWN</span><strong>${summary.down || 0}</strong></div>
-        <div class="uptime-summary-card unknown"><span>UNKNOWN</span><strong>${summary.unknown || 0}</strong></div>
-        <div class="uptime-summary-card"><span>TOTAL</span><strong>${summary.total || 0}</strong></div>`;
-    const checks = Array.isArray(payload?.checks) ? payload.checks : [];
-    if (checks.length === 0) {
+    const summaryCard = (status, label, count) => `<button type="button" class="uptime-summary-card ${status}${uptimeStatusFilter === status ? ' active' : ''}" data-perf-action="filter-uptime" data-status="${status}"><span>${label}</span><strong>${count || 0}</strong></button>`;
+    summaryEl.innerHTML = summaryCard('up', 'UP', summary.up) + summaryCard('down', 'DOWN', summary.down) + summaryCard('unknown', 'UNKNOWN', summary.unknown) + summaryCard('all', 'TOTAL', summary.total);
+    const allChecks = Array.isArray(payload?.checks) ? payload.checks : [];
+    const checks = uptimeStatusFilter === 'all' ? allChecks : allChecks.filter(check => (check.last_status || 'unknown') === uptimeStatusFilter);
+    if (allChecks.length === 0) {
         gridEl.innerHTML = '<p class="no-data">No uptime checks yet</p>';
         return;
     }
     uptimeChecksById = {};
-    checks.forEach(check => { uptimeChecksById[Number(check.id)] = check; });
+    allChecks.forEach(check => { uptimeChecksById[Number(check.id)] = check; });
     const dockerChecks = checks.filter(check => String(check.type || '') === 'docker');
     const otherChecks = checks.filter(check => String(check.type || '') !== 'docker');
     const renderCheck = check => {
@@ -1214,9 +1196,9 @@ function displayUptimeMonitoring(payload, dockerContainers) {
                 <div class="uptime-history">${bars || '<span class="uptime-history-empty">No checks</span>'}</div>
                 <div class="uptime-check-message">${escapeHtml(check.last_message || '')}</div>
                 <div class="uptime-card-actions">
-                    ${isDocker && dockerContainer ? `<button class="btn-secondary icon-button" type="button" onclick="toggleDockerMetrics(${Number(check.id)})">${expanded ? '<svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg> Hide metrics' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg> Show metrics'}</button>` : ''}
-                    ${userRole >= 2 ? `<button class="btn-secondary icon-button" type="button" onclick="editUptimeCheckById(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Edit</button>${canDelete ? `<button class="btn-secondary icon-button" type="button" onclick="deleteUptimeCheck(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete</button>` : ''}` : ''}
-                    <button class="btn-secondary icon-button" type="button" onclick="exportCheckAsJson(${Number(check.id)})"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
+                    ${isDocker && dockerContainer ? `<button class="btn-secondary icon-button" type="button" data-perf-action="toggle-docker-metrics" data-check-id="${Number(check.id)}">${expanded ? '<svg viewBox="0 0 24 24"><path d="M18 15l-6-6-6 6"/></svg> Hide metrics' : '<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z"/></svg> Show metrics'}</button>` : ''}
+                    ${userRole >= 2 ? `<button class="btn-secondary icon-button" type="button" data-perf-action="edit-uptime" data-check-id="${Number(check.id)}"><svg viewBox="0 0 24 24"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg> Edit</button>${canDelete ? `<button class="btn-secondary icon-button" type="button" data-perf-action="delete-uptime" data-check-id="${Number(check.id)}"><svg viewBox="0 0 24 24"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg> Delete</button>` : ''}` : ''}
+                    <button class="btn-secondary icon-button" type="button" data-perf-action="export-uptime" data-check-id="${Number(check.id)}"><svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Export</button>
                 </div>
                 ${dockerDetails}
             </div>`;
@@ -1228,8 +1210,8 @@ function displayUptimeMonitoring(payload, dockerContainers) {
         const down = groupChecks.filter(check => (check.last_status || 'unknown') === 'down').length;
         return `
             <div class="uptime-group ${collapsed ? 'collapsed' : ''}">
-                <button class="uptime-group-header" type="button" onclick="toggleUptimeGroup('${key}')">
-                    <span class="uptime-group-arrow">${collapsed ? '›' : '⌄'}</span>
+                <button class="uptime-group-header" type="button" data-perf-action="toggle-uptime-group" data-group="${key}">
+                    <span class="uptime-group-arrow" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
                     <span class="uptime-group-title">${title}</span>
                     <span class="uptime-group-count">${groupChecks.length}</span>
                     <span class="uptime-group-pill up">${up}</span>
@@ -1243,6 +1225,11 @@ function displayUptimeMonitoring(payload, dockerContainers) {
         ${renderGroup('other', 'Other monitors', otherChecks)}`;
     updateToggleAllDockerMetricsButton(dockerChecks);
     setTimeout(renderExpandedDockerCharts, 0);
+}
+
+function setUptimeStatusFilter(status) {
+    uptimeStatusFilter = uptimeStatusFilter === status ? 'all' : status;
+    displayUptimeMonitoring(lastKnownUptimeMonitoring, lastKnownDockerContainers);
 }
 
 function toggleUptimeGroup(key) {
@@ -1302,7 +1289,7 @@ function updateToggleAllDockerMetricsButton(dockerChecks) {
     if (!button) return;
     const allExpanded = dockerChecks.length > 0 && dockerChecks.every(check => expandedDockerChecks[Number(check.id)]);
     const label = button.querySelector('span');
-    if (label) label.textContent = allExpanded ? 'Collapse all' : 'Expand all';
+    if (label) label.textContent = allExpanded ? (t('collapse_all') || 'Collapse all') : (t('expand_all') || 'Expand all');
     button.disabled = dockerChecks.length === 0;
 }
 
@@ -1352,7 +1339,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: '#4CAF50',
                     backgroundColor: 'rgba(76,175,80,.12)',
                     borderWidth: 2,
-                    tension: .5,
+                    tension: .2, cubicInterpolationMode: 'monotone',
                     pointRadius: 0,
                     yAxisID: 'percent'
                 },
@@ -1362,7 +1349,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: primaryColor,
                     backgroundColor: 'rgba(33,150,243,.1)',
                     borderWidth: 2,
-                    tension: .5,
+                    tension: .2, cubicInterpolationMode: 'monotone',
                     pointRadius: 0,
                     yAxisID: 'percent'
                 },
@@ -1372,7 +1359,7 @@ async function loadDockerMetricChart(checkId, containerId, period) {
                     borderColor: '#FF9800',
                     backgroundColor: 'rgba(255,152,0,.1)',
                     borderWidth: 2,
-                    tension: .5,
+                    tension: .2, cubicInterpolationMode: 'monotone',
                     pointRadius: 0,
                     yAxisID: 'pids'
                 }
@@ -1438,10 +1425,14 @@ document.addEventListener('click', (e) => {
 });
 
 function openUptimeCheckModal() {
-    const modal = document.getElementById('uptimeCheckModal');
+    let modal = document.getElementById('uptimeCheckModal');
     if (!modal) return;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.classList.add('perf-root', themeClass);
+    modal.style.setProperty('--primary-color', primaryColor);
+    modal.style.zIndex = '100050';
     modal.style.display = 'block';
-    document.body.classList.add('modal-open');
+    perfSetModalOpen(true);
 }
 
 function closeUptimeCheckModal() {
@@ -1449,7 +1440,7 @@ function closeUptimeCheckModal() {
     if (!modal) return;
     modal.style.display = 'none';
     resetUptimeForm();
-    document.body.classList.remove('modal-open');
+    perfSetModalOpen(false);
 }
 
 function editUptimeCheck(check) {
@@ -1577,6 +1568,11 @@ function importChecksFromJson() {
     input.click();
 }
 
+function isModuleLoaded(v) {
+    const val = String(v || '').trim().toLowerCase();
+    return val === String('<?= $t['loaded'] ?>').trim().toLowerCase() || val === 'loaded';
+}
+
 function fillTable(id, list, nameKey, statusKey) {
     const body = document.getElementById(id);
     body.innerHTML = '';
@@ -1587,8 +1583,9 @@ function fillTable(id, list, nameKey, statusKey) {
     }
     
     list.forEach(m => {
-        const statusClass = m[statusKey] === '<?= $t['loaded'] ?>' ? 'badge' : 'badge badge-not-loaded';
-        const dotClass = m[statusKey] === '<?= $t['loaded'] ?>' ? 'module-status-dot module-status-loaded' : 'module-status-dot module-status-not-loaded';
+        const isLoaded = isModuleLoaded(m[statusKey]);
+        const statusClass = isLoaded ? 'badge' : 'badge badge-not-loaded';
+        const dotClass = isLoaded ? 'module-status-dot module-status-loaded' : 'module-status-dot module-status-not-loaded';
         
         body.insertAdjacentHTML('beforeend', 
             `<tr><td><span class="${dotClass}"></span>${m[nameKey] || ''}</td>
@@ -1619,17 +1616,17 @@ function prepareChartData(data, type, label) {
         }
     });
     
-    // Create main dataset
     const datasets = [{
         label: type === 'network' ? translations.ui[lang].network_speed : translations.ui[lang].usage,
         data: numericData,
         borderColor: primaryColor,
-        backgroundColor: themeClass === 'dark' ? 'rgba(133, 181, 3, 0.2)' : 'rgba(133, 181, 3, 0.1)',
+        backgroundColor: themeClass === 'dark' ? 'rgba(133, 181, 3, 0.18)' : 'rgba(133, 181, 3, 0.12)',
         borderWidth: 2,
         fill: true,
-        tension: 0.5,
-        pointRadius: 2,
-        pointHoverRadius: 5
+        tension: 0.2,
+        cubicInterpolationMode: 'monotone',
+        pointRadius: 0,
+        pointHoverRadius: 4
     }];
     
     // Add vertical lines for session breaks
@@ -1672,7 +1669,7 @@ async function fetchHistoricalDataIfNeeded() {
     const now = Date.now();
     if (histDataCache && (now - histDataCacheTime) < 300000) return histDataCache;
     try {
-        const url = new URL(window.location.href);
+        const url = new URL(perfIndexUrl, window.location.origin);
         url.search = '?monitor_stats=1&period=24h&t=' + now;
         const resp = await fetch(url.href, { headers: {'Cache-Control': 'no-cache'}, cache: 'no-store', credentials: 'same-origin' });
         if (resp.ok) {
@@ -1692,7 +1689,7 @@ async function openGraphModal(type) {
     const title = document.getElementById('graphTitle');
     const cleanupBtn = document.getElementById('graphCleanupBtn');
     m.style.display = 'block';
-    document.body.classList.add('modal-open');
+    perfSetModalOpen(true);
     if (cleanupBtn) {
         cleanupBtn.onclick = event => {
             event.stopPropagation();
@@ -1800,7 +1797,8 @@ async function openGraphModal(type) {
                             drawBorder: false
                         },
                         min: yScaleConfig.min,
-                        max: yScaleConfig.max
+                        max: yScaleConfig.max,
+                        grace: '6%'
                     }
                 },
                 plugins: {
@@ -1812,7 +1810,6 @@ async function openGraphModal(type) {
                             font: { size: 12 },
                             usePointStyle: true,
                             filter: function(item, chart) {
-                                // Filter empty labels (vertical lines)
                                 return item.text !== '';
                             }
                         }
@@ -1820,7 +1817,7 @@ async function openGraphModal(type) {
                     tooltip: {
                         mode: 'index',
                         intersect: false,
-                        backgroundColor: themeClass === 'dark' ? 'rgba(45, 45, 45, 0.95)' : 'rgba(255, 255, 255, 0.95)',
+                        backgroundColor: themeClass === 'dark' ? '#1a222c' : '#ffffff',
                         titleColor: textColor,
                         bodyColor: textColor,
                         borderColor: primaryColor,
@@ -1828,7 +1825,7 @@ async function openGraphModal(type) {
                         cornerRadius: 6,
                         callbacks: {
                             label: function(context) {
-                                if (context.datasetIndex > 0) return null; // Skip vertical lines
+                                if (context.datasetIndex > 0) return null;
                                 if (type === 'network') {
                                     return `${context.dataset.label}: ${formatNetworkSpeed(context.parsed.y * 1024)}`;
                                 }
@@ -1843,11 +1840,12 @@ async function openGraphModal(type) {
                 },
                 elements: {
                     line: {
-                        tension: 0.5
+                        tension: 0.2,
+                        cubicInterpolationMode: 'monotone'
                     }
                 },
                 animation: {
-                    duration: 750
+                    duration: 420
                 }
             }
         });
@@ -1984,7 +1982,7 @@ function renderMonitorChart(container, group, key, points, index) {
                 borderColor: color,
                 backgroundColor: color + '22',
                 borderWidth: 2,
-                tension: .5,
+                tension: .2, cubicInterpolationMode: 'monotone',
                 pointRadius: 0,
                 pointHoverRadius: 3,
                 fill: true
@@ -2036,7 +2034,7 @@ function loadMonitorCharts() {
         status.style.display = 'block';
         status.textContent = monitorChartsLabels.loading;
     }
-    fetch('index.php?monitor_stats=1&period=' + encodeURIComponent(monitorChartsPeriod) + '&t=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' }, cache: 'no-store', credentials: 'same-origin' })
+        fetch(perfIndexUrl + '?monitor_stats=1&period=' + encodeURIComponent(monitorChartsPeriod) + '&t=' + Date.now(), { headers: { 'Cache-Control': 'no-cache' }, cache: 'no-store', credentials: 'same-origin' })
         .then(response => response.json())
         .then(data => {
             if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
@@ -2060,6 +2058,10 @@ function openAppConfirmDialog(message, onConfirm, options = {}) {
     const okBtn = document.getElementById('appConfirmOkBtn');
     const cancelBtn = document.getElementById('appConfirmCancelBtn');
     if (!modal || !msgEl) return;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.classList.add('perf-root', themeClass);
+    modal.style.setProperty('--primary-color', primaryColor);
+    modal.style.zIndex = '100050';
     const isAlert = options.alert === true;
     msgEl.textContent = message;
     titleEl.textContent = options.title || (isAlert ? '' : t('delete'));
@@ -2068,14 +2070,14 @@ function openAppConfirmDialog(message, onConfirm, options = {}) {
     cancelBtn.style.display = isAlert ? 'none' : '';
     appConfirmCallback = isAlert ? null : (typeof onConfirm === 'function' ? onConfirm : null);
     modal.style.display = 'block';
-    document.body.classList.add('modal-open');
+    perfSetModalOpen(true);
     okBtn.focus();
 }
 
 function closeAppConfirmDialog() {
     const modal = document.getElementById('appConfirmModal');
     if (modal) modal.style.display = 'none';
-    document.body.classList.remove('modal-open');
+    perfSetModalOpen(false);
     appConfirmCallback = null;
 }
 
@@ -2107,7 +2109,7 @@ function cleanupMonitorChartData(group, key) {
         formData.append('cleanup_chart_data', '1');
         formData.append('chart_group', group);
         formData.append('chart_key', key);
-        fetch(window.location.pathname + window.location.search, { method: 'POST', body: formData, credentials: 'same-origin' })
+        perfApiPost(formData)
             .then(response => response.json())
             .then(data => {
                 if (!data.ok) throw new Error(data.error || monitorChartsLabels.error);
@@ -2171,18 +2173,35 @@ async function showHoverPreview(type, event) {
         yScaleConfig = { min: 0, max: type === 'network' ? undefined : 100 };
     }
     if (hoverPreviewChart) hoverPreviewChart.destroy();
+    const mainSet = chartData.datasets[0] ? {
+        ...chartData.datasets[0],
+        borderWidth: 2,
+        pointRadius: 0,
+        tension: 0.2,
+        cubicInterpolationMode: 'monotone',
+        fill: true,
+        backgroundColor: themeClass === 'dark' ? 'rgba(133,181,3,.22)' : 'rgba(133,181,3,.16)'
+    } : null;
     hoverPreviewChart = new Chart(hoverPreviewCanvas.getContext('2d'), {
         type: 'line',
-        data: { labels: chartData.labels, datasets: chartData.datasets.map((set, idx) => idx === 0 ? set : { ...set, borderWidth: 0.7 }) },
+        data: { labels: chartData.labels, datasets: mainSet ? [mainSet] : [] },
         options: {
             responsive: true,
             maintainAspectRatio: false,
-            animation: { duration: 220 },
+            animation: { duration: 180 },
+            layout: { padding: { top: 6, right: 4, bottom: 2, left: 2 } },
             plugins: { legend: { display: false }, tooltip: { enabled: false } },
-            elements: { point: { radius: 0 } },
+            elements: { point: { radius: 0 }, line: { tension: 0.2, cubicInterpolationMode: 'monotone' } },
             scales: {
-                x: { ticks: { display: false }, grid: { color: gridColor, drawBorder: false } },
-                y: { ticks: { color: textColor, maxTicksLimit: 4 }, grid: { color: gridColor, drawBorder: false }, min: yScaleConfig.min, max: yScaleConfig.max }
+                x: { ticks: { display: false }, grid: { display: false, drawBorder: false }, border: { display: false } },
+                y: {
+                    ticks: { color: textColor, maxTicksLimit: 3, font: { size: 10 }, padding: 4 },
+                    grid: { color: gridColor, drawBorder: false },
+                    border: { display: false },
+                    min: yScaleConfig.min,
+                    max: yScaleConfig.max,
+                    grace: '8%'
+                }
             }
         }
     });
@@ -2190,9 +2209,11 @@ async function showHoverPreview(type, event) {
 
 function closeGraphModal() {
     document.getElementById('graphModal').style.display = 'none';
-    document.body.classList.remove('modal-open');
-    document.body.classList.remove('light', 'dark');
-    document.body.classList.add(themeClass);
+    perfSetModalOpen(false);
+    if (perfRootEl() === document.body) {
+        document.body.classList.remove('light', 'dark');
+        document.body.classList.add(themeClass);
+    }
     if (graphChart) {
         graphChart.destroy();
         graphChart = null;
@@ -2248,11 +2269,7 @@ function cleanupSmartDevice(devicePath) {
         formData.append('cleanup_smart_device', '1');
         formData.append('device_path', devicePath);
 
-        fetch(window.location.pathname + window.location.search, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        })
+        perfApiPost(formData)
         .then(response => response.json())
         .then(data => {
             if (data.ok) {
@@ -2285,11 +2302,7 @@ function cleanupMetricData(metricType) {
         formData.append('cleanup_metric_data', '1');
         formData.append('metric_type', metricType);
 
-        fetch(window.location.pathname + window.location.search, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        })
+        perfApiPost(formData)
         .then(response => response.json())
         .then(data => {
             if (data.ok) {
@@ -2316,18 +2329,25 @@ function cleanupMetricData(metricType) {
 
 function openCleanupTimePeriodModal() {
     const modal = document.getElementById('cleanupTimePeriodModal');
-    if (modal) {
-        modal.style.display = 'block';
-    }
+    if (!modal) return;
+    if (modal.parentElement !== document.body) document.body.appendChild(modal);
+    modal.classList.add('perf-root', themeClass);
+    modal.style.setProperty('--primary-color', primaryColor);
+    modal.style.zIndex = '100050';
+    modal.style.display = 'block';
+    perfSetModalOpen(true);
 }
 
 function closeCleanupTimePeriodModal() {
     const modal = document.getElementById('cleanupTimePeriodModal');
     if (modal) {
         modal.style.display = 'none';
-        document.getElementById('cleanupStartTime').value = '';
-        document.getElementById('cleanupEndTime').value = '';
+        const start = document.getElementById('cleanupStartTime');
+        const end = document.getElementById('cleanupEndTime');
+        if (start) start.value = '';
+        if (end) end.value = '';
     }
+    perfSetModalOpen(false);
 }
 
 function submitCleanupTimePeriod(event) {
@@ -2355,11 +2375,7 @@ function submitCleanupTimePeriod(event) {
         formData.append('start_time', startTime);
         formData.append('end_time', endTime);
 
-        fetch(window.location.pathname + window.location.search, {
-            method: 'POST',
-            body: formData,
-            credentials: 'same-origin'
-        })
+        perfApiPost(formData)
         .then(response => response.json())
         .then(data => {
             if (data.ok) {
@@ -2402,22 +2418,142 @@ function handleBeforeUnload() {
     saveStoredData();
 }
 
-document.getElementById('graphModal').addEventListener('click', e => {
-    if (e.target.id === 'graphModal') closeGraphModal();
-});
+window.openGraphModal = openGraphModal;
+window.closeGraphModal = closeGraphModal;
+window.toggleAutoZoom = toggleAutoZoom;
+window.refreshData = refreshData;
+window.cleanupMetricData = cleanupMetricData;
+window.cleanupSmartDevice = cleanupSmartDevice;
+window.cleanupMonitorChartData = cleanupMonitorChartData;
+window.openCleanupTimePeriodModal = openCleanupTimePeriodModal;
+window.closeCleanupTimePeriodModal = closeCleanupTimePeriodModal;
+window.submitCleanupTimePeriod = submitCleanupTimePeriod;
+window.openUptimeCheckModal = openUptimeCheckModal;
+window.closeUptimeCheckModal = closeUptimeCheckModal;
+window.toggleUptimeAddDropdown = toggleUptimeAddDropdown;
+window.closeUptimeAddDropdown = closeUptimeAddDropdown;
+window.importChecksFromJson = importChecksFromJson;
+window.runUptimeChecks = runUptimeChecks;
+window.toggleAllDockerMetrics = toggleAllDockerMetrics;
+window.toggleDockerMetrics = toggleDockerMetrics;
+window.toggleUptimeGroup = toggleUptimeGroup;
+window.editUptimeCheckById = editUptimeCheckById;
+window.deleteUptimeCheck = deleteUptimeCheck;
+window.exportCheckAsJson = exportCheckAsJson;
+window.saveUptimeCheck = saveUptimeCheck;
+window.appConfirmOk = appConfirmOk;
+window.appConfirmCancel = appConfirmCancel;
+window.filterTable = filterTable;
 
-document.addEventListener('DOMContentLoaded', () => {
+function perfHandleAction(action, el, event) {
+    switch (action) {
+        case 'toggle-autozoom': toggleAutoZoom(); break;
+        case 'toggle-menu': document.getElementById('perf-app').classList.toggle('menu-open'); break;
+        case 'refresh': refreshData(); break;
+        case 'open-graph': openGraphModal(el.getAttribute('data-metric') || 'cpu'); break;
+        case 'cleanup-metric': cleanupMetricData(el.getAttribute('data-metric') || ''); break;
+        case 'cleanup-smart': cleanupSmartDevice(el.getAttribute('data-device') || ''); break;
+        case 'toggle-uptime-add': toggleUptimeAddDropdown(event || { stopPropagation() {} }); break;
+        case 'open-uptime-modal': closeUptimeAddDropdown(); openUptimeCheckModal(); break;
+        case 'import-uptime-json': closeUptimeAddDropdown(); importChecksFromJson(); break;
+        case 'toggle-all-docker': toggleAllDockerMetrics(); break;
+        case 'run-uptime-checks': runUptimeChecks(); break;
+        case 'open-cleanup-period': openCleanupTimePeriodModal(); break;
+        case 'close-uptime-modal': closeUptimeCheckModal(); break;
+        case 'close-cleanup-period': closeCleanupTimePeriodModal(); break;
+        case 'close-graph': closeGraphModal(); break;
+        case 'confirm-ok': appConfirmOk(); break;
+        case 'confirm-cancel': appConfirmCancel(); break;
+        case 'toggle-docker-metrics': toggleDockerMetrics(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'edit-uptime': editUptimeCheckById(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'delete-uptime': deleteUptimeCheck(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'export-uptime': exportCheckAsJson(Number(el.getAttribute('data-check-id') || 0)); break;
+        case 'filter-uptime': setUptimeStatusFilter(el.getAttribute('data-status') || 'all'); break;
+        case 'toggle-uptime-group': toggleUptimeGroup(el.getAttribute('data-group') || ''); break;
+        case 'save-uptime': if (event) saveUptimeCheck(event); break;
+        case 'submit-cleanup-period': if (event) submitCleanupTimePeriod(event); break;
+        default: break;
+    }
+}
+function perfBindUiClicks() {
+    window.__PERF_HANDLE_ACTION__ = perfHandleAction;
+    if (!window.__PERF_ACTION_DELEGATE__) {
+        window.__PERF_ACTION_DELEGATE__ = true;
+        document.addEventListener('click', e => {
+            const actionEl = e.target.closest('[data-perf-action]');
+            if (!actionEl) {
+                const card = e.target.closest('#perf-app .stat-card');
+                if (card && !e.target.closest('.stat-cleanup-btn') && !card.classList.contains('uptime-card')) {
+                    const canvas = card.querySelector('canvas[id]');
+                    const map = { cpuChart: 'cpu', memChart: 'memory', diskChart: 'disk', networkChart: 'network', swapChart: 'swap' };
+                    if (canvas && map[canvas.id]) {
+                        e.preventDefault();
+                        openGraphModal(map[canvas.id]);
+                    }
+                }
+                return;
+            }
+            if (!actionEl.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            window.__PERF_HANDLE_ACTION__(actionEl.getAttribute('data-perf-action'), actionEl, e);
+        }, true);
+        document.addEventListener('submit', e => {
+            const form = e.target.closest('[data-perf-action]');
+            if (!form || !form.closest('#perf-app, #uptimeCheckModal, #cleanupTimePeriodModal, #graphModal, #appConfirmModal')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            window.__PERF_HANDLE_ACTION__(form.getAttribute('data-perf-action'), form, e);
+        }, true);
+    }
+}
+
+function perfBootMonitor() {
+    if (perfStarted) {
+        loadData(false);
+        return;
+    }
+    if (!document.getElementById('cpuChart')) return;
+    perfStarted = true;
+    ['graphModal', 'uptimeCheckModal', 'cleanupTimePeriodModal', 'appConfirmModal'].forEach(id => {
+        const matches = Array.from(document.querySelectorAll('#' + id));
+        const el = matches.pop() || null;
+        matches.forEach(dup => dup.remove());
+        if (!el) return;
+        el.querySelectorAll(':scope > .modal-close').forEach(n => n.remove());
+        if (el.parentElement !== document.body) {
+            document.body.appendChild(el);
+        }
+        el.classList.add('perf-root', themeClass);
+        el.style.setProperty('--primary-color', primaryColor);
+        el.style.zIndex = '100050';
+        el.dataset.perfClickBound = '';
+        if (!el.dataset.perfBackdropBound) {
+            el.dataset.perfBackdropBound = '1';
+            el.addEventListener('click', e => {
+                if (e.target === el) {
+                    if (id === 'graphModal') closeGraphModal();
+                    else if (id === 'uptimeCheckModal') closeUptimeCheckModal();
+                    else if (id === 'cleanupTimePeriodModal') closeCleanupTimePeriodModal();
+                    else if (id === 'appConfirmModal') appConfirmCancel();
+                }
+            });
+        }
+    });
+    perfBindUiClicks();
     cpuChart = document.getElementById('cpuChart');
     memChart = document.getElementById('memChart');
     diskChart = document.getElementById('diskChart');
     swapChart = document.getElementById('swapChart');
     networkChart = document.getElementById('networkChart');
-
-    document.querySelectorAll('[data-section-target]').forEach(button => {
-        button.addEventListener('click', () => setActiveMonitorSection(button.getAttribute('data-section-target')));
+    document.querySelectorAll('#perf-app [data-section-target], body.perf-root [data-section-target]').forEach(button => {
+        if (button.dataset.perfBound) return;
+        button.dataset.perfBound = '1';
+        button.addEventListener('click', () => { setActiveMonitorSection(button.getAttribute('data-section-target')); const app = document.getElementById('perf-app'); if (app) app.classList.remove('menu-open'); });
     });
     const monitorChartsPeriodEl = document.getElementById('monitorChartsPeriod');
-    if (monitorChartsPeriodEl) {
+    if (monitorChartsPeriodEl && !monitorChartsPeriodEl.dataset.perfBound) {
+        monitorChartsPeriodEl.dataset.perfBound = '1';
         monitorChartsPeriodEl.addEventListener('change', event => {
             monitorChartsPeriod = event.target.value;
             monitorChartsLoaded = false;
@@ -2425,51 +2561,30 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     restoreActiveMonitorSection();
-
-    // Load auto-zoom preference from localStorage
     if (userRole >= 2) {
         try {
             const savedAutoZoom = localStorage.getItem('autoZoomEnabled');
-            if (savedAutoZoom !== null) {
-                autoZoomEnabled = savedAutoZoom === 'true';
-            }
+            if (savedAutoZoom !== null) autoZoomEnabled = savedAutoZoom === 'true';
         } catch (e) {}
-        
-        // Update toggle button state
         const toggle = document.getElementById('autoZoomToggle');
-        if (toggle) {
-            if (autoZoomEnabled) {
-                toggle.classList.add('active');
-            } else {
-                toggle.classList.remove('active');
-            }
-        }
+        if (toggle) toggle.classList.toggle('active', !!autoZoomEnabled);
     } else {
-        // Hide toggle for non-admins
         const toggle = document.getElementById('autoZoomToggle');
-        if (toggle) {
-            toggle.style.display = 'none';
-        }
+        if (toggle) toggle.style.display = 'none';
     }
-
     currentSessionStart = Date.now();
     loadStoredData();
-    
-    // Display latest known data from cache
     displayLastKnownData();
-    
     drawCircle(cpuChart, 0);
     drawCircle(memChart, 0);
     drawCircle(diskChart, 0);
     drawCircle(swapChart, 0);
     drawCircle(networkChart, 0);
-    
     loadData(false);
-    const intervalId = setInterval(() => loadData(false), UPDATE_INTERVAL);
-
+    if (perfPollIntervalId) clearInterval(perfPollIntervalId);
+    perfPollIntervalId = setInterval(() => loadData(false), UPDATE_INTERVAL);
     window.addEventListener('beforeunload', handleBeforeUnload);
     window.addEventListener('pagehide', handleBeforeUnload);
-
     <?php if ($userRole >= 2): ?>
     window.cleanupSmartDevice = cleanupSmartDevice;
     window.cleanupMetricData = cleanupMetricData;
@@ -2479,15 +2594,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window.closeCleanupTimePeriodModal = closeCleanupTimePeriodModal;
     window.submitCleanupTimePeriod = submitCleanupTimePeriod;
     <?php endif; ?>
-    
-    let lastDataCount = {
-        cpu: cpuData.length,
-        memory: memoryData.length,
-        disk: diskData.length,
-        network: networkData.length,
-        swap: swapData.length
-    };
-    
+    let lastDataCount = { cpu: cpuData.length, memory: memoryData.length, disk: diskData.length, network: networkData.length, swap: swapData.length };
     setInterval(() => {
         const changes = {
             cpu: cpuData.length !== lastDataCount.cpu,
@@ -2496,33 +2603,44 @@ document.addEventListener('DOMContentLoaded', () => {
             network: networkData.length !== lastDataCount.network,
             swap: swapData.length !== lastDataCount.swap
         };
-        
         if (changes.cpu || changes.memory || changes.disk || changes.network || changes.swap) {
             saveStoredData();
-            lastDataCount = {
-                cpu: cpuData.length,
-                memory: memoryData.length,
-                disk: diskData.length,
-                network: networkData.length,
-                swap: swapData.length
-            };
+            lastDataCount = { cpu: cpuData.length, memory: memoryData.length, disk: diskData.length, network: networkData.length, swap: swapData.length };
         }
     }, 30000);
-    const hoverGraphTargets = [
+    [
         { id: 'cpuChart', type: 'cpu' },
         { id: 'memChart', type: 'memory' },
         { id: 'diskChart', type: 'disk' },
         { id: 'swapChart', type: 'swap' },
         { id: 'networkChart', type: 'network' }
-    ];
-    hoverGraphTargets.forEach(({ id, type }) => {
+    ].forEach(({ id, type }) => {
         const el = document.getElementById(id);
-        if (!el) return;
+        if (!el || el.dataset.perfHover) return;
+        el.dataset.perfHover = '1';
         el.addEventListener('mouseenter', e => showHoverPreview(type, e));
         el.addEventListener('mousemove', e => moveHoverPreview(e.clientX, e.clientY));
         el.addEventListener('mouseleave', hideHoverPreview);
     });
     window.addEventListener('scroll', hideHoverPreview, { passive: true });
     window.addEventListener('resize', hideHoverPreview);
-});
+}
+window.PerformancePanel = {
+    init: function () {
+        const app = document.getElementById('perf-app');
+        if (app && app.dataset.perfInstance !== String(window.__PERF_INSTANCE__ || '')) {
+            perfStarted = false;
+            window.__PERF_INSTANCE__ = String(Date.now());
+            app.dataset.perfInstance = window.__PERF_INSTANCE__;
+        }
+        perfBindUiClicks();
+        perfBootMonitor();
+    },
+    refresh: function () { loadData(true); }
+};
+if (!window.__PERF_INLINE__) {
+    document.addEventListener('DOMContentLoaded', () => perfBootMonitor());
+} else if (document.getElementById('cpuChart')) {
+    // Markup already in DOM (admin panel AJAX inject); wait for panel activation via PerformancePanel.init
+}
 </script>

@@ -18,7 +18,8 @@ set_time_limit(30);
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/core/monitor_metrics.php';
 
-session_start();
+require_once __DIR__ . '/../../lib/app_session.php';
+app_session_start();
 $_sid = session_id() ?: ($_COOKIE['PHPSESSID'] ?? '');
 $_sessionUser = $_sid ? getUserFromActiveSessions($_sid) : null;
 $_userRole = (int)(($_sessionUser['user_data']['role'] ?? 0));
@@ -46,14 +47,20 @@ if ($action !== '') {
         exit;
     }
     if ($action === 'uptime') {
-        $containers = monitorCollectDockerContainers();
-        echo json_encode(['ok' => true, 'docker_containers' => $containers] + monitorFetchUptimePayloadForContainers($containers), JSON_UNESCAPED_UNICODE);
+        $payload = monitor_cache_singleflight('uptime_action', static function (): array {
+            $containers = monitorCollectDockerContainers();
+            return ['ok' => true, 'docker_containers' => $containers] + monitorFetchUptimePayloadForContainers($containers);
+        }, 10, 2000);
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
     if ($action === 'run_uptime_checks') {
         $containers = monitorCollectDockerContainers();
         monitorRunUptimeChecks($containers);
-        echo json_encode(['ok' => true, 'docker_containers' => $containers] + monitorFetchUptimePayloadForContainers($containers), JSON_UNESCAPED_UNICODE);
+        monitor_cache_bust();
+        $payload = ['ok' => true, 'docker_containers' => $containers] + monitorFetchUptimePayloadForContainers($containers);
+        monitor_cache_set_json('uptime_action', $payload, 10);
+        echo json_encode($payload, JSON_UNESCAPED_UNICODE);
         exit;
     }
     if ($action === 'docker_history') {
@@ -95,6 +102,7 @@ if ($forceRefresh && $_userRole >= 2) {
         if ($shouldCollect) {
             try {
                 $result = monitorCollectMetricsPayload(false, false);
+                monitor_cache_bust();
             } finally {
                 flock($lockFp, LOCK_UN);
                 fclose($lockFp);
@@ -108,7 +116,7 @@ if ($forceRefresh && $_userRole >= 2) {
     }
 }
 if ($result === null) {
-    $result = monitorFetchDisplayPayloadFromDb();
+    $result = monitorFetchDisplayPayloadCached($forceRefresh && $_userRole >= 2);
 }
 
 $requestedEndpoint = isset($_GET['endpoint']) ? strtolower(trim((string)$_GET['endpoint'])) : '';

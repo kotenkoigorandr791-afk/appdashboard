@@ -1,36 +1,14 @@
 <?php
-$dockerCssPath = __DIR__ . '/../../assets/docker/manager.css';
-$dockerJsPath = __DIR__ . '/../../assets/docker/manager.js';
-$dockerCssUrl = '/project/assets/docker/manager.css?v=' . @filemtime($dockerCssPath);
-$dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath);
+$dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime(__DIR__ . '/../../assets/docker/manager.js');
+echo dockerAssetLinks();
 ?>
-<!DOCTYPE html>
-<html lang="<?php echo htmlspecialchars($lang, ENT_QUOTES, 'UTF-8'); ?>" data-theme="<?php echo htmlspecialchars($theme, ENT_QUOTES, 'UTF-8'); ?>">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title><?php echo htmlspecialchars(t('docker_manager_title'), ENT_QUOTES, 'UTF-8'); ?></title>
-    <link rel="stylesheet" href="<?php echo htmlspecialchars($dockerCssUrl, ENT_QUOTES, 'UTF-8'); ?>">
-    <style>
-        :root {
-            --accent: <?php echo htmlspecialchars($accent, ENT_QUOTES, 'UTF-8'); ?>;
-            --accent-muted: <?php
-                if ($theme === 'light') {
-                    echo 'rgba(37,99,235,0.1)';
-                } else {
-                    printf('rgba(%d,%d,%d,0.14)', hexdec(substr($accent, 1, 2)), hexdec(substr($accent, 3, 2)), hexdec(substr($accent, 5, 2)));
-                }
-            ?>;
-        }
-    </style>
-</head>
-<body>
-    <div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
-    <div class="sidebar" id="sidebar">
-        <div class="sidebar-header">
+<div <?php echo dockerAppAttrs(); ?>>
+    <div class="dk-sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+    <div class="dk-sidebar" id="dockerSidebar">
+        <div class="dk-sidebar-header">
             <div class="brand-row"><?php echo ico('brand'); ?><h2><?php echo htmlspecialchars(t('docker_manager_title'), ENT_QUOTES, 'UTF-8'); ?></h2></div>
         </div>
-        <div class="sidebar-nav">
+        <div class="dk-sidebar-nav">
             <div class="nav-item active" data-section="stacks" onclick="showSection('stacks', this); closeSidebar();">
                 <span class="nav-icon"><?php echo ico('layers'); ?></span>
                 <span><?php echo htmlspecialchars(t('docker_stacks'), ENT_QUOTES, 'UTF-8'); ?></span>
@@ -56,7 +34,7 @@ $dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath
                 <span><?php echo htmlspecialchars(t('docker_system'), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
         </div>
-        <div class="sidebar-footer">
+        <div class="dk-sidebar-footer">
             <a href="https://docs.docker.com/reference/api/engine/" target="_blank" rel="noopener noreferrer"><?php echo ico('info'); ?> <?php echo htmlspecialchars(t('docker_api_docs'), ENT_QUOTES, 'UTF-8'); ?></a>
         </div>
     </div>
@@ -71,7 +49,7 @@ $dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath
         </div>
         <div class="top-bar">
             <h1 class="page-title" id="pageTitle"><?php echo htmlspecialchars(t('docker_stacks'), ENT_QUOTES, 'UTF-8'); ?></h1>
-            <div class="connection-status<?php echo $apiError ? ' err' : ''; ?>">
+            <div class="dk-connection-status<?php echo $apiError ? ' err' : ''; ?>">
                 <div class="status-dot"></div>
                 <span><?php echo htmlspecialchars($apiError ? t('docker_api_error') : rtrim(t('docker_connected')), ENT_QUOTES, 'UTF-8'); ?></span>
             </div>
@@ -143,7 +121,7 @@ $dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath
                     <?php echo ico('cube'); ?>
                     <div class="section-title"><?php echo htmlspecialchars(t('docker_containers_list'), ENT_QUOTES, 'UTF-8'); ?></div>
                 </div>
-                <button type="button" class="btn btn-ghost" onclick="location.reload()"><?php echo ico('refresh'); ?> <?php echo htmlspecialchars(t('docker_refresh'), ENT_QUOTES, 'UTF-8'); ?></button>
+                <button type="button" class="btn btn-ghost" onclick="dockerReload()"><?php echo ico('refresh'); ?> <?php echo htmlspecialchars(t('docker_refresh'), ENT_QUOTES, 'UTF-8'); ?></button>
             </div>
             <div class="table-container containers-table-wrap">
                 <table>
@@ -492,20 +470,19 @@ $dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime($dockerJsPath
                 <div class="docker-modal-title" id="dockerModalTitle"></div>
                 <button type="button" class="docker-modal-close" onclick="closeDockerModal()" aria-label="<?php echo htmlspecialchars(t('docker_close'), ENT_QUOTES, 'UTF-8'); ?>">&times;</button>
             </div>
-            <iframe class="docker-modal-frame" id="dockerModalFrame" title="<?php echo htmlspecialchars(t('docker_details'), ENT_QUOTES, 'UTF-8'); ?>"></iframe>
+            <div class="docker-modal-body" id="dockerModalBody"></div>
         </div>
     </div>
     
     <script>
-        const I18N = <?php echo json_encode($i18n[$lang] ?? $i18n['en'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
-        const I18N_EN = <?php echo json_encode($i18n['en'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
-        function t(key){return I18N[key] ?? I18N_EN[key] ?? key;}
-        function tf(key, vars){let text=t(key);for(const n in (vars||{})){text=text.split('{'+n+'}').join(vars[n]);}return text;}
-        const sectionTitles = <?php echo json_encode(['stacks' => t('stacks'), 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
-        const startupModals = <?php echo json_encode($startupModals, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
-        const modalIcons = <?php echo json_encode(['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
-        const modalLabels = <?php echo json_encode(['confirmTitle' => t('docker_modal_confirm_title')], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+        window.DOCKER_CFG = <?php echo json_encode([
+            'I18N' => $i18n[$lang] ?? $i18n['en'],
+            'I18N_EN' => $i18n['en'],
+            'sectionTitles' => ['stacks' => t('stacks'), 'containers' => t('containers'), 'networks' => t('networks'), 'volumes' => t('volumes'), 'images' => t('images'), 'info' => t('system')],
+            'startupModals' => $startupModals,
+            'modalIcons' => ['success' => ico('check'), 'error' => ico('x'), 'info' => ico('info')],
+            'modalLabels' => ['confirmTitle' => t('docker_modal_confirm_title')],
+        ], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
     </script>
     <script src="<?php echo htmlspecialchars($dockerJsUrl, ENT_QUOTES, 'UTF-8'); ?>"></script>
-</body>
-</html>
+</div>

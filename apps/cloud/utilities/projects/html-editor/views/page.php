@@ -36,7 +36,8 @@
         .preview-panel{display:flex;flex-direction:column;}
         #preview{flex:1;min-height:0;padding:0;overflow:hidden;background:#fff;position:relative;display:flex;flex-direction:column;}
         #preview.fullscreen{position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:1000;background:#fff;padding:0;}
-        #preview iframe{width:100%;height:100%;border:none;background:#fff;display:block;}
+        #preview iframe{width:100%;height:100%;border:none;background:#fff;display:block;color-scheme:dark;}
+        body.light-theme #preview iframe{color-scheme:light;}
         #preview.fullscreen .fullscreen-header{position:fixed;top:0;left:0;right:0;background:#252526;padding:10px 15px;display:flex;justify-content:space-between;align-items:center;z-index:1001;border-bottom:1px solid #333;}
         #preview.fullscreen .preview-frame-wrap{margin-top:50px;height:calc(100% - 50px);}
         .preview-frame-wrap{flex:1;width:100%;height:100%;position:relative;}
@@ -70,13 +71,14 @@
         .preview-actions-mobile{display:none;}
         @media (max-width:768px){
             .editor-container{flex-direction:column;}
-            .resizer{width:100%;height:8px;cursor:row-resize;}
+            .resizer{width:100%;height:5px;cursor:row-resize;z-index:40;overflow:visible;}
             .editor-panel,.preview-panel{min-width:100%;min-height:250px;}
             .preview-header{display:none;}
             .preview-actions-mobile{display:flex !important;gap:4px;flex-shrink:0;}
         }
     </style>
 <style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.css'); ?></style>
+<style><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-toolbar.css'); ?></style>
 <style>#saveBtn{display:none!important}</style>
 </head>
 <body class="<?php echo $theme === 'light' ? 'light-theme' : ''; ?>">
@@ -89,35 +91,14 @@
                         <button class="toolbar-btn danger" id="clearBtn" title="Clear all content" data-i18n-title="clearTooltip"><i class="fas fa-broom"></i></button>
                     </div>
                     <div class="toolbar-group">
-                        <button class="toolbar-btn" id="undoBtn" title="Undo (Ctrl+Z)" data-i18n-title="undoTooltip"><i class="fas fa-undo"></i></button>
-                        <button class="toolbar-btn" id="redoBtn" title="Redo (Ctrl+Y)" data-i18n-title="redoTooltip"><i class="fas fa-redo"></i></button>
-                    </div>
-                    <div class="toolbar-group preview-actions-mobile" id="mobilePreviewActions">
-                        <button class="toolbar-btn" id="fullscreenBtnMobile" title="Fullscreen preview" data-i18n-title="fullscreenTooltip"><i class="fas fa-expand"></i></button>
-                        <button class="toolbar-btn" id="refreshPreviewBtnMobile" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
-                        <button class="toolbar-btn exit-fullscreen" id="exitFullscreenBtnMobile" title="Exit fullscreen" data-i18n-title="exitFullscreenTooltip" style="display:none;"><i class="fas fa-compress"></i></button>
+                        <button class="toolbar-btn" id="refreshPreviewBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
                     </div>
                 </div>
                 <div id="editor-container"></div>
             </div>
             <div class="resizer"></div>
             <div class="preview-panel">
-                <div class="preview-header">
-                    <div class="preview-title" data-i18n="preview">Preview</div>
-                    <div class="preview-actions" id="desktopPreviewActions">
-                        <button class="toolbar-btn" id="fullscreenBtn" title="Fullscreen preview" data-i18n-title="fullscreenTooltip"><i class="fas fa-expand"></i></button>
-                        <button class="toolbar-btn" id="refreshPreviewBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
-                        <button class="toolbar-btn exit-fullscreen" id="exitFullscreenBtn" title="Exit fullscreen" data-i18n-title="exitFullscreenTooltip" style="display:none;"><i class="fas fa-compress"></i></button>
-                    </div>
-                </div>
                 <div id="preview">
-                    <div class="fullscreen-header" style="display:none;">
-                        <div class="preview-title" data-i18n="preview">Preview</div>
-                        <div class="preview-actions">
-                            <button class="toolbar-btn" id="fullscreenRefreshBtn" title="Refresh preview" data-i18n-title="refreshPreviewTooltip"><i class="fas fa-sync-alt"></i></button>
-                            <button class="toolbar-btn exit-fullscreen" id="fullscreenExitBtn" title="Exit fullscreen" data-i18n-title="exitFullscreenTooltip"><i class="fas fa-compress"></i></button>
-                        </div>
-                    </div>
                     <div class="preview-frame-wrap">
                         <iframe id="previewFrame" name="cloud-html-preview" title="HTML Preview" sandbox="allow-scripts allow-same-origin allow-forms allow-modals allow-popups"></iframe>
                     </div>
@@ -141,14 +122,18 @@
         </div>
     </div>
     <div class="status-message" id="statusMessage"></div>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=3"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=4"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=1"></script>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js?v=2"></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-panes.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-preview-sync.js'); ?></script>
     <script>
 <?php require __DIR__ . '/../public/assets/js/page-script2.js.php'; ?>
 </script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-ui.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-review.js'); ?></script>
+<script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-toolbar.js'); ?></script>
 </body>
 </html>

@@ -200,5 +200,6 @@
   "user_not_allowed": "Your account is not allowed to open this link",
   "allowedEmails": "Allowed emails",
   "restrictedHint": "Only signed-in users can open the link. Leave empty to allow any signed-in user.",
-  "keepCurrent": "prázdné — ponechat stávající"
+  "keepCurrent": "prázdné — ponechat stávající",
+  "version": "Verze"
 }

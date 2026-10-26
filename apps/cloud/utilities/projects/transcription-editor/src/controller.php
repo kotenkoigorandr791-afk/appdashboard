@@ -16,6 +16,7 @@ if (session_status() === PHP_SESSION_NONE) {
     cloud_session_start();
 }
 cloud_require_session_auth();
+$user = cloud_session_storage_user();
 
 if (!$audioPath) {
     die('No audio file specified');

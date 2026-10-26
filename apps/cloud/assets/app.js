@@ -1188,23 +1188,22 @@ window.getCloudShareUrlForPath = async function(filePath, expiresOption = 'never
     return buildCloudShareUrl(shareData);
 };
 async function ensureQrCodeStyling() {
-    if (typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
-    const url = 'https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
-    const res = await fetch(url, { cache: 'no-store' });
-    if (!res.ok) throw new Error('HTTP ' + res.status);
-    const code = await res.text();
-    const prevDefine = (typeof define !== 'undefined') ? define : undefined;
-    try {
-        if (typeof window !== 'undefined') window.define = undefined;
-        if (typeof self !== 'undefined') self.define = undefined;
-        (0, eval)(code);
-    } finally {
-        if (typeof window !== 'undefined' && typeof prevDefine !== 'undefined') window.define = prevDefine;
-        if (typeof self !== 'undefined' && typeof prevDefine !== 'undefined') self.define = prevDefine;
+    if (typeof window.apEnsureQrCodeStyling === 'function') {
+        return window.apEnsureQrCodeStyling();
     }
-    if (typeof window !== 'undefined' && typeof window.QRCodeStyling !== 'undefined') return window.QRCodeStyling;
-    if (typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
-    return QRCodeStyling;
+    if (typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
+    await new Promise(function (resolve, reject) {
+        var s = document.createElement('script');
+        s.src = '/project/assets/qr-code-loader.js?v=1';
+        s.async = true;
+        s.onload = resolve;
+        s.onerror = reject;
+        document.head.appendChild(s);
+    });
+    if (typeof window.apEnsureQrCodeStyling === 'function') {
+        return window.apEnsureQrCodeStyling();
+    }
+    throw new Error('QR loader missing');
 }
 async function renderShareModalForPath(filePath, displayName, expiresOption = 'never', root = null, update = false) {
     const modal = document.getElementById('share-modal');
@@ -2589,11 +2588,9 @@ window.addEventListener('message', function(event) {
     }
     if (event.data.type === 'editorSaveResult') {
         const saveButton = document.getElementById('btn-save');
-        if (event.data.ok) {
-            if (saveButton) showSuccessCheck(saveButton);
-        } else if (event.data.message) {
-            flashStatus(event.data.message);
-        }
+        showSaveResult(saveButton, !!event.data.ok);
+        if (event.data.ok && tabsState.activeTabId) markTabAsModified(tabsState.activeTabId, false);
+        if (!event.data.ok && event.data.message) flashStatus(event.data.message);
     }
     if (event.data.type === 'closeTranscriptionEditor') {
         const activeTab = tabsState.tabs.find(tab => tab.id === tabsState.activeTabId);
@@ -2713,10 +2710,17 @@ window.addEventListener('message', function(event) {
 });
 function updateToolbarForMarkdownEditor() {
     const codeActionsBtn = document.getElementById('btn-code-actions');
-    // The save button lives in the shell toolbar; the editor asks its own
-    // iframe to save via postMessage.
+    const copyBtn = document.getElementById('btn-copy');
+    const undoBtn = document.getElementById('btn-monaco-undo');
+    const redoBtn = document.getElementById('btn-monaco-redo');
+    // Save / undo / redo live in the shell toolbar; the iframe handles the action.
     document.getElementById('btn-save')?.classList.remove('hidden');
-    codeActionsBtn.classList.add('hidden');
+    codeActionsBtn?.classList.add('hidden');
+    copyBtn?.classList.add('hidden');
+    undoBtn?.classList.remove('hidden');
+    redoBtn?.classList.remove('hidden');
+    if (typeof updateIframeUndoRedoToolbar === 'function') updateIframeUndoRedoToolbar();
+    else updateMonacoUndoRedoToolbar();
 }
 function openHtmlEditor(filePath, root = null) {
     const requestedRoot = root || null;
@@ -3391,20 +3395,27 @@ function updateToolbarForTab(tab) {
     const copyBtn = document.getElementById('btn-copy');
     const undoBtn = document.getElementById('btn-monaco-undo');
     const redoBtn = document.getElementById('btn-monaco-redo');
-    if (tab.photoEditor || tab.latexEditor || tab.onlyOfficeEditor || tab.zipViewer) {
+    if (tab.photoEditor || tab.onlyOfficeEditor || tab.zipViewer) {
         saveBtn.classList.add('hidden');
         codeActionsBtn.classList.add('hidden');
         if (copyBtn) copyBtn.classList.add('hidden');
         undoBtn?.classList.add('hidden');
         redoBtn?.classList.add('hidden');
-    } else if (tab.transcriptionEditor || tab.ttsEditor || tab.markdownEditor || tab.htmlEditor) {
-        // Saving happens inside the embedded editor; the toolbar button asks it
-        // to save via postMessage instead of carrying a second save button.
+    } else if (tab.transcriptionEditor || tab.ttsEditor) {
         saveBtn.classList.remove('hidden');
         codeActionsBtn.classList.add('hidden');
         if (copyBtn) copyBtn.classList.add('hidden');
         undoBtn?.classList.add('hidden');
         redoBtn?.classList.add('hidden');
+    } else if (tab.markdownEditor || tab.htmlEditor || tab.latexEditor) {
+        // Embedded Monaco editors: save + undo/redo go through the iframe bridge
+        // so toolbar Back also reverts AI edits (pushUndoStop-backed).
+        saveBtn.classList.remove('hidden');
+        codeActionsBtn.classList.add('hidden');
+        if (copyBtn) copyBtn.classList.add('hidden');
+        undoBtn?.classList.remove('hidden');
+        redoBtn?.classList.remove('hidden');
+        updateIframeUndoRedoToolbar();
     } else {
         const isTxtFile = /\.txt$/i.test(tab.path || '');
         saveBtn.classList.toggle('hidden', !tab.editMode);
@@ -3432,10 +3443,64 @@ function updateToolbarForTab(tab) {
     }
 }
 
+function getActiveMonacoIframe() {
+    const tabId = tabsState?.activeTabId;
+    if (!tabId) return null;
+    const tab = tabsState.tabs.find((t) => t.id === tabId);
+    if (!tab || !(tab.markdownEditor || tab.htmlEditor || tab.latexEditor)) return null;
+    return Array.from(document.querySelectorAll('#viewer iframe[data-tab-id]')).find((n) => n.getAttribute('data-tab-id') === String(tabId)) || null;
+}
+
+function updateIframeUndoRedoToolbar(state) {
+    const undoBtn = document.getElementById('btn-monaco-undo');
+    const redoBtn = document.getElementById('btn-monaco-redo');
+    if (!undoBtn || !redoBtn) return;
+    if (!getActiveMonacoIframe()) return;
+    const next = state || window.__iframeUndoRedoState || { canUndo: false, canRedo: false };
+    undoBtn.disabled = !next.canUndo;
+    redoBtn.disabled = !next.canRedo;
+}
+
+async function sendActiveIframeMonacoAction(action) {
+    const iframe = getActiveMonacoIframe();
+    const target = iframe?.contentWindow;
+    if (!target) return null;
+    const reqId = `hist_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    return await new Promise((resolve) => {
+        let done = false;
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            window.removeEventListener('message', onMessage);
+            resolve(null);
+        }, 4000);
+        function onMessage(ev) {
+            const d = ev?.data;
+            if (!d || d.source !== 'cloudIframeMonacoAi' || d.reqId !== reqId) return;
+            if (ev.source !== target || done) return;
+            done = true;
+            clearTimeout(timer);
+            window.removeEventListener('message', onMessage);
+            resolve(d.ok ? (d.result || {}) : null);
+        }
+        window.addEventListener('message', onMessage);
+        target.postMessage({ source: 'cloudParent', type: 'cloudIframeMonacoAi', reqId, action }, '*');
+    });
+}
+
 function updateMonacoUndoRedoToolbar() {
     const undoBtn = document.getElementById('btn-monaco-undo');
     const redoBtn = document.getElementById('btn-monaco-redo');
     if (!undoBtn || !redoBtn) return;
+    if (getActiveMonacoIframe()) {
+        updateIframeUndoRedoToolbar();
+        sendActiveIframeMonacoAction('getUndoRedoState').then((state) => {
+            if (!state) return;
+            window.__iframeUndoRedoState = state;
+            updateIframeUndoRedoToolbar(state);
+        });
+        return;
+    }
     const active = window.monacoManager?.getActiveEditor?.();
     if (!active) {
         undoBtn.disabled = true;
@@ -4809,19 +4874,47 @@ function initRootToolbar(i18n) {
     }
     document.getElementById('btn-save').addEventListener('click', async () => {
     const ok = await saveFile();
-    if (ok) showSuccessCheck(document.getElementById('btn-save'));
+    showSaveResult(document.getElementById('btn-save'), ok);
     });
-    document.getElementById('btn-monaco-undo')?.addEventListener('click', () => {
+    document.getElementById('btn-monaco-undo')?.addEventListener('click', async () => {
+    if (getActiveMonacoIframe()) {
+        const state = await sendActiveIframeMonacoAction('undo');
+        if (state) {
+            window.__iframeUndoRedoState = state;
+            updateIframeUndoRedoToolbar(state);
+        } else {
+            updateMonacoUndoRedoToolbar();
+        }
+        return;
+    }
     const active = window.monacoManager?.getActiveEditor?.();
     if (!active) return;
     window.monacoManager?.undo?.(active.tabId);
     setTimeout(updateMonacoUndoRedoToolbar, 0);
     });
-    document.getElementById('btn-monaco-redo')?.addEventListener('click', () => {
+    document.getElementById('btn-monaco-redo')?.addEventListener('click', async () => {
+    if (getActiveMonacoIframe()) {
+        const state = await sendActiveIframeMonacoAction('redo');
+        if (state) {
+            window.__iframeUndoRedoState = state;
+            updateIframeUndoRedoToolbar(state);
+        } else {
+            updateMonacoUndoRedoToolbar();
+        }
+        return;
+    }
     const active = window.monacoManager?.getActiveEditor?.();
     if (!active) return;
     window.monacoManager?.redo?.(active.tabId);
     setTimeout(updateMonacoUndoRedoToolbar, 0);
+    });
+    window.addEventListener('message', (ev) => {
+        const d = ev?.data;
+        if (!d || d.source !== 'cloudIframeMonacoAi' || d.type !== 'undoRedoState') return;
+        const iframe = getActiveMonacoIframe();
+        if (!iframe || ev.source !== iframe.contentWindow) return;
+        window.__iframeUndoRedoState = { canUndo: !!d.canUndo, canRedo: !!d.canRedo };
+        updateIframeUndoRedoToolbar(window.__iframeUndoRedoState);
     });
     document.getElementById('btn-copy').addEventListener('click', async () => {
     const path = document.getElementById('viewer').dataset.path;
@@ -6981,6 +7074,7 @@ function escapeRegex(string) {
 }
 async function refreshUsers(i18n) {
     const state = await api('get_state');
+    if (state && state.csrf_token) window.__cloudCsrf = state.csrf_token;
     window.__cloudUsersState = state;
     setCurrentUser(state.active);
     const tableBody = document.getElementById('users-table-body');
@@ -9283,6 +9377,7 @@ async function autoSaveFile(editor, filePath, tabId = null) {
         if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showSuccessCheck(document.getElementById('btn-save'));
     } catch (err) {
         flashStatus(t(i18n, 'autoSaveFailed') + err.message);
+        if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showErrorCross(document.getElementById('btn-save'));
     } finally {
         if (resolvedTabId) {
             clearAutoSaveTimer(resolvedTabId);
@@ -9550,14 +9645,14 @@ async function saveFile() {
         return false;
     }
 
-    if (activeTab.transcriptionEditor || activeTab.ttsEditor || activeTab.markdownEditor || activeTab.htmlEditor) {
+    if (activeTab.transcriptionEditor || activeTab.ttsEditor || activeTab.markdownEditor || activeTab.htmlEditor || activeTab.latexEditor) {
         const iframe = document.querySelector(`iframe[data-tab-id="${activeTab.id}"]`) || tabsState.iframeCache.get(activeTab.id);
         if (!iframe || !iframe.contentWindow) {
             flashStatus(t(i18n, 'noFileToSave'));
             return false;
         }
         iframe.contentWindow.postMessage({ type: 'editor:save' }, '*');
-        return false;
+        return null;
     }
 
     const path = activeTab.path;
@@ -9771,7 +9866,7 @@ async function api(action, params={}, method='POST') {
     }
   } else {
     const body = new URLSearchParams({ action, ...scopedParams });
-    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Device-Id': ensureCloudDeviceId()}, body });
+    const res = await fetch(url, { method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded','X-Device-Id': ensureCloudDeviceId(), ...(window.__cloudCsrf ? {'X-CSRF-Token': window.__cloudCsrf} : {})}, body });
     const text = await res.text();
     let data;
     try {

@@ -4,12 +4,21 @@ try{$defaultAdminUser=getUserByEmail('root@root');}catch(Throwable $e){$defaultA
 if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdminUser['password']??'')))$showDefaultAdminNotice=true;
 ?>
 <!DOCTYPE html>
-<html lang="<?php echo $language; ?>">
+<?php
+$bootThemePref = (string)($config['theme'] ?? 'light');
+$bootThemeResolved = in_array($bootThemePref, ['auto', 'device'], true)
+    ? (string)($themeForAppLink ?? getThemeForLinks($bootThemePref))
+    : (in_array($bootThemePref, ['light', 'dark'], true) ? $bootThemePref : 'light');
+$bootThemeDark = ($bootThemeResolved === 'dark');
+?>
+<html lang="<?php echo $language; ?>" data-theme="<?php echo my_htmlspecialchars($bootThemeResolved); ?>" style="color-scheme:<?php echo $bootThemeDark ? 'dark' : 'light'; ?>">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content">
     <meta name="csrf-token" content="<?php echo htmlspecialchars(apSecCsrfToken(), ENT_QUOTES, 'UTF-8'); ?>">
+    <meta name="color-scheme" content="<?php echo $bootThemeDark ? 'dark' : (in_array($bootThemePref, ['auto', 'device'], true) ? 'light dark' : 'light'); ?>">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
+    <script>(function(){var pref=<?php echo json_encode($bootThemePref, JSON_HEX_TAG); ?>;var resolved=<?php echo json_encode($bootThemeResolved, JSON_HEX_TAG); ?>;if(pref==='auto'||pref==='device'){try{resolved=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){}try{document.cookie='browser_theme='+encodeURIComponent(resolved)+'; path=/; max-age=86400; SameSite=Lax';}catch(e){}}else{resolved=(pref==='dark')?'dark':'light';}var dark=resolved==='dark';window.__AP_BOOT_THEME__=resolved;var root=document.documentElement;root.setAttribute('data-theme',resolved);root.style.colorScheme=resolved;root.classList.toggle('boot-theme-dark',dark);root.classList.toggle('boot-theme-light',!dark);})();</script>
     <link rel="icon" href="/project/views/icon.png" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;(function(){function tok(){var m=document.querySelector('meta[name="csrf-token"]');var v=(m&&m.getAttribute('content'))||window.__AP_CSRF__||'';return String(v||'');}function remember(t){if(!t)return;window.__AP_CSRF__=String(t);var m=document.querySelector('meta[name="csrf-token"]');if(m)m.setAttribute('content',String(t));}window.__AP_REMEMBER_CSRF__=remember;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){var t=tok();if(t){n.headers=new Headers(n.headers||{});n.headers.set('X-CSRF-TOKEN',t);if(typeof FormData!=='undefined'&&n.body instanceof FormData){if(n.body.has('_csrf'))n.body.set('_csrf',t);else n.body.append('_csrf',t);}}}return f.call(this,i,n).then(function(r){try{var ct=r.headers.get('content-type')||'';if(ct.indexOf('application/json')!==-1){r.clone().json().then(function(d){if(d&&d.csrf)remember(d.csrf);}).catch(function(){});}}catch(e){}return r;});};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;var t=tok();if(!t)return;var existing=form.querySelector('input[name="_csrf"]');if(existing){existing.value=t;return;}var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
@@ -19,10 +28,10 @@ if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdm
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
 <?php if($path==='/main' && !$showLogin): ?>
     <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
-    <script src="https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js" defer></script>
+    <script src="/project/assets/qr-code-loader.js?v=1" defer></script>
 <?php endif; ?>
     <style>
-        :root{--bg-color:<?php echo $config['theme']==='dark'?'#0f1419':'#f0f4f8';?>;--text-color:<?php echo $config['theme']==='dark'?'#f4f7fb':'#1a2332';?>;--primary-color:<?php echo my_htmlspecialchars($config['color']);?>;--sidebar-bg:<?php echo $config['theme']==='dark'?'rgba(16,22,30,0.58)':'rgba(240,244,248,0.20)';?>;--group-block-bg:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.10)':'rgba(255,255,255,0.20)';?>;--app-item-bg:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.20)';?>;--icon-bg-color:<?php echo $config['theme']==='dark'?'rgba(18,24,32,0.8)':'rgba(255,255,255,0.20)';?>;--tooltip-bg:<?php echo $config['theme']==='dark'?'rgba(18,22,28,0.82)':'rgba(255,255,255,0.88)';?>;--modal-bg:<?php echo $config['theme']==='dark'?'rgba(18,24,32,0.62)':'rgba(255,255,255,0.68)';?>;--border-color:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.14)':'rgba(15,30,50,0.14)';?>;--icon-bg-color:<?php echo $config['theme']==='dark'?'rgba(18,24,32,0.8)':'rgba(255,255,255,0.8)';?>;--link-color:<?php echo $config['theme']==='dark'?'#e8eef5':'#1a2332';?>;--link-hover-color:var(--primary-color);--table-header-bg:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.78)';?>;--table-row-hover:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.10)':'rgba(0,0,0,0.05)';?>;--scrollbar-track:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)';?>;--scrollbar-thumb:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.22)':'rgba(0,0,0,0.2)';?>;--scrollbar-thumb-hover:<?php echo $config['theme']==='dark'?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.35)';?>;--glass-blur:56px;--glass-sat:180%;--glass-shadow:<?php echo $config['theme']==='dark'?'0 18px 50px rgba(0,0,0,0.45)':'0 18px 50px rgba(30,50,80,0.14)';?>;--casa-radius:20px;--casa-tile-radius:22px;--app-icon-grad-start:<?php echo $config['theme']==='dark'?'color-mix(in srgb,var(--primary-color) 72%,white)':'color-mix(in srgb,var(--primary-color) 84%,black)';?>;--app-icon-grad-end:<?php echo $config['theme']==='dark'?'color-mix(in srgb,var(--primary-color) 88%,black)':'color-mix(in srgb,var(--primary-color) 65%,black)';?>;--shell-menu-button-left:<?php echo (int)($selectedAppMenuButton['left']??20); ?>px;--shell-menu-button-top:<?php echo (int)($selectedAppMenuButton['top']??13); ?>px;--shell-menu-button-width:<?php echo (int)($selectedAppMenuButton['width']??40); ?>px;--shell-menu-button-height:<?php echo (int)($selectedAppMenuButton['height']??40); ?>px;--shell-menu-button-mobile-left:<?php echo (int)($selectedAppMenuButtonMobile['left']??($selectedAppMenuButton['left']??20)); ?>px;--shell-menu-button-mobile-top:<?php echo (int)($selectedAppMenuButtonMobile['top']??($selectedAppMenuButton['top']??13)); ?>px;--shell-menu-button-mobile-width:<?php echo (int)($selectedAppMenuButtonMobile['width']??($selectedAppMenuButton['width']??40)); ?>px;--shell-menu-button-mobile-height:<?php echo (int)($selectedAppMenuButtonMobile['height']??($selectedAppMenuButton['height']??40)); ?>px;}
+        :root{--bg-color:<?php echo $bootThemeDark?'#0f1419':'#f0f4f8';?>;--text-color:<?php echo $bootThemeDark?'#f4f7fb':'#1a2332';?>;--primary-color:<?php echo my_htmlspecialchars($config['color']);?>;--sidebar-bg:<?php echo $bootThemeDark?'rgba(16,22,30,0.58)':'rgba(240,244,248,0.20)';?>;--group-block-bg:<?php echo $bootThemeDark?'rgba(255,255,255,0.10)':'rgba(255,255,255,0.20)';?>;--app-item-bg:<?php echo $bootThemeDark?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.20)';?>;--icon-bg-color:<?php echo $bootThemeDark?'rgba(18,24,32,0.8)':'rgba(255,255,255,0.20)';?>;--tooltip-bg:<?php echo $bootThemeDark?'rgba(18,22,28,0.82)':'rgba(255,255,255,0.88)';?>;--modal-bg:<?php echo $bootThemeDark?'rgba(18,24,32,0.62)':'rgba(255,255,255,0.68)';?>;--border-color:<?php echo $bootThemeDark?'rgba(255,255,255,0.14)':'rgba(15,30,50,0.14)';?>;--icon-bg-color:<?php echo $bootThemeDark?'rgba(18,24,32,0.8)':'rgba(255,255,255,0.8)';?>;--link-color:<?php echo $bootThemeDark?'#e8eef5':'#1a2332';?>;--link-hover-color:var(--primary-color);--table-header-bg:<?php echo $bootThemeDark?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.78)';?>;--table-row-hover:<?php echo $bootThemeDark?'rgba(255,255,255,0.10)':'rgba(0,0,0,0.05)';?>;--scrollbar-track:<?php echo $bootThemeDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)';?>;--scrollbar-thumb:<?php echo $bootThemeDark?'rgba(255,255,255,0.22)':'rgba(0,0,0,0.2)';?>;--scrollbar-thumb-hover:<?php echo $bootThemeDark?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.35)';?>;--glass-blur:56px;--glass-sat:180%;--glass-shadow:<?php echo $bootThemeDark?'0 18px 50px rgba(0,0,0,0.45)':'0 18px 50px rgba(30,50,80,0.14)';?>;--casa-radius:20px;--casa-tile-radius:22px;--app-icon-grad-start:<?php echo $bootThemeDark?'color-mix(in srgb,var(--primary-color) 72%,white)':'color-mix(in srgb,var(--primary-color) 84%,black)';?>;--app-icon-grad-end:<?php echo $bootThemeDark?'color-mix(in srgb,var(--primary-color) 88%,black)':'color-mix(in srgb,var(--primary-color) 65%,black)';?>;--shell-menu-button-left:<?php echo (int)($selectedAppMenuButton['left']??20); ?>px;--shell-menu-button-top:<?php echo (int)($selectedAppMenuButton['top']??13); ?>px;--shell-menu-button-width:<?php echo (int)($selectedAppMenuButton['width']??40); ?>px;--shell-menu-button-height:<?php echo (int)($selectedAppMenuButton['height']??40); ?>px;--shell-menu-button-mobile-left:<?php echo (int)($selectedAppMenuButtonMobile['left']??($selectedAppMenuButton['left']??20)); ?>px;--shell-menu-button-mobile-top:<?php echo (int)($selectedAppMenuButtonMobile['top']??($selectedAppMenuButton['top']??13)); ?>px;--shell-menu-button-mobile-width:<?php echo (int)($selectedAppMenuButtonMobile['width']??($selectedAppMenuButton['width']??40)); ?>px;--shell-menu-button-mobile-height:<?php echo (int)($selectedAppMenuButtonMobile['height']??($selectedAppMenuButton['height']??40)); ?>px;}
         /* Global styled scrollbars */
         *{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);}
         *::-webkit-scrollbar{width:6px;height:6px;}
@@ -626,7 +635,7 @@ if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdm
         #content,#top-bar,#sidebar,#settings-modal,#profile-modal,#notifications-panel{pointer-events:none!important;}
         #auth-modal,#auth-modal *{pointer-events:auto;}
         #auth-modal .gradient-bg{pointer-events:none!important;}
-        <?php if(!$themeFromUrl): ?>
+        <?php if(in_array($bootThemePref, ['auto', 'device'], true)): ?>
         @media(prefers-color-scheme:dark){
             :root{--bg-color:#0f1419;--text-color:#f4f7fb;--sidebar-bg:rgba(16,22,30,0.58);--group-block-bg:rgba(255,255,255,0.10);--app-item-bg:rgba(255,255,255,0.12);--tooltip-bg:rgba(18,22,28,0.82);--modal-bg:rgba(24,30,38,0.7);--border-color:rgba(255,255,255,0.14);--icon-bg-color:rgba(18,24,32,0.8);--link-color:#e8eef5;--table-header-bg:rgba(255,255,255,0.08);--table-row-hover:rgba(255,255,255,0.10);--scrollbar-track:rgba(255,255,255,0.04);--scrollbar-thumb:rgba(255,255,255,0.22);--scrollbar-thumb-hover:rgba(255,255,255,0.35);--glass-shadow:0 18px 50px rgba(0,0,0,0.45);--app-icon-grad-start:color-mix(in srgb,var(--primary-color) 72%,white);--app-icon-grad-end:color-mix(in srgb,var(--primary-color) 88%,black);--auth-gradient:linear-gradient(135deg, #07111e, #0c2035, #0e2a40);}
         }
@@ -1287,16 +1296,19 @@ if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdm
         #app-icon-rail{--rail-w:48px;--rail-icon:28px;position:fixed;top:0;left:0;width:var(--rail-w);height:100%;z-index:1000;background:#12161D;backdrop-filter:blur(28px) saturate(220%) brightness(1.06);-webkit-backdrop-filter:blur(28px) saturate(220%) brightness(1.06);border-right:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);box-sizing:border-box;display:flex;flex-direction:column;align-items:center;gap:6px;padding-top:calc(var(--shell-menu-button-top) + var(--shell-menu-button-height) + 10px);padding-bottom:10px;padding-left:4px;padding-right:4px;overflow:hidden;overscroll-behavior:contain;scrollbar-width:none;-ms-overflow-style:none;transition:background-color .35s ease,border-color .35s ease,color .35s ease;}
         body.dark-theme #app-icon-rail{background:#12161D;}
         body.light-theme #app-icon-rail{background:#F7F8FA;}
-        #content.app-edge-immich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#000000':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
-        #content.app-edge-gitea{--app-edge-bg:<?php echo $config['theme']==='dark'?'#1e1f20':'#f6f8fa';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#30363d':'#d0d7de';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f0f6fc':'#24292f';?>;}
-        #content.app-edge-plane{--app-edge-bg:<?php echo $config['theme']==='dark'?'#0c0d0e':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1e293b':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f8fafc':'#111827';?>;}
-        #content.app-edge-dawarich{--app-edge-bg:<?php echo $config['theme']==='dark'?'#1a1a1a':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1e293b':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f8fafc':'#0f172a';?>;}
-        #content.app-edge-x{--app-edge-bg:<?php echo $config['theme']==='dark'?'#000000':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#2f3336':'#cfd9de';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#e7e9ea':'#0f1419';?>;}
-        #content.app-edge-lopaka{--app-edge-bg:<?php echo $config['theme']==='dark'?'#0a0a0a':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#1f2937':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#f9fafb':'#111827';?>;}
-        #content.app-edge-kanboard{--app-edge-bg:<?php echo $config['theme']==='dark'?'#12161D':'#F7F8FA';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#2a303b':'#e6e8ec';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#e8eaed':'#1a1d23';?>;}
-        #content.app-edge-sentry{--app-edge-bg:<?php echo $config['theme']==='dark'?'#12161D':'#ffffff';?>;--app-edge-border:<?php echo $config['theme']==='dark'?'#2a303b':'#e5e7eb';?>;--app-edge-text:<?php echo $config['theme']==='dark'?'#e8eaed':'#111827';?>;}
-        #content.edge-app-shell #app-icon-rail{background:#12161D;border-color:var(--app-edge-border);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;}
-        body.theme-light #content.edge-app-shell #app-icon-rail,body.light-theme #content.edge-app-shell #app-icon-rail{background:#F7F8FA;}
+        <?php $edgeThemeDark = !empty($bootThemeDark); ?>
+        #content.app-edge-immich{--app-edge-bg:<?php echo $edgeThemeDark?'#000000':'#FEFEFE';?>;--app-edge-border:<?php echo $edgeThemeDark?'#000000':'#FEFEFE';?>;--app-edge-text:<?php echo $edgeThemeDark?'#f9fafb':'#111827';?>;}
+        #content.app-edge-gitea{--app-edge-bg:<?php echo $edgeThemeDark?'#1A1B1E':'#F9FAFB';?>;--app-edge-border:<?php echo $edgeThemeDark?'#1A1B1E':'#F9FAFB';?>;--app-edge-text:<?php echo $edgeThemeDark?'#f0f6fc':'#24292f';?>;}
+        #content.app-edge-plane{--app-edge-bg:<?php echo $edgeThemeDark?'#0c0d0e':'#ffffff';?>;--app-edge-border:<?php echo $edgeThemeDark?'#0c0d0e':'#ffffff';?>;--app-edge-text:<?php echo $edgeThemeDark?'#f8fafc':'#111827';?>;}
+        #content.app-edge-dawarich{--app-edge-bg:<?php echo $edgeThemeDark?'#1B1B1B':'#F7F7F7';?>;--app-edge-border:<?php echo $edgeThemeDark?'#1B1B1B':'#F7F7F7';?>;--app-edge-text:<?php echo $edgeThemeDark?'#f8fafc':'#0f172a';?>;}
+        #content.app-edge-x{--app-edge-bg:<?php echo $edgeThemeDark?'#000000':'#ffffff';?>;--app-edge-border:<?php echo $edgeThemeDark?'#000000':'#ffffff';?>;--app-edge-text:<?php echo $edgeThemeDark?'#e7e9ea':'#0f1419';?>;}
+        #content.app-edge-lopaka{--app-edge-bg:<?php echo $edgeThemeDark?'#0a0a0a':'#ffffff';?>;--app-edge-border:<?php echo $edgeThemeDark?'#0a0a0a':'#ffffff';?>;--app-edge-text:<?php echo $edgeThemeDark?'#f9fafb':'#111827';?>;}
+        #content.app-edge-kanboard{--app-edge-bg:<?php echo $edgeThemeDark?'#12161D':'#F7F8FA';?>;--app-edge-border:<?php echo $edgeThemeDark?'#12161D':'#F7F8FA';?>;--app-edge-text:<?php echo $edgeThemeDark?'#e8eaed':'#1a1d23';?>;}
+        #content.app-edge-sentry{--app-edge-bg:<?php echo $edgeThemeDark?'#282A2C':'#E8E8EA';?>;--app-edge-border:<?php echo $edgeThemeDark?'#282A2C':'#E8E8EA';?>;--app-edge-text:<?php echo $edgeThemeDark?'#e8eaed':'#111827';?>;}
+        #content.edge-app-shell{background:var(--app-edge-bg);}
+        #content.edge-app-shell #shell-app-frame{background:var(--app-edge-bg);}
+        #content.edge-app-shell #app-icon-rail{background:var(--app-edge-bg);border-right-color:var(--app-edge-bg);border-color:var(--app-edge-bg);color:var(--app-edge-text);backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;}
+        body.theme-light #content.edge-app-shell #app-icon-rail,body.light-theme #content.edge-app-shell #app-icon-rail,body.theme-dark #content.edge-app-shell #app-icon-rail,body.dark-theme #content.edge-app-shell #app-icon-rail{background:var(--app-edge-bg);border-right-color:var(--app-edge-bg);}
         #content.edge-app-shell #app-iframe{background:var(--app-edge-bg);}
         #content.edge-app-shell .app-rail-link,#content.edge-app-shell .app-rail-service-name{color:var(--app-edge-text);}
         #content.edge-app-shell #menu-button{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:1003;}
@@ -1313,6 +1325,7 @@ if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdm
             body.rail-autohide #content.has-app-rail.rail-collapsed #app-icon-rail::after{content:'';position:absolute;top:0;right:calc(-1 * (12px - var(--rail-peek)));width:12px;height:100%;}
             body.rail-autohide.rail-collapsed #menu-button{pointer-events:none;}
             body.rail-autohide #content.has-app-rail.rail-collapsed #app-icon-rail{background:color-mix(in srgb,var(--primary-color) 30%,transparent);border-right-color:color-mix(in srgb,var(--primary-color) 55%,transparent);box-shadow:0 0 10px color-mix(in srgb,var(--primary-color) 28%,transparent);}
+            body.rail-autohide #content.edge-app-shell.has-app-rail.rail-collapsed #app-icon-rail{background:color-mix(in srgb,var(--primary-color) 28%,var(--app-edge-bg));border-right-color:var(--app-edge-bg);box-shadow:none;}
         }
         .app-rail-link{display:flex;align-items:center;justify-content:center;width:var(--rail-icon);height:var(--rail-icon);border-radius:8px;flex-shrink:0;text-decoration:none;color:var(--text-color);background:transparent;transition:background-color 0.2s,transform 0.15s;}
         .app-rail-link:hover{background:color-mix(in srgb,var(--primary-color) 22%,transparent);transform:translateY(-1px);}
@@ -1332,7 +1345,7 @@ if($showLogin&&$defaultAdminUser&&appRootHasDefaultPassword((string)($defaultAdm
             #content.has-app-rail.rail-top-on-mobile{--rail-h:48px;--rail-w:0px;}
             #content.has-app-rail.rail-top-on-mobile #app-iframe{left:0!important;width:100%!important;top:var(--rail-h);height:calc(100% - var(--rail-h));}
             #content.has-app-rail.rail-top-on-mobile #app-icon-rail{flex-direction:row;width:100%;height:var(--rail-h);border-right:none;border-bottom:1px solid color-mix(in srgb,var(--border-color) 28%,transparent);padding:0;overflow:hidden;gap:0;position:relative;}
-            #content.edge-app-shell.rail-top-on-mobile #app-icon-rail{border-bottom-color:var(--app-edge-border);}
+            #content.edge-app-shell.rail-top-on-mobile #app-icon-rail{border-bottom-color:var(--app-edge-bg);background:var(--app-edge-bg);}
             #content.has-app-rail.rail-top-on-mobile .app-rail-scroll{display:flex;flex-direction:row;align-items:center;gap:6px;padding:0 8px 0 calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px);overflow-x:auto;scrollbar-width:none;-ms-overflow-style:none;height:100%;flex:1;}
             #content.has-app-rail.rail-top-on-mobile .app-rail-scroll::-webkit-scrollbar{display:none;}
             #content.has-app-rail.rail-top-on-mobile .app-rail-divider{width:1px;height:60%;flex-shrink:0;margin:0 2px;}
@@ -2801,10 +2814,11 @@ if ($path === '/main' && $selectedApp && in_array($selectedApp, array_map(functi
     unset($_selectedAppData, $_appData);
 }
 $_bodyClasses[] = ($_wp === 'default') ? 'wallpaper-default' : 'wallpaper-custom';
-$_bodyClasses[] = ($config['theme'] === 'dark') ? 'theme-dark' : 'theme-light';
-$_bodyClasses[] = ($config['theme'] === 'dark') ? 'dark-theme' : 'light-theme';
+$_bodyClasses[] = !empty($bootThemeDark) ? 'theme-dark' : 'theme-light';
+$_bodyClasses[] = !empty($bootThemeDark) ? 'dark-theme' : 'light-theme';
 ?>
 <body class="<?php echo my_htmlspecialchars(implode(' ', $_bodyClasses)); ?>"<?php if ($_wpUrl !== ''): ?> style="--wallpaper-url:url('<?php echo my_htmlspecialchars($_wpUrl); ?>')"<?php endif; ?>>
+<script>(function(){var t=window.__AP_BOOT_THEME__||<?php echo json_encode($bootThemeResolved, JSON_HEX_TAG); ?>;var dark=t==='dark';document.body.classList.toggle('dark-theme',dark);document.body.classList.toggle('light-theme',!dark);document.body.classList.toggle('theme-dark',dark);document.body.classList.toggle('theme-light',!dark);document.documentElement.setAttribute('data-theme',t);document.documentElement.style.colorScheme=t;})();</script>
 <?php if($path === '/login' || $path === '/register' || $path === '/one-time-pin'): ?>
 <div id="auth-top-bar">
     <div class="auth-top-bar-left">
@@ -3983,26 +3997,8 @@ endif; // showOtpPage
         <div class="modal-scroll-body">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['active_sessions']); ?></h3><button id="refresh-sessions" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
             <?php if(isset($sessionManagementSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($sessionManagementSuccess); ?></div><?php endif;?>
-            <div id="sessions-list-container">
-                <?php if(empty($activeSessions)):?><p><?php echo my_htmlspecialchars($translations['no_active_sessions']); ?></p>
-                <?php else:?>
-                    <table class="sessions-table">
-                        <thead><tr><th><?php echo my_htmlspecialchars($translations['device']); ?></th><th><?php echo my_htmlspecialchars($translations['browser']); ?></th><th><?php echo my_htmlspecialchars($translations['login_time']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['ip_address']); ?></th><th><?php echo my_htmlspecialchars($translations['terminate_session']); ?></th></tr></thead>
-                        <tbody>
-                        <?php foreach($activeSessions as $sessionId=>$session):?>
-                            <tr class="<?php echo $sessionId===session_id()?'current-session':''; ?>">
-                                <td><div class="device-browser-item"><?php $device=$session['device']??'unknown_device';$deviceClass=$device.'-icon';$deviceText=$translations[$device]??$translations['unknown_device'];?><div class="device-icon <?php echo $deviceClass; ?>"><?php echo get_device_icon_html($device); ?></div><span><?php echo my_htmlspecialchars($deviceText); ?></span></div></td>
-                                <td><div class="device-browser-item"><?php $browser=$session['browser']??'unknown_browser';$browserClass=$browser.'-icon';$browserText=$translations[$browser]??$translations['unknown_browser'];?><div class="browser-icon <?php echo $browserClass; ?>"><?php echo get_browser_icon_svg($browser); ?></div><span><?php echo my_htmlspecialchars($browserText); ?></span></div></td>
-                                <td><?php echo date('Y-m-d H:i:s',$session['login_time']); ?></td>
-                                <td><?php echo date('Y-m-d H:i:s',$session['last_activity']); ?></td>
-                            <td class="ip-location-cell" title="<?php echo my_htmlspecialchars($session['ip_location'] ?: ($translations['unknown_location'] ?? 'Unknown location')); ?>"><?php echo my_htmlspecialchars($session['ip_address']??'Unknown'); ?></td>
-                                <td><?php if($sessionId!==session_id()):?><form method="post" style="display:inline;"><input type="hidden" name="session_id" value="<?php echo my_htmlspecialchars($sessionId); ?>"><button type="submit" name="terminate_session" class="terminate-btn"><?php echo my_htmlspecialchars($translations['terminate_session']); ?></button></form><?php else:?><span style="color:#666;"><?php echo my_htmlspecialchars($translations['current_session']); ?></span><?php endif;?></td>
-                            </tr>
-                        <?php endforeach;?>
-                        </tbody>
-                    </table>
-                    <div style="margin-top:20px;"><form method="post"><button type="submit" name="terminate_all_sessions" class="auth-button" style="background:#ff4444;"><?php echo my_htmlspecialchars($translations['terminate_all_sessions']); ?></button></form></div>
-                <?php endif;?>
+            <div id="sessions-list-container" data-lazy-fragment="sessions">
+                <p class="ap-lazy-loading" style="opacity:.6;"><?php echo my_htmlspecialchars($translations['loading_btn'] ?? 'Loading...'); ?></p>
             </div>
             <hr style="margin:20px 0;border:1px solid var(--border-color);">
             <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:15px;"><h3 style="margin:0;"><?php echo my_htmlspecialchars($translations['trusted_devices']); ?></h3><button id="refresh-trusted" class="sidebar-button" style="background:var(--primary-color);color:white;border:none;padding:8px;border-radius:4px;cursor:pointer;" title="<?php echo my_htmlspecialchars($translations['refresh']); ?>"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg></button></div>
@@ -4066,67 +4062,13 @@ endif; // showOtpPage
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
                 </button>
                 <button id="delete-filtered-files" class="delete-filtered-btn" style="display:none;"><?php echo my_htmlspecialchars($translations['delete_filtered_files'] ?? 'Delete Filtered'); ?></button>
-                <?php if(!empty($sharedFiles)):?>
+                <?php if(true):?>
                     <button type="button" id="delete-all-files-btn" class="terminate-btn" style="background:#ff4444;color:white;border:none;padding:8px 12px;border-radius:4px;cursor:pointer;"><?php echo my_htmlspecialchars($translations['delete_all_files']); ?></button>
                 <?php endif;?>
             </div>
         </div>
         <div id="shared-files-list-container">
-            <?php if(empty($sharedFiles)):?>
-                <p style="text-align:center;opacity:.5;padding:20px 0;"><?php echo my_htmlspecialchars($translations['no_shared_files']); ?></p>
-            <?php else:?>
-                <table id="shared-files-table" style="width:100%;border-collapse:collapse;table-layout:fixed;">
-                    <colgroup>
-                        <col style="width:12%">
-                        <col style="width:20%">
-                        <col style="width:28%">
-                        <col style="width:24%">
-                        <col style="width:16%">
-                    </colgroup>
-                    <thead>
-                        <tr style="background:var(--table-header-bg);">
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['share_id']); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['file_name']); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['file_path']); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"><?php echo my_htmlspecialchars($translations['expires'] ?? 'Expires'); ?></th>
-                            <th style="padding:8px 10px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;border-bottom:2px solid var(--border-color);white-space:nowrap;"><?php echo my_htmlspecialchars($translations['delete_file']); ?></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <?php foreach($sharedFiles as $shareId=>$fileData):
-                            $_sfUrl = $fileData['file_path'] ?? ($fileData['url'] ?? '');
-                            $_sfName = $fileData['file_name'] ?? ($_sfUrl !== '' ? basename($_sfUrl) : '');
-                            $_sfExpiresOption = (string)($fileData['expires_option'] ?? 'never');
-                            $_sfExpires = isset($fileData['expires']) && $fileData['expires'] !== null ? (int)$fileData['expires'] : null;
-                            $_sfExpiryLabelMap = [
-                                'never' => $translations['share_expiration_never'] ?? 'Never',
-                                '1h' => $translations['share_expiration_1h'] ?? '1 hour',
-                                '1d' => $translations['share_expiration_1d'] ?? '1 day',
-                                '1w' => $translations['share_expiration_1w'] ?? '1 week',
-                                '1m' => $translations['share_expiration_1m'] ?? '1 month',
-                                '3m' => $translations['share_expiration_3m'] ?? '3 months',
-                                '6m' => $translations['share_expiration_6m'] ?? 'Half a year',
-                                '1y' => $translations['share_expiration_1y'] ?? '1 year',
-                            ];
-                            $_sfExpiryText = $_sfExpires ? date('Y-m-d H:i', $_sfExpires) : ($translations['share_expiration_never'] ?? 'Never');
-                        ?>
-                            <tr data-filename="<?php echo my_htmlspecialchars($_sfName); ?>" data-filepath="<?php echo my_htmlspecialchars($_sfUrl); ?>" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="border-bottom:1px solid var(--border-color);">
-                                <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.65;"><?php echo my_htmlspecialchars(substr($shareId,0,10).'…'); ?></td>
-                                <td class="file-name" style="padding:8px 10px;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="<?php echo my_htmlspecialchars($_sfName); ?>"><?php echo $_sfName !== '' ? my_htmlspecialchars($_sfName) : '<em style="opacity:.4">—</em>'; ?></td>
-                                <td style="padding:8px 10px;font-size:11px;font-family:'Courier New',monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7;" title="<?php echo my_htmlspecialchars($_sfUrl); ?>"><?php if($_sfUrl===''){echo '<em style="opacity:.4">—</em>';}elseif($isRootUser){echo my_htmlspecialchars($_sfUrl);}else{echo my_htmlspecialchars('…/'.$_sfName);}?></td>
-                                <td style="padding:6px 10px;">
-                                    <select class="sf-expiry-select" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="width:100%;min-width:0;padding:6px 8px;border:1px solid var(--border-color);border-radius:6px;background:var(--input-bg);color:var(--text-color);font-size:12px;">
-                                        <?php foreach($_sfExpiryLabelMap as $_sfOptionValue => $_sfOptionLabel): ?>
-                                            <option value="<?php echo my_htmlspecialchars($_sfOptionValue); ?>" <?php echo $_sfExpiresOption === $_sfOptionValue ? 'selected' : ''; ?>><?php echo my_htmlspecialchars($_sfOptionLabel); ?></option>
-                                        <?php endforeach; ?>
-                                    </select>
-                                </td>
-                                <td style="padding:6px 10px;white-space:nowrap;"><button type="button" class="terminate-btn sf-delete-btn" data-shareid="<?php echo my_htmlspecialchars($shareId); ?>" style="padding:4px 10px;font-size:12px;"><?php echo my_htmlspecialchars($translations['delete_file']); ?></button></td>
-                            </tr>
-                        <?php endforeach;?>
-                    </tbody>
-                </table>
-            <?php endif;?>
+            <p style="text-align:center;opacity:.5;padding:20px 0;"><?php echo my_htmlspecialchars($translations['loading_btn'] ?? 'Loading...'); ?></p>
         </div>
     </div>
 </div>
@@ -4448,7 +4390,7 @@ window.__SHELL_I18N=<?php echo json_encode([
     'opening_app_named' => $translations['opening_app_named'] ?? 'Opening {name}…',
 ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<script src="/project/assets/shell-app-nav.js?v=7" defer></script>
+<script src="/project/assets/shell-app-nav.js?v=8" defer></script>
 <?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($path==='/main'): ?>
@@ -4460,14 +4402,23 @@ window.__SHELL_I18N=<?php echo json_encode([
         </div>
     </div>
     <div id="shell-app-frame" class="shell-app-frame"<?php echo $showAppFrame ? '' : ' hidden'; ?>>
-        <?php $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $themeForAppLink; ?>
+        <?php
+        $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $bootThemeResolved;
+        $appIframeBootDefer = $showAppFrame && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true) && $selectedApp !== 'kanboard';
+        $appIframeSrc = $showAppFrame
+            ? 'apps/'.urlencode($selectedApp).'/'.($selectedApp === 'lopaka' ? '' : 'index.php').'?lang='.urlencode($language).'&theme='.urlencode($appIframeTheme).'&color='.urlencode($config['color']).($userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):'')
+            : 'about:blank';
+        ?>
         <div id="app-icon-rail"<?php echo $showAppRail ? '' : ' class="hidden" style="display:none"'; ?>>
             <div class="app-rail-scroll">
             <a href="/main" class="app-rail-link app-rail-home shell-home-link" title="<?php echo my_htmlspecialchars($translations['home_tooltip'] ?? $translations['home'] ?? 'Home'); ?>"><svg viewBox="0 0 24 24" fill="currentColor" width="60%" height="60%"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
             <span class="app-rail-service-name"><?php echo $showAppFrame ? my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)) : ''; ?></span>
             </div>
         </div>
-        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="<?php echo $showAppFrame ? 'apps/'.urlencode($selectedApp).'/'.($selectedApp === 'lopaka' ? '' : 'index.php').'?lang='.urlencode($language).'&theme='.urlencode($appIframeTheme).'&color='.urlencode($config['color']).($userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):'') : 'about:blank'; ?>"></iframe>
+        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="<?php echo $appIframeBootDefer ? 'about:blank' : my_htmlspecialchars($appIframeSrc); ?>"<?php if ($appIframeBootDefer): ?> data-boot-src="<?php echo my_htmlspecialchars($appIframeSrc); ?>"<?php endif; ?>></iframe>
+        <?php if ($appIframeBootDefer): ?>
+        <script>(function(){var iframe=document.getElementById('app-iframe');if(!iframe)return;var boot=iframe.getAttribute('data-boot-src');if(!boot)return;var t=window.__AP_BOOT_THEME__||'light';try{var u=new URL(boot,window.location.href);u.searchParams.set('theme',t);iframe.setAttribute('src',u.toString());}catch(e){iframe.setAttribute('src',boot);}iframe.removeAttribute('data-boot-src');})();</script>
+        <?php endif; ?>
     </div>
     <?php endif; ?>
 </div>
@@ -4898,7 +4849,7 @@ var T=<?php echo json_encode([
     }
     document.addEventListener('DOMContentLoaded',function(){
         const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-    const browserTheme = prefersDark ? 'dark' : 'light';
+    const browserTheme = (window.__AP_BOOT_THEME__ === 'dark' || window.__AP_BOOT_THEME__ === 'light') ? window.__AP_BOOT_THEME__ : (prefersDark ? 'dark' : 'light');
     window.apSetPreferenceCookie('browser_theme', browserTheme, 86400);
         applyThemeRuntime(<?php echo $showLogin ? ($themeFromUrl ? json_encode($config['theme'], JSON_HEX_TAG) : 'browserTheme') : 'getSelectedThemeValue()'; ?>);
 
@@ -5482,14 +5433,16 @@ var T=<?php echo json_encode([
         if(document.querySelector('select[name="theme"] option[value="auto"]:checked')){updateThemeBasedOnSystem();}
         function getSelectedThemeValue(){const themeInput=document.getElementById('theme-input');const themeSelect=document.querySelector('select[name="theme"]');return themeInput?themeInput.value:(themeSelect?themeSelect.value:'light');}
         function resolveTheme(theme){return theme==='auto'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;}
-        function updateEdgeAppShellTheme(theme){const content=document.getElementById('content');if(!content)return;if(content.classList.contains('app-edge-gitea')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#1e1f20':'#f6f8fa');content.style.setProperty('--app-edge-border',theme==='dark'?'#30363d':'#d0d7de');content.style.setProperty('--app-edge-text',theme==='dark'?'#f0f6fc':'#24292f');}else if(content.classList.contains('app-edge-immich')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#000000':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1f2937':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f9fafb':'#111827');}else if(content.classList.contains('app-edge-plane')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#0c0d0e':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1e293b':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f8fafc':'#111827');}else if(content.classList.contains('app-edge-dawarich')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#1a1a1a':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1e293b':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f8fafc':'#0f172a');}else if(content.classList.contains('app-edge-x')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#000000':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#2f3336':'#cfd9de');content.style.setProperty('--app-edge-text',theme==='dark'?'#e7e9ea':'#0f1419');}else if(content.classList.contains('app-edge-lopaka')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#0a0a0a':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#1f2937':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#f9fafb':'#111827');}else if(content.classList.contains('app-edge-kanboard')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#12161D':'#F7F8FA');content.style.setProperty('--app-edge-border',theme==='dark'?'#2a303b':'#e6e8ec');content.style.setProperty('--app-edge-text',theme==='dark'?'#e8eaed':'#1a1d23');}else if(content.classList.contains('app-edge-sentry')){content.style.setProperty('--app-edge-bg',theme==='dark'?'#12161D':'#ffffff');content.style.setProperty('--app-edge-border',theme==='dark'?'#2a303b':'#e5e7eb');content.style.setProperty('--app-edge-text',theme==='dark'?'#e8eaed':'#111827');}}
+        function updateEdgeAppShellTheme(theme){const content=document.getElementById('content');if(!content)return;const dark=theme==='dark';const map={gitea:dark?['#1A1B1E','#1A1B1E','#f0f6fc']:['#F9FAFB','#F9FAFB','#24292f'],immich:dark?['#000000','#000000','#f9fafb']:['#FEFEFE','#FEFEFE','#111827'],plane:dark?['#0c0d0e','#0c0d0e','#f8fafc']:['#ffffff','#ffffff','#111827'],dawarich:dark?['#1B1B1B','#1B1B1B','#f8fafc']:['#F7F7F7','#F7F7F7','#0f172a'],x:dark?['#000000','#000000','#e7e9ea']:['#ffffff','#ffffff','#0f1419'],lopaka:dark?['#0a0a0a','#0a0a0a','#f9fafb']:['#ffffff','#ffffff','#111827'],kanboard:dark?['#12161D','#12161D','#e8eaed']:['#F7F8FA','#F7F8FA','#1a1d23'],sentry:dark?['#282A2C','#282A2C','#e8eaed']:['#E8E8EA','#E8E8EA','#111827']};let colors=null;for(const key of Object.keys(map)){if(content.classList.contains('app-edge-'+key)){colors=map[key];break;}}if(!colors){content.style.removeProperty('--app-edge-bg');content.style.removeProperty('--app-edge-border');content.style.removeProperty('--app-edge-text');return;}content.style.setProperty('--app-edge-bg',colors[0]);content.style.setProperty('--app-edge-border',colors[1]);content.style.setProperty('--app-edge-text',colors[2]);}
+        window.updateEdgeAppShellTheme=updateEdgeAppShellTheme;
         function updateOmniRouteEdgeTheme(theme){const root=document.documentElement;if(theme==='dark'){root.style.setProperty('--ap-omniroute-edge-bg','#0b0d10');root.style.setProperty('--ap-omniroute-edge-border','#1b2330');root.style.setProperty('--ap-omniroute-edge-text','#e5edf7');root.style.setProperty('--ap-omniroute-edge-hover','#121823');root.style.setProperty('--ap-omniroute-edge-active','#172033');root.style.setProperty('--ap-omniroute-edge-active-border','#2b3b52');}else{root.style.setProperty('--ap-omniroute-edge-bg','#f8fafc');root.style.setProperty('--ap-omniroute-edge-border','#dbe3ed');root.style.setProperty('--ap-omniroute-edge-text','#111827');root.style.setProperty('--ap-omniroute-edge-hover','#eef3f8');root.style.setProperty('--ap-omniroute-edge-active','#e6edf5');root.style.setProperty('--ap-omniroute-edge-active-border','#c7d3e0');}}
 function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.body.classList.toggle('dark-theme',resolved==='dark');document.body.classList.toggle('light-theme',resolved!=='dark');document.body.classList.toggle('theme-dark',resolved==='dark');document.body.classList.toggle('theme-light',resolved!=='dark');const authThemeToggle=document.getElementById('authThemeToggle');if(authThemeToggle){authThemeToggle.querySelectorAll('button').forEach(b=>b.classList.toggle('active',b.dataset.theme===resolved));}updateCSSVariables(resolved);applyThemeToAuthModal(resolved);updateAppIframeTheme(theme);updateEdgeAppShellTheme(resolved);updateOmniRouteEdgeTheme(resolved);if(typeof injectOmniRouteTheme==='function')injectOmniRouteTheme();}
         window.applyThemeRuntime=applyThemeRuntime;
         function detectAndApplySystemTheme(){if(getSelectedThemeValue()==='auto')applyThemeRuntime('auto');}
         function updateCSSVariables(theme){const root=document.documentElement;if(theme==='dark'){root.style.setProperty('--bg-color','#0f1419');root.style.setProperty('--text-color','#f4f7fb');root.style.setProperty('--sidebar-bg','rgba(16,22,30,0.58)');root.style.setProperty('--group-block-bg','rgba(255,255,255,0.10)');root.style.setProperty('--app-item-bg','rgba(255,255,255,0.12)');root.style.setProperty('--tooltip-bg','rgba(18,22,28,0.82)');root.style.setProperty('--modal-bg','rgba(18,24,32,0.62)');root.style.setProperty('--border-color','rgba(255,255,255,0.14)');root.style.setProperty('--scrollbar-track','rgba(255,255,255,0.04)');root.style.setProperty('--scrollbar-thumb','rgba(255,255,255,0.22)');root.style.setProperty('--scrollbar-thumb-hover','rgba(255,255,255,0.35)');root.style.setProperty('--icon-bg-color','rgba(18,24,32,0.8)');root.style.setProperty('--link-color','#e8eef5');root.style.setProperty('--link-hover-color',getComputedStyle(root).getPropertyValue('--primary-color'));root.style.setProperty('--table-header-bg','rgba(255,255,255,0.08)');root.style.setProperty('--table-row-hover','rgba(255,255,255,0.10)');root.style.setProperty('--app-icon-grad-start','color-mix(in srgb,var(--primary-color) 72%,white)');root.style.setProperty('--app-icon-grad-end','color-mix(in srgb,var(--primary-color) 88%,black)');}else{root.style.setProperty('--bg-color','#e8eef5');root.style.setProperty('--text-color','#1a2332');root.style.setProperty('--sidebar-bg','rgba(255,255,255,0.62)');root.style.setProperty('--group-block-bg','rgba(255,255,255,0.20)');root.style.setProperty('--app-item-bg','rgba(255,255,255,0.20)');root.style.setProperty('--tooltip-bg','rgba(255,255,255,0.88)');root.style.setProperty('--modal-bg','rgba(255,255,255,0.68)');root.style.setProperty('--border-color','rgba(15,30,50,0.14)');root.style.setProperty('--scrollbar-track','rgba(0,0,0,0.04)');root.style.setProperty('--scrollbar-thumb','rgba(0,0,0,0.2)');root.style.setProperty('--scrollbar-thumb-hover','rgba(0,0,0,0.35)');root.style.setProperty('--icon-bg-color','rgba(255,255,255,0.20)');root.style.setProperty('--link-color','#1a2332');root.style.setProperty('--link-hover-color',getComputedStyle(root).getPropertyValue('--primary-color'));root.style.setProperty('--table-header-bg','rgba(255,255,255,0.78)');root.style.setProperty('--table-row-hover','rgba(0,0,0,0.05)');root.style.setProperty('--app-icon-grad-start','color-mix(in srgb,var(--primary-color) 84%,black)');root.style.setProperty('--app-icon-grad-end','color-mix(in srgb,var(--primary-color) 65%,black)');}}
         function updateScrollbarStyles(theme){/* handled by CSS variables updated in updateCSSVariables */}        function applyAutoTheme(){if(getSelectedThemeValue()==='auto'){applyThemeRuntime('auto');updateScrollbarStyles(resolveTheme('auto'));}}
-        function updateAppIframeTheme(theme){const iframe=document.getElementById('app-iframe');if(!iframe)return;const url=new URL(iframe.src,window.location.href);const isKanboard=/\/apps\/kanboard(\/|$)/.test(url.pathname);const selected=typeof getSelectedThemeValue==='function'?getSelectedThemeValue():'light';const resolved=theme==='auto'||theme==='device'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;const pass=(isKanboard&&(selected==='auto'||selected==='device'))?'auto':resolved;url.searchParams.set('theme',pass);const newSrc=url.toString();if(newSrc!==iframe.src){iframe.src=newSrc;}}
+        function postThemeToAppIframe(theme){const iframe=document.getElementById('app-iframe');if(!iframe||!iframe.contentWindow)return;const resolved=theme==='auto'||theme==='device'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;if(resolved!=='light'&&resolved!=='dark')return;try{iframe.contentWindow.postMessage({type:'appdashboard-theme',theme:resolved},'*');}catch(e){}}
+        function updateAppIframeTheme(theme){const iframe=document.getElementById('app-iframe');if(!iframe)return;const url=new URL(iframe.src,window.location.href);if(!url.pathname||url.pathname==='/'||url.href==='about:blank'||url.protocol==='about:')return;const isKanboard=/\/apps\/kanboard(\/|$)/.test(url.pathname);const selected=typeof getSelectedThemeValue==='function'?getSelectedThemeValue():'light';const resolved=theme==='auto'||theme==='device'?(window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light'):theme;const pass=(isKanboard&&(selected==='auto'||selected==='device'))?'auto':resolved;url.searchParams.set('theme',pass);const newSrc=url.toString();if(newSrc!==iframe.src){iframe.src=newSrc;}else{postThemeToAppIframe(pass);}iframe.addEventListener('load',function onThemeLoad(){postThemeToAppIframe(pass);},{once:true});}
         document.querySelectorAll('.password-toggle').forEach(button=>{button.addEventListener('click',function(){const targetId=this.getAttribute('data-target');const input=document.getElementById(targetId);const icon=this.querySelector('svg');if(input){if(input.type==='password'){input.type='text';icon.innerHTML='<path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/>';}else{input.type='password';icon.innerHTML='<path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/>';}}});});
         document.addEventListener('keydown',function(e){if(e.key==='ArrowDown'||e.key==='ArrowUp'){var ae=document.activeElement;if(!ae||ae.tagName!=='INPUT')return;var form=ae.closest('form');if(!form)return;var inputs=Array.from(form.querySelectorAll('input.auth-input[type="email"],input.auth-input[type="password"],input.auth-input[type="text"]:not([type="hidden"])'));var idx=inputs.indexOf(ae);if(idx===-1)return;var next=e.key==='ArrowDown'?idx+1:idx-1;if(next>=0&&next<inputs.length){e.preventDefault();inputs[next].focus();}}});
         const refreshSessionsButton=document.getElementById('refresh-sessions');
@@ -5928,6 +5881,11 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
         function sharedFileText(value){
             return String(value == null ? '' : value).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
         }
+        function apLoadSessionsFragment(){
+            const box=document.getElementById('sessions-list-container');
+            if(!box)return;
+            fetch('/main?api=shell_fragment&name=sessions',{credentials:'same-origin'}).then(function(r){return r.text();}).then(function(html){box.innerHTML=html;}).catch(function(){});
+        }
         function renderSharedFilesTable(files){
             const container = document.getElementById('shared-files-list-container');
             if(!container) return;
@@ -6204,70 +6162,24 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
 
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(qrButton&&qrCodeElement){qrButton.addEventListener('click',async ()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();
-            async function ensureQrCodeStyling(){
-                if(typeof QRCodeStyling !== 'undefined') return QRCodeStyling;
-                const url='https://cdn.jsdelivr.net/npm/qr-code-styling@1.5.0/lib/qr-code-styling.js';
-                const res=await fetch(url,{cache:'no-store'});
-                if(!res.ok) throw new Error('HTTP '+res.status);
-                const code=await res.text();
-                // This app defines AMD (`define.amd`), so qr-code-styling's UMD chooses the AMD branch
-                // and doesn't attach to window/global. Temporarily disable `define` to force browser global.
-                const prevDefine=(typeof define !== 'undefined')?define:undefined;
-                try{
-                    if(typeof window !== 'undefined') window.define=undefined;
-                    if(typeof self !== 'undefined') self.define=undefined;
-                    (0,eval)(code);
-                }finally{
-                    if(typeof window !== 'undefined' && typeof prevDefine !== 'undefined') window.define=prevDefine;
-                    if(typeof self !== 'undefined' && typeof prevDefine !== 'undefined') self.define=prevDefine;
-                }
-
-                if(typeof window !== 'undefined' && typeof window.QRCodeStyling !== 'undefined') return window.QRCodeStyling;
-                if(typeof self !== 'undefined' && typeof self.QRCodeStyling !== 'undefined') return self.QRCodeStyling;
-                return QRCodeStyling;
-            }
-
             try{
-                const QRCodeStylingCtor=await ensureQrCodeStyling();
-                if(typeof QRCodeStylingCtor === 'undefined'){
-                    qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_library_not_loaded+'</p><p>'+T.qr_refresh_page+'</p></div>';
-                    return;
+                if(typeof window.apRenderQrInto==='function'){
+                    await window.apRenderQrInto(qrCodeElement, domain, 256);
+                }else if(typeof window.apEnsureQrCodeStyling==='function'){
+                    const QRCodeStylingCtor=await window.apEnsureQrCodeStyling();
+                    qrCodeElement.innerHTML='';
+                    const host=document.createElement('div');
+                    host.style.width='100%';host.style.display='grid';host.style.placeItems='center';
+                    qrCodeElement.appendChild(host);
+                    new QRCodeStylingCtor(window.apQrStyleOptions(domain,256)).append(host);
+                }else{
+                    throw new Error('QR loader missing');
                 }
-
-                qrCodeElement.innerHTML='';
-                const host=document.createElement('div');
-                host.style.width='100%';
-                host.style.display='grid';
-                host.style.placeItems='center';
-                qrCodeElement.appendChild(host);
-
-                const qr=new QRCodeStylingCtor({
-                    width:256,
-                    height:256,
-                    type:'svg',
-                    data:domain,
-                    margin:8,
-                    qrOptions:{errorCorrectionLevel:'H'},
-                    dotsOptions:{
-                        type:'rounded',
-                        gradient:{
-                            type:'linear',
-                            rotation:Math.PI/4,
-                            colorStops:[
-                                {offset:0,color:'#7c3aed'},
-                                {offset:0.5,color:'#2563eb'},
-                                {offset:1,color:'#06b6d4'}
-                            ]
-                        }
-                    },
-                    cornersSquareOptions:{type:'extra-rounded',color:'#2563eb'},
-                    cornersDotOptions:{type:'dot',color:'#7c3aed'},
-                    backgroundOptions:{color:'rgba(255,255,255,0)'}
-                });
-                qr.append(host);
             }catch(error){
                 console.error('QR Code error:',error);
-                qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';
+                if(!qrCodeElement.querySelector('img,svg,canvas')){
+                    qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';
+                }
             }
         }});}
         if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
@@ -6473,52 +6385,46 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 }
             }, 100);
 
-            // Scan files via AJAX
             const formData = new FormData();
             formData.append('scan_user_files', '1');
             formData.append('ajax', '1');
             formData.append('user_email', email);
-            fetch('/main', { method: 'POST', body: formData })
+            fetch('/main', { method: 'POST', body: formData, credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'} })
                 .then(r => r.json())
                 .then(data => {
-                    // Stop progress animation
                     clearInterval(progressInterval);
-
-                    // Set to 100%
                     if(progressBar) progressBar.style.width = '100%';
                     if(progressPercent) progressPercent.textContent = '100%';
                     if(timeRemaining) timeRemaining.textContent = '<?php echo my_htmlspecialchars($translations['complete'] ?? 'Complete'); ?>!';
-
-                    // Small delay to show completion
                     setTimeout(() => {
                         if(scanning) scanning.style.display = 'none';
                         if(progressSection) progressSection.style.display = 'none';
                         if(filesLoaded) filesLoaded.style.display = 'block';
-                        if(data.success){
-                            const files = data.files || [];
-                            if(fileCount) fileCount.textContent = '(' + files.length + ' <?php echo my_htmlspecialchars($translations['files'] ?? 'files'); ?>)';
-                            if(totalSize) totalSize.textContent = data.total_size_human || '0 B';
-                            if(filesList){
-                                if(files.length === 0){
-                                    filesList.innerHTML = '<div class="no-files-msg"><?php echo my_htmlspecialchars($translations['no_user_files'] ?? 'No user files found in configured paths'); ?></div>';
-                                } else {
-                                    filesList.innerHTML = files.map(f =>
-                                        `<div class="delete-user-file-row">
-                                            <span class="delete-user-file-app">${escHtml(f.app)}</span>
-                                            <span class="delete-user-file-name" title="${escHtml(f.path)}">${escHtml(f.name)}</span>
-                                            <span class="delete-user-file-size">${formatBytesJS(f.size)}</span>
-                                        </div>`
-                                    ).join('');
-                                }
+                        const files = (data && data.files) || [];
+                        if(fileCount) fileCount.textContent = '(' + files.length + (data && data.truncated ? '+' : '') + ' <?php echo my_htmlspecialchars($translations['files'] ?? 'files'); ?>)';
+                        if(totalSize) totalSize.textContent = (data && data.total_size_human) || '0 B';
+                        if(filesList){
+                            if(!data || data.success === false){
+                                filesList.innerHTML = '<div class="no-files-msg">' + escHtml((data && (data.message || data.error)) || 'Scan failed') + '</div>';
+                            } else if(files.length === 0){
+                                filesList.innerHTML = '<div class="no-files-msg"><?php echo my_htmlspecialchars($translations['no_user_files'] ?? 'No user files found in configured paths'); ?></div>';
+                            } else {
+                                filesList.innerHTML = files.map(f =>
+                                    `<div class="delete-user-file-row">
+                                        <span class="delete-user-file-app">${escHtml(f.app)}</span>
+                                        <span class="delete-user-file-name" title="${escHtml(f.path)}">${escHtml(f.name)}</span>
+                                        <span class="delete-user-file-size">${formatBytesJS(f.size)}</span>
+                                    </div>`
+                                ).join('');
                             }
                         }
                     }, 300);
-                }).catch(() => {
+                }).catch((err) => {
                     clearInterval(progressInterval);
                     if(scanning) scanning.style.display = 'none';
                     if(progressSection) progressSection.style.display = 'none';
                     if(filesLoaded) filesLoaded.style.display = 'block';
-                    if(filesList) filesList.innerHTML = '<div class="no-files-msg"><?php echo my_htmlspecialchars($translations['no_user_files'] ?? 'No user files found in configured paths'); ?></div>';
+                    if(filesList) filesList.innerHTML = '<div class="no-files-msg">' + escHtml((err && err.message) || 'Scan failed') + '</div>';
                 });
         }
 
@@ -6537,8 +6443,9 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 formData.append('ajax', '1');
                 formData.append('user_email', email);
                 if(withFiles) formData.append('delete_files', '1');
+                if(typeof window.__AP_CSRF__==='string'&&window.__AP_CSRF__) formData.append('_csrf', window.__AP_CSRF__);
 
-                fetch('/main', { method: 'POST', body: formData })
+                fetch('/main', { method: 'POST', body: formData, credentials:'same-origin', headers:{'X-Requested-With':'XMLHttpRequest'} })
                     .then(r => r.json())
                     .then(data => {
                         if(data.success){
@@ -7125,7 +7032,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         })();
         if(emailButton){emailButton.addEventListener('click',()=>{closeAllModals();if(emailModal){emailModal.style.display='flex';}});if(closeEmail){closeEmail.addEventListener('click',()=>{if(emailModal){emailModal.style.display='none';}});}if(emailModal){emailModal.addEventListener('click',(e)=>{if(e.target===emailModal){emailModal.style.display='none';}});}}
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
-        if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
+        if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';apLoadSessionsFragment();}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
         const modalButtons=[qrButton,emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
         if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else openSidebarMenu(); });}
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}

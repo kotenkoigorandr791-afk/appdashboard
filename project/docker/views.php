@@ -36,28 +36,9 @@ function ico($n) {
 }
 
 function viewPageShell($title, $innerHtml) {
-    if (!headers_sent()) {
-        header('Content-Type: text/html; charset=UTF-8');
-    }
-    global $theme, $accent, $embed;
-    $bg = $theme === 'light' ? '#f3f6fb' : '#0f1419';
-    $text = $theme === 'light' ? '#0f172a' : '#f4f7fb';
-    $surface = $theme === 'light' ? '#ffffff' : 'rgba(18,24,32,0.8)';
-    $surfaceHover = $theme === 'light' ? '#eef3fb' : 'rgba(255,255,255,0.10)';
-    $border = $theme === 'light' ? '#d7deeb' : 'rgba(255,255,255,0.14)';
-    $muted = $theme === 'light' ? '#64748b' : 'rgba(255,255,255,0.42)';
-    $scrollTrack = $theme === 'light' ? '#e6ebf3' : 'rgba(255,255,255,0.04)';
-    $scrollThumb = $theme === 'light' ? '#aeb9c9' : 'rgba(255,255,255,0.22)';
-    $scrollThumbHover = $theme === 'light' ? '#8794a8' : 'rgba(255,255,255,0.35)';
-    $accentEsc = htmlspecialchars($accent, ENT_QUOTES, 'UTF-8');
-    $bar = $embed ? '' : '<div class="bar"><a href="' . htmlspecialchars(dockerUrl(['view' => null, 'id' => null]), ENT_QUOTES, 'UTF-8') . '">&larr; ' . htmlspecialchars(t('back'), ENT_QUOTES, 'UTF-8') . '</a></div>';
-    echo '<!DOCTYPE html><html lang="' . htmlspecialchars($GLOBALS['lang'], ENT_QUOTES, 'UTF-8') . '"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' . htmlspecialchars($title, ENT_QUOTES, 'UTF-8') . '</title><style>:root{--bg:' . $bg . ';--surface:' . $surface . ';--surface-hover:' . $surfaceHover . ';--border:' . $border . ';--text:' . $text . ';--muted:' . $muted . ';--accent:' . $accentEsc . ';--danger:#f87171;--ok:#4ade80;--warn:#fbbf24;--scroll-track:' . $scrollTrack . ';--scroll-thumb:' . $scrollThumb . ';--scroll-thumb-hover:' . $scrollThumbHover . '}*{box-sizing:border-box;scrollbar-width:thin;scrollbar-color:var(--scroll-thumb) var(--scroll-track)}::-webkit-scrollbar{width:9px;height:9px}::-webkit-scrollbar-track{background:var(--scroll-track);border-radius:8px}::-webkit-scrollbar-thumb{background:var(--scroll-thumb);border:2px solid var(--scroll-track);border-radius:8px}::-webkit-scrollbar-thumb:hover{background:var(--scroll-thumb-hover)}body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;background:var(--bg);color:var(--text);margin:0;padding:' . ($embed ? '16px' : '20px') . ';line-height:1.5}a{color:var(--accent)}h1{font-size:22px;margin:0 0 18px}.bar{margin-bottom:16px}.view-panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
-.log-toolbar{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:14px}
-.log-toolbar h1{margin:0;font-size:18px}
-.log-copy-btn{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--surface-hover);color:var(--text);cursor:pointer;font-size:13px;font-weight:500;transition:all .2s ease;flex-shrink:0;margin-left:auto}
-.log-copy-btn:hover{background:var(--accent);color:#fff;border-color:var(--accent);transform:scale(1.04)}.log-copy-btn:active{transform:scale(0.96)}
-.log-copy-btn .ico{transition:transform .25s ease}.log-copy-btn.copied{background:var(--ok);color:#000;border-color:var(--ok)}.log-copy-btn.copied .ico{transform:rotateY(360deg)}
-.log-code,.json-pre{white-space:pre-wrap;word-break:break-word;background:rgba(0,0,0,.16);border:1px solid var(--border);padding:12px;border-radius:8px;font:13px/1.55 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:var(--text);max-height:70vh;overflow:auto}.log-line{padding:1px 6px;border-left:3px solid transparent}.log-error{background:rgba(248,113,113,.10);border-left-color:var(--danger)}.log-warn{background:rgba(251,191,36,.10);border-left-color:var(--warn)}.log-info{border-left-color:var(--accent)}.log-debug{color:var(--muted)}.log-json{color:#c4b5fd}.log-time{color:#7dd3fc}.log-level{font-weight:700}.log-level-error{color:var(--danger)}.log-level-warn{color:var(--warn)}.log-level-info{color:var(--ok)}.log-level-debug{color:#93c5fd}.log-json-key{color:#f0abfc}.stats-grid-view{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px}.metric{background:var(--surface-hover);border:1px solid var(--border);border-radius:8px;padding:14px}.metric-head{display:flex;justify-content:space-between;gap:12px;align-items:center;margin-bottom:10px;font-size:13px;color:var(--muted)}.metric-head strong{color:var(--text);font-size:13px;text-align:right}.metric-bar{height:10px;border-radius:999px;background:rgba(0,0,0,.22);overflow:hidden;border:1px solid var(--border)}.metric-bar span{display:block;height:100%;background:var(--accent);border-radius:999px}.metric.warn .metric-bar span{background:var(--warn)}.metric.danger .metric-bar span{background:var(--danger)}.metric.ok .metric-bar span{background:var(--ok)}.detail-list{display:grid;gap:8px;margin-top:14px;color:var(--muted);font-size:13px}.detail-list strong{color:var(--text)}details{margin-top:16px}summary{cursor:pointer;color:var(--accent);margin-bottom:10px}</style></head><body>' . $bar . $innerHtml . '</body></html>';
+    global $embed;
+    $bar = ($embed || dockerIsFragment()) ? '' : '<div class="bar"><a href="' . htmlspecialchars(dockerUrl(['view' => null, 'id' => null]), ENT_QUOTES, 'UTF-8') . '">&larr; ' . htmlspecialchars(t('back'), ENT_QUOTES, 'UTF-8') . '</a></div>';
+    dockerOutput('<div class="docker-view">' . $bar . $innerHtml . '</div>', (string)$title, true);
 }
 
 function renderHighlightedLogs($text) {

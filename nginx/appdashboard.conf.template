@@ -20,7 +20,7 @@ map $is_secure_conn $uir_token {
     default "";
 }
 limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
-limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=120r/m;
+limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=600r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_heavy:10m rate=60r/m;
 limit_req_status 429;
@@ -55,6 +55,11 @@ server {
 
     client_max_body_size 8m;
 
+    brotli on;
+    brotli_static on;
+    brotli_comp_level 5;
+    brotli_min_length 1024;
+    brotli_types text/html text/css application/javascript application/json image/svg+xml text/plain text/xml application/xml font/ttf font/otf application/wasm;
     gzip on;
     gzip_vary on;
     gzip_comp_level 5;
@@ -154,7 +159,7 @@ server {
     }
 
     location ^~ /mcp-api/ {
-        limit_req zone=appdashboard_api burst=120 nodelay;
+        limit_req zone=appdashboard_api burst=300 nodelay;
         proxy_pass http://127.0.0.1:8808/;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
@@ -186,7 +191,7 @@ server {
     }
 
     location = /map/api/token {
-        limit_req zone=appdashboard_api burst=60 nodelay;
+        limit_req zone=appdashboard_api burst=200 nodelay;
         rewrite ^ /apps/map/index.php last;
     }
     location = /map/api/tokens {
@@ -226,7 +231,7 @@ server {
         rewrite ^ /index.php last;
     }
     location = /api/client-auth {
-        limit_req zone=appdashboard_api burst=120 nodelay;
+        limit_req zone=appdashboard_api burst=300 nodelay;
         rewrite ^ /index.php?api=client_auth last;
     }
     location = /authorize {
@@ -247,7 +252,7 @@ server {
     }
 
     location ^~ /public-api/ {
-        limit_req zone=appdashboard_api burst=120 nodelay;
+        limit_req zone=appdashboard_api burst=300 nodelay;
         include fastcgi.conf;
         fastcgi_pass unix:/run/php/php-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $document_root/public-api/index.php;
@@ -608,6 +613,7 @@ server {
     }
 
     location ^~ /home/ {
+        modsecurity off;
         alias /var/www/AppDashboard/project/home/;
         try_files $uri =404;
         expires 7d;
@@ -615,12 +621,14 @@ server {
     }
 
     location ^~ /project/assets/ {
+        modsecurity off;
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
     }
 
     location ^~ /project/onboarding/ {
+        modsecurity off;
         try_files $uri =404;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
@@ -634,16 +642,34 @@ server {
     }
 
     location ^~ /preview/ {
+        modsecurity off;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
     }
 
     location ~* \.(?:png|jpe?g|gif|svg|ico|woff2?|ttf|otf|eot)$ {
+        modsecurity off;
         try_files $uri =404;
         expires 7d;
         add_header Cache-Control "public, max-age=604800";
         access_log off;
+    }
+
+    location ~* ^/(?:apps/[^/]+/|project/)?(?:assets|static|dist|js|css)/.*\.(?:js|mjs|css|map|json|wasm)$ {
+        modsecurity off;
+        try_files $uri =404;
+        expires 10m;
+        add_header Cache-Control "public, max-age=600, must-revalidate";
+        access_log off;
+    }
+
+    location ~ ^/(?:apps/[^/]+/)?i18n/load\.php$ {
+        modsecurity off;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_hide_header X-Powered-By;
     }
 
     location / {

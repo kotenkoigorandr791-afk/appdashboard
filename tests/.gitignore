@@ -4,3 +4,8 @@ playwright-report/
 # Ignore all hidden files and directories
 .*
 !.gitignore
+
+tmp/
+load/results/
+test-results/
+

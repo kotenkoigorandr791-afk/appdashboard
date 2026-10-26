@@ -147,6 +147,12 @@ shared.loadMonaco({
             monaco: monaco,
             getLang: () => shared.resolveLang(<?= json_encode($lang) ?>)
         });
+        shared.installStandardActions({
+            editor: window.editor,
+            monaco: monaco,
+            container: container,
+            aiEndpoint: false
+        });
     }
 }).catch(function (e) {
     console.error('Monaco failed to load:', e);

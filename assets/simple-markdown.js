@@ -292,12 +292,11 @@
     };
 
     // Export for different module systems
+    global.SimpleMarkdown = SimpleMarkdown;
     if (typeof module !== 'undefined' && module.exports) {
         module.exports = SimpleMarkdown;
     } else if (typeof define === 'function' && define.amd) {
         define(function() { return SimpleMarkdown; });
-    } else {
-        global.SimpleMarkdown = SimpleMarkdown;
     }
 
 })(typeof window !== 'undefined' ? window : this);
