@@ -710,6 +710,57 @@ if (isset($_POST['update_income'])) {
     exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
 }
 
+if (isset($_GET['get_subscriptions'])) {
+    exit(json_encode(['status'=>'success','subscriptions'=>spendsSubscriptionList($udb)]));
+}
+if (isset($_POST['add_subscription'])) {
+    $store      = trim((string)($_POST['store'] ?? ''));
+    $amount     = filter_var($_POST['amount'] ?? 0, FILTER_VALIDATE_FLOAT);
+    $frequency  = (string)($_POST['frequency'] ?? 'monthly');
+    $dayOfMonth = (int)($_POST['day_of_month'] ?? 0);
+    $interval   = (int)($_POST['interval_days'] ?? 0);
+    $startDate  = spendsSubscriptionYmd($_POST['start_date'] ?? '');
+    $endDate    = spendsSubscriptionYmd($_POST['end_date'] ?? '');
+    if ($startDate === '') $startDate = date('Y-m-d');
+    if ($endDate !== '' && strcmp($endDate, $startDate) < 0) $endDate = '';
+    if ($store === '' || $amount === false || $amount <= 0) {
+        exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
+    }
+    if (!in_array($frequency, ['monthly', 'interval'], true)) $frequency = 'monthly';
+    if ($frequency === 'monthly') {
+        if ($dayOfMonth < 1 || $dayOfMonth > 31) $dayOfMonth = (int)substr($startDate, 8, 2);
+        $dayOfMonth = max(1, min(31, $dayOfMonth));
+        $interval = 0;
+    } else {
+        $interval = max(1, min(3650, $interval > 0 ? $interval : 30));
+        $dayOfMonth = 0;
+    }
+    $id = bin2hex(random_bytes(8));
+    $st = $udb->prepare('INSERT INTO subscriptions (id, store, amount, frequency, day_of_month, interval_days, start_date, end_date, last_run, created_at) VALUES (:id, :s, :a, :f, :d, :i, :sd, :ed, NULL, :c)');
+    $st->bindValue(':id', $id);
+    $st->bindValue(':s', $store);
+    $st->bindValue(':a', round((float)$amount, 2), PDO::PARAM_STR);
+    $st->bindValue(':f', $frequency);
+    $st->bindValue(':d', $dayOfMonth, PDO::PARAM_INT);
+    $st->bindValue(':i', $interval, PDO::PARAM_INT);
+    $st->bindValue(':sd', $startDate);
+    if ($endDate === '') $st->bindValue(':ed', null, PDO::PARAM_NULL);
+    else $st->bindValue(':ed', $endDate);
+    $st->bindValue(':c', date('Y-m-d H:i:s'));
+    $st->execute();
+    $added = spendsApplySubscriptions($udb);
+    dbSetSetting($udb, 'subscriptions_synced', date('Y-m-d'));
+    exit(json_encode(['status'=>'success','id'=>$id,'added'=>$added]));
+}
+if (isset($_POST['delete_subscription'])) {
+    $id = trim((string)($_POST['delete_subscription'] ?? ''));
+    if ($id === '') exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
+    $st = $udb->prepare('DELETE FROM subscriptions WHERE id = :id');
+    $st->bindValue(':id', $id);
+    $st->execute();
+    exit(json_encode(['status'=>'success']));
+}
+
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) {
     header('Content-Type: application/json; charset=UTF-8');
     if (empty($_FILES['bank_csv_file']) || (int) ($_FILES['bank_csv_file']['error'] ?? 0) !== UPLOAD_ERR_OK) {

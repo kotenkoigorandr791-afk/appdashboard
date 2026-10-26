@@ -522,7 +522,9 @@ function attachCellContextMenu(input){
                 const rawDisp=raw||t('ocr_detected','OCR');
                 msg=t('cell_info_expense_ocr','{date} · {store} · {amount} · OCR: {raw}').replace(/\{date\}/g,date).replace(/\{store\}/g,store).replace(/\{amount\}/g,amtStr).replace(/\{raw\}/g,rawDisp);
             }else{
-                const lab=t('cell_entry_manual','Manual entry');
+                const lab=source==='subscription'
+                    ? t('cell_entry_subscription','Subscription')
+                    : t('cell_entry_manual','Manual entry');
                 msg=t('cell_info_expense_manual','{date} · {store} · {amount} · {label}').replace(/\{date\}/g,date).replace(/\{store\}/g,store).replace(/\{amount\}/g,amtStr).replace(/\{label\}/g,lab);
             }
             showNotification(msg,'info');
@@ -1256,6 +1258,7 @@ function manualAddPickDate(ymd){
 function manualAddGo(step){
     step = Number(step) || 1;
     closeManualCurrencyMenu();
+    closeManualPeriodMenu();
     if(step >= 2 && !manualAddState.store){
         step = 1;
         showNotification(t('manual_pick_store','Pick a store first'),'info');
@@ -1287,23 +1290,269 @@ function manualAddGo(step){
         }, 80);
     }
 }
-function openManualAddModal(){
+function openManualAddModal(opts){
     manualAddState = { step:1, store:'', date:manualAddYmd(0) };
     manualAddCalView = { year:0, month:0 };
+    manualSubPeriod = 'monthly';
+    manualSubItems = [];
     const search = document.getElementById('manual-store-search');
     if(search) search.value = '';
     const amount = document.getElementById('manual-amount-input');
     if(amount) amount.value = '';
     const hint = document.getElementById('manual-amount-hint');
     if(hint) hint.textContent = '';
+    const subDay = document.getElementById('manual-sub-day');
+    if(subDay) subDay.value = String((new Date()).getDate());
+    const subCount = document.getElementById('manual-sub-count');
+    if(subCount){ subCount.value = '3'; delete subCount.dataset.touched; }
+    const subEnd = document.getElementById('manual-sub-end');
+    if(subEnd) subEnd.value = '';
+    const subEndless = document.getElementById('manual-sub-endless');
+    if(subEndless) subEndless.checked = true;
     manualAddCurrency = manualAddBaseCurrency();
     closeManualCurrencyMenu();
     renderManualCurrency();
     renderManualStoreGrid();
+    renderManualPeriodMenu();
+    renderManualSubscriptions();
+    setManualSubscriptionEnabled(!!(opts && opts.subscription));
     showModal('manual-add-modal');
     manualAddGo(1);
 }
-function closeManualAddModal(){closeManualCurrencyMenu();closeModal('manual-add-modal');}
+function openManualAddFromTable(){
+    closeModal('expenses-table-modal');
+    openManualAddModal({ subscription:true });
+}
+function closeManualAddModal(){
+    closeManualCurrencyMenu();
+    closeManualPeriodMenu();
+    closeModal('manual-add-modal');
+}
+
+// ══ Recurring expenses (subscriptions) ═══════════════════════════════════════
+let manualSubEnabled = false;
+let manualSubPeriod = 'monthly';
+let manualSubItems = [];
+
+function manualSubPeriods(){
+    return [
+        { key:'monthly', label:t('manual_sub_monthly','Once a month') },
+        { key:'weekly',  label:t('manual_sub_weekly','Once a week') },
+        { key:'weeks',   label:t('manual_sub_weeks','Every N weeks') },
+        { key:'days',    label:t('manual_sub_days','Every N days') }
+    ];
+}
+function renderManualPeriodMenu(){
+    const items = manualSubPeriods();
+    const label = document.getElementById('manual-sub-period-label');
+    if(label){
+        const current = items.find(item => item.key === manualSubPeriod) || items[0];
+        label.textContent = current.label;
+    }
+    const menu = document.getElementById('manual-sub-period-menu');
+    if(!menu) return;
+    menu.textContent = '';
+    items.forEach(item => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.className = 'manual-sub-period-opt';
+        b.setAttribute('role','option');
+        b.setAttribute('data-period', item.key);
+        b.setAttribute('aria-selected', item.key === manualSubPeriod ? 'true' : 'false');
+        const name = document.createElement('span');
+        name.textContent = item.label;
+        b.appendChild(name);
+        if(item.key === manualSubPeriod) b.appendChild(manualCurrencyCheckIcon());
+        b.onclick = (e) => { e.stopPropagation(); manualAddSetPeriod(item.key); };
+        menu.appendChild(b);
+    });
+}
+function toggleManualPeriodMenu(e){
+    if(e) e.stopPropagation();
+    const menu = document.getElementById('manual-sub-period-menu');
+    const btn  = document.getElementById('manual-sub-period-btn');
+    if(!menu) return;
+    renderManualPeriodMenu();
+    const open = !menu.classList.contains('open');
+    menu.classList.toggle('open', open);
+    menu.setAttribute('aria-hidden', open ? 'false' : 'true');
+    if(btn) btn.setAttribute('aria-expanded', open ? 'true' : 'false');
+}
+function closeManualPeriodMenu(){
+    const menu = document.getElementById('manual-sub-period-menu');
+    const btn  = document.getElementById('manual-sub-period-btn');
+    if(menu){ menu.classList.remove('open'); menu.setAttribute('aria-hidden','true'); }
+    if(btn) btn.setAttribute('aria-expanded','false');
+}
+function manualAddSetPeriod(key){
+    if(!manualSubPeriods().some(item => item.key === key)) return;
+    manualSubPeriod = key;
+    closeManualPeriodMenu();
+    renderManualPeriodMenu();
+    syncManualSubFields();
+}
+function syncManualSubFields(){
+    const dayField   = document.getElementById('manual-sub-day-field');
+    const countField = document.getElementById('manual-sub-count-field');
+    const unit       = document.getElementById('manual-sub-count-unit');
+    const countInput = document.getElementById('manual-sub-count');
+    const isMonthly  = manualSubPeriod === 'monthly';
+    if(dayField) dayField.hidden = !isMonthly;
+    if(countField) countField.hidden = isMonthly;
+    if(unit){
+        unit.textContent = manualSubPeriod === 'weeks'
+            ? t('manual_sub_unit_weeks','wk')
+            : t('manual_sub_unit_days','days');
+    }
+    if(countInput && manualSubPeriod === 'weekly' && !countInput.dataset.touched) countInput.value = '1';
+    renderManualSubHint();
+}
+function renderManualSubHint(){
+    const hint = document.getElementById('manual-sub-hint');
+    if(!hint) return;
+    if(manualSubPeriod !== 'monthly'){ hint.textContent = ''; return; }
+    const raw = parseInt(document.getElementById('manual-sub-day')?.value || '1', 10) || 1;
+    const day = Math.max(1, Math.min(31, raw));
+    hint.textContent = day >= 29 ? t('manual_sub_day_hint','A day that does not exist in a month moves to its last day.') : '';
+}
+function syncManualSubEnd(){
+    const endless = document.getElementById('manual-sub-endless');
+    const end = document.getElementById('manual-sub-end');
+    if(!end) return;
+    const isEndless = !endless || endless.checked;
+    end.disabled = isEndless;
+    if(isEndless) end.value = '';
+}
+function syncManualSubBody(){
+    const cb = document.getElementById('manual-sub-enabled');
+    manualSubEnabled = !!(cb && cb.checked);
+    const body = document.getElementById('manual-sub-body');
+    if(body) body.hidden = !manualSubEnabled;
+    if(!manualSubEnabled){
+        closeManualPeriodMenu();
+        return;
+    }
+    renderManualPeriodMenu();
+    syncManualSubFields();
+    syncManualSubEnd();
+    loadManualSubscriptions();
+}
+function setManualSubscriptionEnabled(on){
+    manualSubEnabled = !!on;
+    const cb = document.getElementById('manual-sub-enabled');
+    if(cb) cb.checked = manualSubEnabled;
+    syncManualSubBody();
+}
+function manualSubPayload(store, amount, date){
+    let frequency = 'monthly';
+    let dayOfMonth = 0;
+    let intervalDays = 0;
+    if(manualSubPeriod === 'monthly'){
+        const raw = parseInt(document.getElementById('manual-sub-day')?.value || '1', 10) || 1;
+        dayOfMonth = Math.max(1, Math.min(31, raw));
+    }else{
+        frequency = 'interval';
+        const raw = parseInt(document.getElementById('manual-sub-count')?.value || '1', 10) || 1;
+        const n = Math.max(1, Math.min(365, raw));
+        intervalDays = manualSubPeriod === 'weeks' ? n * 7 : (manualSubPeriod === 'weekly' ? 7 : n);
+    }
+    const endless = document.getElementById('manual-sub-endless');
+    const endInput = document.getElementById('manual-sub-end');
+    const endDate = (!endless || endless.checked) ? '' : (endInput && endInput.value ? endInput.value : '');
+    return {
+        store,
+        amount,
+        frequency,
+        day_of_month: dayOfMonth,
+        interval_days: intervalDays,
+        start_date: date,
+        end_date: endDate
+    };
+}
+function manualSubPeriodText(sub){
+    if(sub.frequency === 'monthly'){
+        return `${t('manual_sub_monthly','Once a month')} · ${sub.day_of_month}`;
+    }
+    const days = Number(sub.interval_days) || 1;
+    if(days === 7) return t('manual_sub_weekly','Once a week');
+    if(days % 7 === 0) return `${t('manual_sub_every','Every')} ${days / 7} ${t('manual_sub_unit_weeks','wk')}`;
+    return `${t('manual_sub_every','Every')} ${days} ${t('manual_sub_unit_days','days')}`;
+}
+function renderManualSubscriptions(){
+    const list = document.getElementById('manual-sub-list');
+    if(!list) return;
+    list.textContent = '';
+    if(!manualSubItems.length){
+        const empty = document.createElement('div');
+        empty.className = 'manual-sub-empty';
+        empty.textContent = t('manual_sub_none','No active subscriptions');
+        list.appendChild(empty);
+        return;
+    }
+    manualSubItems.forEach(sub => {
+        const row = document.createElement('div');
+        row.className = 'manual-sub-item';
+        row.setAttribute('data-sub-id', sub.id);
+        row.appendChild(manualAddStoreAvatar(sub.store));
+        const main = document.createElement('div');
+        main.className = 'manual-sub-item-main';
+        const title = document.createElement('strong');
+        title.textContent = `${sub.store} · ${money(sub.amount)}`;
+        const meta = document.createElement('span');
+        meta.textContent = manualSubPeriodText(sub) + (sub.end_date ? ` · ${t('manual_sub_until','Valid until')} ${sub.end_date}` : '');
+        main.append(title, meta);
+        row.appendChild(main);
+        const del = document.createElement('button');
+        del.type = 'button';
+        del.className = 'manual-sub-item-del';
+        del.textContent = t('delete','Delete');
+        del.onclick = () => deleteManualSubscription(sub.id);
+        row.appendChild(del);
+        list.appendChild(row);
+    });
+}
+function loadManualSubscriptions(){
+    const list = document.getElementById('manual-sub-list');
+    if(!list) return;
+    fetch('?get_subscriptions=1').then(r => r.json()).then(d => {
+        if(!d || d.status !== 'success') return;
+        manualSubItems = Array.isArray(d.subscriptions) ? d.subscriptions : [];
+        renderManualSubscriptions();
+    }).catch(() => {});
+}
+function deleteManualSubscription(id){
+    fetch('', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({delete_subscription:id})})
+    .then(r => r.json())
+    .then(d => {
+        if(d.status !== 'success'){ showNotification(d.message || t('error_generic','Error'),'error'); return; }
+        manualSubItems = manualSubItems.filter(item => String(item.id) !== String(id));
+        renderManualSubscriptions();
+        showNotification(t('manual_sub_deleted','Subscription deleted'),'success');
+    })
+    .catch(e => showNotification(`${t('network_error','Network error')}: ${e}`,'error'));
+}
+function saveManualSubscription(store, amount, date){
+    const payload = manualSubPayload(store, amount, date);
+    if(!payload.start_date) payload.start_date = date;
+    if(payload.end_date && payload.end_date < payload.start_date){
+        showNotification(t('invalid_date_format','Invalid date format'),'error');
+        return;
+    }
+    const btn = document.getElementById('manual-save-btn');
+    if(btn) btn.disabled = true;
+    fetch('', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:new URLSearchParams({add_subscription:'1', ...payload})})
+    .then(r => r.json())
+    .then(d => {
+        if(d.status !== 'success'){ showNotification(d.message || t('error_generic','Error'),'error'); return; }
+        showNotification(t('manual_sub_created','Subscription created'),'success');
+        closeManualAddModal();
+        location.reload();
+    })
+    .catch(e => showNotification(`${t('network_error','Network error')}: ${e}`,'error'))
+    .finally(() => { if(btn) btn.disabled = false; });
+}
 async function saveManualExpense(){
     const store = manualAddState.store;
     const date  = manualAddState.date || manualAddYmd(0);
@@ -1326,6 +1575,7 @@ async function saveManualExpense(){
     }
     amount = Math.round(amount * 100) / 100;
     if(!(amount > 0)){ showNotification(t('manual_amount_required','Enter the amount'),'error'); if(input) input.focus(); return; }
+    if(manualSubEnabled){ saveManualSubscription(store, amount, date); return; }
     const btn = document.getElementById('manual-save-btn');
     if(btn) btn.disabled = true;
     fetch('', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'},
@@ -1972,7 +2222,29 @@ function handleTableNavigation(e){
     else if(e.key==='ArrowRight'||e.key==='Tab'){if(col<cols-1)ni=ci+1;else if(row<Math.ceil(inputs.length/cols)-1)ni=ci+1;else{addNewDate(null,0);return;}}
 if(ni!==ci&&inputs[ni]){inputs[ni].focus();inputs[ni].select();}
 }
-function expenseGradientStyle(value,min,max){const n=Number(value)||0;if(max<=min)return 'background:linear-gradient(90deg,#22c55e,#ef4444);';const pct=Math.max(0,Math.min(1,(n-min)/(max-min)));const hue=120-(pct*120);return `background:linear-gradient(90deg,hsl(${hue} 72% 42%),hsl(${Math.max(0,hue-18)} 78% 50%));`;}
+function appThemeIsDark(){
+    const theme=(document.documentElement.dataset.theme||'').toLowerCase();
+    if(theme)return theme==='dark';
+    const bg=getComputedStyle(document.documentElement).getPropertyValue('--bg-color').trim().toLowerCase();
+    const m=bg.match(/^#([0-9a-f]{6})$/);
+    if(m){const v=parseInt(m[1],16);const l=((v>>16)&255)*0.299+((v>>8)&255)*0.587+(v&255)*0.114;return l<128;}
+    return false;
+}
+// The fill is painted on the text (background-clip:text), so both gradient stops
+// must stay readable: WCAG AA 4.5:1 against the panel in each theme.
+function expenseGradientStyle(value,min,max){
+    const n=Number(value)||0;
+    const dark=appThemeIsDark();
+    const lightness=dark?72:27;
+    let hue=120;
+    if(max>min){
+        const pct=Math.max(0,Math.min(1,(n-min)/(max-min)));
+        hue=120-(pct*120);
+    }
+    const hue2=Math.max(0,hue-16);
+    const sat1=dark?78:72,sat2=dark?84:78;
+    return `background-image:linear-gradient(90deg,hsl(${hue} ${sat1}% ${lightness}%),hsl(${hue2} ${sat2}% ${lightness}%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;`;
+}
 function renderAnalyticsSummaryTable(id,rows,nameKey){
     const el=document.getElementById(id);
     if(!el)return;
@@ -2136,6 +2408,7 @@ loadAvailableYears().then(()=>{updateChart();});
     }
     document.addEventListener('click',e=>{if(!e.target.closest('.add-menu-wrap'))closeImportMenu();});
     document.addEventListener('click',e=>{if(!e.target.closest('#manual-currency'))closeManualCurrencyMenu();});
+    document.addEventListener('click',e=>{if(!e.target.closest('#manual-sub-period'))closeManualPeriodMenu();});
     im.addEventListener('click',e=>{if(e.target===im)closeImportModal();});
     if(location.hash==='#ocr'){openImportModal();}
     window.addEventListener('hashchange',()=>{

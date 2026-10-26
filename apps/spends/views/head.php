@@ -4,9 +4,60 @@ $menuButton = $nameConfig['menu_button'] ?? [];
 $menuSafeWidth = (int)($menuButton['left'] ?? 16) + (int)($menuButton['width'] ?? 40) + 10;
 $bgFull = $theme === 'dark' ? '../steps/background_dark.jpg' : '../steps/background_light.jpg';
 $tableModalTitle = ['be'=>'Табліца','cs'=>'Tabulka','en'=>'Table','pl'=>'Tabela','ru'=>'Таблица','uk'=>'Таблиця'][$language] ?? 'Table';
+
+/**
+ * WCAG-safe derivatives of the user's brand colour.
+ *   --primary-fill  solid background for primary controls; deepened until
+ *                   white text reaches 4.5:1 so buttons stay readable for
+ *                   every brand colour.
+ *   --primary-ink   text colour to place ON --primary-fill.
+ *   --primary-text  brand colour usable AS text on the theme surface
+ *                   (tints included), pushed toward black/white until it
+ *                   reaches 4.5:1.
+ */
+$spendsRgb = static function (string $hex): array {
+    $h = ltrim(trim($hex), '#');
+    if (strlen($h) === 3) $h = $h[0].$h[0].$h[1].$h[1].$h[2].$h[2];
+    if (strlen($h) !== 6 || !ctype_xdigit($h)) $h = '007bff';
+    return [hexdec(substr($h, 0, 2)), hexdec(substr($h, 2, 2)), hexdec(substr($h, 4, 2))];
+};
+$spendsLum = static function (array $c): float {
+    $lin = static function ($v) {
+        $v /= 255;
+        return $v <= 0.03928 ? $v / 12.92 : pow(($v + 0.055) / 1.055, 2.4);
+    };
+    return 0.2126 * $lin($c[0]) + 0.7152 * $lin($c[1]) + 0.0722 * $lin($c[2]);
+};
+$spendsRatio = static function (array $a, array $b) use ($spendsLum): float {
+    $la = $spendsLum($a);
+    $lb = $spendsLum($b);
+    return (max($la, $lb) + 0.05) / (min($la, $lb) + 0.05);
+};
+$spendsMix = static function (array $c, array $to, float $t): array {
+    return [$c[0] + ($to[0] - $c[0]) * $t, $c[1] + ($to[1] - $c[1]) * $t, $c[2] + ($to[2] - $c[2]) * $t];
+};
+$spendsHex = static fn (array $c): string => sprintf('#%02x%02x%02x', (int)round($c[0]), (int)round($c[1]), (int)round($c[2]));
+
+$spendsBase    = $spendsRgb($primaryColor);
+$spendsBlack   = [0, 0, 0];
+$spendsWhite   = [255, 255, 255];
+$spendsSurface = $theme === 'dark' ? [17, 20, 22] : [244, 247, 242];
+
+$primaryFill = $spendsHex($spendsBase);
+for ($i = 1; $i <= 20; $i++) {
+    $candidate = $spendsMix($spendsBase, $spendsBlack, $i * 0.05);
+    $primaryFill = $spendsHex($candidate);
+    if ($spendsRatio($spendsWhite, $candidate) >= 4.5) break;
+}
+$primaryInk  = $spendsRatio($spendsWhite, $spendsRgb($primaryFill)) >= 4.5 ? '#ffffff' : '#101410';
+$primaryText = $spendsHex($spendsBase);
+$spendsPush  = $theme === 'dark' ? $spendsWhite : $spendsBlack;
+for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) < 4.5; $i++) {
+    $primaryText = $spendsHex($spendsMix($spendsBase, $spendsPush, $i * 0.05));
+}
 ?>
 <!DOCTYPE html>
-<html lang="<?= htmlspecialchars($language) ?>">
+<html lang="<?= htmlspecialchars($language) ?>" data-theme="<?= htmlspecialchars($theme) ?>">
 <head>
     <?= spendsCsrfScript() ?>
     <meta charset="UTF-8">
@@ -25,6 +76,12 @@ $tableModalTitle = ['be'=>'Табліца','cs'=>'Tabulka','en'=>'Table','pl'=>'
             --border-color: <?= $theme==='dark'?'rgba(244,247,242,.14)':'rgba(22,27,24,.12)' ?>;
             --group-block-bg: <?= $theme==='dark'?'rgba(244,247,242,.07)':'rgba(255,255,250,.66)' ?>;
             --primary-color-rgb: <?= implode(', ', sscanf($primaryColor, "#%02x%02x%02x")) ?>;
+            --primary-fill: <?= $primaryFill ?>;
+            --primary-ink: <?= $primaryInk ?>;
+            --primary-text: <?= $primaryText ?>;
+            --success-text: <?= $theme === 'dark' ? '#4ade80' : '#166534' ?>;
+            --danger-text: <?= $theme === 'dark' ? '#f87171' : '#b91c1c' ?>;
+            --warning-text: <?= $theme === 'dark' ? '#fbbf24' : '#8a6100' ?>;
             --danger-color: #dc3545; --danger-hover: #c82333;
             --scrollbar-track: transparent;
             --scrollbar-thumb: <?= $theme==='dark'?'rgba(255,255,255,.3)':'rgba(0,0,0,.3)' ?>;
@@ -166,6 +223,48 @@ $tableModalTitle = ['be'=>'Табліца','cs'=>'Tabulka','en'=>'Table','pl'=>'
         .manual-currency-check { width:14px; height:14px; flex:0 0 14px; }
         #manual-add-modal .modal-content { color-scheme: <?= $theme === 'dark' ? 'dark' : 'light' ?>; }
         .manual-amount-hint { margin:0; min-height:16px; font-size:12px; font-weight:600; color:var(--muted-text); }
+
+        /* Recurring expense (subscription) block on the amount step */
+        .manual-sub { padding:12px 14px; border-radius:12px; border:1px solid var(--border-color); background:var(--group-block-bg); }
+        .manual-sub-switch { display:flex; align-items:center; gap:12px; font-size:14px; font-weight:700; color:var(--text-color); cursor:pointer; }
+        .manual-sub-switch-text { min-width:0; }
+        .manual-sub-body { display:flex; flex-direction:column; gap:12px; margin-top:12px; }
+        .manual-sub-body[hidden] { display:none; }
+        .manual-sub-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; align-items:end; }
+        .manual-sub-field { display:flex; flex-direction:column; gap:6px; min-width:0; }
+        .manual-sub-field > label, .manual-sub-label { font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.04em; color:var(--muted-text); }
+        #manual-add-modal .manual-sub-field input[type="number"], #manual-add-modal .manual-sub-field input[type="date"] { width:100%; box-sizing:border-box; margin:0; padding:10px 12px; background:var(--surface-solid); color:var(--text-color); border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:14px; }
+        #manual-add-modal .manual-sub-field input[type="number"]:focus, #manual-add-modal .manual-sub-field input[type="date"]:focus { outline:none; border-color:var(--primary-color); box-shadow:0 0 0 3px rgba(var(--primary-color-rgb),.22); }
+        .manual-sub-period { position:relative; }
+        #manual-add-modal .manual-sub-period-btn { display:flex; align-items:center; justify-content:space-between; gap:8px; width:100%; margin:0; padding:10px 12px; background:var(--surface-solid); color:var(--text-color); border:1px solid var(--border-color); border-radius:10px; font-family:inherit; font-size:14px; font-weight:700; text-align:left; cursor:pointer; }
+        #manual-add-modal .manual-sub-period-btn:hover { border-color:rgba(var(--primary-color-rgb),.5); }
+        #manual-add-modal .manual-sub-period-btn[aria-expanded="true"] { border-color:var(--primary-color); box-shadow:0 0 0 3px rgba(var(--primary-color-rgb),.22); }
+        .manual-sub-period-menu { position:absolute; left:0; right:0; bottom:calc(100% + 6px); z-index:40; display:none; flex-direction:column; gap:2px; padding:6px; border:1px solid var(--border-color); border-radius:12px; background:var(--surface-solid); box-shadow:0 16px 36px rgba(0,0,0,.34); }
+        .manual-sub-period-menu.open { display:flex; }
+        .manual-sub-period-opt { display:flex; align-items:center; justify-content:space-between; gap:10px; width:100%; padding:9px 10px; border:0; border-radius:8px; background:transparent; color:var(--text-color); font-family:inherit; font-size:13px; font-weight:700; text-align:left; cursor:pointer; }
+        .manual-sub-period-opt:hover { background:rgba(var(--primary-color-rgb),.16); }
+        .manual-sub-period-opt[aria-selected="true"] { background:rgba(var(--primary-color-rgb),.18); color:var(--primary-color); }
+        .manual-sub-count { display:flex; align-items:center; gap:8px; }
+        .manual-sub-count > span { flex:0 0 auto; font-size:13px; font-weight:700; color:var(--muted-text); }
+        .manual-sub-end { display:flex; align-items:center; gap:12px; flex-wrap:wrap; }
+        .manual-sub-endless { display:inline-flex; align-items:center; gap:8px; font-size:13px; font-weight:600; color:var(--text-color); cursor:pointer; white-space:nowrap; }
+        #manual-add-modal .manual-sub-endless input { width:auto; margin:0; padding:0; accent-color:var(--primary-color); }
+        #manual-add-modal .manual-sub-end input[type="date"] { flex:1 1 160px; min-width:0; }
+        .manual-sub-hint { margin:0; min-height:15px; font-size:12px; line-height:1.4; color:var(--muted-text); }
+        .manual-sub-active { display:flex; flex-direction:column; gap:8px; }
+        .manual-sub-active-title { font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--muted-text); }
+        .manual-sub-list { display:flex; flex-direction:column; gap:8px; }
+        .manual-sub-item { display:flex; align-items:center; gap:10px; padding:8px 10px; border-radius:10px; border:1px solid var(--border-color); background:var(--surface-solid); font-size:13px; }
+        .manual-sub-item-main { flex:1 1 auto; min-width:0; display:flex; flex-direction:column; gap:2px; }
+        .manual-sub-item strong { font-size:13px; font-weight:800; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .manual-sub-item span { font-size:12px; color:var(--muted-text); }
+        .manual-sub-item-del { flex:0 0 auto; padding:6px 10px; border-radius:8px; border:1px solid var(--border-color); background:transparent; color:var(--danger-color); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+        .manual-sub-item-del:hover { background:rgba(220,53,69,.14); }
+        .manual-sub-empty { font-size:12px; color:var(--muted-text); }
+
+        .table-modal-actions { display:flex; justify-content:flex-end; gap:8px; margin:0 0 10px; flex-shrink:0; }
+        .table-modal-actions .add-date-btn { padding:8px 14px; border-radius:10px; font-weight:700; }
+
         .manual-actions { display:flex; gap:10px; flex-wrap:wrap; margin-top:4px; }
         .manual-actions button { flex:1 1 140px; padding:12px 18px; border-radius:10px; font-family:inherit; font-size:14px; font-weight:700; }
         @media (max-width:768px){
@@ -718,7 +817,7 @@ $tableModalTitle = ['be'=>'Табліца','cs'=>'Tabulka','en'=>'Table','pl'=>'
         .store-category-row{align-items:flex-start;}.store-category-picker{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));gap:8px;width:100%;}
         .store-category-option{display:flex;align-items:center;gap:8px;min-width:0;padding:9px 10px;border:1px solid var(--border-color);border-radius:6px;background:var(--group-block-bg);color:#dca90a;font-weight:700;cursor:pointer;text-align:left;}.store-category-option[data-used="1"]{color:#16a34a;}.store-category-option.active{outline:2px solid color-mix(in srgb,var(--primary-color) 70%,#fff);background:color-mix(in srgb,var(--primary-color) 12%,var(--group-block-bg));}.store-category-option svg{width:18px;height:18px;flex:0 0 18px;}
         .store-photo-crop-card{display:flex;flex-direction:column;align-items:center;width:fit-content;max-width:100%;border:2px solid var(--border-color);border-radius:20px;overflow:hidden;background:var(--modal-bg);box-shadow:0 8px 22px rgba(0,0,0,.08);margin:10px 0;}.store-photo-frame{width:220px;height:180px;max-width:100%;display:flex;align-items:center;justify-content:center;background:color-mix(in srgb,var(--group-block-bg) 84%,transparent);overflow:hidden;}.store-photo-frame img{width:100%;height:100%;object-fit:contain;display:block;}.store-photo-crop-btn{width:100%;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 14px;background:var(--modal-bg);color:var(--text-color);border:0;border-top:1px solid var(--border-color);font-weight:700;cursor:pointer;}.store-photo-crop-btn:hover{background:var(--group-block-bg);}.store-photo-crop-btn svg{width:16px;height:16px;}
-        .crop-modal-content{width:min(840px,calc(100vw - 32px))!important;height:min(760px,calc(100dvh - 32px))!important;}.cropper-container{flex:1 1 auto!important;min-height:360px!important;max-height:none!important;margin:0!important;background:color-mix(in srgb,var(--group-block-bg) 85%,#000);border:1px solid var(--border-color);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;}.cropper-container img{display:block;max-width:100%;max-height:100%;}.crop-save-btn{margin-top:10px;align-self:flex-end;}.analytics-summary-table td.expense-gradient-cell{font-weight:800;border-radius:4px;}
+        .crop-modal-content{width:min(840px,calc(100vw - 32px))!important;height:min(760px,calc(100dvh - 32px))!important;}.cropper-container{flex:1 1 auto!important;min-height:360px!important;max-height:none!important;margin:0!important;background:color-mix(in srgb,var(--group-block-bg) 85%,#000);border:1px solid var(--border-color);border-radius:8px;display:flex;align-items:center;justify-content:center;overflow:hidden;}.cropper-container img{display:block;max-width:100%;max-height:100%;}.crop-save-btn{margin-top:10px;align-self:flex-end;}.analytics-summary-table td.expense-gradient-cell{font-weight:800;background:none;}
         #crop-modal{z-index:30000!important;}
         #crop-modal .modal-content{z-index:30001!important;}
         @media (min-width:769px){.chart-controls-row{display:grid!important;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr)!important;align-items:center!important;gap:10px!important;}.chart-controls-row .currency-selector{grid-column:1!important;justify-self:start!important;display:flex!important;flex-wrap:nowrap!important;min-width:0!important;}.chart-controls-row .chart-controls-nav{grid-column:2!important;justify-self:center!important;display:flex!important;gap:8px!important;}.chart-controls-row .chart-controls-actions{grid-column:3!important;justify-self:end!important;display:flex!important;gap:10px!important;align-items:center!important;min-width:0!important;}.chart-controls-row .chart-toggle-btn{white-space:nowrap!important;}.chart-controls-row .chart-year{display:none!important;}}

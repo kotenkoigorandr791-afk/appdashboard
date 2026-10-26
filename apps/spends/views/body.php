@@ -160,6 +160,9 @@
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('expenses-table-modal')">×</button>
         <h3><?= htmlspecialchars($tableModalTitle) ?></h3>
+        <div class="table-modal-actions">
+            <button type="button" class="add-date-btn table-sub-btn" onclick="openManualAddFromTable()"><?= htmlspecialchars($translations['table_sub_button'] ?? 'Subscription') ?></button>
+        </div>
         <div class="data-table-container">
             <div class="data-table-scroll">
             <table class="data-table" id="data-table">
@@ -330,6 +333,52 @@
                     </div>
                 </div>
                 <p class="manual-amount-hint" id="manual-amount-hint"></p>
+            </div>
+            <div class="manual-sub" id="manual-sub">
+                <label class="manual-sub-switch" for="manual-sub-enabled">
+                    <span class="income-switch">
+                        <input type="checkbox" id="manual-sub-enabled" onchange="syncManualSubBody()">
+                        <span class="income-slider"></span>
+                    </span>
+                    <span class="manual-sub-switch-text"><?= htmlspecialchars($translations['manual_sub_toggle'] ?? 'Subscription (recurring payment)') ?></span>
+                </label>
+                <div class="manual-sub-body" id="manual-sub-body" hidden>
+                    <div class="manual-sub-grid">
+                        <div class="manual-sub-field">
+                            <span class="manual-sub-label"><?= htmlspecialchars($translations['manual_sub_period'] ?? 'Frequency') ?></span>
+                            <div class="manual-sub-period" id="manual-sub-period">
+                                <button type="button" class="manual-sub-period-btn" id="manual-sub-period-btn" aria-haspopup="listbox" aria-expanded="false" onclick="toggleManualPeriodMenu(event)">
+                                    <span id="manual-sub-period-label"></span>
+                                    <svg class="manual-currency-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+                                </button>
+                                <div class="manual-sub-period-menu" id="manual-sub-period-menu" role="listbox" aria-hidden="true"></div>
+                            </div>
+                        </div>
+                        <div class="manual-sub-field" id="manual-sub-day-field">
+                            <label for="manual-sub-day"><?= htmlspecialchars($translations['manual_sub_day_of_month'] ?? 'Day of month') ?></label>
+                            <input type="number" id="manual-sub-day" min="1" max="31" step="1" inputmode="numeric" value="<?= (int)date('j') ?>" oninput="renderManualSubHint()">
+                        </div>
+                        <div class="manual-sub-field" id="manual-sub-count-field" hidden>
+                            <label for="manual-sub-count" id="manual-sub-count-label"><?= htmlspecialchars($translations['manual_sub_every'] ?? 'Every') ?></label>
+                            <div class="manual-sub-count">
+                                <input type="number" id="manual-sub-count" min="1" max="365" step="1" inputmode="numeric" value="3" oninput="this.dataset.touched='1'">
+                                <span id="manual-sub-count-unit"></span>
+                            </div>
+                        </div>
+                        <div class="manual-sub-field manual-sub-field-wide">
+                            <span class="manual-sub-label"><?= htmlspecialchars($translations['manual_sub_until'] ?? 'Valid until') ?></span>
+                            <div class="manual-sub-end">
+                                <label class="manual-sub-endless"><input type="checkbox" id="manual-sub-endless" checked onchange="syncManualSubEnd()"> <?= htmlspecialchars($translations['manual_sub_endless'] ?? 'No end date') ?></label>
+                                <input type="date" id="manual-sub-end" disabled>
+                            </div>
+                        </div>
+                    </div>
+                    <p class="manual-sub-hint" id="manual-sub-hint"></p>
+                    <div class="manual-sub-active">
+                        <div class="manual-sub-active-title"><?= htmlspecialchars($translations['manual_sub_active'] ?? 'Active subscriptions') ?></div>
+                        <div class="manual-sub-list" id="manual-sub-list"></div>
+                    </div>
+                </div>
             </div>
             <div class="manual-actions">
                 <button type="button" class="cancel-btn" onclick="manualAddGo(2)"><?= htmlspecialchars($translations['manual_back'] ?? 'Back') ?></button>

@@ -23,6 +23,7 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
         $uid = app_spends_user_id($email);
         $main = app_main_db();
         app_spends_shared_ensure($main);
+        app_spends_subscriptions_ensure($main);
         app_spends_migrate_legacy($main, $uid, $email);
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
         return AppDatabase::connectUserSchema(APP_SPENDS_SHARED_SCHEMA, ["SELECT set_config('spends.user_id', $lit, false)", 'SET ROLE ' . APP_SPENDS_ROLE]);
@@ -35,6 +36,47 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
 function app_spends_shared_ensure(AppDatabase $db): void {
     require_once __DIR__ . '/schema_once.php';
     app_once_wrap('spends_shared', __FILE__, fn() => app_spends_shared_ensure_impl($db));
+}
+
+/**
+ * Recurring expenses (subscriptions). Created separately from the main schema
+ * because app_spends_shared_ensure_impl() returns early once table_settings
+ * exists, so already provisioned installs would never get the new table.
+ */
+function app_spends_subscriptions_ensure(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    app_once_wrap('spends_subscriptions', __FILE__, fn() => app_spends_subscriptions_ensure_impl($db));
+}
+function app_spends_subscriptions_ensure_impl(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
+    $sc = APP_SPENDS_SHARED_SCHEMA;
+    $role = APP_SPENDS_ROLE;
+    $reg = $db->query("SELECT to_regclass('$sc.subscriptions')")->fetch(PDO::FETCH_NUM);
+    if ($reg && $reg[0] !== null) {
+        $done = true;
+        return;
+    }
+    $uid = "user_id TEXT NOT NULL DEFAULT current_setting('spends.user_id')";
+    $db->exec('BEGIN');
+    try {
+        $db->exec('SELECT pg_advisory_xact_lock(7710002)');
+        $again = $db->query("SELECT to_regclass('$sc.subscriptions')")->fetch(PDO::FETCH_NUM);
+        if (!$again || $again[0] === null) {
+            $db->exec("CREATE TABLE IF NOT EXISTS $sc.subscriptions ($uid, id TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, frequency TEXT NOT NULL DEFAULT 'monthly', day_of_month BIGINT NOT NULL DEFAULT 0, interval_days BIGINT NOT NULL DEFAULT 0, start_date TEXT NOT NULL, end_date TEXT, last_run TEXT, created_at TEXT NOT NULL, PRIMARY KEY (user_id, id))");
+            $db->exec("CREATE INDEX IF NOT EXISTS spends_subscriptions_user ON $sc.subscriptions(user_id)");
+            $db->exec("ALTER TABLE $sc.subscriptions ENABLE ROW LEVEL SECURITY");
+            $db->exec("ALTER TABLE $sc.subscriptions FORCE ROW LEVEL SECURITY");
+            $db->exec("DROP POLICY IF EXISTS spends_owner ON $sc.subscriptions");
+            $db->exec("CREATE POLICY spends_owner ON $sc.subscriptions USING (user_id = current_setting('spends.user_id', true)) WITH CHECK (user_id = current_setting('spends.user_id', true))");
+            $db->exec("GRANT SELECT, INSERT, UPDATE, DELETE ON $sc.subscriptions TO $role");
+        }
+        $db->exec('COMMIT');
+    } catch (Throwable $e) {
+        $db->exec('ROLLBACK');
+        throw $e;
+    }
+    $done = true;
 }
 function app_spends_shared_ensure_impl(AppDatabase $db): void {
     static $done = false;

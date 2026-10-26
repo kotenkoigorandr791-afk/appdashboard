@@ -9,6 +9,7 @@ if (!file_exists($userDir)) mkdir($userDir, SPENDS_RUNTIME_DIR_MODE, true);
 @chmod($userDir, SPENDS_RUNTIME_DIR_MODE);
 
 $udb = getUserSQLite($currentUserEmail);
+spendsSubscriptionsSync($udb);
 
 // Load settings from user DB
 $userSettings = [

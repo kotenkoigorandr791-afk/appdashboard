@@ -11,6 +11,7 @@ error_reporting(E_ALL & ~E_WARNING & ~E_NOTICE);
 require_once __DIR__ . '/core/db.php';
 require_once __DIR__ . '/core/auth.php';
 require_once __DIR__ . '/core/user_db.php';
+require_once __DIR__ . '/core/subscriptions.php';
 require_once __DIR__ . '/core/locale.php';
 require_once __DIR__ . '/core/user_state.php';
 require __DIR__ . '/controllers/Handlers.php';
