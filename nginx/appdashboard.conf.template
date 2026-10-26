@@ -110,8 +110,16 @@ server {
         deny all;
     }
 
+    location = /apps/lopaka/index.php {
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
+
     location ^~ /apps/lopaka/ {
-        try_files $uri $uri/ /apps/lopaka/index.html;
+        try_files $uri $uri/ /apps/lopaka/index.php;
     }
 
     location ^~ /.well-known/ {

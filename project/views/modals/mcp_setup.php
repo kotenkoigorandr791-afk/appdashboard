@@ -188,7 +188,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
                         <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
                         <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
                         <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['expires_at'])); ?></td>
-                        <td><form method="post" action="/main" style="margin:0;"><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
+                        <td><form method="post" action="/main" style="margin:0;"><?php echo apSecCsrfField(); ?><input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash" value="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"><?php echo my_htmlspecialchars($translations['revoke']); ?></button></form></td>
                     </tr>
                     <?php endforeach; endif; ?>
                     </tbody>

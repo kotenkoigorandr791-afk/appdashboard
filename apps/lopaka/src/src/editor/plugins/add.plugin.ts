@@ -108,7 +108,6 @@ export class AddPlugin extends AbstractEditorPlugin {
                     this.session.layersManager.removeLayer(activeLayer as AbstractLayer);
                 }
                 state.activeLayer = null;
-                this.session.editor.setTool(null);
                 this.session.virtualScreen.redraw();
             }
         }

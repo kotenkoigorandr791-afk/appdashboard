@@ -362,6 +362,22 @@ describe('AddPlugin', () => {
         expect(session.editor.state.activeLayer).toBeNull();
     });
 
+    it('should keep the multi-click tool active after finishing creation', () => {
+        const polygonTool = new PolygonTool(session.editor as any);
+        const polygon = new PolygonLayer(features);
+        polygon.points = [[0, 0], [10, 0], [10, 10], [0, 10], [0, 10]];
+        session.editor.state.activeTool = polygonTool;
+        session.editor.state.activeLayer = polygon;
+        session.addLayer(polygon);
+        plugin.multiClickActive = true;
+
+        plugin.onMouseDoubleClick(new Point(0, 10), new MouseEvent('dblclick'));
+
+        expect(session.editor.setTool).not.toHaveBeenCalled();
+        expect(session.editor.state.activeTool).toBe(polygonTool);
+        expect(session.editor.state.activeLayer).toBeNull();
+    });
+
     it('should keep committed polygon vertices on Escape and reset tool', () => {
         const polygonTool = new PolygonTool(session.editor as any);
         const polygon = new PolygonLayer(features);

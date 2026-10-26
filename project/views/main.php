@@ -3097,6 +3097,7 @@ $otpRemainingLock=getIpLockoutSeconds($clientIpOtp,'otp');
         <div class="otp-warning"><?php echo my_htmlspecialchars($translations['otp_warning_attempts']??'⚠ You have 3 attempts. After 3 wrong codes your IP will be blocked for 3 minutes.'); ?></div>
         <div class="otp-error" id="otp-err"><?php echo my_htmlspecialchars($otpError??''); ?></div>
         <form method="post" action="/one-time-pin" id="otp-form">
+            <?php echo apSecCsrfField(); ?>
             <input type="hidden" name="verify_otp" value="1">
             <input type="hidden" name="otp_pin" id="otp-pin-val">
             <div class="otp-display" id="otp-boxes">
@@ -3193,6 +3194,7 @@ endif; // showOtpPage
                 <h3 style="margin:0 0 8px 0;color:var(--text-color);"><?php echo my_htmlspecialchars($translations['email_not_verified_title']); ?></h3>
                 <p style="font-size:14px;opacity:.7;margin:0 0 20px 0;line-height:1.5;"><?php echo my_htmlspecialchars($translations['email_not_verified_desc']); ?></p>
                 <form method="post" action="/register">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($reVerifyEmail??$pendingGoogleData['email']); ?>">
                     <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
@@ -3226,6 +3228,7 @@ endif; // showOtpPage
                     <div class="google-name"><?php echo my_htmlspecialchars($pendingGoogleData['name']); ?></div>
                 </div>
                 <form method="post" action="/register?step=set_password&password_required=1">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($pendingGoogleData['email']); ?>">
                     <input type="hidden" name="name" value="<?php echo my_htmlspecialchars($pendingGoogleData['name']); ?>">
                     <input type="hidden" name="photo" value="<?php echo my_htmlspecialchars($pendingGoogleData['photo']); ?>">
@@ -3265,6 +3268,7 @@ endif; // showOtpPage
                 <p style="text-align:center;margin:0 0 20px 0;font-size:14px;opacity:.75;line-height:1.5;"><?php echo my_htmlspecialchars($translations['verification_check_spam_hint'] ?? 'If you do not see the message in your inbox, check the Spam or Junk folder.'); ?></p>
                 <p style="text-align:center;margin:20px 0;"><?php echo my_htmlspecialchars($verificationEmail); ?></p>
                 <form method="post" action="/register" style="text-align:center;margin-bottom:16px;">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($verificationEmail ?? ''); ?>">
                     <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
@@ -3281,6 +3285,7 @@ endif; // showOtpPage
                 <h3 style="margin:0 0 8px 0;color:var(--text-color);"><?php echo my_htmlspecialchars($translations['email_not_verified_title']); ?></h3>
                 <p style="font-size:14px;opacity:.7;margin:0 0 20px 0;line-height:1.5;"><?php echo my_htmlspecialchars($translations['email_not_verified_desc']); ?></p>
                 <form method="post" action="/login">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($reVerifyEmail??''); ?>">
                     <?php turnstile_form_started('register'); echo turnstile_render('register'); ?>
                     <button type="submit" name="resend_verification" class="auth-button"><?php echo my_htmlspecialchars($translations['resend_verification_link']); ?></button>
@@ -3354,6 +3359,7 @@ endif; // showOtpPage
             </div>
             <div id="register-content" class="auth-content <?php echo $path==='/register'?'active':''; ?>">
                 <form method="post" action="/register">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" required>
                     <input type="text" name="name" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['name'] ?? 'Name'); ?>">
                     <button type="submit" name="register_initial" class="auth-button"><?php echo my_htmlspecialchars($translations['register']); ?></button>
@@ -3381,12 +3387,14 @@ endif; // showOtpPage
             <div id="forgot-content" class="auth-content">
                 <?php if(!isset($showResetForm)||!$showResetForm):?>
                     <form method="post" action="/login">
-                        <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo my_htmlspecialchars(is_string($_POST['email']??'')?$_POST['email']:''); ?>" required>
+                        <?php echo apSecCsrfField(); ?>
+                        <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo my_htmlspecialchars(is_string($_POST['email'] ?? null) ? $_POST['email'] : ''); ?>" required>
                         <?php turnstile_form_started('reset'); echo turnstile_render('reset'); ?>
                         <button type="submit" name="send_reset_code" class="auth-button"><?php echo my_htmlspecialchars($translations['send_reset_code']); ?></button>
                     </form>
                 <?php else:?>
                     <form method="post" action="/login">
+                        <?php echo apSecCsrfField(); ?>
                         <input type="hidden" name="email" value="<?php echo my_htmlspecialchars($resetEmail??($_POST['email']??'')); ?>">
                         <input type="text" name="reset_code" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['reset_code']); ?>" required>
                         <div class="password-input-container">
@@ -3552,11 +3560,13 @@ endif; // showOtpPage
                     <?php echo my_htmlspecialchars($translations['change_photo_button'] ?? 'Change Photo'); ?>
                 </button>
                 <form method="post" enctype="multipart/form-data" class="photo-form" id="photo-form" action="/main">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="file" name="photo" accept="image/*" class="auth-input">
                     <button type="submit" name="change_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['upload_photo']); ?></button>
                 </form>
                 <?php if($_showGooglePhotoReset): ?>
                 <form method="post" action="/main" class="photo-form" id="reset-photo-form" style="margin-top:8px;">
+                    <?php echo apSecCsrfField(); ?>
                     <button type="submit" name="reset_photo" class="profile-action-button"><?php echo my_htmlspecialchars($translations['reset_to_default']); ?></button>
                 </form>
                 <?php endif; ?>
@@ -3569,6 +3579,7 @@ endif; // showOtpPage
                 </button>
                 <div class="password-change-box" id="password-change-box">
                     <form method="post" class="password-form" id="password-form" action="/main">
+                        <?php echo apSecCsrfField(); ?>
                         <div id="password-verify-step">
                             <div class="password-input-container">
                                 <input type="password" name="current_password" id="current-password" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['current_password']); ?>" autocomplete="current-password" required>
@@ -3644,6 +3655,7 @@ endif; // showOtpPage
                                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
                             </span>
                             <form method="post" action="/main" style="margin:0;display:inline-flex;">
+                                <?php echo apSecCsrfField(); ?>
                                 <input type="hidden" name="provider" value="<?php echo my_htmlspecialchars($_oauthProvider); ?>">
                                 <button type="submit" name="oauth_unlink" class="oauth-action-btn unlink" title="<?php echo my_htmlspecialchars($translations['unlink'] ?? 'Unlink'); ?>" aria-label="<?php echo my_htmlspecialchars($translations['unlink'] ?? 'Unlink'); ?>">
                                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
@@ -3673,6 +3685,7 @@ endif; // showOtpPage
             </div>
             <div class="profile-section">
                 <form method="post" action="/main">
+                    <?php echo apSecCsrfField(); ?>
                     <button type="submit" name="logout" class="logout-button">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17 7l-1.41 1.41L18.17 11H8v2h10.17l-2.58 2.58L17 17l5-5zM4 5h8V3H4c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h8v-2H4V5z"/></svg>
                         <?php echo my_htmlspecialchars($translations['logout']); ?>
@@ -3690,6 +3703,7 @@ endif; // showOtpPage
             <button id="close-email" type="button" class="std-topbar-close">&times;</button>
         </div>
         <form id="email-form" method="post" action="/main">
+            <?php echo apSecCsrfField(); ?>
         <div class="modal-scroll-body">
             <?php if(isset($emailSettingsSuccess)):?><div class="auth-success"><?php echo my_htmlspecialchars($emailSettingsSuccess); ?></div><?php endif;?>
             <?php if(isset($emailSettingsError)):?><div class="auth-error"><?php echo my_htmlspecialchars($emailSettingsError); ?></div><?php endif;?>
@@ -3963,6 +3977,7 @@ endif; // showOtpPage
             }
             ?>
             <form method="post" id="users-roles-form" action="/main">
+                <?php echo apSecCsrfField(); ?>
                 <table class="users-table">
                     <thead><tr><th><?php echo my_htmlspecialchars($translations['name']??'Name'); ?></th><th><?php echo my_htmlspecialchars($translations['email']??'Email'); ?></th><th><?php echo my_htmlspecialchars($translations['user_role']??'Role'); ?></th><th><?php echo my_htmlspecialchars($translations['language']??'Language'); ?></th><th><?php echo my_htmlspecialchars($translations['theme']??'Theme'); ?></th><th><?php echo my_htmlspecialchars($translations['ap_col_status']??'Status'); ?></th><th><?php echo my_htmlspecialchars($translations['ap_col_date']??'Created'); ?></th><th></th></tr></thead>
                     <tbody>
@@ -4124,6 +4139,7 @@ endif; // showOtpPage
 <?php endif;?>
 <div id="settings-modal">
     <form id="settings-form" method="post" action="/main">
+        <?php echo apSecCsrfField(); ?>
         <div class="std-topbar">
             <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['settings_title']); ?></h2>
             <button id="close-settings" type="button" class="std-topbar-close">&times;</button>
@@ -6023,7 +6039,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         // SharePoint returns ISO-like timestamps; formatDate() expects seconds.
         function shareTimestamp(value){
             if(!value) return 0;
-            // PostgreSQL may return "2026-10-19 20:34:38.280345+00"; browsers
+            // Database may return "2026-10-19 20:34:38.280345+00"; browsers
             // need the timezone offset in +HH:MM form.
             const normalized = String(value).trim().replace(' ','T').replace(/([+-]\d{2})$/, '$1:00');
             const parsed = new Date(normalized).getTime();
