@@ -355,49 +355,44 @@ async function main() {
   }
 
   // --- Kanboard ---
-  const kbMeRes = await callTool("kanboard_get_me", {});
-  const kbMe = parseText(kbMeRes);
+  const kbProjectsRes = await callTool("kanboard_list_projects", {});
+  const kbProjects = parseText(kbProjectsRes);
   const kbSkip =
-    kbMeRes?.isError ||
-    !isOk(kbMe) ||
+    kbProjectsRes?.isError ||
+    !isOk(kbProjects) ||
     /credentials|unavailable|forbidden|Authentication credentials|kanboard_db_|kanboard_user_|kanboard_token_|kanboard_http_/i.test(
-      JSON.stringify(kbMe),
+      JSON.stringify(kbProjects),
     );
   if (kbSkip) {
-    record("kanboard_get_me", true, "env_skip: " + JSON.stringify(kbMe).slice(0, 200));
+    record("kanboard_list_projects", true, "env_skip: " + JSON.stringify(kbProjects).slice(0, 200));
     for (const n of [
-      "kanboard_list_projects",
-      "kanboard_create_project",
-      "kanboard_get_board",
+      "kanboard_update_project",
       "kanboard_list_tasks",
-      "kanboard_get_task",
       "kanboard_create_task",
       "kanboard_update_task",
-      "kanboard_add_comment",
+      "kanboard_delete_task",
+      "kanboard_stats",
     ]) {
       record(n, true, "env_skip_kanboard");
     }
   } else {
-    record("kanboard_get_me", true, JSON.stringify(kbMe).slice(0, 200));
-    const projectsRes = await callTool("kanboard_list_projects", {});
-    const projectsData = parseText(projectsRes);
-    record("kanboard_list_projects", !projectsRes?.isError, JSON.stringify(projectsData).slice(0, 200));
-    const projectList = Array.isArray(projectsData)
-      ? projectsData
-      : Array.isArray(projectsData?.results)
-        ? projectsData.results
+    record("kanboard_list_projects", true, JSON.stringify(kbProjects).slice(0, 200));
+    const projectList = Array.isArray(kbProjects)
+      ? kbProjects
+      : Array.isArray(kbProjects?.results)
+        ? kbProjects.results
         : [];
     const project = projectList[0];
     if (project?.id) {
-      await run("kanboard_get_board", { project_id: project.id });
+      await run("kanboard_stats", { project_id: project.id });
       await run("kanboard_list_tasks", { project_id: project.id });
     } else {
-      for (const n of ["kanboard_get_board", "kanboard_list_tasks"]) {
+      for (const n of ["kanboard_stats", "kanboard_list_tasks"]) {
         record(n, true, "skipped_no_project");
       }
     }
     await run("kanboard_list_tasks", {});
-    for (const n of ["kanboard_create_project", "kanboard_get_task", "kanboard_create_task", "kanboard_update_task", "kanboard_add_comment"]) {
+    for (const n of ["kanboard_update_project", "kanboard_create_task", "kanboard_update_task", "kanboard_delete_task"]) {
       if (!results.some((r) => r.name === n)) record(n, true, "skipped_mutating");
     }
   }

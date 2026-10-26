@@ -15,7 +15,13 @@ export function hasAuthUser() {
 
 export async function gotoShell(page: Page, path = '/main') {
   const separator = path.includes('?') ? '&' : '?';
-  await page.goto(`${path}${separator}lang=en&theme=light&color=%232563eb`, { waitUntil: 'domcontentloaded' });
+  const target = `${path}${separator}lang=en&theme=light&color=%232563eb`;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    await page.goto(target, { waitUntil: 'domcontentloaded' });
+    const title = await page.title().catch(() => '');
+    if (!/server error/i.test(title)) return;
+    await page.waitForTimeout(800 * (attempt + 1));
+  }
 }
 
 export async function login(page: Page) {
@@ -26,7 +32,7 @@ export async function login(page: Page) {
   await page.locator('#login-content input[name="email"]').fill(authUser.email);
   await page.locator('#login-password').fill(authUser.password);
   await Promise.all([
-    page.waitForURL(url => !url.pathname.includes('/login'), { timeout: 30000 }),
+    page.waitForURL(url => !url.pathname.includes('/login'), { timeout: 30000, waitUntil: 'domcontentloaded' }),
     (async () => {
       await page.locator('#cookie-consent-overlay').waitFor({ state: 'attached', timeout: 3000 }).catch(() => {});
       if (await page.locator('#cookie-consent-accept').isVisible().catch(() => false)) {

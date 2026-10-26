@@ -807,7 +807,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         $email=$_SESSION['user']['email']??'';
         $tokenHash=trim((string)($_POST['token_hash']??''));
         $tokenApp=appClientAuthTokenAppId($_POST['token_app']??'mcp');
-        if($email!==''&&($tokenHash!==''||$tokenApp==='steps')){
+        if($email!==''&&($tokenHash!==''||$tokenApp==='steps'||$tokenApp==='kanboard')){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);

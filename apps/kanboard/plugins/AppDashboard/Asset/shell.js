@@ -125,22 +125,30 @@
     var headers = board.querySelectorAll('tr:first-child th.board-column-header');
     var n = headers.length;
     if (!n) return;
-    var dark = document.body.classList.contains('kb-dark');
+    var dark = document.body.classList.contains('kb-dark') || document.documentElement.classList.contains('kb-dark');
+    var circle = document.body.classList.contains('kb-circle');
     for (var i = 0; i < n; i++) {
       var todo = isTodoColumn(headers[i]);
       if (todo) renameTodoColumnLabel(headers[i]);
-      var rgb = todo ? [220, 38, 38] : stageColor(n === 1 ? 1 : i / (n - 1), dark);
-      var bg = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? (todo ? '0.34' : '0.28') : (todo ? '0.22' : '0.20')) + ')';
-      var border = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.62' : '0.48') + ')';
-      var color = todo
-        ? (dark ? '#fecaca' : '#b91c1c')
-        : (dark
-          ? 'rgb(' + Math.min(255, rgb[0] + 80) + ',' + Math.min(255, rgb[1] + 80) + ',' + Math.min(255, rgb[2] + 80) + ')'
-          : 'rgb(' + Math.max(0, rgb[0] - 40) + ',' + Math.max(0, rgb[1] - 40) + ',' + Math.max(0, rgb[2] - 40) + ')');
+      if (todo) headers[i].classList.add('kb-column-todo');
+      var bg, border, color;
+      if (circle) {
+        bg = dark ? '#101011' : '#ffffff';
+        border = dark ? '#2c2c30' : '#ececee';
+        color = dark ? '#fafafa' : '#18181b';
+      } else {
+        var rgb = todo ? [220, 38, 38] : stageColor(n === 1 ? 1 : i / (n - 1), dark);
+        bg = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? (todo ? '0.34' : '0.28') : (todo ? '0.22' : '0.20')) + ')';
+        border = 'rgba(' + rgb[0] + ',' + rgb[1] + ',' + rgb[2] + ',' + (dark ? '0.62' : '0.48') + ')';
+        color = todo
+          ? (dark ? '#fecaca' : '#b91c1c')
+          : (dark
+            ? 'rgb(' + Math.min(255, rgb[0] + 80) + ',' + Math.min(255, rgb[1] + 80) + ',' + Math.min(255, rgb[2] + 80) + ')'
+            : 'rgb(' + Math.max(0, rgb[0] - 40) + ',' + Math.max(0, rgb[1] - 40) + ',' + Math.max(0, rgb[2] - 40) + ')');
+      }
       headers[i].style.setProperty('background', bg, 'important');
       headers[i].style.setProperty('border-color', border, 'important');
       headers[i].style.setProperty('color', color, 'important');
-      if (todo) headers[i].classList.add('kb-column-todo');
       var links = headers[i].querySelectorAll('a, .board-column-title');
       for (var L = 0; L < links.length; L++) links[L].style.setProperty('color', color, 'important');
       var cells = board.querySelectorAll('tr.board-swimlane > td:nth-child(' + (i + 1) + ')');
@@ -166,12 +174,23 @@
     var board = document.getElementById('board');
     var container = document.getElementById('board-container');
     if (!board || !container) return;
+    var view = document.getElementById('kb-view-board') || container.parentElement;
     var lists = board.querySelectorAll('.board-task-list.board-column-expanded');
     var top = container.getBoundingClientRect().top + window.scrollY;
-    var h = Math.max(280, window.innerHeight - top - 16);
+    // Account for the view paddings so the board never spills past the viewport.
+    var bottomPad = 0;
+    if (view) {
+      var vs = window.getComputedStyle(view);
+      bottomPad = (parseFloat(vs.paddingBottom) || 0) + (parseFloat(vs.borderBottomWidth) || 0);
+    }
+    var h = Math.max(280, window.innerHeight - top - bottomPad);
     setBoardHeight(board, container, lists, h);
-    var over = document.documentElement.scrollHeight - window.innerHeight;
-    if (over > 0) setBoardHeight(board, container, lists, Math.max(280, h - over));
+    for (var pass = 0; pass < 3; pass++) {
+      var over = document.documentElement.scrollHeight - window.innerHeight;
+      if (over <= 0) break;
+      h = Math.max(280, h - over);
+      setBoardHeight(board, container, lists, h);
+    }
     var needsScroll = false;
     for (var i = 0; i < lists.length; i++) {
       if (lists[i].scrollHeight > lists[i].clientHeight + 2) needsScroll = true;
@@ -182,6 +201,12 @@
     container.classList.toggle('kb-board-fit', !needsX && !needsScroll);
     for (var j = 0; j < lists.length; j++) {
       lists[j].style.overflowY = needsScroll ? 'auto' : 'hidden';
+    }
+    // Hide the outer scrollbar as well when the whole board already fits.
+    if (view) {
+      var needsViewY = view.scrollHeight > view.clientHeight + 2;
+      view.style.overflowY = needsViewY ? 'auto' : 'hidden';
+      view.style.overflowX = view.scrollWidth > view.clientWidth + 2 ? 'auto' : 'hidden';
     }
   }
   function paintColumnStats() {
@@ -269,9 +294,28 @@
       }
     }
     polishModalTitle(content);
+    polishActivityDates(content);
     buildModalTopbar(box, content);
     polishUploadModal(box, content);
     mergeAttachZones(content);
+  }
+  function polishActivityDates(content) {
+    var events = content.querySelectorAll('.activity-event');
+    for (var i = 0; i < events.length; i++) {
+      var event = events[i];
+      var date = event.querySelector('.activity-title .activity-date');
+      var description = event.querySelector('.activity-description');
+      if (!date || !description) continue;
+      var row = description.querySelector('.kb-activity-meta-row');
+      if (!row) {
+        row = document.createElement('div');
+        row.className = 'kb-activity-meta-row';
+        description.insertBefore(row, description.firstChild);
+        var taskTitle = description.querySelector('.activity-task-title');
+        if (taskTitle) row.appendChild(taskTitle);
+      }
+      row.appendChild(date);
+    }
   }
   function polishUploadModal(box, content) {
     var drop = content.querySelector('#file-dropzone');
@@ -463,6 +507,7 @@
   function enhanceSelect(select) {
     if (!select || select.getAttribute('data-kb-select') === '1') return;
     if (select.classList.contains('ui-timepicker-select')) return;
+    if (select.classList.contains('kb-quick-select') || select.classList.contains('kb-quick-select-native')) return;
     if (select.multiple || select.size > 1) return;
     var rect = select.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
@@ -590,6 +635,17 @@
   document.addEventListener('click', function (ev) {
     var t = ev.target;
     if (!t) return;
+    var modalLink = t.closest && t.closest('a.js-modal-medium, a.js-modal-large, a.js-modal-small, a.js-modal-confirm');
+    if (modalLink && t.closest('svg') && window.KB && KB.modal) {
+      ev.preventDefault();
+      ev.stopImmediatePropagation();
+      var modalUrl = modalLink.getAttribute('href');
+      var modalSize = modalLink.classList.contains('js-modal-large') ? 'large' : (modalLink.classList.contains('js-modal-small') ? 'small' : 'medium');
+      if (modalLink.classList.contains('js-modal-confirm')) modalSize = 'small';
+      if (modalLink.classList.contains('js-modal-medium') && KB.modal.isOpen()) KB.modal.replace(modalUrl);
+      else KB.modal.open(modalUrl, modalSize, modalLink.classList.contains('js-modal-confirm'));
+      return;
+    }
     if (t.closest && t.closest('.js-modal-medium, .js-modal-large, .js-modal-small, .js-modal-confirm, a[href*="ProjectCreation"], .btn-blue')) {
       setTimeout(onModalRendered, 120);
       setTimeout(onModalRendered, 400);
@@ -605,4 +661,216 @@
   } else {
     scheduleEnhance();
   }
+  function setSidebarCollapsed(collapsed) {
+    document.body.classList.toggle('kb-sidebar-collapsed', !!collapsed);
+    try {
+      localStorage.setItem('kb-sidebar-collapsed', collapsed ? '1' : '0');
+    } catch (e) {}
+  }
+  function isPhoneSidebar() {
+    try {
+      return window.matchMedia('(max-width: 640px)').matches;
+    } catch (e) {
+      return false;
+    }
+  }
+  function initSidebarToggle() {
+    var collapse = document.getElementById('kb-sidebar-collapse');
+    var fab = document.getElementById('kb-sidebar-fab');
+    var backdrop = document.getElementById('kb-sidebar-backdrop');
+    function openSidebar() { setSidebarCollapsed(false); }
+    function closeSidebar() {
+      if (!isPhoneSidebar()) return;
+      setSidebarCollapsed(true);
+    }
+    if (collapse) collapse.addEventListener('click', closeSidebar);
+    if (fab) fab.addEventListener('click', openSidebar);
+    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    document.addEventListener('keydown', function (e) {
+      if ((e.metaKey || e.ctrlKey) && String(e.key || '').toLowerCase() === 'b') {
+        if (!isPhoneSidebar()) return;
+        e.preventDefault();
+        setSidebarCollapsed(!document.body.classList.contains('kb-sidebar-collapsed'));
+      }
+    });
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var discard = t.closest('[data-kb-plane-discard]');
+      if (discard) {
+        e.preventDefault();
+        try { if (window.KB && KB.modal) KB.modal.close(); } catch (err) {}
+        var c = document.getElementById('modal-close-button');
+        if (c) c.click();
+      }
+    });
+    // Phone only: auto-collapse. Tablet/desktop keep sidebar visible.
+    if (isPhoneSidebar()) {
+      setSidebarCollapsed(true);
+    } else {
+      try {
+        if (localStorage.getItem('kb-sidebar-collapsed') !== '1') {
+          setSidebarCollapsed(false);
+        }
+      } catch (e2) {
+        setSidebarCollapsed(false);
+      }
+    }
+    try {
+      var mq = window.matchMedia('(max-width: 640px)');
+      var onMq = function () {
+        if (isPhoneSidebar()) setSidebarCollapsed(true);
+        else setSidebarCollapsed(false);
+      };
+      if (typeof mq.addEventListener === 'function') mq.addEventListener('change', onMq);
+      else if (typeof mq.addListener === 'function') mq.addListener(onMq);
+    } catch (e3) {}
+  }
+  function tightenMemberAutocomplete() {
+    try {
+      if (!window.jQuery) return;
+      jQuery('.kb-member-email, .kb-assignee-search').each(function () {
+        var $el = jQuery(this);
+        if ($el.data('ui-autocomplete')) $el.autocomplete('option', 'minLength', 2);
+      });
+    } catch (e) {}
+  }
+  function bootShellUi() {
+    initSidebarToggle();
+    setTimeout(tightenMemberAutocomplete, 0);
+    setTimeout(tightenMemberAutocomplete, 400);
+  }
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', bootShellUi);
+  } else {
+    bootShellUi();
+  }
+
+  /* Soft navigation: keep sidebar mounted when switching projects / views */
+  var softNavBusy = false;
+  function softNavShouldHandle(a) {
+    if (!a || softNavBusy) return false;
+    if (a.target === '_blank' || a.hasAttribute('download')) return false;
+    if (a.classList.contains('js-modal-medium') || a.classList.contains('js-modal-large') || a.classList.contains('js-modal-small') || a.classList.contains('js-modal-confirm')) return false;
+    var href = a.getAttribute('href') || '';
+    if (!href || href.charAt(0) === '#' || href.indexOf('javascript:') === 0) return false;
+    if (href.indexOf('/apps/kanboard') === -1 && href.indexOf('controller=') === -1) return false;
+    if (/controller=(AuthController|UserAjaxController|TaskCreationController|ProjectCreationController|TaskFileController|CommentController)/i.test(href)) return false;
+    return /controller=(BoardViewController|DashboardController|ProjectViewController|ProjectOverviewController|TaskListController|TaskViewController|ProjectPermissionController|AnalyticController|SearchController)/i.test(href)
+      || a.classList.contains('kb-cycle-view-link')
+      || (a.closest && a.closest('#kb-app-sidebar') && !a.classList.contains('js-modal-medium') && !a.classList.contains('js-modal-large'));
+  }
+  function softNavMarkActive(url) {
+    var side = document.getElementById('kb-app-sidebar');
+    if (!side) return;
+    var links = side.querySelectorAll('a[href]');
+    var u;
+    try { u = new URL(url, location.origin); } catch (e) { return; }
+    var pid = u.searchParams.get('project_id') || '';
+    for (var i = 0; i < links.length; i++) {
+      var li = links[i].closest('li');
+      if (!li) continue;
+      var hu;
+      try { hu = new URL(links[i].href, location.origin); } catch (e2) { continue; }
+      var match = false;
+      if (pid && hu.searchParams.get('project_id') === pid && /BoardViewController/i.test(hu.search)) match = true;
+      else if (!pid && hu.pathname + hu.search === u.pathname + u.search) match = true;
+      li.classList.toggle('active', match);
+    }
+  }
+  function softNavReboot(root) {
+    try {
+      if (window.jQuery) {
+        jQuery('.autocomplete, .kb-member-email, .kb-assignee-search', root || document).each(function () {
+          var $el = jQuery(this);
+          if ($el.data('ui-autocomplete')) {
+            try { $el.autocomplete('destroy'); } catch (eD) {}
+          }
+        });
+      }
+    } catch (eDestroy) {}
+    try {
+      if (window.KB && typeof KB.trigger === 'function') KB.trigger('dom.ready');
+    } catch (e0) {}
+    try {
+      if (window._KB) {
+        if (typeof _KB.datePicker === 'function') _KB.datePicker();
+        if (typeof _KB.autoComplete === 'function') _KB.autoComplete();
+        if (typeof _KB.tagAutoComplete === 'function') _KB.tagAutoComplete();
+        tightenMemberAutocomplete();
+        if (typeof _KB.execute === 'function') {
+          // refresh board controllers without rebinding global listeners
+          for (var key in _KB.controllers || {}) {
+            var c = _KB.controllers[key];
+            if (c && typeof c.onBoardRendered === 'function') {
+              try { c.onBoardRendered(); } catch (eB) {}
+            }
+          }
+        }
+      }
+    } catch (e) {}
+    try {
+      var ev = document.createEvent('Event');
+      ev.initEvent('kb:softnav', true, true);
+      document.dispatchEvent(ev);
+    } catch (e3) {}
+    try {
+      if (document.querySelector('.kb-cycle-workspace')) document.body.classList.add('kb-cycle-page');
+      else document.body.classList.remove('kb-cycle-page');
+      var canvas = document.getElementById('kb-burnup-chart');
+      if (canvas && window.Event) window.dispatchEvent(new Event('resize'));
+    } catch (e4) {}
+    try {
+      if (root && window.KB && typeof KB.render === 'function') KB.render();
+    } catch (e5) {}
+  }
+  function softNavigate(url, push) {
+    if (softNavBusy) return;
+    softNavBusy = true;
+    document.body.classList.add('kb-softnav-loading');
+    // Do not send X-Requested-With: Kanboard AJAX responses omit the layout
+    // (.kb-app-main / sidebar). Full HTML lets us swap main and keep the sidebar.
+    fetch(url, { credentials: 'same-origin', headers: { Accept: 'text/html' } })
+      .then(function (r) { return r.text().then(function (t) { return { ok: r.ok, url: r.url, text: t }; }); })
+      .then(function (res) {
+        if (!res.ok) throw new Error('nav failed');
+        var doc = new DOMParser().parseFromString(res.text, 'text/html');
+        var nextMain = doc.querySelector('.kb-app-main');
+        var curMain = document.querySelector('.kb-app-main');
+        if (!nextMain || !curMain) {
+          location.href = url;
+          return;
+        }
+        var side = document.getElementById('kb-app-sidebar');
+        curMain.innerHTML = nextMain.innerHTML;
+        softNavMarkActive(res.url || url);
+        if (push !== false) {
+          try { history.pushState({ kbSoft: 1 }, '', res.url || url); } catch (e) {}
+        }
+        document.title = doc.title || document.title;
+        softNavReboot(curMain);
+        try {
+          if (side && document.getElementById('kb-app-sidebar') === side) {
+            side.setAttribute('data-kb-softnav', '1');
+          }
+        } catch (e2) {}
+      })
+      .catch(function () { location.href = url; })
+      .then(function () {
+        softNavBusy = false;
+        document.body.classList.remove('kb-softnav-loading');
+      });
+  }
+  document.addEventListener('click', function (e) {
+    var t = e.target;
+    if (!t || !t.closest) return;
+    var a = t.closest('a');
+    if (!softNavShouldHandle(a)) return;
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    softNavigate(a.href, true);
+  }, true);
+  window.addEventListener('popstate', function () {
+    softNavigate(location.href, false);
+  });
 })();

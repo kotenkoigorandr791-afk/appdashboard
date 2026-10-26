@@ -7583,7 +7583,15 @@ else injectAppMobileChrome();
 <?php require __DIR__ . '/modals/weather_modals.php'; ?>
 <?php
 if ($_guideEnabled):
-    require_once __DIR__ . '/../onboarding/guide_lang.php';
+    $_guideLangFile = dirname(__DIR__) . '/onboarding/guide_lang.php';
+    if (!is_file($_guideLangFile)) {
+        error_log('onboarding guide_lang missing: ' . $_guideLangFile);
+        $_guideEnabled = false;
+    } else {
+        require_once $_guideLangFile;
+    }
+endif;
+if (!empty($_guideEnabled)):
     $_guideStrings = onboarding_strings($language);
     if (!empty($_guideCfg['dev_force_start'])) {
         $_guideAuto = true;

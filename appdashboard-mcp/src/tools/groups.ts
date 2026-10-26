@@ -94,7 +94,7 @@ export const TOOL_GROUPS: ToolGroup[] = [
   },
   {
     id: "kanboard",
-    description: "Kanboard task boards: projects, tasks, comments",
+    description: "Kanboard planning: edit projects, manage tasks, quick stats",
     prefixes: ["kanboard_"],
   },
   {

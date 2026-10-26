@@ -23,7 +23,7 @@ function public_api_is_https(): bool {
 }
 function public_api_cors(): void {
     if (headers_sent()) return;
-    header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
+    header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
     header('Access-Control-Allow-Headers: Authorization, Content-Type, X-Device-Id, X-Request-Id');
     header('Access-Control-Max-Age: 600');
     $origin = (string)($_SERVER['HTTP_ORIGIN'] ?? '');

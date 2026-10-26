@@ -527,7 +527,7 @@ class Paginator
         $direction = 'ASC';
 
         if ($this->order === $column) {
-            $prefix = $this->direction === 'DESC' ? '&#9660; ' : '&#9650; ';
+            $prefix = '<span class="kb-sort-direction" aria-hidden="true">'.($this->direction === 'DESC' ? '&#9660;' : '&#9650;').'</span>';
             $direction = $this->direction === 'DESC' ? 'ASC' : 'DESC';
         }
 

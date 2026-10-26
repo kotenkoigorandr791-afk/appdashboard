@@ -234,7 +234,6 @@ services:
       - "127.0.0.1:8808:8808"
     volumes:
       - .:/var/www/AppDashboard
-      - .:/var/www/apps-dashboard
       - ./nginx/appdashboard.conf.template:/etc/nginx/templates/appdashboard.conf.template:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData

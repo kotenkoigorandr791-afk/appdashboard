@@ -5,13 +5,8 @@ import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+
 const PROJECT = "MCP Demo";
-const SEED = [
-  { title: "Подготовить отчёт за сентябрь", priority: 3, color_id: "red", date_due: "2026-10-01", tags: ["report"] },
-  { title: "Созвон с командой", priority: 1, color_id: "blue", date_due: "2026-09-29" },
-  { title: "Обновить документацию MCP", priority: 2, color_id: "green", tags: ["docs", "mcp"] },
-  { title: "Разобрать входящие задачи", priority: 0, color_id: "yellow" },
-];
 const results = [];
 function record(name, ok, detail) {
   results.push({ name, ok });
@@ -50,46 +45,57 @@ async function main() {
   record("tools/list", listed.tools.some((t) => t.name === "tools_call"), listed.tools.map((t) => t.name).join(","));
   const loaded = await client.callTool({ name: "tools_load", arguments: { groups: ["kanboard"] } });
   const loadedText = loaded.content?.[0]?.text ?? "";
-  record("tools_load kanboard", /kanboard_update_task/.test(loadedText), `${(loadedText.match(/"kanboard_\w+"/g) || []).length} kanboard tools`);
-  const me = await call("kanboard_get_me");
-  record("get_me hides secrets", !("api_access_token" in me) && !("twofactor_secret" in me), Object.keys(me).join(","));
-  let project = (await call("kanboard_list_projects")).find((p) => p.name === PROJECT);
-  if (!project) {
-    const { project_id } = await call("kanboard_create_project", { name: PROJECT, description: "Тестовый проект для проверки MCP" });
-    project = { id: project_id };
-  }
-  const board = await call("kanboard_get_board", { project_id: project.id });
-  const columns = board.swimlanes[0].columns;
-  record("board columns", columns.length >= 2, columns.map((c) => `${c.id}:${c.title}`).join(", "));
-  const existing = await call("kanboard_list_tasks", { project_id: project.id });
-  const created = [];
-  for (const seed of SEED) {
-    const found = existing.find((t) => t.title === seed.title);
-    created.push(found ?? (await call("kanboard_create_task", { project_id: project.id, description: `Описание: ${seed.title}`, ...seed })));
-  }
-  record("seeded tasks assigned to me", created.every((t) => t.owner_id === me.id), created.map((t) => `#${t.id}`).join(" "));
-  const target = created[0];
-  const moved = await call("kanboard_update_task", { task_id: target.id, column_id: columns[1].id, priority: 3 });
-  record("move to column", moved.column_id === columns[1].id, `${moved.column}`);
-  await call("kanboard_add_comment", { task_id: target.id, content: "Комментарий из MCP-теста" });
-  const details = await call("kanboard_get_task", { task_id: target.id });
-  record("comment visible", details.comments.some((c) => c.content === "Комментарий из MCP-теста"), details.comments.length);
-  const scratchTitle = "Временная задача (закрыть)";
-  const closedBefore = await call("kanboard_list_tasks", { project_id: project.id, status: "closed" });
-  let scratch = closedBefore.find((t) => t.title === scratchTitle);
-  if (scratch) {
-    const reopened = await call("kanboard_update_task", { task_id: scratch.id, status: "open" });
-    record("reopen task", reopened.status === "open", reopened.status);
-  } else {
-    scratch = await call("kanboard_create_task", { project_id: project.id, title: scratchTitle });
-  }
-  record("task url", /\/apps\/kanboard\/\?controller=/.test(scratch.url), scratch.url);
-  const closed = await call("kanboard_update_task", { task_id: scratch.id, status: "closed" });
-  record("close task", closed.status === "closed", closed.status);
-  const closedList = await call("kanboard_list_tasks", { project_id: project.id, status: "closed" });
-  record("closed list", closedList.some((t) => t.id === scratch.id), closedList.length);
-  const mine = await call("kanboard_list_tasks");
-  record("my tasks", created.every((t) => mine.some((m) => m.id === t.id)), mine.length);
+  const toolNames = loadedText.match(/"kanboard_\w+"/g) || [];
+  record(
+    "tools_load kanboard",
+    /kanboard_update_project/.test(loadedText) &&
+      /kanboard_delete_task/.test(loadedText) &&
+      /kanboard_stats/.test(loadedText) &&
+      !/kanboard_create_project/.test(loadedText),
+    `${toolNames.length} tools`,
+  );
+
+  const projects = await call("kanboard_list_projects");
+  let project = projects.find((p) => p.name === PROJECT) || projects[0];
+  if (!project) throw new Error("no project available for MCP test (create one in UI first)");
+  record("has project", !!project.id, project.name);
+
+  const renamed = `${PROJECT} ${Date.now().toString().slice(-4)}`;
+  const updated = await call("kanboard_update_project", {
+    project_id: project.id,
+    description: "MCP updated description",
+  });
+  record("update project", updated.id === project.id, updated.description);
+  await call("kanboard_update_project", { project_id: project.id, name: project.name });
+
+  const stats = await call("kanboard_stats", { project_id: project.id });
+  record("stats columns", Array.isArray(stats.columns) && stats.columns.length >= 1, JSON.stringify(stats).slice(0, 120));
+  const columnId = stats.columns?.[1]?.id || stats.columns?.[0]?.id;
+
+  const title = `MCP Task ${Date.now()}`;
+  const created = await call("kanboard_create_task", {
+    project_id: project.id,
+    title,
+    description: "from MCP test",
+    priority: 2,
+  });
+  record("create task", created.title === title, `#${created.id}`);
+
+  const moved = await call("kanboard_update_task", {
+    task_id: created.id,
+    column_id: columnId,
+    priority: 3,
+  });
+  record("update task", moved.id === created.id && moved.priority === 3, moved.column);
+
+  const listedTasks = await call("kanboard_list_tasks", { project_id: project.id });
+  record("list tasks", listedTasks.some((t) => t.id === created.id), listedTasks.length);
+
+  const deleted = await call("kanboard_delete_task", { task_id: created.id });
+  record("delete task", deleted.deleted === created.id, deleted.deleted);
+  const after = await call("kanboard_list_tasks", { project_id: project.id });
+  record("deleted gone", !after.some((t) => t.id === created.id), after.length);
+
   await client.close();
   const failed = results.filter((r) => !r.ok);
   console.log(`\npassed=${results.length - failed.length} failed=${failed.length}`);

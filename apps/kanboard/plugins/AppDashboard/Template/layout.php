@@ -11,6 +11,8 @@ if ($shellTheme === '' || !in_array($shellTheme, ['light', 'dark', 'auto'], true
 }
 $cssTheme = $shellTheme === 'dark' ? 'dark' : ($shellTheme === 'auto' ? 'auto' : 'light');
 $bodyClass = $shellTheme === 'dark' ? 'kb-dark' : '';
+$shellProjects = isset($board_selector) && is_array($board_selector) ? $board_selector : [];
+$shellProject = isset($project) && is_array($project) ? $project : [];
 ?>
 <!DOCTYPE html>
 <html lang="<?= $this->app->jsLang() ?>"<?php if ($this->app->isRtlLanguage()): ?> dir="rtl"<?php endif; ?> data-kb-theme="<?= $this->text->e($shellTheme) ?>"<?= $shellTheme === 'dark' ? ' class="kb-dark"' : '' ?>>
@@ -44,7 +46,7 @@ $bodyClass = $shellTheme === 'dark' ? 'kb-dark' : '';
           if (dark) {
             var s = document.createElement('style');
             s.id = 'kb-dark-boot';
-            s.textContent = 'html.kb-dark,html.kb-dark body{background:#0b0e14!important;color:#e8eaed!important}';
+            s.textContent = 'html.kb-dark,html.kb-dark body{background:#18181b!important;color:#fafafa!important}';
             root.appendChild(s);
           }
           window.__kbShellTheme = t;
@@ -93,7 +95,7 @@ $bodyClass = $shellTheme === 'dark' ? 'kb-dark' : '';
 
         <?= $this->hook->render('template:layout:head') ?>
     </head>
-    <body class="<?= $bodyClass ?>"
+    <body class="kb-circle <?= $bodyClass ?>"
           data-status-url="<?= $this->url->href('UserAjaxController', 'status') ?>"
           data-login-url="<?= $this->url->href('AuthController', 'login') ?>"
           data-keyboard-shortcut-url="<?= $this->url->href('DocumentationController', 'shortcuts') ?>"
@@ -106,6 +108,11 @@ $bodyClass = $shellTheme === 'dark' ? 'kb-dark' : '';
       if (window.__kbShellDark) document.body.classList.add('kb-dark');
       else document.body.classList.remove('kb-dark');
       if (window.__kbShellTheme) document.documentElement.setAttribute('data-kb-theme', window.__kbShellTheme);
+      try {
+        var phone = window.matchMedia('(max-width: 640px)').matches;
+        if (phone) document.body.classList.add('kb-sidebar-collapsed');
+        else document.body.classList.remove('kb-sidebar-collapsed');
+      } catch (e) {}
     })();
     </script>
 
@@ -114,17 +121,25 @@ $bodyClass = $shellTheme === 'dark' ? 'kb-dark' : '';
         <?= $content_for_layout ?>
     <?php else: ?>
         <?= $this->hook->render('template:layout:top') ?>
-        <?= $this->render('header', array(
-            'title' => $title,
-            'description' => isset($description) ? $description : '',
-            'board_selector' => isset($board_selector) ? $board_selector : array(),
-            'project' => isset($project) ? $project : array(),
-        )) ?>
-        <section class="page">
-            <?= $this->app->flashMessage() ?>
-            <?= $content_for_layout ?>
-        </section>
-        <?= $this->hook->render('template:layout:bottom') ?>
+        <div class="kb-app-shell">
+            <?= $this->render('appDashboard:shell/sidebar', [
+                'board_selector' => $shellProjects,
+                'project' => $shellProject,
+            ]) ?>
+            <div class="kb-app-main">
+                <?= $this->render('header', array(
+                    'title' => $title,
+                    'description' => isset($description) ? $description : '',
+                    'board_selector' => isset($board_selector) ? $board_selector : array(),
+                    'project' => isset($project) ? $project : array(),
+                )) ?>
+                <section class="page kb-page">
+                    <?= $this->app->flashMessage() ?>
+                    <?= $content_for_layout ?>
+                </section>
+            </div>
+        </div>
     <?php endif ?>
+    <?= $this->hook->render('template:layout:bottom') ?>
     </body>
 </html>

@@ -1,7 +1,9 @@
 import { getKanboardCredentials, kanboardRpc } from "../integrations.js";
 import { ApiError, textResult } from "../api.js";
 import type { ToolDef } from "./types.js";
+
 type Args = Record<string, unknown>;
+
 const TASK_FIELDS: Record<string, "string" | "number" | "array"> = {
   title: "string",
   description: "string",
@@ -11,15 +13,23 @@ const TASK_FIELDS: Record<string, "string" | "number" | "array"> = {
   date_due: "string",
   tags: "array",
 };
+
 const TASK_PROPS = {
   title: { type: "string" },
   description: { type: "string", description: "Markdown" },
   owner_id: { type: "number", description: "Assignee user id, 0 = unassigned" },
-  color_id: { type: "string", description: "yellow, blue, green, purple, red, orange, grey, brown, deep_orange, dark_grey, pink, teal, cyan, lime, light_green, amber" },
+  color_id: {
+    type: "string",
+    description:
+      "yellow, blue, green, purple, red, orange, grey, brown, deep_orange, dark_grey, pink, teal, cyan, lime, light_green, amber",
+  },
   priority: { type: "number", description: "0 (low) .. 3 (high)" },
   date_due: { type: "string", description: "YYYY-MM-DD or YYYY-MM-DD HH:MM, empty string clears" },
   tags: { type: "array", items: { type: "string" } },
 };
+
+let appUrl = "";
+
 async function rpc(method: string, params: unknown[] | Args = []): Promise<any> {
   const result = await kanboardRpc(method, params);
   appUrl = (await getKanboardCredentials()).url;
@@ -28,20 +38,23 @@ async function rpc(method: string, params: unknown[] | Args = []): Promise<any> 
   }
   return result;
 }
+
 async function me() {
   const u = await rpc("getMe");
   return { id: Number(u.id), username: u.username, name: u.name, email: u.email, role: u.role };
 }
-let appUrl = "";
+
 function link(url: unknown): string | undefined {
   if (typeof url !== "string" || !url) return undefined;
   const query = url.indexOf("?");
   return query >= 0 && appUrl ? `${appUrl}/${url.slice(query)}` : url;
 }
+
 function isoDate(ts: unknown): string | null {
   const n = Number(ts);
   return n > 0 ? new Date(n * 1000).toISOString().slice(0, 10) : null;
 }
+
 function compactTask(t: any, columns?: Map<number, string>) {
   return {
     id: Number(t.id),
@@ -60,6 +73,7 @@ function compactTask(t: any, columns?: Map<number, string>) {
     url: link(t.url),
   };
 }
+
 function taskFields(args: Args): Args {
   const out: Args = {};
   for (const [key, type] of Object.entries(TASK_FIELDS)) {
@@ -69,38 +83,61 @@ function taskFields(args: Args): Args {
   }
   return out;
 }
+
 async function projectColumns(projectId: number): Promise<Map<number, string>> {
   const columns: any[] = await rpc("getColumns", { project_id: projectId });
   return new Map(columns.map((c) => [Number(c.id), String(c.title)]));
 }
-async function taskDetails(taskId: number, withComments: boolean) {
+
+async function taskDetails(taskId: number) {
   const task = await rpc("getTask", { task_id: taskId });
-  const [columns, comments] = await Promise.all([
-    projectColumns(Number(task.project_id)),
-    withComments ? rpc("getAllComments", { task_id: taskId }) : Promise.resolve(undefined),
-  ]);
+  const columns = await projectColumns(Number(task.project_id));
   return {
     ...compactTask(task, columns),
     description: task.description,
-    comments: (comments as any[] | undefined)?.map((c) => ({
-      id: Number(c.id),
-      author: c.name || c.username,
-      date: isoDate(c.date_creation),
-      content: c.comment,
-    })),
   };
 }
+
+async function projectStats(projectId: number) {
+  const [columnsRaw, open, closed] = await Promise.all([
+    rpc("getColumns", { project_id: projectId }),
+    rpc("getAllTasks", { project_id: projectId, status_id: 1 }),
+    rpc("getAllTasks", { project_id: projectId, status_id: 0 }),
+  ]);
+  const columns = (columnsRaw as any[]).map((c) => ({
+    id: Number(c.id),
+    title: String(c.title),
+    position: Number(c.position || 0),
+  }));
+  const byColumn = new Map<number, { column_id: number; column: string; open: number }>();
+  for (const c of columns) byColumn.set(c.id, { column_id: c.id, column: c.title, open: 0 });
+  let overdue = 0;
+  let unassigned = 0;
+  const now = Date.now() / 1000;
+  for (const t of open as any[]) {
+    const cid = Number(t.column_id);
+    const row = byColumn.get(cid) || { column_id: cid, column: String(t.column_name || cid), open: 0 };
+    row.open += 1;
+    byColumn.set(cid, row);
+    if (!Number(t.owner_id)) unassigned += 1;
+    const due = Number(t.date_due || 0);
+    if (due > 0 && due < now) overdue += 1;
+  }
+  return {
+    project_id: projectId,
+    open: (open as any[]).length,
+    closed: (closed as any[]).length,
+    overdue,
+    unassigned,
+    columns,
+    by_column: [...byColumn.values()],
+  };
+}
+
 export const kanboardTools: ToolDef[] = [
   {
-    name: "kanboard_get_me",
-    description: "Get the current Kanboard user (id, username, role). Use the id as owner_id to assign tasks.",
-    minRole: 0,
-    inputSchema: { type: "object", properties: {} },
-    handler: async () => textResult(await me()),
-  },
-  {
     name: "kanboard_list_projects",
-    description: "List Kanboard projects the current user is a member of.",
+    description: "List Kanboard projects the current user can access (ids for update_project / create_task / stats).",
     minRole: 0,
     inputSchema: { type: "object", properties: {} },
     handler: async () => {
@@ -117,57 +154,46 @@ export const kanboardTools: ToolDef[] = [
     },
   },
   {
-    name: "kanboard_create_project",
-    description: "Create a Kanboard project owned by the current user (private project for regular users). Returns project_id.",
+    name: "kanboard_update_project",
+    description: "Edit an existing Kanboard project (name, description, active flag). Does not create projects.",
     minRole: 0,
     inputSchema: {
       type: "object",
-      properties: { name: { type: "string" }, description: { type: "string" } },
-      required: ["name"],
-    },
-    handler: async (args) => {
-      const user = await me();
-      const params = { name: String(args.name), description: args.description ? String(args.description) : null };
-      const projectId =
-        user.role === "app-user"
-          ? await rpc("createMyPrivateProject", params)
-          : await rpc("createProject", { ...params, owner_id: user.id });
-      return textResult({ project_id: Number(projectId) });
-    },
-  },
-  {
-    name: "kanboard_get_board",
-    description: "Get a project board: swimlanes, columns (ids for moving tasks) and open tasks in each column.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: { project_id: { type: "number" } },
+      properties: {
+        project_id: { type: "number" },
+        name: { type: "string" },
+        description: { type: "string" },
+        is_active: { type: "boolean", description: "false archives/disables the project" },
+      },
       required: ["project_id"],
     },
     handler: async (args) => {
-      const projectId = Number(args.project_id);
-      const [project, board] = await Promise.all([
-        rpc("getProjectById", { project_id: projectId }),
-        rpc("getBoard", { project_id: projectId }),
-      ]);
+      const id = Number(args.project_id);
+      const fields: Args = { project_id: id };
+      if (args.name !== undefined) fields.name = String(args.name);
+      if (args.description !== undefined) fields.description = String(args.description);
+      if (Object.keys(fields).length === 1 && args.is_active === undefined) {
+        throw new ApiError("kanboard_update_project_no_fields", 400, { error: "no_fields" });
+      }
+      if (Object.keys(fields).length > 1) await rpc("updateProject", fields);
+      if (args.is_active !== undefined) {
+        await rpc(args.is_active ? "enableProject" : "disableProject", { project_id: id });
+      }
+      const project = await rpc("getProjectById", { project_id: id });
       return textResult({
-        project: { id: Number(project.id), name: project.name, description: project.description || undefined },
-        swimlanes: (board as any[]).map((s) => ({
-          id: Number(s.id),
-          name: s.name,
-          columns: (s.columns as any[]).map((c) => ({
-            id: Number(c.id),
-            title: c.title,
-            task_limit: Number(c.task_limit) || undefined,
-            tasks: (c.tasks as any[]).map((t) => compactTask({ ...t, column_title: c.title })),
-          })),
-        })),
+        id: Number(project.id),
+        name: project.name,
+        description: project.description || undefined,
+        is_private: Number(project.is_private) === 1,
+        is_active: Number(project.is_active) === 1,
+        url: link(project.url?.board),
       });
     },
   },
   {
     name: "kanboard_list_tasks",
-    description: "List tasks. With project_id: all tasks of the project (status open|closed). Without project_id: open tasks assigned to the current user across all projects.",
+    description:
+      "List tasks. With project_id: project tasks (status open|closed). Without project_id: open tasks assigned to the current user.",
     minRole: 0,
     inputSchema: {
       type: "object",
@@ -190,17 +216,6 @@ export const kanboardTools: ToolDef[] = [
     },
   },
   {
-    name: "kanboard_get_task",
-    description: "Get a Kanboard task with description and comments.",
-    minRole: 0,
-    inputSchema: {
-      type: "object",
-      properties: { task_id: { type: "number" } },
-      required: ["task_id"],
-    },
-    handler: async (args) => textResult(await taskDetails(Number(args.task_id), true)),
-  },
-  {
     name: "kanboard_create_task",
     description: "Create a task. Assigned to the current user unless owner_id is given. Default column is the first one.",
     minRole: 0,
@@ -221,19 +236,19 @@ export const kanboardTools: ToolDef[] = [
       if (args.column_id) params.column_id = Number(args.column_id);
       if (args.swimlane_id) params.swimlane_id = Number(args.swimlane_id);
       const taskId = await rpc("createTask", params);
-      return textResult(await taskDetails(Number(taskId), false));
+      return textResult(await taskDetails(Number(taskId)));
     },
   },
   {
     name: "kanboard_update_task",
-    description: "Update a task: edit fields, move to another column/swimlane, and/or close or reopen it. Only given fields change.",
+    description: "Update a task: fields, move column/swimlane, and/or open|closed. Only given fields change.",
     minRole: 0,
     inputSchema: {
       type: "object",
       properties: {
         task_id: { type: "number" },
         ...TASK_PROPS,
-        column_id: { type: "number", description: "Move to this column (see kanboard_get_board)" },
+        column_id: { type: "number", description: "Move to this column (ids from kanboard_stats)" },
         swimlane_id: { type: "number" },
         position: { type: "number", description: "Position in column, 1 = top (default)" },
         status: { type: "string", enum: ["open", "closed"] },
@@ -259,25 +274,34 @@ export const kanboardTools: ToolDef[] = [
       }
       if (args.status === "closed") await rpc("closeTask", { task_id: id });
       if (args.status === "open") await rpc("openTask", { task_id: id });
-      return textResult(await taskDetails(id, false));
+      return textResult(await taskDetails(id));
     },
   },
   {
-    name: "kanboard_add_comment",
-    description: "Add a comment (Markdown) to a task as the current user.",
+    name: "kanboard_delete_task",
+    description: "Permanently delete a Kanboard task.",
     minRole: 0,
     inputSchema: {
       type: "object",
-      properties: { task_id: { type: "number" }, content: { type: "string" } },
-      required: ["task_id", "content"],
+      properties: { task_id: { type: "number" } },
+      required: ["task_id"],
     },
     handler: async (args) => {
-      const commentId = await rpc("createComment", {
-        task_id: Number(args.task_id),
-        user_id: (await me()).id,
-        content: String(args.content),
-      });
-      return textResult({ comment_id: Number(commentId) });
+      const taskId = Number(args.task_id);
+      await rpc("removeTask", { task_id: taskId });
+      return textResult({ deleted: taskId });
     },
+  },
+  {
+    name: "kanboard_stats",
+    description:
+      "Quick project stats for agents: open/closed/overdue/unassigned counts, columns (with ids), and open tasks per column.",
+    minRole: 0,
+    inputSchema: {
+      type: "object",
+      properties: { project_id: { type: "number" } },
+      required: ["project_id"],
+    },
+    handler: async (args) => textResult(await projectStats(Number(args.project_id))),
   },
 ];

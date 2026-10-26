@@ -44,19 +44,23 @@
     <?= $project_paginator ?>
 <?php endif ?>
 <?php if (empty($overview_paginator)): ?>
-    <p class="alert"><?= t('There is nothing assigned to you.') ?></p>
+    <div class="kb-empty-state">
+        <p class="kb-empty-title"><?= t('There is nothing assigned to you.') ?></p>
+        <p class="kb-empty-text"><?= t('My tasks') ?></p>
+    </div>
 <?php else: ?>
     <?php foreach ($overview_paginator as $result): ?>
         <?php if (! $result['paginator']->isEmpty()): ?>
-            <div class="page-header">
+            <div class="kb-issue-group-header">
                 <h2 id="project-tasks-<?= $result['project_id'] ?>"><?= $this->url->link($this->text->e($result['project_name']), 'BoardViewController', 'show', array('project_id' => $result['project_id'])) ?></h2>
+                <span class="kb-issue-group-count"><?= $result['paginator']->getTotal() ?></span>
             </div>
-            <div class="table-list">
+            <div class="table-list kb-issue-list">
                 <?= $this->render('task_list/header', array(
                     'paginator' => $result['paginator'],
                 )) ?>
                 <?php foreach ($result['paginator']->getCollection() as $task): ?>
-                    <div class="table-list-row color-<?= $task['color_id'] ?>">
+                    <div class="table-list-row kb-issue-row color-<?= $task['color_id'] ?>">
                         <?= $this->render('task_list/task_title', array(
                             'task' => $task,
                             'redirect' => 'dashboard',

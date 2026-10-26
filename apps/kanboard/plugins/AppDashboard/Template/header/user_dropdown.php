@@ -6,7 +6,7 @@
             <?= $this->url->icon('tachometer', t('My dashboard'), 'DashboardController', 'show', array('user_id' => $this->user->getId())) ?>
         </li>
         <li>
-            <?= $this->url->icon('folder', t('Projects management'), 'ProjectListController', 'show') ?>
+            <?= $this->url->icon('folder', t('Projects management'), 'ProjectListController', 'show', array(), false, 'js-modal-large') ?>
         </li>
         <?= $this->hook->render('template:header:dropdown') ?>
     </ul>

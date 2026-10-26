@@ -103,6 +103,7 @@ opencode.json
 .serena/
 /.opencode/
 /apps/steps/steps-mobile-app/.gradle/
+/apps/kanboard/kanboard-mobile-app/.gradle/
 /apps/steps/steps-mobile-app/build/
 /apps/steps/steps-mobile-app/app/build/
 /apps/steps/steps-mobile-app/local.properties
@@ -165,3 +166,17 @@ core
 npm-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Kanboard mobile client (apps/kanboard/kanboard-mobile-app)
+/apps/kanboard/kanboard-mobile-app/build/
+/apps/kanboard/kanboard-mobile-app/app/build/
+/apps/kanboard/kanboard-mobile-app/local.properties
+/apps/kanboard/kanboard-mobile-app/captures/
+/apps/kanboard/kanboard-mobile-app/.cxx/
+/apps/kanboard/kanboard-mobile-app/.idea/
+/apps/kanboard/kanboard-mobile-app/**/build/
+/downloads/kanboard-mobile.apk
+/downloads/kanboard-mobile.json
+/downloads/kanboard-mobile-build.sha256
+/apps/kanboard/kanboard-mobile-app/**/*.apk
+/apps/kanboard/kanboard-mobile-app/**/*.aab
