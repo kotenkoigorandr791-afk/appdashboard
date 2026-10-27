@@ -4,11 +4,17 @@ on:
     branches:
       - main
   workflow_dispatch:
+    inputs:
+      deploy_only:
+        description: Deploy existing release images
+        required: false
+        default: 'false'
 concurrency:
   group: deploy-main
   cancel-in-progress: false
 jobs:
   build-images:
+    if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.deploy_only != 'true' }}
     runs-on: appdashboard-deploy
     timeout-minutes: 360
     steps:
@@ -41,6 +47,7 @@ jobs:
           docker push ihorkotenko/appdashboard-py:latest
 
   deploy-main:
+    if: ${{ always() && (needs.build-images.result == 'success' || needs.build-images.result == 'skipped') }}
     runs-on: appdashboard-deploy
     timeout-minutes: 360
     needs: build-images
@@ -81,8 +88,8 @@ jobs:
           if [ -f deploy/scripts/lopaka-needs-build.sh ]; then
             sh deploy/scripts/lopaka-needs-build.sh && sh deploy/scripts/build-lopaka.sh . || true
           fi
-          docker compose -f /opt/docker/appdashboard/code/docker-compose.yml -f /opt/docker/appdashboard/code/docker-compose.prod.yml pull appdashboard appdashboard-py
-          docker compose -f /opt/docker/appdashboard/code/docker-compose.yml -f /opt/docker/appdashboard/code/docker-compose.prod.yml up -d --no-build --force-recreate appdashboard appdashboard-py
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml pull appdashboard appdashboard-py
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --no-build --force-recreate appdashboard appdashboard-py
           sudo -E sh /opt/docker/appdashboard/code/deploy/scripts/install-front-door.sh /opt/docker/appdashboard/code
           docker exec appdashboard rm -f /var/www/AppDashboard/tg_mini_auth.php
           # Ensure public OAuth issuer uses https://$BASE_DOMAIN (never http://localhost).
@@ -97,11 +104,11 @@ jobs:
             else
               printf '\nAPP_PUBLIC_SCHEME=https\n' >> /opt/docker/appdashboard/.env
             fi
-            docker compose -f /opt/docker/appdashboard/code/docker-compose.yml -f /opt/docker/appdashboard/code/docker-compose.prod.yml up -d --no-build --force-recreate appdashboard appdashboard-py
+            docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d --no-build --force-recreate appdashboard appdashboard-py
           fi
           docker exec appdashboard php /var/www/AppDashboard/deploy/scripts/fix-public-urls.php || true
           docker exec appdashboard php /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php || true
-          docker compose -f /opt/docker/appdashboard/code/docker-compose.yml up -d gitea 2>/dev/null || true
+          docker compose -f /opt/docker/appdashboard/docker-compose.yml up -d gitea 2>/dev/null || true
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard
           docker exec appdashboard sh /var/www/AppDashboard/deploy/scripts/ensure-container-packages.sh
           for attempt in $(seq 1 120); do
