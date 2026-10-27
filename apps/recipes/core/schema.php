@@ -1,4 +1,6 @@
 <?php
+require_once __DIR__ . '/seed.php';
+
 function recipes_ensure_products_image_preview_column($db) {
     if (!$db) return;
     try {
@@ -51,9 +53,30 @@ function recipes_ensure_steps_table($db) {
 
 // Migration function to transfer data from JSON to SQLite
 function recipes_migrate_json_to_sqlite() {
-    $db = getDB();
-    if (!$db) return false;
-    
+    // The schema migration and the seed are idempotent but not cheap: they run
+    // CREATE TABLE IF NOT EXISTS, CREATE INDEX IF NOT EXISTS, ALTER TABLE and
+    // several information_schema lookups. They used to run on every single
+    // HTTP request because apps/recipes/core/image.php calls this function at
+    // file scope, which made the recipes API issue ~20 DDL round trips to
+    // PostgreSQL per request (measured: 2880 information_schema lookups and
+    // 960 CREATE TABLE / CREATE INDEX statements for a 20 second load test).
+    //
+    // app_schema_once() runs the body at most once per schema version (the
+    // stamp includes the mtime and size of the declaring file) and caches the
+    // result in Redis for 24 hours, so a schema change still gets picked up
+    // immediately while normal traffic no longer touches the catalog.
+    app_schema_once('recipes_schema', __FILE__, static function () {
+        $db = getDB();
+        if (!$db) return;
+        recipes_migrate_json_to_sqlite_impl($db);
+        // Seed the default products and recipes so a fresh installation is
+        // usable right away. The seed only fills tables that are still empty.
+        recipes_seed_ensure($db);
+    });
+    return true;
+}
+
+function recipes_migrate_json_to_sqlite_impl($db) {
     // Check if migration already completed
     $tables = $db->query("SELECT table_name AS name FROM information_schema.tables WHERE table_schema='public' AND table_name LIKE '" . RECIPES_DB_TABLE_PREFIX . "%'");
     $table_count = 0;
@@ -123,9 +146,11 @@ function recipes_migrate_json_to_sqlite() {
         )
     ");
     
-    // Migrate products
-    $products_dir = 'products';
-    foreach (glob("$products_dir/*/product.json") as $file) {
+    // Migrate products. Use absolute paths: the relative "products" folder
+    // only resolves when the working directory happens to be the app root,
+    // which is not the case when this runs from the CLI (first deployment).
+    $products_dir = RECIPES_PRODUCTS_DIR;
+    foreach (glob($products_dir . '/*/product.json') as $file) {
         $product_data = json_decode(file_get_contents($file), true);
         if ($product_data && isset($product_data['id'])) {
             $stmt = $db->prepare("
@@ -147,8 +172,8 @@ function recipes_migrate_json_to_sqlite() {
     }
     
     // Migrate recipes
-    $recipes_dir = 'recipes';
-    foreach (glob("$recipes_dir/*/recipe.json") as $file) {
+    $recipes_dir = RECIPES_RECIPES_DIR;
+    foreach (glob($recipes_dir . '/*/recipe.json') as $file) {
         $recipe_data = json_decode(file_get_contents($file), true);
         if ($recipe_data && isset($recipe_data['id'])) {
             $stmt = $db->prepare("

@@ -1,5 +1,6 @@
 <?php
 // Handle form submissions
+require_once __DIR__ . '/../core/cache.php';
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     
     if (isset($_POST['action'])) {
@@ -526,6 +527,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->execute();
                     }
                     $db->exec("COMMIT");
+                    recipes_cache_invalidate();
                     $response = ['success' => true, 'message' => 'State saved'];
                 } catch (Exception $e) {
                     $db->exec("ROLLBACK");
@@ -554,6 +556,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                         $stmt->execute();
                     }
                     $db->exec("COMMIT");
+                    recipes_cache_invalidate();
                     $response = ['success' => true, 'message' => $translations[$lang]['config_saved'] ?? 'Config saved'];
                 } catch (Exception $e) {
                     $db->exec("ROLLBACK");

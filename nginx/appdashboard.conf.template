@@ -20,6 +20,10 @@ map $is_secure_conn $uir_token {
     default "";
 }
 limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
+# Machine-to-machine auth endpoints (/token, /authorize). Permissive on purpose:
+# a native client or a whole office behind one NAT shares one IP key, and the
+# strict 12r/m of appdashboard_auth is meant for the human login page only.
+limit_req_zone $binary_remote_addr zone=appdashboard_oauth:10m rate=60r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=120r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_heavy:10m rate=60r/m;
@@ -209,41 +213,97 @@ server {
         }
         rewrite ^/main(.*)$ /index.php?_original_uri=$request_uri last;
     }
+    # Auth / token endpoints.
+    #
+    # These locations used to do "rewrite ^ /index.php last;" and rely on the
+    # limit_req directive in the same block. nginx evaluates limit_req in the
+    # preaccess phase, but "rewrite ... last" restarts the location lookup and
+    # the request is handed to "location ~ \.php$", which has no limit_req at
+    # all. The configured rate limit (12r/m + burst 20) was therefore never
+    # applied to /login: 40 back-to-back requests all returned 200.
+    #
+    # Serving the front controller directly from these locations keeps the
+    # limit_req directive effective. fastcgi_script_name is overridden to
+    # /index.php so SCRIPT_FILENAME/SCRIPT_NAME stay identical to what the
+    # rewrite produced, and REQUEST_URI (which the PHP router uses to derive
+    # the route) is left untouched by fastcgi.conf.
     location = /login {
         limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
     location = /login/oauth/start {
         limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
     location = /login/oauth/callback {
         limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
     location = /register {
         limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
     location = /api/client-auth {
         limit_req zone=appdashboard_api burst=120 nodelay;
         rewrite ^ /index.php?api=client_auth last;
     }
-    location = /authorize {
-        limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
-    }
+    # Machine-to-machine endpoints (OAuth token exchange, client credentials).
+    #
+    # These are called by native/CLI clients, not by a browser sitting on the
+    # login page. A single client session can legitimately perform several
+    # /token + /authorize round trips, and a whole office behind one NAT shares
+    # a single $binary_remote_addr key. The human login page therefore keeps
+    # the strict appdashboard_auth zone, while these endpoints use a separate,
+    # much more permissive zone. The per-IP lockout in the application
+    # (lib/db_auth_security.php, 10 attempts) still protects the actual
+    # credentials.
     location = /token {
-        limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        limit_req zone=appdashboard_oauth burst=60 nodelay;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
+    }
+    location = /authorize {
+        limit_req zone=appdashboard_oauth burst=60 nodelay;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
     location = /login/oauth/authorize {
-        limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        limit_req zone=appdashboard_oauth burst=60 nodelay;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
     location = /login/oauth/access_token {
-        limit_req zone=appdashboard_auth burst=20 nodelay;
-        rewrite ^ /index.php last;
+        limit_req zone=appdashboard_oauth burst=60 nodelay;
+        include fastcgi.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
+        fastcgi_param SCRIPT_NAME /index.php;
+        fastcgi_hide_header X-Powered-By;
     }
 
     location ^~ /public-api/ {

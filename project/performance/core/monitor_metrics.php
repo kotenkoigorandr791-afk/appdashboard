@@ -488,6 +488,17 @@ function getSmartDiagnostics(): array {
 }
 
 function monitorEnsureSmartTable(): void {
+    // Idempotent DDL, executed once per schema version instead of once per call.
+    static $done = false;
+    if ($done) return;
+    require_once __DIR__ . '/../../../lib/schema_once.php';
+    app_schema_once('monitor_smart', __FILE__, static function () {
+        monitorEnsureSmartTableImpl();
+    });
+    $done = true;
+}
+
+function monitorEnsureSmartTableImpl(): void {
     try {
         $db = getDB();
         if (!$db) return;
@@ -1129,6 +1140,26 @@ function monitorEnsureColumn($db, string $table, string $column, string $definit
 }
 
 function monitorEnsureBaseSchema(): void {
+    // The schema migration below issues CREATE TABLE IF NOT EXISTS, CREATE
+    // INDEX IF NOT EXISTS, ALTER TABLE ... TYPE and several information_schema
+    // lookups. Those statements are idempotent, but PostgreSQL still has to
+    // parse, plan and execute (and lock) them, and they ran on every collector
+    // tick - once a minute - and on every monitor API request.
+    //
+    // app_schema_once() caches the "schema is up to date" marker in Redis for
+    // 24 hours (the stamp contains the mtime/size of this file, so editing the
+    // file re-runs the migration immediately). Together with the process-local
+    // static flag this keeps the DDL out of the hot path.
+    static $done = false;
+    if ($done) return;
+    require_once __DIR__ . '/../../../lib/schema_once.php';
+    app_schema_once('monitor_base', __FILE__, static function () {
+        monitorEnsureBaseSchemaImpl();
+    });
+    $done = true;
+}
+
+function monitorEnsureBaseSchemaImpl(): void {
     try {
         $db = monitorGetDbSafe();
         if (!$db) return;
@@ -1263,12 +1294,25 @@ function monitorEnsureBaseSchema(): void {
             resolved_at INTEGER
         )");
         $db->exec("CREATE INDEX IF NOT EXISTS idx_monitor_errors_created ON monitor_errors(created_at)");
+        $done = true;
     } catch (Exception $e) {
         error_log('monitorEnsureBaseSchema failed: ' . $e->getMessage());
     }
 }
 
 function monitorEnsureUptimeSchema(): void {
+    // Same reasoning as monitorEnsureBaseSchema(): the DDL below is idempotent
+    // but must not be re-executed on every call.
+    static $done = false;
+    if ($done) return;
+    require_once __DIR__ . '/../../../lib/schema_once.php';
+    app_schema_once('monitor_uptime', __FILE__, static function () {
+        monitorEnsureUptimeSchemaImpl();
+    });
+    $done = true;
+}
+
+function monitorEnsureUptimeSchemaImpl(): void {
     try {
         monitorEnsureBaseSchema();
         $db = monitorGetDbSafe();

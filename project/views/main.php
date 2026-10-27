@@ -3367,7 +3367,7 @@ endif; // showOtpPage
             <div id="forgot-content" class="auth-content">
                 <?php if(!isset($showResetForm)||!$showResetForm):?>
                     <form method="post" action="/login">
-                        <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo my_htmlspecialchars(is_string($_POST['email']??'')?$_POST['email']:''); ?>" required>
+                        <input type="email" name="email" class="auth-input" placeholder="<?php echo my_htmlspecialchars($translations['email']); ?>" value="<?php echo my_htmlspecialchars(is_string($_POST['email']??null)?(string)$_POST['email']:''); ?>" required>
                         <?php turnstile_form_started('reset'); echo turnstile_render('reset'); ?>
                         <button type="submit" name="send_reset_code" class="auth-button"><?php echo my_htmlspecialchars($translations['send_reset_code']); ?></button>
                     </form>

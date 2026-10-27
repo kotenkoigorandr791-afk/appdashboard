@@ -280,6 +280,11 @@ fi
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php ]; then
   /usr/local/bin/php /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php >/var/log/supervisor/oauth-integrations.log 2>&1 || true
 fi
+# Seed the default application data (products, recipes, ...) so a fresh
+# deployment is usable without any manual setup.
+if [ -f /var/www/AppDashboard/deploy/scripts/ensure-app-data.php ]; then
+  /usr/local/bin/php /var/www/AppDashboard/deploy/scripts/ensure-app-data.php >/var/log/supervisor/app-data-seed.log 2>&1 || true
+fi
 if [ -f /var/www/AppDashboard/supervisord.conf ]; then
   cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 fi

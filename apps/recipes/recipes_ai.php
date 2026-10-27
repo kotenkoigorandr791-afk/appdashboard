@@ -16,6 +16,7 @@ require_once __DIR__ . '/../../lib/app_session.php';
 app_session_start();
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/core/db.php';
+require_once __DIR__ . '/core/seed.php';
 require_once __DIR__ . '/core/schema.php';
 require_once __DIR__ . '/core/image.php';
 require_once __DIR__ . '/models/Recipe.php';

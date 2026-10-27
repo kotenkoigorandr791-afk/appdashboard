@@ -208,9 +208,24 @@ function recipes_load_product_row($db, string $product_id): ?array {
     }
 }
 function recipes_backfill_product_previews(): void {
-    static $done = false;
-    if ($done) return;
-    $done = true;
+    // This runs at file scope (see the bottom of this file), so it executes on
+    // every single request. The body itself is guarded by the
+    // "product_previews_v1" flag in the config table, but the guard was
+    // preceded by an information_schema lookup, and a PHP-FPM "static"
+    // variable does not survive between requests - so that lookup ran on
+    // every request as well (measured: 1209 information_schema queries for a
+    // 20 second load test).
+    //
+    // app_schema_once() executes the body at most once per schema version and
+    // caches the marker in Redis for 24 hours, so the catalog lookup and the
+    // backfill leave the request path.
+    require_once __DIR__ . '/../../../lib/schema_once.php';
+    app_schema_once('recipes_product_previews', __FILE__, static function () {
+        recipes_backfill_product_previews_impl();
+    });
+}
+
+function recipes_backfill_product_previews_impl(): void {
     $db = getDB();
     if (!$db) return;
     recipes_ensure_products_image_preview_column($db);

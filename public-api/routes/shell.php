@@ -585,6 +585,12 @@ if (in_array($action, $qcActions, true) || isset($body['quick_command_action']))
 
 $db = getDB();
 if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
+// The monitor tables below are created with idempotent DDL, but PostgreSQL
+// still has to parse, plan and execute (and lock) every statement, so running
+// them on each API call is pure overhead. app_schema_once() executes the block
+// once per schema version and caches the marker in Redis for 24 hours.
+require_once __DIR__ . '/../../lib/schema_once.php';
+app_schema_once('public_api_monitor', __FILE__, static function () use ($db) {
 $db->exec("CREATE TABLE IF NOT EXISTS monitor_alert_rules (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
@@ -621,6 +627,7 @@ $db->exec("CREATE TABLE IF NOT EXISTS monitor_metric_hourly (
     updated_at INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
     PRIMARY KEY (metric_hour, metric, app_id)
 )");
+});
 
 if ($action === 'list_alert_rules') {
     $res = $db->query('SELECT * FROM monitor_alert_rules ORDER BY id ASC');
