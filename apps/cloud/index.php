@@ -73,7 +73,7 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=58" />
+  <link rel="stylesheet" href="assets/styles.css?v=59" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {

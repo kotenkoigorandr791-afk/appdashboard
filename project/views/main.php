@@ -4429,7 +4429,7 @@ window.__SHELL_I18N=<?php echo json_encode([
             <span class="app-rail-service-name"><?php echo $showAppFrame ? my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)) : ''; ?></span>
             </div>
         </div>
-        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *" src="<?php echo $appIframeBootDefer ? 'about:blank' : my_htmlspecialchars($appIframeSrc); ?>"<?php if ($appIframeBootDefer): ?> data-boot-src="<?php echo my_htmlspecialchars($appIframeSrc); ?>"<?php endif; ?>></iframe>
+        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *; fullscreen *" allowfullscreen src="<?php echo $appIframeBootDefer ? 'about:blank' : my_htmlspecialchars($appIframeSrc); ?>"<?php if ($appIframeBootDefer): ?> data-boot-src="<?php echo my_htmlspecialchars($appIframeSrc); ?>"<?php endif; ?>></iframe>
         <?php if ($appIframeBootDefer): ?>
         <script>(function(){var iframe=document.getElementById('app-iframe');if(!iframe)return;var boot=iframe.getAttribute('data-boot-src');if(!boot)return;var t=window.__AP_BOOT_THEME__||'light';try{var u=new URL(boot,window.location.href);u.searchParams.set('theme',t);iframe.setAttribute('src',u.toString());}catch(e){iframe.setAttribute('src',boot);}iframe.removeAttribute('data-boot-src');})();</script>
         <?php endif; ?>
