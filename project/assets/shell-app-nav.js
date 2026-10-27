@@ -67,9 +67,14 @@
     ['color', 'background', 'border', 'box-shadow', 'border-radius', 'opacity'].forEach(function (prop) {
       btn.style.removeProperty(prop);
     });
+    var home = document.getElementById('home-root-button');
+    if (home) clearMenuInlineLayout(home);
     var styleMap = (app && app.menu_button_style) || {};
     Object.keys(styleMap).forEach(function (prop) {
-      try { btn.style.setProperty(prop, styleMap[prop]); } catch (_) {}
+      try {
+        btn.style.setProperty(prop, styleMap[prop]);
+        if (home) home.style.setProperty(prop, styleMap[prop]);
+      } catch (_) {}
     });
   }
 
@@ -77,6 +82,8 @@
     var host = ensureMenuHost();
     var menu = document.getElementById('menu-button');
     if (menu && menu.parentElement !== host) host.appendChild(menu);
+    var home = document.getElementById('home-root-button');
+    if (home && home.parentElement !== host) host.appendChild(home);
   }
 
   function restoreHomeChrome() {

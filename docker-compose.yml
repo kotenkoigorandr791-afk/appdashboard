@@ -234,8 +234,8 @@ services:
     security_opt:
       - seccomp:./deploy/seccomp-restic.json
     ports:
-      - "127.0.0.1:80:8080"
-      - "127.0.0.1:8808:8808"
+      - "80:8080"
+      - "8808:8808"
     volumes:
       - .:/var/www/AppDashboard
       - ./nginx/appdashboard.conf.template:/etc/nginx/templates/appdashboard.conf.template:ro
