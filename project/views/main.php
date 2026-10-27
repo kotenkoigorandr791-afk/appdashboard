@@ -896,27 +896,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         body.shell-app-open #top-bar{display:none!important;}
         #shell-app-menu-host{position:fixed;inset:0;width:0;height:0;overflow:visible;pointer-events:none;z-index:1002;}
         body.shell-app-open #shell-app-menu-host{width:auto;height:auto;}
-        body.shell-app-open:not(.shell-local-app) #home-root-button{
-          display:flex!important;
-          position:fixed!important;
-          pointer-events:auto;
-          visibility:visible!important;
-          opacity:1!important;
-          z-index:1003!important;
-          top:var(--shell-menu-button-top)!important;
-          left:calc(var(--shell-menu-button-left) + var(--shell-menu-button-width) + 8px)!important;
-          width:var(--shell-menu-button-width)!important;
-          height:var(--shell-menu-button-height)!important;
-          margin:0!important;
-          transform:none;
-          background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent)!important;
-          border:none!important;
-          border-radius:12px!important;
-          box-shadow:0 6px 18px rgba(0,0,0,0.1)!important;
-          backdrop-filter:blur(16px) saturate(140%)!important;
-          -webkit-backdrop-filter:blur(16px) saturate(140%)!important;
-          color:var(--text-color)!important;
-        }
+        body.shell-app-open #home-root-button{display:none!important;}
         body.shell-app-open #menu-button{
           display:flex!important;
           position:fixed!important;
@@ -937,20 +917,6 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             left:var(--shell-menu-button-mobile-left)!important;
             width:var(--shell-menu-button-mobile-width)!important;
             height:var(--shell-menu-button-mobile-height)!important;
-          }
-          body.shell-app-open #home-root-button{
-            top:var(--shell-menu-button-mobile-top)!important;
-            left:calc(var(--shell-menu-button-mobile-left) + var(--shell-menu-button-mobile-width) + 8px)!important;
-            width:var(--shell-menu-button-mobile-width)!important;
-            height:var(--shell-menu-button-mobile-height)!important;
-            background:color-mix(in srgb,var(--sidebar-bg) 36%,transparent)!important;
-            border:none!important;
-            border-radius:12px!important;
-            box-shadow:0 6px 18px rgba(0,0,0,0.1)!important;
-          }
-          body.shell-app-open #home-root-button svg{
-            width:calc(var(--shell-menu-button-mobile-height) * 0.5)!important;
-            height:calc(var(--shell-menu-button-mobile-height) * 0.5)!important;
           }
         }
         body.shell-app-open.app-modal-open #menu-button{opacity:0!important;visibility:hidden!important;pointer-events:none!important;}

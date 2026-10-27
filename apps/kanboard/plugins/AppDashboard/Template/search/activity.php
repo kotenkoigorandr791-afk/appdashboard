@@ -31,9 +31,15 @@
                     </button>
                     <div class="kb-project-tile-body" hidden>
                         <?php foreach ($tile['groups'] as $group): ?>
-                            <div class="kb-project-tile-group">
+                            <?php $groupIcon = match ($group['status']) {
+                                'backlog' => '<path d="M4 6h16v12H4z"/><path d="M8 11h8"/>',
+                                'todo' => '<circle cx="12" cy="12" r="8.5"/><path d="M9 12h6"/>',
+                                'progress' => '<circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3 2"/>',
+                                default => '<circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/>',
+                            }; ?>
+                            <div class="kb-project-tile-group is-<?= $this->text->e($group['status']) ?>">
                                 <div class="kb-project-tile-group-title">
-                                    <span class="kb-project-tile-group-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8.5"/><path d="m8.5 12 2.2 2.2 4.8-4.8"/></svg></span>
+                                    <span class="kb-project-tile-group-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><?= $groupIcon ?></svg></span>
                                     <span><?= $this->text->e($group['title']) ?></span>
                                     <span class="kb-issue-group-count"><?= (int) $group['count'] ?></span>
                                 </div>

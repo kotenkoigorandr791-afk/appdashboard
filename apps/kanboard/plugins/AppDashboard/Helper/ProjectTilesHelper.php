@@ -26,7 +26,8 @@ class ProjectTilesHelper extends Base
             $columns = $this->columnModel->getAll($pid);
             $groups = [];
             $totalOpen = 0;
-            foreach ($columns as $column) {
+            $columnCount = count($columns);
+            foreach ($columns as $columnIndex => $column) {
                 $cid = (int) ($column['id'] ?? 0);
                 if ($cid <= 0) {
                     continue;
@@ -51,9 +52,21 @@ class ProjectTilesHelper extends Base
                         'title' => (string) $task['title'],
                     ];
                 }
+                $normalizedTitle = mb_strtolower((string) ($column['title'] ?? ''));
+                $status = match (true) {
+                    str_contains($normalizedTitle, 'backlog') => 'backlog',
+                    str_contains($normalizedTitle, 'done'), str_contains($normalizedTitle, 'closed'), str_contains($normalizedTitle, 'complete') => 'done',
+                    str_contains($normalizedTitle, 'progress'), str_contains($normalizedTitle, 'doing'), str_contains($normalizedTitle, 'review') => 'progress',
+                    str_contains($normalizedTitle, 'todo'), str_contains($normalizedTitle, 'to do') => 'todo',
+                    $columnIndex === 0 => 'backlog',
+                    $columnIndex === $columnCount - 1 => 'done',
+                    $columnIndex === 1 => 'todo',
+                    default => 'progress',
+                };
                 $groups[] = [
                     'id' => $cid,
                     'title' => (string) ($column['title'] ?? ''),
+                    'status' => $status,
                     'count' => $count,
                     'tasks' => $preview,
                 ];

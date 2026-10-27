@@ -32,11 +32,8 @@ $mobilePairForwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO
 $mobilePairScheme = ($mobilePairForwardedProto === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $mobilePairPort === '443') ? 'https' : 'http';
 $mobilePairPortPart = ($mobilePairPort !== '' && !in_array($mobilePairPort, ['80', '443'], true)) ? ':' . $mobilePairPort : '';
 $mobilePairLanEndpoint = $mobilePairServerIp !== '' ? $mobilePairScheme . '://' . $mobilePairServerIp . $mobilePairPortPart . '/api/spends' : '';
-$mobilePairLanBase = $mobilePairServerIp !== '' ? $mobilePairScheme . '://' . $mobilePairServerIp . $mobilePairPortPart : '';
 
-// Release APK of the companion app: offered as a direct download and as a
-// QR code pointing at the file itself, so a phone can install the app
-// without visiting the store first.
+// Release APK of the companion app.
 $mobilePairApkFile = $mobilePairRoot . '/downloads/spends-mobile.apk';
 $mobilePairApkMetaFile = $mobilePairRoot . '/downloads/spends-mobile.json';
 $mobilePairApkAvailable = is_file($mobilePairApkFile);
@@ -96,12 +93,6 @@ try {
     .mobile-app-content .ma-download:hover { background:color-mix(in srgb,var(--primary-color) 22%,var(--surface-solid)); border-color:color-mix(in srgb,var(--primary-color) 70%,var(--border-color)); }
     .mobile-app-content .ma-download:active { transform:scale(.97); }
     .mobile-app-content .ma-meta { display:flex; align-items:center; gap:6px; margin:8px 0 0; font-size:12px; color:var(--muted-text); }
-    .mobile-app-content .ma-download-qr-wrap { display:flex; align-items:center; gap:14px; margin:14px 0 0; padding:12px; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--group-block-bg); }
-    .mobile-app-content .ma-download-qr { position:relative; width:112px; height:112px; flex:0 0 112px; display:flex; align-items:center; justify-content:center; background:#fff; border-radius:8px; overflow:hidden; }
-    .mobile-app-content .ma-download-qr > div, .mobile-app-content .ma-download-qr canvas, .mobile-app-content .ma-download-qr svg { width:112px !important; height:112px !important; display:block; }
-    .mobile-app-content .ma-download-qr-text { min-width:0; }
-    .mobile-app-content .ma-download-qr-text h4 { margin:0 0 4px; font-size:13px; font-weight:700; color:var(--text-color); }
-    .mobile-app-content .ma-download-qr-text p { margin:0; font-size:12px; line-height:1.45; color:var(--muted-text); }
     .mobile-app-content .ma-features { display:flex; flex-direction:column; gap:10px; }
     .mobile-app-content .ma-feature { display:flex; align-items:flex-start; gap:14px; padding:14px; border:1px solid var(--border-color); border-radius:var(--radius-md); transition:background .2s,border-color .2s; }
     .mobile-app-content .ma-feature:hover { background:color-mix(in srgb,var(--surface-solid) 55%,transparent); border-color:color-mix(in srgb,var(--primary-color) 26%,var(--border-color)); }
@@ -189,13 +180,6 @@ try {
                     <?php if ($mobilePairApkBuiltAt > 0): ?><span><?= htmlspecialchars($translations['mobile_app_updated'] ?? 'Updated') ?> <?= htmlspecialchars(date('d.m.Y', $mobilePairApkBuiltAt)) ?></span><?php endif; ?>
                 </div>
                 <?php endif; ?>
-                <div class="ma-download-qr-wrap">
-                    <div class="ma-download-qr" id="mobile-app-download-qr-code"></div>
-                    <div class="ma-download-qr-text">
-                        <h4><?= htmlspecialchars($translations['mobile_app_download_qr_title'] ?? 'Scan to install') ?></h4>
-                        <p><?= htmlspecialchars($translations['mobile_app_download_qr_desc'] ?? 'Point your camera at this code to download the app file and install it on your phone.') ?></p>
-                    </div>
-                </div>
                 <?php endif; ?>
             </div>
 
@@ -311,10 +295,6 @@ try {
     const hintLink = document.getElementById('manual-pair-link');
     const hintToken = document.getElementById('manual-pair-token');
     const regenBtn = document.getElementById('manual-pair-regenerate');
-    const downloadQr = document.getElementById('mobile-app-download-qr-code');
-    const apkPath = <?= json_encode($mobilePairApkPath, JSON_HEX_TAG) ?>;
-    const lanBase = <?= json_encode($mobilePairLanBase, JSON_HEX_TAG) ?>;
-
     const lanEndpoint = <?= json_encode($mobilePairLanEndpoint, JSON_HEX_TAG) ?>;
     const currentHost = window.location.hostname;
     const endpoint = (lanEndpoint && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === '::1'))
@@ -457,28 +437,9 @@ try {
         clearPairingUi();
     }
 
-    // QR code pointing at the app file itself, so a phone camera can install
-    // the companion app without a manual download.
-    function apkDownloadUrl() {
-        // A phone cannot reach the dashboard through "localhost": fall back to
-        // the LAN address when the page itself is served from the loopback.
-        var host = window.location.hostname;
-        var isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '::1';
-        if (isLoopback && lanBase) return lanBase + apkPath;
-        return window.location.origin + apkPath;
-    }
-    async function renderDownloadQr() {
-        if (!downloadQr) return;
-        try {
-            await renderQr(downloadQr, apkDownloadUrl(), 112);
-        } catch (error) {
-            downloadQr.innerHTML = '';
-        }
-    }
     window.openMobileAppModal = function () {
         if (typeof showModal === 'function') showModal('mobile-app-modal');
         else if (modal) { modal.style.display = 'flex'; document.body.classList.add('modal-open'); }
-        renderDownloadQr().catch(function () {});
         if (cachedToken) {
             setPairingToken(cachedToken);
             showPairingQr().catch(function () {});
