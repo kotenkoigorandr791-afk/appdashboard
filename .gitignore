@@ -158,6 +158,10 @@ core
 # ...and the spends app core helpers (real source, not build junk)
 !apps/spends/core/
 !apps/spends/core/**
+!apps/smart_home/core/
+!apps/smart_home/core/**
+!project/performance/core/
+!project/performance/core/**
 *.core
 npm-debug.log*
 yarn-error.log*
