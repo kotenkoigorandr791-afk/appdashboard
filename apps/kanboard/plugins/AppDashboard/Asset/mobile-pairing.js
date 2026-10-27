@@ -64,6 +64,7 @@
       refreshConnectionFields();
       activateTab(tab || 'profile');
       openModal(modal);
+      renderDownloadQr();
     }
     function refreshConnectionFields() {
       var endpointEl = document.getElementById('kb-connection-endpoint');
@@ -153,6 +154,25 @@
       } catch (error) {
         console.error('Pairing QR error:', error);
         hostEl.innerHTML = '<p style="color:#121212;padding:12px;">QR code unavailable</p>';
+      }
+    }
+
+    // QR code pointing at the release APK itself, so a phone camera can
+    // download and install the app without visiting the dashboard manually.
+    var downloadQr = document.getElementById('kb-ma-download-qr');
+    function renderDownloadQr() {
+      if (!downloadQr) return;
+      var url = downloadQr.getAttribute('data-url') || '';
+      if (!url) return;
+      try {
+        if (typeof qrcode !== 'function') throw new Error('QR generator not loaded');
+        var qr = qrcode(0, 'M');
+        qr.addData(url);
+        qr.make();
+        downloadQr.innerHTML = qr.createSvgTag({ cellSize: 4, margin: 1, scalable: true });
+      } catch (error) {
+        console.error('Download QR error:', error);
+        downloadQr.innerHTML = '';
       }
     }
 

@@ -54,6 +54,7 @@
     },
     "plugins": [
       "./plugins/with-wallet-notification-listener",
+      "./plugins/with-android-release-signing",
       ["expo-camera", {"cameraPermission": "Allow $(PRODUCT_NAME) to scan the pairing QR code"}],
       "expo-router",
       "expo-localization",

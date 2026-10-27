@@ -1,5 +1,5 @@
 <?php
-$apkRoot = dirname(__DIR__, 5);
+$apkRoot = dirname(__DIR__, 6);
 $apkPath = $apkRoot . '/downloads/kanboard-mobile.apk';
 $apkMetaFile = $apkRoot . '/downloads/kanboard-mobile.json';
 $apkMeta = is_file($apkMetaFile) ? (json_decode((string) file_get_contents($apkMetaFile), true) ?: []) : [];
@@ -33,6 +33,17 @@ $fwd = strtolower((string) ($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
 $scheme = ($fwd === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $port === '443') ? 'https' : 'http';
 $portPart = ($port !== '' && !in_array($port, ['80', '443'], true)) ? ':' . $port : '';
 $lanEndpoint = $serverIp !== '' ? $scheme . '://' . $serverIp . $portPart . '/api/kanboard' : '';
+// Absolute URL of the release APK so the download QR can be scanned by a phone.
+// A phone cannot reach the dashboard through "localhost", so prefer the LAN
+// address whenever the page itself is served from the loopback interface.
+$apkUrlPath = '/downloads/kanboard-mobile.apk';
+$hostName = strtolower(trim(explode(':', $hostHeader)[0] ?? ''));
+$hostIsLoopback = in_array($hostName, ['localhost', '127.0.0.1', '::1'], true);
+$apkUrlBase = $scheme . '://' . $hostHeader;
+if ($hostHeader === '' || $hostIsLoopback) {
+    $apkUrlBase = $lanEndpoint !== '' ? substr($lanEndpoint, 0, -strlen('/api/kanboard')) : $apkUrlBase;
+}
+$apkUrl = $apkUrlBase . $apkUrlPath;
 $displayName = (string) $this->user->getFullname();
 if ($displayName === '') {
     $displayName = (string) $this->user->getUsername();
@@ -153,6 +164,15 @@ $tokens = $this->MobilePairingHelper->tokens();
                         <?php if ($apkVersion !== ''): ?><span>v<?= $this->text->e($apkVersion) ?></span><?php endif; ?>
                         <?php if ($apkVersion !== '' && $apkBuiltAt > 0): ?><span>•</span><?php endif; ?>
                         <?php if ($apkBuiltAt > 0): ?><span><?= t('Updated') ?> <?= $this->text->e(date('d.m.Y', $apkBuiltAt)) ?></span><?php endif; ?>
+                    </div>
+                    <?php endif; ?>
+                    <?php if ($apkAvailable): ?>
+                    <div class="kb-ma-download-qr-wrap">
+                        <div class="kb-ma-download-qr" id="kb-ma-download-qr" data-url="<?= $this->text->e($apkUrl) ?>"></div>
+                        <div class="kb-ma-download-qr-text">
+                            <h4><?= t('Scan to install') ?></h4>
+                            <p><?= t('Point your camera at this code to download the app file and install it on your phone.') ?></p>
+                        </div>
                     </div>
                     <?php endif; ?>
                 </div>

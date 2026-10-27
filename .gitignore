@@ -171,6 +171,7 @@ pnpm-debug.log*
 /apps/kanboard/kanboard-mobile-app/.cxx/
 /apps/kanboard/kanboard-mobile-app/.idea/
 /apps/kanboard/kanboard-mobile-app/**/build/
+/apps/kanboard/kanboard-mobile-app/app/release.jks
 /downloads/kanboard-mobile.apk
 /downloads/kanboard-mobile.json
 /downloads/kanboard-mobile-build.sha256
@@ -185,6 +186,7 @@ pnpm-debug.log*
 /apps/spends/spends-mobile-app/ios/
 /apps/spends/spends-mobile-app/local.properties
 /apps/spends/spends-mobile-app/app/release.jks
+/apps/spends/spends-mobile-app/android/app/release.jks
 /apps/spends/spends-mobile-app/captures/
 /apps/spends/spends-mobile-app/.cxx/
 /apps/spends/spends-mobile-app/.idea/

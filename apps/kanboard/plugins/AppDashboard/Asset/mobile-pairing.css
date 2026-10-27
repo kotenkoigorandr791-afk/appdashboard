@@ -299,6 +299,47 @@ html:not(.kb-dark) .kb-ma-btn-danger:hover:not(:disabled) {
   display: flex;
   gap: 6px;
 }
+.kb-ma-download-qr-wrap {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  padding: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.03);
+}
+.kb-ma-download-qr {
+  width: 112px;
+  height: 112px;
+  flex: 0 0 112px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  border-radius: 8px;
+  overflow: hidden;
+}
+.kb-ma-download-qr svg {
+  width: 112px;
+  height: 112px;
+  display: block;
+}
+.kb-ma-download-qr-text {
+  min-width: 0;
+}
+.kb-ma-download-qr-text h4 {
+  margin: 0 0 4px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #e4e4e7;
+}
+.kb-ma-download-qr-text p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.45;
+  color: #71717a;
+}
 .kb-ma-features {
   display: flex;
   flex-direction: column;
