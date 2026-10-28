@@ -951,6 +951,10 @@ async function initUploadHandlers(modal, basePath) {
 
   async function processDroppedItems(items, basePath) {
     const allFiles = [];
+    const entries = Array.from(items)
+      .filter((item) => item.kind === 'file')
+      .map((item) => item.webkitGetAsEntry?.() || item.getAsEntry?.())
+      .filter(Boolean);
 
     async function processEntry(entry, path = '') {
       if (entry.isFile) {
@@ -982,13 +986,8 @@ async function initUploadHandlers(modal, basePath) {
       }
     }
 
-    for (const item of items) {
-      if (item.kind === 'file') {
-        const entry = item.webkitGetAsEntry();
-        if (entry) {
-          await processEntry(entry);
-        }
-      }
+    for (const entry of entries) {
+      await processEntry(entry);
     }
 
     if (allFiles.length > 0) {

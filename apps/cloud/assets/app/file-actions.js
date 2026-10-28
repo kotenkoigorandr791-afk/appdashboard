@@ -1014,7 +1014,7 @@ function showContextMenu(e, path, type, name, root) {
     menu.style.zIndex = '1000';
     menu.style.visibility = 'hidden';
     menu.style.opacity = '0';
-    const basePath = path || '';
+    const basePath = path || (type !== 'file' && typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '');
     const hasMultipleSelection = selectionState.selectedItems.size > 1;
     const options = [];
     if (isTrashRoot()) {
