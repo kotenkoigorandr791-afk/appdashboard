@@ -797,11 +797,13 @@ function initDB(AppDatabase $db): void {
         device_token_hash TEXT DEFAULT NULL,
         added_at         INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         last_seen        INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        gpu_fingerprint  TEXT NOT NULL DEFAULT '',
         UNIQUE(email, fingerprint),
         UNIQUE(device_token_hash),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN IF NOT EXISTS ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
+    try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN IF NOT EXISTS gpu_fingerprint TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
     app_db_ensure_unique_index($db, 'trusted_devices', ['email', 'fingerprint'], 'idx_trusted_devices_email_fingerprint_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_email ON trusted_devices(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_fingerprint ON trusted_devices(fingerprint)");
@@ -3415,6 +3417,19 @@ function getDeviceFingerprint(): string {
     $lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
     return hash('sha256', 'legacy:' . $ua . '|' . $lang);
 }
+function getGpuFingerprint(): string {
+    $value = trim((string)($_SERVER['HTTP_X_GPU_FINGERPRINT'] ?? $_COOKIE['ap_gpu_fingerprint'] ?? ''));
+    return preg_match('/^[a-f0-9]{64}$/i', $value) ? strtolower($value) : '';
+}
+function trustedDeviceGpuMatches(string $email, string $fingerprint): bool {
+    $db = getDB();
+    ensureTrustedDevicesSchema($db);
+    $stmt = $db->prepare('SELECT gpu_fingerprint FROM trusted_devices WHERE email = :e AND fingerprint = :f LIMIT 1');
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+    $stored = (string)($stmt->execute()->fetchColumn() ?: '');
+    return $stored === '' || ($current = getGpuFingerprint()) !== '' && hash_equals($stored, $current);
+}
 
 /**
  * Returns the user's trusted devices from the dedicated table.
@@ -3436,7 +3451,7 @@ function getUserTrustedDevices(string $email): array {
         return $devices;
     }
     $db = getDB();
-    $stmt = $db->prepare("SELECT fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen
+    $stmt = $db->prepare("SELECT fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen, gpu_fingerprint
         FROM trusted_devices
         WHERE email = :e
         ORDER BY last_seen DESC, id DESC");
@@ -3451,6 +3466,7 @@ function getUserTrustedDevices(string $email): array {
             'device_name' => (string)($row['device_name'] ?? ''),
             'added_at' => (int)($row['added_at'] ?? 0),
             'last_seen' => (int)($row['last_seen'] ?? 0),
+            'gpu_fingerprint' => (string)($row['gpu_fingerprint'] ?? ''),
             'device_token' => '',
         ];
     }
@@ -3578,13 +3594,15 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     // Always persist to PostgreSQL so Redis flushes / restarts do not erase trust.
     $db = getDB();
     ensureTrustedDevicesSchema($db);
-    $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen)
-        VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen)
+    $gpuFingerprint = getGpuFingerprint();
+    $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen, gpu_fingerprint)
+        VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen, :gpu_fingerprint)
         ON CONFLICT(email, fingerprint) DO UPDATE SET
             ip = excluded.ip,
             ip_location = excluded.ip_location,
             device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_devices.device_name END,
             device_token_hash = excluded.device_token_hash,
+            gpu_fingerprint = CASE WHEN trusted_devices.gpu_fingerprint = '' THEN excluded.gpu_fingerprint ELSE trusted_devices.gpu_fingerprint END,
             last_seen = excluded.last_seen");
     $stmt->bindValue(':email', $email, PDO::PARAM_STR);
     $stmt->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
@@ -3594,6 +3612,7 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     $stmt->bindValue(':device_token_hash', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':added_at', $now, PDO::PARAM_INT);
     $stmt->bindValue(':last_seen', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':gpu_fingerprint', $gpuFingerprint, PDO::PARAM_STR);
     $stmt->execute();
     if ($redis = app_redis()) {
         $row = [
@@ -3813,7 +3832,7 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
                     }
                     $fingerprint = $currentFingerprint;
                 }
-                if ($email !== '' && $fingerprint !== '' && isTrustedDevice($email, $fingerprint)) {
+                if ($email !== '' && $fingerprint !== '' && isTrustedDevice($email, $fingerprint) && trustedDeviceGpuMatches($email, $fingerprint)) {
                     $newRawCookie = bin2hex(random_bytes(32));
                     $newHash = hash('sha256', $newRawCookie);
                     $now = time();
@@ -3873,7 +3892,7 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
         $deleteOldTrusted->execute();
         $fingerprint = $currentFingerprint;
     }
-    if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint)) {
+    if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint) || !trustedDeviceGpuMatches($email, $fingerprint)) {
         $del = $db->prepare("DELETE FROM trusted_device_cookies WHERE cookie_hash = :h");
         $del->bindValue(':h', $cookieHash, PDO::PARAM_STR);
         $del->execute();

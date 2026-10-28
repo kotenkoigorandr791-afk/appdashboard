@@ -4,7 +4,7 @@ const baseURL = process.env.TEST_BASE_URL || 'http://localhost';
 const hasAuthUser = !!process.env.E2E_USER_EMAIL && !!process.env.E2E_USER_PASSWORD;
 const webkitProjects = process.env.PLAYWRIGHT_INCLUDE_WEBKIT === '1'
   ? [
-      { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 } } },
+      { name: 'webkit', use: { ...devices['Desktop Safari'], viewport: { width: 1440, height: 900 }, launchOptions: { args: [] } } },
       { name: 'mobile-safari-iphone-12', use: { ...devices['iPhone 12'] } },
       { name: 'mobile-safari-iphone-se', use: { ...devices['iPhone SE'] } },
       { name: 'tablet-ipad-pro', use: { ...devices['iPad Pro 11'] } }
