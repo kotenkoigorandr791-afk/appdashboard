@@ -834,6 +834,8 @@ function cloud_sync_logs_cleanup_legacy_files(AppDatabase $db): void {
                 if (!is_array($row)) continue;
                 cloud_sync_logs_insert($db, $email, (int)($row['ts'] ?? time()), strtoupper((string)($row['level'] ?? 'INFO')), (string)($row['root'] ?? ''), (string)($row['action'] ?? ''), (string)($row['path'] ?? ''), (string)($row['message'] ?? ''));
             }
+            // keep the per-user retention cap (1000) also for bulk legacy imports
+            cloud_sync_logs_prune($db, $email);
         }
         @unlink($logFile);
     }
@@ -851,6 +853,17 @@ function cloud_sync_logs_insert(AppDatabase $db, string $email, int $ts, string 
     $stmt->execute();
 }
 function cloud_sync_logs_prune(AppDatabase $db, string $email, int $max = 1000): void {
+    if ($email === '') return;
+    // Retention cap: never keep more than $max sync-log rows per user. The cap check
+    // is an indexed LIMIT $max+1 probe so the DELETE below (which builds a 1000-id
+    // set) is skipped entirely while the user is at or below the cap.
+    $probe = $db->prepare("SELECT 1 FROM cloud_sync_logs WHERE email = :e LIMIT :lim");
+    $probe->bindValue(':e', $email, PDO::PARAM_STR);
+    $probe->bindValue(':lim', $max + 1, PDO::PARAM_INT);
+    if (!$probe->execute() || $probe->fetch() === false) {
+        return;
+    }
+    $probe->closeCursor();
     $stmt = $db->prepare("DELETE FROM cloud_sync_logs WHERE email = :e AND id NOT IN (SELECT id FROM cloud_sync_logs WHERE email = :e2 ORDER BY ts DESC, id DESC LIMIT :lim)");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':e2', $email, PDO::PARAM_STR);
@@ -871,6 +884,7 @@ function cloud_sync_logs_migrate_legacy(AppDatabase $db, string $email, string $
         cloud_sync_logs_insert($db, $email, (int)($entry['ts'] ?? time()), strtoupper((string)($entry['level'] ?? 'INFO')), (string)($entry['root'] ?? ''), (string)($entry['action'] ?? ''), (string)($entry['path'] ?? ''), (string)($entry['message'] ?? ''));
     }
     if ($logs) {
+        cloud_sync_logs_prune($db, $email);
         $clr = $db->prepare("UPDATE cloud_user_settings SET sync_log_json = '[]' WHERE email = :e");
         $clr->bindValue(':e', $email, PDO::PARAM_STR);
         $clr->execute();
@@ -883,6 +897,7 @@ function cloud_sync_logs_migrate_legacy(AppDatabase $db, string $email, string $
         if (!is_array($entry)) continue;
         cloud_sync_logs_insert($db, $email, (int)($entry['ts'] ?? time()), strtoupper((string)($entry['level'] ?? 'INFO')), (string)($entry['root'] ?? ''), (string)($entry['action'] ?? ''), (string)($entry['path'] ?? ''), (string)($entry['message'] ?? ''));
     }
+    cloud_sync_logs_prune($db, $email);
     @unlink($logFile);
 }
 function append_sync_log(string $email, string $rootKey, string $actionName, string $path, string $level = 'INFO', string $message = '', array $busExtra = []): void {

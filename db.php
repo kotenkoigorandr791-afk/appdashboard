@@ -42,6 +42,11 @@ function getDB(): AppDatabase {
         // getDB() call, which contributed to "Too many open files" under load.
         $schemaKey = app_db_schema_fingerprint(__FILE__) . ':' . app_db_schema_fingerprint(__DIR__ . '/lib/pg_foreign_keys.php');
         if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey || !app_db_schema_ready($db)) {
+            // Bootstrap (or bootstrap after a restore) ran: every schema_once stamp
+            // refers to a schema that may not match the DB, so drop them and let all
+            // ensure* gates run again for this version.
+            require_once __DIR__ . '/lib/schema_once.php';
+            app_schema_forget_all();
             initDB($db);
             @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
         }
@@ -87,6 +92,8 @@ function app_db_ensure_unique_index(AppDatabase $db, string $table, array $colum
 }
  
 function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('enc_consents_schema', __FILE__)) return;
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_encryption_consents (
         email         TEXT NOT NULL PRIMARY KEY,
         status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
@@ -98,6 +105,8 @@ function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_encryption_consents_email ON cloud_encryption_consents(email)");
 }
 function ensureSupportChatSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('support_chat_schema', __FILE__)) return;
     if (app_db_is_pgsql()) {
         $db->exec("CREATE TABLE IF NOT EXISTS support_chat (
             id BIGSERIAL PRIMARY KEY,
@@ -260,6 +269,8 @@ function ensureTelegramBotSchemaImpl(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_link_tokens_expires ON tg_bot_link_tokens(expires_at)");
 }
 function ensureOAuthConnectionsSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('oauth_conns_schema', __FILE__)) return;
     if (!app_db_is_pgsql()) {
         return;
     }
@@ -288,6 +299,8 @@ function ensureOAuthConnectionsSchema(AppDatabase $db): void {
     )");
 }
 function ensureNotificationsSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('app_notifications_schema', __FILE__)) return;
     if (app_db_is_pgsql()) {
         $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
             id BIGSERIAL PRIMARY KEY,
@@ -2336,6 +2349,8 @@ function ensureVerificationTokensSchema(AppDatabase $db): void {
     static $checked = false;
     if ($checked) return;
     $checked = true;
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('verification_tokens_schema', __FILE__)) return;
     try {
         if (app_db_is_pgsql()) {
             $pkCol = (string)$db->querySingle("SELECT kcu.column_name
@@ -3150,7 +3165,25 @@ function getLastActiveUser(): ?string {
 }
 
 function setLastActiveUser(string $email): void {
+    // Written on every authenticated request: throttled in-process so a burst of
+    // parallel requests (tabs, load) issues at most one upsert per email per minute
+    // instead of one row write each time.
+    static $lastEmail = null;
+    static $lastAt = 0;
+    $now = time();
+    if ($lastEmail === $email && ($now - $lastAt) < 60) {
+        return;
+    }
+    $lastEmail = $email;
+    $lastAt = $now;
     $db   = getDB();
+    try {
+        $current = (string)$db->querySingle("SELECT value FROM app_meta WHERE key = 'last_active_user'");
+        if ($current === $email) {
+            return; // nothing changed, skip the upsert lock
+        }
+    } catch (Throwable $e) {
+    }
     monitorRetentionSetMeta($db, 'last_active_user', $email);
 }
 
@@ -3661,6 +3694,8 @@ function ensureTrustedDevicesSchemaImpl(AppDatabase $db): void {
 // ── Trusted Device Persistent Cookies ───────────────────────────────────────
 
 function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('trusted_device_cookies_schema', __FILE__)) return;
     $db->exec("CREATE TABLE IF NOT EXISTS trusted_device_cookies (
         cookie_hash  TEXT    PRIMARY KEY,
         email        TEXT    NOT NULL,

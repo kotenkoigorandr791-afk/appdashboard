@@ -11,7 +11,9 @@ if (!in_array($action, cloud_public_api_actions(), true)) {
     cloud_require_api_auth_unless_public($action);
     cloud_require_cookie_csrf();
     $rlKey = (string)(get_session_email() ?: ($_SERVER['REMOTE_ADDR'] ?? 'anon'));
-    cloud_require_rate_limit($rlKey, $action === 'upload' ? 'upload' : 'api');
+    // Bucket per action: parallel tabs poll group_chat_unread / get_folder_state /
+    // review_list at the same time and shared one bucket, so healthy clients got 429.
+    cloud_require_rate_limit($rlKey . ':' . $action, $action === 'upload' ? 'upload' : 'api');
 }
 if (!function_exists('cloud_dedupe_tree_items')) {
     function cloud_dedupe_tree_items(array $items): array {

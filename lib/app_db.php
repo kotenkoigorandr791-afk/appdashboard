@@ -56,6 +56,8 @@ function app_notify(string $email, string $appId, string $severity, string $titl
     }
 }
 function app_weather_ensure(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    if (!app_schema_should_run('weather_settings_schema', __FILE__)) return;
     $db->exec("CREATE TABLE IF NOT EXISTS app_weather_settings (
         user_email TEXT PRIMARY KEY,
         use_current_location BOOLEAN NOT NULL DEFAULT true,
