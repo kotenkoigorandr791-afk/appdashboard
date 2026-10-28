@@ -71,6 +71,8 @@
   "ap_settings_subtitle": "Configure email, Telegram bot, OnlyOffice, and AI assistant integrations.",
   "ap_sort_by": "Sort:",
   "ap_sort_by_rights": "Required role",
+  "ap_sort_asc": "Ascending",
+  "ap_sort_desc": "Descending",
   "ap_sort_modified": "Modified",
   "ap_sort_name": "Name",
   "ap_sort_popularity": "Popularity",

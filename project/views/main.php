@@ -1256,9 +1256,11 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         .policy-link-icon{width:16px;height:16px;vertical-align:-3px;margin-right:4px;stroke:currentColor;}
         #policy-modal-overlay{display:none;position:fixed;inset:0;z-index:30000;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);justify-content:center;align-items:center;}
         #policy-modal-overlay.active{display:flex;}
-        #policy-modal{width:80vw;height:80vh;max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);padding:6px;}
-        #policy-modal .modal-scroll-body{display:flex;padding:0;}
-        #policy-modal iframe{flex:1;width:100%;height:100%;min-height:0;border:none;border-radius:0 0 calc(var(--casa-radius) - 6px) calc(var(--casa-radius) - 6px);}
+        #policy-modal{position:relative;width:min(1000px,90vw);height:min(760px,85vh);max-width:90vw;max-height:90vh;border-radius:var(--casa-radius);overflow:hidden;display:flex;flex-direction:column;box-shadow:var(--glass-shadow);border:1px solid var(--border-color);padding:0;background:var(--modal-bg);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));}
+        #policy-modal .std-topbar{background:transparent;border-bottom:1px solid var(--border-color);flex-shrink:0;}
+        #policy-modal .std-topbar-title{font-size:18px;font-weight:600;}
+        #policy-modal .modal-scroll-body{display:flex;flex:1;min-height:0;padding:0;background:var(--modal-bg);}
+        #policy-modal iframe{flex:1;width:100%;height:100%;min-height:0;border:none;background:var(--modal-bg);}
         #stats-content{background:var(--modal-bg);padding:60px 20px 20px 20px;border-radius:var(--casa-radius);color:var(--text-color);position:relative;width:90%;height:85vh;max-width:1000px;max-height:90vh;display:flex;flex-direction:column;overflow-y:auto;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #stats-nav-box{border:1px solid var(--border-color);border-radius:12px;padding:15px;margin-bottom:20px;background:var(--group-block-bg);flex-shrink:0;}
         .stats-nav-buttons{display:flex;flex-direction:column;gap:15px;justify-content:center;align-items:center;}
@@ -3422,9 +3424,9 @@ endif; // showOtpPage
         <?php endif; ?>
         <?php endif; ?>
         <div class="policy-links">
-            <a href="javascript:void(0)" onclick="openPolicyModal('/privacy?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['privacy_policy']??'Privacy Policy'); ?></a>
+            <a href="javascript:void(0)" onclick="openPolicyModal('/privacy?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>',<?php echo htmlspecialchars(json_encode($translations['privacy_policy']??'Privacy Policy', JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>)" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['privacy_policy']??'Privacy Policy'); ?></a>
             <span class="policy-dot"></span>
-            <a href="javascript:void(0)" onclick="openPolicyModal('/terms?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['terms_of_service']??'Terms of Service'); ?></a>
+            <a href="javascript:void(0)" onclick="openPolicyModal('/terms?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>',<?php echo htmlspecialchars(json_encode($translations['terms_of_service']??'Terms of Service', JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>)" style="color:var(--primary-color);text-decoration:none;"><?php echo my_htmlspecialchars($translations['terms_of_service']??'Terms of Service'); ?></a>
         </div>
     </div>
 </div>
@@ -4227,9 +4229,9 @@ endif; // showOtpPage
         </div>
 
         <div class="policy-links">
-            <a href="javascript:void(0)" class="policy-link" onclick="openPolicyModal('/terms?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
+            <a href="javascript:void(0)" class="policy-link" onclick="openPolicyModal('/terms?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>',<?php echo htmlspecialchars(json_encode($translations['terms_of_service']??'Terms of Service', JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>)"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg><?php echo my_htmlspecialchars($translations['view_terms']??'Terms of Service'); ?></a>
             <span class="policy-dot"></span>
-            <a href="javascript:void(0)" class="policy-link" onclick="openPolicyModal('/privacy?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>')"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
+            <a href="javascript:void(0)" class="policy-link" onclick="openPolicyModal('/privacy?hideBack=1&theme=<?php echo urlencode($config['theme']); ?>&lang=<?php echo urlencode($language); ?>&color=<?php echo urlencode($config['color']); ?>',<?php echo htmlspecialchars(json_encode($translations['privacy_policy']??'Privacy Policy', JSON_HEX_TAG|JSON_HEX_APOS|JSON_HEX_QUOT|JSON_HEX_AMP), ENT_QUOTES, 'UTF-8'); ?>)"><svg class="policy-link-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg><?php echo my_htmlspecialchars($translations['view_privacy']??'Privacy Policy'); ?></a>
         </div>
         <div class="settings-buttons-box">
             <?php if(isset($_SESSION['user']) && (int)($_SESSION['user']['role'] ?? 0) >= 1): ?>
@@ -4712,6 +4714,7 @@ var T=<?php echo json_encode([
     'cookie_consent_analytics_desc'=>$translations['cookie_consent_analytics_desc']??'Send error reports to Sentry so we can find and fix problems.',
     'cookie_consent_saved'=>$translations['cookie_consent_saved']??'Cookie preference saved',
     'privacy_policy'=>$translations['privacy_policy']??'Privacy Policy',
+    'terms_of_service'=>$translations['terms_of_service']??'Terms of Service',
     'remove_trusted_device'=>$translations['remove_trusted_device']??'Remove from Trusted',
     'no_trusted_devices'=>$translations['no_trusted_devices']??'No trusted devices',
     'trusted_ip'=>$translations['trusted_ip']??'Trusted IP',
@@ -4837,14 +4840,15 @@ var T=<?php echo json_encode([
             return url;
         }
     }
-        function openPolicyModal(url){
+        function openPolicyModal(url, title){
         const requestedUrl = url || '/privacy';
+        const modalTitle = title || (T && T.privacy_policy) || 'Privacy Policy';
         let overlay = document.getElementById('policy-modal-overlay');
         let iframe = overlay ? overlay.querySelector('iframe') : null;
         if(!overlay){
             overlay = document.createElement('div');
             overlay.id = 'policy-modal-overlay';
-            overlay.innerHTML = '<div id="policy-modal" style="position:relative;background:var(--modal-bg);"><div class="std-topbar"><h2 class="std-topbar-title">Policy</h2><button id="policy-modal-close" type="button" class="std-topbar-close">&times;</button></div><div class="modal-scroll-body"><iframe></iframe></div></div>';
+            overlay.innerHTML = '<div id="policy-modal"><div class="std-topbar"><h2 class="std-topbar-title" id="policy-modal-title"></h2><button id="policy-modal-close" type="button" class="std-topbar-close">&times;</button></div><div class="modal-scroll-body"><iframe></iframe></div></div>';
             document.body.appendChild(overlay);
             iframe = overlay.querySelector('iframe');
             overlay.addEventListener('click', e => { if(e.target === overlay) closePolicyModal(); });
@@ -4853,6 +4857,8 @@ var T=<?php echo json_encode([
                 if(e.key === 'Escape' && overlay.classList.contains('active')) closePolicyModal();
             });
         }
+        const titleEl = overlay.querySelector('#policy-modal-title');
+        if(titleEl) titleEl.textContent = modalTitle;
         const nextSrc = applyThemeToPolicySrc(requestedUrl);
         if(iframe.getAttribute('src') !== nextSrc) iframe.setAttribute('src', nextSrc);
         overlay.classList.add('active');
@@ -5619,7 +5625,7 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
             const privacyLink = banner.querySelector('#cookie-consent-privacy-link');
             if (privacyLink) {
                 privacyLink.addEventListener('click', () => {
-                    if (typeof openPolicyModal === 'function') openPolicyModal('/privacy');
+                    if (typeof openPolicyModal === 'function') openPolicyModal('/privacy', T.privacy_policy);
                 });
             }
             bindCookieConsentFinish(banner);

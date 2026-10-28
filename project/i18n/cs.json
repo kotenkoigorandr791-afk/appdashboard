@@ -70,6 +70,8 @@
   "ap_settings_subtitle": "Nakonfigurujte integrace e-mailu, Telegramu, OnlyOffice a AI asistenta.",
   "ap_sort_by": "Seřadit:",
   "ap_sort_by_rights": "Požadovaná role",
+  "ap_sort_asc": "Vzestupně",
+  "ap_sort_desc": "Sestupně",
   "ap_sort_modified": "Upraveno",
   "ap_sort_name": "Název",
   "ap_sort_popularity": "Popularita",
