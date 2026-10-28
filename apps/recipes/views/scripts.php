@@ -80,7 +80,11 @@
         let recipeImagePendingFile = null;
         let productImagePendingFile = null;
         let editProductImagePendingFile = null;
-        const imageUrlLoadTimers = {};
+         const imageUrlLoadTimers = {};
+         const recipeTimerIntervals = {};
+         const recipeTimerCompletionNotices = {};
+         const RECIPE_TIMER_COOKIE = 'recipes_active_timers';
+         const RECIPE_TIMER_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
         const backgroundRemovalState = {
             product: { originalFile: null, removed: false, busy: false },
             recipe: { originalFile: null, removed: false, busy: false },
@@ -260,12 +264,6 @@
             document.body.removeAttribute('data-scroll-y');
             if (scrollY !== null) {
                 window.scrollTo(0, parseInt(scrollY));
-            }
-        }
-
-        function continueRecipe() {
-            if (recipeState.current_recipe) {
-                showRecipe(recipeState.current_recipe);
             }
         }
 
@@ -969,18 +967,37 @@
             steps[stepIndex].timer = (hours > 0 || minutes > 0) ? { hours, minutes } : null;
         }
 
-        function toggleStepCompletion(recipeId, stepIndex) {
+        function toggleStepCompletion(recipeId, stepIndex, clickedButton) {
             if (!recipeState.completed_steps[recipeId]) {
                 recipeState.completed_steps[recipeId] = [];
             }
-            const index = recipeState.completed_steps[recipeId].indexOf(stepIndex);
-            if (index === -1) {
+            const completedSteps = recipeState.completed_steps[recipeId];
+            const completedIndex = completedSteps.indexOf(stepIndex);
+            const isCompleted = completedIndex === -1;
+            if (isCompleted) {
                 recipeState.completed_steps[recipeId].push(stepIndex);
             } else {
-                recipeState.completed_steps[recipeId].splice(index, 1);
+                recipeState.completed_steps[recipeId].splice(completedIndex, 1);
             }
             saveRecipeState();
-            showRecipe(recipeId);
+
+            // Update only the clicked row. The optional argument keeps this
+            // function compatible with callers that do not pass the button.
+            const button = clickedButton || (typeof event !== 'undefined' && event.currentTarget);
+            const step = button && button.closest('.step');
+            if (!step) return;
+
+            step.classList.toggle('completed', isCompleted);
+            step.querySelectorAll('.step-text').forEach(text => {
+                text.style.textDecoration = isCompleted ? 'line-through' : '';
+            });
+            const image = step.querySelector('.ingredient-image');
+            if (image) image.classList.toggle('faded', isCompleted);
+
+            button.setAttribute('aria-pressed', isCompleted ? 'true' : 'false');
+            button.innerHTML = isCompleted
+                ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg> ${translations.undo}`
+                : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> ${translations.complete}`;
         }
 
         function saveRecipeState() {
@@ -994,22 +1011,219 @@
             });
         }
 
-        function formatTimerDisplay(timer) {
+         function formatTimerDisplay(timer) {
             if (!timer || (timer.hours === 0 && timer.minutes === 0)) return '';
             if (timer.hours === 0) return `(${timer.minutes} ${translations.minutes})`;
             if (timer.minutes === 0) return `(${timer.hours} ${translations.hours})`;
-            return `(${timer.hours} ${translations.hours} ${timer.minutes} ${translations.minutes})`;
-        }
+             return `(${timer.hours} ${translations.hours} ${timer.minutes} ${translations.minutes})`;
+         }
+
+         function recipeTimerKey(recipeId, stepIndex) {
+             return `${encodeURIComponent(String(recipeId))}:${Number(stepIndex)}`;
+         }
+
+          function readRecipeTimers() {
+              try {
+                  const cookie = document.cookie.split('; ').find(item => item.startsWith(`${RECIPE_TIMER_COOKIE}=`));
+                  if (!cookie) return {};
+                  const value = decodeURIComponent(cookie.substring(RECIPE_TIMER_COOKIE.length + 1));
+                  const parsed = JSON.parse(value);
+                  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return {};
+                  let changed = false;
+                  const timers = Object.keys(parsed).slice(0, 50).reduce((validTimers, key) => {
+                      const endAt = Number(parsed[key]);
+                      const separator = key.lastIndexOf(':');
+                      let recipeId = '';
+                      try {
+                          recipeId = separator > 0 ? decodeURIComponent(key.substring(0, separator)) : '';
+                      } catch (error) {
+                          changed = true;
+                      }
+                      const stepIndex = separator > 0 ? key.substring(separator + 1) : '';
+                      if (separator > 0 && recipeId.length <= 200 && /^\d+$/.test(stepIndex) && Number.isFinite(endAt) && endAt > Date.now()) {
+                          validTimers[key] = endAt;
+                      } else {
+                          changed = true;
+                      }
+                      return validTimers;
+                  }, {});
+                  if (changed) writeRecipeTimers(timers);
+                  return timers;
+              } catch (error) {
+                  return {};
+              }
+          }
+
+          let activeRecipeTimerRestoreStarted = false;
+
+          function restoreActiveRecipeTimerOnStartup() {
+              if (activeRecipeTimerRestoreStarted) return;
+              activeRecipeTimerRestoreStarted = true;
+              const url = new URL(window.location.href);
+              const hasExplicitNavigation = Boolean(window.location.hash) ||
+                  [...url.searchParams.keys()].some(key => !['lang', 'theme', 'color'].includes(key));
+              if (hasExplicitNavigation) return;
+
+              const timers = readRecipeTimers();
+              const activeRecipeIds = Object.keys(timers).map(key => {
+                  const separator = key.lastIndexOf(':');
+                  return separator > 0 ? decodeURIComponent(key.substring(0, separator)) : '';
+              }).filter((recipeId, index, ids) => recipeId && ids.indexOf(recipeId) === index);
+              if (activeRecipeIds.length === 0) return;
+
+              // Prefer the server-rendered recipe, but use showRecipe's existing
+              // full-recipe fetch path when the active recipe is not in this list.
+              // showRecipe renders the response and resumes all of its timers after
+              // the data arrives; its error handler leaves the cookie untouched.
+              const recipe = recipes.find(item => activeRecipeIds.includes(String(item.id)));
+              const recipeId = recipe ? recipe.id : activeRecipeIds[0];
+              if (recipeId) showRecipe(recipeId);
+          }
+
+         function writeRecipeTimers(timers) {
+             const bounded = {};
+             Object.keys(timers).slice(0, 50).forEach(key => { bounded[key] = timers[key]; });
+             try {
+                 let value = encodeURIComponent(JSON.stringify(bounded));
+                 while (value.length > 3800 && Object.keys(bounded).length > 0) delete bounded[Object.keys(bounded).pop()];
+                 value = encodeURIComponent(JSON.stringify(bounded));
+                 document.cookie = `${RECIPE_TIMER_COOKIE}=${value}; path=/; max-age=${RECIPE_TIMER_COOKIE_MAX_AGE}; SameSite=Lax`;
+             } catch (error) { /* Cookie storage is optional at runtime, but timers remain usable. */ }
+         }
+
+         function removeRecipeTimer(recipeId, stepIndex) {
+             const timers = readRecipeTimers();
+             delete timers[recipeTimerKey(recipeId, stepIndex)];
+             writeRecipeTimers(timers);
+         }
+
+         function formatRemainingTimer(milliseconds) {
+             const totalSeconds = Math.max(0, Math.ceil(milliseconds / 1000));
+             const hours = String(Math.floor(totalSeconds / 3600)).padStart(2, '0');
+             const minutes = String(Math.floor((totalSeconds % 3600) / 60)).padStart(2, '0');
+             const seconds = String(totalSeconds % 60).padStart(2, '0');
+             return `${hours}:${minutes}:${seconds}`;
+         }
+
+         function requestRecipeTimerNotification() {
+             if (!('Notification' in window)) return;
+             try {
+                 if (Notification.permission === 'default') {
+                     const permission = Notification.requestPermission();
+                     if (permission && typeof permission.catch === 'function') permission.catch(() => {});
+                 }
+             } catch (error) { /* Notification permission is not available in every browser context. */ }
+         }
+
+         function finishRecipeTimer(recipeId, stepIndex) {
+             const key = recipeTimerKey(recipeId, stepIndex);
+             if (recipeTimerIntervals[key]) {
+                 clearInterval(recipeTimerIntervals[key]);
+                 delete recipeTimerIntervals[key];
+             }
+             removeRecipeTimer(recipeId, stepIndex);
+             const display = document.querySelector(`.timer-display[data-timer-key="${CSS.escape(key)}"]`);
+             if (display) {
+                 display.textContent = translations.timer_finished || 'Timer finished';
+                 display.classList.remove('timer-active');
+                 display.classList.add('timer-complete');
+             }
+             const button = document.querySelector(`.timer-start-button[data-timer-key="${CSS.escape(key)}"]`);
+             if (button) {
+                 button.textContent = translations.start_timer || 'Start timer';
+                 button.disabled = false;
+             }
+             if (recipeTimerCompletionNotices[key]) return;
+             recipeTimerCompletionNotices[key] = true;
+             const message = translations.timer_finished || 'Timer finished';
+             showNotification(message, 'info');
+             try {
+                 if ('Notification' in window && Notification.permission === 'granted') new Notification(message);
+             } catch (error) { /* Browser notifications can be blocked without affecting the timer. */ }
+         }
+
+         function updateRecipeTimer(recipeId, stepIndex, endAt) {
+             const key = recipeTimerKey(recipeId, stepIndex);
+             const display = document.querySelector(`.timer-display[data-timer-key="${CSS.escape(key)}"]`);
+             if (Date.now() >= endAt) {
+                 finishRecipeTimer(recipeId, stepIndex);
+                 return;
+             }
+             if (display) {
+                 display.textContent = formatRemainingTimer(endAt - Date.now());
+                 display.classList.add('timer-active');
+             }
+         }
+
+         function startRecipeTimer(recipeId, stepIndex, durationSeconds, button) {
+             const key = recipeTimerKey(recipeId, stepIndex);
+             const endAt = Date.now() + (Number(durationSeconds) * 1000);
+             const timers = readRecipeTimers();
+             timers[key] = endAt;
+             writeRecipeTimers(timers);
+             recipeTimerCompletionNotices[key] = false;
+             requestRecipeTimerNotification();
+             if (recipeTimerIntervals[key]) clearInterval(recipeTimerIntervals[key]);
+             if (button) {
+                 button.textContent = translations.stop_timer || 'Stop timer';
+                 button.disabled = false;
+             }
+             updateRecipeTimer(recipeId, stepIndex, endAt);
+             recipeTimerIntervals[key] = setInterval(() => updateRecipeTimer(recipeId, stepIndex, endAt), 1000);
+         }
+
+         function stopRecipeTimer(recipeId, stepIndex) {
+             const key = recipeTimerKey(recipeId, stepIndex);
+             if (recipeTimerIntervals[key]) {
+                 clearInterval(recipeTimerIntervals[key]);
+                 delete recipeTimerIntervals[key];
+             }
+             removeRecipeTimer(recipeId, stepIndex);
+             const display = document.querySelector(`.timer-display[data-timer-key="${CSS.escape(key)}"]`);
+             if (display) display.classList.remove('timer-active');
+             const button = document.querySelector(`.timer-start-button[data-timer-key="${CSS.escape(key)}"]`);
+             if (button) button.textContent = translations.start_timer || 'Start timer';
+         }
+
+         function resumeRecipeTimers(recipeId) {
+             const timers = readRecipeTimers();
+             Object.keys(timers).forEach(key => {
+                 const separator = key.lastIndexOf(':');
+                 if (separator < 1 || key.substring(0, separator) !== encodeURIComponent(String(recipeId))) return;
+                 const stepIndex = Number(key.substring(separator + 1));
+                 const endAt = Number(timers[key]);
+                 if (Date.now() >= endAt) finishRecipeTimer(recipeId, stepIndex);
+                 else {
+                     if (recipeTimerIntervals[key]) clearInterval(recipeTimerIntervals[key]);
+                     updateRecipeTimer(recipeId, stepIndex, endAt);
+                     recipeTimerIntervals[key] = setInterval(() => updateRecipeTimer(recipeId, stepIndex, endAt), 1000);
+                     const button = document.querySelector(`.timer-start-button[data-timer-key="${CSS.escape(key)}"]`);
+                     if (button) button.textContent = translations.stop_timer || 'Stop timer';
+                 }
+             });
+         }
+
+         function timerMarkup(recipeId, stepIndex, timer) {
+             const durationSeconds = (Number(timer.hours) * 3600) + (Number(timer.minutes) * 60);
+             const key = recipeTimerKey(recipeId, stepIndex);
+             const safeKey = String(key).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+             const startLabel = translations.start_timer || 'Start timer';
+             return `<div class="timer-row"><div class="timer-display" data-timer-key="${safeKey}">${formatTimerDisplay(timer)}</div><button type="button" class="timer-start-button" data-timer-key="${safeKey}" data-duration-seconds="${durationSeconds}" data-recipe-id="${String(recipeId).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}" data-step-index="${stepIndex}">${startLabel}</button></div>`;
+         }
+
+         document.addEventListener('click', event => {
+             const button = event.target.closest('.timer-start-button');
+             if (!button) return;
+             const recipeId = button.dataset.recipeId;
+             const stepIndex = Number(button.dataset.stepIndex);
+             const key = recipeTimerKey(recipeId, stepIndex);
+             if (readRecipeTimers()[key]) stopRecipeTimer(recipeId, stepIndex);
+             else startRecipeTimer(recipeId, stepIndex, button.dataset.durationSeconds, button);
+         });
 
         function showRecipe(recipeId) {
             recipeState.current_recipe = recipeId;
             saveRecipeState();
-
-            // Show the continue recipe button
-            const continueBtn = document.getElementById('continueRecipeBtn');
-            if (continueBtn) {
-                continueBtn.style.display = 'inline-flex';
-            }
 
             // Fetch full recipe from database
             fetch(`?get_recipe_full=1&recipe_id=${recipeId}`)
@@ -1075,7 +1289,7 @@
 
                             const product = products.find(p => p.id === step.content);
                             if (product) {
-                                let productSpan = `<span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${product.name[currentLang]}`;
+                                let productSpan = `<span class="step-text" style="${isCompleted ? 'text-decoration: line-through;' : ''}">${product.name[currentLang]}`;
                                 if (step.quantity) {
                                     let unitText = '';
                                     switch(step.quantity.unit) {
@@ -1097,7 +1311,7 @@
                             }
 
                             html += `</div>`;
-                            html += `<button class="complete-button" onclick="toggleStepCompletion('${recipeId}', ${index})">`;
+                            html += `<button class="complete-button" aria-pressed="${isCompleted ? 'true' : 'false'}" onclick="toggleStepCompletion('${recipeId}', ${index}, this)">`;
                             html += isCompleted
                                 ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg> ${translations.undo}`
                                 : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> ${translations.complete}`;
@@ -1115,16 +1329,16 @@
                             const isCompleted = recipeState.completed_steps[recipeId]?.includes(index);
                             html += `<div class="step" style="display: flex; align-items: flex-start; gap: 10px;">`;
                             html += `<div style="flex-grow: 1;">`;
-                            html += `<span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${translations.step} ${instructionIndex + 1}: </span>`;
+                            html += `<span class="step-text" style="${isCompleted ? 'text-decoration: line-through;' : ''}">${translations.step} ${instructionIndex + 1}: </span>`;
 
                             const instructionText = typeof step.content === 'object' ? (step.content[currentLang] || step.content.en || '') : step.content;
-                            html += `<span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${instructionText}</span>`;
+                            html += `<span class="step-text" style="${isCompleted ? 'text-decoration: line-through;' : ''}">${instructionText}</span>`;
 
                             if (step.timer && (step.timer.hours > 0 || step.timer.minutes > 0)) {
-                                html += `<div class="timer-display">${formatTimerDisplay(step.timer)}</div>`;
+                                 html += timerMarkup(recipeId, index, step.timer);
                             }
                             html += `</div>`;
-                            html += `<button class="complete-button" onclick="toggleStepCompletion('${recipeId}', ${index})">`;
+                            html += `<button class="complete-button" aria-pressed="${isCompleted ? 'true' : 'false'}" onclick="toggleStepCompletion('${recipeId}', ${index}, this)">`;
                             html += isCompleted
                                 ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg> ${translations.undo}`
                                 : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> ${translations.complete}`;
@@ -1133,8 +1347,9 @@
                         });
                     }
                     html += '</div>'; // close recipe-view-body
-                    recipeView.innerHTML = html;
-                    syncIngredientProductImages();
+                     recipeView.innerHTML = html;
+                     syncIngredientProductImages();
+                     resumeRecipeTimers(recipeId);
                 })
                 .catch(error => {
                     showNotification(translations.error_occurred, 'error');
@@ -1178,7 +1393,7 @@
 
                             const product = products.find(p => p.id === step.content);
                             if (product) {
-                                let productSpan = `<span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${product.name[langCode] || product.name.en}`;
+                                let productSpan = `<span class="step-text" style="${isCompleted ? 'text-decoration: line-through;' : ''}">${product.name[langCode] || product.name.en}`;
                                 if (step.quantity) {
                                     let unitText = '';
                                     switch(step.quantity.unit) {
@@ -1200,7 +1415,7 @@
                             }
 
                             html += `</div>`;
-                            html += `<button class="complete-button" onclick="toggleStepCompletion('${recipeId}', ${index})">`;
+                            html += `<button class="complete-button" aria-pressed="${isCompleted ? 'true' : 'false'}" onclick="toggleStepCompletion('${recipeId}', ${index}, this)">`;
                             html += isCompleted
                                 ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg> ${translations.undo}`
                                 : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> ${translations.complete}`;
@@ -1218,16 +1433,16 @@
                             const isCompleted = recipeState.completed_steps[recipeId]?.includes(index);
                             html += `<div class="step" style="display: flex; align-items: flex-start; gap: 10px;">`;
                             html += `<div style="flex-grow: 1;">`;
-                            html += `<span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${translations.step} ${instructionIndex + 1}: </span>`;
+                            html += `<span class="step-text" style="${isCompleted ? 'text-decoration: line-through;' : ''}">${translations.step} ${instructionIndex + 1}: </span>`;
 
                             const instructionText = typeof step.content === 'object' ? (step.content[langCode] || step.content.en || '') : step.content;
-                            html += `<span style="${isCompleted ? 'text-decoration: line-through;' : ''}">${instructionText}</span>`;
+                            html += `<span class="step-text" style="${isCompleted ? 'text-decoration: line-through;' : ''}">${instructionText}</span>`;
 
                             if (step.timer && (step.timer.hours > 0 || step.timer.minutes > 0)) {
-                                html += `<div class="timer-display">${formatTimerDisplay(step.timer)}</div>`;
+                                 html += timerMarkup(recipeId, index, step.timer);
                             }
                             html += `</div>`;
-                            html += `<button class="complete-button" onclick="toggleStepCompletion('${recipeId}', ${index})">`;
+                            html += `<button class="complete-button" aria-pressed="${isCompleted ? 'true' : 'false'}" onclick="toggleStepCompletion('${recipeId}', ${index}, this)">`;
                             html += isCompleted
                                 ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 6L6 18M6 6l12 12"></path></svg> ${translations.undo}`
                                 : `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 6L9 17l-5-5"></path></svg> ${translations.complete}`;
@@ -1236,8 +1451,9 @@
                         });
                     }
                     html += '</div>'; // close recipe-view-body
-                    recipeView.innerHTML = html;
-                    syncIngredientProductImages();
+                     recipeView.innerHTML = html;
+                     syncIngredientProductImages();
+                     resumeRecipeTimers(recipeId);
                 });
         }
 
@@ -2668,10 +2884,11 @@
                 }
             };
 
-            // Check for hash on page load
-            handleHashChange();
+             // Check for hash on page load
+             handleHashChange();
+             restoreActiveRecipeTimerOnStartup();
 
-            // Listen for hash changes
+             // Listen for hash changes
             window.addEventListener('hashchange', handleHashChange);
             bindProductModalEvents();
             let _imgResizeT = null;

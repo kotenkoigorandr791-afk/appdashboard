@@ -4,7 +4,8 @@ if (isset($_GET['get_products'])) {
     $products = [];
     if ($db) {
         try {
-            $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
+            $result = $db->query("SELECT id, name_en, name_uk, name_ru, name_be, image, image_preview, category, updated_at
+                FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $products[] = [
                     'id' => $row['id'],
@@ -22,6 +23,8 @@ if (isset($_GET['get_products'])) {
             }
         } catch (Exception $e) {
             error_log("Failed to get products: " . $e->getMessage());
+            http_response_code(500);
+            $products = ['success' => false, 'message' => 'Unable to load products'];
         }
     }
     header('Content-Type: application/json; charset=utf-8');
@@ -32,11 +35,18 @@ if (isset($_GET['get_products'])) {
 // If request to get recipes
 if (isset($_GET['get_recipes'])) {
     $recipes = [];
-    $page = isset($_GET['recipe_page']) ? (int)$_GET['recipe_page'] : 1;
+    $has_pagination = isset($_GET['recipe_page']);
+    $page = max(1, isset($_GET['recipe_page']) ? (int)$_GET['recipe_page'] : 1);
+    $limit = min(100, max(1, isset($_GET['limit']) ? (int)$_GET['limit'] : 20));
     
     if ($db) {
         try {
-            $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en");
+            $total = (int)$db->query("SELECT COUNT(*) FROM " . RECIPES_DB_TABLE_PREFIX . "data")->fetchColumn();
+            $sql = "SELECT id, title_en, title_uk, title_ru, title_be, image FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en";
+            if ($has_pagination) {
+                $sql .= " LIMIT " . $limit . " OFFSET " . (($page - 1) * $limit);
+            }
+            $result = $db->query($sql);
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
                 $recipe = [
                     'id' => $row['id'],
@@ -52,10 +62,19 @@ if (isset($_GET['get_recipes'])) {
             }
         } catch (Exception $e) {
             error_log("Failed to get recipes: " . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Unable to load recipes'], JSON_UNESCAPED_UNICODE);
+            exit;
         }
     }
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['recipes' => $recipes, 'page' => $page], JSON_UNESCAPED_UNICODE);
+    $response = ['recipes' => $recipes, 'page' => $page];
+    if ($has_pagination) {
+        $response['limit'] = $limit;
+        $response['total'] = $total;
+        $response['total_pages'] = (int)ceil($total / $limit);
+    }
+    echo json_encode($response, JSON_UNESCAPED_UNICODE);
     exit;
 }
 
@@ -67,7 +86,7 @@ if (isset($_GET['get_recipe_full']) && isset($_GET['recipe_id'])) {
     if ($db) {
         try {
             // Get recipe
-            $stmt = $db->prepare("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :id");
+            $stmt = $db->prepare("SELECT id, title_en, title_uk, title_ru, title_be, image FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :id");
             $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
             $result = $stmt->execute();
             $recipe_data = $result->fetch(PDO::FETCH_ASSOC);
@@ -86,7 +105,7 @@ if (isset($_GET['get_recipe_full']) && isset($_GET['recipe_id'])) {
                 ];
                 
                 // Get steps
-                $stmt = $db->prepare("SELECT * FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :id ORDER BY step_order");
+                $stmt = $db->prepare("SELECT step_type, content, quantity_value, quantity_unit, timer_hours, timer_minutes FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :id ORDER BY step_order");
                 $stmt->bindValue(':id', $recipe_id, PDO::PARAM_STR);
                 $result = $stmt->execute();
                 
@@ -120,6 +139,8 @@ if (isset($_GET['get_recipe_full']) && isset($_GET['recipe_id'])) {
             }
         } catch (Exception $e) {
             error_log("Failed to get full recipe: " . $e->getMessage());
+            http_response_code(500);
+            $recipe = null;
         }
     }
     

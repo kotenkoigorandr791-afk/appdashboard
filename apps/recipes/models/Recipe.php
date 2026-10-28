@@ -6,7 +6,12 @@ function getAllRecipesFromDB() {
     if (!$db) return $recipes;
     
     try {
-        $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "data ORDER BY title_en");
+        $result = $db->query("SELECT d.id, d.title_en, d.title_uk, d.title_ru, d.title_be, d.image,
+            COUNT(s.id) AS step_count
+            FROM " . RECIPES_DB_TABLE_PREFIX . "data d
+            LEFT JOIN " . RECIPES_STEPS_TABLE . " s ON s.recipe_id = d.id
+            GROUP BY d.id, d.title_en, d.title_uk, d.title_ru, d.title_be, d.image
+            ORDER BY d.title_en");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $recipe = [
                 'id' => $row['id'],
@@ -19,12 +24,7 @@ function getAllRecipesFromDB() {
                 'image' => $row['image']
             ];
             
-            // Get step count
-            $stmt = $db->prepare("SELECT COUNT(*) as step_count FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :id");
-            $stmt->bindValue(':id', $row['id'], PDO::PARAM_STR);
-            $step_result = $stmt->execute();
-            $step_data = $step_result->fetch(PDO::FETCH_ASSOC);
-            $recipe['step_count'] = $step_data['step_count'];
+            $recipe['step_count'] = (int)$row['step_count'];
             $recipe['steps'] = []; // Will be loaded on demand
             
             $recipes[] = $recipe;
@@ -43,7 +43,8 @@ function getAllProductsFromDB() {
     if (!$db) return $products;
     
     try {
-        $result = $db->query("SELECT * FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
+        $result = $db->query("SELECT id, name_en, name_uk, name_ru, name_be, category, image, image_preview, updated_at
+            FROM " . RECIPES_DB_TABLE_PREFIX . "products ORDER BY name_en");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
             $products[] = [
                 'id' => $row['id'],
@@ -65,4 +66,3 @@ function getAllProductsFromDB() {
     
     return $products;
 }
-

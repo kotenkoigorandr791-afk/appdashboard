@@ -23,6 +23,7 @@ function app_db_load_config(): array {
         'connect_timeout' => '3',
         'connect_retries' => '5',
         'connect_retry_delay_ms' => '300',
+        'persistent' => '1',
     ];
     $path = app_db_config_path();
     if (is_readable($path)) {
@@ -44,6 +45,7 @@ function app_db_load_config(): array {
             if ($k === 'db_connect_timeout') $cfg['connect_timeout'] = $v;
             if ($k === 'db_connect_retries') $cfg['connect_retries'] = $v;
             if ($k === 'db_connect_retry_delay_ms') $cfg['connect_retry_delay_ms'] = $v;
+            if ($k === 'db_persistent') $cfg['persistent'] = $v;
         }
     }
     $envMap = [
@@ -57,6 +59,7 @@ function app_db_load_config(): array {
         'DB_CONNECT_TIMEOUT' => 'connect_timeout',
         'DB_CONNECT_RETRIES' => 'connect_retries',
         'DB_CONNECT_RETRY_DELAY_MS' => 'connect_retry_delay_ms',
+        'DB_PERSISTENT' => 'persistent',
     ];
     foreach ($envMap as $env => $key) {
         $value = getenv($env);
@@ -101,18 +104,61 @@ function app_db_is_transient_connection_error(Throwable $e): bool {
     }
     return false;
 }
-function app_pdo_open(array $c): PDO {
+function app_db_truthy(string $value): bool {
+    $value = strtolower(trim($value));
+    return $value !== '' && !in_array($value, ['0', 'false', 'no', 'off'], true);
+}
+function app_db_persistent_enabled(): bool {
+    static $enabled = null;
+    if ($enabled === null) {
+        $enabled = app_db_truthy((string)app_db_load_config()['persistent']);
+    }
+    return $enabled;
+}
+/**
+ * Reclaim a persistent connection before a new request uses it.
+ *
+ * A persistent socket is shared between requests in the same FPM worker, so
+ * anything the previous request left behind must be cleared:
+ * - ROLLBACK aborts any transaction the previous request never closed,
+ *   whether it was opened via PDO::beginTransaction() or a raw `BEGIN`
+ *   (recipes' post handlers use raw SQL, so PDO::inTransaction() cannot be
+ *   trusted here). It also unblocks a session left in an *aborted*
+ *   transaction (an error that left the block open), a state in which no
+ *   SELECT-based check could even run. Outside of a transaction ROLLBACK is
+ *   a no-op: PostgreSQL only emits a WARNING, the statement still succeeds
+ *   and PHP raises no error.
+ * - search_path is restored because user-schema connections
+ *   (AppDatabase::connectUserSchema) point it at a custom schema, and with
+ *   APP_DB_SKIP_SESSION_INIT=1 no other code resets it on a reused socket.
+ */
+function app_pdo_checkout_reset(PDO $pdo): void {
+    $pdo->exec('ROLLBACK');
+    $pdo->exec('SET search_path TO public');
+}
+function app_pdo_open(array $c, ?bool $persistent = null): PDO {
     $timeout = max(1, (int)$c['connect_timeout']);
     $host = app_db_normalize_host((string)$c['host']);
     if ($host === '') {
         throw new PDOException('Database host is not configured');
     }
+    if ($persistent === null) {
+        $persistent = app_db_persistent_enabled();
+    }
     $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s;sslmode=%s;connect_timeout=%d', $host, $c['port'], $c['name'], $c['sslmode'], $timeout);
-    $pdo = new PDO($dsn, $c['user'], $c['password'], [
+    $options = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => true,
-    ]);
+    ];
+    if ($persistent) {
+        $options[PDO::ATTR_PERSISTENT] = true;
+    }
+    $pdo = new PDO($dsn, $c['user'], $c['password'], $options);
+    if ($persistent) {
+        // A pooled socket may have been left dirty by the previous request.
+        app_pdo_checkout_reset($pdo);
+    }
     if (!app_db_skip_session_init()) {
         $pdo->exec("SET client_encoding TO 'UTF8'");
         $pdo->exec("SET timezone TO 'UTC'");
@@ -138,14 +184,25 @@ function app_pdo_connect(bool $fresh = false): PDO {
     $retries = max(1, (int)$c['connect_retries']);
     $delayMs = max(0, (int)$c['connect_retry_delay_ms']);
     $last = null;
+    // fresh=true must always use a non-persistent connection so it really
+    // opens a brand-new socket, bypassing the persistent pool (reconnect()
+    // and connectUserSchema() rely on this, e.g. after a database restart).
+    $usePersistent = !$fresh && app_db_persistent_enabled();
     for ($attempt = 1; $attempt <= $retries; $attempt++) {
         try {
-            $new = app_pdo_open($c);
+            $new = app_pdo_open($c, $usePersistent);
             if (!$fresh) $pdo = $new;
             return $new;
         } catch (PDOException $e) {
             $last = $e;
             if (!app_db_is_transient_connection_error($e) || $attempt === $retries) break;
+            if ($usePersistent) {
+                // The pooled socket is dead (e.g. database restarted). A retry
+                // delay would not fix a broken pool entry; fall back to a
+                // fresh non-persistent connection immediately.
+                $usePersistent = false;
+                continue;
+            }
             usleep($delayMs * 1000 * $attempt);
         }
     }

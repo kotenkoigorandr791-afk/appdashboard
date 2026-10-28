@@ -81,9 +81,16 @@ final class AppDatabase {
         $this->pdo = $pdo;
         $this->schemaSql = $schemaSql;
         $this->initSql = $initSql;
+        // app_pdo_open() already restored `search_path TO public` when session
+        // init is enabled, so the main connection needs no extra reset on its
+        // first use. User-schema instances keep resetting through reconnect().
+        $this->publicPathSet = $schemaSql === null && !app_db_skip_session_init();
     }
     public function reconnect(): void {
         $this->publicPathSet = false;
+        // fresh=true forces a non-persistent connection, so this always
+        // establishes a brand-new socket even when persistent pooling is on
+        // (e.g. after a database restart or a dropped connection).
         $this->pdo = app_pdo_connect(true);
         if ($this->schemaSql !== null) {
             $this->pdo->exec('SET search_path TO ' . $this->schemaSql . ', public');
@@ -108,6 +115,9 @@ final class AppDatabase {
     public static function connectUserSchema(string $schemaSql, array $initSql = []): self {
         $key = $schemaSql . '|' . implode(';', $initSql);
         if (!isset(self::$userInstances[$key])) {
+            // fresh=true: a non-persistent socket, so the custom search_path
+            // below can never leak into the persistent pool shared by the
+            // main connection.
             $pdo = app_pdo_connect(true);
             $pdo->exec('SET search_path TO ' . $schemaSql . ', public');
             foreach ($initSql as $q) $pdo->exec($q);

@@ -390,17 +390,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $stmt->execute();
                 
                 // Save steps
+                $stmt = $db->prepare("INSERT INTO " . RECIPES_STEPS_TABLE . " (
+                    recipe_id, step_order, step_type, content,
+                    quantity_value, quantity_unit, timer_hours, timer_minutes
+                ) VALUES (
+                    :recipe_id, :step_order, :step_type, :content,
+                    :quantity_value, :quantity_unit, :timer_hours, :timer_minutes
+                )");
                 foreach ($translated_steps as $step_index => $step) {
-                    $stmt = $db->prepare("
-                        INSERT INTO " . RECIPES_STEPS_TABLE . " (
-                            recipe_id, step_order, step_type, content,
-                            quantity_value, quantity_unit, timer_hours, timer_minutes
-                        ) VALUES (
-                            :recipe_id, :step_order, :step_type, :content,
-                            :quantity_value, :quantity_unit, :timer_hours, :timer_minutes
-                        )
-                    ");
-                    
                     $content = '';
                     $quantity_value = null;
                     $quantity_unit = null;
@@ -443,9 +440,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 ];
             } catch (Exception $e) {
                 $db->exec("ROLLBACK");
+                error_log("Failed to save recipe: " . $e->getMessage());
                 $response = [
                     'success' => false,
-                    'message' => 'Database error: ' . $e->getMessage()
+                    'message' => 'Unable to save recipe'
                 ];
             }
         }
@@ -454,36 +452,33 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $recipe_id = $_POST['recipe_id'];
             
             try {
+                $db->exec("BEGIN");
                 // Delete from database
-                $stmt = $db->prepare("DELETE FROM " . RECIPES_STEPS_TABLE . " WHERE recipe_id = :recipe_id");
-                $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
-                $stmt->execute();
-                
                 $stmt = $db->prepare("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "data WHERE id = :recipe_id");
                 $stmt->bindValue(':recipe_id', $recipe_id, PDO::PARAM_STR);
                 $stmt->execute();
 
-                // Delete files
+                // Reset state and commit before touching files.
+                if ($recipe_state['current_recipe'] === $recipe_id) {
+                    $recipe_state['current_recipe'] = null;
+                    $recipe_state['completed_steps'] = [];
+                    $db->exec("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "state WHERE key IN ('current_recipe', 'completed_steps')");
+                }
+                $db->exec("COMMIT");
+
+                // Delete files only after the database transaction succeeds.
                 $recipe_dir = "$recipes_dir/$recipe_id";
                 if (is_dir($recipe_dir)) {
                     array_map('unlink', glob("$recipe_dir/*"));
                     rmdir($recipe_dir);
                 }
                 
-                // Reset state if this is the current recipe
-                if ($recipe_state['current_recipe'] === $recipe_id) {
-                    $recipe_state['current_recipe'] = null;
-                    $recipe_state['completed_steps'] = [];
-                    try {
-                        $db->exec("DELETE FROM " . RECIPES_DB_TABLE_PREFIX . "state WHERE key IN ('current_recipe', 'completed_steps')");
-                    } catch (Exception $e) {
-                        error_log("Failed to clear recipe state: " . $e->getMessage());
-                    }
-                }
-                
+                recipes_cache_invalidate();
                 $response = ['success' => true, 'message' => $translations[$lang]['recipe_deleted']];
             } catch (Exception $e) {
-                $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+                try { $db->exec("ROLLBACK"); } catch (Exception $rollback_error) { error_log("Recipe delete rollback failed: " . $rollback_error->getMessage()); }
+                error_log("Failed to delete recipe: " . $e->getMessage());
+                $response = ['success' => false, 'message' => 'Unable to delete recipe'];
             }
         }
         
@@ -516,12 +511,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($db && $state) {
                 try {
                     $db->exec("BEGIN");
+                    $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value, updated_at)
+                        VALUES (:key, :value, CURRENT_TIMESTAMP)
+                        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP");
                     foreach ($state as $key => $value) {
-                        $stmt = $db->prepare("
-                            INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "state (key, value, updated_at)
-                            VALUES (:key, :value, CURRENT_TIMESTAMP)
-                            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
-                        ");
                         $stmt->bindValue(':key', $key, PDO::PARAM_STR);
                         $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
                         $stmt->execute();
@@ -531,7 +524,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['success' => true, 'message' => 'State saved'];
                 } catch (Exception $e) {
                     $db->exec("ROLLBACK");
-                    $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+                    error_log("Failed to save state: " . $e->getMessage());
+                    $response = ['success' => false, 'message' => 'Unable to save state'];
                 }
             } else {
                 $response = ['success' => false, 'message' => 'Invalid state data or database connection'];
@@ -545,12 +539,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($db && $config_data) {
                 try {
                     $db->exec("BEGIN");
+                    $stmt = $db->prepare("INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at)
+                        VALUES (:key, :value, CURRENT_TIMESTAMP)
+                        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP");
                     foreach ($config_data as $key => $value) {
-                        $stmt = $db->prepare("
-                            INSERT INTO " . RECIPES_DB_TABLE_PREFIX . "config (key, value, updated_at)
-                            VALUES (:key, :value, CURRENT_TIMESTAMP)
-                            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = CURRENT_TIMESTAMP
-                        ");
                         $stmt->bindValue(':key', $key, PDO::PARAM_STR);
                         $stmt->bindValue(':value', is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value, PDO::PARAM_STR);
                         $stmt->execute();
@@ -560,7 +552,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     $response = ['success' => true, 'message' => $translations[$lang]['config_saved'] ?? 'Config saved'];
                 } catch (Exception $e) {
                     $db->exec("ROLLBACK");
-                    $response = ['success' => false, 'message' => 'Database error: ' . $e->getMessage()];
+                    error_log("Failed to save config: " . $e->getMessage());
+                    $response = ['success' => false, 'message' => 'Unable to save config'];
                 }
             } else {
                 $response = ['success' => false, 'message' => 'Invalid config data or database connection'];

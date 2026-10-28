@@ -500,11 +500,62 @@ body::-webkit-scrollbar-thumb:hover {
     color: var(--primary-color);
 }
 
+.timer-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
 .timer-display {
     font-weight: bold;
     color: var(--primary-color);
-    margin-top: 10px;
-    display: block;
+    margin: 0;
+}
+
+.timer-display.timer-active {
+    animation: recipe-timer-pulse 2s ease-in-out infinite;
+}
+
+.timer-display.timer-complete {
+    color: var(--primary-color);
+}
+
+.timer-start-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+    margin: 0;
+    padding: 1px 4px;
+    width: auto;
+    height: 20px;
+    min-height: 20px;
+    flex: 0 0 auto;
+    font-size: 11px;
+    line-height: 1.2;
+    white-space: nowrap;
+    border: 1px solid var(--primary-color);
+    border-radius: var(--btn-border-radius);
+    background: transparent;
+    color: var(--primary-color);
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.timer-start-button:hover {
+    background: color-mix(in srgb, var(--primary-color) 10%, transparent);
+}
+
+.timer-start-button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+@keyframes recipe-timer-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.65; }
 }
 
 .complete-button {

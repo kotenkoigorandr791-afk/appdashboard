@@ -14,6 +14,18 @@ function recipes_ensure_products_image_preview_column($db) {
         }
     } catch (Exception $e) {
         error_log('recipes image_preview column: ' . $e->getMessage());
+        throw $e;
+    }
+}
+
+function recipes_ensure_list_indexes($db) {
+    if (!$db) return;
+    try {
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_recipes_data_title_en ON " . RECIPES_DB_TABLE_PREFIX . "data(title_en)");
+        $db->exec("CREATE INDEX IF NOT EXISTS idx_recipes_products_name_en ON " . RECIPES_DB_TABLE_PREFIX . "products(name_en)");
+    } catch (Exception $e) {
+        error_log('recipes list indexes: ' . $e->getMessage());
+        throw $e;
     }
 }
 
@@ -48,6 +60,7 @@ function recipes_ensure_steps_table($db) {
         $db->exec("CREATE INDEX IF NOT EXISTS idx_" . RECIPES_STEPS_TABLE . "_step_order ON " . RECIPES_STEPS_TABLE . "(recipe_id, step_order)");
     } catch (Exception $e) {
         error_log('recipes steps table migration: ' . $e->getMessage());
+        throw $e;
     }
 }
 
@@ -96,6 +109,7 @@ function recipes_migrate_json_to_sqlite_impl($db) {
         }
         recipes_ensure_products_image_preview_column($db);
         recipes_ensure_steps_table($db);
+        recipes_ensure_list_indexes($db);
         return true;
     }
     
@@ -129,6 +143,7 @@ function recipes_migrate_json_to_sqlite_impl($db) {
     ");
     
     recipes_ensure_steps_table($db);
+    recipes_ensure_list_indexes($db);
     
     $db->exec("
         CREATE TABLE IF NOT EXISTS " . RECIPES_DB_TABLE_PREFIX . "config (
