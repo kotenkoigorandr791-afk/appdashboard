@@ -451,7 +451,6 @@ return [
   'Kanboard\\Controller\\ColumnRestrictionController' => 'app/Controller/ColumnRestrictionController.php',
   'Kanboard\\Controller\\TaskMailController' => 'app/Controller/TaskMailController.php',
   'Kanboard\\Controller\\GroupAjaxController' => 'app/Controller/GroupAjaxController.php',
-  'Kanboard\\Controller\\CommentMailController' => 'app/Controller/CommentMailController.php',
   'Kanboard\\Controller\\UserModificationController' => 'app/Controller/UserModificationController.php',
   'Kanboard\\Controller\\ProjectFileController' => 'app/Controller/ProjectFileController.php',
   'Kanboard\\Controller\\GroupCreationController' => 'app/Controller/GroupCreationController.php',

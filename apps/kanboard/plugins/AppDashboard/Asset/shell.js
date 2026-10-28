@@ -675,17 +675,17 @@
     }
   }
   function initSidebarToggle() {
-    var collapse = document.getElementById('kb-sidebar-collapse');
     var fab = document.getElementById('kb-sidebar-fab');
-    var backdrop = document.getElementById('kb-sidebar-backdrop');
-    function openSidebar() { setSidebarCollapsed(false); }
-    function closeSidebar() {
+    var nav = document.querySelector('.kb-app-sidebar-nav');
+    if (fab) fab.addEventListener('click', function () {
       if (!isPhoneSidebar()) return;
+      setSidebarCollapsed(!document.body.classList.contains('kb-sidebar-collapsed'));
+    });
+    if (nav) nav.addEventListener('click', function (e) {
+      var target = e.target;
+      if (!isPhoneSidebar() || !target || !target.closest || !target.closest('a, button')) return;
       setSidebarCollapsed(true);
-    }
-    if (collapse) collapse.addEventListener('click', closeSidebar);
-    if (fab) fab.addEventListener('click', openSidebar);
-    if (backdrop) backdrop.addEventListener('click', closeSidebar);
+    });
     document.addEventListener('keydown', function (e) {
       if ((e.metaKey || e.ctrlKey) && String(e.key || '').toLowerCase() === 'b') {
         if (!isPhoneSidebar()) return;

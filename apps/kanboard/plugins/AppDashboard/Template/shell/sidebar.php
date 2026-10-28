@@ -48,9 +48,6 @@ $initial = mb_strtoupper(mb_substr($fullname !== '' ? $fullname : 'U', 0, 1));
                 <span class="kb-org-sub"><?= t('Tasks') ?></span>
             </div>
         </div>
-        <button type="button" class="kb-sidebar-collapse" id="kb-sidebar-collapse" title="<?= t('Toggle sidebar') ?>" aria-label="<?= t('Toggle sidebar') ?>">
-            <?= $icon('menu') ?>
-        </button>
     </div>
     <nav class="kb-app-sidebar-nav">
         <div class="kb-nav-group">
@@ -112,7 +109,6 @@ $initial = mb_strtoupper(mb_substr($fullname !== '' ? $fullname : 'U', 0, 1));
         </div>
     </nav>
 </aside>
-<button type="button" class="kb-sidebar-backdrop" id="kb-sidebar-backdrop" aria-hidden="true" tabindex="-1"></button>
 <button type="button" class="kb-sidebar-fab" id="kb-sidebar-fab" title="<?= t('Open sidebar') ?>" aria-label="<?= t('Open sidebar') ?>">
     <?= $icon('menu') ?>
     <span><?= t('Menu') ?></span>

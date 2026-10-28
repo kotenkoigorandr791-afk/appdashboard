@@ -1,5 +1,5 @@
 <?php
-$apkRoot = dirname(__DIR__, 5);
+$apkRoot = dirname(__DIR__, 6);
 $apkPath = $apkRoot . '/downloads/kanboard-mobile.apk';
 $apkMetaFile = $apkRoot . '/downloads/kanboard-mobile.json';
 $apkMeta = is_file($apkMetaFile) ? (json_decode((string) file_get_contents($apkMetaFile), true) ?: []) : [];

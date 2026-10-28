@@ -1491,6 +1491,8 @@ var T=<?php echo json_encode([
     'docker_saved'  =>$translations['docker_saved']??'Docker settings saved',
     'onlyoffice_saved'=>$translations['onlyoffice_saved']??'OnlyOffice token saved',
     'ai_config_saved'=>$translations['ai_config_saved']??'AI configuration saved',
+    'ap_sort_asc' =>$translations['ap_sort_asc']??'Ascending',
+    'ap_sort_desc'=>$translations['ap_sort_desc']??'Descending',
     'apiKeysMatch'=>$translations['apiKeysMatch']??'API keys match',
     'apiKeysDoNotMatch'=>$translations['apiKeysDoNotMatch']??'API keys do not match',
     'apiKeysRequired'=>$translations['apiKeysRequired']??'Both API key fields are required when changing the key',
@@ -2864,7 +2866,7 @@ function wireEvents(){
             state.dir=state.dir==='asc'?'desc':'asc';
             dirBtn.dataset.dir=state.dir;
             dirBtn.textContent=state.dir==='asc'?'↑':'↓';
-            dirBtn.title=state.dir.toUpperCase();
+            dirBtn.title=(state.dir==='asc')?(T.ap_sort_asc||'Ascending'):(T.ap_sort_desc||'Descending');
             applyUsersView();
         });
         var prev=dynRoot.querySelector('#ap-users-prev');
@@ -3030,25 +3032,15 @@ function wireEvents(){
             if(d.success&&typeof showTempNotification!=='undefined')showTempNotification(T.onlyoffice_saved,'success');
         }).catch(function(){setStatus(ooSt,'x '+T.error,'error');});
     });
-    var aiSt=dynRoot.querySelector('#ap-ai-config-status'),aiSave=dynRoot.querySelector('#ap-save-ai-config'),aiNewKey=dynRoot.querySelector('#ap-ai-new-key'),aiConfirmKey=dynRoot.querySelector('#ap-ai-confirm-key'),aiMatch=dynRoot.querySelector('#ap-ai-key-match');
-    function checkAiKeyMatch(){
-        if(!aiMatch||!aiNewKey||!aiConfirmKey)return;
-        var nk=aiNewKey.value.trim(),ck=aiConfirmKey.value.trim();
-        if(!nk&&!ck){aiMatch.style.display='none';return;}
-        aiMatch.style.display='block';
-        if(nk===ck){aiMatch.textContent='✓ '+(T.apiKeysMatch||'API keys match');aiMatch.style.color='#28a745';}
-        else{aiMatch.textContent='✗ '+(T.apiKeysDoNotMatch||'API keys do not match');aiMatch.style.color='#dc3545';}
-    }
-    if(aiNewKey)aiNewKey.addEventListener('input',checkAiKeyMatch);
-    if(aiConfirmKey)aiConfirmKey.addEventListener('input',checkAiKeyMatch);
+    var aiSt=dynRoot.querySelector('#ap-ai-config-status'),aiSave=dynRoot.querySelector('#ap-save-ai-config');
     if(aiSave)aiSave.addEventListener('click',function(){
         var endpointEl=dynRoot.querySelector('#ap-ai-endpoint'),modelsEl=dynRoot.querySelector('#ap-ai-models'),defaultEl=dynRoot.querySelector('#ap-ai-default-model'),currentEl=dynRoot.querySelector('#ap-ai-current-key'),speechModelsEl=dynRoot.querySelector('#ap-ai-speech-models'),speechModelEl=dynRoot.querySelector('#ap-ai-speech-model');
-        var newKey=aiNewKey?aiNewKey.value.trim():'',confirmKey=aiConfirmKey?aiConfirmKey.value.trim():'';
-        var hasKey=!!(newKey||confirmKey);
+        var keyValue=currentEl?(currentEl.value||'').trim():'';
+        var originalKey=currentEl?((typeof currentEl.dataset.original!=='undefined')?currentEl.dataset.original:(currentEl.value||'')):'';
+        var hasKey=keyValue!==originalKey;
         if(hasKey){
-            if(!newKey||!confirmKey){setStatus(aiSt,'x '+(T.apiKeysRequired||'Both fields required'),'error');return;}
-            if(newKey!==confirmKey){setStatus(aiSt,'x '+(T.apiKeysDoNotMatch||'Keys do not match'),'error');return;}
-            if(!/^(sk-|io-v2-)/.test(newKey)){setStatus(aiSt,'x '+(T.invalidApiKeyFormat||'Invalid key format'),'error');return;}
+            if(!keyValue){setStatus(aiSt,'x '+(T.apiKeysRequired||'API key is required'),'error');return;}
+            if(!/^(sk-|io-v2-)/.test(keyValue)){setStatus(aiSt,'x '+(T.invalidApiKeyFormat||'Invalid key format'),'error');return;}
         }
         setStatus(aiSt,T.saving,'info');
         var fd=new FormData();
@@ -3060,7 +3052,7 @@ function wireEvents(){
         fd.append('default_model',defaultEl?defaultEl.value.trim():'');
         fd.append('speech_models',speechModelsEl?speechModelsEl.value.trim():'');
         fd.append('speech_model',speechModelEl?speechModelEl.value.trim():'');
-        if(hasKey)fd.append('api_key',newKey);
+        if(hasKey)fd.append('api_key',keyValue);
         fetch('/main',{method:'POST',body:fd}).then(function(r){return r.json();}).then(function(d){
             setStatus(aiSt,d.success?('+ '+(d.message||T.ai_config_saved)+(d.has_key===false?' · API key missing':'')):('x '+(d.error||T.error)),d.success&&d.has_key!==false?'success':'error');
             if(d.success){
@@ -3076,11 +3068,14 @@ function wireEvents(){
                         if(defaultEl&&d.config.default_model)defaultEl.value=d.config.default_model;
                         if(speechModelEl&&d.config.speech_model)speechModelEl.value=d.config.speech_model;
                     }
-                    if(currentEl&&d.config.api_key){currentEl.value=d.config.api_key;currentEl.type='password';}
+                    if(currentEl&&d.config.api_key){currentEl.value=d.config.api_key;currentEl.dataset.original=d.config.api_key;currentEl.type='password';}
                 }
-                if(aiNewKey)aiNewKey.value='';
-                if(aiConfirmKey)aiConfirmKey.value='';
-                if(aiMatch)aiMatch.style.display='none';
+                if(currentEl){
+                    if(!d.config||!d.config.api_key){currentEl.dataset.original=currentEl.value||'';}
+                    currentEl.type='password';
+                    var eyeBtn=dynRoot.querySelector('.ap-pwd-eye[data-target="ap-ai-current-key"]');
+                    if(eyeBtn) eyeBtn.classList.remove('showing');
+                }
             }
         }).catch(function(){setStatus(aiSt,'x '+T.error,'error');});
     });

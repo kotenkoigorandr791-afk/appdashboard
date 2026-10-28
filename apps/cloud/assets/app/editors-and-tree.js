@@ -482,6 +482,8 @@ function loadOnlyOfficeEditorToTab(tab) {
         iframe = document.createElement('iframe');
         iframe.setAttribute('data-tab-id', tab.id);
         iframe.setAttribute('tabindex', '0');
+        iframe.setAttribute('allow', 'fullscreen');
+        iframe.setAttribute('allowfullscreen', '');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
         // The rendered page is the source of truth: APP_CONFIG can lag behind the
