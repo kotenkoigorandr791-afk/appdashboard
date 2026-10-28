@@ -8,9 +8,6 @@
                         <?= $this->modal->medium('comment', t('Add a comment'), 'CommentController', 'create', array('task_id' => $task['id'])) ?>
                     <?php endif ?>
                     <?= $this->url->icon('sort', t('Change sorting'), 'CommentController', 'toggleSorting', array('task_id' => $task['id'], 'csrf_token' => $this->app->getToken()->getReusableCSRFToken())) ?>
-                    <?php if ($editable): ?>
-                        <?= $this->modal->medium('paper-plane', t('Send by email'), 'CommentMailController', 'create', array('task_id' => $task['id'])) ?>
-                    <?php endif ?>
                 </small>
             </div>
         <?php endif ?>

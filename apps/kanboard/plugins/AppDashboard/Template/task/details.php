@@ -49,6 +49,7 @@ $canQuick = !empty($editable) && $this->user->hasProjectAccess('TaskModification
                             <span><?= $this->text->e($task['column_title']) ?></span>
                         <?php endif ?>
                     </li>
+                    <?php if ((int) $task['priority'] !== 0): ?>
                     <li class="kb-task-priority-row">
                         <strong><?= t('Priority:') ?></strong>
                         <?php if ($canQuick): ?>
@@ -65,6 +66,7 @@ $canQuick = !empty($editable) && $this->user->hasProjectAccess('TaskModification
                             <span><?= (int) $task['priority'] ?></span>
                         <?php endif ?>
                     </li>
+                    <?php endif ?>
                     <?php if (! empty($task['reference'])): ?>
                         <li>
                             <strong><?= t('Reference:') ?></strong> <span><?= $this->task->renderReference($task) ?></span>
@@ -101,7 +103,7 @@ $canQuick = !empty($editable) && $this->user->hasProjectAccess('TaskModification
                             <span><?= $this->text->e($task['category_name']) ?></span>
                         </li>
                     <?php endif ?>
-                    <?php if (! empty($task['swimlane_name'])): ?>
+                    <?php if (! empty($task['swimlane_id'])): ?>
                         <li>
                             <strong><?= t('Swimlane:') ?></strong>
                             <span><?= $this->text->e($task['swimlane_name']) ?></span>
@@ -117,19 +119,17 @@ $canQuick = !empty($editable) && $this->user->hasProjectAccess('TaskModification
             </div>
             <div class="task-summary-column">
                 <ul class="no-bullet">
+                    <?php if ($task['assignee_username']): ?>
                     <li>
                         <strong><?= t('Assignee:') ?></strong>
                         <span>
-                        <?php if ($task['assignee_username']): ?>
                             <?= $this->text->e($task['assignee_name'] ?: $task['assignee_username']) ?>
-                        <?php else: ?>
-                            <?= t('not assigned') ?>
-                        <?php endif ?>
                         </span>
                         <?php if ($editable && $task['owner_id'] != $this->user->getId()): ?>
                             - <span><?= $this->url->link(t('Assign to me'), 'TaskModificationController', 'assignToMe', ['task_id' => $task['id'], 'csrf_token' => $this->app->getToken()->getReusableCSRFToken()]) ?></span>
                         <?php endif ?>
                     </li>
+                    <?php endif ?>
                     <?php if ($task['creator_username']): ?>
                         <li>
                             <strong><?= t('Creator:') ?></strong>
@@ -160,14 +160,12 @@ $canQuick = !empty($editable) && $this->user->hasProjectAccess('TaskModification
                             <span><?= $this->dt->datetime($task['date_due']) ?></span>
                         </li>
                     <?php endif ?>
+                    <?php if ($task['date_started']): ?>
                     <li>
                         <strong><?= t('Started:') ?></strong>
-                        <?php if ($task['date_started']): ?>
-                            <span><?= $this->dt->datetime($task['date_started']) ?></span>
-                        <?php elseif ($editable): ?>
-                            <span><?= $this->url->link(t('Start now'), 'TaskModificationController', 'start', ['task_id' => $task['id'], 'csrf_token' => $this->app->getToken()->getReusableCSRFToken()]) ?></span>
-                        <?php endif ?>
+                        <span><?= $this->dt->datetime($task['date_started']) ?></span>
                     </li>
+                    <?php endif ?>
                     <li>
                         <strong><?= t('Created:') ?></strong>
                         <span><?= $this->dt->datetime($task['date_creation']) ?></span>

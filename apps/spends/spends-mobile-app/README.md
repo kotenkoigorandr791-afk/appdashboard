@@ -23,3 +23,17 @@ Point the emulator at the host Docker stack via `http://10.0.2.2/api/spends`
 (or the LAN IP shown in the Spends web pairing modal).
 
 Native modules require a **dev build** — Expo Go is not supported.
+
+## Android builds
+
+Release APKs ship **arm64-v8a only** (phones). For the x86_64 emulator:
+
+```bash
+cd android && ./gradlew assembleDebug -PreactNativeArchitectures=x86_64
+```
+
+Release:
+
+```bash
+cd android && ./gradlew assembleRelease -PreactNativeArchitectures=arm64-v8a
+```

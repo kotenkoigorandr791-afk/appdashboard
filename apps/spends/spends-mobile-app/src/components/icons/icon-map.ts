@@ -1,7 +1,6 @@
 import type { FC } from "react"
 import type { SvgProps } from "react-native-svg"
 
-// Filled icons
 import Adjustments from "./filled/Adjustments"
 import Alarm from "./filled/Alarm"
 import AlarmMinus from "./filled/AlarmMinus"
@@ -70,8 +69,8 @@ import Campfire from "./filled/Campfire"
 import Candle from "./filled/Candle"
 import Car from "./filled/Car"
 import Car4Wd from "./filled/Car4Wd"
-import Caravan from "./filled/Caravan"
 import CarSuv from "./filled/CarSuv"
+import Caravan from "./filled/Caravan"
 import CashBanknote from "./filled/CashBanknote"
 import ChartArea from "./filled/ChartArea"
 import ChartAreaLine from "./filled/ChartAreaLine"
@@ -137,8 +136,8 @@ import FileAnalytics from "./filled/FileAnalytics"
 import FileDescription from "./filled/FileDescription"
 import FileDollar from "./filled/FileDollar"
 import FileInvoice from "./filled/FileInvoice"
-import Files from "./filled/Files"
 import FileText from "./filled/FileText"
+import Files from "./filled/Files"
 import Filter from "./filled/Filter"
 import Flag from "./filled/Flag"
 import Flag2 from "./filled/Flag2"
@@ -280,7 +279,6 @@ import World from "./filled/World"
 import Writing from "./filled/Writing"
 import WritingSign from "./filled/WritingSign"
 import ZoomMoney from "./filled/ZoomMoney"
-// Outline icons
 import Activity from "./outline/Activity"
 import AddressBook from "./outline/AddressBook"
 import Affiliate from "./outline/Affiliate"
@@ -295,14 +293,14 @@ import ArrowNarrowDown from "./outline/ArrowNarrowDown"
 import ArrowNarrowLeft from "./outline/ArrowNarrowLeft"
 import ArrowNarrowRight from "./outline/ArrowNarrowRight"
 import ArrowNarrowUp from "./outline/ArrowNarrowUp"
+import ArrowUp from "./outline/ArrowUp"
+import ArrowUpCircleOutline from "./outline/ArrowUpCircle"
+import ArrowUpRight from "./outline/ArrowUpRight"
 import ArrowsDiff from "./outline/ArrowsDiff"
 import ArrowsMoveVertical from "./outline/ArrowsMoveVertical"
 import ArrowsRightLeft from "./outline/ArrowsRightLeft"
 import ArrowsTransferUpDown from "./outline/ArrowsTransferUpDown"
 import ArrowsUpDown from "./outline/ArrowsUpDown"
-import ArrowUp from "./outline/ArrowUp"
-import ArrowUpCircleOutline from "./outline/ArrowUpCircle"
-import ArrowUpRight from "./outline/ArrowUpRight"
 import Asterisk from "./outline/Asterisk"
 import BasketOutline from "./outline/Basket"
 import BellOutline from "./outline/Bell"
@@ -328,9 +326,9 @@ import Checks from "./outline/Checks"
 import ChevronDown from "./outline/ChevronDown"
 import ChevronLeft from "./outline/ChevronLeft"
 import ChevronRight from "./outline/ChevronRight"
+import ChevronUp from "./outline/ChevronUp"
 import ChevronsDown from "./outline/ChevronsDown"
 import ChevronsUp from "./outline/ChevronsUp"
-import ChevronUp from "./outline/ChevronUp"
 import CircleOutline from "./outline/Circle"
 import CircleDotOutline from "./outline/CircleDot"
 import CirclesOutline from "./outline/Circles"
@@ -346,7 +344,6 @@ import Currency from "./outline/Currency"
 import CurrencyDollar from "./outline/CurrencyDollar"
 import DatabaseOutline from "./outline/Database"
 import DatabaseExport from "./outline/DatabaseExport"
-import DatabaseImport from "./outline/DatabaseImport"
 import DeviceMobileOff from "./outline/DeviceMobileOff"
 import DeviceMobileVibration from "./outline/DeviceMobileVibration"
 import Dice from "./outline/Dice"
@@ -356,12 +353,12 @@ import Equal from "./outline/Equal"
 import Eraser from "./outline/Eraser"
 import EyeOff from "./outline/EyeOff"
 import FileOutline from "./outline/File"
-import FilesOutline from "./outline/Files"
 import FileTypeCsv from "./outline/FileTypeCsv"
 import FileTypeJpg from "./outline/FileTypeJpg"
 import FileTypePdf from "./outline/FileTypePdf"
 import FileX from "./outline/FileX"
 import FileZip from "./outline/FileZip"
+import FilesOutline from "./outline/Files"
 import Filter2 from "./outline/Filter2"
 import Filter2Search from "./outline/Filter2Search"
 import Filter2X from "./outline/Filter2X"
@@ -416,8 +413,6 @@ import ShieldCheckered from "./outline/ShieldCheckered"
 import ShieldExclamation from "./outline/ShieldExclamation"
 import ShoppingCartOutline from "./outline/ShoppingCart"
 import Snowflake from "./outline/Snowflake"
-import Square from "./outline/Square"
-import SquareCheck from "./outline/SquareCheck"
 import StarOutline from "./outline/Star"
 import SwitchHorizontal from "./outline/SwitchHorizontal"
 import TagOutline from "./outline/Tag"
@@ -436,17 +431,76 @@ import Users from "./outline/Users"
 import VideoOutline from "./outline/Video"
 import Wallet from "./outline/Wallet"
 import Wand from "./outline/Wand"
-import WorldMap from "./outline/WorldMap"
 import WorldPin from "./outline/WorldPin"
 import X from "./outline/X"
 
-// Entries are getters so each icon module is only required the first time it
-// is used (Metro inlineRequires defers the import to that access) instead of
-// evaluating every icon at startup.
+// Trimmed: selection picker + icons referenced from app code.
 const ICON_MAP = {
-  // UI & Navigation
+  get "activity-outline"() {
+    return Activity
+  },
+  get "address-book-outline"() {
+    return AddressBook
+  },
+  get adjustments() {
+    return Adjustments
+  },
+  get "affiliate-outline"() {
+    return Affiliate
+  },
+  get alarm() {
+    return Alarm
+  },
+  get "alarm-minus"() {
+    return AlarmMinus
+  },
+  get "alarm-plus"() {
+    return AlarmPlus
+  },
+  get "alert-circle"() {
+    return AlertCircle
+  },
+  get "alert-square-rounded-outline"() {
+    return AlertSquareRounded
+  },
+  get "alert-triangle"() {
+    return AlertTriangle
+  },
+  get analyze() {
+    return Analyze
+  },
+  get "anchor-outline"() {
+    return Anchor
+  },
+  get apple() {
+    return Apple
+  },
+  get archive() {
+    return Archive
+  },
+  get "archive-off-outline"() {
+    return ArchiveOff
+  },
+  get "archive-outline"() {
+    return ArchiveOutline
+  },
+  get "arrow-down-circle"() {
+    return ArrowDownCircle
+  },
+  get "arrow-down-circle-outline"() {
+    return ArrowDownCircleOutline
+  },
   get "arrow-down-left-outline"() {
     return ArrowDownLeft
+  },
+  get "arrow-down-outline"() {
+    return ArrowDown
+  },
+  get "arrow-move-vertical-outline"() {
+    return ArrowsMoveVertical
+  },
+  get "arrow-narrow-down-outline"() {
+    return ArrowNarrowDown
   },
   get "arrow-narrow-left-outline"() {
     return ArrowNarrowLeft
@@ -454,35 +508,317 @@ const ICON_MAP = {
   get "arrow-narrow-right-outline"() {
     return ArrowNarrowRight
   },
-  get "arrow-up-right-outline"() {
-    return ArrowUpRight
-  },
   get "arrow-narrow-up-outline"() {
     return ArrowNarrowUp
-  },
-  get "arrow-narrow-down-outline"() {
-    return ArrowNarrowDown
-  },
-  get "arrow-down-outline"() {
-    return ArrowDown
-  },
-  get "arrow-up-outline"() {
-    return ArrowUp
   },
   get "arrow-up-circle"() {
     return ArrowUpCircle
   },
-  get "arrow-down-circle"() {
-    return ArrowDownCircle
+  get "arrow-up-circle-outline"() {
+    return ArrowUpCircleOutline
+  },
+  get "arrow-up-outline"() {
+    return ArrowUp
+  },
+  get "arrow-up-right-outline"() {
+    return ArrowUpRight
+  },
+  get "arrows-diff-outline"() {
+    return ArrowsDiff
+  },
+  get "arrows-right-left-outline"() {
+    return ArrowsRightLeft
   },
   get "arrows-transfer-up-down-outline"() {
     return ArrowsTransferUpDown
   },
+  get "arrows-up-down-outline"() {
+    return ArrowsUpDown
+  },
+  get "asterisk-outline"() {
+    return Asterisk
+  },
+  get "atom-2"() {
+    return Atom2
+  },
+  get award() {
+    return Award
+  },
+  get "baby-carriage"() {
+    return BabyCarriage
+  },
+  get backspace() {
+    return Backspace
+  },
+  get "ball-bowling"() {
+    return BallBowling
+  },
+  get balloon() {
+    return Balloon
+  },
+  get bandage() {
+    return Bandage
+  },
+  get barbell() {
+    return Barbell
+  },
+  get basket() {
+    return Basket
+  },
+  get "basket-outline"() {
+    return BasketOutline
+  },
+  get bath() {
+    return Bath
+  },
+  get bed() {
+    return Bed
+  },
+  get "bed-flat"() {
+    return BedFlat
+  },
+  get beer() {
+    return Beer
+  },
+  get bell() {
+    return Bell
+  },
+  get "bell-minus"() {
+    return BellMinus
+  },
+  get "bell-outline"() {
+    return BellOutline
+  },
+  get "bell-plus"() {
+    return BellPlus
+  },
+  get "bell-ringing"() {
+    return BellRinging
+  },
+  get "bell-x"() {
+    return BellX
+  },
+  get bike() {
+    return Bike
+  },
+  get binoculars() {
+    return Binoculars
+  },
+  get blender() {
+    return Blender
+  },
+  get bolt() {
+    return Bolt
+  },
+  get book() {
+    return Book
+  },
+  get bookmark() {
+    return Bookmark
+  },
+  get bookmarks() {
+    return Bookmarks
+  },
+  get bottle() {
+    return Bottle
+  },
+  get bowl() {
+    return Bowl
+  },
+  get "bowl-chopsticks"() {
+    return BowlChopsticks
+  },
+  get "bowl-spoon"() {
+    return BowlSpoon
+  },
+  get "brand-apple"() {
+    return BrandApple
+  },
+  get "brand-facebook"() {
+    return BrandFacebook
+  },
+  get "brand-google"() {
+    return BrandGoogle
+  },
+  get "brand-instagram"() {
+    return BrandInstagram
+  },
+  get "brand-linkedin"() {
+    return BrandLinkedin
+  },
+  get "brand-paypal"() {
+    return BrandPaypal
+  },
+  get "brand-spotify"() {
+    return BrandSpotify
+  },
+  get "brand-stripe"() {
+    return BrandStripe
+  },
+  get "brand-twitter"() {
+    return BrandTwitter
+  },
+  get "brand-whatsapp"() {
+    return BrandWhatsapp
+  },
+  get "brand-youtube"() {
+    return BrandYoutube
+  },
+  get bread() {
+    return Bread
+  },
+  get briefcase() {
+    return Briefcase
+  },
+  get "briefcase-2"() {
+    return Briefcase2
+  },
+  get "brush-outline"() {
+    return Brush
+  },
+  get "building-bank-outline"() {
+    return BuildingBank
+  },
+  get "building-bridge-2"() {
+    return BuildingBridge2
+  },
+  get "building-outline"() {
+    return Building
+  },
+  get bulb() {
+    return Bulb
+  },
+  get bus() {
+    return Bus
+  },
+  get cactus() {
+    return Cactus
+  },
+  get calculator() {
+    return Calculator
+  },
+  get calendar() {
+    return Calendar
+  },
+  get "calendar-cog"() {
+    return CalendarCog
+  },
+  get "calendar-event"() {
+    return CalendarEvent
+  },
+  get "calendar-month"() {
+    return CalendarMonth
+  },
+  get "calendar-outline"() {
+    return CalendarOutline
+  },
+  get "calendar-repeat-outline"() {
+    return CalendarRepeat
+  },
+  get "calendar-week"() {
+    return CalendarWeek
+  },
+  get camera() {
+    return Camera
+  },
+  get "camera-outline"() {
+    return CameraOutline
+  },
+  get campfire() {
+    return Campfire
+  },
+  get candle() {
+    return Candle
+  },
+  get car() {
+    return Car
+  },
+  get "car-4wd"() {
+    return Car4Wd
+  },
+  get "car-suv"() {
+    return CarSuv
+  },
+  get caravan() {
+    return Caravan
+  },
+  get "caret-down-outline"() {
+    return CaretDown
+  },
+  get "caret-up-outline"() {
+    return CaretUp
+  },
+  get "cart-outline"() {
+    return ShoppingCartOutline
+  },
+  get "cash-banknote"() {
+    return CashBanknote
+  },
+  get "cash-banknote-outline"() {
+    return CashBanknoteOutline
+  },
+  get "cash-banknote-plus-outline"() {
+    return CashBanknotePlus
+  },
+  get "category-2-outline"() {
+    return Category2
+  },
+  get "category-outline"() {
+    return Category
+  },
+  get "category-plus-outline"() {
+    return CategoryPlus
+  },
+  get "chart-area"() {
+    return ChartArea
+  },
+  get "chart-area-line"() {
+    return ChartAreaLine
+  },
+  get "chart-bar-outline"() {
+    return ChartBar
+  },
+  get "chart-bubble"() {
+    return ChartBubble
+  },
+  get "chart-candle"() {
+    return ChartCandle
+  },
+  get "chart-donut"() {
+    return ChartDonut
+  },
+  get "chart-dots"() {
+    return ChartDots
+  },
+  get "chart-funnel"() {
+    return ChartFunnel
+  },
+  get "chart-histogram-outline"() {
+    return ChartHistogram
+  },
+  get "chart-pie"() {
+    return ChartPie
+  },
+  get "chart-pie-outline"() {
+    return ChartPieOutline
+  },
+  get check() {
+    return Check
+  },
+  get "check-outline"() {
+    return CheckOutline
+  },
+  get "checks-outline"() {
+    return Checks
+  },
+  get "chef-hat"() {
+    return ChefHat
+  },
+  get cherry() {
+    return Cherry
+  },
   get "chevron-down-outline"() {
     return ChevronDown
-  },
-  get "chevron-up-outline"() {
-    return ChevronUp
   },
   get "chevron-left-outline"() {
     return ChevronLeft
@@ -490,224 +826,116 @@ const ICON_MAP = {
   get "chevron-right-outline"() {
     return ChevronRight
   },
+  get "chevron-up-outline"() {
+    return ChevronUp
+  },
   get "chevrons-down-outline"() {
     return ChevronsDown
   },
   get "chevrons-up-outline"() {
     return ChevronsUp
   },
-  get "transfer-outline"() {
-    return Transfer
+  get "christmas-tree"() {
+    return ChristmasTree
   },
-  get "search-outline"() {
-    return Search
-  },
-
-  get "arrows-up-down-outline"() {
-    return ArrowsUpDown
-  },
-  get "arrows-right-left-outline"() {
-    return ArrowsRightLeft
-  },
-
-  get eye() {
-    return Eye
-  },
-  get "eye-off-outline"() {
-    return EyeOff
-  },
-
-  // Status & Alerts
-  get "alert-triangle"() {
-    return AlertTriangle
-  },
-  get "alert-circle"() {
-    return AlertCircle
-  },
-  get check() {
-    return Check
-  },
-  get "checks-outline"() {
-    return Checks
-  },
-  get "info-circle"() {
-    return InfoCircle
-  },
-  get "shield-exclamation-outline"() {
-    return ShieldExclamation
-  },
-
-  // Shapes & Layout
   get circle() {
     return Circle
   },
   get "circle-dot"() {
     return CircleDot
   },
-  get "square-outline"() {
-    return Square
+  get "circle-dot-outline"() {
+    return CircleDotOutline
   },
-  get "square-check-outline"() {
-    return SquareCheck
-  },
-  get "category-outline"() {
-    return Category
-  },
-  get "category-2-outline"() {
-    return Category2
-  },
-  get "category-plus-outline"() {
-    return CategoryPlus
-  },
-  get triangle() {
-    return Triangle
-  },
-  get "chart-bar-outline"() {
-    return ChartBar
-  },
-  get "chart-area-line"() {
-    return ChartAreaLine
-  },
-  get "chart-pie"() {
-    return ChartPie
-  },
-  get "chart-dots"() {
-    return ChartDots
-  },
-  get "chart-histogram-outline"() {
-    return ChartHistogram
-  },
-  get "page-break-outline"() {
-    return PageBreak
-  },
-  get "list-details"() {
-    return ListDetails
-  },
-
-  // Food & Drink
-  get pizza() {
-    return Pizza
-  },
-  get headphones() {
-    return Headphones
-  },
-  get "coffee-outline"() {
-    return Coffee
-  },
-  get flask() {
-    return Flask
-  },
-  get droplet() {
-    return Droplet
-  },
-
-  // Media & Visual
-  get camera() {
-    return Camera
-  },
-  get photo() {
-    return Photo
-  },
-  get "library-photo-outline"() {
-    return LibraryPhoto
-  },
-
-  // File types
-  get file() {
-    return File
-  },
-  get "file-x-outline"() {
-    return FileX
-  },
-  get files() {
-    return Files
-  },
-  get "file-description"() {
-    return FileDescription
-  },
-  get "file-type-jpg-outline"() {
-    return FileTypeJpg
-  },
-  get video() {
-    return Video
-  },
-  get "file-analytics"() {
-    return FileAnalytics
-  },
-  get presentation() {
-    return Presentation
-  },
-  get palette() {
-    return Palette
-  },
-  get "color-swatch-outline"() {
-    return ColorSwatch
-  },
-  get "file-zip-outline"() {
-    return FileZip
-  },
-  get "file-type-pdf-outline"() {
-    return FileTypePdf
-  },
-  get "file-type-csv-outline"() {
-    return FileTypeCsv
-  },
-
-  // Text & Editing
-  get clipboard() {
-    return Clipboard
-  },
-  get pencil() {
-    return Pencil
-  },
-  get "eraser-outline"() {
-    return Eraser
-  },
-  get puzzle() {
-    return Puzzle
-  },
-  get "paperclip-outline"() {
-    return Paperclip
-  },
-  get "language-outline"() {
-    return Language
-  },
-
-  // Math & Calculator
-  get calculator() {
-    return Calculator
-  },
-  get plus() {
-    return Plus
-  },
-  get "minus-outline"() {
-    return Minus
-  },
-  get "percentage-outline"() {
-    return Percentage
-  },
-  get "divide-outline"() {
-    return Divide
-  },
-  get "equal-outline"() {
-    return Equal
-  },
-  get "plus-minus-outline"() {
-    return PlusMinus
+  get "circle-outline"() {
+    return CircleOutline
   },
   get "circle-plus"() {
     return CirclePlus
   },
-
-  // Finance & Commerce
-  get briefcase() {
-    return Briefcase
+  get circles() {
+    return Circles
   },
-  get "wallet-outline"() {
-    return Wallet
+  get "circles-outline"() {
+    return CirclesOutline
+  },
+  get clipboard() {
+    return Clipboard
+  },
+  get "clipboard-outline"() {
+    return ClipboardOutline
+  },
+  get clock() {
+    return Clock
+  },
+  get "clock-bolt-outline"() {
+    return ClockBolt
+  },
+  get "clock-hour-4"() {
+    return ClockHour4
+  },
+  get "clock-outline"() {
+    return ClockOutline
+  },
+  get cloud() {
+    return Cloud
+  },
+  get "cloud-computing"() {
+    return CloudComputing
+  },
+  get "coffee-outline"() {
+    return Coffee
+  },
+  get coin() {
+    return Coin
+  },
+  get "coin-bitcoin"() {
+    return CoinBitcoin
+  },
+  get "coin-euro"() {
+    return CoinEuro
+  },
+  get "coin-pound"() {
+    return CoinPound
+  },
+  get "coin-rupee"() {
+    return CoinRupee
+  },
+  get "coin-yen"() {
+    return CoinYen
+  },
+  get "coin-yuan"() {
+    return CoinYuan
+  },
+  get "coins-outline"() {
+    return Coins
+  },
+  get "color-swatch-outline"() {
+    return ColorSwatch
+  },
+  get compass() {
+    return Compass
+  },
+  get confetti() {
+    return Confetti
+  },
+  get cookie() {
+    return Cookie
+  },
+  get copy() {
+    return Copy
+  },
+  get "copy-outline"() {
+    return CopyOutline
   },
   get "credit-card"() {
     return CreditCard
+  },
+  get "credit-card-outline"() {
+    return CreditCardOutline
+  },
+  get crown() {
+    return Crown
   },
   get "currency-dollar-outline"() {
     return CurrencyDollar
@@ -715,52 +943,11 @@ const ICON_MAP = {
   get "currency-outline"() {
     return Currency
   },
-  get "cash-banknote"() {
-    return CashBanknote
+  get "current-location"() {
+    return CurrentLocation
   },
-  get "pig-money-outline"() {
-    return PigMoney
-  },
-  get pig() {
-    return Pig
-  },
-  get tag() {
-    return Tag
-  },
-  get tags() {
-    return Tags
-  },
-  get "tag-plus-outline"() {
-    return TagPlus
-  },
-  get "coin-pound"() {
-    return CoinPound
-  },
-  get "cart-outline"() {
-    return ShoppingCartOutline
-  },
-  get "shopping-cart"() {
-    return ShoppingCart
-  },
-  get gift() {
-    return Gift
-  },
-  get basket() {
-    return Basket
-  },
-  get "cash-banknote-plus-outline"() {
-    return CashBanknotePlus
-  },
-  get "building-bank-outline"() {
-    return BuildingBank
-  },
-
-  // Devices & System
-  get "plug-outline"() {
-    return Plug
-  },
-  get "database-outline"() {
-    return DatabaseOutline
+  get dashboard() {
+    return Dashboard
   },
   get database() {
     return Database
@@ -768,72 +955,734 @@ const ICON_MAP = {
   get "database-export-outline"() {
     return DatabaseExport
   },
-  get "database-import-outline"() {
-    return DatabaseImport
-  },
-  get dialpad() {
-    return Dialpad
+  get "database-outline"() {
+    return DatabaseOutline
   },
   get "device-desktop"() {
     return DeviceDesktop
   },
-  get settings() {
-    return Settings
+  get "device-gamepad"() {
+    return DeviceGamepad
   },
-  get "device-mobile-vibration-outline"() {
-    return DeviceMobileVibration
-  },
-  get "device-mobile-off-outline"() {
-    return DeviceMobileOff
+  get "device-heart-monitor"() {
+    return DeviceHeartMonitor
   },
   get "device-mobile"() {
     return DeviceMobile
   },
-  get "refresh-outline"() {
-    return Refresh
+  get "device-mobile-off-outline"() {
+    return DeviceMobileOff
   },
-  get "restore-outline"() {
-    return Restore
+  get "device-mobile-vibration-outline"() {
+    return DeviceMobileVibration
   },
-
-  // Security
+  get "device-speaker"() {
+    return DeviceSpeaker
+  },
+  get "device-tablet"() {
+    return DeviceTablet
+  },
+  get "device-tv"() {
+    return DeviceTv
+  },
+  get "device-watch"() {
+    return DeviceWatch
+  },
+  get dialpad() {
+    return Dialpad
+  },
+  get diamond() {
+    return Diamond
+  },
+  get "dice-outline"() {
+    return Dice
+  },
+  get discount() {
+    return Discount
+  },
+  get "divide-outline"() {
+    return Divide
+  },
+  get download() {
+    return Download
+  },
+  get "download-outline"() {
+    return DownloadOutline
+  },
+  get droplet() {
+    return Droplet
+  },
+  get dumpling() {
+    return Dumpling
+  },
+  get egg() {
+    return Egg
+  },
+  get "egg-fried"() {
+    return EggFried
+  },
+  get elevator() {
+    return Elevator
+  },
+  get "equal-outline"() {
+    return Equal
+  },
+  get "eraser-outline"() {
+    return Eraser
+  },
+  get exchange() {
+    return Exchange
+  },
+  get "external-link"() {
+    return ExternalLink
+  },
+  get eye() {
+    return Eye
+  },
+  get "eye-off-outline"() {
+    return EyeOff
+  },
+  get "face-mask"() {
+    return FaceMask
+  },
+  get ferry() {
+    return Ferry
+  },
+  get file() {
+    return File
+  },
+  get "file-analytics"() {
+    return FileAnalytics
+  },
+  get "file-description"() {
+    return FileDescription
+  },
+  get "file-dollar"() {
+    return FileDollar
+  },
+  get "file-invoice"() {
+    return FileInvoice
+  },
+  get "file-outline"() {
+    return FileOutline
+  },
+  get "file-text"() {
+    return FileText
+  },
+  get "file-type-csv-outline"() {
+    return FileTypeCsv
+  },
+  get "file-type-jpg-outline"() {
+    return FileTypeJpg
+  },
+  get "file-type-pdf-outline"() {
+    return FileTypePdf
+  },
+  get "file-x-outline"() {
+    return FileX
+  },
+  get "file-zip-outline"() {
+    return FileZip
+  },
+  get files() {
+    return Files
+  },
+  get "files-outline"() {
+    return FilesOutline
+  },
+  get filter() {
+    return Filter
+  },
+  get "filter-2-outline"() {
+    return Filter2
+  },
+  get "filter-2-search-outline"() {
+    return Filter2Search
+  },
+  get "filter-2-x-outline"() {
+    return Filter2X
+  },
+  get "filter-off-outline"() {
+    return FilterOff
+  },
+  get "fingerprint-outline"() {
+    return Fingerprint
+  },
+  get flag() {
+    return Flag
+  },
+  get "flag-2"() {
+    return Flag2
+  },
+  get flame() {
+    return Flame
+  },
+  get flask() {
+    return Flask
+  },
+  get flower() {
+    return Flower
+  },
+  get "garden-cart"() {
+    return GardenCart
+  },
+  get "gas-station"() {
+    return GasStation
+  },
+  get gift() {
+    return Gift
+  },
+  get "gift-card"() {
+    return GiftCard
+  },
+  get glass() {
+    return Glass
+  },
+  get "glass-full"() {
+    return GlassFull
+  },
+  get globe() {
+    return Globe
+  },
+  get golf() {
+    return Golf
+  },
+  get graph() {
+    return Graph
+  },
+  get "graph-outline"() {
+    return GraphOutline
+  },
+  get "grip-horizontal-outline"() {
+    return GripHorizontal
+  },
+  get "hand-sanitizer-outline"() {
+    return HandSanitizer
+  },
+  get "hanger-2"() {
+    return Hanger2
+  },
+  get "hash-outline"() {
+    return Hash
+  },
+  get headphones() {
+    return Headphones
+  },
+  get headset() {
+    return Headset
+  },
+  get heart() {
+    return Heart
+  },
+  get "heart-handshake-outline"() {
+    return HeartHandshake
+  },
+  get "history-toggle-outline"() {
+    return HistoryToggle
+  },
+  get home() {
+    return Home
+  },
+  get "home-2"() {
+    return Home2
+  },
+  get "home-dollar-outline"() {
+    return HomeDollar
+  },
+  get "home-share-outline"() {
+    return HomeShare
+  },
+  get "hospital-circle"() {
+    return HospitalCircle
+  },
+  get hourglass() {
+    return Hourglass
+  },
+  get id() {
+    return Id
+  },
+  get "info-circle"() {
+    return InfoCircle
+  },
+  get "info-circle-outline"() {
+    return InfoCircleOutline
+  },
+  get key() {
+    return Key
+  },
+  get keyboard() {
+    return Keyboard
+  },
+  get "language-outline"() {
+    return Language
+  },
+  get leaf() {
+    return Leaf
+  },
+  get library() {
+    return Library
+  },
+  get "library-photo-outline"() {
+    return LibraryPhoto
+  },
+  get "library-plus"() {
+    return LibraryPlus
+  },
+  get lifebuoy() {
+    return Lifebuoy
+  },
+  get link() {
+    return Link
+  },
+  get "list-details"() {
+    return ListDetails
+  },
+  get "list-details-outline"() {
+    return ListDetailsOutline
+  },
   get lock() {
     return Lock
   },
   get "lock-open-outline"() {
     return LockOpen
   },
-  get "fingerprint-outline"() {
-    return Fingerprint
+  get "lock-outline"() {
+    return LockOutline
+  },
+  get lungs() {
+    return Lungs
+  },
+  get magnet() {
+    return Magnet
+  },
+  get mail() {
+    return Mail
+  },
+  get "mail-opened"() {
+    return MailOpened
+  },
+  get man() {
+    return Man
+  },
+  get "map-outline"() {
+    return MapOutline
+  },
+  get "map-pin"() {
+    return MapPin
+  },
+  get "map-pin-outline"() {
+    return MapPinOutline
+  },
+  get "math-symbols-outline"() {
+    return MathSymbols
+  },
+  get "medical-cross"() {
+    return MedicalCross
+  },
+  get melon() {
+    return Melon
+  },
+  get message() {
+    return Message
+  },
+  get "message-2"() {
+    return Message2
+  },
+  get "message-chatbot"() {
+    return MessageChatbot
+  },
+  get "message-circle"() {
+    return MessageCircle
+  },
+  get "message-report"() {
+    return MessageReport
+  },
+  get messages() {
+    return Messages
+  },
+  get microphone() {
+    return Microphone
+  },
+  get microscope() {
+    return Microscope
+  },
+  get microwave() {
+    return Microwave
+  },
+  get milk() {
+    return Milk
+  },
+  get "minus-outline"() {
+    return Minus
+  },
+  get "mood-happy"() {
+    return MoodHappy
+  },
+  get moon() {
+    return Moon
+  },
+  get "moon-stars-outline"() {
+    return MoonStars
+  },
+  get motorbike() {
+    return Motorbike
+  },
+  get mountain() {
+    return Mountain
+  },
+  get mug() {
+    return Mug
+  },
+  get mushroom() {
+    return Mushroom
+  },
+  get navigation() {
+    return Navigation
+  },
+  get nurse() {
+    return Nurse
+  },
+  get "page-break-outline"() {
+    return PageBreak
+  },
+  get paint() {
+    return Paint
+  },
+  get palette() {
+    return Palette
+  },
+  get "paperclip-outline"() {
+    return Paperclip
   },
   get "password-mobile-phone-outline"() {
     return PasswordMobilePhone
   },
-
-  // People & Social
-  get "home-dollar-outline"() {
-    return HomeDollar
+  get paw() {
+    return Paw
+  },
+  get "paw-print-outline"() {
+    return PawOutline
+  },
+  get pencil() {
+    return Pencil
+  },
+  get "pencil-outline"() {
+    return PencilOutline
+  },
+  get pennant() {
+    return Pennant
+  },
+  get "pennant-2"() {
+    return Pennant2
+  },
+  get "percentage-outline"() {
+    return Percentage
   },
   get "perfume-outline"() {
     return Perfume
   },
+  get phone() {
+    return Phone
+  },
+  get "phone-call"() {
+    return PhoneCall
+  },
+  get photo() {
+    return Photo
+  },
+  get "photo-outline"() {
+    return PhotoOutline
+  },
+  get pig() {
+    return Pig
+  },
+  get "pig-money-outline"() {
+    return PigMoney
+  },
+  get pill() {
+    return Pill
+  },
+  get pin() {
+    return Pin
+  },
   get "ping-pong-outline"() {
     return PingPong
   },
-  get "hand-sanitizer-outline"() {
-    return HandSanitizer
+  get pinned() {
+    return Pinned
   },
-  get "heart-handshake-outline"() {
-    return HeartHandshake
+  get pizza() {
+    return Pizza
   },
-  get heart() {
-    return Heart
+  get plane() {
+    return Plane
   },
-  get "activity-outline"() {
-    return Activity
+  get "plane-arrival"() {
+    return PlaneArrival
   },
-  get "device-heart-monitor"() {
-    return DeviceHeartMonitor
+  get "plane-departure"() {
+    return PlaneDeparture
+  },
+  get "plant-outline"() {
+    return Plant
+  },
+  get "player-pause"() {
+    return PlayerPause
+  },
+  get "player-play"() {
+    return PlayerPlay
+  },
+  get playlist() {
+    return Playlist
+  },
+  get "playlist-x-outline"() {
+    return PlaylistX
+  },
+  get "plug-outline"() {
+    return Plug
+  },
+  get plus() {
+    return Plus
+  },
+  get "plus-minus-outline"() {
+    return PlusMinus
+  },
+  get "plus-outline"() {
+    return PlusOutline
+  },
+  get presentation() {
+    return Presentation
+  },
+  get "presentation-analytics"() {
+    return PresentationAnalytics
+  },
+  get puzzle() {
+    return Puzzle
+  },
+  get "puzzle-outline"() {
+    return PuzzleOutline
+  },
+  get "question-mark-outline"() {
+    return QuestionMark
+  },
+  get quote() {
+    return Quote
+  },
+  get "receipt-dollar"() {
+    return ReceiptDollar
+  },
+  get "receipt-euro"() {
+    return ReceiptEuro
+  },
+  get "receipt-outline"() {
+    return Receipt
+  },
+  get "receipt-pound"() {
+    return ReceiptPound
+  },
+  get "receipt-refund-outline"() {
+    return ReceiptRefund
+  },
+  get "receipt-rupee"() {
+    return ReceiptRupee
+  },
+  get "receipt-yen"() {
+    return ReceiptYen
+  },
+  get "receipt-yuan"() {
+    return ReceiptYuan
+  },
+  get "refresh-outline"() {
+    return Refresh
+  },
+  get "repeat-outline"() {
+    return Repeat
+  },
+  get "report-analytics"() {
+    return ReportAnalytics
+  },
+  get "report-money"() {
+    return ReportMoney
+  },
+  get "restore-outline"() {
+    return Restore
+  },
+  get rosette() {
+    return Rosette
+  },
+  get "rosette-discount"() {
+    return RosetteDiscount
+  },
+  get "rosette-discount-check"() {
+    return RosetteDiscountCheck
+  },
+  get salad() {
+    return Salad
+  },
+  get satellite() {
+    return Satellite
+  },
+  get "scale-outline"() {
+    return Scale
+  },
+  get school() {
+    return School
+  },
+  get "search-outline"() {
+    return Search
+  },
+  get seedling() {
+    return Seedling
+  },
+  get send() {
+    return Send
+  },
+  get settings() {
+    return Settings
+  },
+  get "settings-outline"() {
+    return SettingsOutline
+  },
+  get "share-outline"() {
+    return Share
+  },
+  get shield() {
+    return Shield
+  },
+  get "shield-check"() {
+    return ShieldCheck
+  },
+  get "shield-checkered-outline"() {
+    return ShieldCheckered
+  },
+  get "shield-exclamation-outline"() {
+    return ShieldExclamation
+  },
+  get "shield-lock"() {
+    return ShieldLock
+  },
+  get shirt() {
+    return Shirt
+  },
+  get "shopping-cart"() {
+    return ShoppingCart
+  },
+  get "snowflake-outline"() {
+    return Snowflake
+  },
+  get soup() {
+    return Soup
+  },
+  get sparkles() {
+    return Sparkles
+  },
+  get "sparkles-2"() {
+    return Sparkles2
+  },
+  get speedboat() {
+    return Speedboat
+  },
+  get "square-asterisk"() {
+    return SquareAsterisk
+  },
+  get stack() {
+    return Stack
+  },
+  get star() {
+    return Star
+  },
+  get "star-outline"() {
+    return StarOutline
+  },
+  get "steering-wheel"() {
+    return SteeringWheel
+  },
+  get sun() {
+    return Sun
+  },
+  get sunglasses() {
+    return Sunglasses
+  },
+  get sunrise() {
+    return Sunrise
+  },
+  get sunset() {
+    return Sunset
+  },
+  get "switch-horizontal-outline"() {
+    return SwitchHorizontal
+  },
+  get table() {
+    return Table
+  },
+  get tag() {
+    return Tag
+  },
+  get "tag-outline"() {
+    return TagOutline
+  },
+  get "tag-plus-outline"() {
+    return TagPlus
+  },
+  get tags() {
+    return Tags
+  },
+  get "tags-outline"() {
+    return TagsOutline
+  },
+  get "target-outline"() {
+    return Target
+  },
+  get "thumb-down"() {
+    return ThumbDown
+  },
+  get "thumb-up"() {
+    return ThumbUp
+  },
+  get ticket() {
+    return Ticket
+  },
+  get "timeline-event"() {
+    return TimelineEvent
+  },
+  get "tools-kitchen-2"() {
+    return ToolsKitchen2
+  },
+  get train() {
+    return Train
+  },
+  get "transfer-outline"() {
+    return Transfer
+  },
+  get trash() {
+    return Trash
+  },
+  get "trash-off-outline"() {
+    return TrashOff
+  },
+  get "trash-outline"() {
+    return TrashOutline
+  },
+  get "trending-down-outline"() {
+    return TrendingDown
+  },
+  get "trending-up-outline"() {
+    return TrendingUp
+  },
+  get triangle() {
+    return Triangle
+  },
+  get trolley() {
+    return Trolley
+  },
+  get trophy() {
+    return Trophy
+  },
+  get truck() {
+    return Truck
+  },
+  get umbrella() {
+    return Umbrella
   },
   get user() {
     return User
@@ -850,589 +1699,26 @@ const ICON_MAP = {
   get "users-outline"() {
     return Users
   },
-
-  // Places
-  get "map-pin"() {
-    return MapPin
+  get video() {
+    return Video
   },
-  get "world-pin-outline"() {
-    return WorldPin
+  get "video-outline"() {
+    return VideoOutline
   },
-  get "current-location"() {
-    return CurrentLocation
-  },
-  get "building-outline"() {
-    return Building
-  },
-  get "building-bridge-2"() {
-    return BuildingBridge2
-  },
-  get school() {
-    return School
-  },
-  get car() {
-    return Car
-  },
-  get "map-outline"() {
-    return MapOutline
-  },
-  get "world-map-outline"() {
-    return WorldMap
-  },
-
-  // Misc
-  get backspace() {
-    return Backspace
-  },
-  get bell() {
-    return Bell
-  },
-  get trash() {
-    return Trash
-  },
-  get "target-outline"() {
-    return Target
-  },
-  get clock() {
-    return Clock
-  },
-  get "clock-bolt-outline"() {
-    return ClockBolt
-  },
-  get calendar() {
-    return Calendar
-  },
-  get "calendar-repeat-outline"() {
-    return CalendarRepeat
-  },
-  get "calendar-event"() {
-    return CalendarEvent
-  },
-  get "calendar-week"() {
-    return CalendarWeek
-  },
-  get "calendar-month"() {
-    return CalendarMonth
-  },
-  get "clock-hour-4"() {
-    return ClockHour4
-  },
-  get "anchor-outline"() {
-    return Anchor
-  },
-  get archive() {
-    return Archive
-  },
-  get "archive-off-outline"() {
-    return ArchiveOff
-  },
-  get star() {
-    return Star
-  },
-  get "trending-up-outline"() {
-    return TrendingUp
-  },
-  get "trending-down-outline"() {
-    return TrendingDown
-  },
-  get filter() {
-    return Filter
-  },
-  get "filter-off-outline"() {
-    return FilterOff
-  },
-  get "filter-2-outline"() {
-    return Filter2
-  },
-  get "filter-2-x-outline"() {
-    return Filter2X
-  },
-  get "filter-2-search-outline"() {
-    return Filter2Search
-  },
-
-  get "external-link"() {
-    return ExternalLink
-  },
-  get "asterisk-outline"() {
-    return Asterisk
-  },
-  get "square-asterisk"() {
-    return SquareAsterisk
-  },
-  get adjustments() {
-    return Adjustments
-  },
-  get circles() {
-    return Circles
-  },
-  get "trash-off-outline"() {
-    return TrashOff
-  },
-  get "repeat-outline"() {
-    return Repeat
-  },
-  get "playlist-x-outline"() {
-    return PlaylistX
-  },
-  get "affiliate-outline"() {
-    return Affiliate
-  },
-  get "hash-outline"() {
-    return Hash
-  },
-  get "grip-horizontal-outline"() {
-    return GripHorizontal
-  },
-  get "question-mark-outline"() {
-    return QuestionMark
-  },
-  get "arrow-move-vertical-outline"() {
-    return ArrowsMoveVertical
-  },
-  get "alert-square-rounded-outline"() {
-    return AlertSquareRounded
-  },
-  get "address-book-outline"() {
-    return AddressBook
-  },
-  get "switch-horizontal-outline"() {
-    return SwitchHorizontal
-  },
-  get "arrows-diff-outline"() {
-    return ArrowsDiff
-  },
-  get "home-share-outline"() {
-    return HomeShare
-  },
-  get "share-outline"() {
-    return Share
-  },
-  get "scale-outline"() {
-    return Scale
-  },
-  get "caret-down-outline"() {
-    return CaretDown
-  },
-  get "caret-up-outline"() {
-    return CaretUp
-  },
-  get "history-toggle-outline"() {
-    return HistoryToggle
-  },
-  get copy() {
-    return Copy
-  },
-  get "receipt-outline"() {
-    return Receipt
-  },
-
-  // Social & Brands
-  get "brand-paypal"() {
-    return BrandPaypal
-  },
-  get "brand-stripe"() {
-    return BrandStripe
-  },
-  get "brand-whatsapp"() {
-    return BrandWhatsapp
-  },
-  get "brand-facebook"() {
-    return BrandFacebook
-  },
-  get "brand-instagram"() {
-    return BrandInstagram
-  },
-  get "brand-twitter"() {
-    return BrandTwitter
-  },
-  get "brand-youtube"() {
-    return BrandYoutube
-  },
-  get "brand-spotify"() {
-    return BrandSpotify
-  },
-  get "brand-linkedin"() {
-    return BrandLinkedin
-  },
-  get "brand-google"() {
-    return BrandGoogle
-  },
-  get "brand-apple"() {
-    return BrandApple
-  },
-
-  // Food & Drink
-  get beer() {
-    return Beer
-  },
-  get bowl() {
-    return Bowl
-  },
-  get "bowl-spoon"() {
-    return BowlSpoon
-  },
-  get "bowl-chopsticks"() {
-    return BowlChopsticks
-  },
-  get bread() {
-    return Bread
-  },
-  get mug() {
-    return Mug
-  },
-  get milk() {
-    return Milk
-  },
-  get egg() {
-    return Egg
-  },
-  get "egg-fried"() {
-    return EggFried
-  },
-  get salad() {
-    return Salad
-  },
-  get soup() {
-    return Soup
-  },
-  get "chef-hat"() {
-    return ChefHat
-  },
-  get "tools-kitchen-2"() {
-    return ToolsKitchen2
-  },
-  get dumpling() {
-    return Dumpling
-  },
-  get bottle() {
-    return Bottle
-  },
-  get cookie() {
-    return Cookie
-  },
-  get cherry() {
-    return Cherry
-  },
-  get apple() {
-    return Apple
-  },
-  get melon() {
-    return Melon
-  },
-  get glass() {
-    return Glass
-  },
-  get "glass-full"() {
-    return GlassFull
-  },
-
-  // Health & Medical
-  get pill() {
-    return Pill
-  },
-  get "medical-cross"() {
-    return MedicalCross
-  },
-  get bandage() {
-    return Bandage
-  },
-  get "face-mask"() {
-    return FaceMask
-  },
-  get nurse() {
-    return Nurse
-  },
-  get lungs() {
-    return Lungs
-  },
-  get "hospital-circle"() {
-    return HospitalCircle
-  },
-  get microscope() {
-    return Microscope
-  },
-  get "device-watch"() {
-    return DeviceWatch
-  },
-
-  // Home & Living
-  get bed() {
-    return Bed
-  },
-  get "bed-flat"() {
-    return BedFlat
-  },
-  get bath() {
-    return Bath
-  },
-  get home() {
-    return Home
-  },
-  get "home-2"() {
-    return Home2
-  },
-  get flower() {
-    return Flower
-  },
-  get leaf() {
-    return Leaf
-  },
-  get seedling() {
-    return Seedling
-  },
-  get candle() {
-    return Candle
-  },
-  get blender() {
-    return Blender
-  },
-  get microwave() {
-    return Microwave
-  },
-  get "garden-cart"() {
-    return GardenCart
-  },
-  get elevator() {
-    return Elevator
-  },
-
-  // Travel & Transport
-  get plane() {
-    return Plane
-  },
-  get "plane-arrival"() {
-    return PlaneArrival
-  },
-  get "plane-departure"() {
-    return PlaneDeparture
-  },
-  get bus() {
-    return Bus
-  },
-  get train() {
-    return Train
-  },
-  get truck() {
-    return Truck
-  },
-  get ferry() {
-    return Ferry
-  },
-  get motorbike() {
-    return Motorbike
-  },
-  get bike() {
-    return Bike
-  },
-  get compass() {
-    return Compass
-  },
-  get "gas-station"() {
-    return GasStation
-  },
-  get "steering-wheel"() {
-    return SteeringWheel
-  },
-  get caravan() {
-    return Caravan
-  },
-  get "car-suv"() {
-    return CarSuv
-  },
-  get "car-4wd"() {
-    return Car4Wd
-  },
-  get speedboat() {
-    return Speedboat
-  },
-
-  // Entertainment & Leisure
-  get binoculars() {
-    return Binoculars
-  },
-  get "dice-outline"() {
-    return Dice
+  get "wallet-outline"() {
+    return Wallet
   },
   get "wand-outline"() {
     return Wand
   },
-  get headset() {
-    return Headset
+  get woman() {
+    return Woman
   },
-  get ticket() {
-    return Ticket
+  get world() {
+    return World
   },
-  get trophy() {
-    return Trophy
-  },
-  get award() {
-    return Award
-  },
-  get golf() {
-    return Golf
-  },
-  get barbell() {
-    return Barbell
-  },
-  get sparkles() {
-    return Sparkles
-  },
-  get "sparkles-2"() {
-    return Sparkles2
-  },
-  get microphone() {
-    return Microphone
-  },
-  get "player-play"() {
-    return PlayerPlay
-  },
-  get "player-pause"() {
-    return PlayerPause
-  },
-  get playlist() {
-    return Playlist
-  },
-  get "device-tv"() {
-    return DeviceTv
-  },
-  get "device-gamepad"() {
-    return DeviceGamepad
-  },
-  get "ball-bowling"() {
-    return BallBowling
-  },
-
-  // Finance extras
-  get "receipt-dollar"() {
-    return ReceiptDollar
-  },
-  get "receipt-euro"() {
-    return ReceiptEuro
-  },
-  get "receipt-pound"() {
-    return ReceiptPound
-  },
-  get "receipt-rupee"() {
-    return ReceiptRupee
-  },
-  get "receipt-yen"() {
-    return ReceiptYen
-  },
-  get "receipt-yuan"() {
-    return ReceiptYuan
-  },
-  get "report-money"() {
-    return ReportMoney
-  },
-  get "report-analytics"() {
-    return ReportAnalytics
-  },
-  get discount() {
-    return Discount
-  },
-  get "rosette-discount"() {
-    return RosetteDiscount
-  },
-  get "rosette-discount-check"() {
-    return RosetteDiscountCheck
-  },
-  get "zoom-money"() {
-    return ZoomMoney
-  },
-  get "coin-bitcoin"() {
-    return CoinBitcoin
-  },
-  get "coin-euro"() {
-    return CoinEuro
-  },
-  get "coin-rupee"() {
-    return CoinRupee
-  },
-  get "coin-yen"() {
-    return CoinYen
-  },
-  get "coin-yuan"() {
-    return CoinYuan
-  },
-  get coin() {
-    return Coin
-  },
-  get "coins-outline"() {
-    return Coins
-  },
-  get "file-invoice"() {
-    return FileInvoice
-  },
-  get "file-dollar"() {
-    return FileDollar
-  },
-  get exchange() {
-    return Exchange
-  },
-  get "math-symbols-outline"() {
-    return MathSymbols
-  },
-
-  // Communication
-  get phone() {
-    return Phone
-  },
-  get "phone-call"() {
-    return PhoneCall
-  },
-  get mail() {
-    return Mail
-  },
-  get "mail-opened"() {
-    return MailOpened
-  },
-  get message() {
-    return Message
-  },
-  get "message-2"() {
-    return Message2
-  },
-  get "message-circle"() {
-    return MessageCircle
-  },
-  get "message-report"() {
-    return MessageReport
-  },
-  get "message-chatbot"() {
-    return MessageChatbot
-  },
-  get send() {
-    return Send
-  },
-  get messages() {
-    return Messages
-  },
-
-  // Work & Education
-  get book() {
-    return Book
-  },
-  get bookmark() {
-    return Bookmark
-  },
-  get bookmarks() {
-    return Bookmarks
-  },
-  get flag() {
-    return Flag
-  },
-  get "flag-2"() {
-    return Flag2
-  },
-  get dashboard() {
-    return Dashboard
-  },
-  get crown() {
-    return Crown
-  },
-  get id() {
-    return Id
+  get "world-pin-outline"() {
+    return WorldPin
   },
   get writing() {
     return Writing
@@ -1440,387 +1726,11 @@ const ICON_MAP = {
   get "writing-sign"() {
     return WritingSign
   },
-  get keyboard() {
-    return Keyboard
-  },
-  get "briefcase-2"() {
-    return Briefcase2
-  },
-  get library() {
-    return Library
-  },
-  get "library-plus"() {
-    return LibraryPlus
-  },
-
-  // Clothing & Fashion
-  get paint() {
-    return Paint
-  },
-  get shirt() {
-    return Shirt
-  },
-  get "hanger-2"() {
-    return Hanger2
-  },
-  get sunglasses() {
-    return Sunglasses
-  },
-  get umbrella() {
-    return Umbrella
-  },
-  get diamond() {
-    return Diamond
-  },
-
-  // Nature & Weather
-  get "snowflake-outline"() {
-    return Snowflake
-  },
-  get "plant-outline"() {
-    return Plant
-  },
-  get "brush-outline"() {
-    return Brush
-  },
-  get sun() {
-    return Sun
-  },
-  get moon() {
-    return Moon
-  },
-  get "moon-stars-outline"() {
-    return MoonStars
-  },
-  get mountain() {
-    return Mountain
-  },
-  get flame() {
-    return Flame
-  },
-  get cloud() {
-    return Cloud
-  },
-  get sunrise() {
-    return Sunrise
-  },
-  get sunset() {
-    return Sunset
-  },
-  get campfire() {
-    return Campfire
-  },
-  get cactus() {
-    return Cactus
-  },
-  get bolt() {
-    return Bolt
-  },
-  get mushroom() {
-    return Mushroom
-  },
-
-  // Security & Identity
-  get key() {
-    return Key
-  },
-  get "shield-check"() {
-    return ShieldCheck
-  },
-  get "shield-lock"() {
-    return ShieldLock
-  },
-  get shield() {
-    return Shield
-  },
-  get "shield-checkered-outline"() {
-    return ShieldCheckered
-  },
-
-  // People & Family
-  get "mood-happy"() {
-    return MoodHappy
-  },
-  get "baby-carriage"() {
-    return BabyCarriage
-  },
-  get man() {
-    return Man
-  },
-  get woman() {
-    return Woman
-  },
-  get paw() {
-    return Paw
-  },
-  get "paw-print-outline"() {
-    return PawOutline
-  },
-  get lifebuoy() {
-    return Lifebuoy
-  },
-  get "thumb-up"() {
-    return ThumbUp
-  },
-  get "thumb-down"() {
-    return ThumbDown
-  },
-
-  // Tech & Devices extras
-  get download() {
-    return Download
-  },
-  get link() {
-    return Link
-  },
-  get globe() {
-    return Globe
-  },
-  get world() {
-    return World
-  },
-  get satellite() {
-    return Satellite
-  },
-  get "cloud-computing"() {
-    return CloudComputing
-  },
-  get "device-tablet"() {
-    return DeviceTablet
-  },
-  get "device-speaker"() {
-    return DeviceSpeaker
-  },
-
-  // Analytics extras
-  get analyze() {
-    return Analyze
-  },
-  get graph() {
-    return Graph
-  },
-  get "chart-candle"() {
-    return ChartCandle
-  },
-  get "chart-funnel"() {
-    return ChartFunnel
-  },
-  get "chart-area"() {
-    return ChartArea
-  },
-  get "chart-donut"() {
-    return ChartDonut
-  },
-  get "chart-bubble"() {
-    return ChartBubble
-  },
-  get "presentation-analytics"() {
-    return PresentationAnalytics
-  },
-
-  // Time & Alerts extras
-  get hourglass() {
-    return Hourglass
-  },
-  get alarm() {
-    return Alarm
-  },
-  get "alarm-plus"() {
-    return AlarmPlus
-  },
-  get "alarm-minus"() {
-    return AlarmMinus
-  },
-  get "bell-ringing"() {
-    return BellRinging
-  },
-  get "bell-plus"() {
-    return BellPlus
-  },
-  get "bell-minus"() {
-    return BellMinus
-  },
-  get "bell-x"() {
-    return BellX
-  },
-
-  // Location & Navigation extras
-  get pin() {
-    return Pin
-  },
-  get pinned() {
-    return Pinned
-  },
-  get navigation() {
-    return Navigation
-  },
-
-  // Shopping & Celebration
-  get "christmas-tree"() {
-    return ChristmasTree
-  },
-  get trolley() {
-    return Trolley
-  },
-  get "gift-card"() {
-    return GiftCard
-  },
-  get rosette() {
-    return Rosette
-  },
-  get confetti() {
-    return Confetti
-  },
-  get balloon() {
-    return Balloon
-  },
-  get pennant() {
-    return Pennant
-  },
-  get "pennant-2"() {
-    return Pennant2
-  },
-
-  // Misc
-  get quote() {
-    return Quote
-  },
-  get table() {
-    return Table
-  },
-  get stack() {
-    return Stack
-  },
-  get "timeline-event"() {
-    return TimelineEvent
-  },
-  get bulb() {
-    return Bulb
-  },
-  get "atom-2"() {
-    return Atom2
-  },
-  get magnet() {
-    return Magnet
-  },
-  get "file-text"() {
-    return FileText
-  },
-
-  // Outline chrome variants (navigation, settings, preferences)
-  get "bell-outline"() {
-    return BellOutline
-  },
-  get "calendar-outline"() {
-    return CalendarOutline
-  },
-  get "calendar-cog"() {
-    return CalendarCog
-  },
-  get "credit-card-outline"() {
-    return CreditCardOutline
-  },
-  get "archive-outline"() {
-    return ArchiveOutline
-  },
-  get "camera-outline"() {
-    return CameraOutline
-  },
-  get "circle-dot-outline"() {
-    return CircleDotOutline
-  },
-  get "clipboard-outline"() {
-    return ClipboardOutline
-  },
-  get "copy-outline"() {
-    return CopyOutline
-  },
-  get "files-outline"() {
-    return FilesOutline
-  },
-  get "tag-outline"() {
-    return TagOutline
-  },
   get "x-outline"() {
     return X
   },
-  get "file-outline"() {
-    return FileOutline
-  },
-  get "basket-outline"() {
-    return BasketOutline
-  },
-  get "cash-banknote-outline"() {
-    return CashBanknoteOutline
-  },
-  get "download-outline"() {
-    return DownloadOutline
-  },
-  get "lock-outline"() {
-    return LockOutline
-  },
-  get "pencil-outline"() {
-    return PencilOutline
-  },
-  get "star-outline"() {
-    return StarOutline
-  },
-  get "check-outline"() {
-    return CheckOutline
-  },
-  get "info-circle-outline"() {
-    return InfoCircleOutline
-  },
-  get "arrow-up-circle-outline"() {
-    return ArrowUpCircleOutline
-  },
-  get "arrow-down-circle-outline"() {
-    return ArrowDownCircleOutline
-  },
-  get "photo-outline"() {
-    return PhotoOutline
-  },
-  get "video-outline"() {
-    return VideoOutline
-  },
-  get "chart-pie-outline"() {
-    return ChartPieOutline
-  },
-  get "circle-outline"() {
-    return CircleOutline
-  },
-  get "circles-outline"() {
-    return CirclesOutline
-  },
-  get "clock-outline"() {
-    return ClockOutline
-  },
-  get "graph-outline"() {
-    return GraphOutline
-  },
-  get "list-details-outline"() {
-    return ListDetailsOutline
-  },
-  get "map-pin-outline"() {
-    return MapPinOutline
-  },
-  get "plus-outline"() {
-    return PlusOutline
-  },
-  get "puzzle-outline"() {
-    return PuzzleOutline
-  },
-  get "settings-outline"() {
-    return SettingsOutline
-  },
-  get "tags-outline"() {
-    return TagsOutline
-  },
-  get "trash-outline"() {
-    return TrashOutline
-  },
-  get "receipt-refund-outline"() {
-    return ReceiptRefund
+  get "zoom-money"() {
+    return ZoomMoney
   },
 } as const satisfies Record<string, FC<SvgProps>>
 

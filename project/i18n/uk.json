@@ -69,6 +69,8 @@
   "ap_settings_subtitle": "Налаштування Email, Telegram-бота, OnlyOffice та AI-асистента.",
   "ap_sort_by": "Сортувати:",
   "ap_sort_by_rights": "За правами",
+  "ap_sort_asc": "За зростанням",
+  "ap_sort_desc": "За спаданням",
   "ap_sort_modified": "Змінено",
   "ap_sort_name": "Назва",
   "ap_sort_popularity": "Популярність",
