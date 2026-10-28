@@ -542,6 +542,35 @@ function initFormatTagsClickHandler() {
         });
     });
 }
+async function getUserAccessRole() {
+    try {
+        // Real numeric role: 0 = guest, 1 = user, 2 = admin.
+        const url = new URL(window.APP_CONFIG.apiBase, window.location.href);
+        url.searchParams.set('action', 'get_user_access_role');
+        url.searchParams.set('v', Date.now()); // Disable caching
+
+        const response = await fetch(url, {
+            method: 'GET',
+            headers: {
+                'Cache-Control': 'no-cache',
+                'Pragma': 'no-cache'
+            }
+        });
+
+        if (!response.ok) {
+            console.warn('Failed to get user access role, status:', response.status);
+            return 0;
+        }
+
+        const data = await response.json();
+        const role = Number(data?.role);
+        return Number.isFinite(role) ? role : 0;
+    } catch (err) {
+        console.error('Failed to get user access role:', err);
+        return 0;
+    }
+}
+
 async function getUserRole() {
     try {
                 // Create an API request to check the role

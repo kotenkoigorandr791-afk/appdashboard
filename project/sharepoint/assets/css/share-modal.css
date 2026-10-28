@@ -388,7 +388,7 @@ body.sp-share-open { overflow: hidden !important; }
 .sp-share--recipes {
   --sp-share-accent: var(--primary-color, #78a300);
   --sp-share-text: var(--text-color, #1d211c);
-  --sp-share-surface: color-mix(in srgb, var(--bg-color, #fff) 86%, transparent);
+  --sp-share-surface: var(--bg-color, #141817);
   --sp-share-radius: 24px;
   --sp-share-control-radius: 14px;
   --sp-share-font: 'Manrope', 'Segoe UI', system-ui, sans-serif;

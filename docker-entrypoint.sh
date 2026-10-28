@@ -214,7 +214,7 @@ if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
   if [ -f /var/www/AppDashboard/apps/steps/utils/requirements.txt ] && ! "$VENV/bin/python3" -c 'import pyzipper, psycopg2' 2>/dev/null; then
     "$VENV/bin/pip" install -q -r /var/www/AppDashboard/apps/steps/utils/requirements.txt || true
   fi
-  BOT_VENV=/var/www/AppDashboard/bot/.venv
+  BOT_VENV=/opt/ApplicationData/bot-venv
   if [ ! -d "$BOT_VENV" ]; then
     python3 -m venv "$BOT_VENV"
   fi

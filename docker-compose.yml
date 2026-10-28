@@ -199,6 +199,10 @@ services:
       RUN_MCP_PACKAGE_BUILD: "1"
       APP_WAF_RULE_ENGINE: "${APP_WAF_RULE_ENGINE:-On}"
       PHP_OPCACHE_ENABLE: "1"
+      # AI requests (non-streaming) can legitimately take longer than the
+      # default 30s FPM limit; killing them makes the browser see a 502 HTML
+      # page, which the UI reports as a "network error".
+      PHP_FPM_REQUEST_TERMINATE_TIMEOUT: "${PHP_FPM_REQUEST_TERMINATE_TIMEOUT:-300}"
       COMPOSER_PROCESS_TIMEOUT: "3600"
       SSH_WS_PORT: "8765"
       SSH_WS_BIND: 127.0.0.1

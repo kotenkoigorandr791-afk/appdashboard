@@ -11,6 +11,8 @@
         defaultModel: 'github/gpt-4o-mini',
         defaultRole: 'general',
         configuredModels: null,
+        gatewayModels: null,
+        gatewayModelsLoadedAt: 0,
         directApi: {
             configured: false,
             loadedAt: 0
@@ -147,7 +149,7 @@
             aiState.externalAttachments.length > 0 ||
             (Array.isArray(aiState.selectedMentionFiles) && aiState.selectedMentionFiles.length > 0);
         return {
-            selected_model: String(aiState.selectedModel || ''),
+            selected_model: isGuestRole() ? String(AI_CONFIG.defaultModel || '') : String(aiState.selectedModel || ''),
             selected_role: String(aiState.selectedRole || ''),
             chat_mode: String(aiState.chatMode || 'chat'),
             remember_previous: '0',
@@ -381,7 +383,7 @@
             const notifyComplete = localStorage.getItem('ai_notify_on_complete');
             const savedChatMode = localStorage.getItem('ai_chat_mode');
             
-            if (savedModel) aiState.selectedModel = savedModel;
+            if (savedModel && !isGuestRole()) aiState.selectedModel = savedModel;
             if (savedRole) aiState.selectedRole = savedRole;
             aiState.rememberPrevious = false;
             if (notifyComplete !== null) aiState.notifyOnComplete = notifyComplete === '1';
@@ -400,7 +402,11 @@
             const data = await response.json();
             if (!data?.success || !data?.settings) return;
             const settings = data.settings;
-            if (typeof settings.selected_model === 'string' && settings.selected_model) aiState.selectedModel = settings.selected_model;
+            if (isGuestRole()) {
+                aiState.selectedModel = AI_CONFIG.defaultModel;
+            } else if (typeof settings.selected_model === 'string' && settings.selected_model) {
+                aiState.selectedModel = settings.selected_model;
+            }
             if (typeof settings.selected_role === 'string' && settings.selected_role) aiState.selectedRole = settings.selected_role;
             if (settings.chat_mode === 'chat' || settings.chat_mode === 'agent') aiState.chatMode = settings.chat_mode;
             aiState.includeFileContext = false;
@@ -436,8 +442,13 @@
     function saveSettings() {
         try {
             if (elements.modelSelect) {
-                aiState.selectedModel = elements.modelSelect.value;
-                localStorage.setItem('ai_selected_model', aiState.selectedModel);
+                if (isGuestRole()) {
+                    aiState.selectedModel = AI_CONFIG.defaultModel;
+                    localStorage.removeItem('ai_selected_model');
+                } else {
+                    aiState.selectedModel = elements.modelSelect.value;
+                    localStorage.setItem('ai_selected_model', aiState.selectedModel);
+                }
             }
             if (elements.roleSelect) {
                 aiState.selectedRole = elements.roleSelect.value;
@@ -466,6 +477,34 @@
     // Model list must not go stale after the admin changes the AI config.
     // The runtime config is revalidated at most once per 30 seconds.
     const AI_RUNTIME_CONFIG_TTL_MS = 30000;
+    // Full list of models exposed by the upstream gateway. Used only as a
+    // fallback source when the admin has configured just one model, so that
+    // a broken model can be replaced by another working one.
+    const AI_GATEWAY_MODELS_TTL_MS = 120000;
+    async function loadGatewayModels() {
+        const cached = AI_CONFIG.gatewayModels;
+        if (Array.isArray(cached) && cached.length
+            && (Date.now() - (AI_CONFIG.gatewayModelsLoadedAt || 0)) < AI_GATEWAY_MODELS_TTL_MS) {
+            return cached;
+        }
+        try {
+            const response = await fetch(getAiProxyUrl('ai_fallback_models'), {
+                method: 'GET',
+                credentials: 'same-origin',
+                headers: { Accept: 'application/json' }
+            });
+            if (!response.ok) return [];
+            const payload = await response.json();
+            const models = Array.isArray(payload?.data) ? payload.data : [];
+            const ids = models.map((m) => String(m?.id || '').trim()).filter(Boolean);
+            if (ids.length) {
+                AI_CONFIG.gatewayModels = ids;
+                AI_CONFIG.gatewayModelsLoadedAt = Date.now();
+                return ids;
+            }
+        } catch (e) { /* the fallback list is best-effort only */ }
+        return Array.isArray(cached) ? cached : [];
+    }
     async function ensureDirectApiKeyLoaded(force) {
         const fresh = AI_CONFIG.directApi.configured
             && (Date.now() - (AI_CONFIG.directApi.loadedAt || 0)) < AI_RUNTIME_CONFIG_TTL_MS;
@@ -476,9 +515,17 @@
             credentials: 'same-origin',
             body: new URLSearchParams({ action: 'ai_runtime_config' })
         });
-        if (!configResponse.ok) throw new Error(`Failed to load AI configuration: HTTP ${configResponse.status}`);
+        if (!configResponse.ok) {
+            throw new Error(tr('aiConfigError', 'Failed to load AI configuration: {error}', {
+                error: `HTTP ${configResponse.status}`
+            }));
+        }
         const config = await configResponse.json();
-        if (!config?.success && config?.error) throw new Error(config.error);
+        if (!config?.success && config?.error) {
+            throw new Error(tr('aiConfigError', 'Failed to load AI configuration: {error}', {
+                error: config.error
+            }));
+        }
         if (Array.isArray(config.models) && config.models.length) AI_CONFIG.configuredModels = config.models.slice();
         if (config.default_model) AI_CONFIG.defaultModel = String(config.default_model);
         if (!config.success) throw new Error(config.error || 'AI is not configured');
@@ -492,36 +539,164 @@
         if (status === 524 || status === 504 || status === 408) {
             return tr('aiGatewayTimeout', 'The model did not answer in time (gateway timeout {status}). Please try again or pick a faster model.', { status });
         }
-        return tr('aiGatewayError', 'The AI gateway is temporarily unavailable (HTTP {status}). Please try again.', { status });
+        return tr('aiGatewayError', 'The request was blocked or failed by the AI gateway (HTTP {status}). Please try again.', { status });
     }
     function waitBeforeRetry(attempt) {
         return new Promise((resolve) => setTimeout(resolve, 800 * Math.pow(2, attempt)));
     }
-    async function fetchAiCompletions(payload, signal, attempt = 0) {
+    function aiErrorKindForStatus(status) {
+        const code = Number(status || 0);
+        if (code === 429) return 'rate_limit';
+        if (code === 401) return 'unauthorized';
+        if (code === 403) return 'gateway';
+        if (code === 408) return 'timeout';
+        if (code === 504 || code === 524) return 'gateway_timeout';
+        if (AI_RETRYABLE_HTTP_STATUSES.has(code)) return 'gateway';
+        return '';
+    }
+    function aiErrorMessageForKind(kind, status) {
+        switch (kind) {
+            case 'timeout':
+                return tr('aiNetworkTimeout', 'The connection timed out. Please try again.');
+            case 'gateway_timeout':
+                return gatewayErrorMessage(status);
+            case 'gateway':
+                return gatewayErrorMessage(status);
+            case 'rate_limit':
+                return tr('aiRateLimited', 'Too many requests. Please wait a moment and try again.');
+            case 'unauthorized':
+                return tr('aiUnauthorized', 'You are not authorized to use the AI assistant. Please sign in again.');
+            case 'offline':
+                return tr('aiNetworkOffline', 'You appear to be offline. Reconnect and try again.');
+            case 'all_models':
+                return tr('aiNetworkErrorAllModels', 'The AI service is unreachable. All available models failed to respond. Please try again later.');
+            case 'network':
+            default:
+                return tr('aiNetworkError', 'Network error. Check your connection and try again.');
+        }
+    }
+    function createAiError(message, kind, status) {
+        const err = new Error(message || aiErrorMessageForKind(kind, status));
+        err.aiErrorKind = kind || 'network';
+        if (status) err.aiStatus = Number(status);
+        return err;
+    }
+    function buildFallbackModelCandidates(requestedModel) {
+        const list = [];
+        const push = (value) => {
+            const raw = (value && typeof value === 'object') ? (value.id || value.name || '') : value;
+            const id = String(raw || '').trim();
+            if (id && !list.includes(id)) list.push(id);
+        };
+        if (isGuestRole()) {
+            // Guests are locked to the default model (also enforced server-side).
+            push(AI_CONFIG.defaultModel);
+            if (!list.length) push('github/gpt-4o-mini');
+            return list;
+        }
+        push(requestedModel);
+        if (Array.isArray(AI_CONFIG.configuredModels)) AI_CONFIG.configuredModels.forEach(push);
+        push(AI_CONFIG.defaultModel);
+        if (!list.length) push('github/gpt-4o-mini');
+        return list;
+    }
+    // Builds the fallback chain: requested model -> admin configured models ->
+    // default model -> every other model the gateway exposes. The gateway list
+    // is only fetched when the admin configured fewer than two models, so that
+    // a broken model can be replaced by a working one.
+    async function resolveFallbackModelCandidates(requestedModel) {
+        const list = buildFallbackModelCandidates(requestedModel);
+        if (isGuestRole()) return list;
+        const configuredCount = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels.length : 0;
+        if (configuredCount < 2) {
+            const gatewayModels = await loadGatewayModels();
+            gatewayModels.forEach((id) => {
+                if (!list.includes(id)) list.push(id);
+            });
+        }
+        return list;
+    }
+    function notifyModelFallback(failedModel) {
+        flashStatus(tr('aiModelUnavailable', 'The model {model} is unavailable. A different model was used instead.', {
+            model: formatModelLabel(failedModel)
+        }));
+    }
+    async function fetchAiCompletions(payload, signal, attempt = 0, options = null) {
+        const candidates = options?.candidates || await resolveFallbackModelCandidates(payload?.model);
+        const candidateIndex = Number.isInteger(options?.candidateIndex) ? options.candidateIndex : 0;
+        const model = candidates[candidateIndex] || String(payload?.model || '').trim();
+        const requestPayload = { ...(payload || {}), model };
         let response;
         try {
             response = await fetch(getAiProxyUrl('ai_completions'), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream, application/json' },
                 credentials: 'same-origin',
-                body: JSON.stringify(payload),
+                body: JSON.stringify(requestPayload),
                 signal
             });
         } catch (err) {
-            if (err?.name === 'AbortError' || signal?.aborted || attempt >= AI_COMPLETIONS_MAX_ATTEMPTS - 1) throw err;
-            await waitBeforeRetry(attempt);
-            return fetchAiCompletions(payload, signal, attempt + 1);
+            if (err?.name === 'AbortError' || signal?.aborted) throw err;
+            const isOffline = (typeof navigator !== 'undefined' && navigator.onLine === false);
+            const kind = isOffline ? 'offline' : (/timeout|timed out/i.test(String(err?.message || '')) ? 'timeout' : 'network');
+            if (attempt < AI_COMPLETIONS_MAX_ATTEMPTS - 1) {
+                await waitBeforeRetry(attempt);
+                return fetchAiCompletions(payload, signal, attempt + 1, { candidates, candidateIndex });
+            }
+            if (candidateIndex < candidates.length - 1) {
+                markModelUnavailable(model);
+                notifyModelFallback(model);
+                return fetchAiCompletions(payload, signal, 0, { candidates, candidateIndex: candidateIndex + 1 });
+            }
+            const lastErr = createAiError(
+                tr('aiNetworkErrorAllModels', 'The AI service is unreachable. All available models failed to respond. Please try again later.'),
+                'all_models'
+            );
+            lastErr.aiLastErrorKind = kind;
+            throw lastErr;
         }
         if (response.ok) return response;
-        if (AI_RETRYABLE_HTTP_STATUSES.has(response.status) && attempt < AI_COMPLETIONS_MAX_ATTEMPTS - 1 && !signal?.aborted) {
+        const status = response.status;
+        const errorKind = aiErrorKindForStatus(status);
+        if (AI_RETRYABLE_HTTP_STATUSES.has(status)) {
+            if (attempt < AI_COMPLETIONS_MAX_ATTEMPTS - 1 && !signal?.aborted) {
+                try { await response.body?.cancel?.(); } catch (e) {}
+                await waitBeforeRetry(attempt);
+                return fetchAiCompletions(payload, signal, attempt + 1, { candidates, candidateIndex });
+            }
+            if (candidateIndex < candidates.length - 1 && !signal?.aborted) {
+                try { await response.body?.cancel?.(); } catch (e) {}
+                markModelUnavailable(model);
+                notifyModelFallback(model);
+                return fetchAiCompletions(payload, signal, 0, { candidates, candidateIndex: candidateIndex + 1 });
+            }
+            const lastErr = createAiError(
+                tr('aiNetworkErrorAllModels', 'The AI service is unreachable. All available models failed to respond. Please try again later.'),
+                'all_models',
+                status
+            );
+            lastErr.aiLastErrorKind = errorKind || 'gateway';
+            lastErr.aiStatus = status;
+            throw lastErr;
+        }
+        // Non-retryable client errors must fail fast without switching models.
+        if (errorKind === 'rate_limit' || errorKind === 'unauthorized' || errorKind === 'gateway') {
             try { await response.body?.cancel?.(); } catch (e) {}
-            await waitBeforeRetry(attempt);
-            return fetchAiCompletions(payload, signal, attempt + 1);
+            return new Response(JSON.stringify({
+                error: {
+                    message: aiErrorMessageForKind(errorKind, status),
+                    kind: errorKind,
+                    status: status
+                }
+            }), {
+                status: status,
+                headers: { 'Content-Type': 'application/json; charset=utf-8' }
+            });
         }
         const contentType = response.headers.get('content-type') || '';
         if (!contentType.includes('json')) {
             try { await response.body?.cancel?.(); } catch (e) {}
-            return new Response(JSON.stringify({ error: { message: gatewayErrorMessage(response.status) } }), {
+            return new Response(JSON.stringify({ error: { message: gatewayErrorMessage(response.status), kind: errorKind || 'gateway', status: response.status } }), {
                 status: response.status,
                 headers: { 'Content-Type': 'application/json; charset=utf-8' }
             });
@@ -549,7 +724,46 @@
         const fromCfg = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels : [];
         return [AI_CONFIG.defaultModel, ...fromCfg, 'github/gpt-4o-mini', 'github/gpt-4o'].filter(Boolean);
     }
+    function isGuestRole() {
+        const role = aiState.agentUserRole;
+        return role == null || Number(role) === 0;
+    }
+    function applyModelVisibilityForRole() {
+        const wrap = elements.modelSelect?.closest('.select-wrapper');
+        const hidden = isGuestRole();
+        if (wrap) {
+            wrap.classList.toggle('hidden', hidden);
+            wrap.style.display = hidden ? 'none' : '';
+        }
+        if (modelDropdownState.wrapper) {
+            modelDropdownState.wrapper.classList.toggle('hidden', hidden);
+            modelDropdownState.wrapper.style.display = hidden ? 'none' : '';
+        }
+        if (elements.modelSelect) elements.modelSelect.classList.toggle('hidden', hidden);
+        if (hidden) {
+            if (Number(aiState.agentUserRole) === 0 && !applyModelVisibilityForRole.notified) {
+                applyModelVisibilityForRole.notified = true;
+                flashStatus(tr('aiModelLockedForRole', 'Guest accounts always use the default model.'));
+            }
+            aiState.selectedModel = AI_CONFIG.defaultModel;
+            if (elements.modelSelect) {
+                const hasDefault = Array.from(elements.modelSelect.options || []).some((o) => o.value === AI_CONFIG.defaultModel);
+                if (hasDefault) elements.modelSelect.value = AI_CONFIG.defaultModel;
+            }
+            updateModelDropdownLabel();
+        }
+    }
     function resolveModelForRequest() {
+        // Fail closed: unknown role is treated as guest, so the default model is used.
+        if (isGuestRole()) {
+            const def = String(AI_CONFIG.defaultModel || '').trim();
+            if (elements.modelSelect) {
+                const hasDefault = Array.from(elements.modelSelect.options || []).some((o) => o.value === def);
+                if (hasDefault) elements.modelSelect.value = def;
+            }
+            aiState.selectedModel = def;
+            return def;
+        }
         if (!elements.modelSelect) return AI_CONFIG.defaultModel;
         const options = Array.from(elements.modelSelect.options || []);
         const availableOptions = options.filter((o) => o.value && o.dataset.unavailable !== '1');
@@ -703,8 +917,13 @@
         const pickedPreferred = preferredModels.find((id) => ids.includes(id));
         elements.modelSelect.value = pickedPreferred || ids[0];
         aiState.selectedModel = elements.modelSelect.value;
+        if (isGuestRole()) {
+            aiState.selectedModel = AI_CONFIG.defaultModel;
+            if (ids.includes(AI_CONFIG.defaultModel)) elements.modelSelect.value = AI_CONFIG.defaultModel;
+        }
         renderModelDropdownOptions();
         updateModelDropdownLabel();
+        applyModelVisibilityForRole();
     }
 
     // Add visual fixes
@@ -2598,6 +2817,8 @@
 
     // Initialize
     document.addEventListener('DOMContentLoaded', async function() {
+        // Resolve the role first so guest restrictions apply before any settings load.
+        await resolveAgentUserRole();
         loadSavedSettings();
         await loadUserSettingsFromDb();
         rememberCurrentUserSettingsSnapshot();
@@ -2617,8 +2838,10 @@
     async function initAIAssistant() {
         cacheElements();
         attachEventListeners();
+        await resolveAgentUserRole();
         applySavedSettings();
         initCustomModelDropdown();
+        applyModelVisibilityForRole();
         initChatScrollbar();
         try {
             // Force a fresh model list on every page load so admin-side config
@@ -2645,6 +2868,9 @@
     }
 
     function applySavedSettings() {
+        if (isGuestRole()) {
+            aiState.selectedModel = AI_CONFIG.defaultModel;
+        }
         if (elements.modelSelect && aiState.selectedModel) {
             let optionExists = false;
             for (let i = 0; i < elements.modelSelect.options.length; i++) {
@@ -2721,6 +2947,11 @@
         
         if (elements.modelSelect) {
             elements.modelSelect.addEventListener('change', () => {
+                if (isGuestRole()) {
+                    aiState.selectedModel = AI_CONFIG.defaultModel;
+                    applyModelVisibilityForRole();
+                    return;
+                }
                 saveSettings();
                 updateModelDropdownLabel();
                 renderModelDropdownOptions();
@@ -4883,6 +5114,13 @@
     async function resolveAgentUserRole() {
         if (aiState.agentUserRole != null) return aiState.agentUserRole;
         try {
+            // Prefer the real numeric role (0=guest, 1=user, 2=admin) so that
+            // role 1 users keep model selection; getUserRole() only reports
+            // "root vs. everyone else" and would lock out role 1 users.
+            if (typeof getUserAccessRole === 'function') {
+                aiState.agentUserRole = Number(await getUserAccessRole()) || 0;
+                return aiState.agentUserRole;
+            }
             if (typeof getUserRole === 'function') {
                 aiState.agentUserRole = Number(await getUserRole()) || 0;
                 return aiState.agentUserRole;
@@ -6140,6 +6378,10 @@
         const res = await fetchAiCompletions({ ...payload, stream: true }, signal);
         if (!res.ok) {
             const errPayload = await res.json().catch(() => ({}));
+            const kind = errPayload.error?.kind || aiErrorKindForStatus(res.status);
+            if (kind) {
+                throw createAiError(errPayload.error?.message || errPayload?.message || `HTTP ${res.status}`, kind, res.status);
+            }
             throw new Error(errPayload.error?.message || errPayload?.message || `HTTP ${res.status}`);
         }
         const ct = res.headers.get('content-type') || '';
@@ -6155,12 +6397,26 @@
         let finishReason = null;
         let usage = null;
         let streamError = null;
+        let sawDoneMarker = false;
         while (true) {
             let chunk;
             try {
                 chunk = await reader.read();
             } catch (err) {
-                if (err?.name === 'AbortError' || signal?.aborted || attempt >= AI_COMPLETIONS_MAX_ATTEMPTS - 1) throw err;
+                if (err?.name === 'AbortError' || signal?.aborted) throw err;
+                // Never retry/fallback once content was produced: the response is partial.
+                if (content || Object.keys(toolCalls).length) {
+                    throw createAiError(
+                        tr('aiNetworkError', 'Network error. Check your connection and try again.'),
+                        'network'
+                    );
+                }
+                if (attempt >= AI_COMPLETIONS_MAX_ATTEMPTS - 1) {
+                    throw createAiError(
+                        tr('aiNetworkError', 'Network error. Check your connection and try again.'),
+                        'network'
+                    );
+                }
                 try { await reader.cancel(); } catch (e) {}
                 await waitBeforeRetry(attempt);
                 return fetchAgentCompletionStream(payload, signal, onContentDelta, attempt + 1);
@@ -6173,7 +6429,7 @@
             for (const line of lines) {
                 if (!line.startsWith('data: ')) continue;
                 const data = line.slice(6).trim();
-                if (data === '[DONE]') continue;
+                if (data === '[DONE]') { sawDoneMarker = true; continue; }
                 try {
                     const parsed = JSON.parse(data);
                     if (parsed.error) {
@@ -6209,6 +6465,13 @@
             if (streamError) break;
         }
         if (streamError && !content) throw streamError;
+        if (!streamError && !finishReason && !sawDoneMarker) {
+            // The stream ended without a finish reason: treat as a broken connection.
+            throw createAiError(
+                tr('aiNetworkError', 'Network error. Check your connection and try again.'),
+                'network'
+            );
+        }
         const trimmed = String(content || '').trim();
         const message = { role: 'assistant', content: trimmed || null };
         const tcArr = Object.keys(toolCalls).sort((a, b) => Number(a) - Number(b)).map((k) => toolCalls[k]).filter((tc) => tc.function?.name);
@@ -9321,18 +9584,77 @@
             }
 
             const requestModel = resolveModelForRequest();
-            const response = await fetchAiCompletions({
-                model: requestModel,
-                messages: messages,
-                max_tokens: 4096,
-                temperature: 0.7,
-                stream: true
-            }, aiState.abortController.signal);
+            // Fallback chain: requested model -> configured models -> default ->
+            // any other model exposed by the gateway. When a generation is cut
+            // off mid-stream the next candidate continues the request.
+            const modelCandidates = await resolveFallbackModelCandidates(requestModel);
+            let candidateIndex = 0;
+            let response = null;
+            let lastStreamFailure = null;
+            let usedFallback = false;
+            while (candidateIndex < modelCandidates.length) {
+                const candidateModel = modelCandidates[candidateIndex];
+                try {
+                    const attemptResponse = await fetchAiCompletions({
+                        model: candidateModel,
+                        messages: messages,
+                        max_tokens: 4096,
+                        temperature: 0.7,
+                        stream: true
+                    }, aiState.abortController.signal);
+                    if (!attemptResponse.ok) {
+                        const errorData = await attemptResponse.json().catch(() => ({}));
+                        const apiErrorMessage = errorData.error?.message || errorData?.message || `HTTP error ${attemptResponse.status}`;
+                        if (shouldMarkModelUnavailable(apiErrorMessage)) markModelUnavailable(candidateModel);
+                        const kind = errorData.error?.kind || aiErrorKindForStatus(attemptResponse.status);
+                        const isRetryable = !kind
+                            || AI_RETRYABLE_HTTP_STATUSES.has(attemptResponse.status)
+                            || kind === 'gateway'
+                            || kind === 'gateway_timeout'
+                            || kind === 'timeout'
+                            || kind === 'network';
+                        if (!isRetryable || candidateIndex >= modelCandidates.length - 1) {
+                            if (kind) throw createAiError(apiErrorMessage, kind, attemptResponse.status);
+                            throw new Error(apiErrorMessage);
+                        }
+                        lastStreamFailure = kind ? createAiError(apiErrorMessage, kind, attemptResponse.status) : new Error(apiErrorMessage);
+                        candidateIndex++;
+                        usedFallback = true;
+                        markModelUnavailable(candidateModel);
+                        notifyModelFallback(candidateModel);
+                        continue;
+                    }
+                    response = attemptResponse;
+                    if (usedFallback && candidateModel !== requestModel) {
+                        flashStatus(tr('aiModelUnavailable', 'The model {model} is unavailable. A different model was used instead.', {
+                            model: formatModelLabel(candidateModel)
+                        }));
+                    }
+                    break;
+                } catch (err) {
+                    if (err?.name === 'AbortError' || aiState.abortController?.signal?.aborted) throw err;
+                    lastStreamFailure = err;
+                    candidateIndex++;
+                    if (candidateIndex >= modelCandidates.length) throw err;
+                    usedFallback = true;
+                    markModelUnavailable(candidateModel);
+                    notifyModelFallback(candidateModel);
+                }
+            }
+            if (!response) {
+                if (lastStreamFailure?.aiErrorKind) throw lastStreamFailure;
+                if (lastStreamFailure) throw lastStreamFailure;
+                throw createAiError(tr('aiNetworkErrorAllModels', 'The AI service is unreachable. All available models failed to respond. Please try again later.'), 'all_models');
+            }
             
             if (!response.ok) {
                 const errorData = await response.json().catch(() => ({}));
                 const apiErrorMessage = errorData.error?.message || errorData?.message || `HTTP error ${response.status}`;
                 if (shouldMarkModelUnavailable(apiErrorMessage)) markModelUnavailable(requestModel);
+                const kind = errorData.error?.kind || aiErrorKindForStatus(response.status);
+                if (kind) {
+                    throw createAiError(apiErrorMessage, kind, response.status);
+                }
                 throw new Error(errorData.error?.message || `HTTP error ${response.status}`);
             }
             
@@ -9447,6 +9769,77 @@
                     if (streamError) break;
                 }
                 if (streamError) break;
+            }
+            if (streamError) {
+                // The generation was cut off mid-stream. If another model is
+                // available, continue the answer with it instead of failing.
+                const nextIndex = candidateIndex + 1;
+                if (nextIndex < modelCandidates.length && !aiState.abortController?.signal?.aborted) {
+                    markModelUnavailable(modelCandidates[candidateIndex]);
+                    notifyModelFallback(modelCandidates[candidateIndex]);
+                    const partial = String(fullResponse || '');
+                    const resumeMessages = messages.slice();
+                    if (partial.trim()) {
+                        resumeMessages.push({ role: 'assistant', content: partial });
+                        resumeMessages.push({
+                            role: 'user',
+                            content: tr('aiContinueInterrupted', 'The previous answer was interrupted. Continue from where it stopped without repeating it.')
+                        });
+                    }
+                    const resumed = await fetchAiCompletions({
+                        model: modelCandidates[nextIndex],
+                        messages: resumeMessages,
+                        max_tokens: 4096,
+                        temperature: 0.7,
+                        stream: true
+                    }, aiState.abortController.signal);
+                    if (resumed.ok) {
+                        const resumedReader = resumed.body.getReader();
+                        const resumedDecoder = new TextDecoder();
+                        let resumedBuffer = '';
+                        let resumedText = '';
+                        while (true) {
+                            let chunk;
+                            try {
+                                chunk = await resumedReader.read();
+                            } catch (readErr) {
+                                if (readErr?.name === 'AbortError' || aiState.abortController?.signal?.aborted) throw readErr;
+                                break;
+                            }
+                            if (chunk.done) break;
+                            resumedBuffer += resumedDecoder.decode(chunk.value, { stream: true });
+                            const resumedLines = resumedBuffer.split('\n');
+                            resumedBuffer = resumedLines.pop() || '';
+                            for (const resumedLine of resumedLines) {
+                                if (!resumedLine.startsWith('data: ')) continue;
+                                const resumedData = resumedLine.slice(6).trim();
+                                if (resumedData === '[DONE]') continue;
+                                try {
+                                    const resumedParsed = JSON.parse(resumedData);
+                                    if (resumedParsed.error) {
+                                        streamError = new Error(resumedParsed.error.message || String(resumedParsed.error));
+                                        break;
+                                    }
+                                    const resumedChoice = resumedParsed.choices?.[0];
+                                    const resumedDelta = resumedChoice?.delta || {};
+                                    const resumedTextPart = resumedDelta.content || resumedDelta.text || '';
+                                    if (resumedTextPart) {
+                                        resumedText += resumedTextPart;
+                                        fullResponse += resumedTextPart;
+                                        const resumedInner = formatResponseInner(fullResponse, liveThinkBlocks);
+                                        contentContainer.replaceChildren(resumedInner);
+                                        renderMath(contentContainer);
+                                        try { elements.chat?._stickyHandler?.(); } catch (e) {}
+                                    }
+                                } catch (e) { logAiError('Parse resumed stream chunk', e); }
+                            }
+                            if (streamError) break;
+                        }
+                        if (!streamError && String(fullResponse || '').trim()) {
+                            streamError = null;
+                        }
+                    }
+                }
             }
             if (streamError) throw streamError;
             if (!String(fullResponse || '').trim()) {
@@ -9598,11 +9991,25 @@
                 console.error('AI error:', err);
                 if (shouldMarkModelUnavailable(err?.message || '')) markModelUnavailable(resolveModelForRequest());
                 const rawMsg = String(err?.message || err || 'Unknown error');
+                const errKind = err?.aiErrorKind || '';
                 const isNetwork = /failed to fetch|networkerror|network error|load failed|err_network|aborted|timeout|timed out/i.test(rawMsg)
                     || err?.name === 'TypeError';
-                const displayMsg = isNetwork
-                    ? tr('aiNetworkError', 'Network error. Check your connection and try again.')
-                    : rawMsg;
+                let displayMsg = rawMsg;
+                if (errKind === 'all_models') {
+                    displayMsg = tr('aiNetworkErrorAllModels', 'The AI service is unreachable. All available models failed to respond. Please try again later.');
+                } else if (errKind === 'timeout') {
+                    displayMsg = tr('aiNetworkTimeout', 'The connection timed out. Please try again.');
+                } else if (errKind === 'offline') {
+                    displayMsg = tr('aiNetworkOffline', 'You appear to be offline. Reconnect and try again.');
+                } else if (errKind === 'rate_limit') {
+                    displayMsg = tr('aiRateLimited', 'Too many requests. Please wait a moment and try again.');
+                } else if (errKind === 'unauthorized') {
+                    displayMsg = tr('aiUnauthorized', 'You are not authorized to use the AI assistant. Please sign in again.');
+                } else if (errKind === 'gateway' || errKind === 'gateway_timeout') {
+                    displayMsg = gatewayErrorMessage(err?.aiStatus || 0);
+                } else if (isNetwork) {
+                    displayMsg = tr('aiNetworkError', 'Network error. Check your connection and try again.');
+                }
                 flashStatus(displayMsg);
                 const errorId = addMessageToUI('assistant', 
                     `${window.i18n?.errorPrefix || 'Error: '}${displayMsg}`, 

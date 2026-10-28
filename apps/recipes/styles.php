@@ -368,7 +368,7 @@ body::-webkit-scrollbar-thumb:hover {
 }
 
 .modal-content::-webkit-scrollbar {
-    width: 7px;
+    width: 6px;
 }
 
 .modal-content::-webkit-scrollbar-track {
@@ -378,10 +378,72 @@ body::-webkit-scrollbar-thumb:hover {
 
 .modal-content::-webkit-scrollbar-thumb {
     background: <?php echo $scrollbar_thumb; ?>;
-    border-radius: var(--border-radius);
-    border-top: 16px solid transparent;
-    border-bottom: 16px solid transparent;
-    background-clip: padding-box;
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+#recipeViewModal .modal-content.recipe-view {
+    position: relative;
+    overflow: hidden;
+    max-height: 80vh;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+}
+
+#recipeViewModal #recipeViewContent {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+    padding: 0;
+}
+
+#recipeViewModal .recipe-view-header {
+    flex-shrink: 0;
+    padding: 50px 30px 5px;
+    background-color: var(--bg-color);
+    z-index: 10;
+    box-sizing: border-box;
+}
+
+#recipeViewModal .recipe-view-header .language-switcher {
+    margin-bottom: 5px;
+}
+
+#recipeViewModal .recipe-view-header h2 {
+    margin: 0;
+    font-size: 1.5em;
+}
+
+#recipeViewModal .recipe-view-body {
+    overflow-y: auto;
+    flex: 1;
+    min-height: 0;
+    padding: 0 30px 30px;
+    box-sizing: border-box;
+    scrollbar-width: thin;
+    scrollbar-color: <?php echo $scrollbar_thumb; ?> transparent;
+}
+
+#recipeViewModal .recipe-view-body::-webkit-scrollbar {
+    width: 6px;
+}
+
+#recipeViewModal .recipe-view-body::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 16px 0;
+}
+
+#recipeViewModal .recipe-view-body::-webkit-scrollbar-thumb {
+    background: <?php echo $scrollbar_thumb; ?>;
+    border-radius: 3px;
+    transition: background 0.2s ease;
+}
+
+#recipeViewModal .recipe-view-body::-webkit-scrollbar-thumb:hover {
+    background: <?php echo $scrollbar_thumb_hover; ?>;
 }
 
 .modal-content::-webkit-scrollbar-thumb:hover {
@@ -896,6 +958,87 @@ form button:hover {
     cursor: pointer;
 }
 
+/* Recipe image source: File/Link switch and file picker on one line, each in a subtle frame */
+#recipeModal #recipeImageSourceSwitchRow {
+    display: inline-flex;
+    justify-content: flex-start;
+    align-items: center;
+    gap: 10px;
+    margin: 12px 10px 12px 0;
+    padding: 8px 14px;
+    border: 1px solid rgba(128, 128, 128, 0.32);
+    border-radius: var(--border-radius);
+    background: rgba(128, 128, 128, 0.06);
+    box-sizing: border-box;
+    vertical-align: middle;
+}
+
+#recipeModal #recipeImageFileRow {
+    display: inline-block;
+    vertical-align: middle;
+    margin: 12px 0;
+    padding: 8px 14px;
+    width: auto;
+    max-width: 460px;
+    box-sizing: border-box;
+    border: 1px solid rgba(128, 128, 128, 0.32);
+    border-radius: var(--border-radius);
+    background: rgba(128, 128, 128, 0.06);
+}
+
+#recipeModal #recipeImageFileRow input[type="file"] {
+    width: auto;
+    max-width: 400px;
+}
+
+/* Row 1: recipe title and language select share one line */
+#recipeModal .recipe-title-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 12px 0 16px;
+}
+
+#recipeModal .recipe-title-row #recipeTitle {
+    flex: 1 1 auto;
+    min-width: 0;
+    width: auto;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+#recipeModal .recipe-title-row #recipeLang {
+    flex: 0 0 200px;
+    width: 200px;
+    margin: 0;
+    box-sizing: border-box;
+}
+
+/* Row 2: File/Link switch and file picker as equal-size "table" cells */
+#recipeModal .recipe-upload-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin: 0 0 16px;
+}
+
+#recipeModal .recipe-upload-grid #recipeImageSourceSwitchRow,
+#recipeModal .recipe-upload-grid #recipeImageFileRow {
+    margin: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 48px;
+    box-sizing: border-box;
+}
+
+#recipeModal .recipe-upload-grid #recipeImageFileRow input[type="file"] {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    margin: 0;
+}
+
 .step {
     border: 1px solid var(--primary-color);
     padding: 15px;
@@ -903,9 +1046,147 @@ form button:hover {
     border-radius: var(--border-radius);
     box-shadow: var(--shadow);
     background-color: var(--bg-color);
+    position: relative;
+}
+
+#recipeModal .step {
     display: flex;
-    align-items: flex-start;
+    flex-direction: column;
+    align-items: stretch;
     gap: 10px;
+}
+
+#recipeModal .step h4 {
+    white-space: nowrap;
+}
+
+#recipeModal .step > button {
+    align-self: flex-start;
+    width: auto;
+}
+
+#recipeModal .step textarea {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* Add Step type chooser dialog */
+.step-type-modal {
+    max-width: 420px;
+    text-align: center;
+}
+
+.step-type-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-bottom: 16px;
+}
+
+.step-type-modal-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+    text-align: center;
+}
+
+.step-type-modal .modal-close {
+    position: static;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 24px;
+    color: var(--text-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    width: 32px;
+    height: 32px;
+    flex-shrink: 0;
+}
+
+.step-type-modal .modal-close:hover {
+    background: rgba(128, 128, 128, 0.15);
+}
+
+.step-type-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.step-type-actions button {
+    padding: 12px 20px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    border: 1px solid var(--line-color);
+    border-radius: var(--border-radius);
+    background-color: var(--btn-bg-color);
+    color: <?php echo $theme === 'dark' ? '#141817' : '#ffffff'; ?>;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.step-type-actions button:hover {
+    background-color: var(--btn-hover-bg) !important;
+    box-shadow: var(--hover-shadow);
+}
+
+/* Product step: preview card instead of textarea */
+#recipeModal .step-product-preview {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    border: 1px solid rgba(128, 128, 128, 0.32);
+    border-radius: var(--border-radius);
+    background: rgba(128, 128, 128, 0.06);
+}
+
+#recipeModal .step-product-preview img {
+    width: 44px;
+    height: 44px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+#recipeModal .step-product-preview-name {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+/* Remove-step cross — same chrome as the reorder buttons */
+#recipeModal .step .remove-step {
+    background: rgba(128, 128, 128, 0.10);
+    color: #ff3b3b;
+    border: 1px solid rgba(128, 128, 128, 0.30);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: none;
+}
+
+#recipeModal .step .remove-step:hover {
+    background: rgba(255, 59, 59, 0.16);
+    border-color: rgba(255, 59, 59, 0.45);
+    color: #ff5a5a;
+}
+
+#recipeModal .step .remove-step svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2;
+    fill: none;
 }
 
 .step h4 {
@@ -913,15 +1194,72 @@ form button:hover {
     margin-top: 0;
 }
 
+/* Step reorder buttons */
+.step-reorder {
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    align-items: center;
+}
+
+#recipeModal .step .step-reorder button {
+    background: rgba(128, 128, 128, 0.10);
+    color: var(--text-color);
+    border: 1px solid rgba(128, 128, 128, 0.30);
+    border-radius: 8px;
+    padding: 6px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s ease;
+    flex-shrink: 0;
+    box-shadow: none;
+}
+
+#recipeModal .step .step-reorder button:hover {
+    background: rgba(128, 128, 128, 0.22);
+    color: var(--text-color);
+}
+
+#recipeModal .step .step-reorder button:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+
+#recipeModal .step .step-reorder button svg {
+    width: 16px;
+    height: 16px;
+    stroke: currentColor;
+    stroke-width: 2.5;
+    fill: none;
+}
+
+#recipeModal .step .step-header {
+    flex-wrap: nowrap;
+    gap: 8px;
+}
+
+#recipeModal .step .step-header h4 {
+    flex-shrink: 0;
+    margin-right: auto;
+}
+
 .step button {
     background-color: var(--btn-bg-color);
     color: <?php echo $theme === 'dark' ? '#141817' : '#ffffff'; ?>;
     border: none;
-    padding: 8px 16px;
+    padding: 10px 20px;
     border-radius: var(--btn-border-radius);
     cursor: pointer;
     box-shadow: var(--shadow);
     transition: all 0.3s ease;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    text-align: center;
+    white-space: nowrap;
+    flex: 0 0 auto;
 }
 
 .search-button {
@@ -1004,11 +1342,21 @@ form button:hover {
     background-color: var(--bg-color);
 }
 
+.step .timer-wrapper {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 8px;
+}
+
 .quantity-container {
     display: flex;
+    flex-direction: row;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     margin-top: 10px;
+    flex-wrap: nowrap;
+    white-space: nowrap;
 }
 
 .quantity-container label {
@@ -1017,7 +1365,7 @@ form button:hover {
 }
 
 .quantity-container input[type="number"] {
-    width: 80px;
+    width: 120px;
     padding: 5px;
     border: 1px solid var(--primary-color);
     border-radius: var(--border-radius);
@@ -1037,17 +1385,20 @@ form button:hover {
   display: flex;
   align-items: center;
   gap: 5px;
+  flex-wrap: nowrap;
 }
 .timer-hours, .timer-minutes {
   width: 50px;
   padding: 5px;
   text-align: center;
+  flex-shrink: 0;
 }
 
 .timer-input.active {
     display: flex;
     gap: 5px;
     align-items: center;
+    flex-wrap: nowrap;
 }
 
 .timer-input input {
@@ -1057,6 +1408,77 @@ form button:hover {
     border-radius: var(--border-radius);
     background-color: var(--bg-color);
     color: var(--text-color);
+    flex-shrink: 0;
+}
+
+/* "Set Timer" label: single line + custom animated checkbox */
+.step label.timer-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    width: auto;
+    margin: 5px 0;
+    cursor: pointer;
+    user-select: none;
+}
+
+.timer-toggle input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
+
+.timer-toggle .timer-toggle-box {
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    border: 2px solid rgba(128, 128, 128, 0.55);
+    border-radius: 6px;
+    background: rgba(128, 128, 128, 0.1);
+    position: relative;
+    box-sizing: border-box;
+    transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.15s ease;
+}
+
+.timer-toggle .timer-toggle-box::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 5px;
+    width: 5px;
+    height: 10px;
+    border: solid #fff;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg) scale(0);
+    transform-origin: center;
+    transition: transform 0.25s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+}
+
+.timer-toggle:hover .timer-toggle-box {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(128, 128, 128, 0.15);
+}
+
+.timer-toggle:active .timer-toggle-box {
+    transform: scale(0.88);
+}
+
+.timer-toggle input:checked + .timer-toggle-box {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.45);
+}
+
+.timer-toggle input:checked + .timer-toggle-box::after {
+    transform: rotate(45deg) scale(1);
+}
+
+.timer-toggle input:focus-visible + .timer-toggle-box {
+    box-shadow: var(--glow);
 }
 .product-card-actions {
     display: flex;
@@ -1100,7 +1522,7 @@ form button:hover {
     position: fixed;
     bottom: 20px;
     right: 20px;
-    z-index: 1000;
+    z-index: 99999;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -1962,9 +2384,9 @@ input[type="file"]:required {
 
 #recipeViewModal .modal-content.recipe-view {
     position: relative;
-    overflow-y: auto;
+    overflow: hidden;
     max-height: 80vh;
-    padding-top: 60px;
+    padding: 0;
 }
 
 /* ==================== MOBILE VERSION ==================== */
@@ -2238,7 +2660,7 @@ input[type="file"]:required {
     #recipeModal .step {
         width: 100%;
         box-sizing: border-box;
-        padding: 12px;
+        padding: 12px 58px 12px 12px;
         margin: 10px 0;
         display: flex;
         flex-direction: column;
@@ -2276,26 +2698,26 @@ input[type="file"]:required {
     #recipeModal .quantity-container {
         width: 100%;
         display: flex;
-        flex-wrap: wrap;
-        gap: 10px;
-        align-items: center;
+        flex-direction: column;
+        align-items: stretch;
+        gap: 6px;
         box-sizing: border-box;
     }
     
     #recipeModal .quantity-container label {
         width: 100%;
-        margin-bottom: 5px;
+        margin-bottom: 0;
     }
     
     #recipeModal .quantity-container input[type="number"] {
-        width: calc(50% - 5px) !important;
+        width: 100% !important;
         flex: 1;
         min-width: 80px;
         box-sizing: border-box;
     }
     
     #recipeModal .quantity-container select {
-        width: calc(50% - 5px) !important;
+        width: 100% !important;
         flex: 1;
         min-width: 80px;
         box-sizing: border-box;
@@ -2335,14 +2757,41 @@ input[type="file"]:required {
     }
     
     #recipeModal .step .remove-step {
-        width: auto;
-        padding: 5px;
+        position: absolute;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        width: 42px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
         margin: 0;
+        border-left: 1px solid rgba(128, 128, 128, 0.35);
+        border-radius: 0 var(--border-radius) var(--border-radius) 0;
+        background: rgba(128, 128, 128, 0.06);
+        box-sizing: border-box;
     }
     
     #recipeModal .step .remove-step svg {
         width: 20px;
         height: 20px;
+    }
+    
+    #recipeModal .recipe-title-row {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+    }
+    
+    #recipeModal .recipe-title-row #recipeLang {
+        flex: 1 1 auto;
+        width: 100%;
+    }
+    
+    #recipeModal .recipe-upload-grid {
+        grid-template-columns: 1fr;
+        gap: 8px;
     }
     
     #steps {
@@ -2557,11 +3006,12 @@ input[type="file"]:required {
 
 /* Image Preview Styles */
 .image-preview-container {
-    margin-top: 10px;
+    margin: 10px auto;
     text-align: center;
     cursor: pointer;
     position: relative;
-    min-height: 240px;
+    min-height: 180px;
+    max-width: 300px;
     padding: 14px;
     background: rgba(128, 128, 128, 0.1);
     border-radius: var(--border-radius);
@@ -2580,8 +3030,8 @@ input[type="file"]:required {
 }
 
 .image-preview {
-    max-width: 200px;
-    max-height: 200px;
+    max-width: 150px;
+    max-height: 150px;
     width: auto;
     height: auto;
     object-fit: contain;

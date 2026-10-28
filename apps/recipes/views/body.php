@@ -593,6 +593,24 @@
         </div>
     </div>
 
+    <!-- Step Type Modal -->
+    <div class="modal" id="stepTypeModal" style="z-index: 2250;">
+        <div class="modal-content step-type-modal">
+            <div class="step-type-modal-header">
+                <h2><?php echo htmlspecialchars($translations[$lang]['choose_step_type']); ?></h2>
+                <button class="modal-close modal-close-sm" onclick="closeModal('stepTypeModal')">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18"></path>
+                        <path d="M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>            <div class="step-type-actions">
+                <button type="button" class="step-type-ingredient" onclick="confirmAddStep('product')"><?php echo htmlspecialchars($translations[$lang]['step_type_ingredient']); ?></button>
+                <button type="button" class="step-type-instruction" onclick="confirmAddStep('instruction')"><?php echo htmlspecialchars($translations[$lang]['step_type_instruction']); ?></button>
+            </div>
+        </div>
+    </div>
+
     <!-- Recipe Modal -->
     <div class="modal" id="recipeModal">
         <div class="modal-content">
@@ -614,17 +632,30 @@
                 <input type="hidden" name="lang" id="recipeFormLang">
                 <input type="hidden" name="recipe_id" id="recipeFormId">
                 <input type="hidden" name="clear_recipe_image" id="recipeClearImageFlag" value="0">
-                <input type="text" name="title" id="recipeTitle" placeholder="<?php echo $translations[$lang]['recipe_title']; ?>" required>
-                <div class="image-source-switch-row recipe-form-image-source" id="recipeImageSourceSwitchRow">
-                    <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_file']); ?></span>
-                    <label class="form-switch">
-                        <input type="checkbox" id="recipeImageUseUrl" aria-label="<?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?>">
-                        <span class="form-switch-slider"></span>
-                    </label>
-                    <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?></span>
+                <div class="recipe-title-row" id="recipeTitleRow">
+                    <input type="text" name="title" id="recipeTitle" placeholder="<?php echo $translations[$lang]['recipe_title']; ?>" required>
+                    <select id="recipeLang" class="custom-select">
+                        <option value="en">English</option>
+                        <option value="uk">Українська</option>
+                        <option value="ru">Русский</option>
+                        <option value="be">Беларуская</option>
+                    </select>
                 </div>
-                <div id="recipeImageFileRow" class="image-file-row recipe-image-file-row">
-                <input type="file" name="image" accept="image/*" id="recipeImageInput">
+                <div class="recipe-upload-grid" id="recipeUploadGrid">
+                    <div class="image-source-switch-row recipe-form-image-source" id="recipeImageSourceSwitchRow">
+                        <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_file']); ?></span>
+                        <label class="form-switch">
+                            <input type="checkbox" id="recipeImageUseUrl" aria-label="<?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?>">
+                            <span class="form-switch-slider"></span>
+                        </label>
+                        <span class="image-source-label"><?php echo htmlspecialchars($translations[$lang]['image_source_url']); ?></span>
+                    </div>
+                    <div id="recipeImageFileRow" class="image-file-row recipe-image-file-row">
+                        <input type="file" name="image" accept="image/*" id="recipeImageInput">
+                    </div>
+                </div>
+                <div id="recipeImageUrlRow" class="image-url-row recipe-image-url-row" style="display:none;">
+                    <input type="url" id="recipeImageUrlInput" placeholder="<?php echo htmlspecialchars($translations[$lang]['image_url_placeholder']); ?>" autocomplete="off" class="image-url-input">
                 </div>
                 <div id="recipeImageUrlRow" class="image-url-row recipe-image-url-row" style="display:none;">
                     <input type="url" id="recipeImageUrlInput" placeholder="<?php echo htmlspecialchars($translations[$lang]['image_url_placeholder']); ?>" autocomplete="off" class="image-url-input">
@@ -645,7 +676,7 @@
                     <button type="button" class="image-tool-btn image-tool-btn-secondary" id="recipeBgUndoBtn" onclick="undoBackgroundRemoval('recipe')" style="display:none;">Undo background removal</button>
                 </div>
                 <div id="steps" class="recipe-steps-block" style="margin-bottom: 20px;">
-                    <button type="button" onclick="addStep()"><?php echo $translations[$lang]['add_step']; ?></button>
+                    <button type="button" onclick="openStepTypeDialog()"><?php echo $translations[$lang]['add_step']; ?></button>
                 </div>
                 <div id="recipeTranslationProgress" style="display: none; margin: 10px 0;">
                     <div style="background: rgba(128,128,128,0.2); border-radius: 10px; height: 24px; position: relative; overflow: hidden;">

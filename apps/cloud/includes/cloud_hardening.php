@@ -77,7 +77,19 @@ if (!function_exists('cloud_request_host_ok')) {
         if ($allowed === '') {
             return false;
         }
-        return hash_equals($allowed, $reqHost);
+        // HTTP_HOST may include a port ("127.0.0.1:8080"), while parse_url()
+        // returns the host without it. Compare the hosts only, otherwise every
+        // same-origin POST is rejected as CSRF on non-default ports.
+        $allowedHost = $allowed;
+        $colon = strrpos($allowedHost, ':');
+        if ($colon !== false && strpos($allowedHost, ']') === false) {
+            $allowedHost = substr($allowedHost, 0, $colon);
+        }
+        $allowedHost = trim($allowedHost, '[]');
+        if ($allowedHost === '') {
+            return false;
+        }
+        return hash_equals($allowedHost, $reqHost);
     }
 }
 

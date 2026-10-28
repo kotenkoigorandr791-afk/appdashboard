@@ -141,6 +141,9 @@
   "add_recipe_manual": "Вручную",
   "add_recipe_manual_desc": "Заполните название, шаги и ингредиенты самостоятельно",
   "add_step": "Добавить шаг",
+  "choose_step_type": "Выберите тип шага",
+  "step_type_ingredient": "Ингредиент",
+  "step_type_instruction": "Инструкция",
   "category": "Категория",
   "delete_confirm_title": "Подтверждение удаления",
   "delete_step": "Удалить шаг",
@@ -167,5 +170,7 @@
   "instruction": "Инструкция",
   "instructions_title": "Инструкции",
   "step": "Шаг",
-  "steps": "Шаги"
+  "steps": "Шаги",
+  "move_step_up": "Переместить вверх",
+  "move_step_down": "Переместить вниз"
 }

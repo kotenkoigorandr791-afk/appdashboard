@@ -141,6 +141,9 @@
   "add_recipe_manual": "Вручну",
   "add_recipe_manual_desc": "Самостійно заповніть назву, кроки та інгредієнти",
   "add_step": "Додати крок",
+  "choose_step_type": "Оберіть тип кроку",
+  "step_type_ingredient": "Інгредієнт",
+  "step_type_instruction": "Інструкція",
   "category": "Категорія",
   "delete_confirm_title": "Підтвердження видалення",
   "delete_step": "Видалити крок",
@@ -167,5 +170,7 @@
   "instruction": "Інструкція",
   "instructions_title": "Інструкції",
   "step": "Крок",
-  "steps": "Кроки"
+  "steps": "Кроки",
+  "move_step_up": "Перемістити вгору",
+  "move_step_down": "Перемістити вниз"
 }
