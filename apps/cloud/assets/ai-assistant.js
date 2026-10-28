@@ -31,6 +31,19 @@
         if (s.length <= maxChars) return s;
         return s.slice(0, maxChars) + `\n\n[... ${label || 'content'} truncated for 200k token budget; use read_file with offset_line or search_in_files ...]`;
     }
+    function buildFileContextBlock(file, label) {
+        const name = String(file?.name || 'file');
+        const content = String(file?.content || '');
+        const chunkSize = 6000;
+        if (content.length <= chunkSize) return `[${label}: ${name}]\n\n${content}`;
+        const chunks = [];
+        const maxChunks = Math.max(1, Math.floor(CONTEXT_LIMITS.maxMentionedChars / chunkSize));
+        for (let offset = 0; offset < content.length && chunks.length < maxChunks; offset += chunkSize) {
+            chunks.push(`[${label}: ${name}, part ${chunks.length + 1}]\n\n${content.slice(offset, offset + chunkSize)}`);
+        }
+        if (chunks.length * chunkSize < content.length) chunks.push(`[${label}: ${name}]\n\n[remaining parts omitted to protect the conversation context]`);
+        return chunks.join('\n\n---\n\n');
+    }
 
     const MAX_EXTERNAL_ATTACHMENTS = 4;
     let aiTreeDragFallbackPaths = [];
@@ -73,6 +86,9 @@
         isGenerating: false,
         currentMessageId: null,
         abortController: null,
+        generatingChatId: '',
+        generationMessageDiv: null,
+        generationUserMessage: null,
         currentFileContent: null,
         currentFileName: null,
         lastMessageStats: null,
@@ -119,6 +135,7 @@
         agentRunOutcome: null,
         agentUserRole: null,
         agentMentionPaths: [],
+        agentReadMemory: [],
         agentNewPaths: new Set(),
         agentRunStartedAt: null,
         agentTimerInterval: null,
@@ -528,6 +545,9 @@
         }
         if (Array.isArray(config.models) && config.models.length) AI_CONFIG.configuredModels = config.models.slice();
         if (config.default_model) AI_CONFIG.defaultModel = String(config.default_model);
+        if (aiState.agentUserRole == null && Number.isFinite(Number(config.user_role))) {
+            aiState.agentUserRole = Number(config.user_role);
+        }
         if (!config.success) throw new Error(config.error || 'AI is not configured');
         if (!config.configured) throw new Error('AI API key is not configured');
         AI_CONFIG.directApi.configured = true;
@@ -4122,6 +4142,29 @@
     }
 
     function syncMentionedAttachmentsFromInput(inputValue) {
+        const source = String(inputValue || '');
+        const detected = extractMentionedFileNames(source);
+        if (detected.length) {
+            if (!Array.isArray(aiState.selectedMentionFiles)) aiState.selectedMentionFiles = [];
+            if (!Array.isArray(aiState.mentionPlacements)) aiState.mentionPlacements = [];
+            detected.forEach((name) => {
+                const normalized = normalizeMentionedFilePath(name);
+                if (!normalized || aiState.selectedMentionFiles.includes(normalized)) return;
+                aiState.selectedMentionFiles.push(normalized);
+                aiState.mentionPlacements.push({ name: normalized, index: String(inputValue || '').indexOf(`@${name}`) });
+            });
+            let cleaned = source;
+            detected.forEach((name) => {
+                const escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                cleaned = cleaned.replace(new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`, 'g'), '$1').replace(/\s{2,}/g, ' ');
+            });
+            if (cleaned !== source && elements.input && elements.input.value === source) {
+                const cursor = elements.input.selectionStart || cleaned.length;
+                elements.input.value = cleaned;
+                elements.input.selectionStart = Math.min(cursor, cleaned.length);
+                elements.input.selectionEnd = elements.input.selectionStart;
+            }
+        }
         renderMentionedAttachments();
     }
 
@@ -6584,11 +6627,21 @@
         if (!message) return [];
         const mentions = [];
         const seen = new Set();
-        const mentionRegex = /(^|\s)@([^\s@]+)/g;
         const knownExts = '(?:md|markdown|tex|latex|txt|json|csv|xml|html?|css|js|mjs|cjs|ts|tsx|jsx|vue|php|py|rb|go|java|cs|c|cc|cpp|h|hpp|sh|ya?ml|sql|log|ini|toml|cfg|env|rst|pdf|docx?|xlsx?|pptx?)';
+        const extMentionRegex = new RegExp(`(^|\\s)@((?:[^\\s@]+\\s+)*?[^\\s@]+\\.${knownExts})(?=\\s|$)`, 'gi');
+        let extMatch;
+        while ((extMatch = extMentionRegex.exec(message)) !== null) {
+            let token = extMatch[2].trim().replace(/^[\("'`\[]+/, '').replace(/[\)"'`\].,;:!?]+$/, '');
+            if (token && !token.includes('\\') && !token.includes('..') && !seen.has(token)) {
+                seen.add(token);
+                mentions.push(token);
+            }
+        }
+        const maskedMessage = message.replace(extMentionRegex, '$1');
+        const mentionRegex = /(^|\s)@([^\s@]+)/g;
         let match;
 
-        while ((match = mentionRegex.exec(message)) !== null) {
+        while ((match = mentionRegex.exec(maskedMessage)) !== null) {
             let token = (match[2] || '').trim();
             token = token.replace(/^[("'`\[]+/, '').replace(/[)"'`\].,;:!?]+$/, '');
             const extMatch = token.match(new RegExp(`^(.+?\\.${knownExts})(?=[^/._-].*)`, 'i'));
@@ -7142,6 +7195,7 @@
                 e.stopPropagation();
                 menu.classList.toggle('hidden');
                 if (!menu.classList.contains('hidden')) {
+                    renderAiChatSessions();
                     const pr = menu.parentElement.getBoundingClientRect();
                     menu.style.left = '0';
                     menu.style.right = 'auto';
@@ -7250,7 +7304,7 @@
             modal = document.createElement('div');
             modal.id = 'ai-chat-manager-modal';
             modal.className = 'modal hidden';
-            modal.innerHTML = '<div class="modal-content ai-chat-manager-content"><div class="modal-header"><h3></h3><button type="button" class="icon-btn close-btn" aria-label="Close">×</button></div><div class="modal-body"><input type="search" class="ai-chat-manager-search" /><div class="ai-chat-manager-list"></div><p class="ai-chat-retention-note"></p></div></div>';
+            modal.innerHTML = '<div class="modal-content ai-chat-manager-content"><div class="modal-header"><h3></h3><button type="button" class="icon-btn close-btn" aria-label="Close">×</button></div><div class="modal-body"><div class="ai-chat-manager-search-wrap"><input type="search" class="ai-chat-manager-search" /><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg></div><div class="ai-chat-manager-list"></div><p class="ai-chat-retention-note"></p><button type="button" class="ai-chat-manager-clear"></button></div></div>';
             document.body.appendChild(modal);
             modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
@@ -7259,6 +7313,13 @@
         modal.querySelector('h3').textContent = tr('aiManageChats', 'Manage chats');
         modal.querySelector('.ai-chat-manager-search').placeholder = tr('aiSearchChats', 'Search chats');
         modal.querySelector('.ai-chat-retention-note').textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
+        modal.querySelector('.ai-chat-manager-clear').textContent = tr('aiDeleteAllChats', 'Delete all chats');
+        modal.querySelector('.ai-chat-manager-clear').onclick = async () => {
+            if (!confirm(tr('aiDeleteAllChatsConfirm', 'Delete all chats?'))) return;
+            await Promise.all((aiState.chatSessions || []).map((chat) => deleteAiChat(chat.id)));
+            await loadAiChatSessions();
+            renderAiChatManagerList();
+        };
         modal.classList.remove('hidden');
         renderAiChatManagerList();
     }
@@ -7278,7 +7339,10 @@
             const row = document.createElement('button');
             row.type = 'button';
             row.className = 'ai-chat-menu-item';
-            row.innerHTML = '<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="' + escapeHtml(tr('aiDeleteChat', 'Delete chat')) + '">×</span>';
+            const isGenerating = String(chat.id) === String(aiState.generatingChatId || '');
+            row.innerHTML = '<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span>' + (isGenerating
+                ? '<span class="ai-chat-generation-dots" aria-label="Generating"><i></i><i></i><i></i></span>'
+                : '<span class="ai-chat-menu-delete" title="' + escapeHtml(tr('aiDeleteChat', 'Delete chat')) + '">×</span>');
             row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
             row.querySelector('.ai-chat-menu-date').textContent = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleString() : '';
             row.addEventListener('click', (e) => {
@@ -7305,22 +7369,9 @@
         notice.className = 'ai-chat-retention-note';
         notice.textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
         menu.appendChild(notice);
-        const search = document.createElement('input');
-        search.type = 'search';
-        search.className = 'ai-chat-menu-search';
-        search.placeholder = tr('aiSearchChats', 'Search chats');
-        search.value = filterQuery || '';
-        search.addEventListener('input', () => renderAiChatSessions(search.value));
-        search.addEventListener('click', (e) => e.stopPropagation());
-        const searchWrap = document.createElement('div');
-        searchWrap.className = 'ai-chat-menu-search-wrap';
-        searchWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>';
-        searchWrap.appendChild(search);
-        menu.appendChild(searchWrap);
         const q = String(filterQuery || '').trim().toLowerCase();
         const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
-        const PREVIEW_LIMIT = 8;
-        const preview = chats.slice(0, PREVIEW_LIMIT);
+        const preview = chats.slice();
         buildChatDividerNodes(preview).forEach((node) => {
             if (node && node.className === 'ai-chat-menu-divider') {
                 menu.appendChild(node);
@@ -7332,7 +7383,8 @@
             row.className = 'ai-chat-menu-item' + (String(chat.id) === String(aiState.activeChatId) ? ' active' : '');
             row.dataset.chatId = String(chat.id || '');
             const date = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleDateString() : '';
-            row.innerHTML = `<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="${escapeHtml(tr('aiDeleteChat', 'Delete chat'))}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d92d20" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>`;
+            const isGenerating = String(chat.id) === String(aiState.generatingChatId || '');
+            row.innerHTML = `<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span>${isGenerating ? '<span class="ai-chat-generation-dots" aria-label="Generating"><i></i><i></i><i></i></span>' : `<span class="ai-chat-menu-delete" title="${escapeHtml(tr('aiDeleteChat', 'Delete chat'))}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d92d20" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>`}`;
             row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
             row.querySelector('.ai-chat-menu-date').textContent = date;
             row.addEventListener('click', (e) => {
@@ -7346,7 +7398,7 @@
             });
             menu.appendChild(row);
         });
-        if (chats.length > PREVIEW_LIMIT) {
+        if (chats.length > 0) {
             const manage = document.createElement('button');
             manage.type = 'button';
             manage.className = 'ai-chat-menu-manage';
@@ -7357,12 +7409,17 @@
                 openAiChatManager();
             });
             menu.appendChild(manage);
-        }
-        if (search.value) {
+            menu.style.paddingBottom = '48px';
             requestAnimationFrame(() => {
-                search.focus();
-                const len = search.value.length;
-                try { search.setSelectionRange(len, len); } catch (_) {}
+                if (!menu.clientHeight) return;
+                while (menu.scrollHeight > menu.clientHeight) {
+                    const rows = menu.querySelectorAll('.ai-chat-menu-item');
+                    if (!rows.length) break;
+                    rows[rows.length - 1].remove();
+                    const dividers = menu.querySelectorAll('.ai-chat-menu-divider');
+                    const lastDivider = dividers[dividers.length - 1];
+                    if (lastDivider && (!lastDivider.nextElementSibling || !lastDivider.nextElementSibling.matches('.ai-chat-menu-item'))) lastDivider.remove();
+                }
             });
         }
     }
@@ -7376,11 +7433,7 @@
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to load chats');
-            const activeBeforeLoad = aiState.activeChatId;
             aiState.chatSessions = Array.isArray(data.items) ? data.items : [];
-            if (activeBeforeLoad && String(activeBeforeLoad).startsWith('tmp_') && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
-                aiState.chatSessions.unshift({ id: activeBeforeLoad, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
-            }
             if (!aiState.activeChatId || !aiState.chatSessions.some((c) => String(c.id) === String(aiState.activeChatId))) {
                 aiState.activeChatId = String(aiState.chatSessions[0]?.id || '');
                 localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
@@ -7395,6 +7448,20 @@
         localStorage.setItem('cloud_ai_active_chat_id', chatId);
         resetChatPagination();
         await loadChatHistoryPage(false);
+        restoreActiveGeneration();
+    }
+
+    function restoreActiveGeneration() {
+        if (!aiState.isGenerating || String(aiState.activeChatId) !== String(aiState.generatingChatId)) return;
+        const generation = aiState.generationMessageDiv;
+        if (aiState.generationUserMessage && !elements.chat?.querySelector(`[data-generation-user="${aiState.generatingChatId}"]`)) {
+            const userId = addMessageToUI('user', aiState.generationUserMessage.content, false, null, false, aiState.generationUserMessage.attachments, aiState.generationUserMessage.mentionedFiles);
+            const userEl = userId ? document.getElementById(userId) : null;
+            if (userEl) userEl.dataset.generationUser = aiState.generatingChatId;
+        }
+        if (generation && !generation.isConnected) elements.chat?.appendChild(generation);
+        if (aiState.generationMessageDiv && !aiState.generationMessageDiv.style.display) return;
+        if (!document.getElementById('typingIndicator')) showTypingIndicator();
     }
 
     async function createAiChat() {
@@ -7923,7 +7990,7 @@
         clearChatMessages();
         aiState.chatHistory.forEach((message) => {
             if (message.role === 'user') {
-                addMessageToUI('user', message.content, false, message.id, false);
+                addMessageToUI('user', message.content, false, message.id, false, message.attachments, message.mentionedFiles);
             } else if (message.isAgent && message.agentMeta) {
                 renderAgentHistoryBlock(message.id, message.agentMeta, message.content, message.stats);
             } else {
@@ -8397,7 +8464,7 @@
         return container;
     }
 
-    function addMessageToUI(role, content, saveToHistory = true, messageId = null, autoScroll = true) {
+    function addMessageToUI(role, content, saveToHistory = true, messageId = null, autoScroll = true, attachments = null, mentionedFiles = null) {
         if (!elements.chat) return null;
         
         const id = messageId || 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -8424,11 +8491,38 @@
             contentDiv.className = 'message-content';
             contentDiv.textContent = content;
             messageDiv.appendChild(contentDiv);
+            const attached = serializePendingAttachments(attachments || []);
+            const mentioned = (Array.isArray(mentionedFiles) ? mentionedFiles : []).filter(Boolean);
+            if (attached.length || mentioned.length) {
+                const files = document.createElement('div');
+                files.className = 'ai-message-attachments';
+                files.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;';
+                attached.forEach((file) => {
+                    const item = document.createElement('span');
+                    item.className = 'ai-message-attachment';
+                    item.innerHTML = getAttachmentFileIconMarkup(file.name) + '<span></span>';
+                    item.querySelector('span:last-child').textContent = file.name || 'file';
+                    item.style.cssText = 'display:inline-flex;align-items:center;padding:4px 9px;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--muted);font-size:11px;';
+                    files.appendChild(item);
+                });
+                mentioned.forEach((name) => {
+                    const item = document.createElement('span');
+                    item.className = 'ai-message-attachment';
+                    item.innerHTML = getAttachmentFileIconMarkup(name) + '<span></span>';
+                    item.querySelector('span:last-child').textContent = name;
+                    item.style.cssText = 'display:inline-flex;align-items:center;padding:4px 9px;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--muted);font-size:11px;';
+                    files.appendChild(item);
+                });
+                messageDiv.appendChild(files);
+            }
             const footer = document.createElement('div');
             footer.className = 'message-footer';
             const actions = document.createElement('div');
             actions.className = 'message-actions';
-            actions.appendChild(createCopyButton(content, true));
+            const copyContent = mentioned.length
+                ? `${content}\n\n${mentioned.map((name) => `@${name}`).join(' ')}`
+                : content;
+            actions.appendChild(createCopyButton(copyContent, true));
             footer.appendChild(actions);
             messageDiv.appendChild(footer);
         } else {
@@ -8982,9 +9076,11 @@
 
     function getToolLoopHistory(messages, currentTask) {
         const task = String(currentTask || '').trim();
-        return (messages || [])
+        const history = (messages || [])
             .filter((m) => m && (m.role === 'system' || m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
             .filter((m) => !(m.role === 'user' && String(m.content || '').trim() === task));
+        const remembered = (aiState.agentReadMemory || []).slice(-12);
+        return remembered.length ? [{ role: 'user', content: '[Files already read in this agent session]\n' + remembered.join('\n\n---\n\n') }, ...history] : history;
     }
 
     async function sendChatWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '', pathRoots = null, openPath = '') {
@@ -9027,6 +9123,12 @@
                 return stepId;
             },
             onToolEnd: (stepId, name, _detail, result) => {
+                if (['read_file', 'search_in_files', 'search_by_regex', 'extract_document_text'].includes(name)) {
+                    const text = String(result?.content || result?.output || result?.result || '').trim();
+                    if (text) {
+                        aiState.agentReadMemory = [...(aiState.agentReadMemory || []).filter((entry) => !entry.startsWith(`[${name}]`)), `[${name}]\n${text.slice(0, 12000)}`].slice(-12);
+                    }
+                }
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
                 if (isErr) logAiError(`Tool ${name} failed`, result?.error || result?.output || result);
@@ -9251,6 +9353,8 @@
                 return;
             }
             await ensureAiChatSessionForRequest();
+            aiState.generatingChatId = String(aiState.activeChatId || '');
+            renderAiChatSessions();
 
         aiState.abortController = new AbortController();
 
@@ -9260,7 +9364,7 @@
             typeof options.messageOverride === 'string'
                 ? message
                 : rebuildMessageWithMentions(message, aiState.mentionPlacements || []);
-        const attachmentsForRequest = Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments;
+        const attachmentsForRequest = (Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments).slice();
         const mentionedFilesForRequest = Array.isArray(options.mentionedFilesOverride) ? options.mentionedFilesOverride.slice() : (Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : []);
         const mentionedRootsForRequest = options.mentionedRootsOverride && typeof options.mentionedRootsOverride === 'object'
             ? { ...options.mentionedRootsOverride }
@@ -9269,7 +9373,12 @@
             .map((p) => mentionedRootsForRequest[normalizeMentionedFilePath(p)] || '')
             .find(Boolean) || getRootForToolRun();
 
-        if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false);
+        if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false, null, true, attachmentsForRequest, mentionedFilesForRequest);
+        aiState.generationUserMessage = {
+            content: userFacingMessage,
+            attachments: serializePendingAttachments(attachmentsForRequest),
+            mentionedFiles: mentionedFilesForRequest.slice()
+        };
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
             aiState.mentionPlacements = [];
@@ -9340,12 +9449,14 @@
         }
         
         try {
-            const fileData = await loadCurrentFileContent();
-            const openDocPath = fileData?.name || aiState.currentFileName || document.getElementById('viewer')?.dataset?.path || '';
-            if (isExtractableDocumentPath(openDocPath) && !(fileData?.content || '').trim()) {
-                flashStatus(tr('aiDocumentExtractEmpty', 'Could not extract text from the open document. Try read_file in chat/agent mode.'));
-            }
-            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest, mentionedRootsForRequest);
+            const fileData = null;
+            const openDocPath = '';
+            const mentionedContext = await loadMentionedFilesContext(
+                messageWithMentions,
+                '',
+                mentionedFilesForRequest,
+                mentionedRootsForRequest
+            );
             if (Array.isArray(mentionedContext.resolvedPaths) && mentionedContext.resolvedPaths.length) {
                 mentionedFilesForRequest.length = 0;
                 mentionedContext.resolvedPaths.forEach((item) => {
@@ -9364,11 +9475,9 @@
 
             const isAgentMode = aiState.chatMode === 'agent' && isAgentEditorSupported();
             const useAgentTools = isAgentMode && !!window.AIAgentSkeleton?.runAgentLoop;
-            const useChatTools = !useAgentTools && !!window.AIAgentSkeleton?.runAgentLoop;
+            const useChatTools = false;
             const useFileToolContext = useAgentTools || useChatTools;
-            const openDocForTools = normalizeMentionedFilePath(
-                mentionedFilesForRequest[0] || fileData?.name || aiState.currentFileName || openDocPath || ''
-            );
+            const openDocForTools = useAgentTools ? normalizeMentionedFilePath(mentionedFilesForRequest[0] || '') : '';
             completionNotify.mode = useAgentTools ? 'agent' : 'chat';
             if (!isAgentMode && role !== 'general') {
                 messages.push({
@@ -9379,27 +9488,22 @@
 
             if (mentionedContext.files.length > 0) {
                 const filesPayload = mentionedContext.files
-                    .map((file) => {
-                        const body = useFileToolContext
-                            ? truncateForAgentContext(file.content, 6000, file.name)
-                            : file.content;
-                        return `[Referenced file: ${file.name}]\n${body}`;
-                    })
+                    .map((file) => buildFileContextBlock(file, 'Referenced file'))
                     .join('\n\n---\n\n');
 
                 messages.push({
                     role: 'user',
-                    content: `Additional referenced files from the same folder:\n\n${filesPayload}`
+                    content: `Additional referenced files from the same folder:\n\n${filesPayload.slice(0, CONTEXT_LIMITS.maxMentionedChars)}`
                 });
             }
             
             if (!options.skipAttachmentsContext && attachmentsForRequest.length > 0) {
                 const extBlocks = attachmentsForRequest
-                    .map((a) => `[Attached external file: ${a.name}]\n\n${a.content || ''}`)
+                    .map((a) => buildFileContextBlock(a, 'Attached external file'))
                     .join('\n\n---\n\n');
                 messages.push({
                     role: 'user',
-                    content: extBlocks
+                    content: extBlocks.slice(0, CONTEXT_LIMITS.maxMentionedChars)
                 });
             }
 
@@ -9411,7 +9515,7 @@
                 }
             }
 
-            const workspaceHint = buildWorkspaceContextHint(mentionedFilesForRequest, mentionedRootsForRequest, resolvedToolRoot, openDocForTools, attachmentsForRequest);
+            const workspaceHint = useAgentTools ? buildWorkspaceContextHint(mentionedFilesForRequest, mentionedRootsForRequest, resolvedToolRoot, openDocForTools, attachmentsForRequest) : '';
             const userContentWithMentions = messageWithMentions + (useFileToolContext ? workspaceHint : '');
             messages.push({ role: 'user', content: userContentWithMentions });
 
@@ -9420,9 +9524,9 @@
                 const agentMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const mentionPaths = extractMentionedFileNames(messageWithMentions);
                 mentionedFilesForRequest.forEach((p) => mentionPaths.push(p));
-                if (fileData?.name) mentionPaths.push(fileData.name);
                 removeTypingIndicator();
                 addMessageToUI('assistant', '', false, agentMessageId, false);
+                aiState.generationMessageDiv = document.getElementById(agentMessageId);
                 resetAgentRun(agentMessageId, mentionPaths, 'agent');
                 applyToolRunRoleToMessage(agentMessageId);
                 let runOutcome = 'success';
@@ -9666,6 +9770,7 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message ai-message';
             messageDiv.id = messageId;
+            messageDiv.style.display = 'none';
             
             const header = document.createElement('div');
             header.className = 'message-header';
@@ -9682,6 +9787,7 @@
             messageDiv.appendChild(contentContainer);
             
             elements.chat.appendChild(messageDiv);
+            aiState.generationMessageDiv = messageDiv;
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -9719,7 +9825,6 @@
                             if (content) {
                                 if (!gotFirstToken) {
                                     gotFirstToken = true;
-                                    removeTypingIndicator();
                                 }
                                 fullResponse += content;
                                 lastFullResponse = fullResponse;
@@ -9748,6 +9853,12 @@
                                         if (liveIndicator) liveIndicator.remove();
                                     }
                                     currentThinkDiv = null;
+                                }
+
+                                const answerText = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/gi, '').trim();
+                                if (answerText) {
+                                    removeTypingIndicator();
+                                    messageDiv.style.display = '';
                                 }
                                 
                                 const newInner = formatResponseInner(fullResponse, liveThinkBlocks);
@@ -10034,6 +10145,14 @@
     }
 
     function setInputState(disabled) {
+        if (!disabled) {
+            aiState.generatingChatId = '';
+            aiState.generationMessageDiv = null;
+            aiState.generationUserMessage = null;
+            renderAiChatSessions();
+            const manager = document.getElementById('ai-chat-manager-modal');
+            if (manager && !manager.classList.contains('hidden')) renderAiChatManagerList();
+        }
         if (elements.input) elements.input.disabled = false;
         // Keep send button clickable while generating (acts as Stop)
         if (elements.sendBtn) elements.sendBtn.disabled = false;

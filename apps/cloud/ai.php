@@ -163,6 +163,7 @@ if ($action === 'ai_chat_append') {
         'configured' => !empty($config['api_key']),
         'default_model' => $config['default_model'],
         'models' => $config['models'] ?? [],
+        'user_role' => aiLookupUserRole($email),
     ]);
     exit;
 } elseif ($action === 'ai_user_settings_set') {
@@ -536,20 +537,19 @@ function aiMigrateChatSessionsToJson($db, string $email): void {
         }
     } catch (Exception $e) {
     }
-    if ($sessions === []) {
-        $now = time();
-        $sessions[] = ['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now];
-    }
     aiWriteChatSessionsJson($email, $sessions);
 }
 
 function aiLoadChatSessions(string $email, $db = null): array {
     if ($db) aiMigrateChatSessionsToJson($db, $email);
     $sessions = aiReadChatSessionsJson($email);
-    if ($sessions === []) {
-        $now = time();
-        $sessions = [['id' => bin2hex(random_bytes(12)), 'title' => 'New chat', 'created_at' => $now, 'updated_at' => $now]];
-        aiWriteChatSessionsJson($email, $sessions);
+    if ($db && $sessions !== []) {
+        $stmt = aiPrepare($db, "SELECT DISTINCT chat_id FROM " . AI_CHAT_TABLE . " WHERE email = :email AND chat_id IS NOT NULL AND chat_id <> ''");
+        $stmt->bindValue(':email', $email, PDO::PARAM_STR);
+        $res = $stmt->execute();
+        $used = [];
+        while ($res && ($row = $res->fetch(PDO::FETCH_ASSOC))) $used[(string)$row['chat_id']] = true;
+        $sessions = array_values(array_filter($sessions, static fn($session) => isset($used[(string)($session['id'] ?? '')])));
     }
     usort($sessions, static fn($a, $b) => ((int)($b['updated_at'] ?? 0) <=> (int)($a['updated_at'] ?? 0)));
     return array_slice($sessions, 0, 50);
