@@ -74,6 +74,7 @@ cloud_require_session_auth();
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
   <link rel="stylesheet" href="assets/styles.css?v=59" />
+  <link rel="stylesheet" href="assets/app/reviews.css?v=2" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -231,6 +232,7 @@ cloud_require_session_auth();
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
 <script defer src="assets/app.js?v=58"></script>
+<script defer src="assets/app/reviews.js?v=2"></script>
 <script defer src="assets/app/editors-and-tree.js?v=17"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -581,6 +583,14 @@ cloud_require_session_auth();
           <button id="btn-trash-select-all" class="btn secondary small hidden" data-i18n="selectAll"></button>
           <button id="btn-trash-delete-selected" class="btn danger small hidden" data-i18n="deleteSelected"></button>
           <button id="btn-trash-restore-selected" class="btn primary small hidden" data-i18n="restoreSelected"></button>
+          <button id="btn-review" class="icon-btn hidden" type="button" title="Review">
+            <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+              <line x1="8" y1="9" x2="16" y2="9"></line>
+              <line x1="8" y1="13" x2="13" y2="13"></line>
+            </svg>
+            <span id="btn-review-badge" class="crv-badge" hidden></span>
+          </button>
           <button id="btn-ai" class="icon-btn" title="AI Assistant">
             <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round">
               <circle cx="12" cy="12" r="10"></circle>
