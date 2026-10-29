@@ -29,6 +29,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronLeft
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.ShowChart
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
@@ -217,8 +218,8 @@ fun YearExpenseChart(state: AppState) {
             }
         }
         legendSeries?.let { series -> ChartLegendDialog(series) { legendSeries = null } }
-        // The mode switch lives below the graph, never on the edge of the chart.
-        OutlinedButton(
+        // Filled, so it never looks like the legend button above it.
+        Button(
             onClick = { mode = when (mode) { "total" -> "stores"; "stores" -> "categories"; else -> "total" } },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),

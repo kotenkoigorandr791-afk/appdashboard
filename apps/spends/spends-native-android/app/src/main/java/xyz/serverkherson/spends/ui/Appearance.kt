@@ -65,7 +65,7 @@ fun AppearanceScreen(appearance: Appearance, store: SessionStore) {
         if (next.language != appearance.language) (context as? Activity)?.recreate()
     }
     Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.appearance), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.appearance)
         Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(stringResource(R.string.theme), style = MaterialTheme.typography.titleSmall)
