@@ -68,6 +68,7 @@ import xyz.serverkherson.spends.ui.SpendsTheme
 import xyz.serverkherson.spends.ui.StatsHub
 import xyz.serverkherson.spends.ui.StoreDetailScreen
 import xyz.serverkherson.spends.ui.StoresScreen
+import xyz.serverkherson.spends.ui.SubscriptionsScreen
 import xyz.serverkherson.spends.ui.SyncScreen
 import xyz.serverkherson.spends.ui.TagsScreen
 import xyz.serverkherson.spends.ui.TransactionSheet
@@ -185,6 +186,7 @@ class MainActivity : AppCompatActivity() {
                 Dest.Wrapped -> DetailScreen(stringResource(R.string.year_in_review), { dest = null }) { WrappedScreen(state) }
                 Dest.NetWorth -> DetailScreen(stringResource(R.string.net_position), { dest = null }) { NetWorthScreen(state) }
                 Dest.Goals -> DetailScreen(stringResource(R.string.goals), { dest = null }) { GoalsScreen(state, model) }
+                Dest.Subscriptions -> DetailScreen(stringResource(R.string.subscriptions_title), { dest = null }) { SubscriptionsScreen(state, model) }
                 Dest.Tags -> DetailScreen(stringResource(R.string.tags), { dest = null }) { TagsScreen(state, model) }
                 Dest.Trash -> DetailScreen(stringResource(R.string.trash), { dest = null }) { TrashScreen(state, model) }
                 Dest.Pending -> DetailScreen(stringResource(R.string.pending), { dest = null }) { PendingScreen(state, model) }
@@ -205,7 +207,7 @@ class MainActivity : AppCompatActivity() {
                 }
                 Dest.Expense -> selectedExpense?.let { expense ->
                     DetailScreen(expense.store, { dest = if (selectedStore != null) Dest.Store else null; if (dest == null) selectedExpense = null }) {
-                        ExpenseDetailScreen(state, expense) { model.deleteExpense(expense); dest = null; selectedExpense = null }
+                        ExpenseDetailScreen(state, expense, model) { model.deleteExpense(expense); dest = null; selectedExpense = null }
                     }
                 }
                 else -> when (tab) {

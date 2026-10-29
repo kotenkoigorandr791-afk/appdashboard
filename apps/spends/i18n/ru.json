@@ -408,5 +408,6 @@
   "tags_delete_confirm": "Delete this tag?",
   "tags_name_required": "Name is required",
   "tags_save_failed": "Could not save tag",
-  "tags_saved": "Tag saved"
+  "tags_saved": "Tag saved",
+  "chart_by_category": "По категориям"
 }

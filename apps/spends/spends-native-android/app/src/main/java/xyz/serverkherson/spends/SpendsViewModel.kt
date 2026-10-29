@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import xyz.serverkherson.spends.data.BackupEntry
 import xyz.serverkherson.spends.data.BackupFile
+import xyz.serverkherson.spends.data.LocalBackupPayload
 import xyz.serverkherson.spends.data.Expense
 import xyz.serverkherson.spends.data.Goal
 import xyz.serverkherson.spends.data.Income
@@ -29,17 +31,44 @@ data class AppState(
     val error: String? = null,
     val rates: Rates = Rates(),
     val backups: List<BackupFile> = emptyList(),
-)
+    val localBackups: List<BackupFile> = emptyList(),
+) {
+    /** Server and device backups merged by name. */
+    val allBackups: List<BackupEntry>
+        get() {
+            val names = (backups.map { it.name } + localBackups.map { it.name }).distinct()
+            return names.map { name ->
+                val server = backups.firstOrNull { it.name == name }
+                val local = localBackups.firstOrNull { it.name == name }
+                BackupEntry(
+                    name = name,
+                    size = server?.size?.takeIf { it > 0 } ?: local?.size ?: 0,
+                    mtime = maxOf(server?.mtime ?: 0L, local?.mtime ?: 0L),
+                    local = local != null,
+                    server = server != null,
+                )
+            }.sortedByDescending { it.mtime }
+        }
+}
 
 class SpendsViewModel(private val store: SessionStore, private val api: SpendsApi) : ViewModel() {
     private val loading = MutableStateFlow(false)
     private val error = MutableStateFlow<String?>(null)
     private val rates = MutableStateFlow(Rates())
     private val backups = MutableStateFlow<List<BackupFile>>(emptyList())
+    private val localBackups = MutableStateFlow<List<BackupFile>>(emptyList())
+    private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; prettyPrint = false }
     val state: StateFlow<AppState> = combine(store.session, store.snapshot, store.extras, loading, error) { session, snapshot, extras, busy, message ->
         AppState(session, snapshot, extras, busy, message, rates.value, backups.value)
-    }.combine(rates) { s, r -> s.copy(rates = r) }.combine(backups) { s, b -> s.copy(backups = b) }
+    }
+        .combine(rates) { s, r -> s.copy(rates = r) }
+        .combine(backups) { s, b -> s.copy(backups = b) }
+        .combine(localBackups) { s, b -> s.copy(localBackups = b) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppState())
+
+    init {
+        localBackups.value = store.localBackups()
+    }
 
     fun pair(linkOrEndpoint: String, suppliedToken: String = "", done: () -> Unit) = launch {
         val (endpoint, token) = parsePairing(linkOrEndpoint, suppliedToken) ?: return@launch fail("Enter a pairing link or endpoint and token")
@@ -140,6 +169,15 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         run("Could not save tag") { requireOk(api.form(state.value.session, mapOf("save_tag" to "1", "id" to id, "name" to name, "color" to color))); refresh() }
     }
     fun deleteTag(id: String) = launch { run("Could not delete tag") { requireOk(api.form(state.value.session, mapOf("delete_tag" to id))); refresh() } }
+    /** Replaces the tags of one payment; tags are attached per date + store like the web UI. */
+    fun saveExpenseTags(expense: Expense, tagIds: List<String>) = launch {
+        run("Could not tag payment") { api.setExpenseTags(state.value.session, expense.date, expense.store, tagIds); refresh() }
+    }
+    fun toggleExpenseTag(expense: Expense, tagId: String) = launch {
+        val current = state.value.snapshot.expenseTags["${expense.date}\t${expense.store}"].orEmpty()
+        val next = if (tagId in current) current - tagId else current + tagId
+        run("Could not tag payment") { api.setExpenseTags(state.value.session, expense.date, expense.store, next); refresh() }
+    }
     fun saveGoal(goal: Goal) = launch {
         run("Could not save goal") {
             requireOk(api.form(state.value.session, mapOf(
@@ -162,9 +200,44 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         }
     }
     fun deleteSubscription(id: String) = launch { run("Could not delete") { requireOk(api.form(state.value.session, mapOf("delete_subscription" to id))); refresh() } }
-    fun saveBackup(name: String) = launch { run("Could not backup") { requireOk(api.form(state.value.session, mapOf("backup_action" to "save", "backup_name" to name))); backups.value = api.backups(state.value.session) } }
-    fun restoreBackup(file: String) = launch { run("Could not restore") { requireOk(api.form(state.value.session, mapOf("backup_action" to "restore", "backup_file" to file))); refresh() } }
-    fun deleteBackup(file: String) = launch { run("Could not delete backup") { requireOk(api.form(state.value.session, mapOf("backup_action" to "delete", "backup_file" to file))); backups.value = api.backups(state.value.session) } }
+    /** Saves a backup both on the device and on the paired server. */
+    fun saveBackup(name: String) = launch {
+        if (name.isBlank()) return@launch fail("Backup name required")
+        run("Could not backup") {
+            val payload = json.encodeToString(
+                LocalBackupPayload.serializer(),
+                LocalBackupPayload(state.value.snapshot, state.value.extras),
+            )
+            store.writeLocalBackup(name, payload)
+            localBackups.value = store.localBackups()
+            runCatching {
+                requireOk(api.form(state.value.session, mapOf("backup_action" to "save", "backup_name" to name)))
+                backups.value = api.backups(state.value.session)
+            }
+        }
+    }
+    fun restoreBackup(file: String) = launch {
+        run("Could not restore") {
+            val local = store.readLocalBackup(file)
+            if (local != null) {
+                val payload = json.decodeFromString(LocalBackupPayload.serializer(), local)
+                store.saveSnapshot(payload.snapshot)
+                store.saveExtras(payload.extras)
+            }
+            runCatching { requireOk(api.form(state.value.session, mapOf("backup_action" to "restore", "backup_file" to file))) }
+            refresh()
+        }
+    }
+    fun deleteBackup(file: String) = launch {
+        run("Could not delete backup") {
+            store.deleteLocalBackup(file)
+            localBackups.value = store.localBackups()
+            runCatching {
+                requireOk(api.form(state.value.session, mapOf("backup_action" to "delete", "backup_file" to file)))
+                backups.value = api.backups(state.value.session)
+            }
+        }
+    }
     fun testConnection(done: (Boolean) -> Unit) = launch {
         val session = state.value.session
         runCatching { api.profile(session.endpoint, session.token); done(true) }.onFailure { done(false) }
