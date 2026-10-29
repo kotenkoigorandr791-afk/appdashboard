@@ -201,6 +201,101 @@
         return div.innerHTML;
     }
 
+    function getLinksFromText(text) {
+        const links = [];
+        const pattern = /https?:\/\/[^\s<>"'`]+/gi;
+        let match;
+        while ((match = pattern.exec(String(text || '')))) {
+            const href = match[0].replace(/[),.!?:;]+$/, '');
+            try {
+                const url = new URL(href);
+                if (!/^https?:$/.test(url.protocol)) continue;
+                links.push({ raw: href, href: url.href, domain: url.hostname.replace(/^www\./i, '') });
+            } catch (_) {}
+        }
+        return links;
+    }
+
+    function getUniqueLinks(text) {
+        const links = getLinksFromText(text);
+        const seen = new Set();
+        return links.filter((link) => {
+            if (seen.has(link.href)) return false;
+            seen.add(link.href);
+            return true;
+        });
+    }
+
+    function getFaviconCandidates(host) {
+        try {
+            const url = new URL(host);
+            const domain = url.hostname.replace(/^www\./i, '');
+            return [
+                `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                `https://www.google.com/s2/favicons?sz=32&domain=${encodeURIComponent(domain)}`,
+                new URL('/favicon.ico', url).href
+            ];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function createLinkCard(link) {
+        const card = document.createElement('a');
+        card.className = 'ai-link-card';
+        card.href = link.href;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.title = link.href;
+        const icon = document.createElement('img');
+        icon.className = 'ai-link-card-icon';
+        icon.alt = '';
+        icon.loading = 'eager';
+        icon.referrerPolicy = 'no-referrer';
+        const candidates = getFaviconCandidates(link.href);
+        let idx = 0;
+        const tryNext = () => {
+            idx += 1;
+            if (idx < candidates.length) {
+                icon.src = candidates[idx];
+            } else {
+                icon.style.display = 'none';
+            }
+        };
+        if (candidates.length) {
+            icon.addEventListener('error', tryNext);
+            icon.addEventListener('load', () => { if (icon.naturalWidth === 0) tryNext(); });
+            icon.src = candidates[0];
+        } else {
+            icon.style.display = 'none';
+        }
+        const domain = document.createElement('span');
+        domain.className = 'ai-link-card-domain';
+        domain.textContent = link.domain;
+        card.append(icon, domain);
+        return card;
+    }
+
+    function createUserMessageContent(content) {
+        const fragment = document.createDocumentFragment();
+        const text = String(content || '');
+        const links = getLinksFromText(text);
+        let offset = 0;
+        links.forEach((link) => {
+            const index = text.indexOf(link.raw, offset);
+            if (index < 0) return;
+            fragment.append(document.createTextNode(text.slice(offset, index)), createLinkCard(link));
+            offset = index + link.raw.length;
+        });
+        fragment.append(document.createTextNode(text.slice(offset)));
+        return fragment;
+    }
+
+    function renderLinkPreviews(text) {
+        if (!elements.linkPreviews) return;
+        elements.linkPreviews.replaceChildren(...getUniqueLinks(text).slice(0, 4).map(createLinkCard));
+    }
+
     function logAiError(context, err) {
         if (err instanceof Error) {
             console.error(`[AI] ${context}: ${err.message}`, err.stack || '');
@@ -1183,6 +1278,42 @@
                 flex: 1 1 auto !important;
                 order: 2 !important;
             }
+            .ai-link-previews {
+                display: flex !important;
+                flex: 0 0 100% !important;
+                flex-wrap: wrap !important;
+                gap: 6px !important;
+                order: 1 !important;
+            }
+            .ai-link-previews:empty { display: none !important; }
+            .ai-link-card {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                max-width: 100%;
+                padding: 5px 8px;
+                border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+                border-radius: 8px;
+                background: color-mix(in srgb, var(--panel) 68%, transparent);
+                color: var(--text);
+                font-size: 12px;
+                line-height: 16px;
+                text-decoration: none;
+                vertical-align: middle;
+            }
+            .ai-link-card:hover { background: var(--panel); }
+            .ai-link-card-icon {
+                width: 16px;
+                height: 16px;
+                flex: 0 0 16px;
+                border-radius: 3px;
+            }
+            .ai-link-card-domain {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .message.user-message .ai-link-card { margin: 1px 2px; }
             #btn-ai-send {
                 border-radius: 999px !important;
                 width: 38px !important;
@@ -2950,7 +3081,8 @@
             mentionSuggestions: document.getElementById('mention-suggestions'),
             rememberCheckbox: document.getElementById('ai-remember-prev'),
             notifyCheckbox: document.getElementById('ai-notify-complete'),
-            attachmentsRow: document.getElementById('ai-attachments-row')
+            attachmentsRow: document.getElementById('ai-attachments-row'),
+            linkPreviews: document.getElementById('ai-link-previews')
         };
         
         ensureElementsExist();
@@ -2963,6 +3095,7 @@
         elements.modeSelect = document.getElementById('ai-mode-select') || elements.modeSelect;
         elements.settingsBtn = document.getElementById('btn-ai-settings') || elements.settingsBtn;
         elements.settingsModal = document.getElementById('ai-controls-modal') || elements.settingsModal;
+        elements.linkPreviews = document.getElementById('ai-link-previews') || elements.linkPreviews;
         ensureChatSessionControls();
         
         if (elements.modelSelect) {
@@ -2998,6 +3131,16 @@
                 attachmentsRow.className = 'ai-attachments-row hidden';
                 aiInput.insertBefore(attachmentsRow, elements.input);
                 elements.attachmentsRow = attachmentsRow;
+            }
+        }
+        if (!elements.linkPreviews) {
+            const aiInput = modalContent.querySelector('.ai-input');
+            if (aiInput && elements.input) {
+                const previews = document.createElement('div');
+                previews.id = 'ai-link-previews';
+                previews.className = 'ai-link-previews';
+                aiInput.insertBefore(previews, elements.input);
+                elements.linkPreviews = previews;
             }
         }
         
@@ -3326,6 +3469,11 @@
         if (elements.input) {
             elements.input.addEventListener('keydown', handleInputKeydown);
             elements.input.addEventListener('input', handleMentionInput);
+            elements.input.addEventListener('input', () => renderLinkPreviews(elements.input.value));
+            elements.input.addEventListener('paste', () => {
+                requestAnimationFrame(() => renderLinkPreviews(elements.input.value));
+            });
+            renderLinkPreviews(elements.input.value);
             setupAiTreeDropZone();
         }
 
@@ -8489,7 +8637,7 @@
         if (role === 'user') {
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.textContent = content;
+            contentDiv.appendChild(createUserMessageContent(content));
             messageDiv.appendChild(contentDiv);
             const attached = serializePendingAttachments(attachments || []);
             const mentioned = (Array.isArray(mentionedFiles) ? mentionedFiles : []).filter(Boolean);
@@ -9381,6 +9529,7 @@
         };
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
+            renderLinkPreviews('');
             aiState.mentionPlacements = [];
             aiState.selectedMentionFiles = [];
             aiState.mentionedFileRoots = {};
