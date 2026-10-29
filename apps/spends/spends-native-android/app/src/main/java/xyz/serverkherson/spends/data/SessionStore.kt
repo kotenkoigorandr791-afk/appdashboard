@@ -28,6 +28,9 @@ class SessionStore(private val context: Context) {
     suspend fun saveSnapshot(value: Snapshot) = save(snapshotKey, Snapshot.serializer(), value)
     suspend fun saveExtras(value: LocalExtras) = save(extrasKey, LocalExtras.serializer(), value)
     suspend fun saveAppearance(value: Appearance) = save(appearanceKey, Appearance.serializer(), value)
+
+    /** Synchronous mirror of the chosen language, read from attachBaseContext. */
+    fun cacheLanguage(language: String) = xyz.serverkherson.spends.AppLocale.store(context, language)
     suspend fun addLog(log: SyncLog) {
         val next = (listOf(log) + decodeList(context.spendsDataStore.data.first(), logsKey)).take(200)
         context.spendsDataStore.edit { it[logsKey] = json.encodeToString(kotlinx.serialization.builtins.ListSerializer(SyncLog.serializer()), next) }
