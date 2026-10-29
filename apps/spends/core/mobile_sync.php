@@ -188,6 +188,8 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         'goals' => function_exists('spendsGoalList') ? spendsGoalList($udb, true) : [],
         'tags' => function_exists('spendsTagList') ? spendsTagList($udb) : [],
         'known_signatures' => $known,
+        // Tag ids per payment: "YYYY-MM-DD\tstore" => [tag id, ...]
+        'expense_tags' => function_exists('spendsExpenseTagsFor') ? spendsExpenseTagsFor($udb, '0000-01-01', '9999-12-31') : [],
     ];
 }
 
@@ -368,6 +370,21 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
                 $updated++;
             } else {
                 $errors[] = ['goal' => $goalRow, 'error' => $res['message'] ?? 'goal_failed'];
+            }
+        }
+    }
+
+    // Per-payment tags: [{"date":"2026-10-29","store":"Lidl","tags":["tag-id"]}]
+    if (!empty($payload['expense_tags']) && is_array($payload['expense_tags']) && function_exists('spendsExpenseTagsSet')) {
+        foreach ($payload['expense_tags'] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $res = spendsExpenseTagsSet($udb, (string)($row['date'] ?? ''), (string)($row['store'] ?? ''), (array)($row['tags'] ?? []));
+            if (($res['status'] ?? '') === 'success') {
+                $updated++;
+            } else {
+                $errors[] = ['expense_tags' => $row, 'error' => $res['message'] ?? 'tag_failed'];
             }
         }
     }

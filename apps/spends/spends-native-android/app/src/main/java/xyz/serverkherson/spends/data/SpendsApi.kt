@@ -3,8 +3,10 @@ package xyz.serverkherson.spends.data
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -57,6 +59,10 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
             Store(o.text("id"), o.text("name"), o.text("category", "other"), o["visible"]?.jsonPrimitive?.booleanOrNull != false, xyz.serverkherson.spends.ui.rebaseUrl(o.text("photo_url"), session.endpoint))
         }
         val cats = root["store_categories"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content }
+        // PHP encodes an empty map as [] — accept both shapes.
+        val expenseTags = (root["expense_tags"] as? JsonObject)?.mapValues { (_, value) ->
+            (value as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
+        } ?: emptyMap()
         val years = root["years"]?.jsonArray.orEmpty().mapNotNull { it.jsonPrimitive.intOrNull }
         val subscriptions = root["subscriptions"]?.jsonArray.orEmpty().map {
             val o = it.jsonObject
@@ -70,10 +76,17 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
         Snapshot(
             settings?.text("currency", "USD") ?: "USD",
             settings?.number("monthly_budget") ?: 0.0,
-            expenses, incomes, stores, cats, years, subscriptions, goals, tags,
+            expenses, incomes, stores, cats, years, subscriptions, goals, tags, expenseTags,
             SettingsFlags(settings?.number("monthly_budget") ?: 0.0, settings?.text("currency", "USD") ?: "USD", settings?.flag("show_incomes") ?: true, settings?.flag("show_trend") ?: false, settings?.flag("trim_empty_months") ?: false),
             System.currentTimeMillis(),
         )
+    }
+
+    /** Replaces the tag ids attached to one payment (date + store). */
+    suspend fun setExpenseTags(session: Session, date: String, store: String, tagIds: List<String>) = withContext(Dispatchers.IO) {
+        val tagsJson = tagIds.joinToString(",") { "\"${it.escape()}\"" }
+        val body = """{"expense_tags":[{"date":"${date.escape()}","store":"${store.escape()}","tags":[$tagsJson]}]}"""
+        pushJson(session, body)
     }
 
     suspend fun pushJson(session: Session, body: String) = withContext(Dispatchers.IO) {
@@ -177,13 +190,14 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
     fun expenseJson(e: Expense, mode: String = "force") = """{"date":"${e.date.escape()}","store":"${e.store.escape()}","amount":${e.amount},"source":"${e.entrySource.escape()}","mode":"$mode","raw":"${e.ocrRawStore.escape()}"}"""
     fun incomeJson(i: Income, mode: String = "force") = """{"date":"${i.date.escape()}","amount":${i.amount},"mode":"$mode"}"""
 
-    private fun ocrUrl(session: Session, api: String) = "${session.endpoint}/utils/expense_ocr_app.php?api=$api"
+    // The router exposes the OCR worker under /ocr/{action}; a deep .php path
+    // below /api is not routed and used to answer 404.
+    private fun ocrUrl(session: Session, api: String) = "${session.endpoint}/ocr/$api"
 
     suspend fun ocrStart(session: Session, files: List<Pair<String, ByteArray>>): JsonObject = withContext(Dispatchers.IO) {
         val body = MultipartBody.Builder().setType(MultipartBody.FORM)
         files.forEach { (name, bytes) ->
             body.addFormDataPart("photos[]", name, bytes.toRequestBody("image/jpeg".toMediaType()))
-            body.addFormDataPart("photos", name, bytes.toRequestBody("image/jpeg".toMediaType()))
         }
         val req = Request.Builder().url(ocrUrl(session, "start")).header("Authorization", "Bearer ${session.token}").header("Accept", "application/json").post(body.build()).build()
         execute(req, "POST", ocrUrl(session, "start"), "${files.size} files")
