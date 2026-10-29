@@ -36,14 +36,18 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import xyz.serverkherson.spends.AppState
+import xyz.serverkherson.spends.R
 import xyz.serverkherson.spends.SpendsViewModel
 
 @Composable
 fun PairingScreen(initialLink: String, model: SpendsViewModel) {
+    val context = LocalContext.current
     var link by remember(initialLink) { mutableStateOf(initialLink) }
     val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
         result.contents?.takeIf { it.isNotBlank() }?.let { model.pair(it, "") {} }
@@ -56,21 +60,21 @@ fun PairingScreen(initialLink: String, model: SpendsViewModel) {
                     Surface(modifier = Modifier.size(56.dp), shape = CircleShape, color = MaterialTheme.colorScheme.errorContainer) {
                         Icon(Icons.Filled.CloudOff, null, Modifier.padding(12.dp), tint = Color(0xFFFFC107))
                     }
-                    Text("Connect to AppDashboard", style = MaterialTheme.typography.titleMedium)
-                    Text("Scan the pairing QR from Spends on the web, or paste the spends://auth link.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.pair_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.pair_desc), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Button({
                         scanner.launch(ScanOptions().apply {
                             setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            setPrompt("Scan pairing QR")
+                            setPrompt(context.getString(R.string.pair_scan_prompt))
                             setBeepEnabled(false)
                             setOrientationLocked(true)
                         })
                     }, Modifier.fillMaxWidth()) {
                         Icon(Icons.Filled.QrCodeScanner, null)
-                        Text("Scan QR", Modifier.padding(start = 8.dp))
+                        Text(stringResource(R.string.pair_scan), Modifier.padding(start = 8.dp))
                     }
-                    OutlinedTextField(link, { link = it }, Modifier.fillMaxWidth(), label = { Text("Pairing link") })
-                    Button({ model.pair(link, "") {} }, Modifier.fillMaxWidth()) { Text("Connect") }
+                    OutlinedTextField(link, { link = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.pair_link_label)) })
+                    Button({ model.pair(link, "") {} }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.pair_connect)) }
                 }
             }
         }
@@ -103,15 +107,15 @@ fun ConnectionCard(state: AppState, model: SpendsViewModel) {
                 if (testing) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                     Spacer(Modifier.size(8.dp))
-                    Text("Testing…")
+                    Text(stringResource(R.string.pair_testing))
                 } else {
                     Icon(Icons.Filled.CloudDone, null)
-                    Text("Test connection", Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.pair_test), Modifier.padding(start = 8.dp))
                 }
             }
             OutlinedButton(model::logout, Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.LinkOff, null)
-                Text("Disconnect", Modifier.padding(start = 8.dp))
+                Text(stringResource(R.string.disconnect), Modifier.padding(start = 8.dp))
             }
         }
     }

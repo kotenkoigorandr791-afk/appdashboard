@@ -45,12 +45,18 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         val (endpoint, token) = parsePairing(linkOrEndpoint, suppliedToken) ?: return@launch fail("Enter a pairing link or endpoint and token")
         run("Could not pair") { store.saveSession(api.profile(endpoint, token)); refresh(); done() }
     }
-    fun refresh() = launch {
+    fun refresh() = launch { pull(quiet = false) }
+
+    /** Background pull used by the periodic sync: never shows the loading indicator. */
+    fun refreshQuietly() = launch { pull(quiet = true) }
+
+    private suspend fun pull(quiet: Boolean) {
         val session = state.value.session
-        if (session.token.isBlank()) return@launch
-        run("Could not refresh") {
-            store.saveSnapshot(api.pull(session))
-            runCatching { rates.value = api.rates(session, state.value.snapshot.currency) }
+        if (session.token.isBlank() || session.endpoint.isBlank()) return
+        run("Could not refresh", quiet) {
+            val fresh = api.pull(session)
+            store.saveSnapshot(fresh)
+            runCatching { rates.value = api.rates(session, fresh.currency.ifBlank { "USD" }) }
             runCatching { backups.value = api.backups(session) }
         }
     }
@@ -99,12 +105,29 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         addExpense(item.date, item.store, item.amount.toString(), "wallet")
         store.saveExtras(store.extrasNow().copy(pending = store.extrasNow().pending.filterNot { it.at == item.at && it.store == item.store }))
     }
+    fun updatePendingStore(item: PendingCapture, storeName: String) = launch {
+        if (storeName.isBlank()) return@launch
+        val extras = store.extrasNow()
+        store.saveExtras(extras.copy(pending = extras.pending.map {
+            if (it.at == item.at && it.store == item.store) it.copy(store = storeName) else it
+        }))
+    }
     fun dismissPending(item: PendingCapture) = launch {
         store.saveExtras(store.extrasNow().copy(pending = store.extrasNow().pending.filterNot { it.at == item.at && it.store == item.store }))
     }
-    fun saveStore(name: String, category: String) = launch {
+    fun saveStore(name: String, category: String, photo: ByteArray? = null) = launch {
         if (name.isBlank()) return@launch fail("Store name required")
-        run("Could not save store") { api.pushJson(state.value.session, """{"stores":[{"name":"${name.replace("\"","")}","category":"$category"}]}"""); refresh() }
+        run("Could not save store") {
+            val result = api.saveStore(
+                session = state.value.session,
+                id = System.currentTimeMillis().toString(),
+                name = name.replace("\"", ""),
+                category = category.ifBlank { "other" },
+                photo = photo,
+            )
+            requireOk(result)
+            refresh()
+        }
     }
     fun saveSettings(budget: String, currency: String, showIncomes: Boolean, showTrend: Boolean, trimEmpty: Boolean) = launch {
         val b = budget.replace(',', '.').toDoubleOrNull() ?: return@launch fail("Budget must be a number")
@@ -153,10 +176,11 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         if (status != "success" && status != "ok") error(obj["message"]?.toString()?.trim('"') ?: "Request failed")
     }
     private fun launch(block: suspend () -> Unit) = viewModelScope.launch { block() }
-    private suspend fun run(fallback: String, block: suspend () -> Unit) {
-        loading.value = true; error.value = null
+    private suspend fun run(fallback: String, quiet: Boolean = false, block: suspend () -> Unit) {
+        if (!quiet) loading.value = true
+        error.value = null
         runCatching { block() }.onFailure { error.value = it.message?.takeIf(String::isNotBlank) ?: fallback }
-        loading.value = false
+        if (!quiet) loading.value = false
     }
     private fun fail(message: String) { error.value = message }
     fun parsePairing(value: String, suppliedToken: String): Pair<String, String>? {

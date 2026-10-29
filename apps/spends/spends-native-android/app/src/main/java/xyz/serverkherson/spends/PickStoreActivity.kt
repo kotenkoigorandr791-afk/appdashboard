@@ -1,9 +1,10 @@
 package xyz.serverkherson.spends
 
+import android.content.Context
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.clickable
@@ -33,9 +34,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import xyz.serverkherson.spends.R
 import xyz.serverkherson.spends.data.Appearance
 import xyz.serverkherson.spends.data.Snapshot
 import xyz.serverkherson.spends.data.Store
@@ -43,7 +46,11 @@ import xyz.serverkherson.spends.ui.AppBackground
 import xyz.serverkherson.spends.ui.RemotePhoto
 import xyz.serverkherson.spends.ui.SpendsTheme
 
-class PickStoreActivity : ComponentActivity() {
+class PickStoreActivity : AppCompatActivity() {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -76,8 +83,8 @@ private fun PickStoreScreen(stores: List<Store>, onBack: () -> Unit, onPick: (St
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(title = { Text("Choose store") }, navigationIcon = {
-                IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") }
+            TopAppBar(title = { Text(stringResource(R.string.choose_store)) }, navigationIcon = {
+                IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
             })
         },
     ) { padding ->
