@@ -17,6 +17,13 @@ class SpendsApplication : Application(), ImageLoaderFactory {
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val store by lazy { SessionStore(this) }
     val api by lazy { SpendsApi { log -> io.launch { store.addLog(log) } } }
+
+    override fun onCreate() {
+        super.onCreate()
+        // Mirror the stored language so every activity can apply it in attachBaseContext.
+        runCatching { runBlocking { AppLocale.store(this@SpendsApplication, store.appearance.first().language) } }
+    }
+
     override fun newImageLoader(): ImageLoader = ImageLoader.Builder(this)
         .okHttpClient {
             OkHttpClient.Builder().addInterceptor { chain ->

@@ -1,5 +1,6 @@
 package xyz.serverkherson.spends.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
@@ -11,27 +12,27 @@ import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalView
-import androidx.core.view.WindowCompat
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.DrawScope
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.rotate
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
+import androidx.core.view.WindowCompat
 import xyz.serverkherson.spends.data.Appearance
-import kotlin.math.cos
-import kotlin.math.sin
 
 object SpendsColors {
     val Income = Color(0xFF1FAF75)
     val Expense = Color(0xFFE24B63)
+    val IncomeDark = Color(0xFF5AE0A8)
+    val ExpenseDark = Color(0xFFFF8A9B)
+
+    /** Positive amount color that stays legible in both themes. */
+    @Composable fun income(): Color = if (isSystemInDarkTheme()) IncomeDark else Color(0xFF0F8A5B)
+
+    /** Negative amount color that stays legible in both themes. */
+    @Composable fun expense(): Color = if (isSystemInDarkTheme()) ExpenseDark else Color(0xFFC62442)
 }
 
 private val Type = Typography(
@@ -49,37 +50,91 @@ fun accentColor(name: String, dark: Boolean): Color = when (name) {
     "pink" -> if (dark) Color(0xFFFF8BC7) else Color(0xFFD81B60)
     "purple" -> if (dark) Color(0xFFD0BCFF) else Color(0xFF7E57C2)
     "gray" -> if (dark) Color(0xFFCBD5E1) else Color(0xFF475569)
-    else -> if (dark) Color(0xFF8AB4F8) else Color(0xFF4285F4)
-}
-
-fun accentLabel(name: String) = when (name) {
-    "teal" -> "Teal"
-    "orange" -> "Orange"
-    "pink" -> "Pink"
-    "purple" -> "Purple"
-    "gray" -> "Gray"
-    else -> "Blue"
+    else -> if (dark) Color(0xFF8AB4F8) else Color(0xFF2F6FE0)
 }
 
 @Composable
+fun accentLabel(name: String): String = androidx.compose.ui.res.stringResource(
+    when (name) {
+        "teal" -> xyz.serverkherson.spends.R.string.accent_teal
+        "orange" -> xyz.serverkherson.spends.R.string.accent_orange
+        "pink" -> xyz.serverkherson.spends.R.string.accent_pink
+        "purple" -> xyz.serverkherson.spends.R.string.accent_purple
+        "gray" -> xyz.serverkherson.spends.R.string.accent_gray
+        else -> xyz.serverkherson.spends.R.string.accent_blue
+    }
+)
+
+@Composable
 fun SpendsTheme(appearance: Appearance, content: @Composable () -> Unit) {
+    val systemDark = isSystemInDarkTheme()
     val dark = when (appearance.theme) {
         "dark" -> true
         "light" -> false
-        else -> isSystemInDarkTheme()
+        else -> systemDark
     }
     val accent = accentColor(appearance.accent, dark)
     val scheme = if (dark) {
-        darkColorScheme(primary = accent, secondary = Color(0xFFB8C5D0), tertiary = accent, background = Color(0xFF0E0E14), surface = Color(0xFF15151E), surfaceVariant = Color(0xFF242433))
+        darkColorScheme(
+            primary = accent,
+            onPrimary = Color(0xFF0B0E13),
+            primaryContainer = lerp(Color(0xFF15151E), accent, 0.22f),
+            onPrimaryContainer = accent,
+            secondary = Color(0xFF9AA6B8),
+            onSecondary = Color(0xFF0B0E13),
+            secondaryContainer = Color(0xFF232C38),
+            onSecondaryContainer = Color(0xFFD7DEE8),
+            tertiary = accent,
+            onTertiary = Color(0xFF0B0E13),
+            background = Color(0xFF0E0E14),
+            onBackground = Color(0xFFECEEF4),
+            surface = Color(0xFF17171F),
+            onSurface = Color(0xFFECEEF4),
+            surfaceVariant = Color(0xFF23232F),
+            onSurfaceVariant = Color(0xFFB9C0CE),
+            outline = Color(0xFF50505F),
+            outlineVariant = Color(0xFF33333F),
+            error = Color(0xFFFF8A9B),
+            onError = Color(0xFF2A0710),
+            errorContainer = Color(0xFF4A1420),
+            onErrorContainer = Color(0xFFFFD9DF),
+            inverseSurface = Color(0xFFECEEF4),
+            inverseOnSurface = Color(0xFF17171F),
+        )
     } else {
-        lightColorScheme(primary = accent, secondary = Color(0xFF5F6368), tertiary = accent, background = Color(0xFFF4F2FB), surface = Color(0xFFFBF9FF), surfaceVariant = Color(0xFFE8EEF6))
+        lightColorScheme(
+            primary = accent,
+            onPrimary = Color.White,
+            primaryContainer = lerp(Color.White, accent, 0.20f),
+            onPrimaryContainer = lerp(accent, Color.Black, 0.35f),
+            secondary = Color(0xFF4B5563),
+            onSecondary = Color.White,
+            secondaryContainer = Color(0xFFE4E8EF),
+            onSecondaryContainer = Color(0xFF1F2733),
+            tertiary = accent,
+            onTertiary = Color.White,
+            background = Color(0xFFF4F2FB),
+            onBackground = Color(0xFF171A20),
+            surface = Color(0xFFFDFCFF),
+            onSurface = Color(0xFF171A20),
+            surfaceVariant = Color(0xFFE7ECF4),
+            onSurfaceVariant = Color(0xFF49515E),
+            outline = Color(0xFF8B93A1),
+            outlineVariant = Color(0xFFD3D9E3),
+            error = Color(0xFFB3261E),
+            onError = Color.White,
+            errorContainer = Color(0xFFFFE1DE),
+            onErrorContainer = Color(0xFF5F1510),
+            inverseSurface = Color(0xFF171A20),
+            inverseOnSurface = Color(0xFFF6F7FB),
+        )
     }.let { base ->
-        if (dark && appearance.amoled) base.copy(background = Color.Black, surface = Color.Black, surfaceVariant = Color.Black, primaryContainer = Color.Black)
+        if (dark && appearance.amoled) base.copy(background = Color.Black, surface = Color(0xFF0B0B10), surfaceVariant = Color(0xFF16161E))
         else base
     }
     val view = LocalView.current
     SideEffect {
-        val window = (view.context as android.app.Activity).window
+        val window = (view.context as? android.app.Activity)?.window ?: return@SideEffect
         window.decorView.setBackgroundColor(if (dark) 0xFF0E0E14.toInt() else 0xFFF4F2FB.toInt())
         WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !dark
         WindowCompat.getInsetsController(window, view).isAppearanceLightNavigationBars = !dark
@@ -88,47 +143,25 @@ fun SpendsTheme(appearance: Appearance, content: @Composable () -> Unit) {
 }
 
 @Composable
-fun canvasBrush(): Brush {
-    val scheme = MaterialTheme.colorScheme
-    return Brush.verticalGradient(listOf(scheme.background, scheme.background))
-}
+fun canvasBrush(): Brush = Brush.verticalGradient(listOf(MaterialTheme.colorScheme.background, MaterialTheme.colorScheme.background))
 
+/** Flat, animated-free background. Content is drawn over a solid themed surface. */
 @Composable
 fun AppBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    val bg = MaterialTheme.colorScheme.background
-    val ink = MaterialTheme.colorScheme.onBackground
-    Box(
-        modifier.fillMaxSize().drawBehind {
-            drawRect(bg)
-            val c = Offset(size.width * 0.82f, size.height * 0.18f)
-            val s = size.minDimension * 0.16f
-            drawLeafMark(c, s, ink.copy(alpha = 0.06f))
-            drawLeafMark(Offset(size.width * 0.16f, size.height * 0.78f), s * 0.85f, ink.copy(alpha = 0.045f))
-        },
-        content = content,
-    )
+    // Without this, text inside a transparent Scaffold falls back to black, which is
+    // unreadable on dark backgrounds. Every screen inherits this content color.
+    androidx.compose.runtime.CompositionLocalProvider(
+        androidx.compose.material3.LocalContentColor provides MaterialTheme.colorScheme.onBackground,
+    ) {
+        Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background), content = content)
+    }
 }
 
-private fun DrawScope.drawLeafMark(center: Offset, scale: Float, color: Color) {
-    val leaf = Path().apply {
-        moveTo(center.x, center.y - scale * 0.55f)
-        cubicTo(center.x + scale * 0.42f, center.y - scale * 0.2f, center.x + scale * 0.38f, center.y + scale * 0.28f, center.x, center.y + scale * 0.52f)
-        cubicTo(center.x - scale * 0.38f, center.y + scale * 0.28f, center.x - scale * 0.42f, center.y - scale * 0.2f, center.x, center.y - scale * 0.55f)
-        close()
-    }
-    drawPath(leaf, color, style = Stroke(width = 3.2f, cap = StrokeCap.Round))
-    drawLine(color, Offset(center.x, center.y - scale * 0.4f), Offset(center.x, center.y + scale * 0.42f), 2.4f, StrokeCap.Round)
-    val radius = scale * 0.92f
-    for (i in 0 until 4) {
-        val a = Math.toRadians((-40.0 + i * 90.0))
-        val tip = Offset(center.x + (cos(a) * radius).toFloat(), center.y + (sin(a) * radius).toFloat())
-        rotate((Math.toDegrees(a) + 90).toFloat(), tip) {
-            val shaft = scale * 0.18f
-            drawLine(color, Offset(tip.x, tip.y + shaft * 0.45f), Offset(tip.x, tip.y - shaft * 0.55f), 2.2f, StrokeCap.Round)
-            drawLine(color, Offset(tip.x, tip.y - shaft * 0.55f), Offset(tip.x - shaft * 0.22f, tip.y - shaft * 0.18f), 2.2f, StrokeCap.Round)
-            drawLine(color, Offset(tip.x, tip.y - shaft * 0.55f), Offset(tip.x + shaft * 0.22f, tip.y - shaft * 0.18f), 2.2f, StrokeCap.Round)
-        }
-    }
+/** Gradient used by the hero card; text on it always uses [MaterialTheme.colorScheme.onPrimary]. */
+@Composable
+fun heroBrush(): Brush {
+    val primary = MaterialTheme.colorScheme.primary
+    return Brush.linearGradient(listOf(primary, lerp(primary, Color.Black, 0.32f)))
 }
 
 fun money(amount: Double, currency: String) = "${"%,.2f".format(amount)} $currency"

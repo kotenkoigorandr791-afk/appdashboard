@@ -39,7 +39,12 @@ import kotlinx.serialization.Serializable
     val syncedAt: Long = 0,
 )
 @Serializable data class LocalExtras(val pending: List<PendingCapture> = emptyList(), val trash: List<Expense> = emptyList())
-@Serializable data class Rates(val base: String = "USD", val rates: Map<String, Double> = emptyMap())
+@Serializable data class Rates(
+    val base: String = "USD",
+    val rates: Map<String, Double> = emptyMap(),
+    val updatedAt: Long = 0,
+    val history: Map<String, List<Double>> = emptyMap(),
+)
 @Serializable data class Appearance(
     val theme: String = "auto",
     val amoled: Boolean = false,

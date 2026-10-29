@@ -95,7 +95,49 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
     suspend fun rates(session: Session, base: String): Rates = withContext(Dispatchers.IO) {
         val o = json.parseToJsonElement(request("GET", "${session.endpoint}?get_exchange_rates=1&base=$base", session.token)).jsonObject
         if (o.text("status") != "success") error(o.text("message", "Rates unavailable"))
-        Rates(o.text("base", base), o["rates"]?.jsonObject?.mapValues { it.value.jsonPrimitive.doubleOrNull ?: 0.0 } ?: emptyMap())
+        val history = runCatching { rateHistory(session, base) }.getOrDefault(emptyMap())
+        Rates(
+            base = o.text("base", base),
+            rates = o["rates"]?.jsonObject?.mapValues { it.value.jsonPrimitive.doubleOrNull ?: 0.0 } ?: emptyMap(),
+            updatedAt = o["timestamp"]?.jsonPrimitive?.longOrNull ?: System.currentTimeMillis() / 1000,
+            history = history,
+        )
+    }
+
+    /** Daily series per currency for the sparkline charts; empty when the server has no history. */
+    private suspend fun rateHistory(session: Session, base: String, days: Int = 14): Map<String, List<Double>> =
+        withContext(Dispatchers.IO) {
+            val o = json.parseToJsonElement(request("GET", "${session.endpoint}?get_exchange_history=1&base=$base&days=$days", session.token)).jsonObject
+            if (o.text("status") != "success") return@withContext emptyMap()
+            val history = o["history"]?.jsonObject ?: return@withContext emptyMap()
+            history.mapValues { (_, series) ->
+                (series as? JsonObject)?.values?.mapNotNull { it.jsonPrimitive?.doubleOrNull } ?: emptyList()
+            }.filterValues { it.size > 1 }
+        }
+
+    /** Creates or updates a store, uploading the photo as multipart exactly like the web UI. */
+    suspend fun saveStore(
+        session: Session,
+        id: String,
+        name: String,
+        category: String,
+        photo: ByteArray?,
+    ): JsonObject = withContext(Dispatchers.IO) {
+        val builder = MultipartBody.Builder().setType(MultipartBody.FORM)
+            .addFormDataPart("add_edit_store", "1")
+            .addFormDataPart("store_id", id)
+            .addFormDataPart("store_name", name)
+            .addFormDataPart("store_category", category)
+        if (photo != null && photo.isNotEmpty()) {
+            builder.addFormDataPart("store_photo", "store_photo.png", photo.toRequestBody("image/png".toMediaType()))
+        }
+        val req = Request.Builder()
+            .url(session.endpoint)
+            .header("Authorization", "Bearer ${session.token}")
+            .header("Accept", "application/json")
+            .post(builder.build())
+            .build()
+        execute(req, "POST", session.endpoint, "store $name")
     }
 
     suspend fun backups(session: Session): List<BackupFile> {

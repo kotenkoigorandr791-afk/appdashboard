@@ -1,8 +1,9 @@
 package xyz.serverkherson.spends
 
+import android.content.Context
 import android.net.Uri
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -59,7 +60,11 @@ import xyz.serverkherson.spends.data.Snapshot
 import xyz.serverkherson.spends.ui.AppBackground
 import xyz.serverkherson.spends.ui.SpendsTheme
 
-class OcrActivity : ComponentActivity() {
+class OcrActivity : AppCompatActivity() {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
