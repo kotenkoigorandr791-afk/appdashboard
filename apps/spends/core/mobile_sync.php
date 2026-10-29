@@ -14,6 +14,29 @@ function spends_mobile_signature(string $date, string $store, float $amount, str
     return hash('sha256', $normDate . '|' . $normStore . '|' . $normAmount . '|' . $normRaw);
 }
 
+function spends_mobile_asset_url(string $path): string
+{
+    if ($path === '' || filter_var($path, FILTER_VALIDATE_URL)) {
+        return $path;
+    }
+    $scheme = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    return $host === '' ? $path : $scheme . '://' . $host . '/apps/spends/' . ltrim($path, '/');
+}
+
+function spends_mobile_store_photo_url(string $email, string $name): string
+{
+    $safe = getSafeFolderName($email);
+    $file = 'store_' . preg_replace('/[^a-zA-Z0-9]/', '_', $name);
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $extension) {
+        $path = APPS_DATA_DIR . $safe . '/' . $file . '.' . $extension;
+        if (is_file($path)) {
+            return spends_mobile_asset_url('users/' . $safe . '/' . $file . '.' . $extension . '?t=' . filemtime($path));
+        }
+    }
+    return '';
+}
+
 function spends_mobile_ensure_store(AppDatabase $udb, string $store, string $category = 'other'): array
 {
     $store = trim($store);
@@ -140,7 +163,12 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
     return [
         'status' => 'success',
         'server_time' => time(),
-        'profile' => ['email' => $email, 'app' => 'spends'],
+        'profile' => [
+            'email' => $email,
+            'name' => $GLOBALS['displayName'] ?? $email,
+            'image_url' => spends_mobile_asset_url((string)($GLOBALS['profilePhoto'] ?? '')),
+            'app' => 'spends',
+        ],
         'settings' => [
             'monthly_budget' => (float)($userSettings['monthly_budget'] ?? 100),
             'currency' => (string)($userSettings['currency'] ?? 'USD'),
@@ -148,7 +176,10 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
             'show_trend' => (bool)($userSettings['show_trend'] ?? false),
             'trim_empty_months' => (bool)($userSettings['trim_empty_months'] ?? false),
         ],
-        'stores' => $userSettings['stores'] ?? [],
+        'stores' => array_map(static function (array $store) use ($email): array {
+            $store['photo_url'] = spends_mobile_store_photo_url($email, (string)($store['name'] ?? ''));
+            return $store;
+        }, $userSettings['stores'] ?? []),
         'store_categories' => $userSettings['store_categories'] ?? spendsStoreCategories(),
         'years' => $years,
         'expenses' => $expenses,
@@ -376,5 +407,11 @@ function spends_mobile_current_email(): string
 
 function spends_mobile_profile(): array
 {
-    return ['status' => 'success', 'profile' => ['email' => spends_mobile_current_email(), 'app' => 'spends']];
+    $email = spends_mobile_current_email();
+    return ['status' => 'success', 'profile' => [
+        'email' => $email,
+        'name' => $GLOBALS['displayName'] ?? $email,
+        'image_url' => spends_mobile_asset_url((string)($GLOBALS['profilePhoto'] ?? '')),
+        'app' => 'spends',
+    ]];
 }
