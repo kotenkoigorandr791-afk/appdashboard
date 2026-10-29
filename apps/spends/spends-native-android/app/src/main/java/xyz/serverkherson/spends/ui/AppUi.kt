@@ -1,8 +1,10 @@
 package xyz.serverkherson.spends.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -29,9 +31,12 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Autorenew
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Cloud
@@ -46,6 +51,7 @@ import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.TrendingDown
@@ -60,6 +66,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -86,6 +93,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import android.net.Uri
@@ -97,7 +105,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
-import coil.compose.AsyncImage
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -108,16 +115,19 @@ import xyz.serverkherson.spends.BuildConfig
 import xyz.serverkherson.spends.NotificationAccess
 import xyz.serverkherson.spends.R
 import xyz.serverkherson.spends.SpendsViewModel
+import xyz.serverkherson.spends.data.BackupEntry
 import xyz.serverkherson.spends.data.Expense
 import xyz.serverkherson.spends.data.Goal
 import xyz.serverkherson.spends.data.PendingCapture
 import xyz.serverkherson.spends.data.Store
+import xyz.serverkherson.spends.data.Tag
 import xyz.serverkherson.spends.updates.AppUpdateChecker
 import xyz.serverkherson.spends.updates.UpdateOutcome
 
 enum class Dest {
     Home, Stats, Stores, Settings, Insights, CashFlow, Categories, Calendar, Wrapped, NetWorth,
     Goals, Tags, Trash, Pending, Prefs, Data, Sync, Appearance, Transaction, Ocr, Expense, Store, About,
+    Subscriptions,
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -170,13 +180,19 @@ fun HeroCard(state: AppState) {
             Text(money(net, state.snapshot.currency), color = ink, style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(ink.copy(alpha = 0.12f)).padding(12.dp)) {
-                    Text(stringResource(R.string.spent), color = ink.copy(alpha = 0.7f), style = MaterialTheme.typography.labelLarge)
-                    Text(money(spent, state.snapshot.currency), color = ink, fontWeight = FontWeight.SemiBold)
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(HeroExpense).padding(12.dp),
+                ) {
+                    Text(stringResource(R.string.spent), color = Color.White.copy(alpha = 0.85f), style = MaterialTheme.typography.labelLarge)
+                    Text(money(spent, state.snapshot.currency), color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
-                Column(Modifier.weight(1f).clip(RoundedCornerShape(16.dp)).background(ink.copy(alpha = 0.12f)).padding(12.dp)) {
-                    Text(stringResource(R.string.cash_in), color = ink.copy(alpha = 0.7f), style = MaterialTheme.typography.labelLarge)
-                    Text(money(earned, state.snapshot.currency), color = ink, fontWeight = FontWeight.SemiBold)
+                Column(
+                    Modifier.weight(1f).clip(RoundedCornerShape(16.dp))
+                        .background(HeroIncome).padding(12.dp),
+                ) {
+                    Text(stringResource(R.string.cash_in), color = Color.White.copy(alpha = 0.88f), style = MaterialTheme.typography.labelLarge)
+                    Text(money(earned, state.snapshot.currency), color = Color.White, fontWeight = FontWeight.SemiBold)
                 }
             }
             if (budget > 0) {
@@ -188,12 +204,20 @@ fun HeroCard(state: AppState) {
                     style = MaterialTheme.typography.bodySmall,
                 )
                 Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    { ratio },
-                    Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
-                    ink,
-                    ink.copy(alpha = 0.22f),
-                )
+                // Green → amber → red: the filled part shows how much of the budget is gone.
+                Box(
+                    Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp))
+                        .background(Color.White.copy(alpha = 0.28f)),
+                ) {
+                    Box(
+                        Modifier.fillMaxWidth(ratio).height(8.dp).clip(RoundedCornerShape(99.dp))
+                            .background(
+                                androidx.compose.ui.graphics.Brush.horizontalGradient(
+                                    listOf(BudgetGreen, BudgetAmber, BudgetRed),
+                                ),
+                            ),
+                    )
+                }
             }
         }
     }
@@ -217,7 +241,7 @@ fun ExpenseRow(expense: Expense, currency: String, photoUrl: String, onClick: ()
             Column(Modifier.weight(1f)) {
                 Text(expense.store, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    expense.entrySource.ifBlank { "manual" },
+                    sourceLabel(expense.entrySource),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -238,9 +262,9 @@ fun EmptyCard(title: String, body: String) = Card(shape = RoundedCornerShape(24.
 @Composable
 fun StatsHub(state: AppState, go: (Dest) -> Unit) {
     var heatmap by remember { mutableStateOf(false) }
+    var ratesOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
         Text(stringResource(R.string.statistics), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        SectionLabel(Icons.Outlined.ShowChart, stringResource(R.string.section_ledger))
         YearExpenseChart(state)
         SectionLabel(Icons.Outlined.PieChart, stringResource(R.string.section_breakdown))
         CategoryBars(state)
@@ -253,10 +277,11 @@ fun StatsHub(state: AppState, go: (Dest) -> Unit) {
         NavRow(stringResource(R.string.net_position), stringResource(R.string.net_position_sub), Icons.Outlined.TrendingUp, Dest.NetWorth, go)
         NavRow(stringResource(R.string.year_in_review), stringResource(R.string.year_in_review_sub), Icons.Outlined.WorkspacePremium, Dest.Wrapped, go)
         SectionLabel(Icons.Outlined.ShowChart, stringResource(R.string.section_rates, state.rates.base.ifBlank { state.snapshot.currency }))
-        RatesSection(state)
+        ActionCard(Icons.Outlined.ShowChart, stringResource(R.string.rates_title), stringResource(R.string.rates_open)) { ratesOpen = true }
         Spacer(Modifier.height(24.dp))
     }
     if (heatmap) HeatmapModal(state) { heatmap = false }
+    if (ratesOpen) RatesDialog(state) { ratesOpen = false }
 }
 
 @Composable
@@ -342,6 +367,12 @@ fun CashFlowScreen(state: AppState) {
     }
 }
 
+private val HeroExpense = Color(0xFFC21919)
+private val HeroIncome = Color(0xFF6BCC41)
+private val BudgetGreen = Color(0xFF6BCC41)
+private val BudgetAmber = Color(0xFFF2C230)
+private val BudgetRed = Color(0xFFC21919)
+
 private val CategoryPalette = listOf(
     Color(0xFFFF6384), Color(0xFF36A2EB), Color(0xFFF5B301), Color(0xFF4BC0C0),
     Color(0xFF9966FF), Color(0xFFFF9F40), Color(0xFF3BA55C), Color(0xFF8B95A5),
@@ -356,7 +387,7 @@ private fun categoryRows(state: AppState): List<CategoryRow> {
         .map { (category, rows) ->
             val byStore = rows.groupBy { it.store }.mapValues { entry -> entry.value.sumOf { it.amount } }
             CategoryRow(
-                name = category.replaceFirstChar { it.uppercase() },
+                name = category,
                 amount = rows.sumOf { it.amount },
                 charges = rows.size,
                 stores = byStore.keys.sorted(),
@@ -394,7 +425,7 @@ fun CategoriesScreen(state: AppState) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Box(Modifier.size(9.dp).clip(CircleShape).background(color))
                             Spacer(Modifier.width(8.dp))
-                            Text(row.name, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
+                            Text(categoryLabel(row.name), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
                             Text("${(share * 100).toInt()}%", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             Spacer(Modifier.width(8.dp))
                             Text(money(row.amount, state.snapshot.currency), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
@@ -429,11 +460,11 @@ private fun CategoryCard(row: CategoryRow, total: Double, currency: String, colo
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Box(Modifier.size(36.dp).clip(RoundedCornerShape(12.dp)).background(color.copy(alpha = 0.18f)), contentAlignment = Alignment.Center) {
-                    Text(row.name.take(1), fontWeight = FontWeight.Bold, color = color)
+                    Text(categoryLabel(row.name).take(1), fontWeight = FontWeight.Bold, color = color)
                 }
                 Spacer(Modifier.width(12.dp))
                 Column(Modifier.weight(1f)) {
-                    Text(row.name, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(categoryLabel(row.name), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                     Text(stringResource(R.string.categories_meta, row.stores.size, row.charges), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Text(money(row.amount, currency), fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
@@ -481,14 +512,51 @@ fun InsightsScreen(state: AppState) {
     val top = state.snapshot.expenses.groupBy { it.store }.mapValues { it.value.sumOf { e -> e.amount } }.maxByOrNull { it.value }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Text(stringResource(R.string.insights), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        StatCard(stringResource(R.string.spent), stringResource(R.string.insights_spent, money(spent, state.snapshot.currency), state.snapshot.expenses.size))
+        InsightCard(
+            title = stringResource(R.string.spent),
+            value = money(spent, state.snapshot.currency),
+            caption = stringResource(R.string.insights_charges, state.snapshot.expenses.size),
+            accent = SpendsColors.expense(),
+        )
         if (top != null) {
-            StatCard(stringResource(R.string.insights), stringResource(R.string.insights_top, top.key, money(top.value, state.snapshot.currency)))
+            InsightCard(
+                title = stringResource(R.string.insights_top, top.key, money(top.value, state.snapshot.currency)),
+                value = top.key,
+                caption = money(top.value, state.snapshot.currency),
+            )
         }
         if (state.snapshot.budget > 0) {
-            StatCard(stringResource(R.string.monthly_budget), stringResource(R.string.insights_budget, money(state.snapshot.budget - spent, state.snapshot.currency)))
+            InsightCard(
+                title = stringResource(R.string.monthly_budget),
+                value = money(state.snapshot.budget - spent, state.snapshot.currency),
+                caption = stringResource(R.string.insights_budget, money(state.snapshot.budget, state.snapshot.currency)),
+                accent = if (state.snapshot.budget - spent >= 0) SpendsColors.income() else SpendsColors.expense(),
+            )
         }
-        StatCard(stringResource(R.string.pending), stringResource(R.string.insights_pending, state.extras.pending.size, state.extras.trash.size))
+        InsightCard(
+            title = stringResource(R.string.pending),
+            value = stringResource(R.string.insights_waiting, state.extras.pending.size),
+            caption = stringResource(R.string.insights_in_trash, state.extras.trash.size),
+        )
+    }
+}
+
+@Composable
+private fun InsightCard(title: String, value: String, caption: String, accent: Color? = null) {
+    Card(
+        Modifier.fillMaxWidth(),
+        RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(value, style = MaterialTheme.typography.titleLarge, color = accent ?: MaterialTheme.colorScheme.onSurface)
+            Text(caption, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
     }
 }
 
@@ -516,10 +584,63 @@ fun WrappedScreen(state: AppState) {
                 Text(money(yearSpend, state.snapshot.currency), color = MaterialTheme.colorScheme.onPrimary, style = MaterialTheme.typography.headlineLarge)
             }
         }
-        StatCard(
-            stringResource(R.string.year_in_review_sub),
-            stringResource(R.string.wrapped_stats, state.snapshot.stores.size, state.snapshot.goals.size, state.snapshot.tags.size),
+        val yearExpenses = state.snapshot.expenses.filter { it.date.startsWith("$year") }
+        val yearIncomes = state.snapshot.incomes.filter { it.date.startsWith("$year") }.sumOf { it.amount }
+        // A real two-column table instead of one long line joined with separators.
+        TableCard(
+            title = stringResource(R.string.year_in_review_sub),
+            rows = listOf(
+                stringResource(R.string.expenses) to "−${money(yearSpend, state.snapshot.currency)}",
+                stringResource(R.string.incomes) to "+${money(yearIncomes, state.snapshot.currency)}",
+                stringResource(R.string.difference) to money(yearIncomes - yearSpend, state.snapshot.currency),
+                stringResource(R.string.charges) to yearExpenses.size.toString(),
+                stringResource(R.string.stores_title) to state.snapshot.stores.size.toString(),
+                stringResource(R.string.goals_title) to state.snapshot.goals.size.toString(),
+                stringResource(R.string.tags_title) to state.snapshot.tags.size.toString(),
+            ),
         )
+    }
+}
+
+/** Aligned label/value table used for yearly and summary numbers. */
+@Composable
+fun TableCard(title: String, rows: List<Pair<String, String>>) {
+    Card(
+        Modifier.fillMaxWidth(),
+        RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Column(
+            Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp)).padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+            Spacer(Modifier.height(8.dp))
+            rows.forEachIndexed { index, (label, value) ->
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        label,
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        value,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.End,
+                    )
+                }
+                if (index != rows.lastIndex) {
+                    Box(Modifier.fillMaxWidth().height(1.dp).background(MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)))
+                }
+            }
+        }
     }
 }
 
@@ -578,13 +699,11 @@ private fun AddStoreSheet(state: AppState, onDismiss: () -> Unit, onSave: (Strin
         mutableStateOf(state.snapshot.storeCategories.firstOrNull { it != "other" } ?: "other")
     }
     var pickCategory by remember { mutableStateOf(false) }
-    var photoUri by remember { mutableStateOf<Uri?>(null) }
+    var cropUri by remember { mutableStateOf<Uri?>(null) }
+    var photoBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     var photoBytes by remember { mutableStateOf<ByteArray?>(null) }
     val pickPhoto = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.GetContent()) { uri ->
-        if (uri != null) {
-            photoUri = uri
-            photoBytes = runCatching { context.contentResolver.openInputStream(uri)?.use { it.readBytes() } }.getOrNull()
-        }
+        if (uri != null) cropUri = uri
     }
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -619,8 +738,13 @@ private fun AddStoreSheet(state: AppState, onDismiss: () -> Unit, onSave: (Strin
                 Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         Box(Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surface), contentAlignment = Alignment.Center) {
-                            if (photoUri != null) {
-                                AsyncImage(model = photoUri, contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                            if (photoBitmap != null) {
+                                Image(
+                                    bitmap = photoBitmap!!.asImageBitmap(),
+                                    contentDescription = null,
+                                    modifier = Modifier.matchParentSize(),
+                                    contentScale = ContentScale.Crop,
+                                )
                             } else {
                                 Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
@@ -635,7 +759,7 @@ private fun AddStoreSheet(state: AppState, onDismiss: () -> Unit, onSave: (Strin
                         Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                     ) {
-                        Text(stringResource(if (photoUri == null) R.string.store_photo_choose else R.string.store_photo_change))
+                        Text(stringResource(if (photoBitmap == null) R.string.store_photo_choose else R.string.store_photo_change))
                     }
                 }
             }
@@ -653,6 +777,17 @@ private fun AddStoreSheet(state: AppState, onDismiss: () -> Unit, onSave: (Strin
             categories = (StoreCategories.keys + state.snapshot.storeCategories).distinct(),
             onPick = { category = it; pickCategory = false },
             onDismiss = { pickCategory = false },
+        )
+    }
+    cropUri?.let { uri ->
+        PhotoCropDialog(
+            uri = uri,
+            onCancel = { cropUri = null },
+            onCropped = { bytes ->
+                photoBytes = bytes
+                photoBitmap = bytes?.let { android.graphics.BitmapFactory.decodeByteArray(it, 0, it.size) }
+                cropUri = null
+            },
         )
     }
 }
@@ -705,7 +840,7 @@ fun CategoryPickerDialog(selected: String, categories: List<String>, onPick: (St
 }
 
 @Composable
-fun ExpenseDetailScreen(state: AppState, expense: Expense, onTrash: () -> Unit) {
+fun ExpenseDetailScreen(state: AppState, expense: Expense, model: SpendsViewModel, onTrash: () -> Unit) {
     val store = state.snapshot.stores.firstOrNull { it.name == expense.store }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Card(Modifier.fillMaxWidth(), RoundedCornerShape(24.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
@@ -716,12 +851,21 @@ fun ExpenseDetailScreen(state: AppState, expense: Expense, onTrash: () -> Unit) 
             ) {
                 RemotePhoto(store?.photoUrl.orEmpty(), expense.store.take(1).uppercase(), round = false, size = 88.dp)
                 Text(expense.store, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(store?.category ?: stringResource(R.string.store_fallback), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    store?.category?.takeIf { it.isNotBlank() }?.let { categoryLabel(it) } ?: stringResource(R.string.store_fallback),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         StatCard(stringResource(R.string.amount), "−${money(expense.amount, state.snapshot.currency)}", SpendsColors.expense())
-        StatCard(stringResource(R.string.date), "${prettyDate(expense.date)} · ${expense.date}")
-        StatCard(stringResource(R.string.source), expense.entrySource.ifBlank { "manual" })
+        Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(weekdayLabel(expense.date), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(longDateLabel(expense.date), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+        StatCard(stringResource(R.string.source), sourceLabel(expense.entrySource))
+        ExpenseTagsSection(state, expense, model)
         if (expense.ocrRawStore.isNotBlank()) {
             Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
                 Text(expense.ocrRawStore, Modifier.padding(16.dp), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -749,7 +893,7 @@ fun StoreDetailScreen(state: AppState, store: Store, onExpense: (Expense) -> Uni
             ) {
                 RemotePhoto(store.photoUrl, store.name.take(1).uppercase(), round = false, size = 96.dp)
                 Text(store.name, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
-                Text(store.category, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(categoryLabel(store.category), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         StatCard(stringResource(R.string.total_spent), "${money(total, state.snapshot.currency)} · ${stringResource(R.string.charges_count, rows.size)}")
@@ -771,32 +915,64 @@ fun StoreDetailScreen(state: AppState, store: Store, onExpense: (Expense) -> Uni
     }
 }
 
+/** Name only; the full account details open in their own window. */
+@Composable
+private fun ProfileCard(state: AppState) {
+    var open by remember { mutableStateOf(false) }
+    Card(
+        Modifier.fillMaxWidth().clickable { open = true },
+        RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            RemotePhoto(state.session.imageUrl, state.session.name.take(1).uppercase(), round = true, size = 56.dp, person = true)
+            Text(
+                state.session.name.ifBlank { stringResource(R.string.paired_account) },
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+    if (open) {
+        Dialog(onDismissRequest = { open = false }) {
+            Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        RemotePhoto(state.session.imageUrl, state.session.name.take(1).uppercase(), round = true, size = 52.dp, person = true)
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.profile_details), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                            Text(state.session.name.ifBlank { stringResource(R.string.paired_account) }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    InfoRow(stringResource(R.string.profile_email), state.session.email.ifBlank { "—" })
+                    InfoRow(stringResource(R.string.profile_server), state.session.endpoint.ifBlank { "—" })
+                    Button({ open = false }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                        Text(stringResource(R.string.heatmap_close))
+                    }
+                }
+            }
+        }
+    }
+}
+
 @Composable
 fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface), elevation = CardDefaults.cardElevation(0.dp)) {
-            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                RemotePhoto(state.session.imageUrl, state.session.name.take(1).uppercase(), round = true, size = 56.dp, person = true)
-                Column(Modifier.weight(1f)) {
-                    Text(state.session.name.ifBlank { stringResource(R.string.paired_account) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
-                    Text(state.session.email, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Text(
-                        state.session.endpoint,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                    )
-                }
-            }
-        }
+        ProfileCard(state)
         SectionLabel(Icons.Outlined.Insights, stringResource(R.string.overview))
         NavRow(stringResource(R.string.notifications_title), stringResource(R.string.notifications_sub), Icons.Outlined.Notifications, Dest.Pending, go)
         NavRow(stringResource(R.string.insights), stringResource(R.string.insights_sub), Icons.Outlined.Insights, Dest.Insights, go)
         NavRow(stringResource(R.string.stores_title), stringResource(R.string.categories_sub), Icons.Outlined.Storefront, Dest.Stores, go)
         SectionLabel(Icons.Outlined.Flag, stringResource(R.string.planning))
         NavRow(stringResource(R.string.goals), stringResource(R.string.goals_sub), Icons.Outlined.Flag, Dest.Goals, go)
+        NavRow(stringResource(R.string.subscriptions_title), stringResource(R.string.subscriptions_sub), Icons.Outlined.Autorenew, Dest.Subscriptions, go)
         NavRow(stringResource(R.string.pending), stringResource(R.string.pending_sub), Icons.Outlined.History, Dest.Pending, go)
         SectionLabel(Icons.Outlined.Category, stringResource(R.string.organization))
         NavRow(stringResource(R.string.categories), stringResource(R.string.categories_sub), Icons.Outlined.Category, Dest.Categories, go)
@@ -948,14 +1124,24 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
             shape = RoundedCornerShape(16.dp),
         ) { Text(stringResource(R.string.add_goal)) }
         state.snapshot.goals.forEach { g ->
+            val cleanName = cleanGoalName(g.name)
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
-                Column(Modifier.padding(16.dp)) {
-                    Text(g.name, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        cleanName.ifBlank { stringResource(R.string.goal_fallback) },
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    // Breathing room between the title and the usage block below.
+                    Spacer(Modifier.height(2.dp))
                     LinearProgressIndicator(
                         { (g.progressPercent / 100.0).toFloat().coerceIn(0f, 1f) },
                         Modifier.fillMaxWidth().height(8.dp).clip(RoundedCornerShape(99.dp)),
                     )
-                    Text("${money(g.currentAmount, g.currency)} / ${money(g.targetAmount, g.currency)}", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        "${money(g.currentAmount, g.currency)} / ${money(g.targetAmount, g.currency)}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     Row {
                         TextButton({ model.contributeGoal(g.id, "10") }) { Text("+10") }
                         TextButton({ model.deleteGoal(g.id) }) { Text(stringResource(R.string.delete)) }
@@ -966,17 +1152,293 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
     }
 }
 
+/**
+ * Tags belong to a concrete payment, not to the whole ledger: a tag row opens a
+ * payment picker, and a payment can be picked first as well.
+ */
 @Composable
 fun TagsScreen(state: AppState, model: SpendsViewModel) {
     var name by remember { mutableStateOf("") }
+    var tagBeingAssigned by remember { mutableStateOf<Tag?>(null) }
+    var showPaymentPicker by remember { mutableStateOf(false) }
+    var pendingTagExpense by remember { mutableStateOf<Expense?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(stringResource(R.string.tags_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
-        OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.tag)) }, shape = RoundedCornerShape(16.dp))
-        Button({ model.saveTag(name, "#4F46E5"); name = "" }, shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.add)) }
+        Text(stringResource(R.string.tags_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(name, { name = it }, Modifier.weight(1f), label = { Text(stringResource(R.string.tag)) }, shape = RoundedCornerShape(16.dp), singleLine = true)
+            Button({ model.saveTag(name, "#4F46E5"); name = "" }, Modifier.height(56.dp), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.add)) }
+        }
+        OutlinedButton({ showPaymentPicker = true }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Text(stringResource(R.string.tags_pick_payment))
+        }
+        if (state.snapshot.tags.isEmpty()) EmptyCard(stringResource(R.string.tags_empty_title), stringResource(R.string.tags_empty_body))
         state.snapshot.tags.forEach { t ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("${t.name} · ${t.usageCount}", color = MaterialTheme.colorScheme.onSurface)
-                TextButton({ model.deleteTag(t.id) }) { Text(stringResource(R.string.delete)) }
+            Card(
+                Modifier.fillMaxWidth(),
+                RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(18.dp)).padding(horizontal = 14.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(Modifier.size(10.dp).clip(CircleShape).background(tagColor(t.color)))
+                    Column(Modifier.weight(1f).padding(vertical = 10.dp)) {
+                        Text(t.name, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            stringResource(R.string.tags_usage, t.usageCount),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    TextButton({ tagBeingAssigned = t }) { Text(stringResource(R.string.tags_assign)) }
+                    TextButton({ model.deleteTag(t.id) }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                }
+            }
+        }
+    }
+    tagBeingAssigned?.let { tag ->
+        PaymentPickerDialog(
+            state = state,
+            title = stringResource(R.string.tags_pick_payment),
+            onDismiss = { tagBeingAssigned = null },
+        ) { expense ->
+            model.toggleExpenseTag(expense, tag.id)
+            tagBeingAssigned = null
+        }
+    }
+    if (showPaymentPicker) {
+        PaymentPickerDialog(
+            state = state,
+            title = stringResource(R.string.tags_pick_payment),
+            onDismiss = { showPaymentPicker = false },
+        ) { picked ->
+            showPaymentPicker = false
+            pendingTagExpense = picked
+        }
+    }
+    pendingTagExpense?.let { expense ->
+        PaymentTagDialog(state, expense, model) { pendingTagExpense = null }
+    }
+}
+
+private fun tagColor(hex: String): Color = runCatching {
+    Color(android.graphics.Color.parseColor(hex))
+}.getOrDefault(Color(0xFF4F46E5))
+
+/** Full ledger with store and date filters, used to pick the payment a tag belongs to. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PaymentPickerDialog(state: AppState, title: String, onDismiss: () -> Unit, onPick: (Expense) -> Unit) {
+    var store by remember { mutableStateOf("") }
+    var dateQuery by remember { mutableStateOf("") }
+    var filtersOpen by remember { mutableStateOf(true) }
+    val stores = remember(state.snapshot.expenses) { state.snapshot.expenses.map { it.store }.distinct().sorted() }
+    val rows = remember(state.snapshot.expenses, store, dateQuery) {
+        state.snapshot.expenses
+            .filter { store.isBlank() || it.store == store }
+            .filter { dateQuery.isBlank() || it.date.contains(dateQuery.trim()) }
+            .sortedByDescending { it.date }
+    }
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                    IconButton({ filtersOpen = !filtersOpen }) { Icon(Icons.Outlined.Tune, stringResource(R.string.tags_filters)) }
+                }
+                if (filtersOpen) {
+                    OutlinedTextField(
+                        dateQuery,
+                        { dateQuery = it },
+                        Modifier.fillMaxWidth(),
+                        label = { Text(stringResource(R.string.tags_date_filter)) },
+                        placeholder = { Text("2026-10") },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                    )
+                    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        FilterChip(store.isBlank(), { store = "" }, { Text(stringResource(R.string.tags_all_stores)) })
+                        stores.forEach { name ->
+                            FilterChip(store == name, { store = if (store == name) "" else name }, { Text(name, maxLines = 1) })
+                        }
+                    }
+                }
+                if (rows.isEmpty()) {
+                    Text(stringResource(R.string.tags_no_payments), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    items(rows, key = { "${it.date}-${it.store}-${it.amount}-${it.signature}" }) { expense ->
+                        val tags = state.snapshot.expenseTags["${expense.date}\t${expense.store}"].orEmpty()
+                        Column {
+                            ExpenseRow(expense, state.snapshot.currency, state.snapshot.stores.firstOrNull { it.name == expense.store }?.photoUrl.orEmpty()) { onPick(expense) }
+                            if (tags.isNotEmpty()) {
+                                Row(Modifier.padding(start = 12.dp, top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    tags.forEach { id ->
+                                        val tag = state.snapshot.tags.firstOrNull { it.id == id }
+                                        if (tag != null) {
+                                            Text(tag.name, style = MaterialTheme.typography.labelSmall, color = tagColor(tag.color))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                Button(onDismiss, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.heatmap_close)) }
+            }
+        }
+    }
+}
+
+/** Tag chips for one payment; tapping a tag attaches or detaches it. */
+@Composable
+fun ExpenseTagsSection(state: AppState, expense: Expense, model: SpendsViewModel) {
+    val attached = state.snapshot.expenseTags["${expense.date}\t${expense.store}"].orEmpty()
+    var open by remember { mutableStateOf(false) }
+    Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+        Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.Label, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.tags_title), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary, modifier = Modifier.weight(1f))
+                TextButton({ open = true }) { Text(stringResource(R.string.tags_assign)) }
+            }
+            if (attached.isEmpty()) {
+                Text(stringResource(R.string.tags_none), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    attached.forEach { id ->
+                        val tag = state.snapshot.tags.firstOrNull { it.id == id } ?: return@forEach
+                        Box(Modifier.clip(RoundedCornerShape(99.dp)).background(tagColor(tag.color).copy(alpha = 0.16f)).padding(horizontal = 10.dp, vertical = 5.dp)) {
+                            Text(tag.name, style = MaterialTheme.typography.labelSmall, color = tagColor(tag.color))
+                        }
+                    }
+                }
+            }
+        }
+    }
+    if (open) PaymentTagDialog(state, expense, model) { open = false }
+}
+
+/** Tag checklist for one payment; each tap attaches or detaches that tag. */
+@Composable
+fun PaymentTagDialog(state: AppState, expense: Expense, model: SpendsViewModel, onDismiss: () -> Unit) {
+    val attached = state.snapshot.expenseTags["${expense.date}\t${expense.store}"].orEmpty()
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.tags_choose), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                Text(
+                    "${expense.store} · ${longDateLabel(expense.date)} · ${money(expense.amount, state.snapshot.currency)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (state.snapshot.tags.isEmpty()) {
+                    Text(stringResource(R.string.tags_empty_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                state.snapshot.tags.forEach { tag ->
+                    val checked = tag.id in attached
+                    Row(
+                        Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).clickable { model.toggleExpenseTag(expense, tag.id) }.padding(vertical = 8.dp, horizontal = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Box(Modifier.size(10.dp).clip(CircleShape).background(tagColor(tag.color)))
+                        Text(tag.name, modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
+                        if (checked) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                    }
+                }
+                Button(onDismiss, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.ok)) }
+            }
+        }
+    }
+}
+
+/**
+ * Recurring charges. A subscription is its own entry source (server-side
+ * `entry_source = 'subscription'`), so the charges it creates are recognisable.
+ */
+@Composable
+fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
+    val context = LocalContext.current
+    var store by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var day by remember { mutableStateOf("1") }
+    var adding by remember { mutableStateOf(false) }
+    val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            store = result.data?.getStringExtra(xyz.serverkherson.spends.PickStoreActivity.EXTRA_STORE).orEmpty()
+        }
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text(stringResource(R.string.subscriptions_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        Text(stringResource(R.string.subscriptions_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Button({ adding = !adding }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Icon(Icons.Outlined.Add, null, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.subscriptions_new))
+        }
+        if (adding) {
+            Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Card(
+                        Modifier.fillMaxWidth().clickable { pickStore.launch(android.content.Intent(context, xyz.serverkherson.spends.PickStoreActivity::class.java)) },
+                        RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(14.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                            Text(store.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.amount_label)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
+                    OutlinedTextField(day, { day = it.filter { c -> c.isDigit() }.take(2) }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.subscriptions_day)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
+                    Button(
+                        {
+                            model.addSubscription(store, amount.replace(',', '.'), day.ifBlank { "1" })
+                            store = ""; amount = ""; day = "1"; adding = false
+                        },
+                        Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                        enabled = store.isNotBlank() && amount.toDoubleOrNull() != null,
+                    ) { Text(stringResource(R.string.save)) }
+                }
+            }
+        }
+        if (state.snapshot.subscriptions.isEmpty()) {
+            EmptyCard(stringResource(R.string.subscriptions_empty_title), stringResource(R.string.subscriptions_empty_body))
+        }
+        state.snapshot.subscriptions.forEach { sub ->
+            Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+                Column(
+                    Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp)).padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RemotePhoto(
+                            state.snapshot.stores.firstOrNull { it.name == sub.store }?.photoUrl.orEmpty(),
+                            sub.store.take(1).uppercase(),
+                            round = false,
+                            size = 40.dp,
+                        )
+                        Spacer(Modifier.width(12.dp))
+                        Column(Modifier.weight(1f)) {
+                            Text(sub.store, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                            Text(
+                                stringResource(R.string.subscriptions_next, sub.dayOfMonth),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Text("−${money(sub.amount, state.snapshot.currency)}", fontWeight = FontWeight.SemiBold, color = SpendsColors.expense())
+                    }
+                    TextButton({ model.deleteSubscription(sub.id) }) {
+                        Text(stringResource(R.string.subscriptions_cancel), color = MaterialTheme.colorScheme.error)
+                    }
+                }
             }
         }
     }
@@ -1121,19 +1583,123 @@ private fun SwitchRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
 @Composable
 fun DataScreen(state: AppState, model: SpendsViewModel) {
     var name by remember { mutableStateOf("mobile") }
+    var selected by remember { mutableStateOf<BackupEntry?>(null) }
+    val entries = remember(state.backups, state.localBackups) { state.allBackups }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(stringResource(R.string.data_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.backup_name)) }, shape = RoundedCornerShape(16.dp))
-        Button({ model.saveBackup(name) }, shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.save_backup)) }
-        state.backups.forEach { b ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(b.name, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
-                TextButton({ model.restoreBackup(b.name) }) { Text(stringResource(R.string.restore)) }
-                TextButton({ model.deleteBackup(b.name) }) { Text(stringResource(R.string.delete)) }
+        Button({ model.saveBackup(name) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+            Icon(Icons.Outlined.Backup, null)
+            Spacer(Modifier.width(8.dp))
+            Text(stringResource(R.string.save_backup))
+        }
+        if (entries.isEmpty()) EmptyCard(stringResource(R.string.data_title), stringResource(R.string.notifications_empty))
+        entries.forEach { entry ->
+            BackupCard(entry) { selected = entry }
+        }
+    }
+    selected?.let { entry ->
+        BackupDetailsDialog(
+            entry = entry,
+            onRestore = { model.restoreBackup(entry.name); selected = null },
+            onDelete = { model.deleteBackup(entry.name); selected = null },
+            onDismiss = { selected = null },
+        )
+    }
+}
+
+@Composable
+private fun BackupCard(entry: BackupEntry, onClick: () -> Unit) {
+    Card(
+        Modifier.fillMaxWidth().clickable(onClick = onClick),
+        RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Box(Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(20.dp))) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                    Icon(Icons.Outlined.Backup, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(entry.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                    Text(
+                        listOfNotNull(backupDate(entry.mtime).takeIf { it.isNotBlank() }, humanSize(entry.size)).joinToString(" · "),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            // Storage badge in the top-right corner: local, server or both.
+            Icon(
+                imageVector = when {
+                    entry.local && entry.server -> Icons.Filled.CloudDone
+                    entry.server -> Icons.Outlined.Cloud
+                    else -> Icons.Outlined.Smartphone
+                },
+                contentDescription = stringResource(
+                    when {
+                        entry.local && entry.server -> R.string.backup_both
+                        entry.server -> R.string.backup_server
+                        else -> R.string.backup_local
+                    },
+                ),
+                tint = when {
+                    entry.local && entry.server -> SpendsColors.income()
+                    entry.server -> MaterialTheme.colorScheme.primary
+                    else -> MaterialTheme.colorScheme.onSurfaceVariant
+                },
+                modifier = Modifier.align(Alignment.TopEnd).padding(10.dp).size(18.dp),
+            )
+        }
+    }
+}
+
+@Composable
+private fun BackupDetailsDialog(entry: BackupEntry, onRestore: () -> Unit, onDelete: () -> Unit, onDismiss: () -> Unit) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                        Icon(Icons.Outlined.Backup, null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                    }
+                    Column(Modifier.weight(1f)) {
+                        Text(stringResource(R.string.backup_details), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                        Text(entry.name, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
+                InfoRow(stringResource(R.string.backup_date), backupDate(entry.mtime))
+                InfoRow(stringResource(R.string.backup_size), humanSize(entry.size))
+                InfoRow(
+                    stringResource(R.string.backup_stored_in),
+                    stringResource(
+                        when {
+                            entry.local && entry.server -> R.string.backup_both
+                            entry.server -> R.string.backup_server
+                            else -> R.string.backup_local
+                        },
+                    ),
+                )
+                Button(onRestore, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.restore)) }
+                TextButton(onDelete, Modifier.fillMaxWidth()) {
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
+                }
+                TextButton(onDismiss, Modifier.fillMaxWidth()) { Text(stringResource(R.string.heatmap_close)) }
             }
         }
     }
 }
+
+private fun humanSize(bytes: Long): String = when {
+    bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
+    bytes >= 1024 -> "%.1f KB".format(bytes / 1024.0)
+    bytes > 0 -> "$bytes B"
+    else -> "—"
+}
+
+private fun backupDate(mtime: Long): String =
+    if (mtime <= 0L) "—" else java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT).format(java.util.Date(mtime))
 
 @Composable
 fun SyncScreen(state: AppState, model: SpendsViewModel, onLogs: () -> Unit) {
@@ -1358,4 +1924,41 @@ private fun prettyDate(raw: String): String = try {
     LocalDate.parse(raw).format(DateTimeFormatter.ofPattern("EEEE, d MMM", Locale.getDefault()))
 } catch (_: DateTimeParseException) {
     raw
+}
+
+/** Full weekday name, capitalised: "Понедельник". */
+private fun weekdayLabel(raw: String): String = try {
+    LocalDate.parse(raw)
+        .format(DateTimeFormatter.ofPattern("EEEE", Locale.getDefault()))
+        .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+} catch (_: DateTimeParseException) {
+    raw
+}
+
+/** "26-Октября-2026" — day, capitalised month name, year. */
+private fun longDateLabel(raw: String): String = try {
+    val date = LocalDate.parse(raw)
+    val day = date.format(DateTimeFormatter.ofPattern("d", Locale.getDefault()))
+    val month = date.format(DateTimeFormatter.ofPattern("MMMM", Locale.getDefault()))
+        .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    "$day-$month-${date.year}"
+} catch (_: DateTimeParseException) {
+    raw
+}
+
+/** Locally translated label for an expense source (manual, ocr, wallet…). */
+@Composable
+private fun sourceLabel(raw: String): String = when (raw.trim().lowercase(Locale.ROOT)) {
+    "", "manual" -> stringResource(R.string.source_manual)
+    "ocr" -> stringResource(R.string.source_ocr)
+    "wallet" -> stringResource(R.string.source_wallet)
+    "subscription" -> stringResource(R.string.source_subscription)
+    "other" -> stringResource(R.string.source_other)
+    else -> raw.replaceFirstChar { it.titlecase(Locale.getDefault()) }
+}
+
+/** Hides generated ids in goal names ("Sync Goal 1793049032925"). */
+private fun cleanGoalName(name: String): String {
+    val withoutIds = name.replace(Regex("\\d{4,}"), " ").replace(Regex("\\s+"), " ").trim(' ', '-', '_', '·')
+    return if (withoutIds.equals("sync goal", ignoreCase = true) || withoutIds.equals("goal", ignoreCase = true)) "" else withoutIds
 }

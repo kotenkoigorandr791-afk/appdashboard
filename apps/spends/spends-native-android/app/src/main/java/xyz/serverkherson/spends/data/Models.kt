@@ -19,6 +19,21 @@ import kotlinx.serialization.Serializable
     val dayOfMonth: Int = 1, val intervalDays: Int = 0, val startDate: String = "", val endDate: String = "", val lastRun: String = "",
 )
 @Serializable data class BackupFile(val name: String, val size: Long = 0, val mtime: Long = 0)
+
+/** A backup with the places it is currently stored in. */
+data class BackupEntry(
+    val name: String,
+    val size: Long = 0,
+    val mtime: Long = 0,
+    val local: Boolean = false,
+    val server: Boolean = false,
+)
+
+@Serializable data class LocalBackupPayload(
+    val snapshot: Snapshot = Snapshot(),
+    val extras: LocalExtras = LocalExtras(),
+    val savedAt: Long = System.currentTimeMillis(),
+)
 @Serializable data class PendingCapture(val date: String, val store: String, val amount: Double, val raw: String = "", val at: Long = System.currentTimeMillis())
 @Serializable data class SettingsFlags(
     val monthlyBudget: Double = 0.0, val currency: String = "USD",
@@ -35,6 +50,8 @@ import kotlinx.serialization.Serializable
     val subscriptions: List<Subscription> = emptyList(),
     val goals: List<Goal> = emptyList(),
     val tags: List<Tag> = emptyList(),
+    // Tag ids per payment, keyed by "date\tstore".
+    val expenseTags: Map<String, List<String>> = emptyMap(),
     val flags: SettingsFlags = SettingsFlags(),
     val syncedAt: Long = 0,
 )
