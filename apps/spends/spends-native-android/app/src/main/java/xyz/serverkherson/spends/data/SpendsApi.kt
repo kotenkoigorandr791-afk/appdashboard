@@ -13,12 +13,13 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-class SpendsApi {
+class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build()
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -35,7 +36,8 @@ class SpendsApi {
     suspend fun profile(endpoint: String, token: String): Session = withContext(Dispatchers.IO) {
         val body = request("GET", "${endpoint(endpoint)}/profile", token)
         val profile = json.parseToJsonElement(body).jsonObject["profile"]?.jsonObject ?: error("Invalid profile")
-        Session(endpoint(endpoint), token, profile.text("email"), profile.text("name"), profile.text("image_url"))
+        val ep = endpoint(endpoint)
+        Session(ep, token, profile.text("email"), profile.text("name"), xyz.serverkherson.spends.ui.rebaseUrl(profile.text("image_url"), ep))
     }
 
     suspend fun pull(session: Session): Snapshot = withContext(Dispatchers.IO) {
@@ -52,7 +54,7 @@ class SpendsApi {
         }
         val stores = root["stores"]?.jsonArray.orEmpty().map {
             val o = it.jsonObject
-            Store(o.text("id"), o.text("name"), o.text("category", "other"), o["visible"]?.jsonPrimitive?.booleanOrNull != false, o.text("photo_url"))
+            Store(o.text("id"), o.text("name"), o.text("category", "other"), o["visible"]?.jsonPrimitive?.booleanOrNull != false, xyz.serverkherson.spends.ui.rebaseUrl(o.text("photo_url"), session.endpoint))
         }
         val cats = root["store_categories"]?.jsonArray.orEmpty().map { it.jsonPrimitive.content }
         val years = root["years"]?.jsonArray.orEmpty().mapNotNull { it.jsonPrimitive.intOrNull }
@@ -83,11 +85,7 @@ class SpendsApi {
         val url = session.endpoint + if (query.isBlank()) "" else "?$query"
         val form = FormBody.Builder().also { b -> fields.forEach { (k, v) -> b.add(k, v) } }.build()
         val req = Request.Builder().url(url).header("Authorization", "Bearer ${session.token}").header("Accept", "application/json").post(form).build()
-        client.newCall(req).execute().use { response ->
-            val text = response.body?.string().orEmpty()
-            if (!response.isSuccessful) error("Server error (HTTP ${response.code})")
-            json.parseToJsonElement(text).jsonObject
-        }
+        execute(req, "POST", url, fields.toString())
     }
 
     suspend fun get(session: Session, query: String): JsonObject = withContext(Dispatchers.IO) {
@@ -111,10 +109,21 @@ class SpendsApi {
     private fun request(method: String, url: String, token: String, body: String? = null): String {
         val builder = Request.Builder().url(url).header("Authorization", "Bearer $token").header("Accept", "application/json")
         if (body == null) builder.get() else builder.method(method, body.toRequestBody("application/json; charset=utf-8".toMediaType()))
-        return client.newCall(builder.build()).execute().use { response ->
-            val result = response.body?.string().orEmpty()
-            if (!response.isSuccessful) error("Server error (HTTP ${response.code})")
-            result
+        val obj = execute(builder.build(), method, url, body)
+        return obj.toString()
+    }
+
+    private fun execute(req: Request, method: String, url: String, payload: String?): JsonObject {
+        return try {
+            client.newCall(req).execute().use { response ->
+                val text = response.body?.string().orEmpty()
+                onLog(SyncLog(url = url, method = method, success = response.isSuccessful, statusCode = response.code, errorMessage = if (response.isSuccessful) null else text.take(800), payload = payload?.take(1200)))
+                if (!response.isSuccessful) error("Server error (HTTP ${response.code})")
+                runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse { JsonObject(emptyMap()) }
+            }
+        } catch (e: Exception) {
+            if (e.message?.startsWith("Server error") != true) onLog(SyncLog(url = url, method = method, success = false, errorMessage = e.message, payload = payload?.take(1200)))
+            throw e
         }
     }
 
@@ -125,4 +134,29 @@ class SpendsApi {
     private fun String.escape() = replace("\\", "\\\\").replace("\"", "\\\"")
     fun expenseJson(e: Expense, mode: String = "force") = """{"date":"${e.date.escape()}","store":"${e.store.escape()}","amount":${e.amount},"source":"${e.entrySource.escape()}","mode":"$mode","raw":"${e.ocrRawStore.escape()}"}"""
     fun incomeJson(i: Income, mode: String = "force") = """{"date":"${i.date.escape()}","amount":${i.amount},"mode":"$mode"}"""
+
+    private fun ocrUrl(session: Session, api: String) = "${session.endpoint}/utils/expense_ocr_app.php?api=$api"
+
+    suspend fun ocrStart(session: Session, files: List<Pair<String, ByteArray>>): JsonObject = withContext(Dispatchers.IO) {
+        val body = MultipartBody.Builder().setType(MultipartBody.FORM)
+        files.forEach { (name, bytes) ->
+            body.addFormDataPart("photos[]", name, bytes.toRequestBody("image/jpeg".toMediaType()))
+            body.addFormDataPart("photos", name, bytes.toRequestBody("image/jpeg".toMediaType()))
+        }
+        val req = Request.Builder().url(ocrUrl(session, "start")).header("Authorization", "Bearer ${session.token}").header("Accept", "application/json").post(body.build()).build()
+        execute(req, "POST", ocrUrl(session, "start"), "${files.size} files")
+    }
+
+    suspend fun ocrStatus(session: Session, jobId: String): JsonObject = withContext(Dispatchers.IO) {
+        json.parseToJsonElement(request("GET", ocrUrl(session, "status") + "&job_id=$jobId", session.token)).jsonObject
+    }
+
+    suspend fun ocrResolve(session: Session, jobId: String, map: Map<String, String>): JsonObject = withContext(Dispatchers.IO) {
+        val payload = """{"job_id":"${jobId.escape()}","map":{${map.entries.joinToString(",") { "\"${it.key.escape()}\":\"${it.value.escape()}\"" }}},"skip":[]}"""
+        json.parseToJsonElement(request("POST", ocrUrl(session, "resolve"), session.token, payload)).jsonObject
+    }
+
+    suspend fun ocrFinalize(session: Session, jobId: String): JsonObject = withContext(Dispatchers.IO) {
+        json.parseToJsonElement(request("POST", ocrUrl(session, "finalize"), session.token, """{"job_id":"${jobId.escape()}"}""")).jsonObject
+    }
 }

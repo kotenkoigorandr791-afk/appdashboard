@@ -142,6 +142,10 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     fun saveBackup(name: String) = launch { run("Could not backup") { requireOk(api.form(state.value.session, mapOf("backup_action" to "save", "backup_name" to name))); backups.value = api.backups(state.value.session) } }
     fun restoreBackup(file: String) = launch { run("Could not restore") { requireOk(api.form(state.value.session, mapOf("backup_action" to "restore", "backup_file" to file))); refresh() } }
     fun deleteBackup(file: String) = launch { run("Could not delete backup") { requireOk(api.form(state.value.session, mapOf("backup_action" to "delete", "backup_file" to file))); backups.value = api.backups(state.value.session) } }
+    fun testConnection(done: (Boolean) -> Unit) = launch {
+        val session = state.value.session
+        runCatching { api.profile(session.endpoint, session.token); done(true) }.onFailure { done(false) }
+    }
     fun logout() = launch { store.clear() }
     fun dismissError() { error.value = null }
     private fun requireOk(obj: kotlinx.serialization.json.JsonObject) {

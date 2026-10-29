@@ -40,3 +40,20 @@ import kotlinx.serialization.Serializable
 )
 @Serializable data class LocalExtras(val pending: List<PendingCapture> = emptyList(), val trash: List<Expense> = emptyList())
 @Serializable data class Rates(val base: String = "USD", val rates: Map<String, Double> = emptyMap())
+@Serializable data class Appearance(
+    val theme: String = "auto",
+    val amoled: Boolean = false,
+    val accent: String = "blue",
+    val language: String = "",
+    val portraitOnly: Boolean = false,
+)
+@Serializable data class SyncLog(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val timestamp: Long = System.currentTimeMillis(),
+    val url: String = "",
+    val method: String = "GET",
+    val success: Boolean = true,
+    val statusCode: Int? = null,
+    val errorMessage: String? = null,
+    val payload: String? = null,
+)
