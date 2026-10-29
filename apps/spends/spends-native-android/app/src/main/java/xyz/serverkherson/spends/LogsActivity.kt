@@ -4,7 +4,7 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.os.Bundle
-import androidx.activity.ComponentActivity
+import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Arrangement
@@ -51,12 +51,14 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.launch
 import xyz.serverkherson.spends.data.Appearance
+import xyz.serverkherson.spends.R
 import xyz.serverkherson.spends.data.SyncLog
 import xyz.serverkherson.spends.ui.AppBackground
 import xyz.serverkherson.spends.ui.SpendsTheme
@@ -64,7 +66,11 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-class LogsActivity : ComponentActivity() {
+class LogsActivity : AppCompatActivity() {
+    override fun attachBaseContext(newBase: android.content.Context) {
+        super.attachBaseContext(AppLocale.wrap(newBase))
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -101,24 +107,24 @@ private fun LogsScreen(app: SpendsApplication, onBack: () -> Unit) {
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Logs") },
-                navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
-                actions = { if (allLogs.isNotEmpty()) TextButton({ scope.launch { app.store.clearLogs() } }) { Text("Clear") } },
+                title = { Text(stringResource(R.string.logs)) },
+                navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
+                actions = { if (allLogs.isNotEmpty()) TextButton({ scope.launch { app.store.clearLogs() } }) { Text(stringResource(R.string.logs_clear)) } },
             )
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("Server sync", style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                Text(stringResource(R.string.sync_title), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
                 IconButton({ newestFirst = !newestFirst }) { Icon(if (newestFirst) Icons.Filled.ArrowDownward else Icons.Filled.ArrowUpward, null) }
                 IconButton({ statusFilter = (statusFilter + 1) % 3 }) {
                     Icon(when (statusFilter) { 1 -> Icons.Filled.CheckCircle; 2 -> Icons.Filled.Error; else -> Icons.Filled.FilterList }, null)
                 }
             }
-            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text("Search") }, singleLine = true, shape = RoundedCornerShape(28.dp))
+            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Filled.Search, null) }, placeholder = { Text(stringResource(R.string.search)) }, singleLine = true, shape = RoundedCornerShape(28.dp))
             if (logs.isEmpty()) {
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(if (allLogs.isEmpty()) "No logs yet" else "No matches", color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                    Text(stringResource(if (allLogs.isEmpty()) R.string.logs_empty else R.string.logs_no_matches), color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                 }
             } else {
                 LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {

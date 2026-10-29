@@ -16,6 +16,41 @@ require_once APP_ROOT . '/apps/spends/core/user_state.php';
 require_once APP_ROOT . '/apps/spends/core/mobile_sync.php';
 
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if ($sub === 'version' && $method === 'GET') {
+    $metaFile = APP_ROOT . '/downloads/spends-mobile.json';
+    if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
+    $meta = json_decode((string)file_get_contents($metaFile), true);
+    if (!is_array($meta) || empty($meta['version'])) public_api_json(['status' => 'error', 'message' => 'invalid release metadata'], 500);
+    header('Content-Type: application/json; charset=utf-8');
+    exit(json_encode([
+        'status' => 'success',
+        'available' => true,
+        'version_name' => (string)$meta['version'],
+        'version_code' => (int)($meta['version_code'] ?? 0),
+        'hash' => (string)($meta['hash'] ?? ''),
+        'size_bytes' => (int)($meta['size_bytes'] ?? 0),
+        'built_at' => (int)($meta['built_at'] ?? 0),
+        'apk_path' => '/api/spends/apk',
+    ], JSON_UNESCAPED_UNICODE));
+}
+if ($sub === 'apk' && $method === 'GET') {
+    $apkFile = APP_ROOT . '/downloads/spends-mobile.apk';
+    if (!is_file($apkFile)) public_api_json(['status' => 'error', 'message' => 'no apk available'], 503);
+    $metaFile = APP_ROOT . '/downloads/spends-mobile.json';
+    $version = 'unknown';
+    if (is_file($metaFile)) {
+        $meta = json_decode((string)file_get_contents($metaFile), true);
+        if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
+    }
+    header('Content-Type: application/vnd.android.package-archive; charset=binary');
+    header('Content-Disposition: attachment; filename="Spends-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', (string)$version) . '.apk"');
+    header('Content-Length: ' . (string)filesize($apkFile));
+    header('Cache-Control: no-store, private');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    readfile($apkFile);
+    exit;
+}
 if ($sub === 'profile') {
     header('Content-Type: application/json; charset=utf-8');
     exit(json_encode(spends_mobile_profile(), JSON_UNESCAPED_UNICODE));
