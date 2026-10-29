@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import xyz.serverkherson.spends.data.BackupEntry
 import xyz.serverkherson.spends.data.BackupFile
@@ -28,6 +29,8 @@ data class AppState(
     val snapshot: Snapshot = Snapshot(),
     val extras: LocalExtras = LocalExtras(),
     val loading: Boolean = true,
+    /** True once the stored pairing has been read; keeps the pairing window off start-up. */
+    val sessionReady: Boolean = false,
     val error: String? = null,
     val rates: Rates = Rates(),
     val backups: List<BackupFile> = emptyList(),
@@ -57,17 +60,23 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     private val rates = MutableStateFlow(Rates())
     private val backups = MutableStateFlow<List<BackupFile>>(emptyList())
     private val localBackups = MutableStateFlow<List<BackupFile>>(emptyList())
+    private val sessionReady = MutableStateFlow(false)
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; prettyPrint = false }
     val state: StateFlow<AppState> = combine(store.session, store.snapshot, store.extras, loading, error) { session, snapshot, extras, busy, message ->
-        AppState(session, snapshot, extras, busy, message, rates.value, backups.value)
+        AppState(session = session, snapshot = snapshot, extras = extras, loading = busy, error = message, rates = rates.value, backups = backups.value)
     }
         .combine(rates) { s, r -> s.copy(rates = r) }
         .combine(backups) { s, b -> s.copy(backups = b) }
         .combine(localBackups) { s, b -> s.copy(localBackups = b) }
+        .combine(sessionReady) { s, r -> s.copy(sessionReady = r) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppState())
 
     init {
         localBackups.value = store.localBackups()
+        viewModelScope.launch {
+            store.session.first()
+            sessionReady.value = true
+        }
     }
 
     fun pair(linkOrEndpoint: String, suppliedToken: String = "", done: () -> Unit) = launch {

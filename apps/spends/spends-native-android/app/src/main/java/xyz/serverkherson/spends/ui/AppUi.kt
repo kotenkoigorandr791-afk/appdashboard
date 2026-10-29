@@ -104,6 +104,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
@@ -128,6 +129,15 @@ enum class Dest {
     Home, Stats, Stores, Settings, Insights, CashFlow, Categories, Calendar, Wrapped, NetWorth,
     Goals, Tags, Trash, Pending, Prefs, Data, Sync, Appearance, Transaction, Ocr, Expense, Store, About,
     Subscriptions,
+}
+
+/** Screens opened under [DetailScreen] already carry the title in the top bar. */
+internal val LocalHeadingHidden = androidx.compose.runtime.staticCompositionLocalOf { false }
+
+@Composable
+fun PageHeading(res: Int) {
+    if (LocalHeadingHidden.current) return
+    Text(stringResource(res), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -348,7 +358,7 @@ fun CashFlowScreen(state: AppState) {
     val byMonth = state.snapshot.expenses.groupBy { it.date.take(7) }.mapValues { it.value.sumOf { e -> e.amount } }.toSortedMap()
     val max = byMonth.values.maxOrNull() ?: 1.0
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.cash_flow_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.cash_flow_title)
         if (byMonth.isEmpty()) EmptyCard(stringResource(R.string.no_months_title), stringResource(R.string.no_months_body))
         byMonth.forEach { (month, total) ->
             Card(shape = RoundedCornerShape(18.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
@@ -403,7 +413,7 @@ fun CategoriesScreen(state: AppState) {
     val rows = remember(state.snapshot.expenses, state.snapshot.stores) { categoryRows(state) }
     val total = rows.sumOf { it.amount }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.categories), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.categories)
         Box(Modifier.fillMaxWidth().background(heroBrush(), RoundedCornerShape(24.dp)).padding(20.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Text(stringResource(R.string.categories_total), color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f), style = MaterialTheme.typography.labelLarge)
@@ -490,7 +500,7 @@ private fun CategoryCard(row: CategoryRow, total: Double, currency: String, colo
 @Composable
 fun CalendarScreen(state: AppState) {
     Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.calendar), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.calendar)
         CalendarHeatmap(state)
     }
 }
@@ -511,7 +521,7 @@ fun InsightsScreen(state: AppState) {
     val spent = state.snapshot.expenses.sumOf { it.amount }
     val top = state.snapshot.expenses.groupBy { it.store }.mapValues { it.value.sumOf { e -> e.amount } }.maxByOrNull { it.value }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.insights), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.insights)
         InsightCard(
             title = stringResource(R.string.spent),
             value = money(spent, state.snapshot.currency),
@@ -565,7 +575,7 @@ fun NetWorthScreen(state: AppState) {
     val incomes = state.snapshot.incomes.sumOf { it.amount }
     val expenses = state.snapshot.expenses.sumOf { it.amount }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.net_position), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.net_position)
         StatCard(stringResource(R.string.incomes), stringResource(R.string.net_in, money(incomes, state.snapshot.currency)), SpendsColors.income())
         StatCard(stringResource(R.string.expenses), stringResource(R.string.net_out, money(expenses, state.snapshot.currency)), SpendsColors.expense())
         StatCard(stringResource(R.string.net_position), stringResource(R.string.net_total, money(incomes - expenses, state.snapshot.currency)))
@@ -577,7 +587,7 @@ fun WrappedScreen(state: AppState) {
     val year = LocalDate.now().year
     val yearSpend = state.snapshot.expenses.filter { it.date.startsWith("$year") }.sumOf { it.amount }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.year_in_review), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.year_in_review)
         Box(Modifier.fillMaxWidth().background(heroBrush(), RoundedCornerShape(24.dp)).padding(22.dp)) {
             Column {
                 Text("$year", color = MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.75f), style = MaterialTheme.typography.labelLarge)
@@ -850,7 +860,9 @@ fun ExpenseDetailScreen(state: AppState, expense: Expense, model: SpendsViewMode
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 RemotePhoto(store?.photoUrl.orEmpty(), expense.store.take(1).uppercase(), round = false, size = 88.dp)
-                Text(expense.store, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                if (!LocalHeadingHidden.current) {
+                    Text(expense.store, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
                 Text(
                     store?.category?.takeIf { it.isNotBlank() }?.let { categoryLabel(it) } ?: stringResource(R.string.store_fallback),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -892,7 +904,9 @@ fun StoreDetailScreen(state: AppState, store: Store, onExpense: (Expense) -> Uni
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 RemotePhoto(store.photoUrl, store.name.take(1).uppercase(), round = false, size = 96.dp)
-                Text(store.name, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                if (!LocalHeadingHidden.current) {
+                    Text(store.name, style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
                 Text(categoryLabel(store.category), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
@@ -1014,7 +1028,7 @@ fun AboutScreen(state: AppState) {
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text(stringResource(R.string.about_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.about_title)
         Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
             Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -1111,7 +1125,7 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
     var name by remember { mutableStateOf("") }
     var target by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.goals_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.goals_title)
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.name)) }, shape = RoundedCornerShape(16.dp))
         OutlinedTextField(target, { target = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.target)) }, shape = RoundedCornerShape(16.dp))
         Button(
@@ -1163,7 +1177,7 @@ fun TagsScreen(state: AppState, model: SpendsViewModel) {
     var showPaymentPicker by remember { mutableStateOf(false) }
     var pendingTagExpense by remember { mutableStateOf<Expense?>(null) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.tags_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.tags_title)
         Text(stringResource(R.string.tags_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             OutlinedTextField(name, { name = it }, Modifier.weight(1f), label = { Text(stringResource(R.string.tag)) }, shape = RoundedCornerShape(16.dp), singleLine = true)
@@ -1190,11 +1204,17 @@ fun TagsScreen(state: AppState, model: SpendsViewModel) {
                         Text(
                             stringResource(R.string.tags_usage, t.usageCount),
                             style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    TextButton({ tagBeingAssigned = t }) { Text(stringResource(R.string.tags_assign)) }
-                    TextButton({ model.deleteTag(t.id) }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                    // Icon actions keep the row on one line even on narrow screens.
+                    IconButton({ tagBeingAssigned = t }) {
+                        Icon(Icons.Outlined.Label, stringResource(R.string.tags_assign), tint = MaterialTheme.colorScheme.primary)
+                    }
+                    IconButton({ model.deleteTag(t.id) }) {
+                        Icon(Icons.Outlined.Delete, stringResource(R.string.delete), tint = MaterialTheme.colorScheme.error)
+                    }
                 }
             }
         }
@@ -1374,7 +1394,7 @@ fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
         }
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.subscriptions_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.subscriptions_title)
         Text(stringResource(R.string.subscriptions_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         Button({ adding = !adding }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
             Icon(Icons.Outlined.Add, null, modifier = Modifier.size(18.dp))
@@ -1447,7 +1467,7 @@ fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
 @Composable
 fun TrashScreen(state: AppState, model: SpendsViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.trash_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.trash_title)
         if (state.extras.trash.isEmpty()) EmptyCard(stringResource(R.string.trash_empty_title), stringResource(R.string.trash_empty_body))
         state.extras.trash.forEach { e ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
@@ -1471,7 +1491,7 @@ fun PendingScreen(state: AppState, model: SpendsViewModel) {
         editing = null
     }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.pending_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.pending_title)
         Text(stringResource(R.string.pending_desc), color = MaterialTheme.colorScheme.onSurfaceVariant)
         NotificationAccessCard(state)
         if (state.extras.pending.isEmpty()) EmptyCard(stringResource(R.string.pending_empty_title), stringResource(R.string.pending_empty_body))
@@ -1559,7 +1579,7 @@ fun PrefsScreen(state: AppState, model: SpendsViewModel) {
     var trend by remember(state.snapshot.flags.showTrend) { mutableStateOf(state.snapshot.flags.showTrend) }
     var trim by remember(state.snapshot.flags.trimEmptyMonths) { mutableStateOf(state.snapshot.flags.trimEmptyMonths) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.preferences_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.preferences_title)
         OutlinedTextField(budget, { budget = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.monthly_budget)) }, shape = RoundedCornerShape(16.dp))
         OutlinedTextField(currency, { currency = it.uppercase() }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.currency)) }, shape = RoundedCornerShape(16.dp))
         SwitchRow(stringResource(R.string.show_incomes), incomes) { incomes = it }
@@ -1586,7 +1606,7 @@ fun DataScreen(state: AppState, model: SpendsViewModel) {
     var selected by remember { mutableStateOf<BackupEntry?>(null) }
     val entries = remember(state.backups, state.localBackups) { state.allBackups }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        Text(stringResource(R.string.data_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.data_title)
         OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.backup_name)) }, shape = RoundedCornerShape(16.dp))
         Button({ model.saveBackup(name) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
             Icon(Icons.Outlined.Backup, null)
@@ -1704,7 +1724,7 @@ private fun backupDate(mtime: Long): String =
 @Composable
 fun SyncScreen(state: AppState, model: SpendsViewModel, onLogs: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        Text(stringResource(R.string.sync_title), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
+        PageHeading(R.string.sync_title)
         ConnectionCard(state, model)
         Text(state.session.endpoint, color = MaterialTheme.colorScheme.onSurfaceVariant)
         val last = if (state.snapshot.syncedAt == 0L) "—" else java.text.DateFormat.getDateTimeInstance().format(java.util.Date(state.snapshot.syncedAt))
@@ -1795,7 +1815,10 @@ fun DetailScreen(title: String, onBack: () -> Unit, content: @Composable () -> U
             IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.nav_home)) }
             Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
         }
-        Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+        // Content headings would repeat the toolbar title, so screens hide theirs here.
+        androidx.compose.runtime.CompositionLocalProvider(LocalHeadingHidden provides true) {
+            Box(Modifier.weight(1f).fillMaxWidth()) { content() }
+        }
     }
 }
 
@@ -1903,8 +1926,17 @@ private fun NavSlot(label: String, icon: ImageVector, selected: Boolean, modifie
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
-        Icon(icon, label, tint = color)
-        Text(label, style = MaterialTheme.typography.labelSmall, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(icon, label, tint = color, modifier = Modifier.size(22.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelSmall,
+            color = color,
+            fontSize = 10.sp,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth(),
+        )
     }
 }
 

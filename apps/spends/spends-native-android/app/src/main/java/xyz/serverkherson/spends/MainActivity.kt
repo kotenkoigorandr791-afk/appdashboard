@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -123,6 +124,14 @@ class MainActivity : AppCompatActivity() {
     // A captured wallet notification opens the review screen directly.
     LaunchedEffect(openPending) {
         if (openPending) dest = Dest.Pending
+    }
+
+    if (!state.sessionReady) {
+        // Pairing must not flash for accounts that are already connected.
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator()
+        }
+        return
     }
 
     if (state.session.token.isBlank()) {
