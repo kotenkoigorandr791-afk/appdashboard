@@ -26,7 +26,7 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and publish Docker image
+      - name: Build and publish application image
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -40,3 +40,25 @@ jobs:
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ steps.version.outputs.value }}
             ghcr.io/${{ github.repository }}:sha-${{ github.sha }}
+      - name: Build and publish Python sidecar image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/python-sidecar/Dockerfile
+          push: ${{ github.event_name == 'push' }}
+          tags: |
+            ghcr.io/${{ github.repository }}-py:latest
+            ghcr.io/${{ github.repository }}-py:${{ steps.version.outputs.value }}
+            ghcr.io/${{ github.repository }}-py:sha-${{ github.sha }}
+      - name: Delete old image versions
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          for package in appdashboard appdashboard-py; do
+            gh api --paginate "/user/packages/container/$package/versions?per_page=100" --jq 'sort_by(.created_at) | reverse | .[2:] | .[].id' |
+              while read -r version; do
+                gh api --method DELETE "/user/packages/container/$package/versions/$version"
+              done
+          done
