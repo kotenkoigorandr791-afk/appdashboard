@@ -208,3 +208,16 @@ pnpm-debug.log*
 /downloads/spends-mobile.apk
 /downloads/spends-mobile.json
 /downloads/spends-mobile-build.sha256
+
+# Spends native Android (apps/spends/spends-native-android)
+/apps/spends/spends-native-android/.gradle/
+/apps/spends/spends-native-android/.kotlin/
+/apps/spends/spends-native-android/build/
+/apps/spends/spends-native-android/app/build/
+/apps/spends/spends-native-android/local.properties
+/apps/spends/spends-native-android/app/release.jks
+/apps/spends/spends-native-android/captures/
+/apps/spends/spends-native-android/.cxx/
+/apps/spends/spends-native-android/.idea/
+/apps/spends/spends-native-android/**/*.apk
+/apps/spends/spends-native-android/**/*.aab
