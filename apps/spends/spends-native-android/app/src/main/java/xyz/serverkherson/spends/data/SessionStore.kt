@@ -39,6 +39,30 @@ class SessionStore(private val context: Context) {
     private fun decodeList(prefs: Preferences, key: Preferences.Key<String>): List<SyncLog> =
         runCatching { json.decodeFromString(kotlinx.serialization.builtins.ListSerializer(SyncLog.serializer()), prefs[key].orEmpty()) }.getOrDefault(emptyList())
     suspend fun extrasNow() = extras.first()
+
+    // ── Local backups ────────────────────────────────────────────────────────
+    private val backupDir = java.io.File(context.filesDir, "backups").apply { if (!exists()) mkdirs() }
+
+    fun localBackups(): List<BackupFile> = backupDir.listFiles()
+        ?.filter { it.isFile }
+        ?.sortedByDescending { it.lastModified() }
+        ?.map { BackupFile(it.name.removeSuffix(".json"), it.length(), it.lastModified()) }
+        .orEmpty()
+
+    fun writeLocalBackup(name: String, payload: String): Boolean = runCatching {
+        backupDir.mkdirs()
+        java.io.File(backupDir, "${name.replace(Regex("[^A-Za-z0-9._-]"), "_")}.json").writeText(payload)
+        true
+    }.getOrDefault(false)
+
+    fun readLocalBackup(name: String): String? = runCatching {
+        java.io.File(backupDir, "${name.removeSuffix(".json")}.json").takeIf { it.isFile }?.readText()
+    }.getOrNull()
+
+    fun deleteLocalBackup(name: String) {
+        runCatching { java.io.File(backupDir, "${name.removeSuffix(".json")}.json").delete() }
+    }
+
     suspend fun clear() { context.spendsDataStore.edit { it.remove(sessionKey); it.remove(snapshotKey); it.remove(extrasKey) } }
     private fun <T> decode(prefs: Preferences, key: Preferences.Key<String>, serializer: kotlinx.serialization.KSerializer<T>, fallback: T): T =
         runCatching { json.decodeFromString(serializer, prefs[key].orEmpty()) }.getOrDefault(fallback)

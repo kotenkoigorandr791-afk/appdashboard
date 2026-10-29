@@ -5,6 +5,13 @@ if ($sub === 'utils' && str_starts_with((string)($parts[2] ?? ''), 'expense_ocr_
     require APP_ROOT . '/apps/spends/utils/expense_ocr_app.php';
     exit;
 }
+// JSON/multipart OCR API for the mobile app: /api/spends/ocr/{start|status|resolve|set_dates|cancel|finalize|stores|active_job}
+if ($sub === 'ocr') {
+    $_GET['api'] = strtolower((string)($parts[2] ?? ''));
+    $_GET['job_id'] = (string)($_GET['job_id'] ?? '');
+    require APP_ROOT . '/apps/spends/utils/expense_ocr_app.php';
+    exit;
+}
 require_once APP_ROOT . '/apps/spends/core/db.php';
 require_once APP_ROOT . '/apps/spends/core/user_db.php';
 require_once APP_ROOT . '/apps/spends/core/auth.php';

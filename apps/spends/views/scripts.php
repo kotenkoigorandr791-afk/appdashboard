@@ -664,6 +664,22 @@ function updateChart() {
             const diff=months.map((_,i)=>+(inc[i]-td[i]).toFixed(2));
             datasets.push(...splitLine(diff,'#f59e0b',{_label:t('difference_line','Difference')}));
         }
+    } else if (chartMode==='categories') {
+        // Third mode: the same year curve split by store category.
+        const catOf={};
+        userSettings.stores.forEach(s=>{catOf[s.name]=s.category||'other';});
+        const perStoreTotals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
+        const catTotals={};
+        userSettings.stores.forEach(s=>{const c=catOf[s.name];if(s.visible===false)return;catTotals[c]=(catTotals[c]||0)+months.reduce((sum,m)=>sum+(monthly[m][s.name]||0),0);});
+        const cats=Object.keys(catTotals).sort((a,b)=>catTotals[b]-catTotals[a]);
+        cats.forEach((cat,i)=>{
+            const vals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false&&catOf[s.name]===cat)t+=monthly[m][s.name]||0;});return t*conv;});
+            datasets.push(...splitLine(vals,storeColors[i%storeColors.length],{_label:categoryLabel(cat)}));
+        });
+        if(userSettings.show_trend){
+            const trendData=linearRegression(perStoreTotals);
+            datasets.push(...splitLine(trendData,'#f59e0b',{tension:0,_label:t('difference_line','Trend')}));
+        }
     } else {
         const perStoreTotals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
         userSettings.stores.forEach((s,i)=>{
@@ -682,7 +698,9 @@ function updateChart() {
         plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
                  tooltip:{mode:'index',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
-    document.querySelector('.chart-toggle-btn').textContent=chartMode==='total'?translations.per_store_expenses:translations.total_expenses;
+    document.querySelectorAll('.chart-toggle-btn').forEach(btn=>{
+        btn.textContent=chartMode==='total'?translations.per_store_expenses:(chartMode==='stores'?t('chart_by_category','By category'):translations.total_expenses);
+    });
     updateYearButtons();
 }
 function yearHasData(y){return availableYears.includes(Number(y));}
@@ -725,7 +743,7 @@ function changeChartYear(d) {
         })
         .catch(()=>updateChart());
 }
-function toggleChartMode(){chartMode=chartMode==='total'?'stores':'total';updateChart();}
+function toggleChartMode(){chartMode=chartMode==='total'?'stores':(chartMode==='stores'?'categories':'total');updateChart();}
 
 // ══ Exchange Rates ══════════════════════════════════════════════════════════
 // ══ Exchange Rates (redesigned) ══════════════════════════════════════════════

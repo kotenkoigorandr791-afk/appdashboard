@@ -8,17 +8,27 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -42,10 +52,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import coil.compose.AsyncImage
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
@@ -113,6 +127,27 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).padding(20.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Button({ picker.launch("image/*") }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(if (files.isEmpty()) "Choose screenshots" else "${files.size} files selected") }
+            // Chosen shots as a tile grid (two rows visible) so it is obvious what will be uploaded.
+            if (files.isNotEmpty()) {
+                LazyVerticalGrid(
+                    GridCells.Fixed(3),
+                    Modifier.fillMaxWidth().height(if (files.size > 3) 176.dp else 88.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    itemsIndexed(files) { index, uri ->
+                        Box(Modifier.fillMaxWidth().height(88.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
+                            AsyncImage(uri, "photo ${index + 1}", Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                            Box(
+                                Modifier.align(Alignment.TopEnd).padding(4.dp).size(20.dp)
+                                    .clip(CircleShape).background(Color.Black.copy(alpha = 0.55f))
+                                    .clickable { files = files.toMutableList().also { it.removeAt(index) } },
+                                contentAlignment = Alignment.Center,
+                            ) { Icon(Icons.Outlined.Close, "Remove", tint = Color.White, modifier = Modifier.size(14.dp)) }
+                        }
+                    }
+                }
+            }
             Button({
                 if (files.isEmpty() || session.token.isBlank()) { message = "Choose files first"; return@Button }
                 busy = true; message = ""

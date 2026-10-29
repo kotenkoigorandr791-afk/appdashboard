@@ -3,6 +3,7 @@ package xyz.serverkherson.spends.ui
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -14,11 +15,15 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.items
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChevronLeft
@@ -71,6 +76,7 @@ fun YearExpenseChart(state: AppState) {
     val years = state.snapshot.years.ifEmpty { listOf(LocalDate.now().year) }.sorted()
     var year by remember(years) { mutableIntStateOf(years.last()) }
     var mode by remember { mutableStateOf("total") }
+    var legendSeries by remember { mutableStateOf<List<ChartSeries>?>(null) }
     var currency by remember(state.snapshot.currency) { mutableStateOf(state.snapshot.currency) }
     val months = remember { (1..12).map { "%02d".format(it) } }
     val visible = state.snapshot.stores.filter { it.visible }
@@ -91,23 +97,52 @@ fun YearExpenseChart(state: AppState) {
     val differenceLabel = stringResource(R.string.difference)
     val expenseColor = SpendsColors.expense()
     val incomeColor = SpendsColors.income()
-    val series = buildList {
-        if (mode == "total") {
-            add(ChartSeries(expensesLabel, expenseColor, shownMonths.map { (monthlyStores[it]?.values?.sum() ?: 0.0) * conv }))
-            if (state.snapshot.flags.showIncomes) add(ChartSeries(incomesLabel, incomeColor, shownMonths.map { (monthlyIncome[it] ?: 0.0) * conv }))
-            if (state.snapshot.flags.showTrend) {
-                val exp = shownMonths.map { (monthlyStores[it]?.values?.sum() ?: 0.0) * conv }
-                val inc = shownMonths.map { (monthlyIncome[it] ?: 0.0) * conv }
-                add(ChartSeries(differenceLabel, Color(0xFFF59E0B), exp.indices.map { inc[it] - exp[it] }))
+    val categoryOf = remember(state.snapshot.stores) {
+        state.snapshot.stores.associate { it.name to it.category.ifBlank { "other" } }
+    }
+    val categoryKeys = remember(state.snapshot.expenses, categoryOf) {
+        state.snapshot.expenses.groupBy { categoryOf[it.store] ?: "other" }
+            .mapValues { entry -> entry.value.sumOf { it.amount } }
+            .toList().sortedByDescending { it.second }.map { it.first }
+    }
+    val categoryLabels = categoryKeys.associateWith { categoryLabel(it) }
+    fun buildSeries(mode: String): List<ChartSeries> = buildList {
+        when (mode) {
+            "total" -> {
+                add(ChartSeries(expensesLabel, expenseColor, shownMonths.map { (monthlyStores[it]?.values?.sum() ?: 0.0) * conv }))
+                if (state.snapshot.flags.showIncomes) add(ChartSeries(incomesLabel, incomeColor, shownMonths.map { (monthlyIncome[it] ?: 0.0) * conv }))
+                if (state.snapshot.flags.showTrend) {
+                    val exp = shownMonths.map { (monthlyStores[it]?.values?.sum() ?: 0.0) * conv }
+                    val inc = shownMonths.map { (monthlyIncome[it] ?: 0.0) * conv }
+                    add(ChartSeries(differenceLabel, Color(0xFFF59E0B), exp.indices.map { inc[it] - exp[it] }))
+                }
             }
-        } else {
-            visible.take(8).forEachIndexed { i, store ->
+            "categories" -> categoryKeys.take(8).forEachIndexed { i, category ->
+                val color = StorePalette[i % StorePalette.size]
+                add(
+                    ChartSeries(
+                        categoryLabels[category] ?: category,
+                        color,
+                        shownMonths.map { month ->
+                            val prefix = "$year-$month"
+                            state.snapshot.expenses
+                                .filter { it.date.startsWith(prefix) && (categoryOf[it.store] ?: "other") == category }
+                                .sumOf { it.amount } * conv
+                        },
+                    ),
+                )
+            }
+            else -> visible.take(8).forEachIndexed { i, store ->
                 add(ChartSeries(store.name, StorePalette[i % StorePalette.size], shownMonths.map { (monthlyStores[it]?.get(store.name) ?: 0.0) * conv }))
             }
         }
     }
+    // Exactly one row of chips: the tracked currencies, with the account currency swapped in.
     val currencies = remember(state.snapshot.currency) {
-        (ChartCurrencies + state.snapshot.currency.uppercase()).filter { it.isNotBlank() }.distinct()
+        val base = ChartCurrencies.toMutableList()
+        val account = state.snapshot.currency.uppercase()
+        if (account.isNotBlank() && account !in base) base[base.lastIndex] = account
+        base.distinct()
     }
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -122,32 +157,118 @@ fun YearExpenseChart(state: AppState) {
                 Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_year))
             }
         }
-        // Chips wrap onto as many lines as needed instead of running off the right edge.
-        FlowRow(
-            Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-        ) {
+        // Compact chips share the width equally so they always stay on one line.
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             currencies.forEach { code ->
-                FilterChip(selected = currency == code, onClick = { currency = code }, label = { Text(code) })
-            }
-        }
-        AreaLineChart(series, shownMonths.map { it.toInt().toString() }, currency)
-        FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            series.take(6).forEach { item ->
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Box(Modifier.size(9.dp).clip(CircleShape).background(item.color))
-                    Text(item.label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+                val active = currency == code
+                Box(
+                    Modifier
+                        .weight(1f)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant)
+                        .border(
+                            1.dp,
+                            if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+                            RoundedCornerShape(12.dp),
+                        )
+                        .clickable { currency = code }
+                        .padding(vertical = 9.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        code,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                    )
                 }
             }
         }
-        // The per-store switch lives below the graph, never on the edge of the chart.
+        // Switching totals ↔ stores ↔ categories animates the whole plot area.
+        androidx.compose.animation.AnimatedContent(
+            targetState = mode,
+            transitionSpec = {
+                (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(320)) +
+                    androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(320), initialScale = 0.96f))
+                    .togetherWith(androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(180)))
+            },
+            label = "year-chart-mode",
+        ) { currentMode ->
+            val series = buildSeries(currentMode)
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                AreaLineChart(series, shownMonths.map { it.toInt().toString() }, currency)
+                when {
+                    series.size > 5 -> OutlinedButton(
+                        onClick = { legendSeries = series },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(14.dp),
+                    ) {
+                        Text("${stringResource(R.string.chart_legend)} · ${series.size}")
+                    }
+                    else -> FlowRow(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        series.forEach { item ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Box(Modifier.size(9.dp).clip(CircleShape).background(item.color))
+                                Text(item.label, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.8f), style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        legendSeries?.let { series -> ChartLegendDialog(series) { legendSeries = null } }
+        // The mode switch lives below the graph, never on the edge of the chart.
         OutlinedButton(
-            onClick = { mode = if (mode == "total") "stores" else "total" },
+            onClick = { mode = when (mode) { "total" -> "stores"; "stores" -> "categories"; else -> "total" } },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(14.dp),
         ) {
-            Text(if (mode == "total") stringResource(R.string.per_store) else stringResource(R.string.totals))
+            Text(
+                when (mode) {
+                    "total" -> stringResource(R.string.per_store)
+                    "stores" -> stringResource(R.string.chart_by_category)
+                    else -> stringResource(R.string.totals)
+                },
+            )
+        }
+    }
+}
+
+/** Legend for charts with many series: searchable list instead of a wall of labels. */
+@Composable
+private fun ChartLegendDialog(series: List<ChartSeries>, onDismiss: () -> Unit) {
+    var query by remember { mutableStateOf("") }
+    val filtered = remember(series, query) {
+        if (query.isBlank()) series else series.filter { it.label.contains(query, ignoreCase = true) }
+    }
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        androidx.compose.material3.Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.chart_legend_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                androidx.compose.material3.OutlinedTextField(
+                    query,
+                    { query = it },
+                    Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.chart_legend_search)) },
+                    singleLine = true,
+                    shape = RoundedCornerShape(14.dp),
+                )
+                androidx.compose.foundation.lazy.LazyColumn(
+                    Modifier.fillMaxWidth().heightIn(max = 360.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    items(filtered) { item ->
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Box(Modifier.size(10.dp).clip(CircleShape).background(item.color))
+                            Text(item.label, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.weight(1f))
+                            Text(compactMoney(item.values.sum()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                }
+                androidx.compose.material3.Button(onDismiss, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                    Text(stringResource(R.string.heatmap_close))
+                }
+            }
         }
     }
 }
@@ -320,10 +441,32 @@ fun CalendarHeatmap(state: AppState, modifier: Modifier = Modifier) {
     }
 }
 
-/** Wrap-around horizontal scroller used by the rates strip. */
+/** Exchange rates live in their own modal window. */
 @Composable
-private fun ScrollRow(content: @Composable () -> Unit) {
-    Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(12.dp)) { content() }
+fun RatesDialog(state: AppState, onDismiss: () -> Unit) {
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        androidx.compose.material3.Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 2.dp,
+        ) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Outlined.ShowChart, null, tint = MaterialTheme.colorScheme.primary)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.rates_title), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                }
+                Column(
+                    Modifier.heightIn(max = 430.dp).verticalScroll(rememberScrollState()),
+                ) {
+                    RatesSection(state)
+                }
+                androidx.compose.material3.Button(onDismiss, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
+                    Text(stringResource(R.string.heatmap_close))
+                }
+            }
+        }
+    }
 }
 
 /** One card per currency: code, live rate, 14-day trend and a mini chart. */
