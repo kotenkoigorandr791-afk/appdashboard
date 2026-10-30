@@ -15,6 +15,28 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Restore Android signing keys
+        run: |
+          echo "$STEPS_KEYSTORE_BASE64" | base64 --decode > apps/steps/steps-mobile-app/app/release.jks
+          echo "$SPENDS_KEYSTORE_BASE64" | base64 --decode > apps/spends/spends-native-android/app/release.jks
+        env:
+          STEPS_KEYSTORE_BASE64: ${{ secrets.STEPS_KEYSTORE_BASE64 }}
+          SPENDS_KEYSTORE_BASE64: ${{ secrets.SPENDS_KEYSTORE_BASE64 }}
+      - name: Build bundled mobile apps
+        run: |
+          deploy/scripts/build-stepmonitor-apk.sh "$GITHUB_WORKSPACE"
+          KEYSTORE_PASSWORD="$SPENDS_KEYSTORE_PASSWORD" KEY_ALIAS="$SPENDS_KEY_ALIAS" KEY_PASSWORD="$SPENDS_KEY_PASSWORD" deploy/scripts/build-spends-apk.sh "$GITHUB_WORKSPACE"
+        env:
+          KEYSTORE_PASSWORD: ${{ secrets.STEPS_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.STEPS_KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.STEPS_KEY_PASSWORD }}
+          SPENDS_KEYSTORE_PASSWORD: ${{ secrets.SPENDS_KEYSTORE_PASSWORD }}
+          SPENDS_KEY_ALIAS: ${{ secrets.SPENDS_KEY_ALIAS }}
+          SPENDS_KEY_PASSWORD: ${{ secrets.SPENDS_KEY_PASSWORD }}
       - uses: docker/setup-buildx-action@v3
       - name: Read application version
         id: version
