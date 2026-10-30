@@ -413,7 +413,6 @@ fun AppDatePickerDialog(
     dismissLabel: String,
 ) {
     val picker = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
-    val maxPickerHeight = (LocalConfiguration.current.screenHeightDp.dp - 176.dp).coerceAtLeast(240.dp)
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -424,13 +423,13 @@ fun AppDatePickerDialog(
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
         ) {
-            Column(horizontalAlignment = Alignment.End) {
+            Column(horizontalAlignment = Alignment.End, modifier = Modifier.heightIn(max = 520.dp)) {
                 DatePicker(
                     picker,
                     modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 12.dp)
-                        .heightIn(max = maxPickerHeight)
-                        .verticalScroll(rememberScrollState()),
+                        .padding(horizontal = 12.dp),
+                    title = null,
+                    headline = null,
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
