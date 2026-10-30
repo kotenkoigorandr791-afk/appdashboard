@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -92,6 +93,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -118,6 +120,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import java.time.Instant
 import java.time.ZoneOffset
 import java.time.LocalDate
@@ -137,12 +140,13 @@ import orbit.nex.finance.data.PendingCapture
 import orbit.nex.finance.data.Store
 import orbit.nex.finance.data.Tag
 import orbit.nex.finance.updates.AppUpdateChecker
+import orbit.nex.finance.updates.UpdateInfo
 import orbit.nex.finance.updates.UpdateOutcome
 
 enum class Dest {
     Home, Stats, Stores, Settings, Insights, CashFlow, Categories, Calendar, Wrapped, NetWorth,
     Goals, Tags, Trash, Pending, Prefs, Data, Sync, Appearance, Transaction, Ocr, Expense, Store, About,
-    Subscriptions,
+    Subscriptions, Updates,
 }
 
 /** Screens opened under [DetailScreen] already carry the title in the top bar. */
@@ -410,23 +414,37 @@ fun AppDatePickerDialog(
 ) {
     val picker = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
     val maxPickerHeight = (LocalConfiguration.current.screenHeightDp.dp - 176.dp).coerceAtLeast(240.dp)
-    DatePickerDialog(
+    Dialog(
         onDismissRequest = onDismiss,
-        modifier = Modifier.padding(horizontal = 12.dp),
-        confirmButton = {
-            TextButton(onClick = { picker.selectedDateMillis?.let(onConfirm); onDismiss() }) { Text(stringResource(R.string.ok)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(dismissLabel) } },
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).widthIn(max = 480.dp),
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 6.dp,
         ) {
-            DatePicker(
-                picker,
-                modifier = Modifier.fillMaxWidth()
-                    .padding(horizontal = 12.dp)
-                    .heightIn(max = maxPickerHeight)
-                    .verticalScroll(rememberScrollState())
-                    ,
-            )
+            Column(horizontalAlignment = Alignment.End) {
+                DatePicker(
+                    picker,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 12.dp)
+                        .heightIn(max = maxPickerHeight)
+                        .verticalScroll(rememberScrollState()),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = onDismiss) { Text(dismissLabel) }
+                    TextButton(onClick = { picker.selectedDateMillis?.let(onConfirm); onDismiss() }) {
+                        Text(stringResource(R.string.ok))
+                    }
+                }
+            }
         }
+    }
 }
 
 private val CategoryPalette = listOf(
@@ -1117,6 +1135,24 @@ fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
                 }
             }
         }
+        Card(
+            modifier = Modifier.fillMaxWidth().clickable { go(Dest.Updates) },
+            shape = RoundedCornerShape(20.dp),
+            colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().padding(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                Icon(Icons.Outlined.Autorenew, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(26.dp))
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(stringResource(R.string.update_settings_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                    Text(stringResource(R.string.update_settings_subtitle), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Text(stringResource(R.string.settings), style = MaterialTheme.typography.headlineMedium, color = MaterialTheme.colorScheme.onBackground)
         ProfileCard(state)
         SectionLabel(Icons.Outlined.Insights, stringResource(R.string.overview))
@@ -1157,12 +1193,6 @@ fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
 @Composable
 fun AboutScreen(state: AppState) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val checker = remember { AppUpdateChecker(context.applicationContext) }
-    var checking by remember { mutableStateOf(false) }
-    var info by remember { mutableStateOf<orbit.nex.finance.updates.UpdateInfo?>(null) }
-    var status by remember { mutableStateOf<String?>(null) }
-    var progress by remember { mutableStateOf(0) }
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -1186,64 +1216,95 @@ fun AboutScreen(state: AppState) {
                 InfoBox(stringResource(R.string.about_account), state.session.email.ifBlank { "—" })
             }
         }
-        Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
-            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.about_updates), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                val available = info
+    }
+}
+
+@Composable
+fun UpdatesScreen(state: AppState) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val checker = remember { AppUpdateChecker(context.applicationContext) }
+    var checking by remember { mutableStateOf(false) }
+    var downloading by remember { mutableStateOf(false) }
+    var info by remember { mutableStateOf<UpdateInfo?>(null) }
+    var status by remember { mutableStateOf<String?>(null) }
+    var progress by remember { mutableStateOf(0) }
+
+    fun checkUpdates() {
+        scope.launch {
+            checking = true
+            status = context.getString(R.string.checking_updates)
+            val check = checker.checkForUpdate(state.session.endpoint, state.session.token)
+            info = check.info
+            status = when (check.outcome) {
+                UpdateOutcome.UPDATE_AVAILABLE -> context.getString(R.string.update_available, check.info?.version_name.orEmpty())
+                UpdateOutcome.UP_TO_DATE -> context.getString(R.string.update_up_to_date)
+                UpdateOutcome.NOT_CONNECTED -> context.getString(R.string.update_not_connected)
+                UpdateOutcome.ERROR -> context.getString(R.string.update_failed)
+            }
+            checking = false
+        }
+    }
+
+    LaunchedEffect(state.session.token) { checkUpdates() }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        PageHeading(R.string.update_settings_title)
+        Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.about_version_label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})", style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
                 Text(
-                    status ?: if (available != null && available.version_code > BuildConfig.VERSION_CODE) {
-                        stringResource(R.string.update_available, available.version_name)
-                    } else {
-                        ""
-                    },
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
+                    status.orEmpty(),
+                    color = if (info != null) Color(0xFF16834A) else MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
                 )
+                info?.release_notes?.takeIf { it.isNotBlank() }?.let {
+                    Text(it.take(500), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 6, overflow = TextOverflow.Ellipsis)
+                }
                 Button(
                     onClick = {
-                        if (available != null && available.version_code > BuildConfig.VERSION_CODE) {
+                        val available = info
+                        if (available == null) {
+                            checkUpdates()
+                        } else {
                             scope.launch {
+                                downloading = true
                                 status = context.getString(R.string.update_downloading, progress)
-                                val file = checker.downloadApk(state.session.endpoint, state.session.token, available) { progress = it }
+                                val file = checker.downloadApk(state.session.token, available) { progress = it }
                                 if (file != null) {
-                                    AppUpdateChecker.postInstallNotification(context, file, available.version_name)
                                     checker.install(file)
-                                    status = context.getString(R.string.update_downloading, 100)
                                 } else {
                                     status = context.getString(R.string.update_failed)
                                 }
-                            }
-                        } else {
-                            scope.launch {
-                                checking = true
-                                status = context.getString(R.string.checking_updates)
-                                val check = checker.checkForUpdate(state.session.endpoint, state.session.token)
-                                info = check.info
-                                status = when (check.outcome) {
-                                    UpdateOutcome.UPDATE_AVAILABLE -> context.getString(R.string.update_available, check.info?.version_name.orEmpty())
-                                    UpdateOutcome.UP_TO_DATE -> context.getString(R.string.update_up_to_date)
-                                    UpdateOutcome.NOT_CONNECTED -> context.getString(R.string.update_not_connected)
-                                    UpdateOutcome.ERROR -> context.getString(R.string.update_failed)
-                                }
-                                checking = false
+                                downloading = false
                             }
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(16.dp),
-                    enabled = !checking,
+                    enabled = !checking && !downloading,
                 ) {
-                    if (checking) {
+                    if (checking || downloading) {
                         CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
                         Spacer(Modifier.width(8.dp))
                     }
                     Text(
                         when {
                             checking -> stringResource(R.string.checking_updates)
-                            info != null && info!!.version_code > BuildConfig.VERSION_CODE -> stringResource(R.string.update_download)
+                            downloading -> stringResource(R.string.update_downloading, progress)
+                            info != null -> stringResource(R.string.update_download)
                             else -> stringResource(R.string.check_updates)
-                        }
+                        },
                     )
+                }
+                if (info != null) {
+                    TextButton(onClick = { info = null; checkUpdates() }, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.check_updates))
+                    }
                 }
             }
         }
@@ -2418,12 +2479,23 @@ private fun NavSlot(label: String, icon: ImageVector, selected: Boolean, modifie
 @Composable
 fun ErrorDialog(message: String?, dismiss: () -> Unit) {
     if (message != null) {
-        AlertDialog(
-            dismiss,
-            title = { Text(stringResource(R.string.something_went_wrong)) },
-            text = { Text(message) },
-            confirmButton = { TextButton(dismiss) { Text(stringResource(R.string.ok)) } },
-        )
+        Dialog(
+            onDismissRequest = dismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false),
+        ) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).widthIn(max = 480.dp),
+                shape = RoundedCornerShape(28.dp),
+                color = MaterialTheme.colorScheme.surface,
+                tonalElevation = 6.dp,
+            ) {
+                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    Text(stringResource(R.string.something_went_wrong), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
+                    Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    TextButton(onClick = dismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.ok)) }
+                }
+            }
+        }
     }
 }
 
