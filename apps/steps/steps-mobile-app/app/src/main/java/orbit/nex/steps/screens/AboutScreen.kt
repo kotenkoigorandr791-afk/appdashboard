@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,6 +22,7 @@ import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -32,6 +34,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,6 +54,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import orbit.nex.steps.HCWebhookApplication
+import orbit.nex.steps.BuildConfig
 import orbit.nex.steps.HealthConnectManager
 import orbit.nex.steps.HealthDataType
 import orbit.nex.steps.PreferencesManager
@@ -60,6 +64,8 @@ import orbit.nex.steps.WebhookConfig
 import orbit.nex.steps.components.absoluteProfileUrl
 import orbit.nex.steps.components.downloadAvatarFile
 import orbit.nex.steps.components.localAvatarFile
+import orbit.nex.steps.updates.AppUpdateChecker
+import orbit.nex.steps.updates.CheckOutcome
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
@@ -86,6 +92,11 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     }
     var testingConn by remember { mutableStateOf(false) }
     var connResult by remember { mutableStateOf<Boolean?>(null) }
+    val updateChecker = remember { AppUpdateChecker(context) }
+    var autoUpdate by remember { mutableStateOf(prefs.isAutoUpdateEnabled()) }
+    var updateBusy by remember { mutableStateOf(false) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
+    var downloadedApk by remember { mutableStateOf(updateChecker.latestDownloaded()) }
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
     var profilePhotoModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
@@ -127,7 +138,8 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LazyColumn(modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    LazyColumn(modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        item { Spacer(Modifier.height(12.dp)) }
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -157,10 +169,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
-                    }
-                    Button(onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) }, modifier = Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.Settings, contentDescription = null)
-                        Text(stringResource(R.string.settings_title), modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             }
@@ -252,6 +260,111 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                         }
                     }
                 }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_update_title), style = MaterialTheme.typography.titleMedium)
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(stringResource(R.string.settings_update_automatic))
+                            Text(
+                                stringResource(R.string.settings_update_automatic_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = autoUpdate,
+                            onCheckedChange = {
+                                autoUpdate = it
+                                prefs.setAutoUpdateEnabled(it)
+                            },
+                        )
+                    }
+                    Text(
+                        context.getString(R.string.app_version_short, BuildConfig.VERSION_NAME),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = {
+                            scope.launch {
+                                updateBusy = true
+                                updateStatus = context.getString(R.string.update_checking)
+                                val check = updateChecker.checkForUpdate()
+                                when (check.outcome) {
+                                    CheckOutcome.NOT_CONNECTED -> updateStatus = context.getString(R.string.update_not_connected)
+                                    CheckOutcome.UP_TO_DATE -> updateStatus = context.getString(R.string.update_up_to_date)
+                                    CheckOutcome.ERROR -> updateStatus = context.getString(R.string.update_check_failed)
+                                    CheckOutcome.UPDATE_AVAILABLE -> {
+                                        val info = check.info
+                                        if (info == null) {
+                                            updateStatus = context.getString(R.string.update_check_failed)
+                                        } else {
+                                            updateStatus = context.getString(R.string.update_downloading)
+                                            val file = updateChecker.downloadApk(info)
+                                            if (file != null) {
+                                                downloadedApk = file
+                                                updateStatus = context.getString(R.string.update_downloaded_text, info.version_name)
+                                            } else {
+                                                updateStatus = context.getString(R.string.update_download_failed)
+                                            }
+                                        }
+                                    }
+                                }
+                                updateBusy = false
+                            }
+                        },
+                        enabled = prefs.getWebhookConfigs().any { it.isEnabled } && !updateBusy,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (updateBusy) {
+                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                            Spacer(Modifier.size(8.dp))
+                        } else {
+                            Icon(Icons.Filled.Update, contentDescription = null)
+                            Spacer(Modifier.size(8.dp))
+                        }
+                        Text(stringResource(R.string.update_check_button))
+                    }
+                    downloadedApk?.let { file ->
+                        OutlinedButton(onClick = { updateChecker.install(file) }, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.update_install))
+                        }
+                    }
+                    updateStatus?.let { status ->
+                        Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.settings_logs_title), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.settings_logs_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = { context.startActivity(Intent(context, orbit.nex.steps.LogsActivity::class.java)) },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.settings_logs_title))
+                    }
+                }
+            }
+        }
+        item {
+            OutlinedButton(
+                onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Settings, contentDescription = null)
+                Text(stringResource(R.string.settings_open_advanced), modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

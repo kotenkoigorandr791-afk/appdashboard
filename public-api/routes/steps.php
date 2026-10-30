@@ -9,6 +9,43 @@ require_once APP_ROOT . '/apps/steps/core/health_connect_ingest.php';
 require_once APP_ROOT . '/apps/steps/core/settings_api.php';
 $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
+$method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+header('Content-Type: application/json; charset=utf-8');
+// Release metadata and APK are public: a fresh install must be able to update
+// itself before pairing. They expose only the published build, never user data.
+if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], true)) {
+    $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
+    if (strtolower((string)$sub) === 'version') {
+        if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
+        $meta = json_decode((string)file_get_contents($metaFile), true);
+        if (!is_array($meta) || empty($meta['version'])) public_api_json(['status' => 'error', 'message' => 'invalid release metadata'], 500);
+        exit(json_encode([
+            'status' => 'success',
+            'available' => true,
+            'version_name' => (string)$meta['version'],
+            'version_code' => (int)($meta['version_code'] ?? 0),
+            'hash' => (string)($meta['hash'] ?? ''),
+            'size_bytes' => (int)($meta['size_bytes'] ?? 0),
+            'built_at' => (int)($meta['built_at'] ?? 0),
+            'apk_path' => '/api/steps/apk',
+        ], JSON_UNESCAPED_UNICODE));
+    }
+    $apkFile = APP_ROOT . '/downloads/stepmonitor.apk';
+    if (!is_file($apkFile)) public_api_json(['status' => 'error', 'message' => 'no apk available'], 503);
+    $version = 'unknown';
+    if (is_file($metaFile)) {
+        $meta = json_decode((string)file_get_contents($metaFile), true);
+        if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
+    }
+    header('Content-Type: application/vnd.android.package-archive; charset=binary');
+    header('Content-Disposition: attachment; filename="StepMonitor-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', (string)$version) . '.apk"');
+    header('Content-Length: ' . (string)filesize($apkFile));
+    header('Cache-Control: no-store, private');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    readfile($apkFile);
+    exit;
+}
 $stepsAppDir = APP_ROOT . '/apps/steps';
 $usersDir = $stepsAppDir . '/users';
 $safeUserName = get_current_user_folder();
@@ -17,8 +54,6 @@ checkDirectory($usersDir);
 checkDirectory($userDir);
 $userDb = getUserDB($userDir);
 if (!$userDb) public_api_json(['status' => 'error', 'message' => 'steps db unavailable'], 500);
-$method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-header('Content-Type: application/json; charset=utf-8');
 function steps_conflicts_path(string $userDir): string {
     $dir = rtrim($userDir, '/') . '/volume/health_connect';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
@@ -160,40 +195,6 @@ function steps_apply_payload(AppDatabase $db, string $userDir, array $payload, s
     return ['stored' => $stored, 'steps_upserted' => count($batch)];
 }
 if ($method === 'GET') {
-    if (strtolower((string)$sub) === 'version') {
-        $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
-        if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
-        $meta = json_decode((string)file_get_contents($metaFile), true);
-        if (!is_array($meta) || empty($meta['version'])) public_api_json(['status' => 'error', 'message' => 'invalid release metadata'], 500);
-        exit(json_encode([
-            'status' => 'success',
-            'available' => true,
-            'version_name' => (string)$meta['version'],
-            'version_code' => (int)($meta['version_code'] ?? 0),
-            'hash' => (string)($meta['hash'] ?? ''),
-            'size_bytes' => (int)($meta['size_bytes'] ?? 0),
-            'built_at' => (int)($meta['built_at'] ?? 0),
-            'apk_path' => '/api/steps/apk',
-        ], JSON_UNESCAPED_UNICODE));
-    }
-    if (strtolower((string)$sub) === 'apk') {
-        $apkFile = APP_ROOT . '/downloads/stepmonitor.apk';
-        if (!is_file($apkFile)) public_api_json(['status' => 'error', 'message' => 'no apk available'], 503);
-        $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
-        $version = 'unknown';
-        if (is_file($metaFile)) {
-            $meta = json_decode((string)file_get_contents($metaFile), true);
-            if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
-        }
-        header('Content-Type: application/vnd.android.package-archive; charset=binary');
-        header('Content-Disposition: attachment; filename="StepMonitor-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', (string)$version) . '.apk"');
-        header('Content-Length: ' . (string)filesize($apkFile));
-        header('Cache-Control: no-store, private');
-        header('Pragma: no-cache');
-        header('X-Content-Type-Options: nosniff');
-        readfile($apkFile);
-        exit;
-    }
     if (strtolower((string)$sub) === 'profile') {
         exit(json_encode(['status' => 'success', 'profile' => steps_read_profile(get_current_user_email())], JSON_UNESCAPED_UNICODE));
     }

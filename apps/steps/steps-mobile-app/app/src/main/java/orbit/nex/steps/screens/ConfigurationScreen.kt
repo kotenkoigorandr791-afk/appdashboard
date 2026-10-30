@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -71,17 +72,20 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
     val connected = prefs.getWebhookConfigs().any { it.isEnabled }
     var testing by remember { mutableStateOf(false) }
     var testResult by remember { mutableStateOf<ConnectionTestResult?>(null) }
-    var sendingTestPayload by remember { mutableStateOf(false) }
-    var testPayloadMessage by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.LaunchedEffect(connected) {
         if (connected && prefs.getEnabledDataTypes().isEmpty()) {
             prefs.setEnabledDataTypes(HealthDataType.values().toSet())
         }
     }
     Column(
-        modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()),
+        modifier
+            .fillMaxSize()
+            .padding(horizontal = 10.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
+        // Gap under the top bar that scrolls away with the content.
+        Spacer(Modifier.height(12.dp))
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(stringResource(R.string.home_title), style = MaterialTheme.typography.titleLarge)
@@ -115,55 +119,36 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
                         Text(stringResource(R.string.settings_test_connection_home), modifier = Modifier.padding(start = 8.dp))
                     }
                 }
-                FilledTonalButton(
-                    onClick = {
-                        scope.launch {
-                            sendingTestPayload = true
-                            testPayloadMessage = null
-                            val payload = MockPayloadBuilder.build(
-                                prefs.getEnabledDataTypes().map { it.name }.toSet(),
-                                BuildConfig.VERSION_NAME
-                            )
-                            val configs = prefs.getWebhookConfigs().filter { it.isEnabled }
-                            val result = WebhookManager(
-                                webhookConfigs = configs,
-                                context = context,
-                                syncType = "test"
-                            ).postData(payload)
-                            testPayloadMessage = if (result.isSuccess) {
-                                prefs.markSyncSuccess()
-                                context.getString(R.string.webhooks_test_success, configs.size.toString())
-                            } else {
-                                (result.exceptionOrNull() as? orbit.nex.steps.AuthException)?.let {
-                                    prefs.markAuthError(it.statusCode)
-                                }
-                                context.getString(
-                                    R.string.webhooks_test_failed,
-                                    result.exceptionOrNull()?.let { it.message ?: it.javaClass.simpleName }
-                                        ?: "unknown error"
-                                )
-                            }
-                            sendingTestPayload = false
-                        }
-                    },
-                    enabled = connected && !sendingTestPayload,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (sendingTestPayload) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.settings_test_connection_progress))
-                    } else {
-                        Text(stringResource(R.string.webhooks_action_test))
-                    }
-                }
-                testPayloadMessage?.let { message ->
-                    Text(message, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-                }
             }
         }
         NextSyncCard(prefs = prefs)
         ManualSyncCard()
+        LogsEntryCard()
+    }
+}
+
+/** Quick access to the synchronization log from the home tab. */
+@Composable
+private fun LogsEntryCard() {
+    val context = LocalContext.current
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(stringResource(R.string.home_logs_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                stringResource(R.string.home_logs_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                onClick = { context.startActivity(android.content.Intent(context, orbit.nex.steps.LogsActivity::class.java)) },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(stringResource(R.string.home_logs_title))
+            }
+        }
     }
 }
 

@@ -109,13 +109,15 @@
         <activity
             android:name=".LogsActivity"
             android:exported="false"
-            android:label="Logs" />
+            android:label="Logs"
+            android:theme="@style/Theme.NexSteps" />
 
         <!-- Personal data + all app settings, kept on its own screen -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="@string/settings_title" />
+            android:label="@string/settings_title"
+            android:theme="@style/Theme.NexSteps" />
 
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"

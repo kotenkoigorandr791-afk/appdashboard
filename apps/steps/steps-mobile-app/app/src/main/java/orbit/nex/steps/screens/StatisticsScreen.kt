@@ -1,7 +1,10 @@
 package orbit.nex.steps.screens
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -37,9 +40,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -77,8 +84,8 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
-    var dayOffset by remember { mutableIntStateOf(0) }
     var monthOffset by remember { mutableIntStateOf(0) }
+    var goalSteps by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf(StatsState()) }
     var localMonthSteps by remember { mutableStateOf<Map<LocalDate, Long>>(emptyMap()) }
     var androidSteps by remember { mutableStateOf<Long?>(null) }
@@ -86,7 +93,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
     val connected = config != null
-    val selectedDate = LocalDate.now().plusDays(dayOffset.toLong())
+    val selectedDate = LocalDate.now()
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
     suspend fun load(force: Boolean = false) {
         state = config?.let { fetchYearStats(it, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force) } ?: StatsState()
@@ -134,6 +141,10 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(currentConfigUrl) {
         load()
     }
+    // The goal lives in the server-side settings, same value the web chart draws.
+    LaunchedEffect(currentConfigUrl) {
+        goalSteps = config?.let { fetchStepGoal(it, prefs) } ?: 0
+    }
     LaunchedEffect(chartMonth, currentConfigUrl) {
         loadLocalMonth()
     }
@@ -147,18 +158,37 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     val daySteps = if (connected) state.steps[selectedDate] ?: 0L else androidSteps ?: 0L
     val dayStepsError = if (connected) null else androidStepsError
     Column(
-        modifier.fillMaxSize().padding(20.dp).verticalScroll(rememberScrollState()),
+        modifier.fillMaxSize().padding(horizontal = 10.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    IconButton(onClick = { dayOffset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
-                    Spacer(Modifier.width(8.dp))
-                    Text(selectedDate.toString(), style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { if (dayOffset < 0) dayOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
-                }
-                Text("${stringResource(R.string.stats_steps)}: ${NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps)}", style = MaterialTheme.typography.headlineSmall)
+        // Gap under the top bar that scrolls away with the content.
+        Spacer(Modifier.height(12.dp))
+        // Today's summary: gradient card with just the label and the count.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(12.dp))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.26f),
+                        )
+                    )
+                )
+        ) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.stats_today),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps),
+                    style = MaterialTheme.typography.displaySmall,
+                )
+                Text(stringResource(R.string.stats_steps), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
@@ -169,7 +199,13 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
                 }
-                StepsChart(monthSteps, chartMonth)
+                StepsChart(monthSteps, chartMonth, goalSteps)
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.stats_heatmap_title), style = MaterialTheme.typography.titleMedium)
+                StepsHeatmap(monthSteps, chartMonth)
             }
         }
         if (!connected && localMonthSteps.isNotEmpty()) {
@@ -190,10 +226,13 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     }
 }
 @Composable
-private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth) {
+private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0) {
     val color = MaterialTheme.colorScheme.primary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val gridColor = MaterialTheme.colorScheme.outlineVariant
+    val goalColor = Color(0xFFE53935)
+    val goalLabelBg = MaterialTheme.colorScheme.surface
+    val goalLabel = stringResource(R.string.stats_goal, NumberFormat.getIntegerInstance(Locale.getDefault()).format(goal))
     val days = remember(steps, month) {
         (1..month.lengthOfMonth()).map { day -> month.atDay(day) to (steps[month.atDay(day)] ?: 0L) }
     }
@@ -239,7 +278,10 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth) {
                     )
                 }
         ) {
-            val max = (days.maxOfOrNull { it.second } ?: 1L).coerceAtLeast(1L).toFloat()
+            // Keep the goal visible with some headroom, like the web chart does.
+            val dataMax = days.maxOfOrNull { it.second } ?: 0L
+            val axisMax = if (goal > 0) maxOf(dataMax, (goal * 1.2).toLong()) else dataMax
+            val max = axisMax.coerceAtLeast(1L).toFloat()
             val chartWidth = (size.width - leftPad - rightPad).coerceAtLeast(1f)
             val chartHeight = (size.height - topPad - bottomPad).coerceAtLeast(1f)
             val baseY = topPad + chartHeight
@@ -268,6 +310,37 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth) {
                     topLeft = Offset(x, baseY - h),
                     size = Size((barWidth - gap).coerceAtLeast(1f), h.coerceAtLeast(2f))
                 )
+            }
+            if (goal > 0) {
+                val goalY = baseY - chartHeight * (goal.toFloat() / max)
+                drawLine(
+                    color = goalColor,
+                    start = Offset(leftPad, goalY),
+                    end = Offset(size.width - rightPad, goalY),
+                    strokeWidth = 2f,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(12f, 8f))
+                )
+                // Label sits on a rounded plate so it stays legible over bars.
+                paint.textAlign = android.graphics.Paint.Align.RIGHT
+                paint.color = goalColor.toArgb()
+                val textWidth = paint.measureText(goalLabel)
+                val padH = 4.dp.toPx()
+                val padV = 2.dp.toPx()
+                val baseline = (goalY - 6f).coerceAtLeast(labelTextSize + padV)
+                val right = size.width - rightPad
+                drawRoundRect(
+                    color = goalLabelBg,
+                    topLeft = Offset(right - textWidth - padH * 2f, baseline - labelTextSize - padV),
+                    size = Size(textWidth + padH * 2f, labelTextSize + padV * 2f),
+                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx())
+                )
+                drawContext.canvas.nativeCanvas.drawText(
+                    goalLabel,
+                    right - padH,
+                    baseline,
+                    paint
+                )
+                paint.color = axisColor.toArgb()
             }
             paint.textAlign = android.graphics.Paint.Align.CENTER
             val xLabels = (sequenceOf(1) + (5..month.lengthOfMonth() step 5)).distinct().toList()
@@ -302,6 +375,67 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth) {
         }
     }
 }
+@Composable
+private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
+    val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
+    val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
+    val base = MaterialTheme.colorScheme.primary
+    val empty = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
+    var picked by remember { mutableStateOf<LocalDate?>(null) }
+    // Weeks start on Monday; leading blanks keep the weekday columns aligned.
+    val leading = month.atDay(1).dayOfWeek.value - 1
+    val cells: List<LocalDate?> = List(leading) { null } + days
+    val rows = cells.chunked(7)
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        rows.forEach { week ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+                week.forEach { date ->
+                    if (date == null) {
+                        Spacer(Modifier.weight(1f).aspectRatio(1f))
+                    } else {
+                        val count = steps[date] ?: 0L
+                        val intensity = (count.toFloat() / max.toFloat()).coerceIn(0f, 1f)
+                        val color = if (count <= 0L) empty else base.copy(alpha = 0.18f + 0.82f * intensity)
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(color)
+                                .clickable { picked = if (picked == date) null else date },
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            // Day of month so the grid reads as a calendar.
+                            Text(
+                                date.dayOfMonth.toString(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = if (intensity > 0.55f) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    }
+                }
+                // Pad the final short week so its cells keep the weekday width.
+                repeat(7 - week.size) {
+                    Spacer(Modifier.weight(1f).aspectRatio(1f))
+                }
+            }
+        }
+        val numberFormat = NumberFormat.getIntegerInstance(Locale.getDefault())
+        val caption = picked?.let { date ->
+            "${formatTooltipDate(date)}: ${numberFormat.format(steps[date] ?: 0L)} ${stringResource(R.string.stats_tooltip_steps)}"
+        } ?: "${stringResource(R.string.stats_month_total)}: ${numberFormat.format(days.sumOf { steps[it] ?: 0L })}"
+        Text(
+            caption,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
 private data class BarTooltip(val date: LocalDate, val count: Long)
 private fun formatTooltipDate(date: LocalDate): String =
     DateTimeFormatter.ofPattern("d MMMM", Locale.getDefault()).format(date)
@@ -366,6 +500,10 @@ private suspend fun fetchYearStats(config: WebhookConfig, enabled: Set<HealthDat
         fun httpGet(url: String): String {
             val builder = Request.Builder().url(url)
             config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+            // The API binds a pairing token to one device and answers 400 without it.
+            if (config.headers.keys.none { it.equals("X-Device-Id", ignoreCase = true) }) {
+                builder.addHeader("X-Device-Id", prefs.getDeviceId())
+            }
             return client.newCall(builder.build()).execute().use { response ->
                 if (!response.isSuccessful) error("HTTP ${response.code}")
                 response.body?.string().orEmpty()
@@ -439,3 +577,15 @@ private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, s
 }
 private const val STATS_CACHE_MAX_AGE_MS = 60L * 60 * 1000
 private const val ANDROID_CACHE_MAX_AGE_MS = 30L * 1000
+
+/** Daily step goal from the server settings, or 0 when it is unavailable. */
+private suspend fun fetchStepGoal(config: WebhookConfig, prefs: PreferencesManager): Int = withContext(Dispatchers.IO) {
+    runCatching {
+        val url = config.url.trimEnd('/') + "/settings?settings=1"
+        OkHttpClient().newCall(stepsRequest(config, prefs, url).build()).execute().use { response ->
+            if (!response.isSuccessful) return@use 0
+            val settings = JSONObject(response.body?.string().orEmpty()).optJSONObject("settings") ?: JSONObject()
+            settings.optString("goal_steps").toIntOrNull() ?: 0
+        }
+    }.getOrDefault(0)
+}
