@@ -107,6 +107,7 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import android.net.Uri
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -408,6 +409,7 @@ fun AppDatePickerDialog(
     dismissLabel: String,
 ) {
     val picker = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
+    val maxPickerHeight = (LocalConfiguration.current.screenHeightDp.dp - 176.dp).coerceAtLeast(240.dp)
     DatePickerDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.padding(horizontal = 12.dp),
@@ -415,7 +417,16 @@ fun AppDatePickerDialog(
             TextButton(onClick = { picker.selectedDateMillis?.let(onConfirm); onDismiss() }) { Text(stringResource(R.string.ok)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(dismissLabel) } },
-        ) { DatePicker(picker, modifier = Modifier.fillMaxWidth().padding(horizontal = 4.dp)) }
+        ) {
+            DatePicker(
+                picker,
+                modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 12.dp)
+                    .heightIn(max = maxPickerHeight)
+                    .verticalScroll(rememberScrollState())
+                    ,
+            )
+        }
 }
 
 private val CategoryPalette = listOf(
@@ -1095,10 +1106,14 @@ fun SettingsHub(state: AppState, go: (Dest) -> Unit, logout: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.primaryContainer)) {
             Row(Modifier.padding(18.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                Icon(Icons.Outlined.Wallet, null, Modifier.size(34.dp), tint = MaterialTheme.colorScheme.onPrimaryContainer)
+                Image(
+                    painterResource(R.drawable.nex_finance_icon),
+                    contentDescription = stringResource(R.string.app_name),
+                    modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
+                    contentScale = ContentScale.Crop,
+                )
                 Column {
-                    Text("Nex Finance", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
-                    Text("orbit.nex.finance", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                    Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
                 }
             }
         }
