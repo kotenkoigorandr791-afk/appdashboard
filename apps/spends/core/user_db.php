@@ -71,26 +71,26 @@ function app_spends_migrate_sqlite_file(string $email, AppDatabase $udb): void {
 function dbSetSetting($udb, $key, $value) {
     $st = $udb->prepare('INSERT INTO settings (key, value) VALUES (:k,:v) ON CONFLICT (user_id,key) DO UPDATE SET value=EXCLUDED.value');
     $st->bindValue(':k', $key);
-    $st->bindValue(':v', (string)$value);
+    $st->bindValue(':v', spends_encrypt((string)$value, spends_db_user_id($udb), 'setting'));
     $st->execute();
 }
 function dbGetSetting($udb, $key, $default = null) {
     $st = $udb->prepare('SELECT value FROM settings WHERE key = :k');
     $st->bindValue(':k', $key);
     $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
-    return $r ? $r['value'] : $default;
+    return $r ? spends_decrypt($r['value'], spends_db_user_id($udb), 'setting') : $default;
 }
 function dbSetTableSetting($udb, $key, $value) {
     $st = $udb->prepare('INSERT INTO table_settings (key, value) VALUES (:k,:v) ON CONFLICT (user_id,key) DO UPDATE SET value=EXCLUDED.value');
     $st->bindValue(':k', $key);
-    $st->bindValue(':v', (string)$value);
+    $st->bindValue(':v', spends_encrypt((string)$value, spends_db_user_id($udb), 'table-setting'));
     $st->execute();
 }
 function dbGetTableSetting($udb, $key, $default = null) {
     $st = $udb->prepare('SELECT value FROM table_settings WHERE key = :k');
     $st->bindValue(':k', $key);
     $r = $st->execute()->fetch(PDO::FETCH_ASSOC);
-    return $r ? $r['value'] : $default;
+    return $r ? spends_decrypt($r['value'], spends_db_user_id($udb), 'table-setting') : $default;
 }
 function dbGetStores($udb) {
     $res  = $udb->query("SELECT id, name, visible, sort_order, COALESCE(category,'other') AS category FROM stores ORDER BY sort_order ASC, id ASC");
