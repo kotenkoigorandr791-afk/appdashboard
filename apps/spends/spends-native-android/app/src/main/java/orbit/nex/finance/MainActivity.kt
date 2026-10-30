@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.CloudDone
 import androidx.compose.material.icons.outlined.Insights
 import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.SystemUpdateAlt
 import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -100,8 +101,10 @@ import orbit.nex.finance.ui.SyncScreen
 import orbit.nex.finance.ui.TagsScreen
 import orbit.nex.finance.ui.TransactionSheet
 import orbit.nex.finance.ui.TrashScreen
+import orbit.nex.finance.ui.UpdatesScreen
 import orbit.nex.finance.ui.WrappedScreen
 import orbit.nex.finance.updates.AppUpdateChecker
+import orbit.nex.finance.updates.UpdateInfo
 import orbit.nex.finance.updates.UpdateOutcome
 
 class MainActivity : AppCompatActivity() {
@@ -252,6 +255,7 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     var selectedStore by remember { mutableStateOf<Store?>(null) }
     var editingExpense by remember { mutableStateOf(false) }
     var showSaved by remember { mutableStateOf(false) }
+    var availableUpdate by remember { mutableStateOf<UpdateInfo?>(null) }
     val disputeCount = state.extras.disputes.size
 
     // Back always steps one level up inside the app; only the home tab exits.
@@ -302,11 +306,7 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
         runCatching {
             val checker = AppUpdateChecker(context.applicationContext)
             val check = checker.checkForUpdate(session.endpoint, session.token)
-            val info = check.info
-            if (check.outcome == UpdateOutcome.UPDATE_AVAILABLE && info != null) {
-                val file = checker.downloadApk(session.endpoint, session.token, info)
-                if (file != null) AppUpdateChecker.postInstallNotification(context, file, info.version_name)
-            }
+            availableUpdate = check.info.takeIf { check.outcome == UpdateOutcome.UPDATE_AVAILABLE }
         }
     }
 
@@ -336,14 +336,42 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
         },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding)) {
-            if (dest == null && disputeCount > 0) {
-                Surface(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp)
-                    .clickable { context.startActivity(Intent(context, DisputeActivity::class.java)) },
-                    shape = RoundedCornerShape(22.dp), color = Color(0xFFFFD54F), shadowElevation = 10.dp) {
-                    Row(Modifier.padding(horizontal = 18.dp, vertical = 11.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(androidx.compose.material.icons.Icons.Outlined.WarningAmber, null, tint = Color(0xFF6D5200), modifier = Modifier.size(20.dp))
-                        Spacer(Modifier.size(8.dp))
-                        Text(context.resources.getQuantityString(R.plurals.disputes_count, disputeCount, disputeCount), color = Color(0xFF5D4600))
+            if (dest == null && (disputeCount > 0 || availableUpdate != null)) {
+                Column(
+                    Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (disputeCount > 0) {
+                        Surface(
+                            Modifier.fillMaxWidth().clickable { context.startActivity(Intent(context, DisputeActivity::class.java)) },
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFFFD54F),
+                            shadowElevation = 4.dp,
+                        ) {
+                            Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.WarningAmber, null, tint = Color(0xFF6D5200), modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.size(8.dp))
+                                Text(context.resources.getQuantityString(R.plurals.disputes_count, disputeCount, disputeCount), color = Color(0xFF5D4600))
+                            }
+                        }
+                    }
+                    availableUpdate?.let { update ->
+                        Surface(
+                            Modifier.fillMaxWidth().clickable { tab = 3; dest = Dest.Updates },
+                            shape = RoundedCornerShape(18.dp),
+                            color = Color(0xFFDDF5E5),
+                            shadowElevation = 4.dp,
+                        ) {
+                            Row(Modifier.padding(horizontal = 16.dp, vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(Icons.Outlined.SystemUpdateAlt, null, tint = Color(0xFF176B3A), modifier = Modifier.size(20.dp))
+                                Spacer(Modifier.size(8.dp))
+                                Text(
+                                    stringResource(R.string.update_banner, update.version_name),
+                                    color = Color(0xFF14532D),
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -366,6 +394,7 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
                 Dest.Appearance -> DetailScreen(stringResource(R.string.appearance), { dest = null }) { AppearanceScreen(appearance, app.store) }
                 Dest.Data -> DetailScreen(stringResource(R.string.data_management), { dest = null }) { DataScreen(state, model) }
                 Dest.About -> DetailScreen(stringResource(R.string.about), { dest = null }) { AboutScreen(state) }
+                Dest.Updates -> DetailScreen(stringResource(R.string.update_settings_title), { dest = null }) { UpdatesScreen(state) }
                 Dest.Sync -> DetailScreen(stringResource(R.string.server_sync), { dest = null }) {
                     SyncScreen(state, model) { context.startActivity(Intent(context, LogsActivity::class.java)) }
                 }
