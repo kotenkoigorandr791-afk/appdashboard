@@ -91,6 +91,7 @@ COPY deploy/waf/appdashboard-crs-exclusions.conf /etc/nginx/modsecurity/appdashb
 COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY --from=app-builder /var/www/AppDashboard/ /var/www/AppDashboard/
+RUN test -f /var/www/AppDashboard/apps/smart_home/core/perf.php
 RUN mkdir -p /var/www/AppDashboard/apps/lopaka
 WORKDIR /var/www/AppDashboard
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
