@@ -35,6 +35,22 @@ data class BackupEntry(
     val savedAt: Long = System.currentTimeMillis(),
 )
 @Serializable data class PendingCapture(val date: String, val store: String, val amount: Double, val raw: String = "", val at: Long = System.currentTimeMillis())
+
+/** A charge that could not be booked automatically (unknown store, misread name or unreadable text). */
+@Serializable data class Dispute(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    /** "wallet" for Google Wallet notifications, "ocr" for receipts. */
+    val source: String = "wallet",
+    /** Merchant text as it was read, before any correction. */
+    val rawName: String = "",
+    val amount: Double = 0.0,
+    val currency: String = "",
+    val date: String = "",
+    val raw: String = "",
+    /** "store_not_found" or "unreadable". */
+    val reason: String = "store_not_found",
+    val at: Long = System.currentTimeMillis(),
+)
 @Serializable data class SettingsFlags(
     val monthlyBudget: Double = 0.0, val currency: String = "USD",
     val showIncomes: Boolean = true, val showTrend: Boolean = false, val trimEmptyMonths: Boolean = false,
@@ -55,7 +71,12 @@ data class BackupEntry(
     val flags: SettingsFlags = SettingsFlags(),
     val syncedAt: Long = 0,
 )
-@Serializable data class LocalExtras(val pending: List<PendingCapture> = emptyList(), val trash: List<Expense> = emptyList())
+@Serializable data class LocalExtras(
+    val pending: List<PendingCapture> = emptyList(),
+    val trash: List<Expense> = emptyList(),
+    /** Unresolved wallet/OCR conflicts shown behind the yellow banner. */
+    val disputes: List<Dispute> = emptyList(),
+)
 @Serializable data class Rates(
     val base: String = "USD",
     val rates: Map<String, Double> = emptyMap(),

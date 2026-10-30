@@ -5,16 +5,19 @@ import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.WarningAmber
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -52,6 +55,7 @@ import xyz.serverkherson.spends.ui.CategoriesScreen
 import xyz.serverkherson.spends.ui.DataScreen
 import xyz.serverkherson.spends.ui.Dest
 import xyz.serverkherson.spends.ui.DetailScreen
+import xyz.serverkherson.spends.ui.EditExpenseDialog
 import xyz.serverkherson.spends.ui.ErrorDialog
 import xyz.serverkherson.spends.ui.ExpenseDetailScreen
 import xyz.serverkherson.spends.ui.GoalsScreen
@@ -64,6 +68,7 @@ import xyz.serverkherson.spends.ui.PrefsScreen
 import xyz.serverkherson.spends.ui.SearchSheet
 import xyz.serverkherson.spends.ui.SettingsHub
 import xyz.serverkherson.spends.ui.SpeedDial
+import xyz.serverkherson.spends.ui.SavedToast
 import xyz.serverkherson.spends.ui.SpendsNavBar
 import xyz.serverkherson.spends.ui.SpendsTheme
 import xyz.serverkherson.spends.ui.StatsHub
@@ -120,6 +125,27 @@ class MainActivity : AppCompatActivity() {
     var sheet by remember { mutableStateOf<String?>(null) }
     var selectedExpense by remember { mutableStateOf<Expense?>(null) }
     var selectedStore by remember { mutableStateOf<Store?>(null) }
+    var editingExpense by remember { mutableStateOf(false) }
+    var showSaved by remember { mutableStateOf(false) }
+    val disputeCount = state.extras.disputes.size
+
+    // Back always steps one level up inside the app; only the home tab exits.
+    BackHandler(enabled = dest != null || tab != 0) {
+        when {
+            dest == Dest.Expense && selectedStore != null -> { dest = Dest.Store; selectedExpense = null }
+            dest == Dest.Store -> { dest = Dest.Stores; selectedStore = null }
+            dest != null -> { dest = null; selectedExpense = null; selectedStore = null }
+            else -> tab = 0
+        }
+    }
+
+    LaunchedEffect(state.savedTick) {
+        if (state.savedTick > 0L) {
+            showSaved = true
+            delay(2_000)
+            showSaved = false
+        }
+    }
 
     // A captured wallet notification opens the review screen directly.
     LaunchedEffect(openPending) {
@@ -215,7 +241,11 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 Dest.Expense -> selectedExpense?.let { expense ->
-                    DetailScreen(expense.store, { dest = if (selectedStore != null) Dest.Store else null; if (dest == null) selectedExpense = null }) {
+                    DetailScreen(
+                        expense.store,
+                        { dest = if (selectedStore != null) Dest.Store else null; if (dest == null) selectedExpense = null },
+                        onEdit = { editingExpense = true },
+                    ) {
                         ExpenseDetailScreen(state, expense, model) { model.deleteExpense(expense); dest = null; selectedExpense = null }
                     }
                 }
@@ -228,6 +258,32 @@ class MainActivity : AppCompatActivity() {
                     }, model::logout)
                 }
             }
+            }
+            if (showSaved) {
+                SavedToast(Modifier.align(Alignment.BottomCenter).padding(bottom = if (dest == null) 100.dp else 28.dp))
+            }
+            if (dest == null && disputeCount > 0) {
+                androidx.compose.material3.Surface(
+                    Modifier.align(Alignment.TopCenter).padding(horizontal = 14.dp, vertical = 10.dp)
+                        .clickable { context.startActivity(Intent(context, DisputeActivity::class.java)) },
+                    shape = RoundedCornerShape(22.dp),
+                    color = Color(0xFFFFD54F).copy(alpha = 0.88f),
+                    shadowElevation = 10.dp,
+                ) {
+                    androidx.compose.foundation.layout.Row(
+                        Modifier.padding(horizontal = 18.dp, vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        androidx.compose.material.icons.Icons.Outlined.WarningAmber.let {
+                            Icon(it, null, tint = Color(0xFF6D5200), modifier = Modifier.size(20.dp))
+                        }
+                        androidx.compose.foundation.layout.Spacer(Modifier.size(8.dp))
+                        androidx.compose.material3.Text(
+                            context.resources.getQuantityString(R.plurals.disputes_count, disputeCount, disputeCount),
+                            color = Color(0xFF5D4600),
+                        )
+                    }
+                }
             }
         }
     }
@@ -244,4 +300,9 @@ class MainActivity : AppCompatActivity() {
         )
     }
     ErrorDialog(state.error, model::dismissError)
+    if (editingExpense) {
+        selectedExpense?.let { expense ->
+            EditExpenseDialog(state, expense, model) { editingExpense = false }
+        }
+    }
 }
