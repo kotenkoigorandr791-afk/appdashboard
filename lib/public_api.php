@@ -21,6 +21,11 @@ function public_api_is_https(): bool {
     if (strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https') return true;
     return str_contains((string)($_SERVER['HTTP_CF_VISITOR'] ?? ''), '"scheme":"https"');
 }
+function public_api_is_emulator_http(): bool {
+    $host = strtolower(preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? '')));
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    return $host === '10.0.2.2' && (preg_match('/^10\./', $ip) || preg_match('/^192\.168\./', $ip) || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $ip));
+}
 function public_api_cors(): void {
     if (headers_sent()) return;
     header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -56,8 +61,23 @@ function public_api_bootstrap(): void {
         if (!headers_sent()) http_response_code(204);
         exit;
     }
-    if ((string)getenv('PUBLIC_API_REQUIRE_HTTPS') === '1' && !public_api_is_https()) {
+    if (((string)getenv('PUBLIC_API_REQUIRE_HTTPS') === '1' || (getenv('APP_ENV') === 'production' && getenv('PUBLIC_API_REQUIRE_HTTPS') !== '0')) && !public_api_is_https() && !public_api_is_emulator_http()) {
         public_api_json(['ok' => false, 'error' => 'https_required'], 403);
+    }
+}
+function public_api_rate_limit(string $scope, int $limit, int $window): void {
+    require_once __DIR__ . '/redis.php';
+    $redis = app_redis();
+    if (!$redis) return;
+    $email = (string)($GLOBALS['public_api_user']['email'] ?? '');
+    $device = public_api_device_id();
+    $subject = hash('sha256', $email . '|' . $device . '|' . public_api_client_ip());
+    $key = app_redis_key('public_api:rate:' . $scope . ':' . $subject . ':' . (string)floor(time() / $window));
+    try {
+        $count = (int)$redis->incr($key);
+        if ($count === 1) $redis->expire($key, $window + 1);
+        if ($count > $limit) public_api_json(['ok' => false, 'error' => 'rate_limited'], 429);
+    } catch (Throwable $e) {
     }
 }
 function public_api_client_ip(): string {

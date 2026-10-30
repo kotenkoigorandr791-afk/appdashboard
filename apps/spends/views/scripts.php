@@ -1,6 +1,8 @@
 <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
 <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
-<script src="/project/sharepoint/assets/js/share-modal.js?v=12"></script>
+<?php if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24)); ?>
+<script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=13"></script>
 <script>
 <?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
 const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;

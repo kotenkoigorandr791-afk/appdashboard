@@ -174,12 +174,25 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
 
     private fun execute(req: Request, method: String, url: String, payload: String?): JsonObject {
         return try {
-            client.newCall(req).execute().use { response ->
-                val text = response.body?.string().orEmpty()
-                onLog(SyncLog(url = url, method = method, success = response.isSuccessful, statusCode = response.code, errorMessage = if (response.isSuccessful) null else text.take(800), payload = payload?.take(1200)))
-                if (!response.isSuccessful) error("Server error (HTTP ${response.code})")
-                runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse { JsonObject(emptyMap()) }
+            var lastError: Exception? = null
+            repeat(if (method == "GET") 3 else 1) { attempt ->
+                try {
+                    client.newCall(req).execute().use { response ->
+                        val text = response.body?.string().orEmpty()
+                        if (!response.isSuccessful && response.code >= 500 && attempt < 2) {
+                            Thread.sleep(200L * (attempt + 1))
+                            return@use
+                        }
+                        onLog(SyncLog(url = url, method = method, success = response.isSuccessful, statusCode = response.code, errorMessage = if (response.isSuccessful) null else text.take(800), payload = payload?.take(1200)))
+                        if (!response.isSuccessful) error("Server error (HTTP ${response.code})")
+                        return runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse { JsonObject(emptyMap()) }
+                    }
+                } catch (e: Exception) {
+                    lastError = e
+                    if (attempt < 2 && method == "GET") Thread.sleep(200L * (attempt + 1))
+                }
             }
+            throw (lastError ?: IllegalStateException("Server error"))
         } catch (e: Exception) {
             if (e.message?.startsWith("Server error") != true) onLog(SyncLog(url = url, method = method, success = false, errorMessage = e.message, payload = payload?.take(1200)))
             throw e
