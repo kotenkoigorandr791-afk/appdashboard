@@ -57,7 +57,7 @@ jobs:
         run: |
           set -euo pipefail
           for package in appdashboard appdashboard-py; do
-            gh api --paginate "/user/packages/container/$package/versions?per_page=100" --jq 'sort_by(.created_at) | reverse | .[1:] | .[].id' |
+            gh api --paginate "/user/packages/container/$package/versions?per_page=100" --jq 'sort_by(.created_at) | reverse | .[2:] | .[].id' |
               while read -r version; do
                 gh api --method DELETE "/user/packages/container/$package/versions/$version"
               done

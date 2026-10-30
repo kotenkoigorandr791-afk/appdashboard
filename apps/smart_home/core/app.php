@@ -1633,7 +1633,12 @@ if ($action !== '') {
         echo json_encode(['ok'=>false,'error'=>'Unauthorized']);
         exit;
     }
-    if ($userEmail !== 'guest@local' && !shp_rate_ok('api:' . shp_user_hash($userEmail), 600)) {
+    // Bucket per action: state polling, metrics and monitor_stats used to share one
+    // 600/min budget, so a chatty poller starved the other endpoints (429 under load).
+    // Read-only polling actions get a much higher budget than mutating ones: they are
+    // cheap (16ms) and every open dashboard tab polls them continuously.
+    $rlLimit = in_array($action, ['state', 'monitor_stats', 'metrics', 'route_maps', 'route_map_file'], true) ? 12000 : 600;
+    if ($userEmail !== 'guest@local' && !shp_rate_ok('api:' . shp_user_hash($userEmail) . ':' . $action, $rlLimit)) {
         http_response_code(429);
         header('Retry-After: 10');
         echo json_encode(['ok'=>false,'error'=>'Too many requests']);

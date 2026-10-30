@@ -214,6 +214,7 @@ function ensureClientAuthTokensSchemaImpl(AppDatabase $db): void {
     )");
     app_client_auth_tokens_ensure_app_column($db);
     app_client_auth_tokens_ensure_plain_column($db);
+    $db->exec("UPDATE client_auth_tokens SET token_plain = '' WHERE app_id = 'spends' AND token_plain <> ''");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 }
@@ -223,7 +224,7 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $purge = $db->prepare('DELETE FROM client_auth_tokens WHERE expires_at < :t');
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
-    if ($appId === 'steps' || $appId === 'kanboard' || $appId === 'spends') {
+    if ($appId === 'steps' || $appId === 'kanboard') {
         $existing = $db->prepare("SELECT token_plain, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC LIMIT 1");
         $existing->bindValue(':e', $email, PDO::PARAM_STR);
         $existing->bindValue(':a', $appId, PDO::PARAM_STR);
@@ -253,7 +254,7 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $stmt->bindValue(':d', $deviceId, PDO::PARAM_STR);
     $stmt->bindValue(':n', $deviceName, PDO::PARAM_STR);
     $stmt->bindValue(':p', $platform, PDO::PARAM_STR);
-    $stmt->bindValue(':tp', in_array($appId, ['steps', 'kanboard', 'spends'], true) ? $rawToken : '', PDO::PARAM_STR);
+    $stmt->bindValue(':tp', in_array($appId, ['steps', 'kanboard'], true) ? $rawToken : '', PDO::PARAM_STR);
     $stmt->bindValue(':c', $now, PDO::PARAM_INT);
     $stmt->bindValue(':u', $now, PDO::PARAM_INT);
     $stmt->bindValue(':x', $expiresAt, PDO::PARAM_INT);

@@ -19,19 +19,19 @@ function spendsGoalList(AppDatabase $udb, bool $includeArchived = false): array 
     $res = $udb->query($sql);
     $out = [];
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
-        $out[] = spendsGoalRow($row);
+        $out[] = spendsGoalRow($row, spends_db_user_id($udb));
     }
     return $out;
 }
 
-function spendsGoalRow(array $row): array {
+function spendsGoalRow(array $row, string $userId = ''): array {
     $target = round((float)($row['target_amount'] ?? 0), 2);
     $current = round((float)($row['current_amount'] ?? 0), 2);
     $pct = $target > 0 ? min(100, round(($current / $target) * 100, 1)) : 0.0;
     return [
         'id' => (string)($row['id'] ?? ''),
         'name' => (string)($row['name'] ?? ''),
-        'description' => (string)($row['description'] ?? ''),
+        'description' => spends_decrypt($row['description'] ?? '', $userId, 'goal-description'),
         'target_amount' => $target,
         'current_amount' => $current,
         'currency' => (string)($row['currency'] ?? 'USD'),
@@ -67,7 +67,7 @@ function spendsGoalUpsert(AppDatabase $udb, array $payload): array {
         $targetDate = '';
     }
     $type = spendsNormalizeGoalType($payload['goal_type'] ?? 'savings');
-    $desc = trim((string)($payload['description'] ?? ''));
+    $desc = spends_encrypt(trim((string)($payload['description'] ?? '')), spends_db_user_id($udb), 'goal-description');
     $icon = trim((string)($payload['icon'] ?? ''));
     $archived = !empty($payload['is_archived']) ? 1 : 0;
 
@@ -93,7 +93,7 @@ function spendsGoalUpsert(AppDatabase $udb, array $payload): array {
     $get = $udb->prepare('SELECT id, name, description, target_amount, current_amount, currency, target_date, goal_type, is_archived, icon, created_at, updated_at FROM goals WHERE id = :id LIMIT 1');
     $get->bindValue(':id', $id);
     $row = $get->execute()->fetch(PDO::FETCH_ASSOC);
-    return ['status' => 'success', 'goal' => spendsGoalRow($row ?: ['id' => $id, 'name' => $name, 'target_amount' => $target, 'current_amount' => $current, 'currency' => $currency, 'goal_type' => $type, 'created_at' => $now, 'updated_at' => $now])];
+    return ['status' => 'success', 'goal' => spendsGoalRow($row ?: ['id' => $id, 'name' => $name, 'target_amount' => $target, 'current_amount' => $current, 'currency' => $currency, 'goal_type' => $type, 'created_at' => $now, 'updated_at' => $now], spends_db_user_id($udb))];
 }
 
 function spendsGoalContribute(AppDatabase $udb, string $id, float $delta): array {
@@ -116,7 +116,7 @@ function spendsGoalContribute(AppDatabase $udb, string $id, float $delta): array
     $upd->execute();
     $row['current_amount'] = $current;
     $row['updated_at'] = $now;
-    return ['status' => 'success', 'goal' => spendsGoalRow($row)];
+    return ['status' => 'success', 'goal' => spendsGoalRow($row, spends_db_user_id($udb))];
 }
 
 function spendsGoalDelete(AppDatabase $udb, string $id): array {

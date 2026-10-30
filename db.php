@@ -42,6 +42,11 @@ function getDB(): AppDatabase {
         // getDB() call, which contributed to "Too many open files" under load.
         $schemaKey = app_db_schema_fingerprint(__FILE__) . ':' . app_db_schema_fingerprint(__DIR__ . '/lib/pg_foreign_keys.php');
         if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey || !app_db_schema_ready($db)) {
+            // Bootstrap (or bootstrap after a restore) ran: every schema_once stamp
+            // refers to a schema that may not match the DB, so drop them and let all
+            // ensure* gates run again for this version.
+            require_once __DIR__ . '/lib/schema_once.php';
+            app_schema_forget_all();
             initDB($db);
             @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
         }
@@ -87,6 +92,8 @@ function app_db_ensure_unique_index(AppDatabase $db, string $table, array $colum
 }
  
 function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('enc_consents_schema', __FILE__)) return;
     $db->exec("CREATE TABLE IF NOT EXISTS cloud_encryption_consents (
         email         TEXT NOT NULL PRIMARY KEY,
         status        TEXT NOT NULL DEFAULT 'accepted' CHECK(status IN ('accepted')),
@@ -98,6 +105,8 @@ function ensure_cloud_encryption_consents_schema(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_cloud_encryption_consents_email ON cloud_encryption_consents(email)");
 }
 function ensureSupportChatSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('support_chat_schema', __FILE__)) return;
     if (app_db_is_pgsql()) {
         $db->exec("CREATE TABLE IF NOT EXISTS support_chat (
             id BIGSERIAL PRIMARY KEY,
@@ -260,6 +269,8 @@ function ensureTelegramBotSchemaImpl(AppDatabase $db): void {
     $db->exec("CREATE INDEX IF NOT EXISTS idx_tg_bot_link_tokens_expires ON tg_bot_link_tokens(expires_at)");
 }
 function ensureOAuthConnectionsSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('oauth_conns_schema', __FILE__)) return;
     if (!app_db_is_pgsql()) {
         return;
     }
@@ -288,6 +299,8 @@ function ensureOAuthConnectionsSchema(AppDatabase $db): void {
     )");
 }
 function ensureNotificationsSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('app_notifications_schema', __FILE__)) return;
     if (app_db_is_pgsql()) {
         $db->exec("CREATE TABLE IF NOT EXISTS app_notifications (
             id BIGSERIAL PRIMARY KEY,
@@ -784,11 +797,13 @@ function initDB(AppDatabase $db): void {
         device_token_hash TEXT DEFAULT NULL,
         added_at         INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
         last_seen        INTEGER NOT NULL DEFAULT (extract(epoch from now())::bigint),
+        gpu_fingerprint  TEXT NOT NULL DEFAULT '',
         UNIQUE(email, fingerprint),
         UNIQUE(device_token_hash),
         FOREIGN KEY (email) REFERENCES users(email) ON DELETE CASCADE ON UPDATE CASCADE
     )");
     try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN IF NOT EXISTS ip_location TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
+    try { $db->exec("ALTER TABLE trusted_devices ADD COLUMN IF NOT EXISTS gpu_fingerprint TEXT NOT NULL DEFAULT ''"); } catch (Throwable $e) {}
     app_db_ensure_unique_index($db, 'trusted_devices', ['email', 'fingerprint'], 'idx_trusted_devices_email_fingerprint_unique');
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_email ON trusted_devices(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_trusted_devices_fingerprint ON trusted_devices(fingerprint)");
@@ -2336,6 +2351,8 @@ function ensureVerificationTokensSchema(AppDatabase $db): void {
     static $checked = false;
     if ($checked) return;
     $checked = true;
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('verification_tokens_schema', __FILE__)) return;
     try {
         if (app_db_is_pgsql()) {
             $pkCol = (string)$db->querySingle("SELECT kcu.column_name
@@ -3150,7 +3167,25 @@ function getLastActiveUser(): ?string {
 }
 
 function setLastActiveUser(string $email): void {
+    // Written on every authenticated request: throttled in-process so a burst of
+    // parallel requests (tabs, load) issues at most one upsert per email per minute
+    // instead of one row write each time.
+    static $lastEmail = null;
+    static $lastAt = 0;
+    $now = time();
+    if ($lastEmail === $email && ($now - $lastAt) < 60) {
+        return;
+    }
+    $lastEmail = $email;
+    $lastAt = $now;
     $db   = getDB();
+    try {
+        $current = (string)$db->querySingle("SELECT value FROM app_meta WHERE key = 'last_active_user'");
+        if ($current === $email) {
+            return; // nothing changed, skip the upsert lock
+        }
+    } catch (Throwable $e) {
+    }
     monitorRetentionSetMeta($db, 'last_active_user', $email);
 }
 
@@ -3382,6 +3417,19 @@ function getDeviceFingerprint(): string {
     $lang = $_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? '';
     return hash('sha256', 'legacy:' . $ua . '|' . $lang);
 }
+function getGpuFingerprint(): string {
+    $value = trim((string)($_SERVER['HTTP_X_GPU_FINGERPRINT'] ?? $_COOKIE['ap_gpu_fingerprint'] ?? ''));
+    return preg_match('/^[a-f0-9]{64}$/i', $value) ? strtolower($value) : '';
+}
+function trustedDeviceGpuMatches(string $email, string $fingerprint): bool {
+    $db = getDB();
+    ensureTrustedDevicesSchema($db);
+    $stmt = $db->prepare('SELECT gpu_fingerprint FROM trusted_devices WHERE email = :e AND fingerprint = :f LIMIT 1');
+    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
+    $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
+    $stored = (string)($stmt->execute()->fetchColumn() ?: '');
+    return $stored === '' || ($current = getGpuFingerprint()) !== '' && hash_equals($stored, $current);
+}
 
 /**
  * Returns the user's trusted devices from the dedicated table.
@@ -3403,7 +3451,7 @@ function getUserTrustedDevices(string $email): array {
         return $devices;
     }
     $db = getDB();
-    $stmt = $db->prepare("SELECT fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen
+    $stmt = $db->prepare("SELECT fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen, gpu_fingerprint
         FROM trusted_devices
         WHERE email = :e
         ORDER BY last_seen DESC, id DESC");
@@ -3418,6 +3466,7 @@ function getUserTrustedDevices(string $email): array {
             'device_name' => (string)($row['device_name'] ?? ''),
             'added_at' => (int)($row['added_at'] ?? 0),
             'last_seen' => (int)($row['last_seen'] ?? 0),
+            'gpu_fingerprint' => (string)($row['gpu_fingerprint'] ?? ''),
             'device_token' => '',
         ];
     }
@@ -3545,13 +3594,15 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     // Always persist to PostgreSQL so Redis flushes / restarts do not erase trust.
     $db = getDB();
     ensureTrustedDevicesSchema($db);
-    $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen)
-        VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen)
+    $gpuFingerprint = getGpuFingerprint();
+    $stmt = $db->prepare("INSERT INTO trusted_devices(email, fingerprint, ip, ip_location, device_name, device_token_hash, added_at, last_seen, gpu_fingerprint)
+        VALUES(:email, :fingerprint, :ip, :ip_location, :device_name, :device_token_hash, :added_at, :last_seen, :gpu_fingerprint)
         ON CONFLICT(email, fingerprint) DO UPDATE SET
             ip = excluded.ip,
             ip_location = excluded.ip_location,
             device_name = CASE WHEN excluded.device_name != '' THEN excluded.device_name ELSE trusted_devices.device_name END,
             device_token_hash = excluded.device_token_hash,
+            gpu_fingerprint = CASE WHEN trusted_devices.gpu_fingerprint = '' THEN excluded.gpu_fingerprint ELSE trusted_devices.gpu_fingerprint END,
             last_seen = excluded.last_seen");
     $stmt->bindValue(':email', $email, PDO::PARAM_STR);
     $stmt->bindValue(':fingerprint', $fingerprint, PDO::PARAM_STR);
@@ -3561,6 +3612,7 @@ function addTrustedDevice(string $email, string $ip, string $deviceName = '', st
     $stmt->bindValue(':device_token_hash', $tokenHash, PDO::PARAM_STR);
     $stmt->bindValue(':added_at', $now, PDO::PARAM_INT);
     $stmt->bindValue(':last_seen', $now, PDO::PARAM_INT);
+    $stmt->bindValue(':gpu_fingerprint', $gpuFingerprint, PDO::PARAM_STR);
     $stmt->execute();
     if ($redis = app_redis()) {
         $row = [
@@ -3661,6 +3713,8 @@ function ensureTrustedDevicesSchemaImpl(AppDatabase $db): void {
 // ── Trusted Device Persistent Cookies ───────────────────────────────────────
 
 function ensureTrustedDeviceCookiesSchema(AppDatabase $db): void {
+    require_once __DIR__ . '/lib/schema_once.php';
+    if (!app_schema_should_run('trusted_device_cookies_schema', __FILE__)) return;
     $db->exec("CREATE TABLE IF NOT EXISTS trusted_device_cookies (
         cookie_hash  TEXT    PRIMARY KEY,
         email        TEXT    NOT NULL,
@@ -3778,7 +3832,7 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
                     }
                     $fingerprint = $currentFingerprint;
                 }
-                if ($email !== '' && $fingerprint !== '' && isTrustedDevice($email, $fingerprint)) {
+                if ($email !== '' && $fingerprint !== '' && isTrustedDevice($email, $fingerprint) && trustedDeviceGpuMatches($email, $fingerprint)) {
                     $newRawCookie = bin2hex(random_bytes(32));
                     $newHash = hash('sha256', $newRawCookie);
                     $now = time();
@@ -3838,7 +3892,7 @@ function verifyAndRotateTrustedDeviceCookie(string $rawCookie): ?array {
         $deleteOldTrusted->execute();
         $fingerprint = $currentFingerprint;
     }
-    if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint)) {
+    if ($email === '' || $fingerprint === '' || !isTrustedDevice($email, $fingerprint) || !trustedDeviceGpuMatches($email, $fingerprint)) {
         $del = $db->prepare("DELETE FROM trusted_device_cookies WHERE cookie_hash = :h");
         $del->bindValue(':h', $cookieHash, PDO::PARAM_STR);
         $del->execute();

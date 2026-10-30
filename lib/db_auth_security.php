@@ -7,6 +7,8 @@ function appClientAuthTokenAppId($appId): string {
     return $appId;
 }
 function app_client_auth_tokens_ensure_app_column(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    if (!app_schema_should_run('cat_app_id_column', __FILE__)) return;
     try {
         $hasAppId = (bool)$db->querySingle("SELECT 1 FROM information_schema.columns WHERE table_schema='public' AND table_name='client_auth_tokens' AND column_name='app_id' LIMIT 1");
         if ($hasAppId) return;
@@ -19,6 +21,8 @@ function app_client_auth_tokens_ensure_app_column(AppDatabase $db): void {
     } catch (Throwable $e) {}
 }
 function app_client_auth_tokens_ensure_plain_column(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    if (!app_schema_should_run('cat_plain_column', __FILE__)) return;
     try {
         $db->exec("ALTER TABLE client_auth_tokens ADD COLUMN IF NOT EXISTS token_plain TEXT NOT NULL DEFAULT ''");
     } catch (Throwable $e) {}

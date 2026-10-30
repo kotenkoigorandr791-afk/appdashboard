@@ -182,7 +182,7 @@
       const response = await fetch(this.endpoint(), {
         method: 'POST',
         credentials: 'same-origin',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json', 'X-SharePoint-CSRF': window.SHAREPOINT_CSRF || '' },
         body: JSON.stringify(body)
       });
       const text = await response.text();

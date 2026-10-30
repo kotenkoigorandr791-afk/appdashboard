@@ -45,6 +45,10 @@ upstream smart_home_ws {
     keepalive 64;
 }
 
+log_format app_timing '$remote_addr [$time_local] "$request" '
+                       'status=$status bytes=$body_bytes_sent '
+                       'rt=$request_time urt=$upstream_response_time uct=$upstream_connect_time';
+
 server {
     listen 8080 default_server;
     server_name _;
@@ -62,13 +66,14 @@ server {
     brotli_types text/html text/css application/javascript application/json image/svg+xml text/plain text/xml application/xml font/ttf font/otf application/wasm;
     gzip on;
     gzip_vary on;
-    gzip_comp_level 5;
+    gzip_comp_level 4;
     gzip_min_length 1024;
     gzip_proxied any;
     gzip_types text/css application/javascript application/json image/svg+xml
                text/plain text/xml application/xml font/ttf font/otf application/wasm;
 
     access_log /var/log/nginx/appdashboard_access.log;
+    access_log /var/log/nginx/appdashboard_timing.log app_timing;
     error_log  /var/log/nginx/appdashboard_error.log;
     modsecurity on;
     modsecurity_rules_file /etc/nginx/modsecurity/appdashboard.conf;
