@@ -17,7 +17,10 @@ function getUserDBPath($userEmail) {
 }
 function getUserSQLite($userEmail) {
     static $cache = [];
-    if ($userEmail === '' || $userEmail === 'default_user') $userEmail = 'guest@local';
+    $userEmail = strtolower(trim((string)$userEmail));
+    if ($userEmail === '' || $userEmail === 'default_user' || !str_contains($userEmail, '@')) {
+        throw new InvalidArgumentException('spends user required');
+    }
     if (isset($cache[$userEmail])) return $cache[$userEmail];
     $udb = app_user_db_connect('spends', $userEmail);
     app_spends_migrate_sqlite_file($userEmail, $udb);
