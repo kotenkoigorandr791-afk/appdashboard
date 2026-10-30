@@ -7,10 +7,10 @@ plugins {
 }
 
 android {
-    namespace = "xyz.serverkherson.spends"
+    namespace = "orbit.nex.finance"
     compileSdk = 35
     defaultConfig {
-        applicationId = "xyz.serverkherson.spends"
+        applicationId = "orbit.nex.finance"
         minSdk = 26
         targetSdk = 35
         versionCode = 5
