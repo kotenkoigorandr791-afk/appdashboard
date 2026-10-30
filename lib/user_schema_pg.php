@@ -37,10 +37,7 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
         return AppDatabase::connectUserSchema(APP_SPENDS_SHARED_SCHEMA, ["SELECT set_config('spends.user_id', $lit, false)", 'SET ROLE ' . APP_SPENDS_ROLE]);
     }
-    $schema = app_user_schema_id($appPrefix, $email);
-    $schemaSql = app_user_schema_sql($schema);
-    app_user_schema_ensure(app_main_db(), $appPrefix, $schema);
-    return AppDatabase::connectUserSchema($schemaSql);
+    throw new InvalidArgumentException('unsupported app schema');
 }
 function app_spends_shared_ensure(AppDatabase $db): void {
     require_once __DIR__ . '/schema_once.php';
@@ -247,15 +244,4 @@ function app_spends_migrate_legacy(AppDatabase $db, string $uid, string $email):
         throw $e;
     }
     $seen[$uid] = true;
-}
-function app_user_schema_ensure(AppDatabase $db, string $appPrefix, string $schema): void {
-    static $schemasDone = [];
-    if (isset($schemasDone[$schema])) return;
-    $s = app_user_schema_sql($schema);
-    $db->exec("CREATE SCHEMA IF NOT EXISTS $s");
-    if ($appPrefix === 'tft') {
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.config (key TEXT PRIMARY KEY, value TEXT)");
-        $db->exec("CREATE TABLE IF NOT EXISTS $s.canvas (key TEXT PRIMARY KEY, value TEXT)");
-    }
-    $schemasDone[$schema] = true;
 }
