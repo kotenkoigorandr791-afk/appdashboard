@@ -70,6 +70,7 @@ data class BackupEntry(
     val expenseTags: Map<String, List<String>> = emptyMap(),
     val flags: SettingsFlags = SettingsFlags(),
     val syncedAt: Long = 0,
+    val syncRevision: String = "",
 )
 @Serializable data class LocalExtras(
     val pending: List<PendingCapture> = emptyList(),

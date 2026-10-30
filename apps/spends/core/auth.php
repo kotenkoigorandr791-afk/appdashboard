@@ -41,6 +41,8 @@ function spendsActiveSessionRow(): ?array {
     return null;
 }
 function getCurrentUserFromActiveSessions() {
+    $apiEmail = $GLOBALS['public_api_user']['email'] ?? null;
+    if (is_string($apiEmail) && $apiEmail !== '') return $apiEmail;
     $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
     if (is_string($sessionEmail) && $sessionEmail !== '') return $sessionEmail;
     $row = spendsActiveSessionRow();

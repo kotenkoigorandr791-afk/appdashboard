@@ -72,6 +72,7 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     private val savedTick = MutableStateFlow(0L)
     private val scan = MutableStateFlow<ScanResult?>(null)
     private val scanBusy = MutableStateFlow(false)
+    private var auxRefreshAt = 0L
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; prettyPrint = false }
     val state: StateFlow<AppState> = combine(store.session, store.snapshot, store.extras, loading, error) { session, snapshot, extras, busy, message ->
         AppState(session = session, snapshot = snapshot, extras = extras, loading = busy, error = message, rates = rates.value, backups = backups.value)
@@ -106,10 +107,13 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         val session = state.value.session
         if (session.token.isBlank() || session.endpoint.isBlank()) return
         run("Could not refresh", quiet) {
-            val fresh = api.pull(session)
+            val fresh = api.pull(session, state.value.snapshot)
             store.saveSnapshot(fresh)
-            runCatching { rates.value = api.rates(session, fresh.currency.ifBlank { "USD" }) }
-            runCatching { backups.value = api.backups(session) }
+            if (System.currentTimeMillis() - auxRefreshAt >= 300_000) {
+                auxRefreshAt = System.currentTimeMillis()
+                runCatching { rates.value = api.rates(session, fresh.currency.ifBlank { "USD" }) }
+                runCatching { backups.value = api.backups(session) }
+            }
         }
     }
     fun addExpense(date: String, storeName: String, amount: String, source: String = "manual", done: () -> Unit = {}) = launch {
