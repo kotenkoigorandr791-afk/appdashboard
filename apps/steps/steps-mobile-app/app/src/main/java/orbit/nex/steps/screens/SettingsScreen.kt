@@ -488,11 +488,10 @@ fun SettingsScreen(onBack: () -> Unit) {
         },
     ) { padding ->
         orbit.nex.steps.components.AppBackground {
-            Box(Modifier.fillMaxSize()) {
+            Box(Modifier.fillMaxSize().padding(padding)) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(padding)
                     .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -500,7 +499,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp),
                     ) {
                         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -908,6 +909,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                                         onClick = {
                                             themeMode = value
                                             prefs.setThemeMode(value)
+                                            val nightMode = when (value) {
+                                                "light" -> AppCompatDelegate.MODE_NIGHT_NO
+                                                "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+                                                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+                                            }
+                                            AppCompatDelegate.setDefaultNightMode(nightMode)
                                             (context as? Activity)?.recreate()
                                         },
                                         shape = SegmentedButtonDefaults.itemShape(index, 3),
@@ -1213,8 +1220,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                     scheduleToEdit = null
                     ScheduledSyncManager(context).scheduleAllAlarms()
                 }) { Text(stringResource(R.string.action_ok)) }
+                TextButton(onClick = { scheduleToEdit = null }) { Text(stringResource(R.string.action_cancel)) }
             },
-            dismissButton = { TextButton(onClick = { scheduleToEdit = null }) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
 }

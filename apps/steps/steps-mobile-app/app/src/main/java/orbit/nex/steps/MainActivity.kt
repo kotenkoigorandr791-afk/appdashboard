@@ -83,6 +83,7 @@ class MainActivity : AppCompatActivity() {
             preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
         }
         applyLanguage(preferencesManager.getAppLanguage())
+        applyThemeMode(preferencesManager.getThemeMode())
         applyPortraitMode(preferencesManager.isPortraitOnly())
         handleAuthIntent(intent)
         setContent { HCWebhookTheme { MainScreen() } }
@@ -368,6 +369,15 @@ class MainActivity : AppCompatActivity() {
         } else {
             AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(lang))
         }
+    }
+
+    private fun applyThemeMode(mode: String) {
+        val nightMode = when (mode) {
+            "light" -> AppCompatDelegate.MODE_NIGHT_NO
+            "dark" -> AppCompatDelegate.MODE_NIGHT_YES
+            else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
+        }
+        AppCompatDelegate.setDefaultNightMode(nightMode)
     }
 
     private fun applyPortraitMode(portraitOnly: Boolean) {
