@@ -35,7 +35,7 @@ class SessionStore(private val context: Context) {
     val appearance: Flow<Appearance> = context.spendsDataStore.data.map { decode(it, appearanceKey, Appearance.serializer(), Appearance()) }
     val syncLogs: Flow<List<SyncLog>> = context.spendsDataStore.data.map { decodeList(it, logsKey) }
     suspend fun saveSession(value: Session) {
-        secrets.edit().putString(tokenKey, value.token).apply()
+        secrets.edit().putString(tokenKey, value.token).commit()
         save(sessionKey, Session.serializer(), value.copy(token = ""))
     }
     fun deviceId(): String = secrets.getString(deviceIdKey, null) ?: java.util.UUID.randomUUID().toString().replace("-", "").also { secrets.edit().putString(deviceIdKey, it).apply() }
