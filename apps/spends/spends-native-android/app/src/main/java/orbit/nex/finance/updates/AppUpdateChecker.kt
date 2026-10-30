@@ -32,6 +32,9 @@ data class UpdateInfo(
     val size_bytes: Long = 0,
     val built_at: Long = 0,
     val apk_path: String = "/api/spends/apk",
+    val source: String = "server",
+    val download_url: String = "",
+    val release_notes: String = "",
 )
 
 enum class UpdateOutcome { NOT_CONNECTED, UP_TO_DATE, UPDATE_AVAILABLE, ERROR }
@@ -51,54 +54,126 @@ class AppUpdateChecker(private val context: Context) {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    private fun baseUrl(endpoint: String): String? {
-        val uri = Uri.parse(endpoint)
-        val scheme = uri.scheme ?: return null
-        val authority = uri.authority ?: return null
-        return "$scheme://$authority"
-    }
+    @Serializable
+    private data class GithubRelease(
+        val tag_name: String = "",
+        val name: String = "",
+        val body: String = "",
+        val draft: Boolean = true,
+        val prerelease: Boolean = true,
+        val assets: List<GithubAsset> = emptyList(),
+    )
+
+    @Serializable
+    private data class GithubAsset(
+        val name: String = "",
+        val browser_download_url: String = "",
+    )
 
     suspend fun checkForUpdate(endpoint: String, token: String): UpdateCheck = withContext(Dispatchers.IO) {
-        val base = baseUrl(endpoint) ?: return@withContext UpdateCheck(UpdateOutcome.NOT_CONNECTED)
-        if (token.isBlank()) return@withContext UpdateCheck(UpdateOutcome.NOT_CONNECTED)
-        try {
+        val serverResult = checkProductionServer(token)
+        val githubResult = checkGithubReleases()
+        val candidates = listOfNotNull(serverResult, githubResult)
+            .filter { isNewer(it.version_name) }
+        val latest = candidates.maxWithOrNull { left, right ->
+            compareVersions(left.version_name, right.version_name)
+                .takeIf { it != 0 } ?: left.version_code.compareTo(right.version_code)
+        }
+        when {
+            latest != null -> UpdateCheck(UpdateOutcome.UPDATE_AVAILABLE, latest)
+            serverResult != null || githubResult != null -> UpdateCheck(UpdateOutcome.UP_TO_DATE)
+            token.isBlank() -> UpdateCheck(UpdateOutcome.NOT_CONNECTED)
+            else -> UpdateCheck(UpdateOutcome.ERROR)
+        }
+    }
+
+    private fun checkProductionServer(token: String): UpdateInfo? {
+        if (token.isBlank()) return null
+        return runCatching {
             val request = Request.Builder()
-                .url("$base/api/spends/version")
+                .url("$PRODUCTION_BASE_URL/api/spends/version")
                 .header("Authorization", "Bearer $token")
                 .header("X-Device-Id", deviceId)
                 .header("Accept", "application/json")
                 .get()
                 .build()
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@withContext UpdateCheck(UpdateOutcome.ERROR)
-                val info = json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
-                if (!info.available || info.version_code <= BuildConfig.VERSION_CODE) {
-                    return@withContext UpdateCheck(UpdateOutcome.UP_TO_DATE, info)
-                }
-                UpdateCheck(UpdateOutcome.UPDATE_AVAILABLE, info)
+                if (!response.isSuccessful) return@use null
+                json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
+                    .copy(source = "server")
+                    .takeIf { it.available && it.version_code > BuildConfig.VERSION_CODE }
             }
-        } catch (_: Exception) {
-            UpdateCheck(UpdateOutcome.ERROR)
-        }
+        }.getOrNull()
     }
 
-    suspend fun downloadApk(endpoint: String, token: String, info: UpdateInfo, onProgress: ((Int) -> Unit)? = null): File? =
+    private fun checkGithubReleases(): UpdateInfo? = runCatching {
+        val request = Request.Builder()
+            .url("$GITHUB_API/releases?per_page=100")
+            .header("Accept", "application/vnd.github+json")
+            .header("X-GitHub-Api-Version", "2022-11-28")
+            .get()
+            .build()
+        client.newCall(request).execute().use { response ->
+            if (!response.isSuccessful) return@use null
+            json.decodeFromString<List<GithubRelease>>(response.body?.string().orEmpty())
+                .asSequence()
+                .filter { !it.draft && !it.prerelease }
+                .mapNotNull { release ->
+                    val version = SPENDS_TAG.matchEntire(release.tag_name)?.groupValues?.get(1) ?: return@mapNotNull null
+                    val apk = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+                        ?: return@mapNotNull null
+                    if (apk.browser_download_url.isBlank()) return@mapNotNull null
+                    UpdateInfo(
+                        available = true,
+                        version_name = version,
+                        source = "github",
+                        download_url = apk.browser_download_url,
+                        release_notes = release.body,
+                    )
+                }
+                .maxWithOrNull { left, right -> compareVersions(left.version_name, right.version_name) }
+        }
+    }.getOrNull()
+
+    private fun isNewer(versionName: String): Boolean =
+        versionName.isNotBlank() && compareVersions(versionName, BuildConfig.VERSION_NAME) > 0
+
+    private fun compareVersions(left: String, right: String): Int {
+        val leftParts = left.substringAfterLast('v').split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
+        val rightParts = right.substringAfterLast('v').split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
+        for (index in 0 until maxOf(leftParts.size, rightParts.size)) {
+            val comparison = (leftParts.getOrElse(index) { 0 }).compareTo(rightParts.getOrElse(index) { 0 })
+            if (comparison != 0) return comparison
+        }
+        return 0
+    }
+
+    suspend fun downloadApk(token: String, info: UpdateInfo, onProgress: ((Int) -> Unit)? = null): File? =
         withContext(Dispatchers.IO) {
-            val base = baseUrl(endpoint) ?: return@withContext null
+            val github = info.source == "github"
+            if (!github && token.isBlank()) return@withContext null
             val path = info.apk_path.ifBlank { "/api/spends/apk" }
-            val url = if (path.startsWith("http")) path else base + path
+            val url = when {
+                github -> info.download_url
+                path.startsWith("http://") || path.startsWith("https://") -> path
+                else -> PRODUCTION_BASE_URL + path
+            }
+            if (url.isBlank()) return@withContext null
             val dir = File(context.cacheDir, "updates").apply { mkdirs() }
-            val dest = File(dir, "spends-${info.version_code}.apk")
+            val safeVersion = info.version_name.replace(Regex("[^A-Za-z0-9._-]"), "_")
+            val dest = File(dir, "spends-${info.source}-$safeVersion.apk")
             if (dest.exists() && verifyHash(dest, info.hash)) return@withContext dest
             dest.delete()
             try {
-                val request = Request.Builder()
+                val requestBuilder = Request.Builder()
                     .url(url)
-                    .header("Authorization", "Bearer $token")
-                    .header("X-Device-Id", deviceId)
                     .header("Accept", "application/vnd.android.package-archive")
                     .get()
-                    .build()
+                if (!github) {
+                    requestBuilder.header("Authorization", "Bearer $token")
+                        .header("X-Device-Id", deviceId)
+                }
+                val request = requestBuilder.build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext null
                     val body = response.body ?: return@withContext null
@@ -116,7 +191,7 @@ class AppUpdateChecker(private val context: Context) {
                             }
                         }
                     }
-                    if (verifyHash(dest, info.hash)) dest else {
+                    if (verifyHash(dest, info.hash) && isCompatibleApk(dest)) dest else {
                         dest.delete()
                         null
                     }
@@ -126,6 +201,24 @@ class AppUpdateChecker(private val context: Context) {
                 null
             }
         }
+
+    suspend fun downloadApk(
+        endpoint: String,
+        token: String,
+        info: UpdateInfo,
+        onProgress: ((Int) -> Unit)? = null,
+    ): File? = downloadApk(token, info, onProgress)
+
+    private fun isCompatibleApk(file: File): Boolean {
+        val archive = context.packageManager.getPackageArchiveInfo(file.absolutePath, 0) ?: return false
+        val archiveVersionCode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            archive.longVersionCode
+        } else {
+            @Suppress("DEPRECATION")
+            archive.versionCode.toLong()
+        }
+        return archive.packageName == BuildConfig.APPLICATION_ID && archiveVersionCode > BuildConfig.VERSION_CODE
+    }
 
     fun install(apkFile: File) {
         val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", apkFile)
@@ -152,6 +245,10 @@ class AppUpdateChecker(private val context: Context) {
     }
 
     companion object {
+        private const val PRODUCTION_BASE_URL = "https://serverkherson.xyz"
+        private const val GITHUB_API = "https://api.github.com/repos/kotenkoigorandr791-afk/appdashboard"
+        private val SPENDS_TAG = Regex("spends-v?([0-9]+(?:\\.[0-9]+){1,3})")
+
         /** Posts a "ready to install" notification for a downloaded APK. */
         fun postInstallNotification(context: Context, apkFile: File, versionName: String) {
             val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
