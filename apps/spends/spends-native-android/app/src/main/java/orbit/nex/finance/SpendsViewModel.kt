@@ -96,15 +96,19 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
 
     fun pair(linkOrEndpoint: String, suppliedToken: String = "", done: () -> Unit) = launch {
         val (endpoint, token) = parsePairing(linkOrEndpoint, suppliedToken) ?: return@launch fail("Enter a pairing link or endpoint and token")
-        run("Could not pair") { store.saveSession(api.profile(endpoint, token)); refresh(); done() }
+        run("Could not pair") {
+            val session = api.profile(endpoint, token)
+            store.saveSession(session)
+            pull(quiet = false, session = session)
+            done()
+        }
     }
     fun refresh() = launch { pull(quiet = false) }
 
     /** Background pull used by the periodic sync: never shows the loading indicator. */
     fun refreshQuietly() = launch { pull(quiet = true) }
 
-    private suspend fun pull(quiet: Boolean) {
-        val session = state.value.session
+    private suspend fun pull(quiet: Boolean, session: Session = state.value.session) {
         if (session.token.isBlank() || session.endpoint.isBlank()) return
         run("Could not refresh", quiet) {
             val fresh = api.pull(session, state.value.snapshot)
