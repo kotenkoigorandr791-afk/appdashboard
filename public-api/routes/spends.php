@@ -1,6 +1,7 @@
 <?php
 $parts = public_api_parse_path();
 $sub = strtolower((string)($parts[1] ?? ''));
+public_api_rate_limit($sub === 'ocr' ? 'spends_ocr' : 'spends', $sub === 'ocr' ? 12 : 240, 60);
 if ($sub === 'utils' && str_starts_with((string)($parts[2] ?? ''), 'expense_ocr_app')) {
     require APP_ROOT . '/apps/spends/utils/expense_ocr_app.php';
     exit;
@@ -76,7 +77,17 @@ if ($sub === 'sync' && $method === 'POST') {
     if (!is_array($payload)) {
         $payload = $_POST;
     }
-    exit(json_encode(spends_mobile_push($udb, is_array($payload) ? $payload : []), JSON_UNESCAPED_UNICODE));
+    $pdo = $udb->getPdo();
+    try {
+        $pdo->beginTransaction();
+        $result = spends_mobile_push($udb, is_array($payload) ? $payload : []);
+        $pdo->commit();
+        spends_mobile_invalidate_snapshot();
+        exit(json_encode($result, JSON_UNESCAPED_UNICODE));
+    } catch (Throwable $e) {
+        if ($pdo->inTransaction()) $pdo->rollBack();
+        public_api_json(['status' => 'error', 'message' => 'sync_failed'], 500);
+    }
 }
 
 require APP_ROOT . '/apps/spends/controllers/Handlers.php';

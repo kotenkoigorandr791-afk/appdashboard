@@ -443,7 +443,6 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         }
     }
 
-    spends_mobile_invalidate_snapshot();
     return [
         'status' => 'success',
         'created' => $created,
