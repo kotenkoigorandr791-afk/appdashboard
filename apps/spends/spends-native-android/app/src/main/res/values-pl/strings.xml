@@ -360,4 +360,11 @@
     <string name="goal_name_limit">Nie wydać więcej niż %1$s</string>
     <string name="goal_name_store_limit">Limit: %1$s</string>
     <string name="goal_name_store_no_spend">Nie wydawać w %1$s</string>
+    <string name="unit_meters">%1$s m</string>
+    <string name="unit_kcal">%1$s kcal</string>
+    <string name="unit_hours">%1$s h</string>
+    <string name="unit_bpm">%1$s bpm</string>
+    <string name="unit_kg">%1$s kg</string>
+    <string name="unit_mmhg">%1$s mmHg</string>
+    <string name="unit_percent">%1$s%%</string>
 </resources>
