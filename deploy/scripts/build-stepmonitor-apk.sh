@@ -47,7 +47,11 @@ if [ -z "${ANDROID_HOME:-}" ]; then
   done
 fi
 cd "$APP_DIR"
-./gradlew --no-daemon assembleFossRelease
+./gradlew --no-daemon assembleFossRelease \
+  -Pandroid.injected.signing.store.file="$APP_DIR/app/release.jks" \
+  -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+  -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+  -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 BUILT="$(find app/build/outputs/apk/foss/release -name '*.apk' | head -n 1)"
 test -n "$BUILT"
 
