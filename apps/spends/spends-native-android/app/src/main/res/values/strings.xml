@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Spends</string>
+    <string name="app_name">Nex Finance</string>
     <string name="app_tagline">Ledger</string>
     <string name="nav_home">Home</string>
     <string name="nav_stats">Stats</string>
@@ -93,7 +93,7 @@
     <string name="about">About</string>
     <string name="about_sub">Version, updates, credits</string>
     <string name="disconnect">Disconnect</string>
-    <string name="footer_made">Spends %1$s · made to help your money make cents.</string>
+    <string name="footer_made">Nex Finance %1$s · made to help your money make cents.</string>
     <string name="goals_title">Goals</string>
     <string name="target">Target</string>
     <string name="add_goal">Add goal</string>
@@ -313,6 +313,7 @@
     <string name="disputes_discarded">Dispute discarded</string>
     <string name="disputes_discard">Discard</string>
     <string name="disputes_back">Back to Spends</string>
+    <string name="disputes_all_dates">All dates</string>
     <plurals name="disputes_count"><item quantity="one">%d dispute to resolve</item><item quantity="other">%d disputes to resolve</item></plurals>
     <string name="saved_changes">Saved</string>
     <string name="edit">Edit</string>
