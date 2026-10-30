@@ -1,6 +1,26 @@
 <resources>
     <string name="app_name">Nex Finance</string>
     <string name="app_tagline">Журнал</string>
+    <string name="welcome_brand">Nex Finance</string>
+    <string name="welcome_description">Спокойный и понятный взгляд на ваши финансы: от повседневных покупок до общей картины.</string>
+    <string name="welcome_feature_ledger_title">Все деньги в одном журнале</string>
+    <string name="welcome_feature_ledger_body">Расходы, доходы, магазины и чеки в одном месте.</string>
+    <string name="welcome_feature_insights_title">Финансы целиком</string>
+    <string name="welcome_feature_insights_body">Бюджеты, денежный поток, категории и динамика расходов.</string>
+    <string name="welcome_feature_capture_title">Добавляйте покупки быстро</string>
+    <string name="welcome_feature_capture_body">Запишите операцию или отсканируйте чек камерой.</string>
+    <string name="welcome_feature_sync_title">Данные всегда синхронизированы</string>
+    <string name="welcome_feature_sync_body">Подключите AppDashboard, чтобы финансы были актуальны.</string>
+    <string name="welcome_continue">Начать</string>
+    <string name="whats_new_title">Что нового</string>
+    <string name="whats_new_description">Обновление для повседневного управления финансами.</string>
+    <string name="whats_new_brand_title">Новый образ Nex Finance</string>
+    <string name="whats_new_brand_body">Обновили название, значок приложения и единый фирменный стиль.</string>
+    <string name="whats_new_layout_title">Интерфейс лучше подстраивается</string>
+    <string name="whats_new_layout_body">Экраны аккуратнее адаптируются под разные размеры устройств.</string>
+    <string name="whats_new_icon_title">Тематические значки на Pixel</string>
+    <string name="whats_new_icon_body">Для тематических значков Android теперь есть прозрачный одноцветный логотип.</string>
+    <string name="whats_new_continue">Продолжить</string>
     <string name="nav_home">Главная</string>
     <string name="nav_stats">Статистика</string>
     <string name="nav_stores">Магазины</string>
