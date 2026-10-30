@@ -22,6 +22,9 @@ import xyz.serverkherson.spends.data.Session
 import xyz.serverkherson.spends.data.SessionStore
 import xyz.serverkherson.spends.data.Snapshot
 import xyz.serverkherson.spends.data.SpendsApi
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.contentOrNull
 import java.time.LocalDate
 
 data class AppState(
@@ -35,6 +38,11 @@ data class AppState(
     val rates: Rates = Rates(),
     val backups: List<BackupFile> = emptyList(),
     val localBackups: List<BackupFile> = emptyList(),
+    /** Increments after a successful save so the UI can show a confirmation toast. */
+    val savedTick: Long = 0L,
+    /** Result of the last manual wallet scan, shown in Settings. */
+    val scan: ScanResult? = null,
+    val scanBusy: Boolean = false,
 ) {
     /** Server and device backups merged by name. */
     val allBackups: List<BackupEntry>
@@ -61,6 +69,9 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     private val backups = MutableStateFlow<List<BackupFile>>(emptyList())
     private val localBackups = MutableStateFlow<List<BackupFile>>(emptyList())
     private val sessionReady = MutableStateFlow(false)
+    private val savedTick = MutableStateFlow(0L)
+    private val scan = MutableStateFlow<ScanResult?>(null)
+    private val scanBusy = MutableStateFlow(false)
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; prettyPrint = false }
     val state: StateFlow<AppState> = combine(store.session, store.snapshot, store.extras, loading, error) { session, snapshot, extras, busy, message ->
         AppState(session = session, snapshot = snapshot, extras = extras, loading = busy, error = message, rates = rates.value, backups = backups.value)
@@ -69,6 +80,9 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         .combine(backups) { s, b -> s.copy(backups = b) }
         .combine(localBackups) { s, b -> s.copy(localBackups = b) }
         .combine(sessionReady) { s, r -> s.copy(sessionReady = r) }
+        .combine(savedTick) { s, tick -> s.copy(savedTick = tick) }
+        .combine(scan) { s, r -> s.copy(scan = r) }
+        .combine(scanBusy) { s, b -> s.copy(scanBusy = b) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppState())
 
     init {
@@ -101,12 +115,12 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     fun addExpense(date: String, storeName: String, amount: String, source: String = "manual", done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || storeName.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date, merchant, and amount")
-        run("Could not save") { api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(Expense(date, storeName, numeric, entrySource = source))}]}"""); refresh(); done() }
+        run("Could not save") { api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(Expense(date, storeName, numeric, entrySource = source))}]}"""); refresh(); markSaved(); done() }
     }
     fun addIncome(date: String, amount: String, done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date and amount")
-        run("Could not save income") { api.pushJson(state.value.session, """{"incomes":[${api.incomeJson(Income(date, numeric))}]}"""); refresh(); done() }
+        run("Could not save income") { api.pushJson(state.value.session, """{"incomes":[${api.incomeJson(Income(date, numeric))}]}"""); refresh(); markSaved(); done() }
     }
     fun addTransfer(date: String, from: String, to: String, amount: String, done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
@@ -116,6 +130,26 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
             api.pushJson(state.value.session, """{"incomes":[${api.incomeJson(Income(date, numeric))}]}""")
             done()
             refresh()
+            markSaved()
+        }
+    }
+    /** Edits every field of a payment. Server rows are keyed by date+store, so a key
+     * change is a delete of the old row followed by an insert of the new one. */
+    fun updateExpense(old: Expense, date: String, storeName: String, amount: String, done: () -> Unit = {}) = launch {
+        val numeric = amount.replace(',', '.').toDoubleOrNull()
+        if (date.isBlank() || storeName.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date, merchant, and amount")
+        run("Could not update") {
+            if (date == old.date && storeName == old.store) {
+                api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(old.copy(amount = numeric))}]}""")
+            } else {
+                api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(old.copy(amount = 0.0))}]}""")
+                api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(old.copy(date = date, store = storeName, amount = numeric))}]}""")
+                val oldTags = state.value.snapshot.expenseTags["${old.date}\t${old.store}"].orEmpty()
+                if (oldTags.isNotEmpty()) runCatching { api.setExpenseTags(state.value.session, date, storeName, oldTags) }
+            }
+            refresh()
+            markSaved()
+            done()
         }
     }
     fun deleteExpense(expense: Expense) = launch {
@@ -134,8 +168,19 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         }
     }
     fun emptyTrash() = launch { store.saveExtras(store.extrasNow().copy(trash = emptyList())) }
-    fun enqueuePending(item: PendingCapture) = launch {
-        val extras = store.extrasNow()
+    /** Reads the wallet notifications currently in the shade, books them and clears them. */
+    fun scanWalletNotifications() = launch {
+        if (scanBusy.value) return@launch
+        scanBusy.value = true
+        scan.value = null
+        val result = runCatching { WalletScanner.scan(store, api) }
+            .getOrElse { ScanResult(error = it.message ?: "scan_failed") }
+        scan.value = result
+        scanBusy.value = false
+        if (result.written > 0) refreshQuietly()
+    }
+    fun clearScanResult() { scan.value = null }
+    fun enqueuePending(item: PendingCapture) = launch {        val extras = store.extrasNow()
         if (extras.pending.any { it.date == item.date && it.store == item.store && it.amount == item.amount }) return@launch
         store.saveExtras(extras.copy(pending = extras.pending + item))
     }
@@ -165,17 +210,34 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
             )
             requireOk(result)
             refresh()
+            markSaved()
         }
     }
     fun saveSettings(budget: String, currency: String, showIncomes: Boolean, showTrend: Boolean, trimEmpty: Boolean) = launch {
-        val b = budget.replace(',', '.').toDoubleOrNull() ?: return@launch fail("Budget must be a number")
+        val b = budget.replace(',', '.').toDoubleOrNull()
+        if (b == null || b <= 0.0) return@launch fail("Budget must be a positive number")
         run("Could not save settings") {
             api.pushJson(state.value.session, """{"settings":{"monthly_budget":$b,"currency":"$currency","show_incomes":$showIncomes,"show_trend":$showTrend,"trim_empty_months":$trimEmpty}}""")
             refresh()
+            markSaved()
         }
     }
     fun saveTag(name: String, color: String, id: String = "") = launch {
-        run("Could not save tag") { requireOk(api.form(state.value.session, mapOf("save_tag" to "1", "id" to id, "name" to name, "color" to color))); refresh() }
+        run("Could not save tag") { requireOk(api.form(state.value.session, mapOf("save_tag" to "1", "id" to id, "name" to name, "color" to color))); refresh(); markSaved() }
+    }
+    /** Creates a fresh tag and attaches it to one payment in a single step. */
+    fun createTagAndAttach(expense: Expense, name: String, color: String = "#4F46E5") = launch {
+        if (name.isBlank()) return@launch fail("Tag name required")
+        run("Could not create tag") {
+            val res = api.form(state.value.session, mapOf("save_tag" to "1", "id" to "", "name" to name, "color" to color))
+            val id = res["tag"]?.jsonObject?.get("id")?.jsonPrimitive?.contentOrNull
+            if (!id.isNullOrBlank()) {
+                val current = state.value.snapshot.expenseTags["${expense.date}\t${expense.store}"].orEmpty()
+                api.setExpenseTags(state.value.session, expense.date, expense.store, (current + id).distinct())
+            }
+            refresh()
+            markSaved()
+        }
     }
     fun deleteTag(id: String) = launch { run("Could not delete tag") { requireOk(api.form(state.value.session, mapOf("delete_tag" to id))); refresh() } }
     /** Replaces the tags of one payment; tags are attached per date + store like the web UI. */
@@ -196,16 +258,18 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
                 "is_archived" to if (goal.isArchived) "1" else "0",
             )))
             refresh()
+            markSaved()
         }
     }
     fun contributeGoal(id: String, amount: String) = launch {
-        run("Could not contribute") { requireOk(api.form(state.value.session, mapOf("contribute_goal" to id, "amount" to amount))); refresh() }
+        run("Could not contribute") { requireOk(api.form(state.value.session, mapOf("contribute_goal" to id, "amount" to amount))); refresh(); markSaved() }
     }
     fun deleteGoal(id: String) = launch { run("Could not delete goal") { requireOk(api.form(state.value.session, mapOf("delete_goal" to id))); refresh() } }
     fun addSubscription(storeName: String, amount: String, day: String) = launch {
         run("Could not add subscription") {
             requireOk(api.form(state.value.session, mapOf("add_subscription" to "1", "store" to storeName, "amount" to amount, "frequency" to "monthly", "day_of_month" to day, "start_date" to LocalDate.now().toString())))
             refresh()
+            markSaved()
         }
     }
     fun deleteSubscription(id: String) = launch { run("Could not delete") { requireOk(api.form(state.value.session, mapOf("delete_subscription" to id))); refresh() } }
@@ -223,6 +287,7 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
                 requireOk(api.form(state.value.session, mapOf("backup_action" to "save", "backup_name" to name)))
                 backups.value = api.backups(state.value.session)
             }
+            markSaved()
         }
     }
     fun restoreBackup(file: String) = launch {
@@ -265,6 +330,7 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         if (!quiet) loading.value = false
     }
     private fun fail(message: String) { error.value = message }
+    private fun markSaved() { savedTick.value = System.currentTimeMillis() }
     fun parsePairing(value: String, suppliedToken: String): Pair<String, String>? {
         val source = value.trim()
         val query = source.substringAfter('?', "")

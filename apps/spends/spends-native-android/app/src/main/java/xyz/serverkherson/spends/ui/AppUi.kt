@@ -28,6 +28,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
@@ -41,7 +42,13 @@ import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronRight
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Flag
+import androidx.compose.material.icons.outlined.HelpOutline
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.ReceiptLong
+import androidx.compose.material.icons.outlined.CheckCircle
+import androidx.compose.material.icons.outlined.Sort
 import androidx.compose.material.icons.outlined.History
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.outlined.Insights
@@ -76,6 +83,9 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -105,7 +115,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.window.Dialog
+import java.time.Instant
+import java.time.ZoneOffset
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
@@ -179,14 +192,18 @@ fun Greeting() {
 
 @Composable
 fun HeroCard(state: AppState) {
-    val spent = state.snapshot.expenses.sumOf { it.amount }
-    val earned = state.snapshot.incomes.sumOf { it.amount }
-    val net = earned - spent
+    // Capital is cumulative; the in/out tiles and the budget are for the current month only.
+    val allSpent = state.snapshot.expenses.sumOf { it.amount }
+    val allEarned = state.snapshot.incomes.sumOf { it.amount }
+    val net = allEarned - allSpent
+    val month = LocalDate.now().toString().take(7)
+    val spent = state.snapshot.expenses.filter { it.date.startsWith(month) }.sumOf { it.amount }
+    val earned = state.snapshot.incomes.filter { it.date.startsWith(month) }.sumOf { it.amount }
     val budget = state.snapshot.budget
     val ink = MaterialTheme.colorScheme.onPrimary
     Box(Modifier.fillMaxWidth().background(heroBrush(), RoundedCornerShape(28.dp)).padding(22.dp)) {
         Column {
-            Text(stringResource(R.string.this_period), color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.labelLarge)
+            Text(stringResource(R.string.net_position), color = ink.copy(alpha = 0.75f), style = MaterialTheme.typography.labelLarge)
             Text(money(net, state.snapshot.currency), color = ink, style = MaterialTheme.typography.headlineLarge)
             Spacer(Modifier.height(16.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -250,11 +267,7 @@ fun ExpenseRow(expense: Expense, currency: String, photoUrl: String, onClick: ()
             Spacer(Modifier.width(14.dp))
             Column(Modifier.weight(1f)) {
                 Text(expense.store, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
-                Text(
-                    sourceLabel(expense.entrySource),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+                SourceBadge(expense.entrySource)
             }
             Text("−${money(expense.amount, currency)}", fontWeight = FontWeight.SemiBold, color = SpendsColors.expense())
         }
@@ -654,49 +667,124 @@ fun TableCard(title: String, rows: List<Pair<String, String>>) {
     }
 }
 
+private enum class StoreSort { DEFAULT, NAME_ASC, NAME_DESC, SPEND_DESC, SPEND_ASC }
+
+@Composable
+private fun storeSortLabel(sort: StoreSort): String = stringResource(
+    when (sort) {
+        StoreSort.DEFAULT -> R.string.sort_default
+        StoreSort.NAME_ASC -> R.string.sort_name_asc
+        StoreSort.NAME_DESC -> R.string.sort_name_desc
+        StoreSort.SPEND_DESC -> R.string.sort_spend_desc
+        StoreSort.SPEND_ASC -> R.string.sort_spend_asc
+    },
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StoresScreen(state: AppState, model: SpendsViewModel, onStore: (Store) -> Unit) {
     var add by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxSize()) {
-        LazyVerticalGrid(
-            GridCells.Fixed(2),
-            Modifier.fillMaxSize(),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+    var query by remember { mutableStateOf("") }
+    var sort by remember { mutableStateOf(StoreSort.DEFAULT) }
+    var sortOpen by remember { mutableStateOf(false) }
+    val totals = remember(state.snapshot.expenses) {
+        state.snapshot.expenses.groupBy { it.store }.mapValues { entry -> entry.value.sumOf { it.amount } }
+    }
+    val stores = remember(state.snapshot.stores, query, sort, totals) {
+        val filtered = state.snapshot.stores.filter { query.isBlank() || it.name.contains(query.trim(), ignoreCase = true) }
+        when (sort) {
+            StoreSort.DEFAULT -> filtered
+            StoreSort.NAME_ASC -> filtered.sortedBy { it.name.lowercase() }
+            StoreSort.NAME_DESC -> filtered.sortedByDescending { it.name.lowercase() }
+            StoreSort.SPEND_DESC -> filtered.sortedByDescending { totals[it.name] ?: 0.0 }
+            StoreSort.SPEND_ASC -> filtered.sortedBy { totals[it.name] ?: 0.0 }
+        }
+    }
+    Column(Modifier.fillMaxSize()) {
+        Row(
+            Modifier.fillMaxWidth().padding(start = 16.dp, end = 8.dp, top = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            items(state.snapshot.stores, key = { it.id.ifBlank { it.name } }) { store ->
-                Card(
-                    Modifier.fillMaxWidth().clickable { onStore(store) },
-                    RoundedCornerShape(22.dp),
-                    colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
-                ) {
-                    Column(
-                        Modifier.fillMaxWidth().padding(14.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+            OutlinedTextField(
+                query,
+                { query = it },
+                Modifier.weight(1f),
+                placeholder = { Text(stringResource(R.string.search_hint)) },
+                leadingIcon = { Icon(Icons.Outlined.Search, null) },
+                shape = RoundedCornerShape(16.dp),
+                singleLine = true,
+            )
+            IconButton({ sortOpen = true }) {
+                Icon(Icons.Outlined.Sort, stringResource(R.string.sort), tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+        Box(Modifier.fillMaxSize()) {
+            LazyVerticalGrid(
+                GridCells.Fixed(2),
+                Modifier.fillMaxSize(),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                if (stores.isEmpty()) {
+                    item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(2) }) {
+                        EmptyCard(stringResource(R.string.search_empty), stringResource(R.string.ledger_empty_body))
+                    }
+                }
+                items(stores, key = { it.id.ifBlank { it.name } }) { store ->
+                    Card(
+                        Modifier.fillMaxWidth().clickable { onStore(store) },
+                        RoundedCornerShape(22.dp),
+                        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
                     ) {
-                        RemotePhoto(store.photoUrl, store.name.take(1).uppercase(), round = false, size = 92.dp)
-                        Text(store.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                        Column(
+                            Modifier.fillMaxWidth().padding(14.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            RemotePhoto(store.photoUrl, store.name.take(1).uppercase(), round = false, size = 92.dp)
+                            Text(store.name, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, color = MaterialTheme.colorScheme.onSurface)
+                        }
                     }
                 }
             }
+            FloatingActionButton(
+                { add = true },
+                Modifier.align(Alignment.BottomEnd).padding(20.dp),
+                shape = RoundedCornerShape(18.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+            ) { Icon(Icons.Outlined.Add, stringResource(R.string.add_store)) }
         }
-        // Same rounded square as the add-expense button for a consistent language.
-        FloatingActionButton(
-            { add = true },
-            Modifier.align(Alignment.BottomEnd).padding(20.dp),
-            shape = RoundedCornerShape(18.dp),
-            containerColor = MaterialTheme.colorScheme.primary,
-            contentColor = MaterialTheme.colorScheme.onPrimary,
-        ) { Icon(Icons.Outlined.Add, stringResource(R.string.add_store)) }
     }
     if (add) {
         AddStoreSheet(state, { add = false }) { name, category, photo ->
             model.saveStore(name, category, photo)
             add = false
         }
+    }
+    if (sortOpen) {
+        AlertDialog(
+            onDismissRequest = { sortOpen = false },
+            title = { Text(stringResource(R.string.sort)) },
+            text = {
+                Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    StoreSort.values().forEach { option ->
+                        Row(
+                            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp))
+                                .clickable { sort = option; sortOpen = false }
+                                .padding(vertical = 12.dp, horizontal = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(storeSortLabel(option), Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
+                            if (option == sort) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+            },
+            confirmButton = { TextButton({ sortOpen = false }) { Text(stringResource(R.string.heatmap_close)) } },
+        )
     }
 }
 
@@ -876,7 +964,7 @@ fun ExpenseDetailScreen(state: AppState, expense: Expense, model: SpendsViewMode
                 Text(longDateLabel(expense.date), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
             }
         }
-        StatCard(stringResource(R.string.source), sourceLabel(expense.entrySource))
+        SourceBadgeCard(expense.entrySource)
         ExpenseTagsSection(state, expense, model)
         if (expense.ocrRawStore.isNotBlank()) {
             Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
@@ -954,9 +1042,12 @@ private fun ProfileCard(state: AppState) {
         }
     }
     if (open) {
+        val parts = state.session.name.trim().split(Regex("\\s+"), limit = 2)
+        val firstName = parts.firstOrNull().orEmpty()
+        val lastName = parts.getOrNull(1).orEmpty()
         Dialog(onDismissRequest = { open = false }) {
             Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
-                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         RemotePhoto(state.session.imageUrl, state.session.name.take(1).uppercase(), round = true, size = 52.dp, person = true)
                         Column(Modifier.weight(1f)) {
@@ -964,8 +1055,10 @@ private fun ProfileCard(state: AppState) {
                             Text(state.session.name.ifBlank { stringResource(R.string.paired_account) }, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
-                    InfoRow(stringResource(R.string.profile_email), state.session.email.ifBlank { "—" })
-                    InfoRow(stringResource(R.string.profile_server), state.session.endpoint.ifBlank { "—" })
+                    InfoBox(stringResource(R.string.profile_first_name), firstName.ifBlank { "—" })
+                    InfoBox(stringResource(R.string.profile_last_name), lastName.ifBlank { "—" })
+                    InfoBox(stringResource(R.string.profile_email), state.session.email.ifBlank { "—" })
+                    InfoBox(stringResource(R.string.profile_server), state.session.endpoint.ifBlank { "—" })
                     Button({ open = false }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
                         Text(stringResource(R.string.heatmap_close))
                     }
@@ -1040,12 +1133,11 @@ fun AboutScreen(state: AppState) {
                         Text(stringResource(R.string.app_tagline), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
-                InfoRow(stringResource(R.string.about_app), stringResource(R.string.app_name))
-                InfoRow(stringResource(R.string.about_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE), BuildConfig.BUILD_TYPE)
-                InfoRow(stringResource(R.string.about_package), context.packageName)
-                InfoRow(stringResource(R.string.about_build), stringResource(R.string.about_build_value))
-                InfoRow(stringResource(R.string.about_endpoint), state.session.endpoint.ifBlank { "—" })
-                InfoRow(stringResource(R.string.about_account), state.session.email.ifBlank { "—" })
+                InfoBox(stringResource(R.string.about_app), stringResource(R.string.app_name))
+                InfoBox(stringResource(R.string.about_version_label), "${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+                InfoBox(stringResource(R.string.about_updated), updateDate(context))
+                InfoBox(stringResource(R.string.about_endpoint), state.session.endpoint.ifBlank { "—" })
+                InfoBox(stringResource(R.string.about_account), state.session.email.ifBlank { "—" })
             }
         }
         Card(Modifier.fillMaxWidth(), RoundedCornerShape(22.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
@@ -1113,6 +1205,21 @@ fun AboutScreen(state: AppState) {
 }
 
 @Composable
+private fun InfoBox(label: String, value: String) {
+    Card(
+        Modifier.fillMaxWidth(),
+        RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Column(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+            Text(value, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+@Composable
 private fun InfoRow(label: String, value: String) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(label, style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
@@ -1120,22 +1227,102 @@ private fun InfoRow(label: String, value: String) {
     }
 }
 
+private enum class GoalKind { EARN, LIMIT, STORE_LIMIT, STORE_NO_SPEND }
+
+/** Goals are built from pickers; only the amount needs typing. */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun GoalsScreen(state: AppState, model: SpendsViewModel) {
-    var name by remember { mutableStateOf("") }
-    var target by remember { mutableStateOf("") }
+    val context = LocalContext.current
+    var kind by remember { mutableStateOf(GoalKind.EARN) }
+    var amount by remember { mutableStateOf("") }
+    var storeName by remember { mutableStateOf("") }
+    var targetDate by remember {
+        mutableStateOf(LocalDate.now().withDayOfMonth(LocalDate.now().lengthOfMonth()).toString())
+    }
+    var pickDate by remember { mutableStateOf(false) }
+    val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            storeName = result.data?.getStringExtra(xyz.serverkherson.spends.PickStoreActivity.EXTRA_STORE).orEmpty()
+        }
+    }
+    val currency = state.snapshot.currency
+    val isStore = kind == GoalKind.STORE_LIMIT || kind == GoalKind.STORE_NO_SPEND
+    val numeric = amount.replace(',', '.').toDoubleOrNull()
+    val canSave = numeric != null && numeric > 0 && (!isStore || storeName.isNotBlank())
+    val amt = numeric ?: 0.0
+    val autoName = when (kind) {
+        GoalKind.EARN -> stringResource(R.string.goal_name_earn, money(amt, currency))
+        GoalKind.LIMIT -> stringResource(R.string.goal_name_limit, money(amt, currency))
+        GoalKind.STORE_LIMIT -> stringResource(R.string.goal_name_store_limit, storeName.ifBlank { "…" })
+        GoalKind.STORE_NO_SPEND -> stringResource(R.string.goal_name_store_no_spend, storeName.ifBlank { "…" })
+    }
+
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PageHeading(R.string.goals_title)
-        OutlinedTextField(name, { name = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.name)) }, shape = RoundedCornerShape(16.dp))
-        OutlinedTextField(target, { target = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.target)) }, shape = RoundedCornerShape(16.dp))
+        Text(stringResource(R.string.goal_type), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+        Row(Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            GoalKind.values().forEach { k ->
+                FilterChip(kind == k, { kind = k }, { Text(goalKindLabel(k), maxLines = 1) })
+            }
+        }
+        OutlinedTextField(
+            amount,
+            { amount = sanitizeDecimal(it) },
+            Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.target)) },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        )
+        if (isStore) {
+            Card(
+                Modifier.fillMaxWidth().clickable {
+                    pickStore.launch(android.content.Intent(context, xyz.serverkherson.spends.PickStoreActivity::class.java))
+                },
+                RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+            ) {
+                Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(storeName.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                    Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        Card(
+            Modifier.fillMaxWidth().clickable { pickDate = true },
+            RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text(stringResource(R.string.goal_period), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(longDateLabel(targetDate), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
+                Icon(Icons.Outlined.CalendarMonth, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         Button(
             {
-                model.saveGoal(Goal(name = name, targetAmount = target.toDoubleOrNull() ?: 0.0, currency = state.snapshot.currency))
-                name = ""
-                target = ""
+                model.saveGoal(
+                    Goal(
+                        name = autoName,
+                        description = if (isStore) "store:$storeName" else "",
+                        targetAmount = amt,
+                        currentAmount = 0.0,
+                        currency = currency,
+                        targetDate = targetDate,
+                        goalType = if (kind == GoalKind.EARN) "savings" else "expense",
+                    ),
+                )
+                amount = ""
+                storeName = ""
             },
             Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(16.dp),
+            enabled = canSave,
         ) { Text(stringResource(R.string.add_goal)) }
         state.snapshot.goals.forEach { g ->
             val cleanName = cleanGoalName(g.name)
@@ -1146,7 +1333,6 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
                         fontWeight = FontWeight.SemiBold,
                         color = MaterialTheme.colorScheme.onSurface,
                     )
-                    // Breathing room between the title and the usage block below.
                     Spacer(Modifier.height(2.dp))
                     LinearProgressIndicator(
                         { (g.progressPercent / 100.0).toFloat().coerceIn(0f, 1f) },
@@ -1164,6 +1350,43 @@ fun GoalsScreen(state: AppState, model: SpendsViewModel) {
             }
         }
     }
+    if (pickDate) {
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = runCatching {
+                LocalDate.parse(targetDate).atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+            }.getOrDefault(System.currentTimeMillis()),
+        )
+        DatePickerDialog(
+            onDismissRequest = { pickDate = false },
+            confirmButton = {
+                TextButton({
+                    pickerState.selectedDateMillis?.let { ms ->
+                        targetDate = Instant.ofEpochMilli(ms).atZone(ZoneOffset.UTC).toLocalDate().toString()
+                    }
+                    pickDate = false
+                }) { Text(stringResource(R.string.ok)) }
+            },
+            dismissButton = { TextButton({ pickDate = false }) { Text(stringResource(R.string.heatmap_close)) } },
+        ) { DatePicker(pickerState) }
+    }
+}
+
+@Composable
+private fun goalKindLabel(kind: GoalKind): String = stringResource(
+    when (kind) {
+        GoalKind.EARN -> R.string.goal_kind_earn
+        GoalKind.LIMIT -> R.string.goal_kind_limit
+        GoalKind.STORE_LIMIT -> R.string.goal_kind_store_limit
+        GoalKind.STORE_NO_SPEND -> R.string.goal_kind_store_no_spend
+    },
+)
+
+/** Allows digits with at most one decimal separator. */
+private fun sanitizeDecimal(input: String): String {
+    val filtered = input.replace(',', '.').filter { it.isDigit() || it == '.' }
+    val firstDot = filtered.indexOf('.')
+    return if (firstDot < 0) filtered
+    else filtered.substring(0, firstDot + 1) + filtered.substring(firstDot + 1).replace(".", "")
 }
 
 /**
@@ -1347,6 +1570,7 @@ fun ExpenseTagsSection(state: AppState, expense: Expense, model: SpendsViewModel
 @Composable
 fun PaymentTagDialog(state: AppState, expense: Expense, model: SpendsViewModel, onDismiss: () -> Unit) {
     val attached = state.snapshot.expenseTags["${expense.date}\t${expense.store}"].orEmpty()
+    var newTag by remember { mutableStateOf("") }
     Dialog(onDismissRequest = onDismiss) {
         Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
             Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1356,6 +1580,28 @@ fun PaymentTagDialog(state: AppState, expense: Expense, model: SpendsViewModel, 
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                // Create a tag right here; it is attached to this payment, not the store.
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        newTag,
+                        { newTag = it },
+                        Modifier.weight(1f),
+                        label = { Text(stringResource(R.string.tag)) },
+                        singleLine = true,
+                        shape = RoundedCornerShape(14.dp),
+                    )
+                    Button(
+                        {
+                            val name = newTag.trim()
+                            if (name.isNotEmpty()) {
+                                model.createTagAndAttach(expense, name)
+                                newTag = ""
+                            }
+                        },
+                        shape = RoundedCornerShape(14.dp),
+                        enabled = newTag.isNotBlank(),
+                    ) { Text(stringResource(R.string.add)) }
+                }
                 if (state.snapshot.tags.isEmpty()) {
                     Text(stringResource(R.string.tags_empty_body), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
@@ -1493,7 +1739,7 @@ fun PendingScreen(state: AppState, model: SpendsViewModel) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PageHeading(R.string.pending_title)
         Text(stringResource(R.string.pending_desc), color = MaterialTheme.colorScheme.onSurfaceVariant)
-        NotificationAccessCard(state)
+        NotificationAccessCard(state, model)
         if (state.extras.pending.isEmpty()) EmptyCard(stringResource(R.string.pending_empty_title), stringResource(R.string.pending_empty_body))
         state.extras.pending.forEach { p ->
             Card(shape = RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
@@ -1527,7 +1773,7 @@ fun PendingScreen(state: AppState, model: SpendsViewModel) {
 }
 
 @Composable
-private fun NotificationAccessCard(state: AppState) {
+private fun NotificationAccessCard(state: AppState, model: SpendsViewModel) {
     val context = LocalContext.current
     var enabled by remember { mutableStateOf(NotificationAccess.isEnabled(context)) }
     val launcher = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) {
@@ -1559,6 +1805,20 @@ private fun NotificationAccessCard(state: AppState) {
                     shape = RoundedCornerShape(14.dp),
                 ) { Text(stringResource(R.string.notifications_enable)) }
             }
+            Button(
+                { model.scanWalletNotifications() },
+                Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(14.dp),
+                enabled = enabled && !state.scanBusy,
+            ) { Text(if (state.scanBusy) stringResource(R.string.notifications_scanning) else stringResource(R.string.notifications_scan_current)) }
+            state.scan?.let { result ->
+                val text = when {
+                    result.error == "notification_access" -> stringResource(R.string.notifications_scan_not_connected)
+                    result.error == "not_paired" -> stringResource(R.string.notifications_scan_not_paired)
+                    else -> stringResource(R.string.notifications_scan_result, result.scanned, result.written, result.conflicts)
+                }
+                Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Text(
                 stringResource(R.string.notifications_pending),
                 style = MaterialTheme.typography.labelLarge,
@@ -1571,6 +1831,8 @@ private fun NotificationAccessCard(state: AppState) {
     }
 }
 
+private val CurrencyOptions = listOf("USD", "EUR", "GBP", "PLN", "UAH", "BYN", "CZK", "CHF", "SEK", "NOK", "CAD", "AUD")
+
 @Composable
 fun PrefsScreen(state: AppState, model: SpendsViewModel) {
     var budget by remember(state.snapshot.budget) { mutableStateOf(state.snapshot.budget.toString()) }
@@ -1578,17 +1840,69 @@ fun PrefsScreen(state: AppState, model: SpendsViewModel) {
     var incomes by remember(state.snapshot.flags.showIncomes) { mutableStateOf(state.snapshot.flags.showIncomes) }
     var trend by remember(state.snapshot.flags.showTrend) { mutableStateOf(state.snapshot.flags.showTrend) }
     var trim by remember(state.snapshot.flags.trimEmptyMonths) { mutableStateOf(state.snapshot.flags.trimEmptyMonths) }
+    var pickCurrency by remember { mutableStateOf(false) }
+    val budgetValid = budget.replace(',', '.').toDoubleOrNull()?.let { it > 0.0 } == true
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         PageHeading(R.string.preferences_title)
-        OutlinedTextField(budget, { budget = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.monthly_budget)) }, shape = RoundedCornerShape(16.dp))
-        OutlinedTextField(currency, { currency = it.uppercase() }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.currency)) }, shape = RoundedCornerShape(16.dp))
+        OutlinedTextField(
+            budget,
+            { budget = sanitizeDecimal(it) },
+            Modifier.fillMaxWidth(),
+            label = { Text(stringResource(R.string.monthly_budget)) },
+            shape = RoundedCornerShape(16.dp),
+            singleLine = true,
+            isError = budget.isNotBlank() && !budgetValid,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        )
+        Card(
+            Modifier.fillMaxWidth().clickable { pickCurrency = true },
+            RoundedCornerShape(16.dp),
+            colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+        ) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Column {
+                    Text(stringResource(R.string.currency), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(currency.ifBlank { "—" }, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                }
+                Icon(Icons.Outlined.ChevronRight, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
         SwitchRow(stringResource(R.string.show_incomes), incomes) { incomes = it }
         SwitchRow(stringResource(R.string.show_trend), trend) { trend = it }
         SwitchRow(stringResource(R.string.trim_empty_months), trim) { trim = it }
-        Button({ model.saveSettings(budget, currency, incomes, trend, trim) }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) {
-            Text(stringResource(R.string.save))
-        }
+        Button(
+            { model.saveSettings(budget, currency, incomes, trend, trim) },
+            Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            enabled = budgetValid,
+        ) { Text(stringResource(R.string.save)) }
         Text(stringResource(R.string.prefs_note), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+    }
+    if (pickCurrency) {
+        Dialog(onDismissRequest = { pickCurrency = false }) {
+            Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+                Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.choose_currency), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                    LazyColumn(Modifier.fillMaxWidth().heightIn(max = 380.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        items(CurrencyOptions.distinct(), key = { it }) { code ->
+                            val active = code == currency
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp))
+                                    .background(if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant)
+                                    .clickable { currency = code; pickCurrency = false }
+                                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(code, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                                if (active) Icon(Icons.Outlined.Check, null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+                    Button({ pickCurrency = false }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.heatmap_close)) }
+                }
+            }
+        }
     }
 }
 
@@ -1711,6 +2025,12 @@ private fun BackupDetailsDialog(entry: BackupEntry, onRestore: () -> Unit, onDel
     }
 }
 
+/** Last install/update date of the app package, shown in About. */
+private fun updateDate(context: android.content.Context): String = runCatching {
+    val info = context.packageManager.getPackageInfo(context.packageName, 0)
+    java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(info.lastUpdateTime))
+}.getOrDefault("—")
+
 private fun humanSize(bytes: Long): String = when {
     bytes >= 1_048_576 -> "%.1f MB".format(bytes / 1_048_576.0)
     bytes >= 1024 -> "%.1f KB".format(bytes / 1024.0)
@@ -1809,11 +2129,14 @@ fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Uni
 }
 
 @Composable
-fun DetailScreen(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
+fun DetailScreen(title: String, onBack: () -> Unit, onEdit: (() -> Unit)? = null, content: @Composable () -> Unit) {
     Column(Modifier.fillMaxSize().background(canvasBrush())) {
-        Row(Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             IconButton(onBack) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, stringResource(R.string.nav_home)) }
-            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground)
+            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+            if (onEdit != null) {
+                IconButton(onEdit) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary) }
+            }
         }
         // Content headings would repeat the toolbar title, so screens hide theirs here.
         androidx.compose.runtime.CompositionLocalProvider(LocalHeadingHidden provides true) {
@@ -1847,12 +2170,16 @@ private fun MiniFab(label: String, icon: ImageVector, color: Color, onClick: () 
 
 @Composable
 fun SpendsNavBar(tab: Int, onTab: (Int) -> Unit, onAdd: () -> Unit) {
-    // A Box instead of Surface: Surface clips its children, which used to cut off the
-    // protruding add button at the top edge of the bar.
-    Box(Modifier.fillMaxWidth().shadow(16.dp, RectangleShape, clip = false)) {
+    val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    Box(Modifier.fillMaxWidth().shadow(16.dp, shape, clip = false)) {
+        // Background is painted across the navigation-bar inset too, so the bar
+        // reaches the bottom edge instead of leaving a gap above the system keys.
         Box(
-            Modifier.fillMaxWidth().navigationBarsPadding().height(80.dp)
-                .background(MaterialTheme.colorScheme.surface),
+            Modifier.fillMaxWidth()
+                .clip(shape)
+                .background(MaterialTheme.colorScheme.surface)
+                .navigationBarsPadding()
+                .height(80.dp),
         )
         Row(
             Modifier.fillMaxWidth().navigationBarsPadding().height(80.dp),
@@ -1876,6 +2203,77 @@ fun SpendsNavBar(tab: Int, onTab: (Int) -> Unit, onAdd: () -> Unit) {
             }
             NavSlot(stringResource(R.string.nav_stores), Icons.Outlined.Storefront, tab == 3, Modifier.weight(1f)) { onTab(3) }
             NavSlot(stringResource(R.string.nav_settings), Icons.Outlined.Settings, tab == 2, Modifier.weight(1f)) { onTab(2) }
+        }
+    }
+}
+
+/** Floating confirmation pill shown after any save action. */
+@Composable
+fun SavedToast(modifier: Modifier = Modifier) {
+    Surface(modifier, shape = RoundedCornerShape(99.dp), color = MaterialTheme.colorScheme.primary, shadowElevation = 8.dp) {
+        Row(
+            Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(Icons.Outlined.CheckCircle, null, tint = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(18.dp))
+            Text(stringResource(R.string.saved_changes), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+/** Edit every field of an existing payment (date, store, amount). */
+@Composable
+fun EditExpenseDialog(state: AppState, expense: Expense, model: SpendsViewModel, onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    var date by remember(expense) { mutableStateOf(expense.date) }
+    var store by remember(expense) { mutableStateOf(expense.store) }
+    var amount by remember(expense) { mutableStateOf(expense.amount.toString()) }
+    val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(
+        androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult(),
+    ) { result ->
+        if (result.resultCode == android.app.Activity.RESULT_OK) {
+            store = result.data?.getStringExtra(xyz.serverkherson.spends.PickStoreActivity.EXTRA_STORE).orEmpty()
+        }
+    }
+    val valid = store.isNotBlank() && (amount.replace(',', '.').toDoubleOrNull() ?: 0.0) > 0.0
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 2.dp) {
+            Column(
+                Modifier.fillMaxWidth().padding(20.dp).verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(stringResource(R.string.edit_expense), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+                OutlinedTextField(date, { date = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.date_label)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
+                Card(
+                    Modifier.fillMaxWidth().clickable {
+                        pickStore.launch(android.content.Intent(context, xyz.serverkherson.spends.PickStoreActivity::class.java))
+                    },
+                    RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant),
+                ) {
+                    Row(Modifier.fillMaxWidth().padding(16.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(store.ifBlank { stringResource(R.string.choose_store) }, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onSurface)
+                        Icon(Icons.Outlined.Storefront, null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                OutlinedTextField(
+                    amount,
+                    { amount = sanitizeDecimal(it) },
+                    Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.amount_label)) },
+                    shape = RoundedCornerShape(14.dp),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                )
+                Button(
+                    { model.updateExpense(expense, date, store, amount) { onDismiss() } },
+                    Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    enabled = valid,
+                ) { Text(stringResource(R.string.save)) }
+                TextButton(onDismiss, Modifier.fillMaxWidth()) { Text(stringResource(R.string.heatmap_close)) }
+            }
         }
     }
 }
@@ -1976,6 +2374,43 @@ private fun longDateLabel(raw: String): String = try {
     "$day-$month-${date.year}"
 } catch (_: DateTimeParseException) {
     raw
+}
+
+/** Small icon + label for an expense source, used inside rows. */
+@Composable
+private fun SourceBadge(raw: String) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+        Icon(sourceIcon(raw), null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(14.dp))
+        Text(sourceLabel(raw), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** Card with a distinct icon for the source on the expense detail screen. */
+@Composable
+private fun SourceBadgeCard(raw: String) {
+    Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+        Row(
+            Modifier.fillMaxWidth().padding(18.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primaryContainer), contentAlignment = Alignment.Center) {
+                Icon(sourceIcon(raw), null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+            Column {
+                Text(stringResource(R.string.source), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                Text(sourceLabel(raw), style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onSurface)
+            }
+        }
+    }
+}
+
+private fun sourceIcon(raw: String): ImageVector = when (raw.trim().lowercase(Locale.ROOT)) {
+    "ocr" -> Icons.Outlined.ReceiptLong
+    "wallet" -> Icons.Outlined.AccountBalanceWallet
+    "subscription" -> Icons.Outlined.Autorenew
+    "other" -> Icons.Outlined.HelpOutline
+    else -> Icons.Outlined.Edit
 }
 
 /** Locally translated label for an expense source (manual, ocr, wallet…). */
