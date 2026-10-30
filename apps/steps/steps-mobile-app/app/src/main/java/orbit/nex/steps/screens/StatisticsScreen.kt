@@ -96,7 +96,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     val selectedDate = LocalDate.now()
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
     suspend fun load(force: Boolean = false) {
-        state = config?.let { fetchYearStats(it, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force) } ?: StatsState()
+        state = config?.let { fetchYearStats(it, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force, context) } ?: StatsState()
     }
     suspend fun loadLocalMonth() {
         if (connected) {
@@ -166,7 +166,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         // Today's summary: gradient card with just the label and the count.
         Box(
             modifier = Modifier
-                .fillMaxWidth()
+                .fillMaxWidth(0.78f)
                 .clip(RoundedCornerShape(12.dp))
                 .background(
                     Brush.linearGradient(
@@ -178,17 +178,27 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     )
                 )
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(
-                    stringResource(R.string.stats_today),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Text(
-                    NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps),
-                    style = MaterialTheme.typography.displaySmall,
-                )
-                Text(stringResource(R.string.stats_steps), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Label and value on one line, e.g. "Today  8 000 steps".
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.stats_today),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    Text(
+                        stringResource(R.string.stats_steps),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
@@ -482,10 +492,10 @@ private suspend fun readAndroidMonthSteps(context: android.content.Context, mont
             .also { map -> map.forEach { (date, count) -> prefs.setAndroidStepsCache(date.toString(), count) } }
     }.getOrElse { cachedMonthSteps(month, prefs) }
 }
-private suspend fun fetchYearStats(config: WebhookConfig, enabled: Set<HealthDataType>, prefs: PreferencesManager, force: Boolean = false): StatsState = withContext(Dispatchers.IO) {
+private suspend fun fetchYearStats(config: WebhookConfig, enabled: Set<HealthDataType>, prefs: PreferencesManager, force: Boolean = false, context: android.content.Context): StatsState = withContext(Dispatchers.IO) {
     if (!force) {
         prefs.getStatsCache(STATS_CACHE_MAX_AGE_MS)?.let {
-            return@withContext parseStatsCache(it, enabled) ?: StatsState()
+            return@withContext parseStatsCache(it, enabled, context) ?: StatsState()
         }
     }
     runCatching {
@@ -515,23 +525,24 @@ private suspend fun fetchYearStats(config: WebhookConfig, enabled: Set<HealthDat
             .put("metrics", JSONObject(metricsBody).optJSONArray("metrics"))
             .put("steps", JSONObject(stepsBody).optJSONArray("steps"))
         prefs.setStatsCache(combined.toString())
-        parseServerMetrics(combined.optJSONArray("metrics") ?: JSONArray(), enabled, combined.optJSONArray("steps") ?: JSONArray())
+        parseServerMetrics(combined.optJSONArray("metrics") ?: JSONArray(), enabled, combined.optJSONArray("steps") ?: JSONArray(), context)
     }.getOrElse { failure ->
-        parseStatsCache(prefs.getStatsCache(Long.MAX_VALUE), enabled)?.copy(error = failure.message)
+        parseStatsCache(prefs.getStatsCache(Long.MAX_VALUE), enabled, context)?.copy(error = failure.message)
             ?: StatsState(error = failure.message)
     }
 }
-private fun parseStatsCache(json: String?, enabled: Set<HealthDataType>): StatsState? {
+private fun parseStatsCache(json: String?, enabled: Set<HealthDataType>, context: android.content.Context): StatsState? {
     val cached = json ?: return null
     return runCatching {
         parseServerMetrics(
             JSONObject(cached).optJSONArray("metrics") ?: JSONArray(),
             enabled,
-            JSONObject(cached).optJSONArray("steps") ?: JSONArray()
+            JSONObject(cached).optJSONArray("steps") ?: JSONArray(),
+            context
         )
     }.getOrNull()
 }
-private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, serverSteps: JSONArray = JSONArray()): StatsState {
+private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, serverSteps: JSONArray = JSONArray(), context: android.content.Context): StatsState {
     val byDay = mutableMapOf<LocalDate, List<StatMetric>>()
     val steps = mutableMapOf<LocalDate, Long>()
     for (index in 0 until serverSteps.length()) {
@@ -557,15 +568,17 @@ private fun parseServerMetrics(items: JSONArray, enabled: Set<HealthDataType>, s
         if (HealthDataType.STEPS in enabled && stepTotal > 0 && date !in steps) {
             steps[date] = stepTotal
         }
+        // Units come from resources so every locale can localise them.
+        fun unit(resId: Int, value: String): String = context.getString(resId, value)
         val candidates = listOf(
-            HealthDataType.DISTANCE to ("distance" to "%.0f m".format(total("distance"))),
-            HealthDataType.ACTIVE_CALORIES to ("active_calories" to "%.0f kcal".format(total("active_calories"))),
-            HealthDataType.TOTAL_CALORIES to ("total_calories" to "%.0f kcal".format(total("total_calories"))),
-            HealthDataType.SLEEP to ("sleep" to "%.1f h".format(total("sleep") / 3600.0)),
-            HealthDataType.HEART_RATE to ("heart_rate" to "%.0f bpm".format(metric("heart_rate")?.optDouble("avg") ?: 0.0)),
-            HealthDataType.WEIGHT to ("weight" to "%.1f kg".format(metric("weight")?.optDouble("last") ?: 0.0)),
-            HealthDataType.BLOOD_PRESSURE to ("blood_pressure" to "%.0f mmHg".format(metric("blood_pressure")?.optDouble("last") ?: 0.0)),
-            HealthDataType.OXYGEN_SATURATION to ("oxygen_spo2" to "%.1f %%".format(metric("oxygen_spo2")?.optDouble("avg") ?: 0.0))
+            HealthDataType.DISTANCE to ("distance" to unit(R.string.unit_meters, "%.0f".format(total("distance")))),
+            HealthDataType.ACTIVE_CALORIES to ("active_calories" to unit(R.string.unit_kcal, "%.0f".format(total("active_calories")))),
+            HealthDataType.TOTAL_CALORIES to ("total_calories" to unit(R.string.unit_kcal, "%.0f".format(total("total_calories")))),
+            HealthDataType.SLEEP to ("sleep" to unit(R.string.unit_hours, "%.1f".format(total("sleep") / 3600.0))),
+            HealthDataType.HEART_RATE to ("heart_rate" to unit(R.string.unit_bpm, "%.0f".format(metric("heart_rate")?.optDouble("avg") ?: 0.0))),
+            HealthDataType.WEIGHT to ("weight" to unit(R.string.unit_kg, "%.1f".format(metric("weight")?.optDouble("last") ?: 0.0))),
+            HealthDataType.BLOOD_PRESSURE to ("blood_pressure" to unit(R.string.unit_mmhg, "%.0f".format(metric("blood_pressure")?.optDouble("last") ?: 0.0))),
+            HealthDataType.OXYGEN_SATURATION to ("oxygen_spo2" to unit(R.string.unit_percent, "%.1f".format(metric("oxygen_spo2")?.optDouble("avg") ?: 0.0)))
         )
         candidates.forEach { (type, pair) ->
             val obj = metric(pair.first)

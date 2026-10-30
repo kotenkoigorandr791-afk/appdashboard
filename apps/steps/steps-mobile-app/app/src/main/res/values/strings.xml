@@ -621,4 +621,18 @@
     <string name="logs_sort_changed_newest">Sorting: newest first</string>
     <string name="logs_sort_changed_oldest">Sorting: oldest first</string>
     <string name="stats_goal">Goal: %1$s</string>
+    <string name="personal_name_invalid">Name must be 1–80 characters.</string>
+    <string name="personal_goal_invalid">Enter a goal from 1000 to 200000 steps.</string>
+    <string name="personal_height_invalid">Enter a height from 50 to 260 cm.</string>
+    <string name="personal_weight_invalid">Enter a weight from 20 to 400 kg.</string>
+    <string name="personal_stride_invalid">Enter a stride from 20 to 250 cm.</string>
+    <string name="personal_birth_invalid">Choose a date between 1900 and today.</string>
+    <string name="personal_pick_date">Choose date</string>
+    <string name="unit_meters">%1$s m</string>
+    <string name="unit_kcal">%1$s kcal</string>
+    <string name="unit_hours">%1$s h</string>
+    <string name="unit_bpm">%1$s bpm</string>
+    <string name="unit_kg">%1$s kg</string>
+    <string name="unit_mmhg">%1$s mmHg</string>
+    <string name="unit_percent">%1$s%%</string>
 </resources>

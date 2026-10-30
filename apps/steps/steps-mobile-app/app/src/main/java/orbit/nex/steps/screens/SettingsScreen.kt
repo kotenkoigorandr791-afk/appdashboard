@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.Download
 import androidx.compose.material.icons.filled.Edit
@@ -48,6 +49,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -72,6 +75,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -155,6 +159,15 @@ private suspend fun postJson(
 }
 
 /** Reads the server-side personal settings; returns an empty map when unavailable. */
+/** Personal settings cache written by every successful load/save. */
+private fun parsePersonalCache(prefs: PreferencesManager): Map<String, String> {
+    val raw = prefs.getPersonalSettingsCache() ?: return emptyMap()
+    return runCatching {
+        val json = JSONObject(raw)
+        PERSONAL_KEYS.mapNotNull { key -> if (json.has(key)) key to json.optString(key) else null }.toMap()
+    }.getOrDefault(emptyMap())
+}
+
 private suspend fun loadPersonalSettings(
     config: WebhookConfig?,
     prefs: PreferencesManager,
@@ -200,13 +213,22 @@ fun SettingsScreen(onBack: () -> Unit) {
     var avatarModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
     }
-    var personal by remember { mutableStateOf(emptyMap<String, String>()) }
+    // Rendered from the local cache first, so opening settings never flashes
+    // empty fields while the server request is in flight.
+    var personal by remember { mutableStateOf(parsePersonalCache(prefs)) }
     var nameField by remember { mutableStateOf(profile.name) }
-    var goalField by remember { mutableStateOf("") }
-    var heightField by remember { mutableStateOf("") }
-    var weightField by remember { mutableStateOf("") }
-    var strideField by remember { mutableStateOf("") }
-    var birthField by remember { mutableStateOf("") }
+    var goalField by remember { mutableStateOf(personal[KEY_GOAL].orEmpty()) }
+    var heightField by remember { mutableStateOf(personal[KEY_HEIGHT].orEmpty()) }
+    var weightField by remember { mutableStateOf(personal[KEY_WEIGHT].orEmpty()) }
+    var strideField by remember { mutableStateOf(personal[KEY_STRIDE].orEmpty()) }
+    var birthField by remember { mutableStateOf(personal[KEY_BIRTH].orEmpty()) }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var goalError by remember { mutableStateOf<String?>(null) }
+    var heightError by remember { mutableStateOf<String?>(null) }
+    var weightError by remember { mutableStateOf<String?>(null) }
+    var strideError by remember { mutableStateOf<String?>(null) }
+    var birthError by remember { mutableStateOf<String?>(null) }
+    var showBirthPicker by remember { mutableStateOf(false) }
     var personalLoadFailed by remember { mutableStateOf(false) }
     var saving by remember { mutableStateOf(false) }
     var saveOk by remember { mutableStateOf<Boolean?>(null) }
@@ -279,13 +301,16 @@ fun SettingsScreen(onBack: () -> Unit) {
             nameField = fetched.name
         }
         val (values, ok) = loadPersonalSettings(config, prefs)
-        personal = values
         personalLoadFailed = !ok
-        goalField = values[KEY_GOAL] ?: ""
-        heightField = values[KEY_HEIGHT] ?: ""
-        weightField = values[KEY_WEIGHT] ?: ""
-        strideField = values[KEY_STRIDE] ?: ""
-        birthField = values[KEY_BIRTH] ?: ""
+        if (ok) {
+            prefs.setPersonalSettingsCache(values.toJSONObject().toString())
+            personal = values
+            goalField = values[KEY_GOAL] ?: goalField
+            heightField = values[KEY_HEIGHT] ?: heightField
+            weightField = values[KEY_WEIGHT] ?: weightField
+            strideField = values[KEY_STRIDE] ?: strideField
+            birthField = values[KEY_BIRTH] ?: birthField
+        }
     }
 
     fun applySyncSchedule(mode: SyncMode, interval: Int = syncInterval) {
@@ -305,31 +330,34 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
     }
 
-    fun validatePersonal(): String? {
-        val name = nameField.trim()
-        if (name.isEmpty() || name.length > 80) return context.getString(R.string.personal_name)
+    /** Validates every personal field and keeps a message next to each one. */
+    fun validatePersonal(): Boolean {
         fun intIn(raw: String, min: Int, max: Int): Boolean =
             raw.isNotBlank() && raw.matches(Regex("^\\d+$")) && raw.toIntOrNull() in min..max
-        if (goalField.isNotBlank() && !intIn(goalField, 1000, 200000)) return context.getString(R.string.personal_goal)
-        if (heightField.isNotBlank() && !intIn(heightField, 50, 260)) return context.getString(R.string.personal_height)
-        if (weightField.isNotBlank() && !intIn(weightField, 20, 400)) return context.getString(R.string.personal_weight)
-        if (strideField.isNotBlank() && !intIn(strideField, 20, 250)) return context.getString(R.string.personal_stride)
-        if (birthField.isNotBlank()) {
-            if (!Regex("^\\d{4}-\\d{2}-\\d{2}$").matches(birthField)) return context.getString(R.string.personal_birth)
-            val valid = runCatching {
-                val parsed = java.time.LocalDate.parse(birthField)
-                !parsed.isAfter(java.time.LocalDate.now()) && !parsed.isBefore(java.time.LocalDate.parse("1900-01-01"))
-            }.getOrDefault(false)
-            if (!valid) return context.getString(R.string.personal_birth)
-        }
-        return null
+        val name = nameField.trim()
+        nameError = if (name.isEmpty() || name.length > 80) {
+            context.getString(R.string.personal_name_invalid)
+        } else null
+        goalError = if (goalField.isBlank() || intIn(goalField, 1000, 200000)) null
+        else context.getString(R.string.personal_goal_invalid)
+        heightError = if (heightField.isBlank() || intIn(heightField, 50, 260)) null
+        else context.getString(R.string.personal_height_invalid)
+        weightError = if (weightField.isBlank() || intIn(weightField, 20, 400)) null
+        else context.getString(R.string.personal_weight_invalid)
+        strideError = if (strideField.isBlank() || intIn(strideField, 20, 250)) null
+        else context.getString(R.string.personal_stride_invalid)
+        birthError = if (birthField.isBlank()) null else runCatching {
+            val parsed = java.time.LocalDate.parse(birthField)
+            if (parsed.isAfter(java.time.LocalDate.now()) || parsed.isBefore(java.time.LocalDate.parse("1900-01-01"))) {
+                context.getString(R.string.personal_birth_invalid)
+            } else null
+        }.getOrElse { context.getString(R.string.personal_birth_invalid) }
+        return listOf(nameError, goalError, heightError, weightError, strideError, birthError).all { it == null }
     }
 
     fun savePersonal() {
-        val invalid = validatePersonal()
-        if (invalid != null) {
-            saveOk = false
-            saveDetail = invalid
+        if (!validatePersonal()) {
+            saveOk = null
             return
         }
         val config = configs.firstOrNull { it.isEnabled } ?: return
@@ -365,6 +393,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                         weightField = refreshed[KEY_WEIGHT] ?: weightField
                         strideField = refreshed[KEY_STRIDE] ?: strideField
                         birthField = refreshed[KEY_BIRTH] ?: birthField
+                        prefs.setPersonalSettingsCache(refreshed.toJSONObject().toString())
                     }
                 } else {
                     failed = true
@@ -401,6 +430,42 @@ fun SettingsScreen(onBack: () -> Unit) {
             saveDetail = detail
             if (!failed) showSavedToast = true
             saving = false
+        }
+    }
+
+    if (showBirthPicker) {
+        val today = java.time.LocalDate.now()
+        val minDate = java.time.LocalDate.parse("1900-01-01")
+        val initialDate = runCatching { java.time.LocalDate.parse(birthField) }
+            .getOrNull()?.takeIf { !it.isAfter(today) && !it.isBefore(minDate) } ?: today.minusYears(30)
+        val pickerState = rememberDatePickerState(
+            initialSelectedDateMillis = initialDate.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli()
+        )
+        DatePickerDialog(
+            onDismissRequest = { showBirthPicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    val millis = pickerState.selectedDateMillis
+                    if (millis != null) {
+                        val picked = java.time.Instant.ofEpochMilli(millis)
+                            .atZone(java.time.ZoneOffset.UTC).toLocalDate()
+                        if (!picked.isAfter(today) && !picked.isBefore(minDate)) {
+                            birthField = picked.toString()
+                            birthError = null
+                        } else {
+                            birthError = context.getString(R.string.personal_birth_invalid)
+                        }
+                    }
+                    showBirthPicker = false
+                }) { Text(stringResource(android.R.string.ok)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { showBirthPicker = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        ) {
+            DatePicker(state = pickerState)
         }
     }
 
@@ -494,9 +559,14 @@ fun SettingsScreen(onBack: () -> Unit) {
                             }
                             OutlinedTextField(
                                 value = nameField,
-                                onValueChange = { nameField = it },
+                                onValueChange = {
+                                    nameField = it.take(80)
+                                    nameError = null
+                                },
                                 label = { Text(stringResource(R.string.personal_name)) },
                                 leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
+                                isError = nameError != null,
+                                supportingText = { nameError?.let { message -> Text(message) } },
                                 singleLine = true,
                                 enabled = connected,
                                 modifier = Modifier.fillMaxWidth(),
@@ -514,54 +584,73 @@ fun SettingsScreen(onBack: () -> Unit) {
                             Text(stringResource(R.string.personal_body_title), style = MaterialTheme.typography.titleSmall)
                             OutlinedTextField(
                                 value = goalField,
-                                onValueChange = { goalField = it.filter { c -> c.isDigit() } },
+                                onValueChange = { goalField = it.filter { c -> c.isDigit() }.take(6); goalError = null },
                                 label = { Text(stringResource(R.string.personal_goal)) },
                                 leadingIcon = { Icon(Icons.Filled.Flag, contentDescription = null) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = goalError != null,
+                                supportingText = { goalError?.let { message -> Text(message) } },
                                 singleLine = true,
                                 enabled = connected,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             OutlinedTextField(
                                 value = heightField,
-                                onValueChange = { heightField = it.filter { c -> c.isDigit() } },
+                                onValueChange = { heightField = it.filter { c -> c.isDigit() }.take(3); heightError = null },
                                 label = { Text(stringResource(R.string.personal_height)) },
                                 leadingIcon = { Icon(Icons.Filled.Height, contentDescription = null) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = heightError != null,
+                                supportingText = { heightError?.let { message -> Text(message) } },
                                 singleLine = true,
                                 enabled = connected,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             OutlinedTextField(
                                 value = weightField,
-                                onValueChange = { weightField = it.filter { c -> c.isDigit() } },
+                                onValueChange = { weightField = it.filter { c -> c.isDigit() }.take(3); weightError = null },
                                 label = { Text(stringResource(R.string.personal_weight)) },
                                 leadingIcon = { Icon(Icons.Filled.Straighten, contentDescription = null) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = weightError != null,
+                                supportingText = { weightError?.let { message -> Text(message) } },
                                 singleLine = true,
                                 enabled = connected,
                                 modifier = Modifier.fillMaxWidth(),
                             )
                             OutlinedTextField(
                                 value = strideField,
-                                onValueChange = { strideField = it.filter { c -> c.isDigit() } },
+                                onValueChange = { strideField = it.filter { c -> c.isDigit() }.take(3); strideError = null },
                                 label = { Text(stringResource(R.string.personal_stride)) },
                                 leadingIcon = { Icon(Icons.Filled.Straighten, contentDescription = null) },
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = strideError != null,
+                                supportingText = { strideError?.let { message -> Text(message) } },
                                 singleLine = true,
                                 enabled = connected,
                                 modifier = Modifier.fillMaxWidth(),
                             )
-                            OutlinedTextField(
-                                value = birthField,
-                                onValueChange = { birthField = it.filter { c -> c.isDigit() || c == '-' } },
-                                label = { Text(stringResource(R.string.personal_birth)) },
-                                placeholder = { Text(stringResource(R.string.personal_birth_hint)) },
-                                leadingIcon = { Icon(Icons.Filled.Cake, contentDescription = null) },
-                                singleLine = true,
-                                enabled = connected,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
+                            Box(Modifier.fillMaxWidth()) {
+                                OutlinedTextField(
+                                    value = birthField,
+                                    onValueChange = {},
+                                    label = { Text(stringResource(R.string.personal_birth)) },
+                                    placeholder = { Text(stringResource(R.string.personal_birth_hint)) },
+                                    leadingIcon = { Icon(Icons.Filled.Cake, contentDescription = null) },
+                                    trailingIcon = { Icon(Icons.Filled.CalendarMonth, contentDescription = null) },
+                                    isError = birthError != null,
+                                    supportingText = { birthError?.let { message -> Text(message) } },
+                                    singleLine = true,
+                                    readOnly = true,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                                // Transparent overlay: the read-only field itself ignores taps.
+                                Box(
+                                    Modifier
+                                        .matchParentSize()
+                                        .clickable(enabled = connected) { showBirthPicker = true }
+                                )
+                            }
                             Button(
                                 onClick = { savePersonal() },
                                 enabled = connected && !saving,

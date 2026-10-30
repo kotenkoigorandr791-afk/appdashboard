@@ -112,7 +112,7 @@ class WebhookManager(
                 val versionName = userAgentOverride ?: try {
                     context?.packageManager?.getPackageInfo(context.packageName, 0)?.versionName ?: "unknown"
                 } catch (_: Exception) { "unknown" }
-                requestBuilder.addHeader("User-Agent", "StepMonitor/$versionName")
+                requestBuilder.addHeader("User-Agent", "NexSteps/$versionName")
             }
             if ("accept" !in configHeaderKeys) {
                 requestBuilder.addHeader("Accept", "application/json")

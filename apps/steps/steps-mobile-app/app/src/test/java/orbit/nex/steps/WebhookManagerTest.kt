@@ -51,7 +51,7 @@ class WebhookManagerTest {
         assertEquals("0123456789abcdef0123456789abcdef", request.getHeader("X-Device-Id"))
         assertEquals("Bearer token", request.getHeader("Authorization"))
         assertEquals("application/json", request.getHeader("Accept"))
-        assertTrue(request.getHeader("User-Agent").orEmpty().startsWith("StepMonitor/"))
+        assertTrue(request.getHeader("User-Agent").orEmpty().startsWith("NexSteps/"))
     }
 
     @Test

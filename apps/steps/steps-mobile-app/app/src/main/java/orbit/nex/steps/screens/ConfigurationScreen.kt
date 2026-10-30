@@ -123,34 +123,9 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
         }
         NextSyncCard(prefs = prefs)
         ManualSyncCard()
-        LogsEntryCard()
     }
 }
 
-/** Quick access to the synchronization log from the home tab. */
-@Composable
-private fun LogsEntryCard() {
-    val context = LocalContext.current
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Text(stringResource(R.string.home_logs_title), style = MaterialTheme.typography.titleMedium)
-            Text(
-                stringResource(R.string.home_logs_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(
-                onClick = { context.startActivity(android.content.Intent(context, orbit.nex.steps.LogsActivity::class.java)) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(stringResource(R.string.home_logs_title))
-            }
-        }
-    }
-}
 
 @Composable
 private fun NextSyncCard(prefs: PreferencesManager) {

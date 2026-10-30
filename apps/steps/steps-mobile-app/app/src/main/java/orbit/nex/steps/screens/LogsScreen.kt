@@ -119,7 +119,8 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                // Title left, action buttons pushed to the right edge.
+                horizontalArrangement = Arrangement.SpaceBetween,
             ) {
                 onBack?.let {
                     IconButton(onClick = it) {
@@ -134,7 +135,9 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                     style = MaterialTheme.typography.titleLarge,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.weight(1f, fill = false),
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(start = 4.dp),
                 )
                 IconButton(onClick = {
                     newestFirst = !newestFirst

@@ -103,7 +103,7 @@
     "manual_pair_intro": "Jeśli nie można zeskanować kodu QR, połącz aplikację ręcznie:",
     "manual_pair_link_label": "Link parowania",
     "manual_pair_regenerate": "Wygeneruj ponownie",
-    "manual_pair_step1": "Zainstaluj i otwórz aplikację StepMonitor na telefonie.",
+    "manual_pair_step1": "Zainstaluj i otwórz aplikację NexSteps na telefonie.",
     "manual_pair_step2": "Skopiuj poniższy link parowania i token.",
     "manual_pair_step3": "W aplikacji otwórz \"Połącz z AppDashboard\" i wklej link (zawiera już token) albo wklej link i zastąp token własnym.",
     "manual_pair_title": "Ręczne parowanie",

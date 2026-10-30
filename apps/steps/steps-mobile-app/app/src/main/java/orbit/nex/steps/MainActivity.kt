@@ -99,7 +99,7 @@ class MainActivity : AppCompatActivity() {
         val endpoint = uri.getQueryParameter("endpoint").orEmpty()
         val token = uri.getQueryParameter("token").orEmpty()
         if (endpoint.startsWith("http") && token.isNotBlank()) {
-            preferencesManager.setWebhookConfigs(listOf(WebhookConfig(endpoint, "StepMonitor", mapOf("Authorization" to "Bearer $token"))))
+            preferencesManager.setWebhookConfigs(listOf(WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token"))))
             preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
             Toast.makeText(this, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
         }

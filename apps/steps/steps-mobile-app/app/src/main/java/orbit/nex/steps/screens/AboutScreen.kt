@@ -108,7 +108,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             val endpoint = uri.getQueryParameter("endpoint").orEmpty()
             val token = uri.getQueryParameter("token").orEmpty()
             require(endpoint.startsWith("http") && token.isNotBlank())
-            configs = listOf(WebhookConfig(endpoint, "StepMonitor", mapOf("Authorization" to "Bearer $token")))
+            configs = listOf(WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token")))
             prefs.setWebhookConfigs(configs)
             prefs.setEnabledDataTypes(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() })
             status = context.getString(R.string.auth_connected)

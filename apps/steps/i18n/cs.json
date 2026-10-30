@@ -103,7 +103,7 @@
     "manual_pair_intro": "Pokud nelze QR kód naskenovat, připojte aplikaci ručně:",
     "manual_pair_link_label": "Odkaz pro spárování",
     "manual_pair_regenerate": "Vygenerovat znovu",
-    "manual_pair_step1": "Nainstalujte a otevřete aplikaci StepMonitor v telefonu.",
+    "manual_pair_step1": "Nainstalujte a otevřete aplikaci NexSteps v telefonu.",
     "manual_pair_step2": "Zkopírujte níže uvedený odkaz pro spárování a token.",
     "manual_pair_step3": "V aplikaci otevřete \"Připojit k AppDashboard\" a vložte odkaz (už obsahuje token) nebo vložte odkaz a nahraďte token vlastním.",
     "manual_pair_title": "Ruční spárování",
