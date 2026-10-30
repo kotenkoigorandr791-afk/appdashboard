@@ -44,6 +44,7 @@ data class UpdateCheck(val outcome: UpdateOutcome, val info: UpdateInfo? = null)
  * from the same dashboard release files.
  */
 class AppUpdateChecker(private val context: Context) {
+    private val deviceId by lazy { orbit.nex.finance.data.SessionStore(context).deviceId() }
     private val json = Json { ignoreUnknownKeys = true }
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -64,6 +65,7 @@ class AppUpdateChecker(private val context: Context) {
             val request = Request.Builder()
                 .url("$base/api/spends/version")
                 .header("Authorization", "Bearer $token")
+                .header("X-Device-Id", deviceId)
                 .header("Accept", "application/json")
                 .get()
                 .build()
@@ -93,6 +95,7 @@ class AppUpdateChecker(private val context: Context) {
                 val request = Request.Builder()
                     .url(url)
                     .header("Authorization", "Bearer $token")
+                    .header("X-Device-Id", deviceId)
                     .header("Accept", "application/vnd.android.package-archive")
                     .get()
                     .build()

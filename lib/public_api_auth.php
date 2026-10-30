@@ -67,6 +67,15 @@ function public_api_validate_token(AppDatabase $db, string $rawToken, string $de
     if (!$row) return null;
     if ((int)($row['expires_at'] ?? 0) < time()) return null;
     $tokenDeviceId = (string)($row['device_id'] ?? '');
+    if ($tokenDeviceId === 'mcp_external' && $deviceId !== '') {
+        $claim = $db->prepare("UPDATE client_auth_tokens SET device_id = :d WHERE token_hash = :h AND device_id = 'mcp_external'");
+        $claim->bindValue(':d', $deviceId, PDO::PARAM_STR);
+        $claim->bindValue(':h', $hash, PDO::PARAM_STR);
+        $claim->execute();
+        if ($claim->rowCount() !== 1) return null;
+        $tokenDeviceId = $deviceId;
+        $row['device_id'] = $deviceId;
+    }
     if ($deviceId !== '' && $tokenDeviceId !== '' && $tokenDeviceId !== 'mcp_external' && !hash_equals($tokenDeviceId, $deviceId)) return null;
     $now = time();
     // Sliding expiration: an actively used token must never surprise the client
