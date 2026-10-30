@@ -27,6 +27,10 @@ if (!function_exists('sharepoint_api_handle')) {
             sp_json_response(['success' => false, 'error' => 'method_not_allowed'], 405);
         }
         $owner = sharepoint_api_owner();
+        $csrf = (string)($_SERVER['HTTP_X_SHAREPOINT_CSRF'] ?? '');
+        if (!sp_verify_csrf($csrf)) {
+            sp_json_response(['success' => false, 'error' => 'csrf_invalid'], 403);
+        }
         $input = sp_request_body();
         $action = strtolower(trim((string)($input['action'] ?? 'create')));
         $repo = new ShareRepository();

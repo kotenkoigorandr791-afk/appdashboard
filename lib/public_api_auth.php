@@ -19,6 +19,7 @@ function public_api_ensure_token_schema_impl(AppDatabase $db): void {
     )");
     app_client_auth_tokens_ensure_app_column($db);
     app_client_auth_tokens_ensure_plain_column($db);
+    $db->exec("UPDATE client_auth_tokens SET token_plain = '' WHERE app_id = 'spends' AND token_plain <> ''");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email ON client_auth_tokens(email)");
     $db->exec("CREATE INDEX IF NOT EXISTS idx_client_auth_tokens_email_app ON client_auth_tokens(email, app_id)");
 }

@@ -49,7 +49,9 @@ function spendsTagDelete(AppDatabase $udb, string $id): array {
 
 function spendsExpenseTagsSet(AppDatabase $udb, string $date, string $store, array $tagIds): array {
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || trim($store) === '') return ['status' => 'error', 'message' => 'invalid_data'];
-    $udb->exec('BEGIN');
+    $pdo = $udb->getPdo();
+    $ownTransaction = !$pdo->inTransaction();
+    if ($ownTransaction) $pdo->beginTransaction();
     $del = $udb->prepare('DELETE FROM expense_tags WHERE date = :d AND store = :s');
     $del->bindValue(':d', $date);
     $del->bindValue(':s', $store);
@@ -61,7 +63,7 @@ function spendsExpenseTagsSet(AppDatabase $udb, string $date, string $store, arr
         $ins->bindValue(':t', $tid);
         $ins->execute();
     }
-    $udb->exec('COMMIT');
+    if ($ownTransaction) $pdo->commit();
     return ['status' => 'success'];
 }
 
