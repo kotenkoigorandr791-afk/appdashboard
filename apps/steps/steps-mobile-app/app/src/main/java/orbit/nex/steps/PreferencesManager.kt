@@ -69,6 +69,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_STATS_CACHE_JSON = "stats_cache_json"
         private const val KEY_STATS_CACHE_TIME = "stats_cache_time"
         private const val KEY_PROFILE_CACHE_JSON = "profile_cache_json"
+        private const val KEY_PERSONAL_CACHE_JSON = "personal_settings_cache_json"
         private const val KEY_PROFILE_CACHE_TIME = "profile_cache_time"
         private const val KEY_ANDROID_STEPS_CACHE_PREFIX = "android_steps_cache_"
         private const val KEY_PENDING_CONFLICT_JSON = "pending_conflict_json"
@@ -658,6 +659,11 @@ class PreferencesManager(context: Context) {
         if (!prefs.getBoolean(KEY_WHATS_NEW_PENDING, false)) return false
         prefs.edit().remove(KEY_WHATS_NEW_PENDING).apply()
         return true
+    }
+    /** Cached personal settings so the settings screen renders instantly. */
+    fun getPersonalSettingsCache(): String? = prefs.getString(KEY_PERSONAL_CACHE_JSON, null)
+    fun setPersonalSettingsCache(json: String) {
+        prefs.edit().putString(KEY_PERSONAL_CACHE_JSON, json).apply()
     }
     fun getStatsCache(maxAgeMs: Long): String? {
         val savedAt = prefs.getLong(KEY_STATS_CACHE_TIME, 0)

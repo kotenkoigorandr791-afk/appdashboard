@@ -103,7 +103,7 @@
     "manual_pair_intro": "If QR scanning is not available, connect the app manually:",
     "manual_pair_link_label": "Connection link",
     "manual_pair_regenerate": "Regenerate",
-    "manual_pair_step1": "Install and open the StepMonitor app on your phone.",
+    "manual_pair_step1": "Install and open the NexSteps app on your phone.",
     "manual_pair_step2": "Copy the connection link and the token below.",
     "manual_pair_step3": "In the app, open \"Connect to AppDashboard\" and paste the link, replacing the token part with your token (or paste the link directly — it already contains the token).",
     "manual_pair_title": "Manual pairing",
