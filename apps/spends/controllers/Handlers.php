@@ -49,7 +49,7 @@ if (isset($_GET['get_expense_meta'])) {
     $st->bindValue(':s', $store);
     $row = $st->execute()->fetch(PDO::FETCH_ASSOC) ?: [];
     $source = strtolower((string)($row['entry_source'] ?? 'manual'));
-    $ocrRaw = (string)($row['ocr_raw_store'] ?? '');
+    $ocrRaw = spends_decrypt($row['ocr_raw_store'] ?? '', spends_db_user_id($udb), 'ocr');
     exit(json_encode(['status'=>'success','meta'=>['entry_source'=>$source,'ocr_raw_store'=>$ocrRaw]]));
 }
 if (isset($_GET['get_ocr_stats'])) {

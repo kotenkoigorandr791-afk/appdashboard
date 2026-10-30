@@ -163,14 +163,23 @@ test.describe('AI assistant', () => {
       }
       document.getElementById('btn-ai-new-chat')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
     });
-    await frame.locator('#ai-input-text').fill('Say hello for e2e');
+    await frame.locator('#ai-input-text').fill('Say hello for e2e https://example.com/docs');
     await frame.locator('#btn-ai-send').click();
     await expect(frame.locator('#ai-chat .message.user-message').last()).toContainText('Say hello for e2e', {
       timeout: 20000,
     });
+    await expect(frame.locator('#ai-chat .message.user-message .ai-link-card').last()).toHaveText('example.com');
     await expect
       .poll(async () => frame.locator('#ai-chat').innerText(), { timeout: 45000 })
       .toContain('E2E AI reply OK');
+  });
+
+  test('pasted links show a domain preview with the site favicon', async () => {
+    await openAiModal(frame);
+    await frame.locator('#ai-input-text').fill('Read https://example.com/docs');
+    const preview = frame.locator('#ai-link-previews .ai-link-card');
+    await expect(preview).toHaveText('example.com');
+    await expect(preview.locator('img')).toHaveAttribute('src', /example\.com\/favicon\.ico/);
   });
 
   test('chat session create and clear APIs work', async () => {

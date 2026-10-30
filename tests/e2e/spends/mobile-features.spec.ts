@@ -72,10 +72,95 @@ test.describe('spends — mobile features API', () => {
     });
     const name = `webtag${Date.now()}`;
     await page.fill('#tag-name', name);
+    await page.locator('#tag-store-picker').click();
+    await page.locator('#tag-picker-list .tag-picker-option').first().click();
+    await page.locator('#tag-payment-picker').click();
+    await page.locator('#tag-picker-list .tag-picker-option').first().click();
+    const selectedPayment = await page.locator('#tag-payment').inputValue();
+    const selectedStore = await page.locator('#tag-store').inputValue();
     await page.evaluate(() => (window as any).saveTagFromForm());
     await expect(page.locator('#tags-list .tag-chip', { hasText: name })).toBeVisible();
-    page.once('dialog', (d) => d.accept());
+    const assignment = await page.evaluate(async ({ date, store }) => {
+      const response = await fetch(`?get_expense_tags=1&from=${date}&to=${date}`);
+      const data = await response.json();
+      return data.expense_tags?.[`${date}\t${store}`] || [];
+    }, { date: selectedPayment, store: selectedStore });
+    expect(assignment.length).toBeGreaterThan(0);
     await page.locator('#tags-list .tag-row', { hasText: name }).locator('.tag-delete').click();
+    await expect(page.locator('#confirm-delete-modal')).toBeVisible();
+    await page.locator('#confirm-delete-action').click();
     await expect(page.locator('#tags-list .tag-chip', { hasText: name })).toHaveCount(0);
+  });
+
+  test('list pagination is conditional, bottom-aligned, and tag form fits a phone viewport', async ({ page }) => {
+    await login(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/apps/spends/?lang=en&theme=light', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      document.getElementById('settings-modal')?.classList.add('show');
+      (document.getElementById('settings-modal') as HTMLElement).style.display = 'flex';
+      (window as any).switchSettingsSection('tags');
+    });
+
+    await expect(page.locator('.settings-pagination')).toHaveCount(0);
+    await page.evaluate(() => {
+      eval("tagsCache = Array.from({ length: 20 }, (_, i) => ({ id: `test-${i}`, name: `Tag ${i}`, color: '#4caf50', usage_count: 0 }))");
+      (window as any).renderTagsList();
+    });
+    const tagPager = page.locator('#tags-pagination');
+    await expect(tagPager).toBeVisible();
+    const listBox = await page.locator('#tags-list').boundingBox();
+    const pagerBox = await tagPager.boundingBox();
+    expect(pagerBox!.y).toBeGreaterThan(listBox!.y + listBox!.height - 1);
+    await tagPager.getByRole('button', { name: 'Next page' }).click();
+    await expect(tagPager.locator('.settings-page-status')).toHaveText('2 of 3');
+
+    const boxes = await page.locator('#tag-name, #tag-color, #tag-store-picker, #tag-payment-picker, #tags-add-btn').evaluateAll((elements) =>
+      elements.map((element) => {
+        const { x, y, width, height, right, bottom } = element.getBoundingClientRect();
+        return { x, y, width, height, right, bottom };
+      }),
+    );
+    const [name, color, store, payment, add] = boxes;
+    expect(name.right).toBeLessThanOrEqual(color.x + 1);
+    expect(color.y).toBeGreaterThanOrEqual(name.bottom - 1);
+    expect(store.y).toBeGreaterThanOrEqual(color.bottom - 1);
+    expect(payment.y).toBeGreaterThanOrEqual(store.bottom - 1);
+    expect(add.y).toBeGreaterThanOrEqual(payment.bottom - 1);
+    expect(add.right).toBeLessThanOrEqual(390);
+  });
+
+  test('store and transaction pickers support searching', async ({ page }) => {
+    await login(page);
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/apps/spends/?lang=en&theme=light', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      document.getElementById('settings-modal')!.style.display = 'flex';
+      (window as any).switchSettingsSection('tags');
+    });
+
+    await page.locator('#tag-store-picker').click();
+    await page.locator('#tag-picker-search').fill('Test Store');
+    await expect(page.locator('#tag-picker-list .tag-picker-option')).toHaveCount(1);
+    await page.locator('#tag-picker-list .tag-picker-option').click();
+    await expect(page.locator('#tag-store-label')).toHaveText('Test Store');
+
+    await page.locator('#tag-payment-picker').click();
+    await page.locator('#tag-picker-search').fill('2026-10-26');
+    await expect(page.locator('#tag-picker-list .tag-picker-option')).toHaveCount(1);
+    await expect(page.locator('#tag-picker-list .tag-picker-option')).toContainText('Test Store');
+  });
+
+  test('goal editor opens in a separate modal', async ({ page }) => {
+    await login(page);
+    await page.goto('/apps/spends/?lang=en&theme=light', { waitUntil: 'domcontentloaded' });
+    await page.evaluate(() => {
+      document.getElementById('settings-modal')!.style.display = 'flex';
+      (window as any).switchSettingsSection('goals');
+    });
+    await page.locator('#goals-add-btn').click();
+    await expect(page.locator('#goal-editor-modal')).toBeVisible();
+    await expect(page.locator('#goal-editor-modal #goal-editor')).toBeVisible();
+    await expect(page.locator('#goals-add-btn svg')).toBeVisible();
   });
 });

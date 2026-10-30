@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/app_db.php';
+require_once __DIR__ . '/spends_encryption.php';
 function app_user_schema_id(string $appPrefix, string $email): string {
     $raw = strtolower($appPrefix . '_' . preg_replace('/[^a-zA-Z0-9._+-]+/', '_', $email));
     $raw = preg_replace('/_+/', '_', trim($raw, '_'));
@@ -30,6 +31,7 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
             app_spends_goals_ensure($main);
             app_spends_tags_ensure($main);
             app_spends_migrate_legacy($main, $uid, $email);
+            app_spends_encrypt_existing($main, $uid);
             app_once_mark($readyKey, __FILE__);
         }
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
@@ -160,6 +162,7 @@ function app_spends_shared_ensure_impl(AppDatabase $db): void {
     if ($done) return;
     $reg = $db->query("SELECT to_regclass('" . APP_SPENDS_SHARED_SCHEMA . ".table_settings')")->fetch(PDO::FETCH_NUM);
     if ($reg && $reg[0] !== null) {
+        $db->exec("CREATE INDEX IF NOT EXISTS spends_expenses_user_date_store ON " . APP_SPENDS_SHARED_SCHEMA . ".expenses(user_id, date DESC, store ASC)");
         $done = true;
         return;
     }
@@ -179,6 +182,7 @@ function app_spends_shared_ensure_impl(AppDatabase $db): void {
             $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS spends_stores_user_name ON $sc.stores(user_id, name)");
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.expenses ($uid, date TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, entry_source TEXT NOT NULL DEFAULT 'manual', ocr_raw_store TEXT, PRIMARY KEY (user_id, date, store))");
             $db->exec("CREATE INDEX IF NOT EXISTS spends_expenses_user_store ON $sc.expenses(user_id, store)");
+            $db->exec("CREATE INDEX IF NOT EXISTS spends_expenses_user_date_store ON $sc.expenses(user_id, date DESC, store ASC)");
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.incomes ($uid, date TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, PRIMARY KEY (user_id, date))");
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.ocr_entries ($uid, signature TEXT NOT NULL, date TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL, ocr_raw_store TEXT, image_name TEXT, created_at TEXT NOT NULL, PRIMARY KEY (user_id, signature))");
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.table_settings ($uid, key TEXT NOT NULL, value TEXT, PRIMARY KEY (user_id, key))");

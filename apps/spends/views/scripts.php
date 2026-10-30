@@ -1,6 +1,8 @@
 <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
 <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
-<script src="/project/sharepoint/assets/js/share-modal.js?v=12"></script>
+<?php if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24)); ?>
+<script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
+<script src="/project/sharepoint/assets/js/share-modal.js?v=13"></script>
 <script>
 <?php $jsonFlags = JSON_HEX_TAG | JSON_INVALID_UTF8_SUBSTITUTE; ?>
 const translations = <?= json_encode($translations, $jsonFlags) ?: '{}' ?>;
@@ -25,6 +27,8 @@ let currentCropId   = '';
 let saveTimeout;
 let tableSettings = <?= json_encode($tableSettings, $jsonFlags) ?: '{}' ?>;
 let pendingDelete = { type:'', id:'', name:'' };
+let pendingConfirmAction=null;
+let inputPromptResolver=null;
 let totalRowsDB   = <?= (int)$totalRows ?>;
 const tableYearMin = <?= (int)($tableMinYear ?? date('Y')) ?>;
 const tableYearMax = <?= (int)($tableMaxYear ?? date('Y')) ?>;
@@ -50,6 +54,34 @@ function syncModalBodyState(){document.body.classList.toggle('modal-open',!!docu
 function setupModalChrome(){document.querySelectorAll('.modal-content').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
 function showModal(id) { setupModalChrome(); document.getElementById(id).style.display='flex'; syncModalBodyState(); }
 function closeModal(id) { document.getElementById(id).style.display='none'; syncModalBodyState(); }
+function confirmWithModal(message,action,confirmLabel=t('delete','Delete')){
+    pendingConfirmAction=action;
+    document.getElementById('confirm-delete-title').textContent=t('confirm_action_title','Confirm action');
+    document.getElementById('confirm-delete-message').textContent=message;
+    document.getElementById('confirm-delete-action').textContent=confirmLabel;
+    showModal('confirm-delete-modal');
+}
+function cancelConfirmation(){
+    pendingConfirmAction=null;
+    closeModal('confirm-delete-modal');
+}
+function requestNumberInput(title,label,value=''){
+    return new Promise(resolve=>{
+        inputPromptResolver=resolve;
+        document.getElementById('input-prompt-title').textContent=title;
+        document.getElementById('input-prompt-label').textContent=label;
+        const input=document.getElementById('input-prompt-value');
+        input.value=value;
+        showModal('input-prompt-modal');
+        input.focus();
+    });
+}
+function resolveInputPrompt(value){
+    closeModal('input-prompt-modal');
+    const resolve=inputPromptResolver;
+    inputPromptResolver=null;
+    if(resolve)resolve(value==null?null:String(value));
+}
 
 // ══ Notification ═══════════════════════════════════════════════════════════
 function showNotification(message, type='info') {
@@ -664,6 +696,22 @@ function updateChart() {
             const diff=months.map((_,i)=>+(inc[i]-td[i]).toFixed(2));
             datasets.push(...splitLine(diff,'#f59e0b',{_label:t('difference_line','Difference')}));
         }
+    } else if (chartMode==='categories') {
+        // Third mode: the same year curve split by store category.
+        const catOf={};
+        userSettings.stores.forEach(s=>{catOf[s.name]=s.category||'other';});
+        const perStoreTotals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
+        const catTotals={};
+        userSettings.stores.forEach(s=>{const c=catOf[s.name];if(s.visible===false)return;catTotals[c]=(catTotals[c]||0)+months.reduce((sum,m)=>sum+(monthly[m][s.name]||0),0);});
+        const cats=Object.keys(catTotals).sort((a,b)=>catTotals[b]-catTotals[a]);
+        cats.forEach((cat,i)=>{
+            const vals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false&&catOf[s.name]===cat)t+=monthly[m][s.name]||0;});return t*conv;});
+            datasets.push(...splitLine(vals,storeColors[i%storeColors.length],{_label:categoryLabel(cat)}));
+        });
+        if(userSettings.show_trend){
+            const trendData=linearRegression(perStoreTotals);
+            datasets.push(...splitLine(trendData,'#f59e0b',{tension:0,_label:t('difference_line','Trend')}));
+        }
     } else {
         const perStoreTotals=months.map(m=>{let t=0;userSettings.stores.forEach(s=>{if(s.visible!==false)t+=monthly[m][s.name]||0;});return t*conv;});
         userSettings.stores.forEach((s,i)=>{
@@ -682,7 +730,9 @@ function updateChart() {
         plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
                  tooltip:{mode:'index',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
-    document.querySelector('.chart-toggle-btn').textContent=chartMode==='total'?translations.per_store_expenses:translations.total_expenses;
+    document.querySelectorAll('.chart-toggle-btn').forEach(btn=>{
+        btn.textContent=chartMode==='total'?translations.per_store_expenses:(chartMode==='stores'?t('chart_by_category','By category'):translations.total_expenses);
+    });
     updateYearButtons();
 }
 function yearHasData(y){return availableYears.includes(Number(y));}
@@ -725,7 +775,7 @@ function changeChartYear(d) {
         })
         .catch(()=>updateChart());
 }
-function toggleChartMode(){chartMode=chartMode==='total'?'stores':'total';updateChart();}
+function toggleChartMode(){chartMode=chartMode==='total'?'stores':(chartMode==='stores'?'categories':'total');updateChart();}
 
 // ══ Exchange Rates ══════════════════════════════════════════════════════════
 // ══ Exchange Rates (redesigned) ══════════════════════════════════════════════
@@ -1699,9 +1749,63 @@ function switchSettingsSection(section){
     const activeBtn=document.querySelector(`.settings-menu-btn[data-settings-section="${section}"]`);
     if(target)target.classList.add('active');
     if(activeBtn)activeBtn.classList.add('active');
+    updateStoresPagination();
     if(section==='goals') loadGoalsList();
     if(section==='tags') loadTagsList();
 }
+const settingsListPages={stores:0,tags:0,goals:0};
+function settingsItemsPerPage(kind){
+    const bodyHeight=document.querySelector('#settings-modal .modal-body')?.clientHeight||Math.round(window.innerHeight*.75);
+    const reserve={stores:220,tags:230,goals:150}[kind];
+    const rowHeight={stores:64,tags:58,goals:184}[kind];
+    return Math.max(1,Math.floor(Math.max(rowHeight,bodyHeight-reserve)/rowHeight));
+}
+function renderListPagination(kind,totalItems,onPage){
+    const host=document.getElementById(`${kind}-pagination`);
+    if(!host)return 1;
+    const pageSize=settingsItemsPerPage(kind);
+    const pageCount=Math.ceil(totalItems/pageSize);
+    settingsListPages[kind]=Math.max(0,Math.min(settingsListPages[kind],pageCount-1));
+    host.replaceChildren();
+    host.hidden=pageCount<=1;
+    if(pageCount<=1)return pageSize;
+    const previous=document.createElement('button');
+    previous.type='button';previous.className='settings-page-btn';previous.textContent='‹';
+    previous.setAttribute('aria-label',t('settings_previous','Previous page'));
+    previous.disabled=settingsListPages[kind]===0;
+    previous.onclick=()=>{settingsListPages[kind]--;onPage();};
+    const status=document.createElement('span');
+    status.className='settings-page-status';status.setAttribute('aria-live','polite');
+    status.textContent=t('settings_page','%1$d of %2$d')
+        .replace('%1$d',String(settingsListPages[kind]+1)).replace('%2$d',String(pageCount));
+    const next=document.createElement('button');
+    next.type='button';next.className='settings-page-btn';next.textContent='›';
+    next.setAttribute('aria-label',t('settings_next','Next page'));
+    next.disabled=settingsListPages[kind]===pageCount-1;
+    next.onclick=()=>{settingsListPages[kind]++;onPage();};
+    host.append(previous,status,next);
+    return pageSize;
+}
+function updateStoresPagination(){
+    const list=document.getElementById('store-list');
+    if(!list)return;
+    const items=[...list.querySelectorAll('.store-item')];
+    const pageSize=renderListPagination('stores',items.length,updateStoresPagination);
+    const start=settingsListPages.stores*pageSize;
+    items.forEach((item,index)=>item.style.display=index>=start&&index<start+pageSize?'':'none');
+}
+function initSettingsListPagination(){
+    const list=document.getElementById('store-list');
+    if(list&&!list.dataset.paginationReady){
+        list.dataset.paginationReady='1';
+        new MutationObserver(updateStoresPagination).observe(list,{childList:true});
+    }
+    updateStoresPagination();
+    renderTagsList();renderGoalsList();
+}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSettingsListPagination,{once:true});
+else setTimeout(initSettingsListPagination,0);
+window.addEventListener('resize',()=>{updateStoresPagination();renderTagsList();renderGoalsList();});
 
 // ══ Tags
 let tagsCache=[];
@@ -1713,8 +1817,10 @@ function renderTagsList(){
     const host=document.getElementById('tags-list');
     if(!host)return;
     host.innerHTML='';
-    if(!tagsCache.length){host.innerHTML=`<div class="goals-empty">${t('tags_empty','No tags yet')}</div>`;return;}
-    tagsCache.forEach(tag=>{
+    if(!tagsCache.length){host.innerHTML=`<div class="goals-empty">${t('tags_empty','No tags yet')}</div>`;renderListPagination('tags',0,renderTagsList);return;}
+    const pageSize=renderListPagination('tags',tagsCache.length,renderTagsList);
+    const start=settingsListPages.tags*pageSize;
+    tagsCache.slice(start,start+pageSize).forEach(tag=>{
         const row=document.createElement('div');
         row.className='tag-row';
         row.dataset.tagId=tag.id;
@@ -1729,20 +1835,97 @@ function renderTagsList(){
         del.type='button';
         del.className='cancel-btn tag-delete';
         del.textContent=t('delete','Delete');
-        del.onclick=()=>{if(!confirm(t('tags_delete_confirm','Delete this tag?')))return;tagsPost({delete_tag:tag.id}).then(loadTagsList);};
+        del.onclick=()=>confirmWithModal(t('tags_delete_confirm','Delete this tag?'),()=>tagsPost({delete_tag:tag.id}).then(loadTagsList));
         row.append(chip,used,del);
         host.appendChild(row);
     });
 }
-function saveTagFromForm(){
+let activeTagPicker='store';
+function tagPickerItems(){
+    if(activeTagPicker==='store')return (userSettings.stores||[]).map(store=>({
+        value:store.name,
+        title:store.name,
+        meta:store.category?categoryLabel(store.category):t('tags_store_item','Store'),
+        icon:store.name.trim().slice(0,1).toUpperCase()||'S',
+    }));
+    const store=document.getElementById('tag-store').value;
+    if(!store)return [];
+    return Object.keys(expensesData||{})
+        .filter(date=>Number(expensesData[date]?.[store])>0)
+        .sort((left,right)=>right.localeCompare(left))
+        .map(date=>({
+            value:date,
+            title:date,
+            meta:`${store} · ${money(expensesData[date][store])}`,
+            icon:'T',
+        }));
+}
+function renderTagPicker(){
+    const host=document.getElementById('tag-picker-list');
+    const query=(document.getElementById('tag-picker-search').value||'').trim().toLocaleLowerCase();
+    const matches=tagPickerItems().filter(item=>`${item.title} ${item.meta}`.toLocaleLowerCase().includes(query));
+    host.replaceChildren();
+    if(!matches.length){
+        const empty=document.createElement('div');
+        empty.className='tag-picker-empty';
+        empty.textContent=t('tags_no_matches','No matching results');
+        host.appendChild(empty);
+        return;
+    }
+    matches.forEach(item=>{
+        const option=document.createElement('button');
+        option.type='button';option.className='tag-picker-option';option.setAttribute('role','option');
+        const icon=document.createElement('span');icon.className='tag-picker-option-icon';icon.textContent=item.icon;
+        const copy=document.createElement('span');copy.className='tag-picker-option-copy';
+        const title=document.createElement('span');title.className='tag-picker-option-title';title.textContent=item.title;
+        const meta=document.createElement('span');meta.className='tag-picker-option-meta';meta.textContent=item.meta;
+        copy.append(title,meta);option.append(icon,copy);
+        option.onclick=()=>{
+            if(activeTagPicker==='store'){
+                document.getElementById('tag-store').value=item.value;
+                document.getElementById('tag-store-label').textContent=item.title;
+                document.getElementById('tag-payment').value='';
+                document.getElementById('tag-payment-label').textContent=t('tags_choose_payment','Choose a payment');
+                document.getElementById('tag-payment-picker').disabled=false;
+            }else{
+                document.getElementById('tag-payment').value=item.value;
+                document.getElementById('tag-payment-label').textContent=`${item.title} · ${item.meta.split(' · ').slice(-1)[0]}`;
+            }
+            closeModal('tag-picker-modal');
+        };
+        host.appendChild(option);
+    });
+}
+function openTagPicker(kind){
+    activeTagPicker=kind;
+    document.getElementById('tag-picker-title').textContent=kind==='store'?t('tags_choose_store','Choose a store'):t('tags_choose_payment','Choose a payment');
+    const search=document.getElementById('tag-picker-search');
+    search.value='';
+    renderTagPicker();
+    showModal('tag-picker-modal');
+    search.focus();
+}
+document.getElementById('tag-picker-search')?.addEventListener('input',renderTagPicker);
+async function saveTagFromForm(){
     const name=(document.getElementById('tag-name').value||'').trim();
     if(!name){showNotification(t('tags_name_required','Name is required'),'error');return;}
-    tagsPost({save_tag:'1',name,color:document.getElementById('tag-color').value}).then(res=>{
-        if(res.status!=='success'){showNotification(t('tags_save_failed','Could not save tag'),'error');return;}
+    const store=document.getElementById('tag-store').value;
+    const date=document.getElementById('tag-payment').value;
+    if(!store){showNotification(t('tags_choose_store_error','Choose a store first'),'error');return;}
+    if(!date){showNotification(t('tags_choose_payment_error','Choose a payment first'),'error');return;}
+    try{
+        const saved=await tagsPost({save_tag:'1',name,color:document.getElementById('tag-color').value});
+        if(saved.status!=='success'||!saved.tag?.id){showNotification(saved.message||t('tags_save_failed','Could not save tag'),'error');return;}
+        const query=new URLSearchParams({get_expense_tags:'1',from:date,to:date});
+        const tagged=await fetch('?'+query.toString()).then(response=>response.json());
+        const key=`${date}\t${store}`;
+        const tagIds=[...new Set([...(tagged.expense_tags?.[key]||[]),saved.tag.id])];
+        const assigned=await tagsPost({set_expense_tags:'1',date,store,tag_ids:JSON.stringify(tagIds)});
+        if(assigned.status!=='success'){showNotification(assigned.message||t('tags_assign_failed','Could not assign tag'),'error');return;}
         document.getElementById('tag-name').value='';
         loadTagsList();
         showNotification(t('tags_saved','Tag saved'),'success');
-    });
+    }catch(error){showNotification(`${t('network_error','Network error')}: ${error}`,'error');}
 }
 // ══ Goals ═══════════════════════════════════════════════════════════════════
 let goalsCache=[];
@@ -1761,9 +1944,12 @@ function renderGoalsList(){
     host.innerHTML='';
     if(!goalsCache.length){
         host.innerHTML=`<div class="goals-empty">${t('goals_empty','No goals yet')}</div>`;
+        renderListPagination('goals',0,renderGoalsList);
         return;
     }
-    goalsCache.forEach(g=>{
+    const pageSize=renderListPagination('goals',goalsCache.length,renderGoalsList);
+    const start=settingsListPages.goals*pageSize;
+    goalsCache.slice(start,start+pageSize).forEach(g=>{
         const card=document.createElement('div');
         card.className='goal-card'+(g.is_archived?' is-archived':'');
         const pct=Math.max(0,Math.min(100,Number(g.progress_percent)||0));
@@ -1782,29 +1968,28 @@ function renderGoalsList(){
         const mk=(label,fn)=>{const b=document.createElement('button');b.type='button';b.className='cancel-btn';b.textContent=label;b.onclick=fn;return b;};
         actions.appendChild(mk(t('edit','Edit'),()=>openGoalEditor(g)));
         actions.appendChild(mk(t('goals_contribute','+ Progress'),()=>{
-            const raw=prompt(t('goals_contribute_prompt','Amount to add'),'10');
-            if(raw==null)return;
-            const amount=parseFloat(raw);
-            if(!(amount>0))return;
-            goalsPost({contribute_goal:g.id,id:g.id,amount}).then(res=>{
-                if(res.status!=='success'){showNotification(res.message||t('error_generic','Error'),'error');return;}
-                loadGoalsList();
+            requestNumberInput(t('goals_contribute','Add progress'),t('goals_contribute_prompt','Amount to add'),'10').then(raw=>{
+                if(raw==null)return;
+                const amount=parseFloat(raw);
+                if(!(amount>0))return;
+                goalsPost({contribute_goal:g.id,id:g.id,amount}).then(res=>{
+                    if(res.status!=='success'){showNotification(res.message||t('error_generic','Error'),'error');return;}
+                    loadGoalsList();
+                });
             });
         }));
         actions.appendChild(mk(g.is_archived?t('goals_unarchive','Restore'):t('goals_archive','Archive'),()=>{
             goalsPost({archive_goal:g.id,is_archived:g.is_archived?0:1}).then(()=>loadGoalsList());
         }));
         actions.appendChild(mk(t('delete','Delete'),()=>{
-            if(!confirm(t('goals_delete_confirm','Delete this goal?')))return;
-            goalsPost({delete_goal:g.id}).then(()=>loadGoalsList());
+            confirmWithModal(t('goals_delete_confirm','Delete this goal?'),()=>goalsPost({delete_goal:g.id}).then(()=>loadGoalsList()));
         }));
         host.appendChild(card);
     });
 }
 function openGoalEditor(goal){
-    const box=document.getElementById('goal-editor');
-    if(!box)return;
-    box.hidden=false;
+    const title=document.getElementById('goal-editor-title');
+    if(title)title.textContent=goal&&goal.id?t('edit','Edit'):t('goals_add','Add goal');
     document.getElementById('goal-id').value=goal&&goal.id?goal.id:'';
     document.getElementById('goal-name').value=goal&&goal.name?goal.name:'';
     document.getElementById('goal-type').value=goal&&goal.goal_type?goal.goal_type:'savings';
@@ -1812,10 +1997,11 @@ function openGoalEditor(goal){
     document.getElementById('goal-current').value=goal?Number(goal.current_amount||0):0;
     document.getElementById('goal-date').value=goal&&goal.target_date?goal.target_date:'';
     document.getElementById('goal-description').value=goal&&goal.description?goal.description:'';
+    showModal('goal-editor-modal');
+    document.getElementById('goal-name').focus();
 }
 function closeGoalEditor(){
-    const box=document.getElementById('goal-editor');
-    if(box)box.hidden=true;
+    closeModal('goal-editor-modal');
 }
 function saveGoalEditor(){
     const payload={
@@ -1855,8 +2041,8 @@ function rekeyExpensesDataStore(oldN,newN){if(!oldN||oldN===newN)return;Object.k
 function storePhotoUrl(s,withPhoto){if(!withPhoto)return'';return s.photo_url?`${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`:`users/${currentUserFolder}/store_${String(s.name).replace(/[^a-zA-Z0-9]/g,'_')}.png?t=${Date.now()}`;}
 function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(withPhoto){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
 function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
-function confirmDeleteStore(id,name){pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store||`Delete store "${name}"?`;showModal('confirm-delete-modal');}
-function executeDelete(){if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
+function confirmDeleteStore(id,name){pendingConfirmAction=null;pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-title').textContent=translations.confirm_delete_store||t('confirm_action_title','Confirm action');document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store_message||`Delete store "${name}"?`;document.getElementById('confirm-delete-action').textContent=t('delete','Delete');showModal('confirm-delete-modal');}
+function executeDelete(){const action=pendingConfirmAction;pendingConfirmAction=null;closeModal('confirm-delete-modal');if(action){action();return;}if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
 function removeDataTableStoreColumnByName(storeName){const ths=document.querySelectorAll('#data-table thead th');let col=-1;ths.forEach((th,idx)=>{if(idx>0&&th.textContent.trim()===storeName)col=idx;});if(col<0)return;document.querySelectorAll('#data-table tr').forEach(tr=>{const c=tr.children[col];if(c)c.remove();});if(typeof updateChart==='function')updateChart();}
 function deleteStore(id,name){const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}const idS=String(id);userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name))delete expensesData[dt][name];});document.querySelector(`#store-list .store-item[data-store-id="${CSS.escape(idS)}"]`)?.remove();document.querySelector(`.store-visibility-table .visibility-toggle[data-store-id="${CSS.escape(idS)}"]`)?.closest('tr')?.remove();removeDataTableStoreColumnByName(name);refreshCategoryPicker();showNotification(translations.delete_store_ok||'Store deleted','success');closeModal('confirm-delete-modal');}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
 function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;scheduleSaveTableSettings();}
@@ -1902,9 +2088,10 @@ function executeRestoreBackup(){
     .then(r=>r.json()).then(d=>{if(d.status==='success'){showNotification(t('backup_restored','Backup restored'),'success');setTimeout(()=>location.reload(),1000);}else showNotification(d.message||t('error_generic','Error'),'error');});
 }
 function deleteBackup(fn){
-    if(!confirm(t('confirm_delete_backup','Are you sure you want to delete this backup?')))return;
-    fetch('',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({backup_action:'delete',backup_file:fn})})
-    .then(r=>r.json()).then(d=>{if(d.status==='success'){showNotification(t('backup_deleted','Backup deleted'),'success');setTimeout(()=>location.reload(),1000);}else showNotification(d.message||t('error_generic','Error'),'error');});
+    confirmWithModal(t('confirm_delete_backup','Are you sure you want to delete this backup?'),()=>{
+        fetch('',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:new URLSearchParams({backup_action:'delete',backup_file:fn})})
+        .then(r=>r.json()).then(d=>{if(d.status==='success'){showNotification(t('backup_deleted','Backup deleted'),'success');setTimeout(()=>location.reload(),1000);}else showNotification(d.message||t('error_generic','Error'),'error');});
+    });
 }
 function uploadBackup(){
     const fi=document.getElementById('upload-backup-file');
@@ -2492,7 +2679,7 @@ loadAvailableYears().then(()=>{updateChart();});
             const im=document.getElementById('import-modal');
             if(im&&im.style.display==='flex'){closeImportModal();return;}
             const open=document.querySelector('.modal[style*="display: flex"]');
-            if(open){closeModal(open.id);}
+            if(open){if(open.id==='input-prompt-modal')resolveInputPrompt(null);else if(open.id==='confirm-delete-modal')cancelConfirmation();else closeModal(open.id);}
             else{const ai=document.activeElement;if(ai.tagName==='INPUT'&&ai.closest('#data-table'))ai.blur();}
         }
     });

@@ -5502,9 +5502,20 @@ function applyThemeRuntime(theme){const resolved=resolveTheme(theme);document.bo
         function trustedDeviceRequestHeaders() {
             return {
                 'Content-Type': 'application/json',
-                'X-Device-Id': ensureBrowserDeviceId()
+                'X-Device-Id': ensureBrowserDeviceId(),
+                ...(getCookieValue('ap_gpu_fingerprint') ? {'X-GPU-Fingerprint': getCookieValue('ap_gpu_fingerprint')} : {})
             };
         }
+        async function computeGpuFingerprint() {
+            try {
+                const canvas=document.createElement('canvas'), gl=canvas.getContext('webgl',{preserveDrawingBuffer:true,antialias:false})||canvas.getContext('experimental-webgl',{preserveDrawingBuffer:true,antialias:false});
+                if(!gl||!crypto?.subtle) return '';
+                canvas.width=32; canvas.height=32; gl.viewport(0,0,32,32); gl.clearColor(.13,.27,.41,1); gl.clear(gl.COLOR_BUFFER_BIT);
+                const pixels=new Uint8Array(32*32*4); gl.readPixels(0,0,32,32,gl.RGBA,gl.UNSIGNED_BYTE,pixels);
+                const hash=await crypto.subtle.digest('SHA-256',pixels); return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');
+            } catch(e) { return ''; }
+        }
+        computeGpuFingerprint().then(function(value){ if(value) writeCookie('ap_gpu_fingerprint',value,31536000); });
         function privacyRequestHeaders() {
             return trustedDeviceRequestHeaders();
         }

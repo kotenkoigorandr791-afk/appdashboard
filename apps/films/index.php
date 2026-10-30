@@ -4,7 +4,12 @@ require_once APP_ROOT . '/lib/sentry_bootstrap.php';
 app_sentry_bootstrap('films');
 $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){require_once $__d.'/smart_log_boot.php';break;}$__p=dirname($__d);if($__p===$__d)break;$__d=$__p;}
 
-session_start();
+// Redis-backed session bootstrap shared with the rest of the dashboard. The bare
+// session_start() here used PHP's default *files* handler: every request with the
+// same session id blocked on flock() and request bodies were serialized behind it
+// (FPM slowlog showed session_start() >2s as the #1 hot frame under load).
+require_once APP_ROOT . '/lib/app_session.php';
+app_session_start();
 
 error_reporting(E_ALL); ini_set('display_errors', 1);
 require_once __DIR__ . '/translations.php';

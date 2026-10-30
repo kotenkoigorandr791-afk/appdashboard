@@ -1,6 +1,6 @@
 # AppDashboard
 
-Self-hosted apps shell (PHP) with Docker Compose. One public domain drives all service URLs.
+AppDashboard is a self-hosted PHP dashboard for a collection of personal and team applications. It includes authentication, OAuth, shared files, an admin panel, a public API, Telegram integration, an MCP server, WebSSH, backups and application modules such as Cloud, Films, Recipes, Maps, Media Viewer, Performance, Spends and Steps.
 
 ## Quick start
 
@@ -11,6 +11,8 @@ docker compose up -d --build
 ```
 
 Open `http://localhost/` (local) or `https://<BASE_DOMAIN>/` (server).
+
+Docker development details, service descriptions and operational commands are in [README.docker.md](README.docker.md).
 
 ## Single domain setting
 
@@ -123,8 +125,10 @@ The WebSocket worker (`ssh-ws`) always autostarts; the profile is only the remot
 | Service | Port (host) | Notes |
 |---------|-------------|--------|
 | `appdashboard` | `80` | App + nginx + workers |
-| `appdashboard-db` | `—` | Postgres 16 (только внутри docker-сети) |
-| `appdashboard-redis` | `—` | Redis (только внутри docker-сети) |
+| `appdashboard-db` | `—` | PostgreSQL 16, internal Docker network |
+| `appdashboard-pgbouncer` | `—` | PostgreSQL connection pool, internal Docker network |
+| `appdashboard-redis` | `—` | Redis, internal Docker network |
+| `appdashboard-py` | `—` | Python application sidecar, internal Docker network |
 
 Optional profiles: `portainer`, `gitea`, `immich`, `dawarich`.
 
@@ -160,5 +164,7 @@ BASE_DOMAIN=example.com APP_PUBLIC_SCHEME=https \
 
 ## Docs
 
-- Docker notes historically lived in `README.docker.md` (this README is the source of truth now).
-- Deeper docs: `docs/`
+- Docker setup: [README.docker.md](README.docker.md)
+- Application architecture and modules: [docs/00_documentation_index.md](docs/00_documentation_index.md)
+- MCP server: [docs/25_appdashboard_mcp.md](docs/25_appdashboard_mcp.md)
+- Public API: [docs/27_public_api.md](docs/27_public_api.md)

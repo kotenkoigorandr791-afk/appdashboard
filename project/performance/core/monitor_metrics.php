@@ -494,6 +494,8 @@ function getSmartDiagnostics(): array {
 }
 
 function monitorEnsureSmartTable(): void {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    if (!app_schema_should_run('monitor_smart_schema', __FILE__)) return;
     try {
         $db = getDB();
         if (!$db) return;
@@ -1283,6 +1285,8 @@ function monitorEnsureBaseSchemaImpl(): void {
 }
 
 function monitorEnsureUptimeSchema(): void {
+    require_once dirname(__DIR__, 3) . '/lib/schema_once.php';
+    if (!app_schema_should_run('monitor_uptime_schema', __FILE__)) return;
     try {
         monitorEnsureBaseSchema();
         $db = monitorGetDbSafe();

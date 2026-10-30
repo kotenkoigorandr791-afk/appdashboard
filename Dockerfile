@@ -91,6 +91,7 @@ COPY deploy/waf/appdashboard-crs-exclusions.conf /etc/nginx/modsecurity/appdashb
 COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY --from=app-builder /var/www/AppDashboard/ /var/www/AppDashboard/
+RUN test -f /var/www/AppDashboard/apps/smart_home/core/perf.php
 RUN mkdir -p /var/www/AppDashboard/apps/lopaka
 WORKDIR /var/www/AppDashboard
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
@@ -119,7 +120,12 @@ RUN ln -sf /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled
     && sed -i 's|^;listen.owner = www-data|listen.owner = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.group = www-data|listen.group = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.mode = 0660|listen.mode = 0660|' /usr/local/etc/php-fpm.d/www.conf \
+    && sed -i 's|^pm.max_children = .*|pm.max_children = 96|; s|^pm.start_servers = .*|pm.start_servers = 48|; s|^pm.min_spare_servers = .*|pm.min_spare_servers = 32|; s|^pm.max_spare_servers = .*|pm.max_spare_servers = 64|' /usr/local/etc/php-fpm.d/www.conf \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
+# Stack-frame slow log: any request blocked >2s is dumped with its PHP backtrace,
+# which is how session_start() / DB-connect hot spots were found under load.
+RUN printf 'slowlog = /var/log/php-fpm/slow.log\nrequest_slowlog_timeout = 2s\n' > /usr/local/etc/php-fpm.d/zz-slowlog.conf \
+    && mkdir -p /var/log/php-fpm && chmod 0775 /var/log/php-fpm
 EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

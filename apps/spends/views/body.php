@@ -22,12 +22,24 @@
 <!-- Confirm Delete Modal -->
 <div id="confirm-delete-modal" class="modal confirm-modal">
     <div class="modal-content">
-        <button class="modal-close" onclick="closeModal('confirm-delete-modal')">×</button>
-        <h3><?= htmlspecialchars($translations['confirm_delete_store'] ?? 'Confirm Delete') ?></h3>
+        <button class="modal-close" onclick="cancelConfirmation()">×</button>
+        <h3 id="confirm-delete-title"><?= htmlspecialchars($translations['confirm_delete_store'] ?? 'Confirm Delete') ?></h3>
         <p id="confirm-delete-message"><?= htmlspecialchars($translations['are_you_sure'] ?? 'Are you sure?') ?></p>
         <div class="button-group">
-            <button class="confirm-btn" onclick="executeDelete()"><?= htmlspecialchars($translations['delete']) ?></button>
-            <button class="cancel-btn" onclick="closeModal('confirm-delete-modal')"><?= htmlspecialchars($translations['close'] ?? 'Cancel') ?></button>
+            <button class="confirm-btn" id="confirm-delete-action" onclick="executeDelete()"><?= htmlspecialchars($translations['delete']) ?></button>
+            <button class="cancel-btn" onclick="cancelConfirmation()"><?= htmlspecialchars($translations['close'] ?? 'Cancel') ?></button>
+        </div>
+    </div>
+</div>
+<div id="input-prompt-modal" class="modal confirm-modal">
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="resolveInputPrompt(null)" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
+        <h3 id="input-prompt-title"></h3>
+        <label id="input-prompt-label" for="input-prompt-value"></label>
+        <input id="input-prompt-value" type="number" min="0" step="0.01" inputmode="decimal">
+        <div class="button-group">
+            <button type="button" class="confirm-btn" onclick="resolveInputPrompt(document.getElementById('input-prompt-value').value)"><?= htmlspecialchars($translations['ok'] ?? 'OK') ?></button>
+            <button type="button" class="cancel-btn" onclick="resolveInputPrompt(null)"><?= htmlspecialchars($translations['cancel'] ?? 'Cancel') ?></button>
         </div>
     </div>
 </div>
@@ -444,42 +456,43 @@
                 <?php endforeach; ?>
             </div>
             <button class="add-store-btn" onclick="showAddEditStoreModal()">+ <?= htmlspecialchars($translations['add_store']) ?></button>
+            <div class="list-pagination" id="stores-pagination" hidden></div>
         </div>
         <div class="settings-section" id="settings-section-tags">
-            <div class="goals-toolbar">
+            <section class="tags-intro-zone">
+                <h4><?= htmlspecialchars($translations['tags_title'] ?? 'Tags') ?></h4>
                 <p class="goals-intro"><?= htmlspecialchars($translations['tags_intro'] ?? 'Tags are shared with the mobile app.') ?></p>
-            </div>
-            <div class="form-row tags-add-row">
-                <input type="text" id="tag-name" maxlength="60" placeholder="<?= htmlspecialchars($translations['tags_name'] ?? 'Tag name') ?>">
-                <input type="color" id="tag-color" value="#4caf50">
+            </section>
+            <section class="tags-add-zone" aria-label="<?= htmlspecialchars($translations['tags_add'] ?? 'Add tag') ?>">
+                <input type="text" id="tag-name" maxlength="60" placeholder="<?= htmlspecialchars($translations['tags_name'] ?? 'Tag name') ?>" aria-label="<?= htmlspecialchars($translations['tags_name'] ?? 'Tag name') ?>">
+                <input type="color" id="tag-color" value="#4caf50" aria-label="<?= htmlspecialchars($translations['tags_color'] ?? 'Tag color') ?>">
+                <input type="hidden" id="tag-store" value="">
+                <button type="button" class="tag-picker-trigger" id="tag-store-picker" onclick="openTagPicker('store')">
+                    <span id="tag-store-label"><?= htmlspecialchars($translations['tags_choose_store'] ?? 'Choose a store') ?></span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </button>
+                <input type="hidden" id="tag-payment" value="">
+                <button type="button" class="tag-picker-trigger" id="tag-payment-picker" onclick="openTagPicker('payment')" disabled>
+                    <span id="tag-payment-label"><?= htmlspecialchars($translations['tags_choose_payment'] ?? 'Choose a payment') ?></span>
+                    <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m7 10 5 5 5-5"/></svg>
+                </button>
                 <button type="button" class="action-primary-btn" id="tags-add-btn" onclick="saveTagFromForm()"><?= htmlspecialchars($translations['tags_add'] ?? 'Add tag') ?></button>
-            </div>
-            <div id="tags-list" class="tags-list"></div>
+            </section>
+            <section class="tags-list-zone" aria-label="<?= htmlspecialchars($translations['tags_list'] ?? 'Your tags') ?>">
+                <div id="tags-list" class="tags-list"></div>
+                <div class="list-pagination" id="tags-pagination" hidden></div>
+            </section>
         </div>
         <div class="settings-section" id="settings-section-goals">
             <div class="goals-toolbar">
                 <p class="goals-intro"><?= htmlspecialchars($translations['goals_intro'] ?? 'Set savings or spending targets and track progress from the web or the mobile app.') ?></p>
-                <button type="button" class="action-primary-btn" id="goals-add-btn" onclick="openGoalEditor()"><?= htmlspecialchars($translations['goals_add'] ?? 'Add goal') ?></button>
+                <button type="button" class="action-primary-btn goals-add-btn" id="goals-add-btn" onclick="openGoalEditor()">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+                    <span><?= htmlspecialchars($translations['goals_add'] ?? 'Add goal') ?></span>
+                </button>
             </div>
             <div id="goals-list" class="goals-list"></div>
-            <div id="goal-editor" class="goal-editor" hidden>
-                <input type="hidden" id="goal-id" value="">
-                <div class="form-row"><label><?= htmlspecialchars($translations['goals_name'] ?? 'Name') ?></label><input type="text" id="goal-name" maxlength="120"></div>
-                <div class="form-row"><label><?= htmlspecialchars($translations['goals_type'] ?? 'Type') ?></label>
-                    <select id="goal-type">
-                        <option value="savings"><?= htmlspecialchars($translations['goals_type_savings'] ?? 'Savings') ?></option>
-                        <option value="expense"><?= htmlspecialchars($translations['goals_type_expense'] ?? 'Spending limit') ?></option>
-                    </select>
-                </div>
-                <div class="form-row"><label><?= htmlspecialchars($translations['goals_target'] ?? 'Target amount') ?></label><input type="number" id="goal-target" min="0" step="0.01"></div>
-                <div class="form-row"><label><?= htmlspecialchars($translations['goals_current'] ?? 'Current amount') ?></label><input type="number" id="goal-current" min="0" step="0.01"></div>
-                <div class="form-row"><label><?= htmlspecialchars($translations['goals_date'] ?? 'Target date') ?></label><input type="date" id="goal-date"></div>
-                <div class="form-row"><label><?= htmlspecialchars($translations['goals_description'] ?? 'Description') ?></label><input type="text" id="goal-description" maxlength="240"></div>
-                <div class="manual-actions">
-                    <button type="button" class="cancel-btn" onclick="closeGoalEditor()"><?= htmlspecialchars($translations['cancel'] ?? 'Cancel') ?></button>
-                    <button type="button" class="action-primary-btn" onclick="saveGoalEditor()"><?= htmlspecialchars($translations['save'] ?? 'Save') ?></button>
-                </div>
-            </div>
+            <div class="list-pagination" id="goals-pagination" hidden></div>
         </div>
         <div class="settings-section" id="settings-section-chart">
             <div class="form-row">
@@ -555,6 +568,43 @@
             </div>
             <button type="button" class="confirm-btn" id="bulk-delete-run-btn" onclick="submitBulkDelete()"><?= htmlspecialchars($translations['bulk_delete_execute'] ?? 'Delete') ?></button>
         </div>
+    </div>
+</div>
+
+<div id="goal-editor-modal" class="modal">
+    <div class="modal-content goal-editor-modal-content">
+        <button class="modal-close" type="button" onclick="closeGoalEditor()" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
+        <h3 id="goal-editor-title"><?= htmlspecialchars($translations['goals_add'] ?? 'Add goal') ?></h3>
+        <div id="goal-editor" class="goal-editor">
+            <input type="hidden" id="goal-id" value="">
+            <div class="form-row"><label><?= htmlspecialchars($translations['goals_name'] ?? 'Name') ?></label><input type="text" id="goal-name" maxlength="120"></div>
+            <div class="form-row"><label><?= htmlspecialchars($translations['goals_type'] ?? 'Type') ?></label>
+                <select id="goal-type">
+                    <option value="savings"><?= htmlspecialchars($translations['goals_type_savings'] ?? 'Savings') ?></option>
+                    <option value="expense"><?= htmlspecialchars($translations['goals_type_expense'] ?? 'Spending limit') ?></option>
+                </select>
+            </div>
+            <div class="form-row"><label><?= htmlspecialchars($translations['goals_target'] ?? 'Target amount') ?></label><input type="number" id="goal-target" min="0" step="0.01"></div>
+            <div class="form-row"><label><?= htmlspecialchars($translations['goals_current'] ?? 'Current amount') ?></label><input type="number" id="goal-current" min="0" step="0.01"></div>
+            <div class="form-row"><label><?= htmlspecialchars($translations['goals_date'] ?? 'Target date') ?></label><input type="date" id="goal-date"></div>
+            <div class="form-row"><label><?= htmlspecialchars($translations['goals_description'] ?? 'Description') ?></label><input type="text" id="goal-description" maxlength="240"></div>
+            <div class="manual-actions">
+                <button type="button" class="cancel-btn" onclick="closeGoalEditor()"><?= htmlspecialchars($translations['cancel'] ?? 'Cancel') ?></button>
+                <button type="button" class="action-primary-btn" onclick="saveGoalEditor()"><?= htmlspecialchars($translations['save'] ?? 'Save') ?></button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="tag-picker-modal" class="modal tag-picker-modal">
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closeModal('tag-picker-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
+        <h3 id="tag-picker-title"></h3>
+        <div class="tag-picker-search-wrap">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <input id="tag-picker-search" type="search" autocomplete="off" placeholder="<?= htmlspecialchars($translations['tags_search'] ?? 'Search') ?>">
+        </div>
+        <div id="tag-picker-list" class="tag-picker-list" role="listbox"></div>
     </div>
 </div>
 
