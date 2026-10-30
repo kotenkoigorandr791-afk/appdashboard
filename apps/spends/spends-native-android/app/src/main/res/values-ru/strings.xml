@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Spends</string>
+    <string name="app_name">Nex Finance</string>
     <string name="app_tagline">Журнал</string>
     <string name="nav_home">Главная</string>
     <string name="nav_stats">Статистика</string>
@@ -313,6 +313,7 @@
     <string name="disputes_discarded">Спор удалён</string>
     <string name="disputes_discard">Удалить</string>
     <string name="disputes_back">Назад в Spends</string>
+    <string name="disputes_all_dates">Все даты</string>
     <plurals name="disputes_count"><item quantity="one">%d спор к решению</item><item quantity="few">%d спора к решению</item><item quantity="other">%d споров к решению</item></plurals>
     <string name="saved_changes">Сохранено</string>
     <string name="edit">Изменить</string>
