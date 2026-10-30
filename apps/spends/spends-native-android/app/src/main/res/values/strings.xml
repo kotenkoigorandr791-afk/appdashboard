@@ -1,6 +1,26 @@
 <resources>
     <string name="app_name">Nex Finance</string>
     <string name="app_tagline">Ledger</string>
+    <string name="welcome_brand">Nex Finance</string>
+    <string name="welcome_description">A calmer view of your money, from everyday purchases to the bigger picture.</string>
+    <string name="welcome_feature_ledger_title">One clear money journal</string>
+    <string name="welcome_feature_ledger_body">Keep expenses, income, stores, and receipts together.</string>
+    <string name="welcome_feature_insights_title">See the whole picture</string>
+    <string name="welcome_feature_insights_body">Follow budgets, cash flow, categories, and spending trends.</string>
+    <string name="welcome_feature_capture_title">Add purchases in a moment</string>
+    <string name="welcome_feature_capture_body">Enter a transaction or scan a receipt with your camera.</string>
+    <string name="welcome_feature_sync_title">Keep your data in sync</string>
+    <string name="welcome_feature_sync_body">Pair with AppDashboard to keep your finances up to date.</string>
+    <string name="welcome_continue">Get started</string>
+    <string name="whats_new_title">What’s new</string>
+    <string name="whats_new_description">A fresh release for your day-to-day finances.</string>
+    <string name="whats_new_brand_title">A new Nex Finance identity</string>
+    <string name="whats_new_brand_body">The app has a refreshed name, icon, and consistent visual branding.</string>
+    <string name="whats_new_layout_title">A more adaptable interface</string>
+    <string name="whats_new_layout_body">Screens and layouts have been polished to fit different device sizes more naturally.</string>
+    <string name="whats_new_icon_title">Themed icons on Pixel</string>
+    <string name="whats_new_icon_body">The launcher now provides a transparent monochrome logo for Android themed icons.</string>
+    <string name="whats_new_continue">Continue</string>
     <string name="nav_home">Home</string>
     <string name="nav_stats">Stats</string>
     <string name="nav_stores">Stores</string>

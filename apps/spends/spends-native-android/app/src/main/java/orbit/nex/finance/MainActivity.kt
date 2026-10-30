@@ -12,15 +12,28 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.Image
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.AccountBalanceWallet
+import androidx.compose.material.icons.outlined.CameraAlt
+import androidx.compose.material.icons.outlined.CloudDone
+import androidx.compose.material.icons.outlined.Insights
+import androidx.compose.material.icons.outlined.ReceiptLong
 import androidx.compose.material.icons.outlined.WarningAmber
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
@@ -42,8 +55,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -118,9 +134,113 @@ class MainActivity : AppCompatActivity() {
     }
 }
 
+private enum class StartupScreen { Welcome, WhatsNew }
+
+private fun initialStartupScreen(context: Context): StartupScreen? {
+    val preferences = context.getSharedPreferences("spends_startup", Context.MODE_PRIVATE)
+    val welcomeCompleted = preferences.getBoolean("welcome_completed", false)
+    if (!welcomeCompleted) {
+        val installInfo = context.packageManager.getPackageInfo(context.packageName, 0)
+        val existingInstallWasUpdated = installInfo.lastUpdateTime > installInfo.firstInstallTime + 1_000L
+        return if (existingInstallWasUpdated) StartupScreen.WhatsNew else StartupScreen.Welcome
+    }
+    return if (preferences.getInt("last_seen_version", 0) < BuildConfig.VERSION_CODE) {
+        StartupScreen.WhatsNew
+    } else {
+        null
+    }
+}
+
+private fun completeStartup(context: Context) {
+    context.getSharedPreferences("spends_startup", Context.MODE_PRIVATE).edit()
+        .putBoolean("welcome_completed", true)
+        .putInt("last_seen_version", BuildConfig.VERSION_CODE)
+        .apply()
+}
+
+@Composable
+private fun StartupNotice(screen: StartupScreen, onContinue: () -> Unit) {
+    val isWelcome = screen == StartupScreen.Welcome
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState())
+            .navigationBarsPadding().padding(horizontal = 24.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        Box(
+            Modifier.fillMaxWidth().height(220.dp)
+                .background(
+                    Brush.linearGradient(listOf(Color(0xFF08283D), Color(0xFF123F6A), Color(0xFF312761))),
+                    RoundedCornerShape(28.dp),
+                ),
+            contentAlignment = Alignment.Center,
+        ) {
+            Image(
+                painterResource(R.drawable.nex_finance_icon),
+                contentDescription = stringResource(R.string.app_name),
+                modifier = Modifier.size(148.dp),
+            )
+        }
+        Text(
+            stringResource(if (isWelcome) R.string.welcome_brand else R.string.whats_new_title),
+            style = MaterialTheme.typography.headlineLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.onBackground,
+        )
+        Text(
+            stringResource(if (isWelcome) R.string.welcome_description else R.string.whats_new_description),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        if (isWelcome) {
+            StartupFeature(Icons.Outlined.ReceiptLong, R.string.welcome_feature_ledger_title, R.string.welcome_feature_ledger_body)
+            StartupFeature(Icons.Outlined.Insights, R.string.welcome_feature_insights_title, R.string.welcome_feature_insights_body)
+            StartupFeature(Icons.Outlined.CameraAlt, R.string.welcome_feature_capture_title, R.string.welcome_feature_capture_body)
+            StartupFeature(Icons.Outlined.CloudDone, R.string.welcome_feature_sync_title, R.string.welcome_feature_sync_body)
+        } else {
+            StartupFeature(Icons.Outlined.AccountBalanceWallet, R.string.whats_new_brand_title, R.string.whats_new_brand_body)
+            StartupFeature(Icons.Outlined.Insights, R.string.whats_new_layout_title, R.string.whats_new_layout_body)
+            StartupFeature(Icons.Outlined.CloudDone, R.string.whats_new_icon_title, R.string.whats_new_icon_body)
+        }
+        Button(onClick = onContinue, modifier = Modifier.fillMaxWidth().height(54.dp)) {
+            Text(stringResource(if (isWelcome) R.string.welcome_continue else R.string.whats_new_continue))
+        }
+    }
+}
+
+@Composable
+private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector, title: Int, description: Int) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp),
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Surface(
+            modifier = Modifier.size(48.dp),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.primaryContainer,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.onPrimaryContainer)
+            }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Text(stringResource(title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onBackground)
+            Text(stringResource(description), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable private fun SpendsApp(app: SpendsApplication, pairingLink: String?, openPending: Boolean) {
     val context = LocalContext.current
+    var startupScreen by remember { mutableStateOf(initialStartupScreen(context)) }
+    if (startupScreen != null) {
+        StartupNotice(startupScreen!!) {
+            completeStartup(context)
+            startupScreen = null
+        }
+        return
+    }
     val model: SpendsViewModel = viewModel { SpendsViewModel(app.store, app.api) }
     val state by model.state.collectAsState()
     val appearance by app.store.appearance.collectAsState(Appearance())
