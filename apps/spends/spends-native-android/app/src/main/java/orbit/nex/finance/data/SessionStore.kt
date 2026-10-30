@@ -1,6 +1,8 @@
 package orbit.nex.finance.data
 
 import android.content.Context
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKey
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
@@ -19,12 +21,24 @@ class SessionStore(private val context: Context) {
     private val extrasKey = stringPreferencesKey("extras")
     private val appearanceKey = stringPreferencesKey("appearance")
     private val logsKey = stringPreferencesKey("sync_logs")
-    val session: Flow<Session> = context.spendsDataStore.data.map { decode(it, sessionKey, Session.serializer(), Session()) }
+    private val secrets by lazy {
+        EncryptedSharedPreferences.create(context, "spends_secrets", MasterKey.Builder(context).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build(), EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV, EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
+    }
+    private val deviceIdKey = "device_id"
+    private val tokenKey = "token"
+    val session: Flow<Session> = context.spendsDataStore.data.map {
+        val value = decode(it, sessionKey, Session.serializer(), Session())
+        value.copy(token = secrets.getString(tokenKey, value.token).orEmpty())
+    }
     val snapshot: Flow<Snapshot> = context.spendsDataStore.data.map { decode(it, snapshotKey, Snapshot.serializer(), Snapshot()) }
     val extras: Flow<LocalExtras> = context.spendsDataStore.data.map { decode(it, extrasKey, LocalExtras.serializer(), LocalExtras()) }
     val appearance: Flow<Appearance> = context.spendsDataStore.data.map { decode(it, appearanceKey, Appearance.serializer(), Appearance()) }
     val syncLogs: Flow<List<SyncLog>> = context.spendsDataStore.data.map { decodeList(it, logsKey) }
-    suspend fun saveSession(value: Session) = save(sessionKey, Session.serializer(), value)
+    suspend fun saveSession(value: Session) {
+        secrets.edit().putString(tokenKey, value.token).apply()
+        save(sessionKey, Session.serializer(), value.copy(token = ""))
+    }
+    fun deviceId(): String = secrets.getString(deviceIdKey, null) ?: java.util.UUID.randomUUID().toString().replace("-", "").also { secrets.edit().putString(deviceIdKey, it).apply() }
     suspend fun saveSnapshot(value: Snapshot) = save(snapshotKey, Snapshot.serializer(), value)
     suspend fun saveExtras(value: LocalExtras) = save(extrasKey, LocalExtras.serializer(), value)
     suspend fun saveAppearance(value: Appearance) = save(appearanceKey, Appearance.serializer(), value)
@@ -63,7 +77,7 @@ class SessionStore(private val context: Context) {
         runCatching { java.io.File(backupDir, "${name.removeSuffix(".json")}.json").delete() }
     }
 
-    suspend fun clear() { context.spendsDataStore.edit { it.remove(sessionKey); it.remove(snapshotKey); it.remove(extrasKey) } }
+    suspend fun clear() { secrets.edit().remove(tokenKey).apply(); context.spendsDataStore.edit { it.remove(sessionKey); it.remove(snapshotKey); it.remove(extrasKey) } }
     private fun <T> decode(prefs: Preferences, key: Preferences.Key<String>, serializer: kotlinx.serialization.KSerializer<T>, fallback: T): T =
         runCatching { json.decodeFromString(serializer, prefs[key].orEmpty()) }.getOrDefault(fallback)
     private suspend fun <T> save(key: Preferences.Key<String>, serializer: kotlinx.serialization.KSerializer<T>, value: T) {

@@ -17,7 +17,7 @@ import orbit.nex.finance.WalletScanner
 class SpendsApplication : Application(), ImageLoaderFactory {
     private val io = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val store by lazy { SessionStore(this) }
-    val api by lazy { SpendsApi { log -> io.launch { store.addLog(log) } } }
+    val api by lazy { SpendsApi(store.deviceId()) { log -> io.launch { store.addLog(log) } } }
 
     override fun onCreate() {
         super.onCreate()
