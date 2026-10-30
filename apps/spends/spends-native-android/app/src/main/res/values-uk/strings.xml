@@ -363,4 +363,11 @@
     <string name="goal_name_limit">Не витратити більше %1$s</string>
     <string name="goal_name_store_limit">Ліміт: %1$s</string>
     <string name="goal_name_store_no_spend">Не витрачати в %1$s</string>
+    <string name="unit_meters">%1$s м</string>
+    <string name="unit_kcal">%1$s ккал</string>
+    <string name="unit_hours">%1$s год</string>
+    <string name="unit_bpm">%1$s раз/хв</string>
+    <string name="unit_kg">%1$s кг</string>
+    <string name="unit_mmhg">%1$s мм рт. ст.</string>
+    <string name="unit_percent">%1$s%%</string>
 </resources>
