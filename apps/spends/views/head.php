@@ -432,6 +432,40 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .visibility-toggle { background:none; border:none; cursor:pointer; color:var(--primary-color); padding:5px; border-radius:4px; transition:background 0.2s; }
         .visibility-toggle:hover { background:rgba(var(--primary-color-rgb),0.2); }
         .confirm-modal .modal-content { max-width:400px; }
+        #confirm-delete-modal, #input-prompt-modal {
+            padding: 24px!important;
+            align-items: center!important;
+            justify-content: center!important;
+        }
+        #confirm-delete-modal .modal-content, #input-prompt-modal .modal-content {
+            width: auto!important;
+            max-width: 400px!important;
+            max-height: 90vh!important;
+            height: auto!important;
+            margin: auto!important;
+            border-radius: var(--radius-lg)!important;
+            border: 1px solid var(--border-color)!important;
+            box-shadow: var(--shadow-soft)!important;
+            backdrop-filter: blur(var(--glass-blur)) saturate(1.08)!important;
+            -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.08)!important;
+            background: linear-gradient(120deg,var(--surface-rail),var(--modal-bg)) top/100% 52px no-repeat,linear-gradient(180deg,var(--modal-bg),var(--group-block-bg))!important;
+            padding: 64px 22px 22px!important;
+            overflow-x: hidden!important;
+            overflow-y: auto!important;
+        }
+        #confirm-delete-modal .modal-content::before, #input-prompt-modal .modal-content::before {
+            content: ""!important;
+            position: absolute!important;
+            top: 0!important;
+            left: -1px!important;
+            right: -1px!important;
+            height: 52px!important;
+            border-bottom: 1px solid var(--border-color)!important;
+            background: linear-gradient(120deg,var(--surface-rail),var(--modal-bg))!important;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0!important;
+            pointer-events: none!important;
+            z-index: 2!important;
+        }
         .button-group { display:flex; gap:10px; margin-top:15px; }
         .confirm-btn { background:var(--danger-color); color:white; border:none; padding:10px 20px; cursor:pointer; border-radius:4px; transition:opacity 0.2s; }
         .confirm-btn:hover { opacity:0.9; }
