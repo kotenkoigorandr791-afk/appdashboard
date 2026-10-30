@@ -194,6 +194,7 @@ services:
       REDIS_PORT: "6379"
       REDIS_DATABASE: "0"
       REDIS_PREFIX: "appdashboard:"
+      SPENDS_ENCRYPTION_KEY_FILE: /opt/AppDashboard/data/secrets/spends-encryption.key
       PY_SIDECAR_URL: "${PY_SIDECAR_URL:-http://appdashboard-py:8100}"
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"

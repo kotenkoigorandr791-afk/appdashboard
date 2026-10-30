@@ -102,7 +102,7 @@ function spends_mobile_ledger_put(
     if ($raw === '') {
         $st->bindValue(':r', null, PDO::PARAM_NULL);
     } else {
-        $st->bindValue(':r', $raw);
+        $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
     }
     $st->bindValue(':i', $imageName);
     $st->bindValue(':c', date('c'));
@@ -139,7 +139,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
     }
     $cacheKey = 'mobile_snapshot:' . hash('sha256', $email) . ':' . $revision;
     if ($cached = spendsCacheGet($cacheKey)) {
-        $decoded = json_decode($cached, true);
+        $decoded = json_decode(spends_decrypt($cached, $email, 'snapshot-cache'), true);
         if (is_array($decoded) && ($decoded['status'] ?? '') === 'success') return $decoded;
     }
     $years = [];
@@ -160,7 +160,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
         $date = (string)$row['date'];
         $store = (string)$row['store'];
         $amount = (float)$row['amount'];
-        $raw = (string)($row['ocr_raw_store'] ?? '');
+        $raw = spends_decrypt($row['ocr_raw_store'] ?? '', spends_db_user_id($udb), 'ocr');
         $expenses[] = [
             'date' => $date,
             'store' => $store,
@@ -221,7 +221,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
         // Tag ids per payment: "YYYY-MM-DD\tstore" => [tag id, ...]
         'expense_tags' => function_exists('spendsExpenseTagsFor') ? spendsExpenseTagsFor($udb, '0000-01-01', '9999-12-31') : [],
     ];
-    spendsCacheSet($cacheKey, json_encode($snapshot, JSON_UNESCAPED_UNICODE), 15);
+    spendsCacheSet($cacheKey, spends_encrypt(json_encode($snapshot, JSON_UNESCAPED_UNICODE), $email, 'snapshot-cache'), 15);
     return $snapshot;
 }
 
@@ -309,7 +309,7 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             if ($raw === '') {
                 $st->bindValue(':r', null, PDO::PARAM_NULL);
             } else {
-                $st->bindValue(':r', $raw);
+                $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
             }
             $st->execute();
             $prev ? $updated++ : $created++;
@@ -381,7 +381,7 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         if ($raw === '') {
             $st->bindValue(':r', null, PDO::PARAM_NULL);
         } else {
-            $st->bindValue(':r', $raw);
+            $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
         }
         $st->execute();
         spends_mobile_ledger_put($udb, $signature, $date, $store, $amount, $raw !== '' ? $raw : 'wallet', 'wallet');

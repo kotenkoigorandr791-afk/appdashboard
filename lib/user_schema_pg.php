@@ -1,6 +1,7 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/app_db.php';
+require_once __DIR__ . '/spends_encryption.php';
 function app_user_schema_id(string $appPrefix, string $email): string {
     $raw = strtolower($appPrefix . '_' . preg_replace('/[^a-zA-Z0-9._+-]+/', '_', $email));
     $raw = preg_replace('/_+/', '_', trim($raw, '_'));
@@ -30,6 +31,7 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
             app_spends_goals_ensure($main);
             app_spends_tags_ensure($main);
             app_spends_migrate_legacy($main, $uid, $email);
+            app_spends_encrypt_existing($main, $uid);
             app_once_mark($readyKey, __FILE__);
         }
         $lit = "'" . AppDatabase::escapeString($uid) . "'";
