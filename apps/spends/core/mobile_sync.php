@@ -109,8 +109,39 @@ function spends_mobile_ledger_put(
     $st->execute();
 }
 
-function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
+function spends_mobile_snapshot_revision(string $email): string
 {
+    $key = 'mobile_snapshot_revision:' . hash('sha256', $email);
+    $redis = app_redis();
+    if (!$redis) return '1';
+    try {
+        $fullKey = app_redis_key('spends:' . $key);
+        $revision = $redis->get($fullKey);
+        if (is_string($revision) && $revision !== '') return $revision . '-' . (string)floor(time() / 15);
+        $redis->set($fullKey, '1');
+    } catch (Throwable $e) {
+    }
+    return '1-' . (string)floor(time() / 15);
+}
+
+function spends_mobile_sync_is_current(string $knownRevision): bool
+{
+    $email = spends_mobile_current_email();
+    return $email !== '' && $knownRevision !== '' && hash_equals(spends_mobile_snapshot_revision($email), $knownRevision);
+}
+
+function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $knownRevision = ''): array
+{
+    $email = spends_mobile_current_email();
+    $revision = spends_mobile_snapshot_revision($email);
+    if ($knownRevision !== '' && hash_equals($revision, $knownRevision)) {
+        return ['status' => 'not_modified', 'revision' => $revision, 'server_time' => time()];
+    }
+    $cacheKey = 'mobile_snapshot:' . hash('sha256', $email) . ':' . $revision;
+    if ($cached = spendsCacheGet($cacheKey)) {
+        $decoded = json_decode($cached, true);
+        if (is_array($decoded) && ($decoded['status'] ?? '') === 'success') return $decoded;
+    }
     $years = [];
     $yr = $udb->query("SELECT DISTINCT substr(date,1,4) AS y FROM expenses WHERE date <> '' ORDER BY y DESC");
     while ($row = $yr->fetch(PDO::FETCH_ASSOC)) {
@@ -158,10 +189,9 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         $known[] = (string)$row['signature'];
     }
 
-    $email = spends_mobile_current_email();
-
-    return [
+    $snapshot = [
         'status' => 'success',
+        'revision' => $revision,
         'server_time' => time(),
         'profile' => [
             'email' => $email,
@@ -191,6 +221,22 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         // Tag ids per payment: "YYYY-MM-DD\tstore" => [tag id, ...]
         'expense_tags' => function_exists('spendsExpenseTagsFor') ? spendsExpenseTagsFor($udb, '0000-01-01', '9999-12-31') : [],
     ];
+    spendsCacheSet($cacheKey, json_encode($snapshot, JSON_UNESCAPED_UNICODE), 15);
+    return $snapshot;
+}
+
+function spends_mobile_invalidate_snapshot(): void
+{
+    $email = spends_mobile_current_email();
+    $redis = app_redis();
+    if ($email === '' || !$redis) return;
+    try {
+        $revisionKey = app_redis_key('spends:mobile_snapshot_revision:' . hash('sha256', $email));
+        $previous = (string)($redis->get($revisionKey) ?: '1');
+        $next = ctype_digit($previous) ? (string)((int)$previous + 1) : '1';
+        $redis->set($revisionKey, $next);
+    } catch (Throwable $e) {
+    }
 }
 
 function spends_mobile_push(AppDatabase $udb, array $payload): array
@@ -397,6 +443,7 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         }
     }
 
+    spends_mobile_invalidate_snapshot();
     return [
         'status' => 'success',
         'created' => $created,
@@ -409,6 +456,8 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
 
 function spends_mobile_current_email(): string
 {
+    $apiEmail = $GLOBALS['public_api_user']['email'] ?? '';
+    if (is_string($apiEmail) && $apiEmail !== '') return $apiEmail;
     $email = (string)($_SESSION['user']['email'] ?? '');
     if ($email !== '') {
         return $email;

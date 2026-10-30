@@ -19,10 +19,14 @@ require_once APP_ROOT . '/apps/spends/core/subscriptions.php';
 require_once APP_ROOT . '/apps/spends/core/goals.php';
 require_once APP_ROOT . '/apps/spends/core/tags.php';
 require_once APP_ROOT . '/apps/spends/core/locale.php';
-require_once APP_ROOT . '/apps/spends/core/user_state.php';
 require_once APP_ROOT . '/apps/spends/core/mobile_sync.php';
 
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if ($sub === 'sync' && $method === 'GET' && spends_mobile_sync_is_current(trim((string)($_GET['revision'] ?? '')))) {
+    header('Content-Type: application/json; charset=utf-8');
+    exit(json_encode(['status' => 'not_modified', 'revision' => trim((string)$_GET['revision']), 'server_time' => time()], JSON_UNESCAPED_UNICODE));
+}
+require_once APP_ROOT . '/apps/spends/core/user_state.php';
 if ($sub === 'version' && $method === 'GET') {
     $metaFile = APP_ROOT . '/downloads/spends-mobile.json';
     if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
@@ -64,7 +68,7 @@ if ($sub === 'profile') {
 }
 if ($sub === 'sync' && $method === 'GET') {
     header('Content-Type: application/json; charset=utf-8');
-    exit(json_encode(spends_mobile_pull($udb, $userSettings), JSON_UNESCAPED_UNICODE));
+    exit(json_encode(spends_mobile_pull($udb, $userSettings, trim((string)($_GET['revision'] ?? ''))), JSON_UNESCAPED_UNICODE));
 }
 if ($sub === 'sync' && $method === 'POST') {
     header('Content-Type: application/json; charset=utf-8');

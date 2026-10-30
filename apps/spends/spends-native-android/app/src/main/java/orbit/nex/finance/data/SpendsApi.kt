@@ -21,13 +21,13 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
-class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
+class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Unit = {}) {
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build()
     private val json = Json { ignoreUnknownKeys = true }
 
     fun endpoint(raw: String): String {
         var value = raw.trim().trimEnd('/')
-        if (!value.startsWith("http://") && !value.startsWith("https://")) value = "http://$value"
+        if (!value.startsWith("https://") && !value.startsWith("http://10.0.2.2")) value = "https://$value"
         return when {
             value.endsWith("/api/spends") || value.endsWith("/public-api/spends") -> value
             value.endsWith("/api") || value.endsWith("/public-api") -> "$value/spends"
@@ -42,8 +42,10 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
         Session(ep, token, profile.text("email"), profile.text("name"), orbit.nex.finance.ui.rebaseUrl(profile.text("image_url"), ep))
     }
 
-    suspend fun pull(session: Session): Snapshot = withContext(Dispatchers.IO) {
-        val root = json.parseToJsonElement(request("GET", "${session.endpoint}/sync", session.token)).jsonObject
+    suspend fun pull(session: Session, previous: Snapshot = Snapshot()): Snapshot = withContext(Dispatchers.IO) {
+        val revision = previous.syncRevision.takeIf { it.isNotBlank() }?.let { "?revision=$it" }.orEmpty()
+        val root = json.parseToJsonElement(request("GET", "${session.endpoint}/sync$revision", session.token)).jsonObject
+        if (root.text("status") == "not_modified") return@withContext previous.copy(syncedAt = System.currentTimeMillis())
         if (root.text("status") != "success") error("Sync failed")
         val settings = root["settings"]?.jsonObject
         val expenses = root["expenses"]?.jsonArray.orEmpty().map {
@@ -79,6 +81,7 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
             expenses, incomes, stores, cats, years, subscriptions, goals, tags, expenseTags,
             SettingsFlags(settings?.number("monthly_budget") ?: 0.0, settings?.text("currency", "USD") ?: "USD", settings?.flag("show_incomes") ?: true, settings?.flag("show_trend") ?: false, settings?.flag("trim_empty_months") ?: false),
             System.currentTimeMillis(),
+            root.text("revision"),
         )
     }
 
@@ -97,7 +100,7 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
     suspend fun form(session: Session, fields: Map<String, String>, query: String = ""): JsonObject = withContext(Dispatchers.IO) {
         val url = session.endpoint + if (query.isBlank()) "" else "?$query"
         val form = FormBody.Builder().also { b -> fields.forEach { (k, v) -> b.add(k, v) } }.build()
-        val req = Request.Builder().url(url).header("Authorization", "Bearer ${session.token}").header("Accept", "application/json").post(form).build()
+        val req = Request.Builder().url(url).header("Authorization", "Bearer ${session.token}").header("X-Device-Id", deviceId).header("Accept", "application/json").post(form).build()
         execute(req, "POST", url, fields.toString())
     }
 
@@ -147,6 +150,7 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
         val req = Request.Builder()
             .url(session.endpoint)
             .header("Authorization", "Bearer ${session.token}")
+            .header("X-Device-Id", deviceId)
             .header("Accept", "application/json")
             .post(builder.build())
             .build()
@@ -162,7 +166,7 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
     }
 
     private fun request(method: String, url: String, token: String, body: String? = null): String {
-        val builder = Request.Builder().url(url).header("Authorization", "Bearer $token").header("Accept", "application/json")
+        val builder = Request.Builder().url(url).header("Authorization", "Bearer $token").header("X-Device-Id", deviceId).header("Accept", "application/json")
         if (body == null) builder.get() else builder.method(method, body.toRequestBody("application/json; charset=utf-8".toMediaType()))
         val obj = execute(builder.build(), method, url, body)
         return obj.toString()
@@ -199,7 +203,7 @@ class SpendsApi(private val onLog: (SyncLog) -> Unit = {}) {
         files.forEach { (name, bytes) ->
             body.addFormDataPart("photos[]", name, bytes.toRequestBody("image/jpeg".toMediaType()))
         }
-        val req = Request.Builder().url(ocrUrl(session, "start")).header("Authorization", "Bearer ${session.token}").header("Accept", "application/json").post(body.build()).build()
+        val req = Request.Builder().url(ocrUrl(session, "start")).header("Authorization", "Bearer ${session.token}").header("X-Device-Id", deviceId).header("Accept", "application/json").post(body.build()).build()
         execute(req, "POST", ocrUrl(session, "start"), "${files.size} files")
     }
 
