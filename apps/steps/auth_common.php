@@ -22,6 +22,12 @@ if (!function_exists('getDB')) {
 function get_current_user_email(): ?string {
     $sessionEmail = $_SESSION['user']['email'] ?? $_SESSION['email'] ?? null;
     if (is_string($sessionEmail) && $sessionEmail !== '') return $sessionEmail;
+    // Mobile/public-api requests authenticate with a Bearer token, and
+    // public_api_bootstrap does not start a PHP session for them, so the
+    // resolved account lives in this global instead of $_SESSION. Without this
+    // fallback every token-authenticated steps call ended in a 500.
+    $apiEmail = $GLOBALS['public_api_user']['email'] ?? null;
+    if (is_string($apiEmail) && $apiEmail !== '') return $apiEmail;
     $db = getDB();
     if (!$db) {
         return null;

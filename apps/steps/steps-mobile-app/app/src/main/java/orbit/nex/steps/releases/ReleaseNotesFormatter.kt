@@ -1,4 +1,4 @@
-package com.stepmonitor.app.releases
+package orbit.nex.steps.releases
 
 /**
  * Mirrors [changelog.tsx](https://github.com/mcnaveen/hc-webhook-site) body parsing:

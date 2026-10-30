@@ -1,4 +1,4 @@
-package com.stepmonitor.app.dashboard
+package orbit.nex.steps.dashboard
 
 import java.time.Duration
 import kotlin.math.roundToInt

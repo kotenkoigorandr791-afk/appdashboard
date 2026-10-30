@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -46,11 +46,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
-import com.stepmonitor.app.HealthConnectManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.dashboard.DashboardMetric
-import com.stepmonitor.app.dashboard.DashboardMetricPresentation
-import com.stepmonitor.app.dashboard.DashboardSnapshot
+import orbit.nex.steps.HealthConnectManager
+import orbit.nex.steps.R
+import orbit.nex.steps.dashboard.DashboardMetric
+import orbit.nex.steps.dashboard.DashboardMetricPresentation
+import orbit.nex.steps.dashboard.DashboardSnapshot
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -59,7 +59,7 @@ private data class DashboardMetricCard(
     val label: String,
     val value: String,
     val subtitle: String,
-    val presentation: com.stepmonitor.app.dashboard.DashboardMetricStyle,
+    val presentation: orbit.nex.steps.dashboard.DashboardMetricStyle,
 )
 
 @OptIn(ExperimentalMaterial3Api::class)

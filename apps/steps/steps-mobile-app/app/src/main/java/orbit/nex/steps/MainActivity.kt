@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -14,6 +14,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
+import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -47,15 +48,15 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
-import com.stepmonitor.app.screens.AboutScreen
-import com.stepmonitor.app.screens.ConfigurationScreen
-import com.stepmonitor.app.screens.LogsScreen
-import com.stepmonitor.app.screens.StatisticsScreen
-import com.stepmonitor.app.screens.WhatsNewSheet
-import com.stepmonitor.app.components.AppBackground
-import com.stepmonitor.app.components.AppTopBar
-import com.stepmonitor.app.ui.theme.HCWebhookTheme
-import com.stepmonitor.app.updates.AppUpdateManager
+import orbit.nex.steps.screens.AboutScreen
+import orbit.nex.steps.screens.ConfigurationScreen
+import orbit.nex.steps.screens.ConnectionGateScreen
+import orbit.nex.steps.screens.StatisticsScreen
+import orbit.nex.steps.screens.WhatsNewSheet
+import orbit.nex.steps.components.AppBackground
+import orbit.nex.steps.components.AppTopBar
+import orbit.nex.steps.ui.theme.HCWebhookTheme
+import orbit.nex.steps.updates.AppUpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -73,6 +74,7 @@ class MainActivity : AppCompatActivity() {
         private const val KEY_PORTRAIT_ONLY = "portrait_only"
     }
     override fun onCreate(savedInstanceState: Bundle?) {
+        installSplashScreen()
         super.onCreate(savedInstanceState)
         preferencesManager = PreferencesManager(this)
         if (preferencesManager.getWebhookConfigs().any { it.isEnabled } && preferencesManager.getEnabledDataTypes().isEmpty()) {
@@ -90,7 +92,8 @@ class MainActivity : AppCompatActivity() {
     }
     private fun handleAuthIntent(intent: Intent?) {
         val uri = intent?.data ?: return
-        if (uri.scheme != "stepmonitor" || uri.host != "auth") return
+        if (uri.host != "auth") return
+        if (uri.scheme !in setOf("nexsteps", "stepmonitor")) return
         val endpoint = uri.getQueryParameter("endpoint").orEmpty()
         val token = uri.getQueryParameter("token").orEmpty()
         if (endpoint.startsWith("http") && token.isNotBlank()) {
@@ -106,11 +109,15 @@ class MainActivity : AppCompatActivity() {
             restore = { route -> bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home }
         )
         var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
+        // The app is usable only after a device token is paired: without it every
+        // tab would show empty or stale data, so the gate replaces the whole shell.
+        var connected by remember { mutableStateOf(preferencesManager.getWebhookConfigs().any { it.isEnabled }) }
         var pendingConflict by remember { mutableStateOf(preferencesManager.getPendingConflictJson()) }
         var showWhatsNew by remember { mutableStateOf(preferencesManager.consumeWhatsNewPending()) }
         LaunchedEffect(Unit) {
             while (true) {
                 pendingConflict = preferencesManager.getPendingConflictJson()
+                connected = preferencesManager.getWebhookConfigs().any { it.isEnabled }
                 delay(2_000)
             }
         }
@@ -168,6 +175,12 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+        if (!connected) {
+            AppBackground {
+                ConnectionGateScreen(onConnected = { connected = true })
+            }
+            return
+        }
         Scaffold(
             topBar = {
                 AppTopBar(
@@ -210,7 +223,6 @@ class MainActivity : AppCompatActivity() {
                 when (selected) {
                     NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
                     NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
-                    NavigationScreen.Logs -> LogsScreen(Modifier.padding(padding))
                     NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
                 }
             }

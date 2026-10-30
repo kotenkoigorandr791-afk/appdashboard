@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -46,9 +46,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.os.LocaleListCompat
 import androidx.compose.material.icons.filled.Translate
-import com.stepmonitor.app.FlavorUtils
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.R
+import orbit.nex.steps.FlavorUtils
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalFoundationApi::class)

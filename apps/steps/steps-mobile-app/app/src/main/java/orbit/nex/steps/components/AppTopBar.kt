@@ -1,4 +1,4 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -39,9 +39,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
-import com.stepmonitor.app.BuildConfig
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
+import orbit.nex.steps.BuildConfig
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
 import kotlinx.coroutines.delay
 
 private val CONTENT_EDGE_PADDING = 20.dp

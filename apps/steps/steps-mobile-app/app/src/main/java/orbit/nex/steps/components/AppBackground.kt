@@ -1,4 +1,4 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope

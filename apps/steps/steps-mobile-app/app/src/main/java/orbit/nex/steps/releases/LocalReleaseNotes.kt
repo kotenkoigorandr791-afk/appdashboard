@@ -1,7 +1,7 @@
-package com.stepmonitor.app.releases
+package orbit.nex.steps.releases
 
 import android.content.Context
-import com.stepmonitor.app.R
+import orbit.nex.steps.R
 import java.io.BufferedReader
 
 /**

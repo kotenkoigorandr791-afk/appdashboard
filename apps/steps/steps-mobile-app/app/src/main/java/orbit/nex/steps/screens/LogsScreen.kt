@@ -1,14 +1,19 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -43,15 +48,17 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.components.localizedLogLabel
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
+import orbit.nex.steps.components.localizedLogLabel
 import kotlinx.coroutines.launch
 import org.json.JSONArray
 import org.json.JSONObject
@@ -68,6 +75,7 @@ fun LogsScreen(modifier: Modifier = Modifier) {
     var newestFirst by remember { mutableStateOf(true) }
     var statusFilter by remember { mutableIntStateOf(0) }
     var expandedId by remember { mutableStateOf<String?>(null) }
+    var searchFocused by remember { mutableStateOf(false) }
     val logs = remember(allLogs, query, newestFirst, statusFilter) {
         allLogs.asSequence()
             .filter { log ->
@@ -82,17 +90,58 @@ fun LogsScreen(modifier: Modifier = Modifier) {
             modifier = Modifier.fillMaxSize().padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            // Title, search and sort actions share a single row. The search field is
+            // compact while it is unused and grows into the free space on focus.
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 Text(
                     stringResource(R.string.nav_logs),
                     style = MaterialTheme.typography.titleLarge,
                     maxLines = 1,
                     softWrap = false,
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier.weight(1f, fill = false)
                 )
+                BoxWithConstraints(Modifier.weight(1f)) {
+                    val expandedWidth = maxWidth
+                    val searchWidth: Dp by animateDpAsState(
+                        targetValue = if (searchFocused || query.isNotBlank()) expandedWidth else 132.dp,
+                        label = "logsSearchWidth",
+                    )
+                    OutlinedTextField(
+                        value = query,
+                        onValueChange = { query = it },
+                        modifier = Modifier
+                            .width(searchWidth)
+                            .height(44.dp)
+                            .onFocusChanged { searchFocused = it.isFocused },
+                        leadingIcon = {
+                            Icon(
+                                Icons.Filled.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(18.dp),
+                            )
+                        },
+                        placeholder = {
+                            Text(
+                                stringResource(R.string.logs_search_short),
+                                maxLines = 1,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        },
+                        textStyle = MaterialTheme.typography.bodySmall,
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.outline,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                        ),
+                        shape = MaterialTheme.shapes.medium,
+                    )
+                }
                 IconButton(onClick = {
                     newestFirst = !newestFirst
                     val msg = if (newestFirst) context.getString(R.string.logs_sort_newest) else context.getString(R.string.logs_sort_oldest)
@@ -126,21 +175,6 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                     Icon(icon, contentDescription = stringResource(label))
                 }
             }
-            OutlinedTextField(
-                value = query,
-                onValueChange = { query = it },
-                modifier = Modifier.fillMaxWidth(),
-                leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                placeholder = { Text(stringResource(R.string.logs_search)) },
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = MaterialTheme.colorScheme.outline,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
-                ),
-                shape = RoundedCornerShape(28.dp)
-            )
             if (logs.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxWidth().weight(1f),
@@ -177,7 +211,7 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                                 if (blockText.isNotEmpty()) {
                                     Surface(
                                         color = MaterialTheme.colorScheme.surfaceVariant,
-                                        shape = RoundedCornerShape(8.dp),
+                                        shape = MaterialTheme.shapes.small,
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
@@ -213,7 +247,7 @@ fun LogsScreen(modifier: Modifier = Modifier) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Center) {
                     Surface(
                         modifier = Modifier.fillMaxWidth(0.75f),
-                        shape = RoundedCornerShape(50),
+                        shape = MaterialTheme.shapes.large,
                         color = MaterialTheme.colorScheme.surfaceVariant,
                         contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         shadowElevation = 6.dp

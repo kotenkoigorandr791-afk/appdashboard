@@ -1,11 +1,11 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import com.stepmonitor.app.screens.SettingsScreen
-import com.stepmonitor.app.ui.theme.HCWebhookTheme
+import orbit.nex.steps.screens.SettingsScreen
+import orbit.nex.steps.ui.theme.HCWebhookTheme
 
 /**
  * Dedicated settings screen.

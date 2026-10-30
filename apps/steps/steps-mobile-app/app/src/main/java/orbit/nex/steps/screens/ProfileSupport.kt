@@ -1,8 +1,8 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.WebhookConfig
-import com.stepmonitor.app.components.absoluteProfileUrl
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.WebhookConfig
+import orbit.nex.steps.components.absoluteProfileUrl
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient

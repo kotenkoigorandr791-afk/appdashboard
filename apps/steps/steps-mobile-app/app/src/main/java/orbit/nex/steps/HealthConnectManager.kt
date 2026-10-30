@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.content.Context
 import android.content.pm.PackageManager
@@ -17,9 +17,9 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.time.temporal.ChronoUnit
-import com.stepmonitor.app.dashboard.DashboardFormatter
-import com.stepmonitor.app.dashboard.DashboardMetric
-import com.stepmonitor.app.dashboard.DashboardSnapshot
+import orbit.nex.steps.dashboard.DashboardFormatter
+import orbit.nex.steps.dashboard.DashboardMetric
+import orbit.nex.steps.dashboard.DashboardSnapshot
 import kotlin.math.roundToLong
 import kotlin.reflect.KClass
 

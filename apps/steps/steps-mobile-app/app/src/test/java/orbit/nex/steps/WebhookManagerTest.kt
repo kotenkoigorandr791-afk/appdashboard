@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import kotlinx.coroutines.runBlocking
 import okhttp3.mockwebserver.MockResponse

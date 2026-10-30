@@ -1,9 +1,9 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.R
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.R
 
 @Composable
 fun localizedLogLabel(dataType: String?, syncType: String?): String? {

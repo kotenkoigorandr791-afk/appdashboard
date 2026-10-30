@@ -1,8 +1,8 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
 import android.content.Context
 import android.net.Uri
-import com.stepmonitor.app.PreferencesManager
+import orbit.nex.steps.PreferencesManager
 import org.json.JSONObject
 import java.io.File
 

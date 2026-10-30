@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.content.Context
 import kotlinx.serialization.Serializable

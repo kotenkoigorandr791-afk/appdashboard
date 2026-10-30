@@ -79,11 +79,34 @@ function steps_conflict_public(array $conflict): array {
         'resolution_url' => (string)($conflict['resolution_url'] ?? ''),
     ];
 }
+/**
+ * Stored step values for the given dates only. The previous implementation
+ * loaded the whole min..max range, which on a multi-year history meant a large
+ * query per sync even though a payload usually carries a handful of days.
+ */
+function steps_existing_for_dates(AppDatabase $db, array $dates): array {
+    $out = [];
+    foreach (array_chunk(array_values(array_unique($dates)), 200) as $chunk) {
+        $placeholders = [];
+        foreach (array_keys($chunk) as $i) $placeholders[] = ':d' . $i;
+        $stmt = $db->prepare(
+            'SELECT date, steps FROM steps_days WHERE user_email = :u AND date IN (' . implode(',', $placeholders) . ')'
+        );
+        if (!$stmt) continue;
+        $stmt->bindValue(':u', steps_user(), PDO::PARAM_STR);
+        foreach ($chunk as $i => $d) $stmt->bindValue(':d' . $i, (string)$d, PDO::PARAM_STR);
+        $stmt->execute();
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $out[(string)$row['date']] = ['date' => (string)$row['date'], 'steps' => (int)$row['steps']];
+        }
+    }
+    return $out;
+}
 function steps_detect_conflicts(AppDatabase $db, array $stepsDaily): array {
     $dates = array_values(array_filter(array_keys($stepsDaily), static fn($d) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)));
     if (!$dates) return [];
     sort($dates);
-    $existing = loadStepsRange($db, $dates[0], $dates[count($dates) - 1]);
+    $existing = steps_existing_for_dates($db, $dates);
     $out = [];
     foreach ($dates as $date) {
         $server = (int)($existing[$date]['steps'] ?? 0);
@@ -194,7 +217,9 @@ if ($method === 'GET') {
     }
     if (strcmp($from, $to) > 0) [$from, $to] = [$to, $from];
     if (isset($_GET['metrics'])) {
-        $metrics = hc_read_metrics_range($userDir, $from, $to);
+        // Range metrics read one JSON file per day. Caching the assembled range
+        // keeps repeated chart refreshes off the filesystem entirely.
+        $metrics = steps_cached('metrics_range', [$from, $to], fn() => hc_read_metrics_range($userDir, $from, $to), 60);
         // Index by date for fast lookup
         $metricsIndex = [];
         foreach ($metrics as $entry) { $metricsIndex[(string)$entry['date']] = $entry; }
@@ -269,6 +294,7 @@ if ($method === 'POST' || $method === 'PUT') {
             $conflicts[$idx]['resolved_at'] = time();
             $conflicts[$idx]['resolution'] = $action;
             steps_conflicts_write($userDir, $conflicts);
+            steps_cache_bump();
             exit(json_encode(['status' => 'success', 'applied' => true, 'resolution' => $action, 'result' => $result], JSON_UNESCAPED_UNICODE));
         }
         public_api_json(['status' => 'error', 'message' => 'conflict_not_found'], 404);
@@ -282,6 +308,7 @@ if ($method === 'POST' || $method === 'PUT') {
         exit(json_encode(['status' => 'conflict', 'conflict' => steps_conflict_public($conflict)], JSON_UNESCAPED_UNICODE));
     }
     $result = steps_apply_payload($userDb, $userDir, $payload, 'replace', []);
+    steps_cache_bump();
     exit(json_encode(['status' => 'success', 'stored' => ['stored_days' => $result['stored']['stored_days'] ?? []], 'steps_upserted' => $result['steps_upserted'] ?? 0], JSON_UNESCAPED_UNICODE));
 }
 public_api_json(['status' => 'error', 'message' => 'method_not_allowed'], 405);

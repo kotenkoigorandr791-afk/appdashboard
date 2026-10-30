@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -18,7 +18,7 @@ class ScheduledSyncManager(private val context: Context) {
     private val preferencesManager = PreferencesManager(context)
     
     companion object {
-        const val ACTION_SCHEDULED_SYNC = "com.stepmonitor.app.SCHEDULED_SYNC"
+        const val ACTION_SCHEDULED_SYNC = "orbit.nex.steps.SCHEDULED_SYNC"
         const val EXTRA_SCHEDULE_ID = "schedule_id"
 
         /** scheduleId used by the self-rescheduling INTERVAL-mode alarm chain. */
