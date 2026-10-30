@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,12 +30,12 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.stepmonitor.app.BuildConfig
-import com.stepmonitor.app.R
-import com.stepmonitor.app.releases.GithubRelease
-import com.stepmonitor.app.releases.LocalReleaseNotes
-import com.stepmonitor.app.releases.ReleaseArticle
-import com.stepmonitor.app.releases.ReleaseRepository
+import orbit.nex.steps.BuildConfig
+import orbit.nex.steps.R
+import orbit.nex.steps.releases.GithubRelease
+import orbit.nex.steps.releases.LocalReleaseNotes
+import orbit.nex.steps.releases.ReleaseArticle
+import orbit.nex.steps.releases.ReleaseRepository
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

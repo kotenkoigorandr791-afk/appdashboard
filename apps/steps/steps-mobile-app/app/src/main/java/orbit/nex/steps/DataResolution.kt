@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 /**
  * How export granularity can be configured for a [HealthDataType].

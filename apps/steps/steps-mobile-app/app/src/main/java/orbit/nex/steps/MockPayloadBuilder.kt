@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put

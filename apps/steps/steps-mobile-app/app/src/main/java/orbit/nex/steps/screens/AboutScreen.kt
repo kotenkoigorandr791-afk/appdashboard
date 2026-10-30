@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import android.content.Intent
 import android.net.Uri
@@ -50,16 +50,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
-import com.stepmonitor.app.HCWebhookApplication
-import com.stepmonitor.app.HealthConnectManager
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.SettingsActivity
-import com.stepmonitor.app.WebhookConfig
-import com.stepmonitor.app.components.absoluteProfileUrl
-import com.stepmonitor.app.components.downloadAvatarFile
-import com.stepmonitor.app.components.localAvatarFile
+import orbit.nex.steps.HCWebhookApplication
+import orbit.nex.steps.HealthConnectManager
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
+import orbit.nex.steps.SettingsActivity
+import orbit.nex.steps.WebhookConfig
+import orbit.nex.steps.components.absoluteProfileUrl
+import orbit.nex.steps.components.downloadAvatarFile
+import orbit.nex.steps.components.localAvatarFile
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers

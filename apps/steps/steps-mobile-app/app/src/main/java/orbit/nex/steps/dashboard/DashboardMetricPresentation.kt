@@ -1,4 +1,4 @@
-package com.stepmonitor.app.dashboard
+package orbit.nex.steps.dashboard
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.DirectionsWalk
@@ -18,17 +18,17 @@ import androidx.compose.material.icons.filled.WaterDrop
 import androidx.compose.material.icons.filled.Waves
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.ui.theme.IconBackgroundBlue
-import com.stepmonitor.app.ui.theme.IconBackgroundCyan
-import com.stepmonitor.app.ui.theme.IconBackgroundMagenta
-import com.stepmonitor.app.ui.theme.IconBackgroundOrange
-import com.stepmonitor.app.ui.theme.IconBackgroundPurple
-import com.stepmonitor.app.ui.theme.IconTintBlue
-import com.stepmonitor.app.ui.theme.IconTintCyan
-import com.stepmonitor.app.ui.theme.IconTintMagenta
-import com.stepmonitor.app.ui.theme.IconTintOrange
-import com.stepmonitor.app.ui.theme.IconTintPurple
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.ui.theme.IconBackgroundBlue
+import orbit.nex.steps.ui.theme.IconBackgroundCyan
+import orbit.nex.steps.ui.theme.IconBackgroundMagenta
+import orbit.nex.steps.ui.theme.IconBackgroundOrange
+import orbit.nex.steps.ui.theme.IconBackgroundPurple
+import orbit.nex.steps.ui.theme.IconTintBlue
+import orbit.nex.steps.ui.theme.IconTintCyan
+import orbit.nex.steps.ui.theme.IconTintMagenta
+import orbit.nex.steps.ui.theme.IconTintOrange
+import orbit.nex.steps.ui.theme.IconTintPurple
 
 data class DashboardMetricStyle(
     val icon: ImageVector,

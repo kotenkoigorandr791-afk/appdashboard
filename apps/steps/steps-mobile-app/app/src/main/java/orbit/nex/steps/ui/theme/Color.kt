@@ -1,4 +1,4 @@
-package com.stepmonitor.app.ui.theme
+package orbit.nex.steps.ui.theme
 
 import androidx.compose.ui.graphics.Color
 

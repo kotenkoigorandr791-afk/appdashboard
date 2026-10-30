@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.content.ComponentName
 import android.content.Context

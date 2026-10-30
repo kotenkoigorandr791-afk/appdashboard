@@ -1,8 +1,7 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,9 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CloudDone
-import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
@@ -47,28 +44,22 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.stepmonitor.app.BuildConfig
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.MockPayloadBuilder
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.WebhookConfig
-import com.stepmonitor.app.WebhookManager
-import com.stepmonitor.app.components.ManualSyncCard
-import com.stepmonitor.app.components.computeNextSyncInfo
-import com.stepmonitor.app.components.formatSyncCountdown
-import com.stepmonitor.app.updates.AppUpdateChecker
-import com.stepmonitor.app.updates.CheckOutcome
+import orbit.nex.steps.BuildConfig
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.MockPayloadBuilder
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
+import orbit.nex.steps.WebhookConfig
+import orbit.nex.steps.WebhookManager
+import orbit.nex.steps.components.ManualSyncCard
+import orbit.nex.steps.components.computeNextSyncInfo
+import orbit.nex.steps.components.formatSyncCountdown
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.FormatStyle
-import java.util.Locale
 
 private enum class ConnectionTestResult { SUCCESS, FAILURE }
 
@@ -143,7 +134,7 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
                                 prefs.markSyncSuccess()
                                 context.getString(R.string.webhooks_test_success, configs.size.toString())
                             } else {
-                                (result.exceptionOrNull() as? com.stepmonitor.app.AuthException)?.let {
+                                (result.exceptionOrNull() as? orbit.nex.steps.AuthException)?.let {
                                     prefs.markAuthError(it.statusCode)
                                 }
                                 context.getString(
@@ -173,150 +164,6 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
         }
         NextSyncCard(prefs = prefs)
         ManualSyncCard()
-        UpdateNowCard(prefs = prefs)
-        BuildInfoCard()
-    }
-}
-
-@Composable
-private fun UpdateNowCard(prefs: PreferencesManager) {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val checker = remember { AppUpdateChecker(context) }
-    val connected = prefs.getWebhookConfigs().any { it.isEnabled }
-    var busy by remember { mutableStateOf(false) }
-    var statusText by remember { mutableStateOf<String?>(null) }
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(
-                onClick = {
-                    scope.launch {
-                        busy = true
-                        statusText = context.getString(R.string.update_checking)
-                        val check = checker.checkForUpdate()
-                        when (check.outcome) {
-                            CheckOutcome.NOT_CONNECTED -> statusText = context.getString(R.string.update_not_connected)
-                            CheckOutcome.UP_TO_DATE -> statusText = context.getString(R.string.update_up_to_date)
-                            CheckOutcome.ERROR -> statusText = context.getString(R.string.update_check_failed)
-                            CheckOutcome.UPDATE_AVAILABLE -> {
-                                val info = check.info ?: return@launch
-                                statusText = context.getString(R.string.update_downloading)
-                                val file = checker.downloadApk(info)
-                                statusText = if (file != null) {
-                                    checker.install(file)
-                                    context.getString(R.string.update_downloaded_text, info.version_name)
-                                } else {
-                                    context.getString(R.string.update_download_failed)
-                                }
-                            }
-                        }
-                        busy = false
-                    }
-                },
-                enabled = connected && !busy,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (busy) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.update_checking))
-                } else {
-                    Icon(Icons.Filled.Update, contentDescription = null)
-                    Text(stringResource(R.string.update_install_now), modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-            if (!connected) {
-                Text(stringResource(R.string.update_not_connected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-            statusText?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
-        }
-    }
-}
-
-@Composable
-private fun BuildInfoCard() {
-    val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val checker = remember { AppUpdateChecker(context) }
-    var checking by remember { mutableStateOf(false) }
-    var downloading by remember { mutableStateOf(false) }
-    var statusText by remember { mutableStateOf<String?>(null) }
-    var downloadedFile by remember { mutableStateOf(checker.latestDownloaded()) }
-    val dateLabel = LocalDate.now().format(
-        DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG).withLocale(Locale.getDefault())
-    )
-    Card(
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-        modifier = Modifier.fillMaxWidth()
-    ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Icon(
-                    Icons.Filled.Info,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary
-                )
-                Column {
-                    Text(dateLabel, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(
-                        stringResource(R.string.about_app_version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    if (statusText != null) {
-                        Text(statusText!!, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
-                    }
-                }
-            }
-            FilledTonalButton(
-                onClick = {
-                    scope.launch {
-                        checking = true
-                        statusText = context.getString(R.string.update_checking)
-                        val check = checker.checkForUpdate()
-                        when (check.outcome) {
-                            CheckOutcome.NOT_CONNECTED -> statusText = context.getString(R.string.update_not_connected)
-                            CheckOutcome.UP_TO_DATE -> statusText = context.getString(R.string.update_up_to_date)
-                            CheckOutcome.ERROR -> statusText = context.getString(R.string.update_check_failed)
-                            CheckOutcome.UPDATE_AVAILABLE -> {
-                                val info = check.info ?: return@launch
-                                downloading = true
-                                statusText = context.getString(R.string.update_downloading)
-                                val file = checker.downloadApk(info)
-                                downloading = false
-                                if (file != null) {
-                                    downloadedFile = file
-                                    statusText = context.getString(R.string.update_downloaded_text, info.version_name)
-                                } else {
-                                    statusText = context.getString(R.string.update_download_failed)
-                                }
-                            }
-                        }
-                        checking = false
-                    }
-                },
-                enabled = !checking && !downloading,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (checking || downloading) {
-                    CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.primary)
-                    Spacer(Modifier.size(8.dp))
-                    Text(stringResource(R.string.update_checking))
-                } else {
-                    Icon(Icons.Filled.Update, contentDescription = null)
-                    Text(stringResource(R.string.update_check_button), modifier = Modifier.padding(start = 8.dp))
-                }
-            }
-            downloadedFile?.let { file ->
-                Button(onClick = { checker.install(file) }, modifier = Modifier.fillMaxWidth()) {
-                    Text(stringResource(R.string.update_install))
-                }
-            }
-        }
     }
 }
 

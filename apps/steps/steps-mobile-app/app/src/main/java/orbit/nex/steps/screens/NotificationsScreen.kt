@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -22,8 +22,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.stepmonitor.app.*
-import com.stepmonitor.app.R
+import orbit.nex.steps.*
+import orbit.nex.steps.R
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext

@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -15,11 +15,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import com.stepmonitor.app.ui.theme.HCWebhookTheme
-import com.stepmonitor.app.components.localizedLogLabel
+import orbit.nex.steps.ui.theme.HCWebhookTheme
+import orbit.nex.steps.components.localizedLogLabel
 import java.text.SimpleDateFormat
 import java.util.*
-import com.stepmonitor.app.R
+import orbit.nex.steps.R
 
 class LogsActivity : ComponentActivity() {
 

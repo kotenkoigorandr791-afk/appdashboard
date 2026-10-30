@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import android.app.Activity
 import android.content.Intent
@@ -26,6 +26,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.CloudDone
@@ -96,19 +98,19 @@ import androidx.core.content.FileProvider
 import androidx.core.os.LocaleListCompat
 import androidx.health.connect.client.permission.HealthPermission
 import coil.compose.AsyncImage
-import com.stepmonitor.app.HCWebhookApplication
-import com.stepmonitor.app.HealthConnectManager
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.ScheduledSync
-import com.stepmonitor.app.ScheduledSyncManager
-import com.stepmonitor.app.SyncMode
-import com.stepmonitor.app.WebhookConfig
-import com.stepmonitor.app.components.APP_LANGUAGES
-import com.stepmonitor.app.components.absoluteProfileUrl
-import com.stepmonitor.app.components.downloadAvatarFile
-import com.stepmonitor.app.components.localAvatarFile
+import orbit.nex.steps.HCWebhookApplication
+import orbit.nex.steps.HealthConnectManager
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
+import orbit.nex.steps.ScheduledSync
+import orbit.nex.steps.ScheduledSyncManager
+import orbit.nex.steps.SyncMode
+import orbit.nex.steps.WebhookConfig
+import orbit.nex.steps.components.APP_LANGUAGES
+import orbit.nex.steps.components.absoluteProfileUrl
+import orbit.nex.steps.components.downloadAvatarFile
+import orbit.nex.steps.components.localAvatarFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -179,7 +181,7 @@ private fun <K, V> Map<K, V>.toJSONObject(): JSONObject {
 }
 
 /**
- * Settings screen hosted by [com.stepmonitor.app.SettingsActivity].
+ * Settings screen hosted by [orbit.nex.steps.SettingsActivity].
  * Holds the user's personal data plus every app setting, so the profile tab
  * stays a light overview and this one screen is the single settings surface.
  */
@@ -233,6 +235,11 @@ fun SettingsScreen(onBack: () -> Unit) {
     var portraitOnly by remember { mutableStateOf(prefs.isPortraitOnly()) }
     var showRestartDialog by remember { mutableStateOf(false) }
     var showExportSheet by remember { mutableStateOf(false) }
+    // Update controls live only here; the home tab no longer carries them.
+    val updateChecker = remember { orbit.nex.steps.updates.AppUpdateChecker(context) }
+    var updateBusy by remember { mutableStateOf(false) }
+    var updateStatus by remember { mutableStateOf<String?>(null) }
+    var downloadedApk by remember { mutableStateOf(updateChecker.latestDownloaded()) }
     var exportSelectedTypes by remember { mutableStateOf(enabled) }
     var exportRange by remember { mutableIntStateOf(0) }
     var exportFormat by remember { mutableIntStateOf(0) }
@@ -407,7 +414,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             )
         },
     ) { padding ->
-        com.stepmonitor.app.components.AppBackground {
+        orbit.nex.steps.components.AppBackground {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
@@ -629,6 +636,11 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     },
                                 )
                             }
+                            Text(
+                                stringResource(R.string.settings_updates_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                             if (connected) {
                                 Text(
                                     stringResource(
@@ -638,6 +650,93 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
+                            }
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        updateBusy = true
+                                        updateStatus = context.getString(R.string.update_checking)
+                                        val check = updateChecker.checkForUpdate()
+                                        when (check.outcome) {
+                                            orbit.nex.steps.updates.CheckOutcome.NOT_CONNECTED ->
+                                                updateStatus = context.getString(R.string.update_not_connected)
+                                            orbit.nex.steps.updates.CheckOutcome.UP_TO_DATE ->
+                                                updateStatus = context.getString(R.string.update_up_to_date)
+                                            orbit.nex.steps.updates.CheckOutcome.ERROR ->
+                                                updateStatus = context.getString(R.string.update_check_failed)
+                                            orbit.nex.steps.updates.CheckOutcome.UPDATE_AVAILABLE -> {
+                                                val info = check.info
+                                                if (info == null) {
+                                                    updateStatus = context.getString(R.string.update_check_failed)
+                                                } else {
+                                                    updateStatus = context.getString(R.string.update_downloading)
+                                                    val file = updateChecker.downloadApk(info)
+                                                    if (file != null) {
+                                                        downloadedApk = file
+                                                        updateStatus = context.getString(R.string.update_downloaded_text, info.version_name)
+                                                    } else {
+                                                        updateStatus = context.getString(R.string.update_download_failed)
+                                                    }
+                                                }
+                                            }
+                                        }
+                                        updateBusy = false
+                                    }
+                                },
+                                enabled = connected && !updateBusy,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                if (updateBusy) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = MaterialTheme.colorScheme.onPrimary,
+                                    )
+                                    Spacer(Modifier.size(8.dp))
+                                } else {
+                                    Icon(Icons.Filled.Update, contentDescription = null)
+                                    Spacer(Modifier.size(8.dp))
+                                }
+                                Text(stringResource(R.string.update_check_button))
+                            }
+                            downloadedApk?.let { file ->
+                                OutlinedButton(
+                                    onClick = { updateChecker.install(file) },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(stringResource(R.string.update_install))
+                                }
+                            }
+                            updateStatus?.let { status ->
+                                Text(
+                                    status,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // ── Logs ─────────────────────────────────────────────────────
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            Text(stringResource(R.string.settings_logs_title), style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                stringResource(R.string.settings_logs_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Button(
+                                onClick = { context.startActivity(Intent(context, orbit.nex.steps.LogsActivity::class.java)) },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
+                                Text(stringResource(R.string.settings_logs_title), Modifier.padding(start = 8.dp))
                             }
                         }
                     }

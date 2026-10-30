@@ -1,4 +1,4 @@
-package com.stepmonitor.app.updates
+package orbit.nex.steps.updates
 
 import android.content.BroadcastReceiver
 import android.content.Context

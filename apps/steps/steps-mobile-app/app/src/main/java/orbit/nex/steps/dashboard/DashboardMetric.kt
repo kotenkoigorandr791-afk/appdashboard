@@ -1,6 +1,6 @@
-package com.stepmonitor.app.dashboard
+package orbit.nex.steps.dashboard
 
-import com.stepmonitor.app.HealthDataType
+import orbit.nex.steps.HealthDataType
 import java.time.Instant
 
 data class DashboardMetric(

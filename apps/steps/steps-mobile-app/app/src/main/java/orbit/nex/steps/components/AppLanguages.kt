@@ -1,4 +1,4 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
 /**
  * The six languages supported by the AppDashboard server, matching

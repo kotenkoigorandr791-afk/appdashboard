@@ -1,7 +1,7 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.SyncMode
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.SyncMode
 import java.util.Calendar
 
 data class NextSyncInfo(

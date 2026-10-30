@@ -1,8 +1,8 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.content.Context
-import com.stepmonitor.app.proto.v1.HealthPayload
-import com.stepmonitor.app.proto.v1.HealthWebhookGrpc
+import orbit.nex.steps.proto.v1.HealthPayload
+import orbit.nex.steps.proto.v1.HealthWebhookGrpc
 import io.grpc.ManagedChannel
 import io.grpc.Metadata
 import io.grpc.Status

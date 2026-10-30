@@ -1,4 +1,4 @@
-package com.stepmonitor.app.releases
+package orbit.nex.steps.releases
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers

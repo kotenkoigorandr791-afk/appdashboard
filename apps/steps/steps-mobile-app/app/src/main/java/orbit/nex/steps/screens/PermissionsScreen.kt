@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 
 import android.content.Intent
 import androidx.compose.foundation.layout.*
@@ -17,8 +17,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.permission.HealthPermission
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.R
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.R
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)

@@ -1,4 +1,4 @@
-package com.stepmonitor.app.updates
+package orbit.nex.steps.updates
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -9,11 +9,11 @@ import android.net.Uri
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.content.FileProvider
-import com.stepmonitor.app.BuildConfig
-import com.stepmonitor.app.FlavorUtils
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.WebhookConfig
+import orbit.nex.steps.BuildConfig
+import orbit.nex.steps.FlavorUtils
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
+import orbit.nex.steps.WebhookConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -202,7 +202,7 @@ class AppUpdateChecker(private val context: Context) {
 
     companion object {
         private const val UPDATE_CHECK_THROTTLE_MS = 24L * 60 * 60 * 1000
-        const val ACTION_INSTALL_UPDATE = "com.stepmonitor.app.INSTALL_UPDATE"
+        const val ACTION_INSTALL_UPDATE = "orbit.nex.steps.INSTALL_UPDATE"
         private const val CHANNEL_ID = "app_updates"
         private const val NOTIFICATION_ID = 3001
 

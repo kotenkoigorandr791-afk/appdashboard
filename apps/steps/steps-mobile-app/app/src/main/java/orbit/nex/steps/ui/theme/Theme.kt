@@ -1,9 +1,11 @@
-package com.stepmonitor.app.ui.theme
+package orbit.nex.steps.ui.theme
 
 import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
@@ -14,8 +16,24 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
-import com.stepmonitor.app.PreferencesManager
+import orbit.nex.steps.PreferencesManager
+
+/**
+ * One corner radius for every surface in the app. Cards, text fields, dropdown
+ * menus, dialogs, sheets and buttons all resolve to the same 18 dp rounding,
+ * so no screen mixes pill fields with square boxes any more.
+ */
+val AppCornerRadius = 18.dp
+
+private val AppShapes = Shapes(
+    extraSmall = RoundedCornerShape(AppCornerRadius),
+    small = RoundedCornerShape(AppCornerRadius),
+    medium = RoundedCornerShape(AppCornerRadius),
+    large = RoundedCornerShape(AppCornerRadius),
+    extraLarge = RoundedCornerShape(AppCornerRadius),
+)
 
 private val DarkColorScheme = darkColorScheme(
     primary = Blue80,
@@ -77,6 +95,7 @@ fun HCWebhookTheme(
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
+        shapes = AppShapes,
         content = content
     )
 }

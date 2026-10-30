@@ -267,16 +267,22 @@ function hc_store_payload_json(string $userDir, array $payload): array {
     $storedDays = [];
     foreach ($days as $d) {
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)) continue;
-        $metrics = hc_read_day_metrics($userDir, $d);
+        $existing = hc_read_day_metrics($userDir, $d);
+        $metrics = $existing;
         foreach (($perDay[$d] ?? []) as $type => $agg) {
             $metrics[$type] = $agg;
         }
         if (isset($stepsDaily[$d])) {
             $metrics['steps'] = array_merge($metrics['steps'] ?? ['samples' => 0], ['total' => (int)$stepsDaily[$d]]);
         }
-        $obj = ['date' => $d, 'metrics' => $metrics];
-        if (isset($stepsDaily[$d])) $obj['steps_daily_total'] = (int)$stepsDaily[$d];
-        hc_json_atomic_write($dirDays . '/' . $d . '.json', json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        // Rewriting a day file is the expensive part of ingest (read + atomic
+        // write + rename). A sync normally re-sends the same trailing days, so
+        // unchanged days are skipped instead of being rewritten.
+        if ($metrics !== $existing) {
+            $obj = ['date' => $d, 'metrics' => $metrics];
+            if (isset($stepsDaily[$d])) $obj['steps_daily_total'] = (int)$stepsDaily[$d];
+            hc_json_atomic_write($dirDays . '/' . $d . '.json', json_encode($obj, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+        }
         $storedDays[] = $d;
     }
 

@@ -1,4 +1,4 @@
-package com.stepmonitor.app.screens
+package orbit.nex.steps.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -50,11 +50,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.stepmonitor.app.HealthConnectManager
-import com.stepmonitor.app.HealthDataType
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.R
-import com.stepmonitor.app.WebhookConfig
+import orbit.nex.steps.HealthConnectManager
+import orbit.nex.steps.HealthDataType
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.R
+import orbit.nex.steps.WebhookConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch

@@ -1,4 +1,4 @@
-package com.stepmonitor.app
+package orbit.nex.steps
 
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -7,7 +7,7 @@ import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
-import com.stepmonitor.app.updates.AppUpdateManager
+import orbit.nex.steps.updates.AppUpdateManager
 
 /**
  * BroadcastReceiver that handles scheduled sync alarms and device boot.

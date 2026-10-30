@@ -1,4 +1,4 @@
-package com.stepmonitor.app.components
+package orbit.nex.steps.components
 
 import android.widget.Toast
 import androidx.compose.foundation.clickable
@@ -13,11 +13,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.HealthConnectClient
-import com.stepmonitor.app.HealthConnectManager
-import com.stepmonitor.app.PreferencesManager
-import com.stepmonitor.app.SyncManager
-import com.stepmonitor.app.SyncResult
-import com.stepmonitor.app.WebhookConfig
+import orbit.nex.steps.HealthConnectManager
+import orbit.nex.steps.PreferencesManager
+import orbit.nex.steps.SyncManager
+import orbit.nex.steps.SyncResult
+import orbit.nex.steps.WebhookConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import java.time.Instant
@@ -25,7 +25,7 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import androidx.compose.ui.res.stringResource
-import com.stepmonitor.app.R
+import orbit.nex.steps.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
