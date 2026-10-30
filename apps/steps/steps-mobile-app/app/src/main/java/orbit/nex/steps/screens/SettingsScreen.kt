@@ -211,6 +211,13 @@ fun SettingsScreen(onBack: () -> Unit) {
     var saving by remember { mutableStateOf(false) }
     var saveOk by remember { mutableStateOf<Boolean?>(null) }
     var saveDetail by remember { mutableStateOf("") }
+    var showSavedToast by remember { mutableStateOf(false) }
+    LaunchedEffect(showSavedToast) {
+        if (showSavedToast) {
+            kotlinx.coroutines.delay(2_000)
+            showSavedToast = false
+        }
+    }
 
     // ── App settings ─────────────────────────────────────────────────────────
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
@@ -392,6 +399,7 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             saveOk = !failed
             saveDetail = detail
+            if (!failed) showSavedToast = true
             saving = false
         }
     }
@@ -399,7 +407,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.settings_title)) },
+                title = { Text(stringResource(R.string.advanced_settings_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -415,11 +423,12 @@ fun SettingsScreen(onBack: () -> Unit) {
         },
     ) { padding ->
         orbit.nex.steps.components.AppBackground {
+            Box(Modifier.fillMaxSize()) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
-                    .padding(20.dp),
+                    .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 // ── Personal data ────────────────────────────────────────────
@@ -606,137 +615,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                         (context.applicationContext as? HCWebhookApplication)?.scheduleSyncWork()
                                     },
                                 )
-                            }
-                        }
-                    }
-                }
-
-                // ── Updates ──────────────────────────────────────────────────
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(stringResource(R.string.settings_update_title), style = MaterialTheme.typography.titleMedium)
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(stringResource(R.string.settings_update_automatic))
-                                    Text(
-                                        stringResource(R.string.settings_update_automatic_desc),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Switch(
-                                    checked = autoUpdate,
-                                    onCheckedChange = {
-                                        autoUpdate = it
-                                        prefs.setAutoUpdateEnabled(it)
-                                    },
-                                )
-                            }
-                            Text(
-                                stringResource(R.string.settings_updates_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            if (connected) {
-                                Text(
-                                    stringResource(
-                                        R.string.settings_update_source,
-                                        configs.firstOrNull { it.isEnabled }?.url.orEmpty(),
-                                    ),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        updateBusy = true
-                                        updateStatus = context.getString(R.string.update_checking)
-                                        val check = updateChecker.checkForUpdate()
-                                        when (check.outcome) {
-                                            orbit.nex.steps.updates.CheckOutcome.NOT_CONNECTED ->
-                                                updateStatus = context.getString(R.string.update_not_connected)
-                                            orbit.nex.steps.updates.CheckOutcome.UP_TO_DATE ->
-                                                updateStatus = context.getString(R.string.update_up_to_date)
-                                            orbit.nex.steps.updates.CheckOutcome.ERROR ->
-                                                updateStatus = context.getString(R.string.update_check_failed)
-                                            orbit.nex.steps.updates.CheckOutcome.UPDATE_AVAILABLE -> {
-                                                val info = check.info
-                                                if (info == null) {
-                                                    updateStatus = context.getString(R.string.update_check_failed)
-                                                } else {
-                                                    updateStatus = context.getString(R.string.update_downloading)
-                                                    val file = updateChecker.downloadApk(info)
-                                                    if (file != null) {
-                                                        downloadedApk = file
-                                                        updateStatus = context.getString(R.string.update_downloaded_text, info.version_name)
-                                                    } else {
-                                                        updateStatus = context.getString(R.string.update_download_failed)
-                                                    }
-                                                }
-                                            }
-                                        }
-                                        updateBusy = false
-                                    }
-                                },
-                                enabled = connected && !updateBusy,
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                if (updateBusy) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier.size(18.dp),
-                                        strokeWidth = 2.dp,
-                                        color = MaterialTheme.colorScheme.onPrimary,
-                                    )
-                                    Spacer(Modifier.size(8.dp))
-                                } else {
-                                    Icon(Icons.Filled.Update, contentDescription = null)
-                                    Spacer(Modifier.size(8.dp))
-                                }
-                                Text(stringResource(R.string.update_check_button))
-                            }
-                            downloadedApk?.let { file ->
-                                OutlinedButton(
-                                    onClick = { updateChecker.install(file) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) {
-                                    Text(stringResource(R.string.update_install))
-                                }
-                            }
-                            updateStatus?.let { status ->
-                                Text(
-                                    status,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                // ── Logs ─────────────────────────────────────────────────────
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(stringResource(R.string.settings_logs_title), style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                stringResource(R.string.settings_logs_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Button(
-                                onClick = { context.startActivity(Intent(context, orbit.nex.steps.LogsActivity::class.java)) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.List, contentDescription = null)
-                                Text(stringResource(R.string.settings_logs_title), Modifier.padding(start = 8.dp))
                             }
                         }
                     }
@@ -964,28 +842,32 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 }
                             }
 
-                            Text(stringResource(R.string.about_accent_color), style = MaterialTheme.typography.titleSmall)
-                            Box {
-                                OutlinedButton(
-                                    onClick = { accentExpanded = true },
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = RoundedCornerShape(8.dp),
-                                ) {
-                                    Surface(
-                                        color = accentColorValue(accentColor),
-                                        shape = CircleShape,
-                                        modifier = Modifier.size(18.dp),
-                                        content = {},
-                                    )
-                                    Spacer(Modifier.size(10.dp))
-                                    Text(stringResource(accentNameRes(accentColor)))
-                                    Spacer(Modifier.weight(1f))
-                                    Icon(
-                                        if (accentExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                        contentDescription = null,
-                                    )
-                                }
-                                DropdownMenu(expanded = accentExpanded, onDismissRequest = { accentExpanded = false }) {
+                            // Same anchored dropdown component as the other settings
+                            // selects, so the color list opens under the field instead
+                            // of being rendered as a detached popup.
+                            ExposedDropdownMenuBox(
+                                expanded = accentExpanded,
+                                onExpandedChange = { accentExpanded = !accentExpanded },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                OutlinedTextField(
+                                    value = stringResource(accentNameRes(accentColor)),
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    label = { Text(stringResource(R.string.about_accent_color)) },
+                                    leadingIcon = {
+                                        Surface(
+                                            color = accentColorValue(accentColor),
+                                            shape = CircleShape,
+                                            modifier = Modifier.size(18.dp),
+                                            content = {},
+                                        )
+                                    },
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accentExpanded) },
+                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
+                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                                )
+                                ExposedDropdownMenu(expanded = accentExpanded, onDismissRequest = { accentExpanded = false }) {
                                     listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
                                         DropdownMenuItem(
                                             text = {
@@ -1006,7 +888,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                                 prefs.setAccentColor(value)
                                                 (context as? Activity)?.recreate()
                                             },
-                                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
                                         )
                                     }
                                 }
@@ -1115,6 +996,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+            }
+            if (showSavedToast) {
+                orbit.nex.steps.components.SavedToast(
+                    stringResource(R.string.saved_toast),
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                )
+            }
             }
         }
     }

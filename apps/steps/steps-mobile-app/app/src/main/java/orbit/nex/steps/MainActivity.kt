@@ -16,6 +16,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -38,6 +39,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Brush
@@ -181,6 +183,12 @@ class MainActivity : AppCompatActivity() {
             }
             return
         }
+        // Back from any tab returns to Home first instead of leaving the app.
+        // Nested screens (settings, logs) are separate activities and finish one
+        // level at a time on their own.
+        androidx.activity.compose.BackHandler(enabled = selected != NavigationScreen.Home) {
+            selected = NavigationScreen.Home
+        }
         Scaffold(
             topBar = {
                 AppTopBar(
@@ -189,32 +197,15 @@ class MainActivity : AppCompatActivity() {
                 )
             },
             bottomBar = {
-            NavigationBar {
+            NavigationBar(
+                modifier = Modifier.clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            ) {
                 bottomNavItems.forEach { screen ->
                     NavigationBarItem(
                         selected = selected == screen,
                         onClick = { selected = screen },
                         icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
-                        label = {
-                            Text(
-                                stringResource(screen.titleResId),
-                                maxLines = 1,
-                                softWrap = false,
-                                overflow = TextOverflow.Clip,
-                                modifier = Modifier
-                                    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
-                                    .drawWithContent {
-                                        drawContent()
-                                        drawRect(
-                                            brush = Brush.horizontalGradient(
-                                                0.82f to Color.White,
-                                                1f to Color.Transparent
-                                            ),
-                                            blendMode = BlendMode.DstIn
-                                        )
-                                    }
-                            )
-                        }
+                        label = { NavLabel(screen.titleResId) }
                     )
                 }
             }
@@ -335,6 +326,39 @@ class MainActivity : AppCompatActivity() {
                 syncType = "conflict",
                 deliveryFormat = WebhookLog.FORMAT_JSON
             )
+        )
+    }
+
+    /**
+     * Bar label that fades out only when the word really does not fit the item
+     * width. Previously every label was masked with a gradient, which made even
+     * short labels look blurry although there was enough room.
+     */
+    @Composable
+    private fun NavLabel(titleResId: Int) {
+        var overflows by remember { mutableStateOf(false) }
+        Text(
+            stringResource(titleResId),
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            onTextLayout = { layout -> overflows = layout.hasVisualOverflow },
+            modifier = if (overflows) {
+                Modifier
+                    .graphicsLayer(compositingStrategy = CompositingStrategy.Offscreen)
+                    .drawWithContent {
+                        drawContent()
+                        drawRect(
+                            brush = Brush.horizontalGradient(
+                                0.86f to Color.White,
+                                1f to Color.Transparent
+                            ),
+                            blendMode = BlendMode.DstIn
+                        )
+                    }
+            } else {
+                Modifier
+            }
         )
     }
 

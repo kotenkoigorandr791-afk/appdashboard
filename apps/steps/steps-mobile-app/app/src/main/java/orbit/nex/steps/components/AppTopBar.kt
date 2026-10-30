@@ -3,6 +3,7 @@ package orbit.nex.steps.components
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.PersonOff
@@ -30,6 +32,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -44,7 +47,7 @@ import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import kotlinx.coroutines.delay
 
-private val CONTENT_EDGE_PADDING = 20.dp
+private val CONTENT_EDGE_PADDING = 10.dp
 
 /**
  * App-level top bar with the profile avatar on the left and, on secondary
@@ -76,6 +79,8 @@ fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier
 
     Surface(
         color = MaterialTheme.colorScheme.surfaceVariant,
+        // Only the bottom edge is rounded so the bar reads as a floating header.
+        shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp),
         modifier = modifier.fillMaxWidth()
     ) {
         Row(

@@ -73,12 +73,27 @@ fun HCWebhookTheme(
         else -> lightColorScheme(primary = accent, secondary = BlueGrey40, tertiary = accent)
     }.let { scheme ->
         if (resolvedDarkTheme && amoledEnabled) {
+            // Pure white (#FFFFFF) on a pure black panel measures 21:1, which is
+            // far above what dark-mode guidance recommends: the edges of glyphs
+            // bloom and long sessions strain the eyes. The AMOLED palette below
+            // keeps true black for the panel while landing primary text around
+            // 14:1, secondary text around 9:1 and accents at 9-12:1, i.e. above
+            // WCAG AAA (7:1) without the harsh maximum contrast.
             scheme.copy(
-                background = Color.Black,
-                surface = Color.Black,
-                surfaceVariant = Color.Black,
-                primaryContainer = Color.Black,
-                onPrimaryContainer = Color.White
+                background = Color(0xFF000000),
+                surface = Color(0xFF0A0A0D),
+                surfaceVariant = Color(0xFF14141A),
+                onBackground = Color(0xFFD2D7E0),
+                onSurface = Color(0xFFD2D7E0),
+                onSurfaceVariant = Color(0xFFA6AEBD),
+                outline = Color(0xFF3A3A45),
+                outlineVariant = Color(0xFF232329),
+                primaryContainer = Color(0xFF101820),
+                onPrimaryContainer = accent,
+                secondaryContainer = Color(0xFF1A1A22),
+                onSecondaryContainer = Color(0xFFCBD3E0),
+                inverseSurface = Color(0xFFD2D7E0),
+                inverseOnSurface = Color(0xFF101014)
             )
         } else scheme
     }

@@ -597,4 +597,17 @@
     <string name="settings_logs_desc">Открыть журнал синхронизации, найти нужную запись и экспортировать отчёт.</string>
     <string name="settings_updates_desc">Проверить подключённый сервер, скачать новую сборку и установить обновление.</string>
     <string name="logs_search_short">Поиск</string>
+    <string name="advanced_settings_title">Расширенные настройки</string>
+    <string name="saved_toast">Сохранено</string>
+    <string name="logs_cleared_toast">Логи очищены</string>
+    <string name="home_logs_title">Логи</string>
+    <string name="home_logs_desc">Открыть журнал синхронизации, найти запись и экспортировать отчёт.</string>
+    <string name="settings_open_advanced">Расширенные настройки</string>
+    <string name="logs_export_chooser">Экспорт логов</string>
+    <string name="stats_heatmap_title">Календарь активности</string>
+    <string name="stats_month_total">Всего за месяц</string>
+    <string name="stats_today">Сегодня</string>
+    <string name="logs_sort_changed_newest">Сортировка: сначала новые</string>
+    <string name="logs_sort_changed_oldest">Сортировка: сначала старые</string>
+    <string name="stats_goal">Цель: %1$s</string>
 </resources>

@@ -148,7 +148,7 @@ fun DashboardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(horizontal = 20.dp),
+                .padding(horizontal = 10.dp),
         ) {
             when {
             hasPermissions == null -> {

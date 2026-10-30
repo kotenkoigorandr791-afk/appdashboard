@@ -608,4 +608,17 @@
     <string name="settings_logs_desc">Open synchronization logs, search them and export a report.</string>
     <string name="settings_updates_desc">Check the connected server for a new build, download it and install the update.</string>
     <string name="logs_search_short">Search</string>
+    <string name="advanced_settings_title">Advanced settings</string>
+    <string name="saved_toast">Saved</string>
+    <string name="logs_cleared_toast">Logs cleared</string>
+    <string name="home_logs_title">Logs</string>
+    <string name="home_logs_desc">Open the synchronization log, search it and export a report.</string>
+    <string name="settings_open_advanced">Advanced settings</string>
+    <string name="logs_export_chooser">Export logs</string>
+    <string name="stats_heatmap_title">Activity heatmap</string>
+    <string name="stats_month_total">Month total</string>
+    <string name="stats_today">Today</string>
+    <string name="logs_sort_changed_newest">Sorting: newest first</string>
+    <string name="logs_sort_changed_oldest">Sorting: oldest first</string>
+    <string name="stats_goal">Goal: %1$s</string>
 </resources>
