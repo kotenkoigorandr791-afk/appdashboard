@@ -9,4 +9,5 @@
 -dontwarn okhttp3.**
 -keep class okio.** { *; }
 -dontwarn okio.**
+-dontwarn com.google.errorprone.annotations.**
 -keep class orbit.nex.finance.data.** { *; }
