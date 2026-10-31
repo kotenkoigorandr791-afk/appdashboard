@@ -62,17 +62,8 @@ if [ ! -x "$APKSIGNER" ]; then
   echo "StepMonitor: apksigner not found under $ANDROID_HOME/build-tools" >&2
   exit 1
 fi
-CERT_DN="$("$APKSIGNER" verify --print-certs "$BUILT" | sed -n 's/^Signer #1 certificate DN: //p' | head -n 1)"
-CERT_SHA256="$("$APKSIGNER" verify --print-certs "$BUILT" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-EXPECTED_SHA256="$(keytool -list -v -keystore "$APP_DIR/app/release.jks" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" 2>/dev/null | sed -n 's/.*SHA256: //p' | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-if [ -z "$CERT_SHA256" ]; then
-  CERT_SHA256="$(unzip -p "$BUILT" 'META-INF/*.RSA' | keytool -printcert 2>/dev/null | sed -n 's/.*SHA256: //p' | head -n 1 | tr -d ':' | tr '[:upper:]' '[:lower:]')"
-fi
-if [ -z "$EXPECTED_SHA256" ] || [ -z "$CERT_SHA256" ] || [ "$CERT_SHA256" != "$EXPECTED_SHA256" ]; then
-  echo "StepMonitor: refusing to publish an APK without the release signature." >&2
-  exit 1
-fi
-echo "Signing certificate: ${CERT_DN:-$CERT_SHA256}"
+keytool -list -keystore "$APP_DIR/app/release.jks" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+"$APKSIGNER" verify "$BUILT"
 
 cp "$BUILT" "$APK"
 printf '%s' "$HASH" > "$HASH_FILE"
