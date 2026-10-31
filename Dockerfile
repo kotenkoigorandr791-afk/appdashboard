@@ -120,7 +120,7 @@ RUN ln -sf /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled
     && sed -i 's|^;listen.owner = www-data|listen.owner = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.group = www-data|listen.group = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.mode = 0660|listen.mode = 0660|' /usr/local/etc/php-fpm.d/www.conf \
-    && sed -i 's|^pm.max_children = .*|pm.max_children = 96|; s|^pm.start_servers = .*|pm.start_servers = 48|; s|^pm.min_spare_servers = .*|pm.min_spare_servers = 32|; s|^pm.max_spare_servers = .*|pm.max_spare_servers = 64|' /usr/local/etc/php-fpm.d/www.conf \
+    && sed -i 's|^pm.max_children = .*|pm.max_children = 32|; s|^pm.start_servers = .*|pm.start_servers = 8|; s|^pm.min_spare_servers = .*|pm.min_spare_servers = 8|; s|^pm.max_spare_servers = .*|pm.max_spare_servers = 24|' /usr/local/etc/php-fpm.d/www.conf \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
 # Stack-frame slow log: any request blocked >2s is dumped with its PHP backtrace,
 # which is how session_start() / DB-connect hot spots were found under load.

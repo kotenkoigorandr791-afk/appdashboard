@@ -9,6 +9,43 @@ require_once APP_ROOT . '/apps/steps/core/health_connect_ingest.php';
 require_once APP_ROOT . '/apps/steps/core/settings_api.php';
 $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
+$method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+header('Content-Type: application/json; charset=utf-8');
+// Release metadata and APK are public: a fresh install must be able to update
+// itself before pairing. They expose only the published build, never user data.
+if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], true)) {
+    $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
+    if (strtolower((string)$sub) === 'version') {
+        if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
+        $meta = json_decode((string)file_get_contents($metaFile), true);
+        if (!is_array($meta) || empty($meta['version'])) public_api_json(['status' => 'error', 'message' => 'invalid release metadata'], 500);
+        exit(json_encode([
+            'status' => 'success',
+            'available' => true,
+            'version_name' => (string)$meta['version'],
+            'version_code' => (int)($meta['version_code'] ?? 0),
+            'hash' => (string)($meta['hash'] ?? ''),
+            'size_bytes' => (int)($meta['size_bytes'] ?? 0),
+            'built_at' => (int)($meta['built_at'] ?? 0),
+            'apk_path' => '/api/steps/apk',
+        ], JSON_UNESCAPED_UNICODE));
+    }
+    $apkFile = APP_ROOT . '/downloads/stepmonitor.apk';
+    if (!is_file($apkFile)) public_api_json(['status' => 'error', 'message' => 'no apk available'], 503);
+    $version = 'unknown';
+    if (is_file($metaFile)) {
+        $meta = json_decode((string)file_get_contents($metaFile), true);
+        if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
+    }
+    header('Content-Type: application/vnd.android.package-archive; charset=binary');
+    header('Content-Disposition: attachment; filename="NexSteps-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', (string)$version) . '.apk"');
+    header('Content-Length: ' . (string)filesize($apkFile));
+    header('Cache-Control: no-store, private');
+    header('Pragma: no-cache');
+    header('X-Content-Type-Options: nosniff');
+    readfile($apkFile);
+    exit;
+}
 $stepsAppDir = APP_ROOT . '/apps/steps';
 $usersDir = $stepsAppDir . '/users';
 $safeUserName = get_current_user_folder();
@@ -17,8 +54,6 @@ checkDirectory($usersDir);
 checkDirectory($userDir);
 $userDb = getUserDB($userDir);
 if (!$userDb) public_api_json(['status' => 'error', 'message' => 'steps db unavailable'], 500);
-$method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-header('Content-Type: application/json; charset=utf-8');
 function steps_conflicts_path(string $userDir): string {
     $dir = rtrim($userDir, '/') . '/volume/health_connect';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
@@ -79,11 +114,34 @@ function steps_conflict_public(array $conflict): array {
         'resolution_url' => (string)($conflict['resolution_url'] ?? ''),
     ];
 }
+/**
+ * Stored step values for the given dates only. The previous implementation
+ * loaded the whole min..max range, which on a multi-year history meant a large
+ * query per sync even though a payload usually carries a handful of days.
+ */
+function steps_existing_for_dates(AppDatabase $db, array $dates): array {
+    $out = [];
+    foreach (array_chunk(array_values(array_unique($dates)), 200) as $chunk) {
+        $placeholders = [];
+        foreach (array_keys($chunk) as $i) $placeholders[] = ':d' . $i;
+        $stmt = $db->prepare(
+            'SELECT date, steps FROM steps_days WHERE user_email = :u AND date IN (' . implode(',', $placeholders) . ')'
+        );
+        if (!$stmt) continue;
+        $stmt->bindValue(':u', steps_user(), PDO::PARAM_STR);
+        foreach ($chunk as $i => $d) $stmt->bindValue(':d' . $i, (string)$d, PDO::PARAM_STR);
+        $stmt->execute();
+        while ($row = $stmt->fetch(PDO::FETCH_ASSOC)) {
+            $out[(string)$row['date']] = ['date' => (string)$row['date'], 'steps' => (int)$row['steps']];
+        }
+    }
+    return $out;
+}
 function steps_detect_conflicts(AppDatabase $db, array $stepsDaily): array {
     $dates = array_values(array_filter(array_keys($stepsDaily), static fn($d) => preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$d)));
     if (!$dates) return [];
     sort($dates);
-    $existing = loadStepsRange($db, $dates[0], $dates[count($dates) - 1]);
+    $existing = steps_existing_for_dates($db, $dates);
     $out = [];
     foreach ($dates as $date) {
         $server = (int)($existing[$date]['steps'] ?? 0);
@@ -137,40 +195,6 @@ function steps_apply_payload(AppDatabase $db, string $userDir, array $payload, s
     return ['stored' => $stored, 'steps_upserted' => count($batch)];
 }
 if ($method === 'GET') {
-    if (strtolower((string)$sub) === 'version') {
-        $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
-        if (!is_file($metaFile)) public_api_json(['status' => 'error', 'message' => 'no release available'], 503);
-        $meta = json_decode((string)file_get_contents($metaFile), true);
-        if (!is_array($meta) || empty($meta['version'])) public_api_json(['status' => 'error', 'message' => 'invalid release metadata'], 500);
-        exit(json_encode([
-            'status' => 'success',
-            'available' => true,
-            'version_name' => (string)$meta['version'],
-            'version_code' => (int)($meta['version_code'] ?? 0),
-            'hash' => (string)($meta['hash'] ?? ''),
-            'size_bytes' => (int)($meta['size_bytes'] ?? 0),
-            'built_at' => (int)($meta['built_at'] ?? 0),
-            'apk_path' => '/api/steps/apk',
-        ], JSON_UNESCAPED_UNICODE));
-    }
-    if (strtolower((string)$sub) === 'apk') {
-        $apkFile = APP_ROOT . '/downloads/stepmonitor.apk';
-        if (!is_file($apkFile)) public_api_json(['status' => 'error', 'message' => 'no apk available'], 503);
-        $metaFile = APP_ROOT . '/downloads/stepmonitor.json';
-        $version = 'unknown';
-        if (is_file($metaFile)) {
-            $meta = json_decode((string)file_get_contents($metaFile), true);
-            if (is_array($meta) && !empty($meta['version'])) $version = (string)$meta['version'];
-        }
-        header('Content-Type: application/vnd.android.package-archive; charset=binary');
-        header('Content-Disposition: attachment; filename="StepMonitor-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', (string)$version) . '.apk"');
-        header('Content-Length: ' . (string)filesize($apkFile));
-        header('Cache-Control: no-store, private');
-        header('Pragma: no-cache');
-        header('X-Content-Type-Options: nosniff');
-        readfile($apkFile);
-        exit;
-    }
     if (strtolower((string)$sub) === 'profile') {
         exit(json_encode(['status' => 'success', 'profile' => steps_read_profile(get_current_user_email())], JSON_UNESCAPED_UNICODE));
     }
@@ -194,7 +218,9 @@ if ($method === 'GET') {
     }
     if (strcmp($from, $to) > 0) [$from, $to] = [$to, $from];
     if (isset($_GET['metrics'])) {
-        $metrics = hc_read_metrics_range($userDir, $from, $to);
+        // Range metrics read one JSON file per day. Caching the assembled range
+        // keeps repeated chart refreshes off the filesystem entirely.
+        $metrics = steps_cached('metrics_range', [$from, $to], fn() => hc_read_metrics_range($userDir, $from, $to), 60);
         // Index by date for fast lookup
         $metricsIndex = [];
         foreach ($metrics as $entry) { $metricsIndex[(string)$entry['date']] = $entry; }
@@ -269,6 +295,7 @@ if ($method === 'POST' || $method === 'PUT') {
             $conflicts[$idx]['resolved_at'] = time();
             $conflicts[$idx]['resolution'] = $action;
             steps_conflicts_write($userDir, $conflicts);
+            steps_cache_bump();
             exit(json_encode(['status' => 'success', 'applied' => true, 'resolution' => $action, 'result' => $result], JSON_UNESCAPED_UNICODE));
         }
         public_api_json(['status' => 'error', 'message' => 'conflict_not_found'], 404);
@@ -282,6 +309,7 @@ if ($method === 'POST' || $method === 'PUT') {
         exit(json_encode(['status' => 'conflict', 'conflict' => steps_conflict_public($conflict)], JSON_UNESCAPED_UNICODE));
     }
     $result = steps_apply_payload($userDb, $userDir, $payload, 'replace', []);
+    steps_cache_bump();
     exit(json_encode(['status' => 'success', 'stored' => ['stored_days' => $result['stored']['stored_days'] ?? []], 'steps_upserted' => $result['steps_upserted'] ?? 0], JSON_UNESCAPED_UNICODE));
 }
 public_api_json(['status' => 'error', 'message' => 'method_not_allowed'], 405);

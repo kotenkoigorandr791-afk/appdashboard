@@ -34,23 +34,7 @@ $stepmonitorForwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROT
 $stepmonitorScheme = ($stepmonitorForwardedProto === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $stepmonitorPort === '443') ? 'https' : 'http';
 $stepmonitorPortPart = ($stepmonitorPort !== '' && !in_array($stepmonitorPort, ['80', '443'], true)) ? ':' . $stepmonitorPort : '';
 $stepmonitorLanEndpoint = $stepmonitorServerIp !== '' ? $stepmonitorScheme . '://' . $stepmonitorServerIp . $stepmonitorPortPart . '/api/steps' : '';
-$stepmonitorApkDownloadName = 'StepMonitor' . ($stepmonitorVersionName !== '' ? '-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', $stepmonitorVersionName) : '') . '.apk';
-$stepmonitorExistingToken = '';
-try {
-    $tokenEmail = function_exists('get_current_user_email') ? (string)(get_current_user_email() ?? '') : (string)($_SESSION['user']['email'] ?? '');
-    $tokenDb = function_exists('getDB') ? getDB() : null;
-    if ($tokenEmail !== '' && $tokenDb) {
-        $tokenStmt = $tokenDb->prepare("SELECT token_plain FROM client_auth_tokens WHERE email = :e AND app_id = 'steps' AND revoked = 0 AND expires_at > :t AND token_plain <> '' ORDER BY created_at DESC LIMIT 1");
-        $tokenStmt->bindValue(':e', $tokenEmail, PDO::PARAM_STR);
-        $tokenStmt->bindValue(':t', time(), PDO::PARAM_INT);
-        $tokenRow = $tokenStmt->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($tokenRow && (string)($tokenRow['token_plain'] ?? '') !== '') {
-            $stepmonitorExistingToken = (string)$tokenRow['token_plain'];
-        }
-    }
-} catch (Throwable $e) {
-    $stepmonitorExistingToken = '';
-}
+$stepmonitorApkDownloadName = 'NexSteps' . ($stepmonitorVersionName !== '' ? '-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', $stepmonitorVersionName) : '') . '.apk';
 $metricHasValue = static function (array $metrics, string $type): bool {
     if ($type === 'distance') return isset($metrics['distance']['total_meters']) && is_numeric($metrics['distance']['total_meters']) && (float)$metrics['distance']['total_meters'] > 0;
     if ($type === 'calories') {
@@ -347,10 +331,16 @@ $metricButtons = [
                                 <?php echo htmlspecialchars($translations['mobile_app_qr_generate'] ?? 'Generate'); ?>
                             </button>
                         </div>
-                        <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke" style="display:none;">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
-                            <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
-                        </button>
+                        <div class="ma-qr-actions" id="mobile-app-qr-actions">
+                            <button type="button" id="mobile-app-copy-link" class="ma-copy-link-btn">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <?php echo htmlspecialchars($translations['mobile_app_copy_link'] ?? 'Copy pairing link'); ?>
+                            </button>
+                            <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                                <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
+                            </button>
+                        </div>
                         <h3><?php echo htmlspecialchars($translations['mobile_app_scan_title'] ?? 'Scan to Pair'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['mobile_app_scan_desc'] ?? 'Open the app and scan this code to sync instantly.'); ?></p>
                         <p class="ma-qr-error" id="mobile-app-qr-error" style="display:none;color:#ef4444;font-size:12px;margin:-16px 0 16px;"></p>
@@ -970,6 +960,8 @@ $metricButtons = [
             const placeholder=modal ? modal.querySelector('.ma-qr-placeholder') : null;
             const genBtn=document.getElementById('mobile-app-qr-generate');
             const revokeBtn=document.getElementById('mobile-app-token-revoke');
+            const actionsEl=document.getElementById('mobile-app-qr-actions');
+            const copyLinkBtn=document.getElementById('mobile-app-copy-link');
             const hintBtn=document.getElementById('mobile-app-manual-hint');
 
             const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint, JSON_HEX_TAG); ?>;
@@ -977,7 +969,6 @@ $metricButtons = [
             const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
 
             let pairing={token:'',link:''};
-            const existingToken=<?php echo json_encode($stepmonitorExistingToken, JSON_HEX_TAG); ?>;
 
             const hintModal=document.getElementById('manual-pair-modal');
             const hintClose=document.getElementById('manual-pair-close');
@@ -1004,7 +995,7 @@ $metricButtons = [
                 if(placeholder) placeholder.style.display='none';
                 if(qrFrame){ qrFrame.style.display='flex'; qrFrame.innerHTML=''; await renderPairingQr(qrFrame, pairing.link); }
                 if(genBtn) genBtn.style.display='none';
-                if(revokeBtn) revokeBtn.style.display='';
+                if(actionsEl) actionsEl.classList.add('is-visible');
                 refreshHintFields();
             }
             function clearPairingUi(){
@@ -1012,7 +1003,7 @@ $metricButtons = [
                 if(qrFrame){ qrFrame.innerHTML=''; qrFrame.style.display='none'; }
                 if(placeholder) placeholder.style.display='';
                 if(genBtn) genBtn.style.display='';
-                if(revokeBtn) revokeBtn.style.display='none';
+                if(actionsEl) actionsEl.classList.remove('is-visible');
                 refreshHintFields();
             }
             function openHint(){
@@ -1031,6 +1022,28 @@ $metricButtons = [
             hintClose?.addEventListener('click', closeHint);
             hintModal?.addEventListener('click', (e)=>{ if(e.target===hintModal) closeHint(); });
             document.addEventListener('keydown', (e)=>{ if(e.key==='Escape' && hintModal && hintModal.style.display==='flex') closeHint(); });
+
+            copyLinkBtn?.addEventListener('click', async ()=>{
+                if(!pairing.link){
+                    copyLinkBtn.classList.add('is-empty');
+                    setTimeout(()=>copyLinkBtn.classList.remove('is-empty'),700);
+                    return;
+                }
+                try{
+                    await navigator.clipboard.writeText(pairing.link);
+                }catch(e){
+                    const ta=document.createElement('textarea');
+                    ta.value=pairing.link;
+                    ta.style.position='fixed';
+                    ta.style.opacity='0';
+                    document.body.appendChild(ta);
+                    ta.select();
+                    try{ document.execCommand('copy'); }catch(e2){}
+                    ta.remove();
+                }
+                copyLinkBtn.classList.add('is-copied');
+                setTimeout(()=>copyLinkBtn.classList.remove('is-copied'),1600);
+            });
 
             playProtectBtn?.addEventListener('click', ()=>{
                 if(typeof window.openStepsGuideExpand==='function') window.openStepsGuideExpand('play_protect');
@@ -1211,10 +1224,6 @@ $metricButtons = [
                     regenBtn.innerHTML=regenLabel;
                 }
             });
-            if(existingToken){
-                setPairingToken(existingToken);
-                showPairingQr().catch(e=>console.error('Existing pairing QR error:',e));
-            }
         })();
         </script>
         <script>

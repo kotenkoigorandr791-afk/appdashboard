@@ -8,7 +8,7 @@
 
 /** Read the caller's profile row with an index-friendly lookup. */
 function steps_read_profile(?string $email): array {
-    $profile = ['email' => $email ?: '', 'name' => $email ?: 'StepMonitor', 'photo' => ''];
+    $profile = ['email' => $email ?: '', 'name' => $email ?: 'NexSteps', 'photo' => ''];
     if (!$email || !function_exists('app_main_db')) return $profile;
     try {
         $mainDb = app_main_db();
