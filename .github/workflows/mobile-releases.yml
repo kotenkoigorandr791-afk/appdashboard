@@ -27,9 +27,14 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.STEPS_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.STEPS_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.STEPS_KEY_PASSWORD }}
+      - name: Rename APK for release
+        run: |
+          apk="$(find apps/steps/steps-mobile-app/app/build/outputs/apk/foss/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$apk"
+          mv "$apk" "stepmonitor-${GITHUB_REF_NAME#steps-}.apk"
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: apps/steps/steps-mobile-app/app/build/outputs/apk/foss/release/*.apk
+          files: stepmonitor-*.apk
           generate_release_notes: true
 
   spends:
@@ -51,7 +56,12 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.SPENDS_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.SPENDS_KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.SPENDS_KEY_PASSWORD }}
+      - name: Rename APK for release
+        run: |
+          apk="$(find apps/spends/spends-native-android/app/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          test -n "$apk"
+          mv "$apk" "spends-${GITHUB_REF_NAME#spends-}.apk"
       - uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          files: apps/spends/spends-native-android/app/build/outputs/apk/release/*.apk
+          files: spends-*.apk
           generate_release_notes: true
