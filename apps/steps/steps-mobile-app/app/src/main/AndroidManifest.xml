@@ -119,6 +119,13 @@
             android:label="@string/settings_title"
             android:theme="@style/Theme.NexSteps" />
 
+        <!-- Theme, accent, language and orientation -->
+        <activity
+            android:name=".PersonalizationActivity"
+            android:exported="false"
+            android:label="@string/settings_personalization"
+            android:theme="@style/Theme.NexSteps" />
+
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
             android:enabled="false"

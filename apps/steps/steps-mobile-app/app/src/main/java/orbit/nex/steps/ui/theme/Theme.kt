@@ -12,6 +12,10 @@ import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
@@ -25,7 +29,23 @@ import orbit.nex.steps.PreferencesManager
  * menus, dialogs, sheets and buttons all resolve to the same 18 dp rounding,
  * so no screen mixes pill fields with square boxes any more.
  */
-val AppCornerRadius = 18.dp
+val AppCornerRadius = 22.dp
+
+/**
+ * Bumped whenever a personalization value changes. [HCWebhookTheme] reads it,
+ * so every activity that is still alive - including the ones sitting in the
+ * back stack - recomposes with the new palette instead of keeping the colors
+ * it was created with. Otherwise a change made on the personalization screen
+ * would only be visible on that screen.
+ */
+object AppThemeRevision {
+    var value by mutableStateOf(0)
+        private set
+
+    fun bump() {
+        value += 1
+    }
+}
 
 private val AppShapes = Shapes(
     extraSmall = RoundedCornerShape(AppCornerRadius),
@@ -56,6 +76,9 @@ fun HCWebhookTheme(
 ) {
     val context = LocalContext.current
     val prefs = PreferencesManager(context)
+    // Subscribing to the revision makes the whole app re-read the personalization
+    // values whenever they change on any screen.
+    val revision = AppThemeRevision.value
     val mode = prefs.getThemeMode()
     val resolvedDarkTheme = darkTheme ?: when (mode) {
         "dark" -> true
@@ -64,7 +87,8 @@ fun HCWebhookTheme(
     }
     val accent = accentColor(prefs.getAccentColor(), resolvedDarkTheme)
     val amoledEnabled = prefs.isAmoledEnabled()
-    val colorScheme = when {
+    val colorScheme = remember(revision, resolvedDarkTheme, dynamicColor) {
+        when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (resolvedDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
@@ -96,6 +120,7 @@ fun HCWebhookTheme(
                 inverseOnSurface = Color(0xFF101014)
             )
         } else scheme
+    }
     }
     val view = LocalView.current
     if (!view.isInEditMode) {

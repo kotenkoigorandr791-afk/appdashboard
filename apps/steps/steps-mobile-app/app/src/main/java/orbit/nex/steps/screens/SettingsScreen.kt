@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.AccountCircle
@@ -40,6 +41,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Height
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Save
@@ -889,145 +891,45 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
 
                 // ── Personalization ──────────────────────────────────────────
+                // Theme, accent, language and orientation live on their own
+                // activity; this list only links to it.
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                context.startActivity(
+                                    Intent(context, orbit.nex.steps.PersonalizationActivity::class.java)
+                                )
+                            },
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
-
-                            Text(stringResource(R.string.about_theme), style = MaterialTheme.typography.titleSmall)
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                listOf(
-                                    "auto" to R.string.theme_auto,
-                                    "light" to R.string.theme_light,
-                                    "dark" to R.string.theme_dark,
-                                ).forEachIndexed { index, (value, label) ->
-                                    SegmentedButton(
-                                        selected = themeMode == value,
-                                        onClick = {
-                                            themeMode = value
-                                            prefs.setThemeMode(value)
-                                            val nightMode = when (value) {
-                                                "light" -> AppCompatDelegate.MODE_NIGHT_NO
-                                                "dark" -> AppCompatDelegate.MODE_NIGHT_YES
-                                                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                                            }
-                                            AppCompatDelegate.setDefaultNightMode(nightMode)
-                                            (context as? Activity)?.recreate()
-                                        },
-                                        shape = SegmentedButtonDefaults.itemShape(index, 3),
-                                    ) {
-                                        Text(stringResource(label))
-                                    }
-                                }
-                            }
-
-                            if (themeMode == "dark" || (themeMode == "auto" && isSystemInDarkTheme())) {
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.theme_amoled), modifier = Modifier.weight(1f))
-                                    Switch(
-                                        checked = amoledEnabled,
-                                        onCheckedChange = {
-                                            amoledEnabled = it
-                                            prefs.setAmoledEnabled(it)
-                                            (context as? Activity)?.recreate()
-                                        },
-                                    )
-                                }
-                            }
-
-                            // Same anchored dropdown component as the other settings
-                            // selects, so the color list opens under the field instead
-                            // of being rendered as a detached popup.
-                            ExposedDropdownMenuBox(
-                                expanded = accentExpanded,
-                                onExpandedChange = { accentExpanded = !accentExpanded },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                OutlinedTextField(
-                                    value = stringResource(accentNameRes(accentColor)),
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(stringResource(R.string.about_accent_color)) },
-                                    leadingIcon = {
-                                        Surface(
-                                            color = accentColorValue(accentColor),
-                                            shape = CircleShape,
-                                            modifier = Modifier.size(18.dp),
-                                            content = {},
-                                        )
-                                    },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accentExpanded) },
-                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.settings_personalization),
+                                    style = MaterialTheme.typography.titleMedium,
                                 )
-                                ExposedDropdownMenu(expanded = accentExpanded, onDismissRequest = { accentExpanded = false }) {
-                                    listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                                    Surface(
-                                                        color = accentColorValue(value),
-                                                        shape = CircleShape,
-                                                        modifier = Modifier.size(18.dp),
-                                                        content = {},
-                                                    )
-                                                    Spacer(Modifier.size(10.dp))
-                                                    Text(stringResource(accentNameRes(value)))
-                                                }
-                                            },
-                                            onClick = {
-                                                accentExpanded = false
-                                                accentColor = value
-                                                prefs.setAccentColor(value)
-                                                (context as? Activity)?.recreate()
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-
-                            Text(stringResource(R.string.about_language), style = MaterialTheme.typography.titleSmall)
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                APP_LANGUAGES.forEach { (tag, name) ->
-                                    Row(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                language = tag
-                                                prefs.setAppLanguage(tag)
-                                                if (tag.isEmpty()) {
-                                                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
-                                                } else {
-                                                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
-                                                }
-                                                showRestartDialog = true
-                                            }
-                                            .padding(vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        RadioButton(selected = language == tag, onClick = null)
-                                        Spacer(Modifier.size(12.dp))
-                                        Text(if (tag.isEmpty()) stringResource(R.string.system_default) else name)
-                                    }
-                                }
-                            }
-
-                            Text(stringResource(R.string.about_screen_orientation), style = MaterialTheme.typography.titleSmall)
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.about_portrait_only), modifier = Modifier.weight(1f))
-                                Switch(
-                                    checked = portraitOnly,
-                                    onCheckedChange = {
-                                        portraitOnly = it
-                                        prefs.setPortraitOnly(it)
-                                        (context as? Activity)?.requestedOrientation =
-                                            if (it) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                    },
+                                Text(
+                                    stringResource(R.string.settings_personalization_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                 }
@@ -1235,7 +1137,7 @@ private val intervalOptions = listOf(
     4320 to R.string.sync_interval_72h,
 )
 
-private fun accentNameRes(value: String): Int = when (value) {
+internal fun accentNameRes(value: String): Int = when (value) {
     "teal" -> R.string.accent_teal
     "orange" -> R.string.accent_orange
     "pink" -> R.string.accent_pink
@@ -1244,7 +1146,7 @@ private fun accentNameRes(value: String): Int = when (value) {
     else -> R.string.accent_blue
 }
 
-private fun accentColorValue(value: String): Color = when (value) {
+internal fun accentColorValue(value: String): Color = when (value) {
     "teal" -> Color(0xFF00897B)
     "orange" -> Color(0xFFE8710A)
     "pink" -> Color(0xFFD81B60)

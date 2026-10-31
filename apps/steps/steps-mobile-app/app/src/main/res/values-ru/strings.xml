@@ -624,4 +624,5 @@
     <string name="unit_kg">%1$s кг</string>
     <string name="unit_mmhg">%1$s мм рт. ст.</string>
     <string name="unit_percent">%1$s%%</string>
+    <string name="settings_personalization_desc">Тема, цвет акцента, язык и ориентация экрана</string>
 </resources>
