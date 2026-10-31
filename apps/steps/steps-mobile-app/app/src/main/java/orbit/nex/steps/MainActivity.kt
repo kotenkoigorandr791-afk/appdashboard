@@ -50,9 +50,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
+import androidx.lifecycle.lifecycleScope
 import orbit.nex.steps.screens.AboutScreen
 import orbit.nex.steps.screens.ConfigurationScreen
 import orbit.nex.steps.screens.ConnectionGateScreen
+import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
 import orbit.nex.steps.screens.WhatsNewSheet
 import orbit.nex.steps.components.AppBackground
@@ -99,10 +101,21 @@ class MainActivity : AppCompatActivity() {
         if (uri.scheme !in setOf("nexsteps", "stepmonitor")) return
         val endpoint = uri.getQueryParameter("endpoint").orEmpty()
         val token = uri.getQueryParameter("token").orEmpty()
-        if (endpoint.startsWith("http") && token.isNotBlank()) {
-            preferencesManager.setWebhookConfigs(listOf(WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token"))))
-            preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
-            Toast.makeText(this, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
+        if (!endpoint.startsWith("http") || token.isBlank()) return
+        val config = WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token"))
+        // The link used to be stored unchecked, so a stale or already-claimed
+        // token showed "Connected" and then every sync failed with 401. Verify
+        // the pairing (which also binds the token to this device) before saving.
+        lifecycleScope.launch {
+            val bound = withContext(Dispatchers.IO) { bindDevice(config, preferencesManager) }
+            if (bound) {
+                preferencesManager.setWebhookConfigs(listOf(config))
+                preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
+                preferencesManager.clearAuthError()
+                Toast.makeText(this@MainActivity, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this@MainActivity, getString(R.string.auth_invalid_link), Toast.LENGTH_LONG).show()
+            }
         }
     }
     @Composable
