@@ -47,6 +47,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
@@ -62,6 +63,7 @@ import orbit.nex.steps.HealthDataType
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.WebhookConfig
+import orbit.nex.steps.ui.theme.AppCornerRadius
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -166,19 +168,19 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         // Today's summary: gradient card with just the label and the count.
         Box(
             modifier = Modifier
-                .fillMaxWidth(0.78f)
-                .clip(RoundedCornerShape(12.dp))
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(AppCornerRadius))
                 .background(
                     Brush.linearGradient(
                         listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.30f),
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
                             MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.26f),
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.30f),
                         )
                     )
                 )
         ) {
-            Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 // Label and value on one line, e.g. "Today  8 000 steps".
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -237,7 +239,8 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
 }
 @Composable
 private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0) {
-    val color = MaterialTheme.colorScheme.primary
+    val barTop = MaterialTheme.colorScheme.primary
+    val barBottom = MaterialTheme.colorScheme.tertiary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val gridColor = MaterialTheme.colorScheme.outlineVariant
     val goalColor = Color(0xFFE53935)
@@ -311,15 +314,33 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
                     paint
                 )
             }
+            val barRadius = CornerRadius((barWidth * 0.28f).coerceIn(1.5f, 5.dp.toPx()))
             days.forEachIndexed { index, (_, count) ->
                 val gap = (barWidth * 0.10f).coerceAtLeast(2f)
                 val h = if (max > 0f) (count / max) * chartHeight else 0f
                 val x = leftPad + index * barWidth + gap / 2f
-                drawRect(
-                    color = if (count > 0) color else Color.LightGray.copy(alpha = 0.25f),
-                    topLeft = Offset(x, baseY - h),
-                    size = Size((barWidth - gap).coerceAtLeast(1f), h.coerceAtLeast(2f))
-                )
+                val barWidthPx = (barWidth - gap).coerceAtLeast(1f)
+                if (count > 0L) {
+                    // Colourful like the Spends charts: a vertical gradient that
+                    // shifts from the accent to the secondary accent over the bar.
+                    drawRoundRect(
+                        brush = Brush.verticalGradient(
+                            listOf(barTop, barBottom.copy(alpha = 0.75f)),
+                            startY = baseY - h,
+                            endY = baseY,
+                        ),
+                        topLeft = Offset(x, baseY - h),
+                        size = Size(barWidthPx, h.coerceAtLeast(2f)),
+                        cornerRadius = barRadius,
+                    )
+                } else {
+                    drawRoundRect(
+                        color = gridColor.copy(alpha = 0.45f),
+                        topLeft = Offset(x, baseY - 2f),
+                        size = Size(barWidthPx, 2f),
+                        cornerRadius = barRadius,
+                    )
+                }
             }
             if (goal > 0) {
                 val goalY = baseY - chartHeight * (goal.toFloat() / max)
@@ -390,6 +411,7 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
+    val warm = MaterialTheme.colorScheme.tertiary
     val empty = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
     var picked by remember { mutableStateOf<LocalDate?>(null) }
     // Weeks start on Monday; leading blanks keep the weekday columns aligned.
@@ -405,7 +427,7 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
                     } else {
                         val count = steps[date] ?: 0L
                         val intensity = (count.toFloat() / max.toFloat()).coerceIn(0f, 1f)
-                        val color = if (count <= 0L) empty else base.copy(alpha = 0.18f + 0.82f * intensity)
+                        val color = if (count <= 0L) empty else lerp(base, warm, intensity).copy(alpha = 0.35f + 0.65f * intensity)
                         Box(
                             modifier = Modifier
                                 .weight(1f)
