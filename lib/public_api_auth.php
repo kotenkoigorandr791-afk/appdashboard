@@ -73,7 +73,7 @@ function public_api_validate_token(AppDatabase $db, string $rawToken, string $de
         $claim->bindValue(':d', $deviceId, PDO::PARAM_STR);
         $claim->bindValue(':h', $hash, PDO::PARAM_STR);
         $claim->execute();
-        if ($claim->rowCount() !== 1) return null;
+        if ($db->changes() !== 1) return null;
         $tokenDeviceId = $deviceId;
         $row['device_id'] = $deviceId;
     }
