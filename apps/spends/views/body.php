@@ -34,8 +34,8 @@
 <div id="input-prompt-modal" class="modal confirm-modal">
     <div class="modal-content">
         <button class="modal-close" type="button" onclick="resolveInputPrompt(null)" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
-        <h3 id="input-prompt-title"></h3>
-        <label id="input-prompt-label" for="input-prompt-value"></label>
+        <h3 id="input-prompt-title"><?= htmlspecialchars($translations['prompt'] ?? 'Prompt') ?></h3>
+        <label id="input-prompt-label" for="input-prompt-value"><?= htmlspecialchars($translations['value'] ?? 'Value') ?></label>
         <input id="input-prompt-value" type="number" min="0" step="0.01" inputmode="decimal">
         <div class="button-group">
             <button type="button" class="confirm-btn" onclick="resolveInputPrompt(document.getElementById('input-prompt-value').value)"><?= htmlspecialchars($translations['ok'] ?? 'OK') ?></button>
@@ -599,9 +599,10 @@
 <div id="tag-picker-modal" class="modal tag-picker-modal">
     <div class="modal-content">
         <button class="modal-close" type="button" onclick="closeModal('tag-picker-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
-        <h3 id="tag-picker-title"></h3>
+        <h3 id="tag-picker-title"><?= htmlspecialchars($translations['tags'] ?? 'Tags') ?></h3>
         <div class="tag-picker-search-wrap">
             <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+            <label for="tag-picker-search" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0"><?= htmlspecialchars($translations['tags_search'] ?? 'Search') ?></label>
             <input id="tag-picker-search" type="search" autocomplete="off" placeholder="<?= htmlspecialchars($translations['tags_search'] ?? 'Search') ?>">
         </div>
         <div id="tag-picker-list" class="tag-picker-list" role="listbox"></div>

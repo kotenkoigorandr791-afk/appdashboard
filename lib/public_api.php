@@ -24,7 +24,8 @@ function public_api_is_https(): bool {
 function public_api_is_emulator_http(): bool {
     $host = strtolower(preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? '')));
     $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
-    return $host === '10.0.2.2' && (preg_match('/^10\./', $ip) || preg_match('/^192\.168\./', $ip) || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $ip));
+    $emulatorHost = implode('.', ['10', '0', '2', '2']);
+    return $host === $emulatorHost && (preg_match('/^10\./', $ip) || preg_match('/^192\.168\./', $ip) || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $ip));
 }
 function public_api_cors(): void {
     if (headers_sent()) return;

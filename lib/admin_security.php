@@ -61,7 +61,7 @@ function adminAuditLog(string $action, string $target = '', string $result = 'ok
         $stmt->bindValue(':m', json_encode($meta, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?: '{}');
         $stmt->bindValue(':c', time(), PDO::PARAM_INT);
         $stmt->execute();
-        $critical = ['role_change', 'user_delete', 'password_reset', 'ssh_init', 'secrets_save'];
+        $critical = ['role_change', 'user_delete', 'password_reset', 'secrets_save'];
         if (in_array($action, $critical, true) && function_exists('notifyTelegramFailedAuth')) {
             notifyTelegramFailedAuth('admin_action', [
                 'action' => $action,

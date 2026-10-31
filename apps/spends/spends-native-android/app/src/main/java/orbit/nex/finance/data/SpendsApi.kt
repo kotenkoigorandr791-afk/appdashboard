@@ -27,7 +27,7 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
 
     fun endpoint(raw: String): String {
         var value = raw.trim().trimEnd('/')
-        if (!value.startsWith("https://") && !value.startsWith("http://10.0.2.2")) value = "https://$value"
+        if (!value.startsWith("https://") && !value.startsWith("http://")) value = "https://$value"
         return when {
             value.endsWith("/api/spends") || value.endsWith("/public-api/spends") -> value
             value.endsWith("/api") || value.endsWith("/public-api") -> "$value/spends"
