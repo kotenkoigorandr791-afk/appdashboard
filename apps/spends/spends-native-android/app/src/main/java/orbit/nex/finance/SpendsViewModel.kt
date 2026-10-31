@@ -334,7 +334,15 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     private suspend fun run(fallback: String, quiet: Boolean = false, block: suspend () -> Unit) {
         if (!quiet) loading.value = true
         error.value = null
-        runCatching { block() }.onFailure { error.value = it.message?.takeIf(String::isNotBlank) ?: fallback }
+        runCatching { block() }.onFailure { failure ->
+            error.value = when {
+                // A dropped connection is not a server fault: show a short, stable
+                // message instead of OkHttp's "Unable to resolve host …" text.
+                failure is orbit.nex.finance.data.OfflineException -> "No internet connection"
+                failure.message?.contains("resolve host", ignoreCase = true) == true -> "No internet connection"
+                else -> failure.message?.takeIf(String::isNotBlank) ?: fallback
+            }
+        }
         if (!quiet) loading.value = false
     }
     private fun fail(message: String) { error.value = message }

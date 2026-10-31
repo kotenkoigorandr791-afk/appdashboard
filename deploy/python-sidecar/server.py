@@ -15,7 +15,18 @@ from typing import Optional
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse, Response
 
-APP_ROOT = Path(__file__).resolve().parent
+# Prefer the bind-mounted checkout when it is present: the dev compose file mounts
+# the repo at /var/www/AppDashboard, and running scripts from the baked-in /app
+# copy silently ignored worker fixes made in the working tree.
+_SCRIPT_PROBE = Path("apps") / "spends" / "utils" / "expense_ocr_worker.py"
+APP_ROOT = next(
+    (
+        candidate
+        for candidate in (Path("/var/www/AppDashboard"), Path(__file__).resolve().parent)
+        if (candidate / _SCRIPT_PROBE).is_file()
+    ),
+    Path(__file__).resolve().parent,
+)
 SCRIPTS = {
     "tts": APP_ROOT / "apps" / "cloud" / "tts_generate.py",
     "bg_remove": APP_ROOT / "apps" / "recipes" / "bg_remove.py",

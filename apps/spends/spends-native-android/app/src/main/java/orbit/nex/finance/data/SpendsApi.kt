@@ -19,7 +19,27 @@ import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
+
+/** Raised for DNS/connect/timeout failures so the UI never shows raw socket text. */
+class OfflineException : IOException("offline")
+
+private fun isNetworkFailure(error: Throwable?): Boolean {
+    var current = error
+    while (current != null) {
+        if (current is UnknownHostException || current is ConnectException || current is SocketTimeoutException) return true
+        if (current is IOException && current !is OfflineException) {
+            val message = current.message.orEmpty()
+            if (message.contains("resolve host", true) || message.contains("Failed to connect", true) || message.contains("timeout", true)) return true
+        }
+        current = current.cause
+    }
+    return false
+}
 
 class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Unit = {}) {
     private val client = OkHttpClient.Builder().connectTimeout(15, TimeUnit.SECONDS).readTimeout(45, TimeUnit.SECONDS).build()
@@ -194,6 +214,11 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
             }
             throw (lastError ?: IllegalStateException("Server error"))
         } catch (e: Exception) {
+            val network = isNetworkFailure(e)
+            if (network) {
+                onLog(SyncLog(url = url, method = method, success = false, errorMessage = "offline", payload = payload?.take(1200)))
+                throw OfflineException()
+            }
             if (e.message?.startsWith("Server error") != true) onLog(SyncLog(url = url, method = method, success = false, errorMessage = e.message, payload = payload?.take(1200)))
             throw e
         }
@@ -221,7 +246,7 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
     }
 
     suspend fun ocrStatus(session: Session, jobId: String): JsonObject = withContext(Dispatchers.IO) {
-        json.parseToJsonElement(request("GET", ocrUrl(session, "status") + "&job_id=$jobId", session.token)).jsonObject
+        json.parseToJsonElement(request("GET", ocrUrl(session, "status") + "?job_id=$jobId", session.token)).jsonObject
     }
 
     suspend fun ocrResolve(session: Session, jobId: String, map: Map<String, String>): JsonObject = withContext(Dispatchers.IO) {

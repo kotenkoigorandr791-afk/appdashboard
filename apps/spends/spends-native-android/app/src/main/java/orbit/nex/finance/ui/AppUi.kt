@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -2227,7 +2228,7 @@ fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Uni
 
 @Composable
 fun DetailScreen(title: String, onBack: () -> Unit, onEdit: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize().background(canvasBrush())) {
+    Column(Modifier.fillMaxSize().background(canvasBrush()).statusBarsPadding()) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = onBack,
@@ -2555,7 +2556,8 @@ private fun SourceBadgeCard(raw: String) {
 
 private fun sourceIcon(raw: String): ImageVector = when (raw.trim().lowercase(Locale.ROOT)) {
     "ocr" -> Icons.Outlined.ReceiptLong
-    "wallet" -> Icons.Outlined.AccountBalanceWallet
+    "notification" -> Icons.Outlined.Notifications
+    "wallet" -> Icons.Outlined.Notifications
     "subscription" -> Icons.Outlined.Autorenew
     "other" -> Icons.Outlined.HelpOutline
     else -> Icons.Outlined.Edit
@@ -2566,7 +2568,7 @@ private fun sourceIcon(raw: String): ImageVector = when (raw.trim().lowercase(Lo
 private fun sourceLabel(raw: String): String = when (raw.trim().lowercase(Locale.ROOT)) {
     "", "manual" -> stringResource(R.string.source_manual)
     "ocr" -> stringResource(R.string.source_ocr)
-    "wallet" -> stringResource(R.string.source_wallet)
+    "notification", "wallet" -> stringResource(R.string.source_notification)
     "subscription" -> stringResource(R.string.source_subscription)
     "other" -> stringResource(R.string.source_other)
     else -> raw.replaceFirstChar { it.titlecase(Locale.getDefault()) }

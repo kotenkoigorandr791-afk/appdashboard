@@ -71,7 +71,7 @@ class AppUpdateChecker(private val context: Context) {
     )
 
     suspend fun checkForUpdate(endpoint: String, token: String): UpdateCheck = withContext(Dispatchers.IO) {
-        val serverResult = checkProductionServer(token)
+        val serverResult = checkProductionServer(endpoint, token)
         val githubResult = checkGithubReleases()
         val candidates = listOfNotNull(serverResult, githubResult)
             .filter { isNewer(it.version_name) }
@@ -87,11 +87,14 @@ class AppUpdateChecker(private val context: Context) {
         }
     }
 
-    private fun checkProductionServer(token: String): UpdateInfo? {
+    private fun checkProductionServer(endpoint: String, token: String): UpdateInfo? {
         if (token.isBlank()) return null
+        // Ask the server the device is paired with; the hardcoded production host
+        // failed DNS on other deployments and surfaced as an update error.
+        val base = endpoint.trim().trimEnd('/').substringBefore("/api/").ifBlank { PRODUCTION_BASE_URL }
         return runCatching {
             val request = Request.Builder()
-                .url("$PRODUCTION_BASE_URL/api/spends/version")
+                .url("$base/api/spends/version")
                 .header("Authorization", "Bearer $token")
                 .header("X-Device-Id", deviceId)
                 .header("Accept", "application/json")

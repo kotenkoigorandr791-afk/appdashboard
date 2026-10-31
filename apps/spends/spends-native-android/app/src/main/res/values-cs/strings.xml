@@ -247,6 +247,7 @@
     <string name="store_saved">Obchod uložen</string>
     <string name="source_manual">Ručně</string>
     <string name="source_ocr">Sken účtenky</string>
+    <string name="source_notification">Oznámení</string>
     <string name="source_wallet">Google Wallet</string>
     <string name="source_other">Jiné</string>
     <string name="insights_charges">%1$d transakcí</string>

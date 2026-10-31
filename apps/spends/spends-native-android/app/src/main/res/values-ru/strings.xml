@@ -270,6 +270,7 @@
     <string name="store_saved">Магазин сохранён</string>
     <string name="source_manual">Вручную</string>
     <string name="source_ocr">Скан чека</string>
+    <string name="source_notification">Уведомление</string>
     <string name="source_wallet">Google Wallet</string>
     <string name="source_other">Другое</string>
     <string name="insights_charges">%1$d операций</string>
