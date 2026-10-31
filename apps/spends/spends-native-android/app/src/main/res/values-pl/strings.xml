@@ -247,6 +247,7 @@
     <string name="store_saved">Sklep zapisany</string>
     <string name="source_manual">Ręcznie</string>
     <string name="source_ocr">Skan paragonu</string>
+    <string name="source_notification">Powiadomienie</string>
     <string name="source_wallet">Google Wallet</string>
     <string name="source_other">Inne</string>
     <string name="insights_charges">%1$d transakcji</string>

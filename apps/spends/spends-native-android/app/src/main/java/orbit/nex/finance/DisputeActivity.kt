@@ -268,7 +268,7 @@ private fun DisputeScreen(
                                                         date = dispute.date.ifBlank { LocalDate.now().toString() },
                                                         store = storeName,
                                                         amount = amount,
-                                                        entrySource = if (dispute.source == "ocr") "ocr" else "wallet",
+                                                        entrySource = if (dispute.source == "ocr") "ocr" else "notification",
                                                         ocrRawStore = if (dispute.source == "ocr") dispute.rawName else "",
                                                     ),
                                                 )}]}""",

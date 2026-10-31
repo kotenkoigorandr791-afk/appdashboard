@@ -247,6 +247,7 @@
     <string name="store_saved">Крама захавана</string>
     <string name="source_manual">Уручную</string>
     <string name="source_ocr">Скан чэка</string>
+    <string name="source_notification">Апавяшчэнне</string>
     <string name="source_wallet">Google Wallet</string>
     <string name="source_other">Іншае</string>
     <string name="insights_charges">%1$d аперацый</string>

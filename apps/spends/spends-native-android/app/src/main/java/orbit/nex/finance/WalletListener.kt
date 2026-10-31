@@ -228,7 +228,7 @@ object WalletScanner {
             val stored = runCatching {
                 api.pushJson(
                     session,
-                    """{"expenses":[${api.expenseJson(Expense(today, parsed.store, parsed.amount, entrySource = "wallet"))}]}""",
+                    """{"expenses":[${api.expenseJson(Expense(today, parsed.store, parsed.amount, entrySource = "notification"))}]}""",
                 )
             }.isSuccess
             if (stored) {
@@ -253,34 +253,4 @@ object WalletScanner {
         )
     }
 
-    /** Debug helper: plants one wallet and one OCR conflict so the flow can be tested. */
-    suspend fun seedDemoConflicts(store: SessionStore) {
-        val extras = store.extrasNow()
-        if (extras.disputes.isNotEmpty()) return
-        val today = LocalDate.now().toString()
-        store.saveExtras(
-            extras.copy(
-                disputes = listOf(
-                    Dispute(
-                        source = "wallet",
-                        rawName = "SKLEP ZABKA 8421 ?",
-                        amount = 24.99,
-                        currency = "PLN",
-                        date = today,
-                        raw = "Zapłacono 24,99 PLN · SKLEP ZABKA 8421 ?",
-                        reason = "store_not_found",
-                    ),
-                    Dispute(
-                        source = "ocr",
-                        rawName = "SILPO",
-                        amount = 0.0,
-                        currency = "PLN",
-                        date = today,
-                        raw = "OCR: SILPO  ·  0,00  ·  nieczytelny paragon",
-                        reason = "unreadable",
-                    ),
-                ),
-            ),
-        )
-    }
 }

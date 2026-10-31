@@ -270,6 +270,7 @@
     <string name="store_saved">Store saved</string>
     <string name="source_manual">Manual</string>
     <string name="source_ocr">Receipt scan</string>
+    <string name="source_notification">Notification</string>
     <string name="source_wallet">Google Wallet</string>
     <string name="source_other">Other</string>
     <string name="insights_charges">%1$d charges</string>

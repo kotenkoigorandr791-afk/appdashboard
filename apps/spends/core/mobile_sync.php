@@ -295,8 +295,11 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             $del->execute();
             $updated++;
         } else {
+            // Notification captures (Google Wallet) are their own entry source;
+            // only real receipt scans may be labelled as OCR.
             $entrySource = match ($source) {
-                'ocr', 'wallet' => 'ocr',
+                'ocr' => 'ocr',
+                'notification', 'wallet' => 'notification',
                 'subscription' => 'subscription',
                 default => 'manual',
             };
