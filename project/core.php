@@ -225,13 +225,23 @@ function createClientAuthToken(AppDatabase $db, string $email, string $deviceId,
     $purge->bindValue(':t', time(), PDO::PARAM_INT);
     $purge->execute();
     if ($appId === 'steps' || $appId === 'kanboard') {
-        $existing = $db->prepare("SELECT token_plain, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC LIMIT 1");
+        $existing = $db->prepare("SELECT token_plain, expires_at, device_id FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC LIMIT 1");
         $existing->bindValue(':e', $email, PDO::PARAM_STR);
         $existing->bindValue(':a', $appId, PDO::PARAM_STR);
         $existing->bindValue(':t', time(), PDO::PARAM_INT);
         $row = $existing->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($row && (string)($row['token_plain'] ?? '') !== '') return ['token' => (string)$row['token_plain'], 'expires_at' => (int)$row['expires_at']];
-        $revoke = $db->prepare('UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0');
+        $existingToken = (string)($row['token_plain'] ?? '');
+        $existingDevice = (string)($row['device_id'] ?? '');
+        // A pairing token claimed by one phone is rejected for any other
+        // X-Device-Id, so showing that token again produced a QR/link that could
+        // never pair a second phone (it kept answering invalid_token forever).
+        // Only a still-unclaimed token is safe to display again.
+        if ($existingToken !== '' && ($existingDevice === '' || $existingDevice === 'mcp_external')) {
+            return ['token' => $existingToken, 'expires_at' => (int)($row['expires_at'] ?? 0)];
+        }
+        // Drop only unclaimed leftovers; tokens already bound to a phone stay valid
+        // so the already-paired device keeps syncing after a new QR is generated.
+        $revoke = $db->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0 AND (device_id = '' OR device_id = 'mcp_external')");
         $revoke->bindValue(':e', $email, PDO::PARAM_STR);
         $revoke->bindValue(':a', $appId, PDO::PARAM_STR);
         $revoke->execute();
