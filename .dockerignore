@@ -57,6 +57,8 @@ apps/viewer/history.json
 downloads/*.apk
 !downloads/stepmonitor.apk
 !downloads/stepmonitor.json
+!downloads/spends-mobile.apk
+!downloads/spends-mobile.json
 downloads/*.tgz
 *.zip
 *.tar

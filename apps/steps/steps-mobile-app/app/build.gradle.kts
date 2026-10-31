@@ -7,16 +7,16 @@ plugins {
 
 val appVersionMajor = 1
 val appVersionMinor = 10
-val appVersionPatch = 0
+val appVersionPatch = 3
 val appVersionCode = (appVersionMajor * 10000) + (appVersionMinor * 100) + appVersionPatch
 val appVersionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
 
 android {
-    namespace = "com.stepmonitor.app"
+    namespace = "orbit.nex.steps"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.stepmonitor.app"
+        applicationId = "orbit.nex.steps"
         minSdk = 26
         targetSdk = 35
         versionCode = appVersionCode

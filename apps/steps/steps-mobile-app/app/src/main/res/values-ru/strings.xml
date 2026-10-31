@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">StepMonitor</string>
+    <string name="app_name">NexSteps</string>
     <string name="onboarding_skip_dialog_title">Skip Introduction?</string>
     <string name="onboarding_skip_dialog_text">You can view it again anytime from the Settings screen.</string>
     <string name="onboarding_skip">Skip</string>
@@ -8,21 +8,21 @@
     <string name="onboarding_next">Next</string>
     <string name="onboarding_get_started">Get Started</string>
 
-    <string name="onboarding_welcome_title">StepMonitor</string>
-    <string name="onboarding_welcome_subtitle">Forward your health data to any StepMonitor service — automatically.</string>
+    <string name="onboarding_welcome_title">NexSteps</string>
+    <string name="onboarding_welcome_subtitle">Forward your health data to any NexSteps service — automatically.</string>
     <string name="onboarding_thank_you">Thank you for your support!</string>
     <string name="onboarding_thank_you_title">You\'re all set!</string>
     <string name="onboarding_thank_you_desc">Configure your data sync and start syncing. If something breaks or you want a new feature, open Settings → Contact admin.</string>
     
     <string name="onboarding_feature1_title">You choose what to sync</string>
     <string name="onboarding_feature1_desc">Select only the health data types you want to forward.</string>
-    <string name="onboarding_feature2_title">Send to any StepMonitor service URL</string>
+    <string name="onboarding_feature2_title">Send to any NexSteps service URL</string>
     <string name="onboarding_feature2_desc">Your data goes directly to your configured URLs — nothing else.</string>
     <string name="onboarding_feature3_title">Permissions on demand</string>
     <string name="onboarding_feature3_desc">Health Connect permissions are requested only for the types you enable.</string>
 
     <string name="onboarding_datatypes_title">Available Data Types</string>
-    <string name="onboarding_datatypes_desc">Choose from %1$d health data types to forward to your StepMonitor service. You’re in full control — only what you turn on gets synced.</string>
+    <string name="onboarding_datatypes_desc">Choose from %1$d health data types to forward to your NexSteps service. You’re in full control — only what you turn on gets synced.</string>
     <string name="onboarding_group_activity">Activity</string>
     <string name="onboarding_group_heart_vitals">Heart &amp; Vitals</string>
     <string name="onboarding_group_sleep">Sleep</string>
@@ -34,79 +34,79 @@
     <string name="onboarding_privacy_subtitle">This app is a transparent forwarder. Here’s exactly how your data is handled:</string>
     <string name="onboarding_privacy_p1">You decide which health data types to enable — nothing is read without your choice</string>
     <string name="onboarding_privacy_p2">Permissions are only asked for the types you turn on. If you never enable a type, its permission is never requested</string>
-    <string name="onboarding_privacy_p3">Your data is sent directly to your own StepMonitor service URLs — nowhere else</string>
+    <string name="onboarding_privacy_p3">Your data is sent directly to your own NexSteps service URLs — nowhere else</string>
     <string name="onboarding_privacy_p4">Nothing is stored on any external server</string>
     <string name="onboarding_privacy_p5">Your data is never sold or shared with anyone</string>
     <string name="onboarding_privacy_footer">Have contact or suggestions? Open the Settings tab anytime and tap Contact admin.</string>
     <string name="onboarding_privacy_warning_title">Use only the official version</string>
-    <string name="onboarding_privacy_warning_desc">Cracked or modified versions of this app may steal your StepMonitor service URLs or send your health data to unknown servers. Always download from AppDashboard.</string>
+    <string name="onboarding_privacy_warning_desc">Cracked or modified versions of this app may steal your NexSteps service URLs or send your health data to unknown servers. Always download from AppDashboard.</string>
     <string name="medical_disclaimer_title">This app is not a medical device</string>
     <string name="medical_disclaimer_desc">This app is not a medical device and is not intended to diagnose, treat, cure, or prevent any medical condition or disease. Health data displayed is sourced from Health Connect and is for personal informational purposes only. Always consult a qualified healthcare professional for medical advice.</string>
     <string name="dt_steps_name">Шаги</string>
-    <string name="dt_steps_rationale">Записывайте ежедневное количество шагов и отправляйте итоговые показатели активности на сервис StepMonitor для автоматизации фитнеса и отслеживания привычек.</string>
+    <string name="dt_steps_rationale">Записывайте ежедневное количество шагов и отправляйте итоговые показатели активности на сервис NexSteps для автоматизации фитнеса и отслеживания привычек.</string>
     <string name="dt_sleep_name">Сон</string>
     <string name="dt_sleep_rationale">Передавайте продолжительность сеансов сна и разбивку по стадиям (лёгкий, глубокий, БДГ), чтобы создавать собственные отчёты о сне или панели восстановления.</string>
     <string name="dt_hr_name">Пульс</string>
-    <string name="dt_hr_rationale">Передавайте непрерывные показания пульса на сервис StepMonitor для мониторинга здоровья в реальном времени, оповещений или анализа тренировок.</string>
+    <string name="dt_hr_rationale">Передавайте непрерывные показания пульса на сервис NexSteps для мониторинга здоровья в реальном времени, оповещений или анализа тренировок.</string>
     <string name="dt_hrv_name">Вариабельность пульса</string>
-    <string name="dt_hrv_rationale">Отправляйте показания ВСР (RMSSD) на сервис StepMonitor, чтобы отслеживать уровень стресса, качество восстановления и состояние нервной системы с течением времени.</string>
+    <string name="dt_hrv_rationale">Отправляйте показания ВСР (RMSSD) на сервис NexSteps, чтобы отслеживать уровень стресса, качество восстановления и состояние нервной системы с течением времени.</string>
     <string name="dt_dist_name">Дистанция</string>
     <string name="dt_dist_rationale">Передавайте ежедневную пройденную дистанцию, чтобы фиксировать прогресс бега, ходьбы или велосипеда и запускать автоматизации на основе местоположения.</string>
     <string name="dt_act_cal_name">Активные калории</string>
-    <string name="dt_act_cal_rationale">Отправляйте данные о сожжённых активных калориях на сервис StepMonitor для отслеживания фитнеса, планирования питания или автоматизаций, основанных на целях.</string>
+    <string name="dt_act_cal_rationale">Отправляйте данные о сожжённых активных калориях на сервис NexSteps для отслеживания фитнеса, планирования питания или автоматизаций, основанных на целях.</string>
     <string name="dt_tot_cal_name">Всего калорий</string>
     <string name="dt_tot_cal_rationale">Передавайте общие суточные энергозатраты для всестороннего контроля энергетического баланса и рабочих процессов управления питанием.</string>
     <string name="dt_weight_name">Вес</string>
-    <string name="dt_weight_rationale">Синхронизируйте измерения веса тела на сервис StepMonitor, чтобы отслеживать тенденции, рассчитывать ИМТ или запускать уведомления о достижении целей.</string>
+    <string name="dt_weight_rationale">Синхронизируйте измерения веса тела на сервис NexSteps, чтобы отслеживать тенденции, рассчитывать ИМТ или запускать уведомления о достижении целей.</string>
     <string name="dt_height_name">Рост</string>
-    <string name="dt_height_rationale">Отправляйте данные о росте на сервис StepMonitor, чтобы включить расчёты ИМТ и состава тела в последующие автоматизации.</string>
+    <string name="dt_height_rationale">Отправляйте данные о росте на сервис NexSteps, чтобы включить расчёты ИМТ и состава тела в последующие автоматизации.</string>
     <string name="dt_bp_name">Артериальное давление</string>
     <string name="dt_bp_rationale">Передавайте показания систолического и диастолического давления для контроля сердечно-сосудистого здоровья, ведения журнала тенденций и настройки оповещений.</string>
     <string name="dt_bg_name">Глюкоза в крови</string>
-    <string name="dt_bg_rationale">Отправляйте уровень глюкозы в крови на сервис StepMonitor для поддержки управления диабетом, отслеживания приёмов пищи и автоматизаций здоровья.</string>
+    <string name="dt_bg_rationale">Отправляйте уровень глюкозы в крови на сервис NexSteps для поддержки управления диабетом, отслеживания приёмов пищи и автоматизаций здоровья.</string>
     <string name="dt_oxy_name">Насыщение кислородом</string>
     <string name="dt_oxy_rationale">Передавайте показания SpO₂ для контроля здоровья дыхательной системы, выявления эпизодов низкого уровня кислорода и интеграции с панелями здоровья.</string>
     <string name="dt_temp_name">Температура тела</string>
-    <string name="dt_temp_rationale">Отправляйте показания температуры тела на сервис StepMonitor для выявления заболеваний, отслеживания лихорадки и долгосрочного ведения журнала здоровья.</string>
+    <string name="dt_temp_rationale">Отправляйте показания температуры тела на сервис NexSteps для выявления заболеваний, отслеживания лихорадки и долгосрочного ведения журнала здоровья.</string>
     <string name="dt_skin_temp_name">Температура кожи</string>
-    <string name="dt_skin_temp_rationale">Передавайте изменения температуры кожи с носимых устройств (например, ночные показания) на сервис StepMonitor для отслеживания циклов и панелей здоровья.</string>
+    <string name="dt_skin_temp_rationale">Передавайте изменения температуры кожи с носимых устройств (например, ночные показания) на сервис NexSteps для отслеживания циклов и панелей здоровья.</string>
     <string name="dt_resp_name">Частота дыхания</string>
-    <string name="dt_resp_rationale">Передавайте данные о частоте дыхания, чтобы контролировать здоровье дыхательной системы, следить за восстановлением и обнаруживать аномалии через сервис StepMonitor.</string>
+    <string name="dt_resp_rationale">Передавайте данные о частоте дыхания, чтобы контролировать здоровье дыхательной системы, следить за восстановлением и обнаруживать аномалии через сервис NexSteps.</string>
     <string name="dt_rhr_name">Пульс в покое</string>
-    <string name="dt_rhr_rationale">Отправляйте ежедневный пульс в покое на сервис StepMonitor, чтобы отслеживать долгосрочные тенденции сердечно-сосудистой формы и адаптацию к тренировкам.</string>
+    <string name="dt_rhr_rationale">Отправляйте ежедневный пульс в покое на сервис NexSteps, чтобы отслеживать долгосрочные тенденции сердечно-сосудистой формы и адаптацию к тренировкам.</string>
     <string name="dt_exer_name">Тренировки</string>
-    <string name="dt_exer_rationale">Передавайте сеансы тренировок, включая тип и продолжительность упражнений, на сервис StepMonitor для ведения журнала активности и анализа тренировок.</string>
+    <string name="dt_exer_rationale">Передавайте сеансы тренировок, включая тип и продолжительность упражнений, на сервис NexSteps для ведения журнала активности и анализа тренировок.</string>
     <string name="dt_hydr_name">Гидратация</string>
-    <string name="dt_hydr_rationale">Отправляйте журналы потребления жидкости на сервис StepMonitor для ежедневного отслеживания гидратации, напоминаний и автоматизаций здоровья.</string>
+    <string name="dt_hydr_rationale">Отправляйте журналы потребления жидкости на сервис NexSteps для ежедневного отслеживания гидратации, напоминаний и автоматизаций здоровья.</string>
     <string name="dt_nutr_name">Питание</string>
     <string name="dt_nutr_rationale">Передавайте данные о калориях и макронутриентах (белки, углеводы, жиры) для отслеживания питания и автоматизаций питания.</string>
     <string name="dt_bmr_name">Базовый обмен веществ</string>
-    <string name="dt_bmr_rationale">Отправляйте данные о базальном обмене веществ (БОВ) на сервис StepMonitor, чтобы включить персональные расчёты целевых калорий и панели отслеживания метаболизма.</string>
+    <string name="dt_bmr_rationale">Отправляйте данные о базальном обмене веществ (БОВ) на сервис NexSteps, чтобы включить персональные расчёты целевых калорий и панели отслеживания метаболизма.</string>
     <string name="dt_bf_name">Процент жира</string>
-    <string name="dt_bf_rationale">Передавайте измерения процента жира в организме на сервис StepMonitor, чтобы отслеживать изменения состава тела и прогресс фитнеса с течением времени.</string>
+    <string name="dt_bf_rationale">Передавайте измерения процента жира в организме на сервис NexSteps, чтобы отслеживать изменения состава тела и прогресс фитнеса с течением времени.</string>
     <string name="dt_lbm_name">Мышечная масса</string>
-    <string name="dt_lbm_rationale">Отправляйте данные о мышечной массе на сервис StepMonitor, чтобы отслеживать набор или потерю мышц и поддерживать рабочие процессы по изменению состава тела.</string>
+    <string name="dt_lbm_rationale">Отправляйте данные о мышечной массе на сервис NexSteps, чтобы отслеживать набор или потерю мышц и поддерживать рабочие процессы по изменению состава тела.</string>
     <string name="dt_bwm_name">Содержание воды в теле</string>
-    <string name="dt_bwm_rationale">Передавайте измерения содержания воды в теле на сервис StepMonitor, чтобы отслеживать гидратацию и состав тела с умных весов.</string>
+    <string name="dt_bwm_rationale">Передавайте измерения содержания воды в теле на сервис NexSteps, чтобы отслеживать гидратацию и состав тела с умных весов.</string>
     <string name="dt_vo2_name">VO₂ max</string>
-    <string name="dt_vo2_rationale">Передавайте показания VO₂ max на сервис StepMonitor, чтобы отслеживать улучшение аэробной формы, тренировочную нагрузку и прогресс выносливости.</string>
+    <string name="dt_vo2_rationale">Передавайте показания VO₂ max на сервис NexSteps, чтобы отслеживать улучшение аэробной формы, тренировочную нагрузку и прогресс выносливости.</string>
     <string name="dt_bone_name">Костная масса</string>
-    <string name="dt_bone_rationale">Отправляйте измерения плотности костей на сервис StepMonitor, чтобы отслеживать здоровье скелета и долгосрочные тенденции здоровья.</string>
+    <string name="dt_bone_rationale">Отправляйте измерения плотности костей на сервис NexSteps, чтобы отслеживать здоровье скелета и долгосрочные тенденции здоровья.</string>
     <string name="dt_menstruation_flow_name">Менструальные выделения</string>
-    <string name="dt_menstruation_flow_rationale">Передавайте показатели интенсивности менструальных выделений на сервис StepMonitor, чтобы отслеживать циклы, симптомы и тенденции с течением времени.</string>
+    <string name="dt_menstruation_flow_rationale">Передавайте показатели интенсивности менструальных выделений на сервис NexSteps, чтобы отслеживать циклы, симптомы и тенденции с течением времени.</string>
     <string name="dt_menstruation_period_name">Менструальный период</string>
-    <string name="dt_menstruation_period_rationale">Отправляйте даты начала и окончания менструации на сервис StepMonitor, чтобы фиксировать длительность цикла, прогнозировать периоды и поддерживать рабочие процессы репродуктивного здоровья.</string>
+    <string name="dt_menstruation_period_rationale">Отправляйте даты начала и окончания менструации на сервис NexSteps, чтобы фиксировать длительность цикла, прогнозировать периоды и поддерживать рабочие процессы репродуктивного здоровья.</string>
     <string name="dt_intermenstrual_bleeding_name">Кровотечение между менструациями</string>
-    <string name="dt_intermenstrual_bleeding_rationale">Передавайте случаи кровянистых выделений или кровотечений между менструациями на сервис StepMonitor для детального контроля цикла и здоровья.</string>
+    <string name="dt_intermenstrual_bleeding_rationale">Передавайте случаи кровянистых выделений или кровотечений между менструациями на сервис NexSteps для детального контроля цикла и здоровья.</string>
     <string name="dt_ovulation_test_name">Тест на овуляцию</string>
-    <string name="dt_ovulation_test_rationale">Отправляйте результаты тестов на овуляцию на сервис StepMonitor, чтобы отслеживать фертильные окна, прогнозировать овуляцию и поддерживать планирование семьи.</string>
+    <string name="dt_ovulation_test_rationale">Отправляйте результаты тестов на овуляцию на сервис NexSteps, чтобы отслеживать фертильные окна, прогнозировать овуляцию и поддерживать планирование семьи.</string>
     <string name="dt_cervical_mucus_name">Цервикальная слизь</string>
-    <string name="dt_cervical_mucus_rationale">Передавайте наблюдения цервикальной слизи на сервис StepMonitor, чтобы поддерживать методы естественного планирования семьи и отслеживание фаз цикла.</string>
+    <string name="dt_cervical_mucus_rationale">Передавайте наблюдения цервикальной слизи на сервис NexSteps, чтобы поддерживать методы естественного планирования семьи и отслеживание фаз цикла.</string>
     <string name="dt_sexual_activity_name">Половая активность</string>
-    <string name="dt_sexual_activity_rationale">Отправляйте журналы половой активности на сервис StepMonitor, чтобы сопоставлять их с данными цикла, отслеживать закономерности и поддерживать аналитику репродуктивного здоровья.</string>
+    <string name="dt_sexual_activity_rationale">Отправляйте журналы половой активности на сервис NexSteps, чтобы сопоставлять их с данными цикла, отслеживать закономерности и поддерживать аналитику репродуктивного здоровья.</string>
     <string name="dt_basal_body_temp_name">Базальная температура тела</string>
-    <string name="dt_basal_body_temp_rationale">Передавайте утренние показания базальной температуры тела на сервис StepMonitor, чтобы определять овуляцию, отслеживать фазы цикла и поддерживать графики фертильности.</string>
-    <string name="dt_hc_rationale">StepMonitor requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics directly to your personal StepMonitor service URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
+    <string name="dt_basal_body_temp_rationale">Передавайте утренние показания базальной температуры тела на сервис NexSteps, чтобы определять овуляцию, отслеживать фазы цикла и поддерживать графики фертильности.</string>
+    <string name="dt_hc_rationale">NexSteps requires access to your health and fitness data. This data is strictly used to fulfill the core functionality of the app: securely transmitting your chosen health metrics directly to your personal NexSteps service URLs. We do not sell or share your data with any third parties. Only the data types you explicitly choose to configure below will be requested and synced.</string>
     <string name="datatypes_granted_summary">%1$d of %2$d permissions granted</string>
     <string name="datatypes_selected_summary">%1$d items selected to sync</string>
 
@@ -139,7 +139,7 @@
     <string name="err_permissions_required">Требуются разрешения для синхронизации.</string>
     <string name="manual_sync_progress">Синхронизация данных здоровья с %1$s по %2$s…</string>
     <string name="manual_sync_no_data">Нет новых данных для синхронизации</string>
-    <string name="manual_sync_no_matching_data">Нет данных, подходящих для фильтров сервиса StepMonitor</string>
+    <string name="manual_sync_no_matching_data">Нет данных, подходящих для фильтров сервиса NexSteps</string>
     <string name="manual_sync_success_empty">Синхронизация успешно завершена</string>
     <string name="manual_sync_success_items">Синхронизировано: %1$s</string>
     <string name="manual_sync_failed">Ошибка синхронизации: %1$s</string>
@@ -150,15 +150,15 @@
     <string name="perms_title">Разрешения Health</string>
 
     
-    <string name="webhooks_delete_title">Delete StepMonitor service?</string>
+    <string name="webhooks_delete_title">Delete NexSteps service?</string>
     <string name="webhooks_delete_desc">"%1$s" will be permanently removed.</string>
     <string name="action_delete">Delete</string>
-    <string name="webhooks_section_title">StepMonitor service URLs</string>
+    <string name="webhooks_section_title">NexSteps service URLs</string>
     <string name="webhooks_empty_desc">No data sync configured. Add a URL to start syncing data.</string>
     <string name="webhooks_headers_count">%1$d headers configured</string>
     <string name="webhooks_action_edit_headers">Edit Headers</string>
-    <string name="webhooks_new_url_label">New StepMonitor service URL</string>
-    <string name="webhooks_action_add">Add StepMonitor service</string>
+    <string name="webhooks_new_url_label">New NexSteps service URL</string>
+    <string name="webhooks_action_add">Add NexSteps service</string>
     <string name="webhooks_toast_invalid_url">Please enter a valid HTTP/HTTPS URL</string>
     <string name="webhooks_toast_invalid_target">Enter a valid HTTP URL or gRPC target (host:port)</string>
     <string name="webhooks_delivery_section">Delivery format</string>
@@ -169,7 +169,7 @@
     <string name="webhooks_delivery_share_proto_title">Share protobuf schema</string>
     <string name="webhooks_delivery_share_proto_failed">Could not share schema: %1$s</string>
     <string name="webhooks_delivery_format_label">%1$s</string>
-    <string name="webhooks_url_label_json">StepMonitor service URL</string>
+    <string name="webhooks_url_label_json">NexSteps service URL</string>
     <string name="webhooks_url_label_grpc">gRPC target</string>
     <string name="webhooks_headers_manage_title">Manage Headers</string>
     <string name="webhooks_headers_for_url">Headers for %1$s</string>
@@ -178,13 +178,13 @@
     <string name="webhooks_headers_action_add_title">Add Header</string>
     <string name="webhooks_headers_key_label">Key</string>
     <string name="webhooks_headers_value_label">Value</string>
-    <string name="webhooks_toggle_enable">Enable StepMonitor service</string>
-    <string name="webhooks_toggle_disable">Disable StepMonitor service</string>
+    <string name="webhooks_toggle_enable">Enable NexSteps service</string>
+    <string name="webhooks_toggle_disable">Disable NexSteps service</string>
     <string name="webhooks_status_active">Active</string>
     <string name="webhooks_status_disabled">Disabled</string>
-    <string name="webhooks_edit_title">Edit StepMonitor service</string>
+    <string name="webhooks_edit_title">Edit NexSteps service</string>
     <string name="webhooks_data_types_section">Data Types</string>
-    <string name="webhooks_data_types_desc">Choose which data types this StepMonitor service receives. By default it receives all globally enabled types.</string>
+    <string name="webhooks_data_types_desc">Choose which data types this NexSteps service receives. By default it receives all globally enabled types.</string>
     <string name="webhooks_data_types_send_all">Send all enabled types</string>
     <string name="webhooks_data_types_none_global">No data types are globally enabled.</string>
     <string name="webhooks_data_types_filter_count">%1$d type(s) filtered</string>
@@ -194,7 +194,7 @@
     <string name="webhooks_headers_json_apply">Apply JSON</string>
     <string name="webhooks_headers_json_error">Invalid JSON — expected an object with string values</string>
     <string name="webhooks_unsaved_changes">Unsaved changes</string>
-    <string name="webhooks_action_test">Test StepMonitor service</string>
+    <string name="webhooks_action_test">Test NexSteps service</string>
     <string name="webhooks_test_success">Test successful: %1$s</string>
     <string name="webhooks_test_failed">Test failed: %1$s</string>
     <string name="webhooks_test_retry">Retry</string>
@@ -265,22 +265,22 @@
     <string name="about_toast_import_failed">❌ Import failed: %1$s</string>
     <string name="about_toast_import_invalid">Invalid file</string>
     <string name="about_import_sheet_title">Import Settings?</string>
-    <string name="about_import_sheet_desc">This will overwrite your current StepMonitor service URLs, headers, and sync schedule with the imported file.</string>
+    <string name="about_import_sheet_desc">This will overwrite your current NexSteps service URLs, headers, and sync schedule with the imported file.</string>
     <string name="about_action_choose_import">Choose File &amp; Import</string>
     <string name="about_toast_export_failed">❌ Export failed: %1$s</string>
     <string name="about_error_unknown">Unknown error</string>
     <string name="about_export_intent_title">Экспорт настроек</string>
-    <string name="about_app_title">StepMonitor</string>
+    <string name="about_app_title">NexSteps</string>
     <string name="about_app_beta">Beta</string>
     <string name="about_app_version">Version %1$s (%2$d)</string>
     <string name="about_app_desc">An Android application that seamlessly connects Health Connect data to your data sync, enabling automated health data synchronization to your custom endpoints.</string>
     <string name="about_privacy_title">Privacy &amp; Security</string>
-    <string name="about_privacy_desc">• StepMonitor does not collect, store, or transmit any personal data to third-party services
+    <string name="about_privacy_desc">• NexSteps does not collect, store, or transmit any personal data to third-party services
 • All health data remains on your device until sent to your configured data sync
-• StepMonitor service URLs are stored locally on your device
+• NexSteps service URLs are stored locally on your device
 • You have full control over which data types are synced and where they are sent</string>
     <string name="about_settings_backup_title">Settings Backup</string>
-    <string name="about_settings_backup_desc">Export or import your StepMonitor service URLs, headers, and sync schedule</string>
+    <string name="about_settings_backup_desc">Export or import your NexSteps service URLs, headers, and sync schedule</string>
     <string name="about_action_export">Export</string>
     <string name="about_action_import">Import</string>
     <string name="about_section_settings">App settings</string>
@@ -299,7 +299,7 @@
     <string name="contact_history_title">Your submissions</string>
     <string name="contact_view_all">View all feature requests</string>
     <string name="contact_weekly_title">We need your contact</string>
-    <string name="contact_weekly_desc">You have used StepMonitor for a week. Tell us what broke, what is missing, or what would make sync better. This takes about one minute.</string>
+    <string name="contact_weekly_desc">You have used NexSteps for a week. Tell us what broke, what is missing, or what would make sync better. This takes about one minute.</string>
     <string name="contact_weekly_cta">Send contact now</string>
     <string name="contact_weekly_dismiss">Dismiss</string>
     <string name="contact_weekly_dismiss_hint">You can send contact anytime from Settings → Contact admin.</string>
@@ -328,7 +328,7 @@
     
     <string name="perms_granted_summary">%1$d из %2$d разрешений получено</string>
     <string name="action_close">Закрыть</string>
-    <string name="perms_rationale_desc">StepMonitor запрашивает доступ к вашим данным здоровья и фитнеса. Эти данные используются только для работы приложения: безопасной отправки выбранных метрик (шаги, сон, пульс и т.д.) на ваши персональные адреса сервиса StepMonitor. Мы не продаем и не передаем ваши данные третьим лицам. Запрашиваться и синхронизироваться будут только те типы данных, которые вы выбрали ниже.</string>
+    <string name="perms_rationale_desc">NexSteps запрашивает доступ к вашим данным здоровья и фитнеса. Эти данные используются только для работы приложения: безопасной отправки выбранных метрик (шаги, сон, пульс и т.д.) на ваши персональные адреса сервиса NexSteps. Мы не продаем и не передаем ваши данные третьим лицам. Запрашиваться и синхронизироваться будут только те типы данных, которые вы выбрали ниже.</string>
     <string name="perms_status_granted">Разрешено</string>
     <string name="perms_status_not_granted">Не разрешено</string>
 
@@ -409,7 +409,7 @@
     <string name="battery_banner_action_oem">%1$s</string>
     <string name="battery_banner_action_dismiss">Dismiss</string>
     <string name="battery_banner_dialog_title">Disable Battery Optimization</string>
-    <string name="battery_banner_dialog_desc">Tap \"Allow\" in the system dialog to let StepMonitor run in the background without restrictions.</string>
+    <string name="battery_banner_dialog_desc">Tap \"Allow\" in the system dialog to let NexSteps run in the background without restrictions.</string>
 
     
     <string name="exact_alarm_warning">Exact alarms not permitted — scheduled times may drift. Tap to enable in settings.</string>
@@ -425,7 +425,7 @@
     <string name="auth_connect">Подключить</string>
     <string name="auth_connected">Подключено к AppDashboard</string>
     <string name="auth_waiting">Откройте сайт шагов, нажмите кнопку мобильного приложения и отсканируйте QR-код.</string>
-    <string name="home_title">Синхронизация StepMonitor</string>
+    <string name="home_title">Синхронизация NexSteps</string>
     <string name="action_grant_permissions">Разрешить доступ Health Connect</string>
     <string name="sync_success">Синхронизация завершена</string>
     <string name="sync_failed">Ошибка синхронизации</string>
@@ -549,7 +549,7 @@
     <string name="notifications_local_push_desc">Включить локальные push-уведомления</string>
     <string name="notifications_test">Тест</string>
     <string name="notifications_test_title">Тестовое уведомление</string>
-    <string name="notifications_test_message">Это тестовое сообщение от StepMonitor.</string>
+    <string name="notifications_test_message">Это тестовое сообщение от NexSteps.</string>
     <string name="notifications_test_dispatched_toast">Тестовое уведомление отправлено</string>
 
     
@@ -590,4 +590,38 @@
     <string name="logs_back_cd">Назад</string>
     <string name="settings_save">Сохранить</string>
 
-<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string></resources>
+<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string>    <string name="auth_gate_title">Подключите телефон</string>
+    <string name="auth_gate_desc">Для NexSteps нужен привязанный аккаунт. Откройте сайт шагов, нажмите кнопку мобильного приложения и отсканируйте QR-код — до этого данные и настройки недоступны.</string>
+    <string name="auth_gate_version">NexSteps %1$s</string>
+    <string name="settings_logs_title">Логи</string>
+    <string name="settings_logs_desc">Открыть журнал синхронизации, найти нужную запись и экспортировать отчёт.</string>
+    <string name="settings_updates_desc">Проверить подключённый сервер, скачать новую сборку и установить обновление.</string>
+    <string name="logs_search_short">Поиск</string>
+    <string name="advanced_settings_title">Расширенные настройки</string>
+    <string name="saved_toast">Сохранено</string>
+    <string name="logs_cleared_toast">Логи очищены</string>
+    <string name="home_logs_title">Логи</string>
+    <string name="home_logs_desc">Открыть журнал синхронизации, найти запись и экспортировать отчёт.</string>
+    <string name="settings_open_advanced">Расширенные настройки</string>
+    <string name="logs_export_chooser">Экспорт логов</string>
+    <string name="stats_heatmap_title">Календарь активности</string>
+    <string name="stats_month_total">Всего за месяц</string>
+    <string name="stats_today">Сегодня</string>
+    <string name="logs_sort_changed_newest">Сортировка: сначала новые</string>
+    <string name="logs_sort_changed_oldest">Сортировка: сначала старые</string>
+    <string name="stats_goal">Цель: %1$s</string>
+    <string name="personal_name_invalid">Имя должно быть от 1 до 80 символов.</string>
+    <string name="personal_goal_invalid">Укажите цель от 1000 до 200000 шагов.</string>
+    <string name="personal_height_invalid">Укажите рост от 50 до 260 см.</string>
+    <string name="personal_weight_invalid">Укажите вес от 20 до 400 кг.</string>
+    <string name="personal_stride_invalid">Укажите длину шага от 20 до 250 см.</string>
+    <string name="personal_birth_invalid">Выберите дату с 1900 года до сегодняшнего дня.</string>
+    <string name="personal_pick_date">Выбрать дату</string>
+    <string name="unit_meters">%1$s м</string>
+    <string name="unit_kcal">%1$s ккал</string>
+    <string name="unit_hours">%1$s ч</string>
+    <string name="unit_bpm">%1$s уд/мин</string>
+    <string name="unit_kg">%1$s кг</string>
+    <string name="unit_mmhg">%1$s мм рт. ст.</string>
+    <string name="unit_percent">%1$s%%</string>
+</resources>

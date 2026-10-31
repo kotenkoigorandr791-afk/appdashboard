@@ -1916,6 +1916,50 @@
             opacity: 0.6;
             cursor: wait;
         }
+        /* Copy-link/revoke stack, aligned to the QR width like the spends app. */
+        .mobile-app-content .ma-qr-actions {
+            display: none;
+            flex-direction: column;
+            align-items: stretch;
+            gap: 8px;
+            width: 220px;
+            max-width: 100%;
+            margin: -8px 0 16px;
+        }
+        .mobile-app-content .ma-qr-actions.is-visible {
+            display: flex;
+        }
+        .mobile-app-content .ma-qr-actions .ma-qr-revoke {
+            margin: 0;
+        }
+        .mobile-app-content .ma-copy-link-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            width: 100%;
+            padding: 8px 14px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-sm, 8px);
+            background: var(--surface-solid);
+            color: var(--primary-color, #3D8BFF);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+        }
+        .mobile-app-content .ma-copy-link-btn:hover {
+            background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-solid));
+            border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
+        }
+        .mobile-app-content .ma-copy-link-btn.is-copied {
+            background: #166534;
+            border-color: #166534;
+            color: #fff;
+        }
+        .mobile-app-content .ma-copy-link-btn.is-empty {
+            opacity: 0.6;
+        }
         .mobile-app-content .ma-qr-hint {
             position: absolute;
             top: 12px;
@@ -2200,13 +2244,17 @@
         .mobile-app-content .ma-features {
             display: flex;
             flex-direction: column;
+            justify-content: space-between;
             gap: 12px;
+            min-height: 100%;
         }
         .mobile-app-content .ma-feature {
             display: flex;
-            align-items: flex-start;
+            flex: 1 1 0;
+            align-items: center;
             gap: 16px;
             padding: 16px;
+            box-sizing: border-box;
             background-color: transparent;
             border: 1px solid var(--border-color);
             border-radius: var(--radius-md, 12px);
@@ -2246,6 +2294,12 @@
         @media (max-width: 650px) {
             .mobile-app-content .ma-grid {
                 grid-template-columns: 1fr;
+            }
+            .mobile-app-content .ma-features {
+                min-height: 0;
+            }
+            .mobile-app-content .ma-feature {
+                flex: 0 0 auto;
             }
         }
 

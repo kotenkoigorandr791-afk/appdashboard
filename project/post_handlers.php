@@ -778,7 +778,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $mcpPlatform=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':$tokenName;
                 $tokenApp=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':appClientAuthTokenAppId($_POST['token_app']??'');
                 if($tokenApp==='steps'&&!empty($_POST['force_new'])){
-                    $revokeSteps=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = 'steps' AND revoked = 0");
+                    // Re-pairing drops the previous pairing completely, including the
+                    // device it was bound to, so the old phone stops being authorised.
+                    $revokeSteps=$tokenDb->prepare("DELETE FROM client_auth_tokens WHERE email = :e AND app_id = 'steps' AND revoked = 0");
                     $revokeSteps->bindValue(':e',$email,PDO::PARAM_STR);
                     $revokeSteps->execute();
                 }
@@ -818,10 +820,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);
+                // Revoking also clears the stored plaintext token and the device id,
+                // so the unpaired phone is forgotten instead of lingering in the DB.
                 if($tokenHash===''){
-                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0");
+                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE email = :e AND app_id = :a AND revoked = 0");
                 }else{
-                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND app_id = :a");
+                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE token_hash = :h AND email = :e AND app_id = :a");
                     $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
                 }
                 $stmt->bindValue(':e',$email,PDO::PARAM_STR);
