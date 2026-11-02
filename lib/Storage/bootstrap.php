@@ -170,6 +170,7 @@ function storage_default_settings(): array {
         'backup_profile' => '',
         'delete_source_after_migration' => false,
         'max_copy_parallel' => 1,
+        'placement_policy' => 'mfs',
     ];
 }
 
@@ -193,6 +194,8 @@ function storage_settings(bool $reset = false): array {
     $settings['backup_required'] = !empty($settings['backup_required']);
     $settings['delete_source_after_migration'] = !empty($settings['delete_source_after_migration']);
     $settings['max_copy_parallel'] = max(1, min(8, (int)$settings['max_copy_parallel']));
+    $settings['placement_policy'] = in_array((string)$settings['placement_policy'], ['mfs', 'lfs', 'epmfs', 'ff'], true)
+        ? (string)$settings['placement_policy'] : 'mfs';
     $settings['backup_profile'] = preg_replace('/[^a-f0-9]/i', '', (string)$settings['backup_profile']) ?? '';
     $cache = $settings;
     return $cache;
@@ -209,6 +212,10 @@ function storage_save_settings(array $input): array {
     }
     if (array_key_exists('backup_profile', $input)) {
         $next['backup_profile'] = preg_replace('/[^a-f0-9]/i', '', (string)$input['backup_profile']) ?? '';
+    }
+    if (array_key_exists('placement_policy', $input)) {
+        $policy = (string)$input['placement_policy'];
+        $next['placement_policy'] = in_array($policy, ['mfs', 'lfs', 'epmfs', 'ff'], true) ? $policy : 'mfs';
     }
     $next = array_intersect_key($next, storage_default_settings());
     storage_ensure_dir(storage_state_dir());

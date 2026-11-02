@@ -13,7 +13,7 @@
         poll: null,
         removeDiskId: 0,
         removeCheck: null,
-        lastStatus: null
+        activeTab: 'overview'
     };
 
     function el(sel, root) { return (root || state.root || document).querySelector(sel); }
@@ -23,6 +23,23 @@
         return String(value == null ? '' : value)
             .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
             .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function icon(name, size) {
+        var paths = {
+            disk: '<ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v6c0 1.66 3.58 3 8 3s8-1.34 8-3V5"/><path d="M4 11v6c0 1.66 3.58 3 8 3s8-1.34 8-3v-6"/>',
+            check: '<path d="M20 6 9 17l-5-5"/>',
+            alert: '<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/>',
+            clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+            shield: '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/>',
+            trash: '<path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v5"/><path d="M14 11v5"/>',
+            scan: '<circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/><path d="M8 11h6"/>',
+            arrow: '<path d="M5 12h14"/><path d="m13 6 6 6-6 6"/>',
+            server: '<rect x="3" y="4" width="18" height="6" rx="2"/><rect x="3" y="14" width="18" height="6" rx="2"/><path d="M7 7h.01"/><path d="M7 17h.01"/>'
+        };
+        var body = paths[name] || paths.server;
+        var s = size || 15;
+        return '<svg width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + body + '</svg>';
     }
 
     function fmtBytes(value) {
@@ -50,6 +67,11 @@
     function badge(status) {
         var value = String(status || 'unknown');
         return '<span class="stg-badge ' + esc(value) + '">' + esc(value.replace(/_/g, ' ')) + '</span>';
+    }
+
+    function setText(selector, value) {
+        var node = el(selector);
+        if (node) node.textContent = value;
     }
 
     function showAlert(message, type) {
@@ -108,46 +130,144 @@
         renderSettings();
     }
 
+    function showTab(name) {
+        var valid = ['overview', 'disks', 'migrations', 'backup', 'settings'];
+        if (valid.indexOf(name) === -1) name = 'overview';
+        state.activeTab = name;
+        els('[data-stg-tab]').forEach(function (tab) {
+            var active = tab.getAttribute('data-stg-tab') === name;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        els('[data-stg-panel]').forEach(function (panel) {
+            var active = panel.getAttribute('data-stg-panel') === name;
+            panel.classList.toggle('active', active);
+            panel.hidden = !active;
+        });
+        try { localStorage.setItem('stg.activeTab', name); } catch (e) {}
+    }
+
     function renderSummary() {
         var d = state.data || {};
         var m = d.mergerfs || {};
         var r = d.restic || {};
-        el('#stg-total').textContent = fmtBytes(d.total_bytes);
-        el('#stg-used').textContent = fmtBytes(d.used_bytes);
-        el('#stg-free').textContent = fmtBytes(d.free_bytes);
-        el('#stg-disk-count').textContent = (d.online_count || 0) + ' online / ' + (d.disk_count || 0) + ' registered';
+        var disks = d.disks || [];
+        var total = Number(d.total_bytes) || 0;
+        var used = Number(d.used_bytes) || 0;
+        var free = Number(d.free_bytes) || 0;
         var pct = Math.max(0, Math.min(100, Number(d.percent_used) || 0));
+
+        setText('#stg-total', fmtBytes(total));
+        setText('#stg-used', fmtBytes(used));
+        setText('#stg-free', fmtBytes(free));
+        setText('#stg-kpi-total', fmtBytes(total));
+        setText('#stg-kpi-used', fmtBytes(used));
+        setText('#stg-kpi-used-sub', pct.toFixed(1) + '% of the pool');
+        setText('#stg-kpi-free', fmtBytes(free));
+        setText('#stg-kpi-disks', (d.online_count || 0) + ' / ' + (d.disk_count || 0));
+        setText('#stg-kpi-disks-sub', (d.disk_count || 0) === 1 ? 'disk registered' : 'disks registered');
+        setText('#stg-disk-count', (d.online_count || 0) + ' online / ' + (d.disk_count || 0) + ' registered');
+
         var bar = el('#stg-used-bar');
         bar.style.width = pct + '%';
         bar.className = pct >= 90 ? 'danger' : (pct >= 75 ? 'warn' : '');
         var ring = el('#stg-ring');
-        if (ring) ring.style.setProperty('--pct', String(pct));
-        el('#stg-ring-pct').textContent = pct.toFixed(0) + '%';
-        el('#stg-used-pct').textContent = pct.toFixed(1) + '% used';
-        el('#stg-free-sub').textContent = 'pool: ' + (d.storage_root || '/storage');
-        el('#stg-mergerfs').textContent = m.mounted ? (m.writable ? 'Online' : 'Read only') : 'Not mounted';
-        el('#stg-mergerfs-sub').textContent = m.mounted
+        if (ring) {
+            ring.style.setProperty('--pct', String(pct));
+            ring.className = 'stg-ring' + (pct >= 90 ? ' danger' : (pct >= 75 ? ' warn' : ''));
+        }
+        setText('#stg-ring-pct', pct.toFixed(0) + '%');
+        setText('#stg-used-pct', pct.toFixed(1) + '% used');
+        setText('#stg-free-sub', 'pool: ' + (d.storage_root || '/storage'));
+
+        setText('#stg-mergerfs', m.mounted ? (m.writable ? 'Online' : 'Read only') : 'Not mounted');
+        setText('#stg-mergerfs-sub', m.mounted
             ? ((m.branches || []).length + ' branch(es)' + (m.runtime_api ? ' · runtime API' : ''))
-            : (m.binary_available ? 'waiting for disks' : 'mergerfs not installed');
-        el('#stg-restic').textContent = r.configured ? 'Configured' : 'Not configured';
-        el('#stg-last-backup').textContent = r.last_backup_at ? ('Last backup: ' + fmtDate(r.last_backup_at)) : 'No storage backup yet';
+            : (m.binary_available ? 'waiting for disks' : 'mergerfs not installed'));
+        setText('#stg-restic', r.configured ? 'Configured' : 'Not configured');
+        setText('#stg-last-backup', r.last_backup_at ? fmtDate(r.last_backup_at) : 'Never');
+        var backupState = el('#stg-backup-state');
+        if (backupState) {
+            backupState.className = 'stg-badge ' + (r.configured ? 'online' : 'offline');
+            backupState.textContent = r.configured ? 'Protected' : 'Not configured';
+        }
+        var backupPath = el('#stg-backup-path');
+        if (backupPath) backupPath.textContent = d.storage_root || '/storage';
+
+        renderPoolMap(disks, total);
+        renderHealth(m, r, disks);
 
         var pill = el('#stg-pill');
         var pillText = el('#stg-pill-text');
         if (d.active_migration) {
-            pill.className = 'stg-pill';
-            pillText.textContent = 'Migration ' + (d.active_migration.status || '').replace(/_/g, ' ');
-        } else if (!d.mergerfs || !d.mergerfs.mounted) {
+            pill.className = 'stg-pill warn';
+            pillText.textContent = 'Migration ' + String(d.active_migration.status || '').replace(/_/g, ' ');
+        } else if (!m.mounted) {
             pill.className = 'stg-pill';
             pillText.textContent = (d.disk_count || 0) > 0 ? 'Pool not mounted' : 'No disks';
-        } else if (!d.mergerfs.writable) {
+        } else if (!m.writable) {
             pill.className = 'stg-pill err';
             pillText.textContent = 'Pool is not writable';
         } else {
             pill.className = 'stg-pill ok';
             pillText.textContent = 'Pool online';
         }
-        el('#stg-disks-hint').textContent = (d.disks_root || '/disks') + ' · scanned by the watcher';
+        setText('#stg-disks-hint', (d.disks_root || '/disks') + ' · scanned automatically');
+        var countDisks = el('#stg-tab-count-disks');
+        if (countDisks) countDisks.textContent = String((d.disk_count || 0));
+        var countMigrations = el('#stg-tab-count-migrations');
+        if (countMigrations) countMigrations.textContent = String((d.migrations || []).length);
+    }
+
+    function renderPoolMap(disks, total) {
+        var map = el('#stg-pool-map');
+        var legend = el('#stg-pool-legend');
+        if (!map || !legend) return;
+        var active = disks.filter(function (d) { return ['online', 'initializing', 'error'].indexOf(String(d.status)) !== -1 && Number(d.total_bytes) > 0; });
+        if (!active.length || total <= 0) {
+            map.innerHTML = '<div class="stg-empty">No pooled capacity yet.</div>';
+            legend.innerHTML = '';
+            return;
+        }
+        var colors = ['#3b82f6', '#22c55e', '#f59e0b', '#a855f7', '#06b6d4', '#ef4444'];
+        map.innerHTML = '<div class="stg-pool-bar">' + active.map(function (disk, i) {
+            var share = Math.max(1, Number(disk.total_bytes) / total * 100);
+            return '<span class="stg-pool-seg" style="width:' + share.toFixed(2) + '%;background:' + colors[i % colors.length] + '" title="' + esc(disk.name) + ' · ' + fmtBytes(disk.total_bytes) + '"></span>';
+        }).join('') + '</div>';
+        legend.innerHTML = active.map(function (disk, i) {
+            return '<div class="stg-legend-item"><span class="stg-legend-dot" style="background:' + colors[i % colors.length] + '"></span><span class="stg-legend-name">' + esc(disk.name) + '</span><strong>' + fmtBytes(disk.total_bytes) + '</strong><small>' + (Number(disk.percent_used) || 0).toFixed(0) + '% used</small></div>';
+        }).join('');
+    }
+
+    function renderHealth(m, r, disks) {
+        var list = el('#stg-health-list');
+        var score = el('#stg-health-score');
+        if (!list) return;
+        var online = disks.filter(function (d) { return String(d.status) === 'online'; }).length;
+        var issues = [];
+        if (!m.mounted) issues.push('Pool is not mounted');
+        if (m.mounted && !m.writable) issues.push('Pool is read-only');
+        if (!m.fuse_device) issues.push('/dev/fuse is not available');
+        if (!r.configured) issues.push('No backup repository configured');
+        if (online < disks.length) issues.push((disks.length - online) + ' disk(s) offline');
+        if (score) {
+            score.className = 'stg-badge ' + (issues.length === 0 ? 'online' : (online > 0 ? 'initializing' : 'error'));
+            score.textContent = issues.length === 0 ? 'Healthy' : issues.length + ' check(s)';
+        }
+        var rows = [
+            { icon: 'server', title: 'MergerFS pool', value: m.mounted ? (m.writable ? 'Mounted & writable' : 'Mounted read-only') : 'Not mounted', ok: !!(m.mounted && m.writable), detail: (m.branches || []).length + ' branch(es)' },
+            { icon: 'shield', title: 'FUSE device', value: m.fuse_device ? '/dev/fuse available' : 'Not available', ok: !!m.fuse_device, detail: m.runtime_api ? 'runtime API supported' : 'runtime API unavailable' },
+            { icon: 'disk', title: 'Registered disks', value: online + ' online / ' + disks.length + ' total', ok: online > 0 && online === disks.length, detail: (state.data && state.data.disks_root) || '/disks' },
+            { icon: 'check', title: 'Restic backup', value: r.configured ? 'Repository configured' : 'Not configured', ok: !!r.configured, detail: r.last_backup_at ? 'Last: ' + fmtDate(r.last_backup_at) : 'No snapshot yet' }
+        ];
+        list.innerHTML = rows.map(function (row) {
+            return '<div class="stg-health-row">' +
+                '<span class="stg-health-icon ' + (row.ok ? 'ok' : 'warn') + '">' + icon(row.ok ? 'check' : 'alert', 15) + '</span>' +
+                '<div class="stg-health-copy"><strong>' + esc(row.title) + '</strong><small>' + esc(row.detail) + '</small></div>' +
+                '<span class="stg-health-value">' + esc(row.value) + '</span></div>';
+        }).join('');
+        var system = el('#stg-system-status');
+        if (system) system.innerHTML = list.innerHTML;
     }
 
     function renderDisks() {
@@ -170,13 +290,24 @@
             if (status === 'ready_to_remove') {
                 actions = '<span class="stg-muted">Remove its compose line, then recreate the container.</span>';
             } else {
-                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">Check</button>';
-                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>Safely remove</button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">' + icon('scan', 13) + '<span>Check</span></button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>' + icon('trash', 13) + '<span>Safely remove</span></button>';
             }
+            var total = Number(disk.total_bytes) || 0;
+            var used = Number(disk.used_bytes) || 0;
+            var free = Number(disk.free_bytes) || 0;
             return '<article class="stg-disk-card' + (status === 'ready_to_remove' ? ' stg-disk-ready' : '') + '">' +
-                '<div class="stg-disk-card-head"><div><div class="stg-disk-name">' + esc(disk.name) + '</div><div class="stg-disk-path">' + esc(disk.mount_path) + '</div></div>' + badge(status) + '</div>' +
-                '<div class="stg-disk-usage"><div class="stg-disk-usage-line"><strong>' + fmtBytes(disk.used_bytes) + '</strong><span>of ' + fmtBytes(disk.total_bytes) + '</span><span class="stg-disk-free">' + fmtBytes(disk.free_bytes) + ' free</span></div><div class="stg-bar"><span class="' + barClass + '" style="width:' + pct + '%"></span></div><div class="stg-disk-pct">' + pct.toFixed(1) + '% used</div></div>' +
-                '<div class="stg-disk-facts"><div><span>Filesystem</span><strong>' + esc(disk.filesystem || '—') + '</strong></div><div><span>Identity</span><strong class="stg-uuid" title="' + esc(disk.uuid) + '">' + esc(disk.uuid) + '</strong></div><div><span>Last check</span><strong>' + fmtDate(disk.last_health_check_at) + '</strong></div><div><span>Last backup</span><strong>' + fmtDate(disk.last_backup_at) + '</strong></div></div>' +
+                '<div class="stg-disk-card-head">' +
+                '<span class="stg-disk-icon">' + icon('disk', 22) + '</span>' +
+                '<div class="stg-disk-ident"><div class="stg-disk-name">' + esc(disk.name) + '</div><div class="stg-disk-path">' + esc(disk.mount_path) + '</div></div>' +
+                badge(status) + '</div>' +
+                '<div class="stg-disk-usage"><div class="stg-disk-usage-line"><strong>' + fmtBytes(used) + '</strong><span>of ' + fmtBytes(total) + '</span><span class="stg-disk-free">' + fmtBytes(free) + ' free</span></div><div class="stg-bar"><span class="' + barClass + '" style="width:' + pct + '%"></span></div><div class="stg-disk-pct">' + pct.toFixed(1) + '% used</div></div>' +
+                '<div class="stg-disk-facts">' +
+                '<div><span>Filesystem</span><strong>' + esc(disk.filesystem || '—') + '</strong></div>' +
+                '<div><span>Identity</span><strong class="stg-uuid" title="' + esc(disk.uuid) + '">' + esc(disk.uuid) + '</strong></div>' +
+                '<div><span>Last check</span><strong>' + fmtDate(disk.last_health_check_at) + '</strong></div>' +
+                '<div><span>Last backup</span><strong>' + fmtDate(disk.last_backup_at) + '</strong></div>' +
+                '</div>' +
                 '<div class="stg-disk-actions">' + actions + '</div></article>';
         }).join('');
     }
@@ -196,12 +327,27 @@
             card.hidden = true;
         } else {
             card.hidden = false;
-            el('#stg-active-state').textContent = diskName(active.source_disk_id) + ' · ' + (active.status || '').replace(/_/g, ' ');
+            el('#stg-active-state').textContent = diskName(active.source_disk_id) + ' · ' + String(active.status || '').replace(/_/g, ' ');
             updateProgress(active);
         }
 
         var rows = (state.data && state.data.migrations) || [];
         var body = el('#stg-history-body');
+        var chart = el('#stg-chart-bars');
+        if (chart) {
+            var recent = rows.slice(0, 8).reverse();
+            if (!recent.length) {
+                chart.innerHTML = '<div class="stg-empty">No migrations yet.</div>';
+            } else {
+                chart.innerHTML = recent.map(function (m) {
+                    var pct = Math.max(0, Math.min(100, Number(m.progress) || 0));
+                    var cls = m.status === 'completed' ? 'ok' : (m.status === 'failed' ? 'err' : 'warn');
+                    return '<div class="stg-chart-row"><span class="stg-chart-label">' + esc(diskName(m.source_disk_id)) + '</span><div class="stg-chart-track"><span class="' + cls + '" style="width:' + pct.toFixed(1) + '%"></span></div><span class="stg-chart-value">' + pct.toFixed(0) + '%</span></div>';
+                }).join('');
+            }
+        }
+        var hint = el('#stg-history-hint');
+        if (hint) hint.textContent = rows.length ? rows.length + ' operation(s)' : '';
         if (!rows.length) {
             body.innerHTML = '<tr><td colspan="8"><div class="stg-empty">No migrations yet.</div></td></tr>';
             return;
@@ -261,8 +407,11 @@
         el('#stg-reserve').value = s.reserve_percent == null ? 12 : s.reserve_percent;
         el('#stg-minfree').value = s.min_free_gb == null ? 10 : s.min_free_gb;
         el('#stg-interval').value = s.watch_interval_seconds == null ? 30 : s.watch_interval_seconds;
+        el('#stg-max-parallel').value = s.max_copy_parallel == null ? 1 : s.max_copy_parallel;
         el('#stg-backup-required').checked = !!s.backup_required;
         el('#stg-delete-source').checked = !!s.delete_source_after_migration;
+        var policy = el('#stg-placement-policy');
+        if (policy) policy.value = s.placement_policy || 'mfs';
         var select = el('#stg-backup-profile');
         var profiles = (state.data && state.data.backup_profiles) || [];
         var current = s.backup_profile || '';
@@ -360,6 +509,7 @@
             .then(function () {
                 el('#stg-remove-overlay').hidden = true;
                 showAlert('Migration started. You can close this page; the worker continues in the background.', 'ok');
+                showTab('migrations');
                 return refresh(true);
             })
             .catch(function (err) {
@@ -393,12 +543,7 @@
     }
 
     function openProgressDialog(migrationId) {
-        var active = null;
-        if (migrationId) {
-            active = { id: migrationId };
-        } else {
-            active = state.data && state.data.active_migration;
-        }
+        var active = migrationId ? { id: migrationId } : (state.data && state.data.active_migration);
         if (!active) {
             var latest = state.data && state.data.migrations && state.data.migrations[0];
             if (!latest) { showAlert('No migration to show.', 'warn'); return; }
@@ -416,6 +561,8 @@
             reserve_percent: Number(el('#stg-reserve').value),
             min_free_gb: Number(el('#stg-minfree').value),
             watch_interval_seconds: Number(el('#stg-interval').value),
+            max_copy_parallel: Number(el('#stg-max-parallel').value),
+            placement_policy: el('#stg-placement-policy').value,
             backup_required: el('#stg-backup-required').checked,
             delete_source_after_migration: el('#stg-delete-source').checked,
             backup_profile: el('#stg-backup-profile').value
@@ -462,6 +609,19 @@
     }
 
     function onClick(event) {
+        var tip = event.target.closest('.stg-tip');
+        if (tip && state.root.contains(tip)) {
+            event.preventDefault();
+            var open = tip.classList.contains('is-open');
+            els('.stg-tip.is-open').forEach(function (node) { node.classList.remove('is-open'); });
+            if (!open) tip.classList.add('is-open');
+            return;
+        }
+        var tab = event.target.closest('[data-stg-tab]');
+        if (tab && state.root.contains(tab)) {
+            showTab(tab.getAttribute('data-stg-tab'));
+            return;
+        }
         var close = event.target.closest('[data-stg-close]');
         if (close) {
             var which = close.getAttribute('data-stg-close');
@@ -506,6 +666,9 @@
         state.root = root;
         state.base = root.getAttribute('data-stg-base') || '/project/storage/index.php';
         state.csrf = root.getAttribute('data-stg-csrf') || '';
+        var saved = 'overview';
+        try { saved = localStorage.getItem('stg.activeTab') || 'overview'; } catch (e) {}
+        showTab(saved);
         root.addEventListener('click', onClick);
         refresh();
     }
@@ -519,8 +682,6 @@
     function autoInit() {
         var root = document.getElementById('stg-app');
         if (!root) return;
-        // Inside the Admin Panel the panel code calls init() explicitly; this
-        // covers the standalone page and dynamic re-insertion.
         init(root);
     }
 

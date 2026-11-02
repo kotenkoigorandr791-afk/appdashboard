@@ -321,6 +321,50 @@
             : (configured ? 'Open a backup profile and run a snapshot, or check the repository.' : 'Create a repository to start protecting user data.');
         var run = el(root, '#bdp-run-active');
         if (run) run.setAttribute('data-profile', state.activeRepo || ((list[0] || {}).id || ''));
+        var countBackups = el(root, '#bdp-tab-count-backups');
+        if (countBackups) countBackups.textContent = String(list.length);
+        var countSnapshots = el(root, '#bdp-tab-count-snapshots');
+        if (countSnapshots) countSnapshots.textContent = String(snapshots.length);
+        var countJobs = el(root, '#bdp-tab-count-jobs');
+        if (countJobs) countJobs.textContent = String((state.jobs || []).length);
+        renderProtectionChart(root, snapshots);
+        renderProtectionHealth(root, list, snapshots, mandatory, configured);
+    }
+
+    function renderProtectionChart(root, snapshots) {
+        var box = el(root, '#bdp-chart-bars');
+        if (!box) return;
+        var list = (snapshots || []).slice(0, 10).reverse();
+        if (!list.length) {
+            box.innerHTML = '<div class="bdp-empty">No snapshots yet.</div>';
+            return;
+        }
+        var values = list.map(function (s) { return Math.max(1, Number(s.files) || Number(s.size) || 1); });
+        var max = Math.max.apply(Math, values);
+        box.innerHTML = '<div class="bdp-spark">' + list.map(function (s, i) {
+            var h = Math.max(8, Math.round(values[i] / max * 100));
+            var when = s.time ? String(s.time).slice(0, 10) : '';
+            return '<div class="bdp-spark-col" title="' + esc(when) + ' · ' + esc(fmtSize(s.size)) + ' · ' + (s.files || 0) + ' files">'
+                + '<span style="height:' + h + '%"></span><small>' + esc(when.slice(5)) + '</small></div>';
+        }).join('') + '</div>';
+    }
+
+    function renderProtectionHealth(root, list, snapshots, mandatory, configured) {
+        var box = el(root, '#bdp-health-list');
+        if (!box) return;
+        var snap = (snapshots || [])[0] || null;
+        var running = (state.jobs || []).filter(function (j) { return j.status === 'running' || j.status === 'queued'; }).length;
+        var rows = [
+            { label: 'Repository', value: configured ? 'Configured' : 'Not configured', ok: configured > 0, detail: state.repoOk ? 'Connection verified' : 'Check the repository' },
+            { label: 'Application data', value: mandatory ? 'Required profile' : 'Missing', ok: !!mandatory, detail: mandatory ? 'Protected by policy' : 'Create the mandatory profile' },
+            { label: 'Latest snapshot', value: snap ? fmtDate(snap.time) : 'Never', ok: !!snap, detail: snap ? ((snap.files || 0) + ' files · ' + fmtSize(snap.size)) : 'No recovery point yet' },
+            { label: 'Running jobs', value: running ? String(running) : 'Idle', ok: running === 0, detail: running ? 'Backup in progress' : 'Nothing running' }
+        ];
+        box.innerHTML = rows.map(function (row) {
+            return '<div class="bdp-health-row"><span class="bdp-health-dot ' + (row.ok ? 'ok' : 'warn') + '"></span>'
+                + '<div><strong>' + esc(row.label) + '</strong><small>' + esc(row.detail) + '</small></div>'
+                + '<span>' + esc(row.value) + '</span></div>';
+        }).join('');
     }
 
     function runBackup(profileId) {
@@ -341,6 +385,8 @@
             body.innerHTML = '<tr><td colspan="6"><div class="bdp-empty">' + esc(t('no_snapshots')) + '</div></td></tr>';
             return;
         }
+        var countSnapshots = el(root, '#bdp-tab-count-snapshots');
+        if (countSnapshots) countSnapshots.textContent = String((state.snapshots || []).length);
         body.innerHTML = state.snapshots.map(function (snap) {
             var paths = (snap.paths || []).map(function (p) { return esc(p); }).join('<br>');
             var tags = (snap.tags || []).map(function (tg) { return '<span class="bdp-badge">' + esc(tg) + '</span>'; }).join(' ');
@@ -369,6 +415,8 @@
         var meta = el(root, '#bdp-job-meta');
         if (!body) return;
         var jobs = state.jobs || [];
+        var countJobs = el(root, '#bdp-tab-count-jobs');
+        if (countJobs) countJobs.textContent = String(jobs.length);
         if (meta) meta.textContent = jobs.length ? (jobs.length + ' ' + t('total')) : '';
         if (!jobs.length) {
             body.innerHTML = '<tr><td colspan="6"><div class="bdp-empty">' + esc(t('no_jobs')) + '</div></td></tr>';
@@ -1099,9 +1147,38 @@
         }
     }
 
+    function showTab(name, persist) {
+        var valid = ['overview', 'backups', 'snapshots', 'maintenance', 'jobs'];
+        if (valid.indexOf(name) === -1) name = 'overview';
+        Array.prototype.forEach.call(state.root.querySelectorAll('[data-bdp-tab]'), function (tab) {
+            var active = tab.getAttribute('data-bdp-tab') === name;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        Array.prototype.forEach.call(state.root.querySelectorAll('[data-bdp-panel]'), function (panel) {
+            var active = panel.getAttribute('data-bdp-panel') === name;
+            panel.classList.toggle('active', active);
+            panel.hidden = !active;
+        });
+        if (persist !== false) { try { localStorage.setItem('bdp.activeTab', name); } catch (e) {} }
+    }
+
     function bind(root) {
         if (root._bdpBound) return;
         root.addEventListener('click', function (event) {
+            var tip = event.target.closest('.bdp-tip');
+            if (tip && root.contains(tip)) {
+                event.preventDefault();
+                var open = tip.classList.contains('is-open');
+                Array.prototype.forEach.call(root.querySelectorAll('.bdp-tip.is-open'), function (n) { n.classList.remove('is-open'); });
+                if (!open) tip.classList.add('is-open');
+                return;
+            }
+            var tab = event.target.closest('[data-bdp-tab]');
+            if (tab && root.contains(tab)) {
+                showTab(tab.getAttribute('data-bdp-tab'));
+                return;
+            }
             var target = event.target.closest('[data-bdp-action]');
             if (target && root.contains(target)) {
                 event.preventDefault();
@@ -1217,6 +1294,9 @@
         root._bdpI18n = JSON.parse(root.getAttribute('data-bdp-i18n') || '{}');
         applyI18n(root);
         bind(root);
+        var saved = 'overview';
+        try { saved = localStorage.getItem('bdp.activeTab') || 'overview'; } catch (e) {}
+        showTab(saved, false);
         loadAll(true);
         setInterval(function () {
             if (!document.body.contains(root)) return;
