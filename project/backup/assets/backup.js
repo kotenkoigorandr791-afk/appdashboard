@@ -282,7 +282,9 @@
                 + '<td data-label="' + esc(t('actions')) + '"><div class="bdp-actions">'
                 + '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-primary" data-bdp-action="run_backup" data-profile="' + esc(p.id) + '">' + esc(t('run_now')) + '</button>'
                 + '<button type="button" class="bdp-btn bdp-btn-sm" data-bdp-action="edit_backup" data-profile="' + esc(p.id) + '">' + esc(t('edit')) + '</button>'
-                + '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-danger" data-bdp-action="delete_backup" data-profile="' + esc(p.id) + '">' + esc(t('delete')) + '</button>'
+                + (p.mandatory
+                    ? '<span class="bdp-badge success" title="Required backup of this application\'s user data">Required</span>'
+                    : '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-danger" data-bdp-action="delete_backup" data-profile="' + esc(p.id) + '">' + esc(t('delete')) + '</button>')
                 + '</div></td>'
                 + '</tr>';
         }).join('');

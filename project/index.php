@@ -53,6 +53,8 @@ $__performancePhp = [
     '/project/performance/index.php' => APP_ROOT . '/project/performance/index.php',
     '/project/performance/server_monitor.php' => APP_ROOT . '/project/performance/server_monitor.php',
     '/project/performance/monitor_stats.php' => APP_ROOT . '/project/performance/monitor_stats.php',
+    '/project/storage/index.php' => APP_ROOT . '/project/storage/index.php',
+    '/project/backup/index.php' => APP_ROOT . '/project/backup/index.php',
 ];
 if (isset($__performancePhp[$__pathLower])) {
     $_SERVER['SCRIPT_NAME'] = $__pathLower;

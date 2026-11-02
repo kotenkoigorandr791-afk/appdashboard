@@ -147,6 +147,12 @@ services:
         max-size: 20m
         max-file: "5"
     privileged: true
+    # Dynamic storage: MergerFS runs inside this container. /dev/fuse is the
+    # only extra device it needs; SYS_ADMIN is required for mount(2).
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
     ulimits:
       nofile:
         soft: 65535
@@ -253,6 +259,16 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
       - /:/host
       - ${HOME:-/home/ihor}:/host-home
+      # Dynamic storage pool (optional). Each physical disk is mounted on the
+      # host first, then bind-mounted one directory per disk. Add a new disk by
+      # appending one line and recreating the container:
+      # - /mnt/hdd1:/disks/hdd1:rw
+      # - /mnt/hdd2:/disks/hdd2:rw
+      # - /mnt/backups/appdashboard:/backup:rw
+      # The app discovers them automatically; MergerFS runs in the container.
+      # Extra Restic backups (the application user-data backup is always
+      # present) can be declared here or created in the web UI:
+      # APPDASHBOARD_BACKUPS_JSON: '[{"name":"Host files","repository":"/backup/host","password":"change-me","sources":["/host-home"],"schedule":{"enabled":true,"frequency":"daily","time":"04:30"}}]'
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "host-gateway:host-gateway"

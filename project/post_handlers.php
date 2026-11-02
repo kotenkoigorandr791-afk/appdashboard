@@ -1322,6 +1322,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-ssh" data-cap="ssh"<?php echo $_apCapSsh?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2.4 4.2l3 2.2-3 2.2v-1.7l1.2-.9-1.2-.9v-1.9zm5.6 3.1h4v1.6h-4v-1.6z"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['ssh_terminal']??'SSH Terminal'); ?></span></button>
         <button class="ap-nav-btn" data-panel="ap-backup" data-cap="integrations"<?php echo $_apCapIntegrations?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v.5"/><path d="M12 10v4h4"/><path d="m12 14 1.535-1.605a5 5 0 0 1 8 1.5"/><path d="M22 22v-4h-4"/><path d="m22 18-1.535 1.605a5 5 0 0 1-8-1.5"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['backup']??'Backup'); ?></span></button>
+        <button class="ap-nav-btn" data-panel="ap-storage" data-cap="integrations"<?php echo $_apCapIntegrations?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['storage_manager_title']??'Storage'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-docs"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v8l3-3 3 3V2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['view_documentation']??'Documentation'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
@@ -1456,6 +1457,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                     <span><?php echo my_htmlspecialchars($translations['ai_assistant_settings']??'AI Assistant'); ?></span>
                 </button>
+                <button type="button" class="ap-settings-tab" data-settings-section="storage" role="tab" aria-selected="false">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                    <span><?php echo my_htmlspecialchars($translations['storage_manager_title']??'Disks'); ?></span>
+                </button>
             </div>
 
             <!-- Email Settings -->
@@ -1513,6 +1518,16 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-status" id="ap-onlyoffice-status"></div>
             </div>
 
+            <div class="ap-card ap-settings-card" data-settings-card="storage">
+                <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>Disk usage</div>
+                <div id="ap-settings-storage-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;"></div>
+                <div id="ap-settings-storage" style="display:flex;flex-direction:column;gap:8px;"><div class="ap-hint">Loading…</div></div>
+                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" id="ap-settings-open-storage" class="ap-btn ap-btn-primary">Open Storage Manager</button>
+                    <button type="button" id="ap-settings-refresh-storage" class="ap-btn ap-btn-secondary">Refresh disk usage</button>
+                </div>
+                <div class="ap-hint" style="margin-top:8px;">Physical disks are bind-mounted under <code>/disks</code> and merged into <code>/storage</code>. Use the Storage Manager for health checks and safe disk removal.</div>
+            </div>
             <div class="ap-card ap-settings-card" data-settings-card="ai" style="overflow-x:auto;">
                 <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg><?php echo my_htmlspecialchars($translations['changeApiKey']??'Change API Key'); ?></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['search_engine_url']??'Search Engine URL (SearXNG)'); ?></label><input type="text" id="ap-search-engine-url" value="<?php echo my_htmlspecialchars(getConfig('search_engine_url', '')); ?>" placeholder="https://search.example.com" autocomplete="off" style="font-family:monospace;font-size:12px;"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['search_engine_url_hint']??'SearXNG instance URL. Used for AI web search and recipe image search. JSON format must be enabled on the instance.'); ?></div></div>
@@ -1762,6 +1777,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <div class="ap-panel" id="ap-backup">
             <?php echo $apBreadcrumb($translations['backup']??'Backup'); ?>
             <?php require __DIR__ . '/views/modals/backup_manager.php'; ?>
+        </div>
+        <div class="ap-panel" id="ap-storage">
+            <?php echo $apBreadcrumb($translations['storage_manager_title']??'Storage'); ?>
+            <?php require __DIR__ . '/views/modals/storage_manager.php'; ?>
         </div>
         <div class="ap-panel" id="ap-docs" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <?php echo $apBreadcrumb($translations['view_documentation']??$translations['documentation']??'Documentation'); ?>
