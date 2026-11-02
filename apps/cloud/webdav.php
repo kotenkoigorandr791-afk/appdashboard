@@ -11,6 +11,7 @@ if (!class_exists('Sabre\\DAV\\FS\\Directory')) {
     }
 }
 require_once __DIR__ . '/api.php';
+require_once __DIR__ . '/includes/cloud_file_index.php';
 use Sabre\DAV;
 use Sabre\DAV\FS;
 @ini_set('max_execution_time', '0');
@@ -103,11 +104,30 @@ function cloud_webdav_disk_name(string $publicName): ?string {
 }
 final class CloudWebDavDirectory extends FS\Directory {
     private string $email;
+    private string $user;
     private string $rootPath;
     public function __construct(string $path, string $email, string $rootPath, ?string $overrideName = null) {
         parent::__construct($path, $overrideName);
         $this->email = $email;
+        $this->user = email_to_cloud_username($email);
         $this->rootPath = rtrim(str_replace('\\', '/', $rootPath), '/');
+    }
+    /** App-relative path of this directory (index coordinates). */
+    private function indexRelative(): string {
+        $rel = ltrim(substr(str_replace('\\', '/', $this->path), strlen($this->rootPath)), '/');
+        return $rel;
+    }
+    private function touchFile(string $name): void {
+        $rel = ltrim($this->indexRelative() . '/' . $name, '/');
+        cloud_index_touch_file($this->user, 'main', $rel);
+    }
+    private function touchDir(string $name): void {
+        $rel = ltrim($this->indexRelative() . '/' . $name, '/');
+        cloud_index_touch_dir($this->user, 'main', $rel);
+    }
+    private function touchDeleted(string $name): void {
+        $rel = ltrim($this->indexRelative() . '/' . $name, '/');
+        if ($rel !== '') cloud_index_touch_delete($this->user, 'main', $rel);
     }
     private function isRoot(): bool {
         return rtrim(str_replace('\\', '/', $this->path), '/') === $this->rootPath;
@@ -117,6 +137,7 @@ final class CloudWebDavDirectory extends FS\Directory {
             ? $this->path . '/' . $disk
             : $this->path;
         cloud_webdav_write_file($dirPath . '/' . $name, $data);
+        cloud_index_touch_file($this->user, 'main', ltrim(substr($dirPath . '/' . $name, strlen($this->rootPath)), '/'));
         $this->changed();
     }
     public function createDirectory($name) {
@@ -126,6 +147,7 @@ final class CloudWebDavDirectory extends FS\Directory {
             return;
         }
         parent::createDirectory($name);
+        $this->touchDir((string)$name);
         $this->changed();
     }
     public function getChild($name) {
@@ -148,13 +170,14 @@ final class CloudWebDavDirectory extends FS\Directory {
     }
     public function getChildren() {
         $nodes = [];
-        $iterator = new FilesystemIterator($this->path, FilesystemIterator::CURRENT_AS_SELF | FilesystemIterator::SKIP_DOTS);
-        $seen = [];
-        foreach ($iterator as $entry) {
-            $name = $entry->getFilename();
-            $seen[$name] = true;
-            if ($this->isHiddenEntry($name)) continue;
-            $nodes[] = $this->getChild($name);
+        // Directory contents come from the shared PostgreSQL index; WebDAV
+        // never reads a directory to list it.
+        $listing = cloud_index_list($this->user, 'main', $this->indexRelative(), 500);
+        foreach ($listing['items'] as $item) {
+            if ($this->isHiddenEntry((string)$item['name'])) continue;
+            $nodes[] = $item['type'] === 'dir'
+                ? new self($this->path . '/' . $item['name'], $this->email, $this->rootPath)
+                : new CloudWebDavFile($this->path . '/' . $item['name'], $this->email, $this->rootPath);
         }
         if ($this->isRoot()) {
             foreach (CLOUD_WEBDAV_ROOT_ALIASES as $disk => $alias) {
@@ -175,11 +198,16 @@ final class CloudWebDavDirectory extends FS\Directory {
         return !$this->isHiddenEntry((string)$name) && parent::childExists($name);
     }
     public function delete() {
+        $oldRel = $this->indexRelative();
         parent::delete();
+        if ($oldRel !== '') cloud_index_touch_delete($this->user, 'main', $oldRel);
         $this->changed();
     }
     public function setName($name) {
+        $oldRel = $this->indexRelative();
         parent::setName($name);
+        $newRel = $this->indexRelative();
+        if ($oldRel !== '' && $newRel !== '') cloud_index_touch_move($this->user, 'main', $oldRel, $newRel);
         $this->changed();
     }
     private function isHiddenRootEntry(string $name): bool {
@@ -197,9 +225,17 @@ final class CloudWebDavDirectory extends FS\Directory {
 }
 final class CloudWebDavFile extends FS\File {
     private string $email;
+    private string $user;
+    private string $rootPath;
     public function __construct(string $path, string $email, string $rootPath = '') {
         parent::__construct($path);
         $this->email = $email;
+        $this->user = email_to_cloud_username($email);
+        $this->rootPath = rtrim(str_replace('\\', '/', $rootPath), '/');
+    }
+    private function indexRelative(): string {
+        return $this->rootPath === '' ? ltrim(str_replace('\\', '/', $this->path), '/')
+            : ltrim(substr(str_replace('\\', '/', $this->path), strlen($this->rootPath)), '/');
     }
     public function getName(): string {
         $name = parent::getName();
@@ -207,14 +243,20 @@ final class CloudWebDavFile extends FS\File {
     }
     public function put($data) {
         cloud_webdav_write_file($this->path, $data);
+        cloud_index_touch_file($this->user, 'main', $this->indexRelative());
         invalidate_file_tree($this->email);
     }
     public function delete() {
+        $rel = $this->indexRelative();
         parent::delete();
+        if ($rel !== '') cloud_index_touch_delete($this->user, 'main', $rel);
         invalidate_file_tree($this->email);
     }
     public function setName($name) {
+        $oldRel = $this->indexRelative();
         parent::setName($name);
+        $newRel = $this->indexRelative();
+        if ($oldRel !== '' && $newRel !== '') cloud_index_touch_move($this->user, 'main', $oldRel, $newRel);
         invalidate_file_tree($this->email);
     }
 }

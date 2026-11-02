@@ -18,6 +18,9 @@ require_once __DIR__ . '/StorageBackupManager.php';
 require_once __DIR__ . '/DiskMigration.php';
 require_once __DIR__ . '/MigrationRecovery.php';
 require_once __DIR__ . '/StorageManager.php';
+require_once __DIR__ . '/FileIndexDb.php';
+require_once __DIR__ . '/FileIndex.php';
+require_once __DIR__ . '/FileIndexWorker.php';
 
 function storage_env(string $name, string $default = ''): string {
     $value = getenv($name);

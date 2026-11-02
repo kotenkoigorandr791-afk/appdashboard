@@ -10,7 +10,11 @@ if (!function_exists('sp_resolve_shared_path')) {
         $pos = strrpos($normalized, $marker);
         if ($pos !== false) {
             $relative = substr($normalized, $pos + strlen($marker));
-            $candidate = dirname(__DIR__, 3) . '/apps/cloud/storage/' . ltrim($relative, '/');
+            // Cloud data lives on the APPDATA volume; no repository symlink.
+            $cloudBase = function_exists('appdata_app_base_dir')
+                ? appdata_app_base_dir('cloud')
+                : rtrim((string)(getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData'), '/') . '/cloud';
+            $candidate = rtrim($cloudBase, '/') . '/' . ltrim($relative, '/');
             if (file_exists($candidate)) {
                 return $candidate;
             }

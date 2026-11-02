@@ -2014,10 +2014,10 @@ if($emailToReset){
             $deleted = false;
             $userRow = getUserByEmail($emailToDelete);
             if($userRow){
-                if($deleteFiles){
-                    $cfg = loadUserFoldersConfig();
-                    deleteUserFolders($emailToDelete, (string)($userRow['name'] ?? ''), $cfg['apps'] ?? []);
-                }
+                require_once APP_ROOT . '/lib/UserDataPurger.php';
+                // Full purge: files, index rows, application tables and per-user
+                // schemas. The user row itself is removed below.
+                $purgeReport = UserDataPurger::purge($emailToDelete, ['delete_files' => $deleteFiles]);
                 deleteUser($emailToDelete);
                 if(function_exists('removeUserFromActiveSessions')){
                     removeUserFromActiveSessions($emailToDelete);
@@ -2186,6 +2186,8 @@ if($emailToReset){
         $currentUserEmail=$_SESSION['user']['email']??'';
         if($emailToDelete&&$emailToDelete!==$currentUserEmail&&$emailToDelete!=='root@root'){
             if(getUserByEmail($emailToDelete)){
+                require_once APP_ROOT . '/lib/UserDataPurger.php';
+                UserDataPurger::purge($emailToDelete, ['delete_files' => true]);
                 deleteUser($emailToDelete);
                 removeUserFromActiveSessions($emailToDelete);
                 $userManagementSuccess=$translations['user_deleted'];

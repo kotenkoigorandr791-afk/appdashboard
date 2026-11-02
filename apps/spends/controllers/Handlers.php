@@ -8,6 +8,7 @@ require_once __DIR__ . '/../core/goals.php';
 require_once __DIR__ . '/../core/rates.php';
 require_once __DIR__ . '/../core/tags.php';
 require_once __DIR__ . '/../core/mobile_sync.php';
+require_once __DIR__ . '/../core/file_index.php';
 
 // Mobile companion: profile probe used after QR pairing.
 if (isset($_GET['mobile_profile']) || (isset($_GET['profile']) && defined('PUBLIC_API'))) {
@@ -1219,11 +1220,11 @@ if (isset($_POST['backup_action'])) {
 
     if ($action === 'list') {
         $backups = [];
-        foreach (glob("$userBackupDir/*.csv") ?: [] as $path) {
+        foreach (spends_list_backups($currentUser) as $backup) {
             $backups[] = [
-                'name' => basename($path),
-                'size' => (int)filesize($path),
-                'mtime' => (int)filemtime($path),
+                'name' => $backup['name'],
+                'size' => $backup['size'],
+                'mtime' => $backup['mtime'],
             ];
         }
         exit(json_encode(['status' => 'success', 'backups' => $backups]));
@@ -1244,19 +1245,21 @@ if (isset($_POST['backup_action'])) {
             @unlink($organizedFile);
         }
         $maxBackups = 30;
-        if (!is_file($backupPath) && count(glob("$userBackupDir/*.csv") ?: []) >= $maxBackups) {
+        $indexedNames = array_column(spends_list_backups($currentUser), 'name');
+        if (!in_array($name . '.csv', $indexedNames, true) && count($indexedNames) >= $maxBackups) {
             exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
         }
         if ($csv === null || $csv === '') {
             exit(json_encode(['status'=>'error','message'=>$__t('msg_no_organized_data')]));
         }
         file_put_contents($backupPath, $csv);
+        spends_record_backup($currentUser, $name . '.csv');
         exit(json_encode(['status'=>'success','message'=>$__t('msg_backup_saved')]));
     }
     elseif ($action === 'restore' && isset($_POST['backup_file'])) {
         $backupFile = basename($_POST['backup_file']);
-        $backupPath = "$userBackupDir/$backupFile";
-        if (!file_exists($backupPath)) exit(json_encode(['status'=>'error','message'=>$__t('msg_backup_not_found')]));
+        $backupPath = spends_backup_path($currentUser, $backupFile);
+        if ($backupPath === null) exit(json_encode(['status'=>'error','message'=>$__t('msg_backup_not_found')]));
 
         $fh = fopen($backupPath, 'r');
         $headers = fgetcsv($fh);
@@ -1300,13 +1303,18 @@ if (isset($_POST['backup_action'])) {
         exit(json_encode(['status'=>'success','message'=>$__t('backup_restored')]));
     }
     elseif ($action === 'delete' && isset($_POST['backup_file'])) {
-        $backupPath = "$userBackupDir/" . basename($_POST['backup_file']);
-        if (file_exists($backupPath)) { unlink($backupPath); exit(json_encode(['status'=>'success','message'=>$__t('backup_deleted')])); }
+        $backupFile = basename($_POST['backup_file']);
+        $backupPath = spends_backup_path($currentUser, $backupFile);
+        if ($backupPath !== null) {
+            unlink($backupPath);
+            spends_forget_backup($currentUser, $backupFile);
+            exit(json_encode(['status'=>'success','message'=>$__t('backup_deleted')]));
+        }
         exit(json_encode(['status'=>'error','message'=>$__t('msg_backup_not_found')]));
     }
     elseif ($action === 'download' && isset($_POST['backup_file'])) {
-        $backupPath = "$userBackupDir/" . basename($_POST['backup_file']);
-        if (file_exists($backupPath)) {
+        $backupPath = spends_backup_path($currentUser, basename($_POST['backup_file']));
+        if ($backupPath !== null) {
             header('Content-Type: text/csv');
             header('Content-Disposition: attachment; filename="' . basename($backupPath) . '"');
             header('Content-Length: ' . filesize($backupPath));
@@ -1319,12 +1327,15 @@ if (isset($_POST['backup_action'])) {
         if ($uploaded['error'] !== UPLOAD_ERR_OK) exit(json_encode(['status'=>'error','message'=>$__t('upload_error')]));
         $fn   = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($uploaded['name']));
         $ftype= mime_content_type($uploaded['tmp_name']);
-        if (($uploaded['size'] ?? 0) > 16 * 1024 * 1024 || (!is_file("$userBackupDir/$fn") && count(glob("$userBackupDir/*.csv") ?: []) >= 30)) {
+        $indexedNames = array_column(spends_list_backups($currentUser), 'name');
+        if (($uploaded['size'] ?? 0) > 16 * 1024 * 1024 || (!in_array($fn, $indexedNames, true) && count($indexedNames) >= 30)) {
             exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
         }
         if ($ftype === 'text/csv' || $ftype === 'text/plain' || str_contains($fn, '.csv')) {
-            if (move_uploaded_file($uploaded['tmp_name'], "$userBackupDir/$fn"))
+            if (move_uploaded_file($uploaded['tmp_name'], "$userBackupDir/$fn")) {
+                spends_record_backup($currentUser, $fn);
                 exit(json_encode(['status'=>'success','message'=>$__t('backup_uploaded')]));
+            }
             exit(json_encode(['status'=>'error','message'=>$__t('msg_move_failed')]));
         }
         exit(json_encode(['status'=>'error','message'=>$__t('msg_csv_only')]));
@@ -1338,10 +1349,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 if (isset($_GET['download_backup'])) {
-    $filename  = $_GET['download_backup'];
-    $backupDir = getUserBackupDir($currentUser);
-    $filePath  = $backupDir . '/' . basename($filename);
-    if (file_exists($filePath)) {
+    $filePath = spends_backup_path($currentUser, (string)$_GET['download_backup']);
+    if ($filePath !== null) {
         header('Content-Type: text/csv');
         header('Content-Disposition: attachment; filename="' . basename($filePath) . '"');
         header('Content-Length: ' . filesize($filePath));

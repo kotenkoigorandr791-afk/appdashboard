@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../core/file_index.php';
 try {
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         header('Content-Type: application/json');
@@ -127,6 +128,7 @@ try {
                         if (!move_uploaded_file($file['tmp_name'], $filePath)) {
                             throw new Exception('Failed to move uploaded file. Check directory permissions or disk space.');
                         }
+                        films_index_record($filePath);
                         
                         $creationDate = date('Y-m-d H:i:s', filectime($filePath));
                     } else {
@@ -254,13 +256,18 @@ try {
                     
                     $movies = array_filter($movies, fn($movie) => $movie['id'] !== $movieId);
                     
-                    if ($movieToDelete && ($movieToDelete['is_local'] ?? false) && !empty($movieToDelete['file_path']) && file_exists($movieToDelete['file_path'])) {
-                        unlink($movieToDelete['file_path']);
+                    if ($movieToDelete && ($movieToDelete['is_local'] ?? false) && !empty($movieToDelete['file_path'])) {
+                        $indexedPath = films_index_path($movieToDelete['file_path']);
+                        if ($indexedPath !== null) {
+                            unlink($indexedPath);
+                            films_index_forget($movieToDelete['file_path']);
+                        }
                     }
                     
                     $commentFile = COMMENTS_DIR . $movieId . '.json';
-                    if (file_exists($commentFile)) {
+                    if (films_index_path($commentFile) !== null) {
                         unlink($commentFile);
+                        films_index_forget($commentFile);
                     }
                     
                     $config = loadConfig();

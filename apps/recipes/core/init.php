@@ -107,11 +107,20 @@ if ($userRole === 0 && $db && isset($_COOKIE['PHPSESSID'])) {
     }
 }
 
-// Directory setup
-$recipes_dir = 'recipes';
-$products_dir = 'products';
-if (!is_dir($recipes_dir)) mkdir($recipes_dir, 0777, true);
-if (!is_dir($products_dir)) mkdir($products_dir, 0777, true);
+// Directory setup. Files live on the APPDATA volume; the public URL prefix
+// (recipes/... and products/...) is served through an nginx alias.
+if (!defined('RECIPES_DATA_BASE')) {
+    $__recipesBase = null;
+    if (function_exists('appdata_app_base_dir')) {
+        try { $__recipesBase = rtrim(appdata_app_base_dir('recipes'), '/'); } catch (Throwable $e) { $__recipesBase = null; }
+    }
+    if ($__recipesBase === null) $__recipesBase = dirname(__DIR__);
+    define('RECIPES_DATA_BASE', $__recipesBase);
+}
+$recipes_dir = RECIPES_DATA_BASE . '/recipes';
+$products_dir = RECIPES_DATA_BASE . '/products';
+if (!is_dir($recipes_dir)) @mkdir($recipes_dir, 0777, true);
+if (!is_dir($products_dir)) @mkdir($products_dir, 0777, true);
 
 // Load recipe state from database
 $recipe_state = ['current_recipe' => null, 'completed_steps' => []];

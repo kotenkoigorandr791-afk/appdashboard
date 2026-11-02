@@ -27,8 +27,13 @@ graphify-out/
 **/graphify-out/
 **/.graphify*/
 /backups/
+# Runtime data lives on the APPDATA volume. The repository never stores it and
+# never links to it (no symlinks in the code tree).
+/data
 /data/*
-!/data
+/uploads
+/uploads/*
+/apps/spends/data
 *.log
 *.sqlite3
 *.sqlite
@@ -67,8 +72,7 @@ graphify-out/
 /apps/recipes/recipes/
 /apps/smart_home/data/
 /apps/viewer/history.json
-/uploads/*
-!/uploads
+
 /tmp/
 /.cache/
 /.cursor/

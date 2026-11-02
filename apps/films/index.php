@@ -27,20 +27,13 @@ $user_photo = $user_data['photo'];
 
 define('MOVIES_FILE', appdata_app_base_dir('films') . '/movies.json');
 define('CONFIG_FILE', appdata_app_base_dir('films') . '/config.json');
-define('UPLOAD_DIR', __DIR__ . '/uploads/');
-define('COMMENTS_DIR', __DIR__ . '/comments/');
+// Uploads and comments live on the APPDATA volume; no repository symlinks.
+$filmsData = rtrim(appdata_app_base_dir('films'), '/');
+define('UPLOAD_DIR', $filmsData . '/uploads/');
+define('COMMENTS_DIR', $filmsData . '/comments/');
 define('CHUNK_SIZE', 1024 * 1024);
-try {
-    $filmsData = rtrim(appdata_app_base_dir('films'), '/');
-    foreach (['uploads' => UPLOAD_DIR, 'comments' => COMMENTS_DIR] as $filmsName => $filmsLink) {
-        $filmsTarget = $filmsData . '/' . $filmsName;
-        if (!is_dir($filmsTarget)) @mkdir($filmsTarget, 0777, true);
-        if (is_link($filmsLink) || !file_exists($filmsLink)) @symlink($filmsTarget, $filmsLink);
-    }
-} catch (Throwable $e) {
-}
-if (!file_exists(UPLOAD_DIR)) { mkdir(UPLOAD_DIR, 0777, true); }
-if (!file_exists(COMMENTS_DIR)) { mkdir(COMMENTS_DIR, 0777, true); }
+if (!is_dir(UPLOAD_DIR)) { @mkdir(UPLOAD_DIR, 0777, true); }
+if (!is_dir(COMMENTS_DIR)) { @mkdir(COMMENTS_DIR, 0777, true); }
 
 $lang = isset($_GET['lang']) && ap_i18n_lang_exists_in_dir(__DIR__, $_GET['lang']) ? ap_normalize_i18n_lang($_GET['lang']) : 'en';
 $theme = isset($_GET['theme']) && in_array($_GET['theme'], ['light', 'dark']) ? $_GET['theme'] : 'light';

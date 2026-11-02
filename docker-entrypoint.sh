@@ -77,7 +77,10 @@ fi
   printf 'max_execution_time=%s\n' "${PHP_MAX_EXECUTION_TIME:-30}"
   printf 'default_socket_timeout=%s\n' "${PHP_DEFAULT_SOCKET_TIMEOUT:-15}"
 } > /usr/local/etc/php/conf.d/appdashboard-timeouts.ini
-mkdir -p "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
+# $APPDATA_DATA_DIR/storage holds storage/индекс state (locks). It must exist
+# before supervisord starts php-fpm and the file-index worker (both as www-data),
+# otherwise root-owned copies created by one-off CLI runs break them.
+mkdir -p "$APPDATA_DATA_DIR" "$APPDATA_DATA_DIR/storage" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
 if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
   mv "$APP_ROOT/bot/bot.log" "/tmp/appdashboard-bot-log-migrated-$(date +%s)" 2>/dev/null || true
@@ -91,8 +94,12 @@ if [ -d "$APP_ROOT/uploads" ] && [ ! -L "$APP_ROOT/uploads" ]; then
   cp -a "$APP_ROOT/uploads/." "$UPLOADS_BASE_DIR/" 2>/dev/null || true
   rm -rf "$APP_ROOT/uploads"
 fi
-[ -e "$APP_ROOT/data" ] || [ -L "$APP_ROOT/data" ] || ln -s "$APPDATA_DATA_DIR" "$APP_ROOT/data"
-[ -e "$APP_ROOT/uploads" ] || [ -L "$APP_ROOT/uploads" ] || ln -s "$UPLOADS_BASE_DIR" "$APP_ROOT/uploads"
+# The code tree carries no symlinks: data lives only on the volumes
+# ($APPDATA_DATA_DIR / $UPLOADS_BASE_DIR) and is resolved through
+# storage_helper.php. Remove legacy links left by older images.
+for _legacy_link in "$APP_ROOT/data" "$APP_ROOT/uploads"; do
+  if [ -L "$_legacy_link" ]; then rm -f "$_legacy_link"; fi
+done
 chown -R www-data:www-data "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot 2>/dev/null || true
 chmod -R 0775 "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
 find "$APPDATA_DATA_DIR/.ssh" -type d -exec chmod 0700 {} \; 2>/dev/null || true

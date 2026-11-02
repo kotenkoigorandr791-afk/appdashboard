@@ -176,34 +176,16 @@ function spends_dir_writable(string $dir): bool {
     if ($ok) @unlink($probe);
     return $ok;
 }
-function spends_ensure_web_link(string $linkPath, string $targetPath): void {
-    if ($targetPath === '' || !is_dir($targetPath)) return;
-    if (is_link($linkPath)) {
-        if (@readlink($linkPath) === $targetPath) return;
-        @unlink($linkPath);
-        @symlink($targetPath, $linkPath);
-        return;
-    }
-    if (file_exists($linkPath)) return;
-    @symlink($targetPath, $linkPath);
-}
 function spends_runtime_dir(string $name): string {
-    $legacy = __DIR__ . '/../' . $name;
+    // Runtime data always lives on the APPDATA volume. Web URLs stay
+    // "users/...", served through an nginx alias to this directory.
     $appdata = spends_appdata_subdir($name);
     if ($appdata !== null) {
-        spends_ensure_web_link($legacy, $appdata);
         @chmod($appdata, SPENDS_RUNTIME_DIR_MODE);
         return rtrim($appdata, '/') . '/';
     }
-    if (is_link($legacy)) {
-        $resolved = realpath($legacy) ?: $legacy;
-        if (is_dir($resolved)) {
-            @chmod($resolved, SPENDS_RUNTIME_DIR_MODE);
-            return rtrim($resolved, '/') . '/';
-        }
-    }
     logError("APPDATA unavailable for spends/$name");
-    return rtrim($legacy, '/') . '/';
+    return rtrim(sys_get_temp_dir(), '/') . '/appdashboard_spends_' . $name . '/';
 }
 function checkDirectory($dir) {
     if (!file_exists($dir)) {

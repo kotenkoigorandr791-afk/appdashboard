@@ -19,7 +19,7 @@ function ocrMappingsPath($email){return userDir($email).'/ocr_mappings.json';}
 function readOcrMappings($email){$path=ocrMappingsPath($email);$json=is_file($path)?json_decode((string)file_get_contents($path),true):[];return is_array($json)?$json:[];}
 function writeOcrMappings($email,$map){file_put_contents(ocrMappingsPath($email),json_encode($map,JSON_UNESCAPED_UNICODE|JSON_PRETTY_PRINT));}
 }
-if (!defined('USERS_DIR')) define('USERS_DIR',$spendsAppRoot.'/users/');
+if (!defined('USERS_DIR')) define('USERS_DIR', rtrim(APPS_DATA_DIR, '/') . '/');
 if (!defined('JOB_ROOT')) define('JOB_ROOT',APPS_DATA_DIR.'_ocr_jobs');
 if(!file_exists(JOB_ROOT)){mkdir(JOB_ROOT,SPENDS_RUNTIME_DIR_MODE,true);}
 @chmod(JOB_ROOT,SPENDS_RUNTIME_DIR_MODE);

@@ -239,9 +239,9 @@ if (!function_exists('cloud_used_bytes_cached')) {
                 }
             }
         }
-        if ($root !== '' && is_dir($root) && function_exists('dir_size')) {
-            return dir_size($root);
-        }
+        // Never scan the filesystem from a user request. If the index/usage
+        // cache is unavailable the caller gets 0 (uploads stay allowed) until
+        // the background indexer catches up.
         return 0;
     }
 }

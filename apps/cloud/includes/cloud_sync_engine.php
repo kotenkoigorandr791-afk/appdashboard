@@ -48,22 +48,61 @@ function cloud_sync_manifest_build(string $user, string $rootKey, string $basePa
     $syncMode = cloud_sync_user_mode($email);
     $files = [];
     $dirs = [];
-    $rootPrefix = str_replace('\\', '/', $scope['full']);
-    $it = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($scope['full'], FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::SELF_FIRST
-    );
-    foreach ($it as $node) {
-        $full = str_replace('\\', '/', $node->getPathname());
-        $rel = ltrim(str_replace($rootPrefix, '', $full), '/');
-        if ($rel === '') continue;
-        if ($scope['root'] === 'main' && cloud_is_hidden_main_tree_path($rel)) continue;
-        if ($node->isDir()) {
-            $dirs[$rel] = ['path' => $rel, 'type' => 'dir'];
-            continue;
+
+    // The manifest is a listing: it comes from the central file index, not from
+    // a filesystem walk. Only hashes (when the user chose that mode) read files.
+    $indexed = null;
+    try {
+        require_once __DIR__ . '/cloud_file_index.php';
+        require_once dirname(__DIR__, 3) . '/lib/Storage/AppFiles.php';
+        $indexRoot = cloud_index_root($user, $scope['root']);
+        $prefix = cloud_index_paths($user, $scope['root'], $scope['path'])['relative'];
+        $subPath = $prefix === $indexRoot ? '' : substr($prefix, strlen($indexRoot) + 1);
+        $indexed = AppFiles::treeByRoot('cloud', $user, $indexRoot, $subPath, 200000);
+    } catch (Throwable $e) {
+        $indexed = null;
+    }
+
+    if ($indexed !== null) {
+        foreach ($indexed as $row) {
+            $rel = (string)$row['path'];
+            if ($rel === '') continue;
+            if ($scope['root'] === 'main' && cloud_is_hidden_main_tree_path($rel)) continue;
+            if ($row['type'] === 'dir') {
+                $dirs[$rel] = ['path' => $rel, 'type' => 'dir'];
+                continue;
+            }
+            $entry = [
+                'path' => $rel,
+                'type' => 'file',
+                'mtime' => (int)$row['mtime'],
+                'mtime_ms' => (int)$row['mtime'] * 1000,
+                'size' => (int)$row['size'],
+            ];
+            if ($syncMode === 'mtime_size_hash') {
+                $full = $scope['full'] . '/' . $rel;
+                $entry['sha1'] = is_file($full) ? (sha1_file($full) ?: '') : '';
+            }
+            $files[] = $entry;
         }
-        if (!$node->isFile()) continue;
-        $files[] = cloud_sync_entry_from_file($full, $rel, $syncMode);
+    } else {
+        $rootPrefix = str_replace('\\', '/', $scope['full']);
+        $it = new RecursiveIteratorIterator(
+            new RecursiveDirectoryIterator($scope['full'], FilesystemIterator::SKIP_DOTS),
+            RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($it as $node) {
+            $full = str_replace('\\', '/', $node->getPathname());
+            $rel = ltrim(str_replace($rootPrefix, '', $full), '/');
+            if ($rel === '') continue;
+            if ($scope['root'] === 'main' && cloud_is_hidden_main_tree_path($rel)) continue;
+            if ($node->isDir()) {
+                $dirs[$rel] = ['path' => $rel, 'type' => 'dir'];
+                continue;
+            }
+            if (!$node->isFile()) continue;
+            $files[] = cloud_sync_entry_from_file($full, $rel, $syncMode);
+        }
     }
     usort($files, static fn($a, $b) => strcmp($a['path'], $b['path']));
     $entries = array_values($dirs);

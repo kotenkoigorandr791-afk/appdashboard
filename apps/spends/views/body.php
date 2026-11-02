@@ -775,12 +775,11 @@
         <h4><?= htmlspecialchars($translations['existing_backups_for']) ?> <?= htmlspecialchars($displayName) ?></h4>
         <div id="backup-list" style="max-height:300px;overflow-y:auto;">
             <?php
-            $userBackupDir = getUserBackupDir($currentUser);
-            $backups = glob("$userBackupDir/*.csv") ?: [];
+            $backups = spends_list_backups($currentUser);
             foreach ($backups as $backup):
-                $filename = basename($backup);
-                $fileSize = round(filesize($backup)/1024, 2) . ' KB';
-                $fileDate = date('Y-m-d H:i:s', filemtime($backup));
+                $filename = $backup['name'];
+                $fileSize = round($backup['size']/1024, 2) . ' KB';
+                $fileDate = date('Y-m-d H:i:s', $backup['mtime']);
             ?>
                 <div class="backup-item">
                     <div style="flex:1;margin-right:20px;">
