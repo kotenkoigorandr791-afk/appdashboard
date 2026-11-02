@@ -190,8 +190,10 @@ final class MergerFSManager
         if (!is_dir($root)) @mkdir($root, 0775, true);
         $settings = storage_settings();
         $minFree = max(1, (int)$settings['min_free_gb']);
+        $policy = in_array((string)$settings['placement_policy'], ['mfs', 'lfs', 'epmfs', 'ff'], true)
+            ? (string)$settings['placement_policy'] : 'mfs';
         $options = implode(',', [
-            'category.create=mfs',
+            'category.create=' . $policy,
             'minfreespace=' . $minFree . 'G',
             'moveonenospc=true',
             'dropcacheonclose=true',
