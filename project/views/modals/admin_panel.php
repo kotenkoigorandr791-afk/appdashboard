@@ -1,7 +1,9 @@
 <?php if($isAdmin): ?>
 <!-- ====================== ADMIN PANEL ====================== -->
 <link rel="stylesheet" href="/project/backup/assets/backup.css">
+<link rel="stylesheet" href="/project/storage/assets/storage.css?v=<?= is_file(dirname(__DIR__, 2) . '/storage/assets/storage.css') ? filemtime(dirname(__DIR__, 2) . '/storage/assets/storage.css') : '1' ?>">
 <script src="/project/backup/assets/backup.js" defer></script>
+<script src="/project/storage/assets/storage.js?v=<?= is_file(dirname(__DIR__, 2) . '/storage/assets/storage.js') ? filemtime(dirname(__DIR__, 2) . '/storage/assets/storage.js') : '1' ?>" defer></script>
 <link rel="stylesheet" href="/project/performance/style.css?v=<?= is_file(dirname(__DIR__, 2) . '/performance/style.css') ? filemtime(dirname(__DIR__, 2) . '/performance/style.css') : '9' ?>">
 <script src="/project/assets/docker/panel.js?v=<?= (int)@filemtime(dirname(__DIR__, 2) . '/assets/docker/panel.js') ?>" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1311,6 +1313,33 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
     border-bottom: 1px solid var(--border-color);
 }
 
+/* Storage Manager panel */
+#ap-storage.ap-panel.active {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    margin: 0;
+    padding: 12px 0 0 !important;
+    box-sizing: border-box;
+    overflow: hidden;
+}
+#ap-storage > #stg-app {
+    flex: 1;
+    min-height: 0;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+#ap-storage .ap-breadcrumb {
+    display: block !important;
+    margin: 0 16px 10px;
+    padding: 0 2px 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+#ap-content:has(#ap-storage.active) { padding: 0 !important; overflow: hidden; }
+
 /* OmniRoute panel – same embedded styles (no breadcrumb) */
 #ap-omniroute.ap-panel.active {
     display: flex;
@@ -1431,8 +1460,8 @@ var apPanelInited = {};
 var apStatsData = {};
 var apStorageUsage = null;
 
-var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-backup':'backup','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
-var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','backup':'ap-backup','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
+var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-backup':'backup','ap-storage':'storage','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
+var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','backup':'ap-backup','storage':'ap-storage','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
 function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink, JSON_HEX_TAG); ?>;}
 function injectOmniRouteTheme(){
@@ -1651,6 +1680,14 @@ function openPanel(id){
             try{window.BackupPanel.init(dynRoot);}catch(e){console.error('[AdminPanel] BackupPanel.init:',e);}
         }else if(typeof window.BackupPanel.refresh==='function'){
             try{window.BackupPanel.refresh();}catch(e){}
+        }
+    }
+    if(id==='ap-storage'&&window.StoragePanel){
+        if(!apPanelInited['ap-storage']){
+            apPanelInited['ap-storage']=true;
+            try{window.StoragePanel.init(dynRoot.querySelector('#ap-storage'));}catch(e){console.error('[AdminPanel] StoragePanel.init:',e);}
+        }else if(typeof window.StoragePanel.refresh==='function'){
+            try{window.StoragePanel.refresh();}catch(e){}
         }
     }
     if(id==='ap-performance'&&window.PerformancePanel){
@@ -2797,7 +2834,63 @@ function wireEvents(){
             cards.forEach(function(card){
                 card.classList.toggle('active', card.dataset.settingsCard === name);
             });
+            if(name==='storage' && typeof window.apLoadSettingsStorage==='function') window.apLoadSettingsStorage();
         }
+        window.apLoadSettingsStorage=function(){
+            var box=dynRoot.querySelector('#ap-settings-storage');
+            var summary=dynRoot.querySelector('#ap-settings-storage-summary');
+            if(!box) return;
+            box.innerHTML='<div class="ap-hint">Loading disk usage…</div>';
+            var token=typeof apCsrfToken==='function'?apCsrfToken():'';
+            var headers={'Accept':'application/json'}; if(token) headers['X-CSRF-Token']=token;
+            fetch('/project/storage/index.php?api=status',{credentials:'same-origin',headers:headers})
+                .then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok) throw new Error((d&&d.error)||('HTTP '+r.status));return d;});})
+                .then(function(d){window.apSettingsStorageData=d;apRenderSettingsStorage(d);})
+                .catch(function(e){box.innerHTML='<div class="ap-hint" style="color:#d9534f;">Could not load disk usage: '+esc(e.message||'error')+'</div>';});
+        };
+        function apStorageBytes(n){
+            n=Number(n)||0; var u=['B','KiB','MiB','GiB','TiB','PiB'], i=0;
+            while(n>=1024&&i<u.length-1){n/=1024;i++;}
+            return (i===0?Math.round(n):n.toFixed(n>=100?0:1))+' '+u[i];
+        }
+        function apRenderSettingsStorage(d){
+            var box=dynRoot.querySelector('#ap-settings-storage');
+            var summary=dynRoot.querySelector('#ap-settings-storage-summary');
+            if(!box||!summary) return;
+            var pct=Math.max(0,Math.min(100,Number(d.percent_used)||0));
+            function tile(label,value,sub){
+                return '<div style="border:1px solid var(--border-color);border-radius:10px;padding:10px 12px;background:var(--group-block-bg);min-width:0;">'
+                    +'<div style="font-size:10px;text-transform:uppercase;letter-spacing:.06em;opacity:.65;">'+esc(label)+'</div>'
+                    +'<div style="font-size:16px;font-weight:700;font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;">'+esc(value)+'</div>'
+                    +(sub?'<div style="font-size:10px;opacity:.6;">'+esc(sub)+'</div>':'')+'</div>';
+            }
+            var m=d.mergerfs||{};
+            summary.innerHTML=tile('Total',apStorageBytes(d.total_bytes),(d.online_count||0)+' online / '+(d.disk_count||0)+' disks')
+                +tile('Used',apStorageBytes(d.used_bytes),pct.toFixed(1)+'% used')
+                +tile('Free',apStorageBytes(d.free_bytes),'pool '+esc(d.storage_root||'/storage'))
+                +tile('MergerFS',m.mounted?(m.writable?'Online':'Read only'):'Not mounted',(m.branches||[]).length+' branch(es)');
+            var disks=(d.disks||[]);
+            if(!disks.length){box.innerHTML='<div class="ap-hint">No disks registered. Add a bind mount under <code>/disks</code> and recreate the container.</div>';return;}
+            box.innerHTML=disks.map(function(disk){
+                var p=Math.max(0,Math.min(100,Number(disk.percent_used)||0));
+                var color=p>=90?'#d9534f':(p>=75?'#f0a500':'var(--primary-color)');
+                return '<div style="border:1px solid var(--border-color);border-radius:10px;padding:9px 12px;background:var(--group-block-bg);">'
+                    +'<div style="display:flex;justify-content:space-between;gap:10px;align-items:baseline;flex-wrap:wrap;">'
+                    +'<strong>'+esc(disk.name)+'</strong>'
+                    +'<span style="font-size:10px;opacity:.7;">'+esc(disk.status)+' · '+esc(disk.filesystem||'')+'</span></div>'
+                    +'<div style="height:6px;border-radius:999px;background:rgba(128,128,128,.22);overflow:hidden;margin:6px 0;"><span style="display:block;height:100%;width:'+p+'%;background:'+color+';"></span></div>'
+                    +'<div style="font-size:11px;opacity:.7;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;"><span>'+apStorageBytes(disk.used_bytes)+' / '+apStorageBytes(disk.total_bytes)+' ('+p.toFixed(1)+'%)</span><span>Free '+apStorageBytes(disk.free_bytes)+'</span></div>'
+                    +'</div>';
+            }).join('');
+        }
+        var apSettingsOpenStorage=dynRoot.querySelector('#ap-settings-open-storage');
+        if(apSettingsOpenStorage) apSettingsOpenStorage.addEventListener('click',function(){
+            var nav=dynRoot.querySelector('[data-panel="ap-storage"]'); if(nav) nav.click(); else openPanel('ap-storage');
+        });
+        var apSettingsRefreshStorage=dynRoot.querySelector('#ap-settings-refresh-storage');
+        if(apSettingsRefreshStorage) apSettingsRefreshStorage.addEventListener('click',function(){
+            if(typeof window.apLoadSettingsStorage==='function') window.apLoadSettingsStorage();
+        });
         tabs.forEach(function(tab){
             tab.addEventListener('click', function(){
                 showSettingsSection(this.dataset.settingsSection || 'email');

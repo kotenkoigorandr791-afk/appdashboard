@@ -47,14 +47,20 @@ COPY --from=ext-builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extens
 COPY --from=ext-builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# pg_dump must be at least the PostgreSQL server major version (compose uses 16).
+RUN install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list
+
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap nginx libnginx-mod-http-modsecurity libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
     libpq5 libzip4 libpng16-16 libjpeg62-turbo libfreetype6 \
     libxml2 libonig5 libicu72 libcurl4 \
     ffmpeg tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-bel tesseract-ocr-ukr \
     smartmontools util-linux openssh-client \
+    mergerfs fuse3 attr \
     python3 python3-pip python3-venv python3-psycopg2 docker.io \
-    postgresql-client imagemagick poppler-utils libreoffice pandoc \
+    postgresql-client-16 imagemagick poppler-utils libreoffice pandoc \
     fonts-liberation fonts-dejavu-core \
     libnss3 libatk-bridge2.0-0 libgtk-3-0 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
@@ -72,6 +78,10 @@ ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
 
 RUN echo 'www-data ALL=(ALL) NOPASSWD: /usr/sbin/smartctl' > /etc/sudoers.d/www-data-smartctl \
     && chmod 440 /etc/sudoers.d/www-data-smartctl
+# MergerFS runs inside the container; allow non-root access to the FUSE mount.
+RUN mkdir -p /disks /storage \
+    && touch /etc/fuse.conf \
+    && grep -q '^user_allow_other' /etc/fuse.conf || echo 'user_allow_other' >> /etc/fuse.conf
 RUN mkdir -p /run/php /var/log/supervisor /opt/AppDashboard/data /opt/ApplicationData/cloud_video_tmp/.hyperframes-home /opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm /var/www/.hyperframes \
     && chown -R www-data:www-data /run/php /opt/AppDashboard /opt/ApplicationData /var/www/.hyperframes \
     && su -s /bin/sh www-data -c 'hyperframes telemetry disable || true'

@@ -386,7 +386,7 @@ if (isset($_POST['chat_send_message'])) {
             exit(json_encode(['status' => 'error', 'message' => 'only images are supported']));
         }
         $ext = image_type_to_extension($info[2], false);
-        $uploadsBase = '/opt/ApplicationData/dashboard/uploads';
+        $uploadsBase = (string)(getenv('UPLOADS_BASE_DIR') ?: '/opt/ApplicationData/dashboard/uploads');
         $spendsHelper = dirname(__DIR__, 2) . '/storage_helper.php';
         if (is_file($spendsHelper)) {
             require_once $spendsHelper;
