@@ -169,12 +169,65 @@
         renderSummary();
         renderDisks();
         renderMigrations();
+        renderIndex();
         renderEvents();
         renderSettings();
     }
 
+    function fmtTime(ts) {
+        var n = Number(ts) || 0;
+        if (!n) return t('index_never');
+        try { return new Date(n * 1000).toLocaleString(); } catch (e) { return String(n); }
+    }
+
+    function renderIndex() {
+        var d = state.data || {};
+        var idx = d.file_index || {};
+        var disks = d.disks || [];
+        var files = Number(idx.files) || 0;
+        var dirs = Number(idx.directories) || 0;
+        setText('#stg-idx-files', files.toLocaleString());
+        setText('#stg-idx-bytes', fmtBytes(idx.bytes || 0));
+        setText('#stg-idx-directories', dirs.toLocaleString());
+        setText('#stg-idx-missing', t('index_missing') + ': ' + (Number(idx.missing) || 0).toLocaleString());
+        setText('#stg-idx-users', (Number(idx.users) || 0).toLocaleString());
+        setText('#stg-idx-apps', t('indexed_apps') + ': ' + (Number(idx.apps) || 0).toLocaleString());
+        setText('#stg-idx-pending', (Number(idx.pending_events) || 0).toLocaleString());
+        setText('#stg-idx-failed', t('index_failed_events') + ': ' + (Number(idx.failed_events) || 0).toLocaleString());
+        setText('#stg-idx-last', t('index_last_run') + ': ' + fmtTime(idx.last_index_at));
+        setText('#stg-idx-reconcile', t('index_last_reconcile') + ': ' + fmtTime(idx.last_reconcile_at));
+        setText('#stg-idx-jobs', t('index_active_jobs') + ': ' + (Number(idx.active_jobs) || 0));
+        setText('#stg-tab-count-index', (files + dirs) > 0 ? String(Number(idx.active_jobs) || 0) : '0');
+
+        var appsBody = el('#stg-index-apps');
+        if (appsBody) {
+            var appRows = Array.isArray(idx.by_app) ? idx.by_app : [];
+            appsBody.innerHTML = appRows.length ? appRows.map(function (row) {
+                return '<tr><td>' + esc(row.app_key) + '</td><td>' + (Number(row.objects) || 0).toLocaleString() + '</td><td>' + fmtBytes(row.bytes || 0) + '</td></tr>';
+            }).join('') : '<tr><td colspan="3" class="stg-muted">' + esc(t('no_data')) + '</td></tr>';
+        }
+        var disksBody = el('#stg-index-disks');
+        if (disksBody) {
+            var diskRows = Array.isArray(idx.by_disk) ? idx.by_disk : [];
+            var names = {};
+            disks.forEach(function (disk) { names[String(disk.id)] = disk.name || ('#' + disk.id); });
+            disksBody.innerHTML = diskRows.length ? diskRows.map(function (row) {
+                var label = names[String(row.disk_id)] || ('#' + row.disk_id);
+                return '<tr><td>' + esc(label) + '</td><td>' + (Number(row.objects) || 0).toLocaleString() + '</td><td>' + fmtBytes(row.bytes || 0) + '</td></tr>';
+            }).join('') : '<tr><td colspan="3" class="stg-muted">' + esc(t('no_data')) + '</td></tr>';
+        }
+        var jobsBody = el('#stg-index-jobs');
+        if (jobsBody) {
+            var jobs = Array.isArray(idx.jobs) ? idx.jobs : [];
+            jobsBody.innerHTML = jobs.length ? jobs.map(function (job) {
+                return '<tr><td>' + esc(job.id) + '</td><td>' + esc(job.app_key) + '</td><td>' + esc(job.user_id) + '</td><td>' + esc(job.status) + '</td><td>' + (Number(job.scanned_files) || 0).toLocaleString() + '</td><td>' + (Number(job.scanned_directories) || 0).toLocaleString() + '</td><td>' + fmtTime(job.updated_at) + '</td></tr>';
+            }).join('') : '<tr><td colspan="7" class="stg-muted">' + esc(t('no_data')) + '</td></tr>';
+        }
+        setText('#stg-index-generated', idx.generated_at ? fmtTime(idx.generated_at) : '');
+    }
+
     function showTab(name) {
-        var valid = ['overview', 'disks', 'migrations', 'backup', 'settings'];
+        var valid = ['overview', 'disks', 'migrations', 'file_index', 'backup', 'settings'];
         if (valid.indexOf(name) === -1) name = 'overview';
         state.activeTab = name;
         els('[data-stg-tab]').forEach(function (tab) {
@@ -699,6 +752,18 @@
             api('migration_resume', { method: 'POST', body: { id: migrationId } })
                 .then(function () { showAlert(t('migration_resumed'), 'ok'); return refresh(true); })
                 .catch(function (err) { showAlert(t('resume_failed', { error: err.message }), 'error'); });
+            return;
+        }
+        if (action === 'index_start') {
+            api('index_start', { method: 'POST', body: {} })
+                .then(function () { showAlert(t('index_started'), 'ok'); return refresh(true); })
+                .catch(function (err) { showAlert(t('index_start_failed', { error: err.message }), 'error'); });
+            return;
+        }
+        if (action === 'index_reconcile') {
+            api('index_reconcile', { method: 'POST', body: {} })
+                .then(function () { showAlert(t('index_started'), 'ok'); return refresh(true); })
+                .catch(function (err) { showAlert(t('index_start_failed', { error: err.message }), 'error'); });
             return;
         }
         if (action === 'save_settings') { saveSettings(); return; }

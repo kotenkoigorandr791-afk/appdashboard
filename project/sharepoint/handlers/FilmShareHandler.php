@@ -78,11 +78,12 @@ final class FilmShareHandler extends BaseAppHandler
             return ['data_uri' => $poster];
         }
         $base = $this->filmsDir();
+        $appdata = function_exists('appdata_app_base_dir') ? appdata_app_base_dir('films') : dirname(__DIR__, 3) . '/apps/films';
         $candidates = [
             $base . '/uploads/' . basename($poster),
             $base . '/' . ltrim($poster, '/'),
-            dirname(__DIR__, 3) . '/apps/films/uploads/' . basename($poster),
-            dirname(__DIR__, 3) . '/apps/films/' . ltrim($poster, '/'),
+            rtrim($appdata, '/') . '/uploads/' . basename($poster),
+            rtrim($appdata, '/') . '/' . ltrim($poster, '/'),
         ];
         foreach ($candidates as $candidate) {
             if (is_file($candidate)) {

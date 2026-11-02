@@ -163,8 +163,11 @@ function ensure_cloud_encryption_consents_table_impl(): void {
 
 // api.php - add after constants
 
-// Active upload sessions storage
-const UPLOAD_SESSIONS_DIR = __DIR__ . '/upload_sessions';
+// Runtime data lives on the APPDATA volume; no repository symlinks.
+$cloudAppDataBase = getenv('APPDATA_BASE_DIR');
+if (!is_string($cloudAppDataBase) || trim($cloudAppDataBase) === '') $cloudAppDataBase = '/opt/ApplicationData';
+define('CLOUD_RUNTIME_DIR', rtrim($cloudAppDataBase, '/') . '/cloud_runtime');
+define('UPLOAD_SESSIONS_DIR', CLOUD_RUNTIME_DIR . '/upload_sessions');
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
 
 function upload_sessions_dir() {
@@ -3631,29 +3634,18 @@ function patch_file_tree_cache_rename(string $email, string $oldPath, string $ne
 }
 
 /**
- * Scan the disk and save the full tree to DB, marking it valid.
+ * Rebuild the flat tree cache from the central index.
+ *
+ * This deliberately does not scan the disk: the index is the source of
+ * truth for structure and metadata.
  */
 function rebuild_file_tree(string $email, string $user): void {
     $db = getDB();
     if (!$db) return;
-    $base  = user_root($user);
-    $items = scan_full_tree($base, $base);
-    $json  = json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $hash  = md5((string)$json);
     try {
         ensure_file_tree_table($db);
-        $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $check->bindValue(':e', $email, PDO::PARAM_STR);
-        $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
-        if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_hash, tree_valid, updated_at) VALUES (:e, '[]', :j, :h, 1, extract(epoch from now())::bigint)");
-        } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_hash = :h, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
-        }
-        $s->bindValue(':e', $email, PDO::PARAM_STR);
-        $s->bindValue(':j', $json, PDO::PARAM_STR);
-        $s->bindValue(':h', $hash, PDO::PARAM_STR);
-        $s->execute();
+        require_once __DIR__ . '/includes/cloud_file_index.php';
+        cloud_index_tree_cache($db, $email, $user, 'main');
     } catch (Exception $e) {
         cloud_safe_error_log("rebuild_file_tree failed: " . $e->getMessage());
     }
@@ -3740,6 +3732,16 @@ function scan_folder_usage_recursive(string $full, string $base, int $depth = 0)
 }
 
 function build_storage_usage_data(string $user): array {
+    // Prefer the central index: user requests must not scan directories.
+    require_once __DIR__ . '/includes/cloud_file_index.php';
+    if (cloud_index_enabled()) {
+        try {
+            return cloud_index_usage($user);
+        } catch (Throwable $e) {
+            cloud_safe_error_log('cloud_index_usage failed: ' . $e->getMessage());
+        }
+    }
+
     $base = user_root($user);
     [$rootSize, $rootFiles, $rootSubfolders, $folders] = scan_folder_usage_recursive($base, $base, 0);
 

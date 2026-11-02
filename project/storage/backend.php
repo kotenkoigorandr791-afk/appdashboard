@@ -84,6 +84,11 @@ function storageBootstrapPayload(bool $scan = false): array
     $summary['migrations'] = StorageDb::migrations(20);
     $summary['events'] = storageEnrichEvents(StorageDb::events(50));
     $summary['backup_profiles'] = storageProfilesPublic();
+    try {
+        $summary['file_index'] = FileIndex::status();
+    } catch (Throwable $e) {
+        $summary['file_index'] = ['enabled' => FileIndex::isEnabled(), 'error' => $e->getMessage()];
+    }
     return $summary;
 }
 
@@ -181,6 +186,32 @@ function storageHandleApi(string $api): void
                 $uid = function_exists('posix_geteuid') ? (int)posix_geteuid() : -1;
                 $result = $uid === 0 ? MergerFSManager::reconcile() : ['ok' => true, 'action' => 'requested'];
                 storageJsonResponse(['ok' => true, 'reconcile' => $result, 'mergerfs' => MergerFSManager::status()]);
+                return;
+
+            case 'index_start':
+                if ($method !== 'POST') throw new InvalidArgumentException('post_required');
+                $discovered = FileIndexWorker::discoverRoots(['cloud']);
+                foreach (FileIndexDb::rootDirectories(2000) as $rootRow) {
+                    FileIndex::enqueueInitialIndex((string)$rootRow['app_key'], (string)$rootRow['user_id'], (string)$rootRow['relative_path'], $rootRow['disk_id'] !== null ? (int)$rootRow['disk_id'] : null);
+                }
+                storageJsonResponse(['ok' => true, 'queued' => $discovered, 'file_index' => FileIndex::status()], 202);
+                return;
+
+            case 'index_reconcile':
+                if ($method !== 'POST') throw new InvalidArgumentException('post_required');
+                $queued = 0;
+                $appKey = (string)($input['app'] ?? '');
+                $user = (string)($input['user'] ?? '');
+                if ($appKey !== '' && $user !== '') {
+                    FileIndex::enqueueReconcile($appKey, $user, FileIndex::userRoot($user));
+                    $queued = 1;
+                } else {
+                    foreach (FileIndexDb::rootDirectories(2000) as $rootRow) {
+                        FileIndex::enqueueReconcile((string)$rootRow['app_key'], (string)$rootRow['user_id'], (string)$rootRow['relative_path'], $rootRow['disk_id'] !== null ? (int)$rootRow['disk_id'] : null);
+                        $queued++;
+                    }
+                }
+                storageJsonResponse(['ok' => true, 'queued' => $queued, 'file_index' => FileIndex::status()], 202);
                 return;
 
             case 'backup_attach':

@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../core/file_index.php';
 function steps_safe_backup_name($name): ?string {
     $n = basename((string)$name);
     return preg_match('/^(Steps_backup|Before_restore|Before_external_import)_[0-9_-]+\.csv$/', $n) ? $n : null;
@@ -242,10 +243,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ts   = date('Y-m-d_H-i-s');
         $name = "Steps_backup_$ts.csv";
         if (file_put_contents("$backupDir/$name", $csvContent) !== false) {
-            $files = glob("$backupDir/Steps_backup_*.csv");
+            steps_record_backup($userDir, $name);
+            $files = steps_list_backups($userDir);
             if (count($files) > 10) {
-                usort($files, fn($a, $b) => filemtime($a) - filemtime($b));
-                for ($i = 0; $i < count($files) - 10; $i++) @unlink($files[$i]);
+                foreach (array_slice($files, 10) as $stale) {
+                    @unlink($stale['path']);
+                    steps_forget_backup($userDir, $stale['name']);
+                }
             }
             exit(json_encode(['status' => 'success', 'message' => $translations['backup_created'] ?? 'Backup created', 'backup_file' => $name]));
         }
@@ -254,13 +258,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Backups list
     if (isset($_POST['get_backups_list'])) {
-        $backupDir = "$userDir/backups";
-        $backups   = [];
-        if (is_dir($backupDir)) {
-            foreach (glob("$backupDir/Steps_backup_*.csv") ?: [] as $f) {
-                $backups[] = ['name' => basename($f), 'size' => filesize($f), 'date' => date('Y-m-d H:i:s', filemtime($f))];
-            }
-            usort($backups, fn($a, $b) => strtotime($b['date']) - strtotime($a['date']));
+        $backups = [];
+        foreach (steps_list_backups($userDir) as $f) {
+            $backups[] = ['name' => $f['name'], 'size' => $f['size'], 'date' => date('Y-m-d H:i:s', $f['mtime'])];
         }
         exit(json_encode(['status' => 'success', 'backups' => $backups]));
     }
@@ -269,12 +269,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['restore_backup'])) {
         $bname     = steps_safe_backup_name($_POST['backup_file'] ?? '');
         $backupDir = "$userDir/backups";
-        if ($bname === null || !is_file("$backupDir/$bname"))
+        $backupPath = $bname === null ? null : steps_backup_path($userDir, $bname);
+        if ($backupPath === null)
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
         // Auto-backup before restore
         $autoCSV = exportStepsToCSV($userDb);
-        if ($autoCSV) file_put_contents("$backupDir/Before_restore_" . date('Y-m-d_H-i-s') . ".csv", $autoCSV);
-        $content = file_get_contents("$backupDir/$bname");
+        if ($autoCSV) {
+            $autoName = 'Before_restore_' . date('Y-m-d_H-i-s') . '.csv';
+            if (file_put_contents("$backupDir/$autoName", $autoCSV) !== false) steps_record_backup($userDir, $autoName);
+        }
+        $content = file_get_contents($backupPath);
         if ($content === false)
             exit(json_encode(['status' => 'error', 'message' => $translations['failed_restore_backup'] ?? 'Failed to restore']));
         try {
@@ -287,11 +291,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Delete backup
     if (isset($_POST['delete_backup'])) {
-        $bname     = steps_safe_backup_name($_POST['backup_file'] ?? '');
-        $backupDir = "$userDir/backups";
-        if ($bname === null || !is_file("$backupDir/$bname"))
+        $bname      = steps_safe_backup_name($_POST['backup_file'] ?? '');
+        $backupPath = $bname === null ? null : steps_backup_path($userDir, $bname);
+        if ($backupPath === null)
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
-        exit(json_encode(unlink("$backupDir/$bname")
+        $ok = unlink($backupPath);
+        if ($ok) steps_forget_backup($userDir, (string)$bname);
+        exit(json_encode($ok
             ? ['status' => 'success', 'message' => $translations['backup_deleted'] ?? 'Deleted']
             : ['status' => 'error',   'message' => $translations['failed_delete_backup'] ?? 'Failed to delete']));
     }

@@ -71,6 +71,9 @@ $stgIcon = static function (string $name, int $size = 16): string {
         <button type="button" class="stg-tab" role="tab" data-stg-tab="migrations" aria-selected="false">
             <?php echo $stgIcon('migrate', 15); ?><span><?php echo $stgE('migrations'); ?></span><span class="stg-tab-count" id="stg-tab-count-migrations">0</span>
         </button>
+        <button type="button" class="stg-tab" role="tab" data-stg-tab="file_index" aria-selected="false">
+            <?php echo $stgIcon('server', 15); ?><span><?php echo $stgE('file_index'); ?></span><span class="stg-tab-count" id="stg-tab-count-index">0</span>
+        </button>
         <button type="button" class="stg-tab" role="tab" data-stg-tab="backup" aria-selected="false">
             <?php echo $stgIcon('backup', 15); ?><span><?php echo $stgE('backup'); ?></span>
         </button>
@@ -153,6 +156,67 @@ $stgIcon = static function (string $name, int $size = 16): string {
                 <span class="stg-muted"><?php echo $stgE('latest_events'); ?></span>
             </div>
             <div class="stg-events stg-events-compact" id="stg-events"><div class="stg-empty"><?php echo $stgE('no_events'); ?></div></div>
+        </section>
+    </section>
+
+    <!-- File Index -->
+    <section class="stg-panel" data-stg-panel="file_index" role="tabpanel" hidden>
+        <section class="stg-card">
+            <div class="stg-card-head">
+                <div class="stg-card-title"><?php echo $stgIcon('server', 15); ?><span><?php echo $stgE('file_index'); ?></span></div>
+                <span class="stg-muted"><?php echo $stgE('file_index_subtitle'); ?></span>
+            </div>
+            <div class="stg-kpi-grid">
+                <div class="stg-kpi">
+                    <span class="stg-kpi-icon"><?php echo $stgIcon('chart', 17); ?></span>
+                    <span class="stg-kpi-label"><?php echo $stgE('indexed_files'); ?></span>
+                    <strong id="stg-idx-files">—</strong><small id="stg-idx-bytes">—</small>
+                </div>
+                <div class="stg-kpi">
+                    <span class="stg-kpi-icon"><?php echo $stgIcon('grid', 17); ?></span>
+                    <span class="stg-kpi-label"><?php echo $stgE('indexed_directories'); ?></span>
+                    <strong id="stg-idx-directories">—</strong><small id="stg-idx-missing">—</small>
+                </div>
+                <div class="stg-kpi">
+                    <span class="stg-kpi-icon"><?php echo $stgIcon('shield', 17); ?></span>
+                    <span class="stg-kpi-label"><?php echo $stgE('indexed_users'); ?></span>
+                    <strong id="stg-idx-users">—</strong><small id="stg-idx-apps">—</small>
+                </div>
+                <div class="stg-kpi">
+                    <span class="stg-kpi-icon is-warn"><?php echo $stgIcon('clock', 17); ?></span>
+                    <span class="stg-kpi-label"><?php echo $stgE('index_pending_events'); ?></span>
+                    <strong id="stg-idx-pending">—</strong><small id="stg-idx-failed">—</small>
+                </div>
+            </div>
+            <div class="stg-hero-meta">
+                <span id="stg-idx-last">—</span>
+                <span id="stg-idx-reconcile">—</span>
+                <span id="stg-idx-jobs">—</span>
+            </div>
+            <div class="stg-card-actions" style="display:flex;gap:8px;flex-wrap:wrap;margin-top:12px">
+                <button type="button" class="stg-btn stg-btn-primary" data-stg-action="index_start">
+                    <?php echo $stgIcon('scan', 15); ?><span><?php echo $stgE('index_start'); ?></span>
+                </button>
+                <button type="button" class="stg-btn stg-btn-ghost" data-stg-action="index_reconcile">
+                    <?php echo $stgIcon('refresh', 15); ?><span><?php echo $stgE('index_reconcile'); ?></span>
+                </button>
+            </div>
+        </section>
+
+        <div class="stg-grid-2">
+            <section class="stg-card">
+                <div class="stg-card-head"><div class="stg-card-title"><?php echo $stgE('index_by_app'); ?></div></div>
+                <div class="stg-table-wrap"><table class="stg-table"><thead><tr><th><?php echo $stgE('indexed_apps'); ?></th><th><?php echo $stgE('indexed_objects'); ?></th><th><?php echo $stgE('indexed_bytes'); ?></th></tr></thead><tbody id="stg-index-apps"></tbody></table></div>
+            </section>
+            <section class="stg-card">
+                <div class="stg-card-head"><div class="stg-card-title"><?php echo $stgE('index_by_disk'); ?></div></div>
+                <div class="stg-table-wrap"><table class="stg-table"><thead><tr><th><?php echo $stgE('disks'); ?></th><th><?php echo $stgE('indexed_objects'); ?></th><th><?php echo $stgE('indexed_bytes'); ?></th></tr></thead><tbody id="stg-index-disks"></tbody></table></div>
+            </section>
+        </div>
+
+        <section class="stg-card">
+            <div class="stg-card-head"><div class="stg-card-title"><?php echo $stgE('index_status'); ?></div><span class="stg-muted" id="stg-index-generated"></span></div>
+            <div class="stg-table-wrap"><table class="stg-table"><thead><tr><th>#</th><th><?php echo $stgE('indexed_apps'); ?></th><th><?php echo $stgE('indexed_users'); ?></th><th><?php echo $stgE('status_unknown'); ?></th><th><?php echo $stgE('indexed_files'); ?></th><th><?php echo $stgE('indexed_directories'); ?></th><th><?php echo $stgE('index_last_run'); ?></th></tr></thead><tbody id="stg-index-jobs"></tbody></table></div>
         </section>
     </section>
 

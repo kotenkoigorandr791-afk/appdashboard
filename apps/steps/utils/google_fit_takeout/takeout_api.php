@@ -11,9 +11,11 @@ require_once __DIR__ . '/../import_worker_common.php';
 steps_require_auth_json();
 
 $safeName = get_current_user_folder();
-define('FIT_USER_DIR', __DIR__ . '/../../users/' . $safeName);
+$__stepsUsers = defined('STEPS_USERS_DIR') ? STEPS_USERS_DIR
+    : (function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') : __DIR__ . '/../../users');
+define('FIT_USER_DIR', rtrim($__stepsUsers, '/') . '/' . $safeName);
 define('FIT_JOBS_DIR', FIT_USER_DIR . '/fit_takeout_jobs/');
-define('FIT_UPLOAD_SESSIONS_DIR', __DIR__ . '/../../upload_sessions');
+define('FIT_UPLOAD_SESSIONS_DIR', defined('UPLOAD_SESSIONS_DIR') ? UPLOAD_SESSIONS_DIR : __DIR__ . '/../../upload_sessions');
 if (!is_dir(FIT_JOBS_DIR)) {
     @mkdir(FIT_JOBS_DIR, 0777, true);
 }

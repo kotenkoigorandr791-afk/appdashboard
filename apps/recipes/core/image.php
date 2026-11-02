@@ -125,7 +125,12 @@ function recipes_image_save_optimized_blob(string $data, string $dstDir, string 
     elseif ($info['mime'] === 'image/webp') $ext = 'webp';
     elseif ($info['mime'] === 'image/avif') $ext = 'avif';
     $name = $basename . '.' . $ext;
-    return @file_put_contents(rtrim($dstDir, '/') . '/' . $name, $data) !== false ? $name : null;
+    $written = @file_put_contents(rtrim($dstDir, '/') . '/' . $name, $data) !== false;
+    if ($written) {
+        if (!function_exists('recipes_index_record_abs')) require_once __DIR__ . '/file_index.php';
+        recipes_index_record_abs(rtrim($dstDir, '/') . '/' . $name);
+    }
+    return $written ? $name : null;
 }
 
 function recipes_image_save_optimized_upload(array $file, string $dstDir, string $basename = 'image', int $maxSide = 1600): ?string
@@ -168,8 +173,12 @@ function recipes_write_product_preview_webp(string $srcPath, string $dstPath): b
     imagedestroy($dst);
     return $ok && is_file($dstPath);
 }
+function recipes_fs_dir(string $dir): string {
+    if ($dir === '') return '';
+    return str_starts_with($dir, '/') ? rtrim($dir, '/') : rtrim(__DIR__ . '/../' . $dir, '/');
+}
 function recipes_product_preview_refresh(string $products_dir, string $product_id, ?string $main_image): ?string {
-    $dir = __DIR__ . '/../' . $products_dir . '/' . $product_id;
+    $dir = recipes_fs_dir($products_dir) . '/' . $product_id;
     $prev = $dir . '/' . RECIPES_PRODUCT_PREVIEW_FILE;
     if (is_file($prev)) @unlink($prev);
     if ($main_image === null || $main_image === '') return null;
@@ -177,11 +186,13 @@ function recipes_product_preview_refresh(string $products_dir, string $product_i
     $src = $dir . '/' . $main_image;
     if (!is_readable($src)) return null;
     if (!recipes_write_product_preview_webp($src, $prev)) return null;
+    if (!function_exists('recipes_index_record_abs')) require_once __DIR__ . '/file_index.php';
+    recipes_index_record_abs($prev);
     return RECIPES_PRODUCT_PREVIEW_FILE;
 }
 function recipes_save_product_json(string $products_dir, array $row): void {
     $id = $row['id'];
-    $path = __DIR__ . '/../' . $products_dir . '/' . $id . '/product.json';
+    $path = recipes_fs_dir($products_dir) . '/' . $id . '/product.json';
     if (!is_dir(dirname($path))) return;
     $data = [
         'id' => $id,
@@ -196,6 +207,8 @@ function recipes_save_product_json(string $products_dir, array $row): void {
         'image_preview' => $row['image_preview'] ?? null,
     ];
     @file_put_contents($path, json_encode($data, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT));
+    if (!function_exists('recipes_index_record_abs')) require_once __DIR__ . '/file_index.php';
+    recipes_index_record_abs($path);
 }
 function recipes_load_product_row($db, string $product_id): ?array {
     try {
@@ -242,13 +255,18 @@ function recipes_backfill_product_previews(): void {
     }
 }
 function recipes_product_thumb_public_path(array $p, string $products_dir): string {
-    $id = $p['id'];
-    $pv = $p['image_preview'] ?? '';
-    if ($pv !== '' && is_file(__DIR__ . '/../' . $products_dir . '/' . $id . '/' . $pv)) {
-        return $products_dir . '/' . $id . '/' . $pv;
+    if (!function_exists('recipes_index_file_exists')) {
+        require_once __DIR__ . '/file_index.php';
     }
-    if (!empty($p['image']) && is_file(__DIR__ . '/../' . $products_dir . '/' . $id . '/' . $p['image'])) {
-        return $products_dir . '/' . $id . '/' . $p['image'];
+    $id = (string)$p['id'];
+    $pv = (string)($p['image_preview'] ?? '');
+    // Existence comes from the shared index, not from a filesystem probe per row.
+    if ($pv !== '' && recipes_index_file_exists(recipes_index_relpath('products', $id, $pv))) {
+        return 'products/' . $id . '/' . $pv;
+    }
+    $main = (string)($p['image'] ?? '');
+    if ($main !== '' && recipes_index_file_exists(recipes_index_relpath('products', $id, $main))) {
+        return 'products/' . $id . '/' . $main;
     }
     return 'default_recipe.jpg';
 }

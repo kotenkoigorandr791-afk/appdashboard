@@ -17,10 +17,7 @@ if (!defined('UPLOAD_SESSIONS_DIR')) {
     define('UPLOAD_SESSIONS_DIR', $spendsUploadSessions);
 }
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
-$spendsUploadLink = __DIR__ . '/../upload_sessions';
-if (!file_exists($spendsUploadLink) && is_dir(UPLOAD_SESSIONS_DIR)) {
-    @symlink(UPLOAD_SESSIONS_DIR, $spendsUploadLink);
-}
+// Data lives on the APPDATA volume; no symlinks in the repository.
 require_once __DIR__ . '/../../../lib/app_db.php';
 if (!function_exists('getDB')) {
     function getDB(): AppDatabase {
