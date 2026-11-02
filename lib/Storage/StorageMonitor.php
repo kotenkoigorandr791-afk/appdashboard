@@ -31,6 +31,16 @@ final class StorageMonitor
         return $out;
     }
 
+    /** Store a capacity sample for every online disk (max once per 30 min). */
+    public static function recordUsage(): void
+    {
+        try {
+            StorageDb::recordUsageSamples(self::disks());
+        } catch (Throwable $e) {
+            // Sampling must never break the storage UI.
+        }
+    }
+
     /** @return array<string,mixed> */
     public static function summary(): array
     {
@@ -55,12 +65,16 @@ final class StorageMonitor
             'used_bytes' => $used,
             'free_bytes' => $free,
             'percent_used' => $total > 0 ? round($used / $total * 100, 1) : 0.0,
+            'disks' => $disks,
             'disk_count' => count($disks),
             'online_count' => $online,
             'mergerfs' => MergerFSManager::status(),
             'restic' => StorageBackupManager::status(),
             'active_migration' => $active,
             'settings' => storage_settings(),
+            'usage_history' => StorageDb::usageHistory(24),
+            'usage_retention_days' => 30,
+            'usage_interval_seconds' => 1800,
             'storage_root' => storage_root(),
             'disks_root' => storage_disks_root(),
             'generated_at' => time(),

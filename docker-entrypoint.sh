@@ -311,6 +311,24 @@ storage_pool_mounted() {
   [ -d "$STORAGE_ROOT" ] || return 1
   awk -v mp="$STORAGE_ROOT" '$5==mp && ($0 ~ /fuse\.mergerfs/ || $0 ~ / mergerfs /) {found=1} END{exit !found}' /proc/self/mountinfo 2>/dev/null
 }
+# Virtual disks: sparse ext4 images stored in docker volumes, loop-mounted as /disks/<name>.
+VDISKS_ROOT="${VDISKS_ROOT:-/vdisks}"
+if [ -d "$VDISKS_ROOT" ]; then
+  for _vd in "$VDISKS_ROOT"/*/; do
+    [ -d "$_vd" ] || continue
+    _vname="$(basename "$_vd")"
+    _vimg="$_vd/disk.img"
+    _vsizevar="VDISK_$(echo "$_vname" | tr 'a-z-' 'A-Z_')_SIZE"
+    _vsize="$(eval "echo \${$_vsizevar:-${VDISK_DEFAULT_SIZE:-2G}}")"
+    if [ ! -f "$_vimg" ]; then
+      truncate -s "$_vsize" "$_vimg" && mkfs.ext4 -q -F "$_vimg" >>"$STORAGE_INIT_LOG" 2>&1 || { rm -f "$_vimg"; continue; }
+    fi
+    mkdir -p "$STORAGE_DISKS_ROOT/$_vname"
+    if ! awk -v mp="$STORAGE_DISKS_ROOT/$_vname" '$5==mp{f=1} END{exit !f}' /proc/self/mountinfo; then
+      mount -o loop "$_vimg" "$STORAGE_DISKS_ROOT/$_vname" >>"$STORAGE_INIT_LOG" 2>&1 || echo "[storage] cannot mount $_vimg" >>"$STORAGE_INIT_LOG"
+    fi
+  done
+fi
 if [ "${STORAGE_ENABLED:-1}" = "1" ]; then
   STORAGE_HAS_DISKS=0
   if [ -d "$STORAGE_DISKS_ROOT" ] && [ -n "$(ls -A "$STORAGE_DISKS_ROOT" 2>/dev/null)" ]; then STORAGE_HAS_DISKS=1; fi

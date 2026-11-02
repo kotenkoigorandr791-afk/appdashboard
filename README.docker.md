@@ -42,3 +42,7 @@ APP_PUBLIC_SCHEME=https
 ```
 
 The entrypoint derives URLs for the integrated AI gateway, search, Gitea, Immich, OnlyOffice, Portainer and Dawarich services. See [README.md](README.md) for the full subdomain map and feature documentation.
+
+## Virtual disks
+
+`appdashboard-vdisk1..3` volumes hold sparse ext4 images (`VDISK1_SIZE`/`VDISK2_SIZE`/`VDISK3_SIZE`, default 20G/30G/40G). The entrypoint loop-mounts them as `/disks/vdisk1..3`, MergerFS merges them into `/storage`, and application data lives in `/storage/applications` and `/storage/uploads`. Usage per disk is sampled every 30 minutes into `storage_usage_samples` (kept 30 days) and charted in Admin Panel → Storage → Disks.

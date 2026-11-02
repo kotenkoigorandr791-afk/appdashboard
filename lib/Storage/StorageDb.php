@@ -153,6 +153,17 @@ final class StorageDb
         $pdo->exec("CREATE INDEX IF NOT EXISTS idx_storage_events_created ON storage_events(created_at DESC)");
         $pdo->exec("CREATE INDEX IF NOT EXISTS idx_storage_events_disk ON storage_events(disk_id, created_at DESC)");
 
+        // Capacity history: one sample per disk every 30 minutes, kept 30 days.
+        $pdo->exec("CREATE TABLE IF NOT EXISTS storage_usage_samples (
+            id $pk,
+            disk_id BIGINT NOT NULL REFERENCES storage_disks(id) ON DELETE CASCADE,
+            total_bytes BIGINT NOT NULL DEFAULT 0,
+            used_bytes BIGINT NOT NULL DEFAULT 0,
+            free_bytes BIGINT NOT NULL DEFAULT 0,
+            recorded_at BIGINT NOT NULL DEFAULT 0
+        )");
+        $pdo->exec("CREATE INDEX IF NOT EXISTS idx_storage_usage_disk_time ON storage_usage_samples(disk_id, recorded_at DESC)");
+
         self::$schemaReady = true;
     }
 
@@ -445,6 +456,84 @@ final class StorageDb
         }
         unset($row);
         return $rows ?: [];
+    }
+
+    /**
+     * Persist capacity samples, at most one per disk per 30 minutes.
+     *
+     * @param list<array<string,mixed>> $disks
+     * @return int number of inserted samples
+     */
+    public static function recordUsageSamples(array $disks, bool $force = false): int
+    {
+        self::ensureSchema();
+        $now = time();
+        $interval = 1800;
+        $inserted = 0;
+        $insert = self::pdo()->prepare('INSERT INTO storage_usage_samples (disk_id,total_bytes,used_bytes,free_bytes,recorded_at)
+            VALUES (:disk_id,:total_bytes,:used_bytes,:free_bytes,:recorded_at)');
+        $last = self::pdo()->prepare('SELECT recorded_at FROM storage_usage_samples WHERE disk_id = :disk_id ORDER BY recorded_at DESC LIMIT 1');
+        foreach ($disks as $disk) {
+            $id = (int)($disk['id'] ?? 0);
+            if ($id <= 0 || (string)($disk['status'] ?? '') !== 'online') continue;
+            $last->bindValue(':disk_id', $id, PDO::PARAM_INT);
+            $row = self::fetchOne($last);
+            $previous = is_array($row) ? (int)($row['recorded_at'] ?? 0) : 0;
+            if (!$force && $previous > 0 && ($now - $previous) < $interval) continue;
+            $insert->bindValue(':disk_id', $id, PDO::PARAM_INT);
+            $insert->bindValue(':total_bytes', max(0, (int)($disk['total_bytes'] ?? 0)), PDO::PARAM_INT);
+            $insert->bindValue(':used_bytes', max(0, (int)($disk['used_bytes'] ?? 0)), PDO::PARAM_INT);
+            $insert->bindValue(':free_bytes', max(0, (int)($disk['free_bytes'] ?? 0)), PDO::PARAM_INT);
+            $insert->bindValue(':recorded_at', $now, PDO::PARAM_INT);
+            $insert->execute();
+            $inserted++;
+        }
+        self::pruneUsageSamples(30);
+        return $inserted;
+    }
+
+    public static function pruneUsageSamples(int $days = 30): void
+    {
+        $cutoff = time() - max(1, $days) * 86400;
+        $stmt = self::pdo()->prepare('DELETE FROM storage_usage_samples WHERE recorded_at < :cutoff');
+        $stmt->bindValue(':cutoff', $cutoff, PDO::PARAM_INT);
+        $stmt->execute();
+    }
+
+    /**
+     * Per-disk capacity history for the last N hours, downsampled for a chart.
+     *
+     * @return array<int,list<array{t:int,used:int,total:int,free:int}>>
+     */
+    public static function usageHistory(int $hours = 24, int $maxPoints = 48): array
+    {
+        self::ensureSchema();
+        $hours = max(1, min(24 * 30, $hours));
+        $cutoff = time() - $hours * 3600;
+        $stmt = self::pdo()->prepare('SELECT disk_id,total_bytes,used_bytes,free_bytes,recorded_at
+            FROM storage_usage_samples WHERE recorded_at >= :cutoff ORDER BY recorded_at ASC');
+        $stmt->bindValue(':cutoff', $cutoff, PDO::PARAM_INT);
+        $rows = self::fetchAll($stmt);
+        $grouped = [];
+        foreach ($rows as $row) {
+            $grouped[(int)$row['disk_id']][] = [
+                't' => (int)$row['recorded_at'],
+                'used' => (int)$row['used_bytes'],
+                'total' => (int)$row['total_bytes'],
+                'free' => (int)$row['free_bytes'],
+            ];
+        }
+        foreach ($grouped as $id => $points) {
+            $count = count($points);
+            if ($count > $maxPoints) {
+                $step = (int)ceil($count / $maxPoints);
+                $sampled = [];
+                for ($i = 0; $i < $count; $i += $step) $sampled[] = $points[$i];
+                if (end($sampled) !== end($points)) $sampled[] = end($points);
+                $grouped[$id] = $sampled;
+            }
+        }
+        return $grouped;
     }
 
     public static function touchBackupTime(): void

@@ -220,6 +220,9 @@ services:
       SMART_HOME_WS_BIND: 127.0.0.1
       # Per-user storage usage collector (Admin Panel → Statistics chart).
       # External app databases usually live in the host PostgreSQL (host.docker.internal:5432).
+      VDISK_VDISK1_SIZE: "${VDISK1_SIZE:-20G}"
+      VDISK_VDISK2_SIZE: "${VDISK2_SIZE:-30G}"
+      VDISK_VDISK3_SIZE: "${VDISK3_SIZE:-40G}"
       STORAGE_USAGE_ENABLED: "${STORAGE_USAGE_ENABLED:-1}"
       STORAGE_USAGE_INTERVAL: "${STORAGE_USAGE_INTERVAL:-900}"
       STORAGE_USAGE_DB_HOST: "${STORAGE_USAGE_DB_HOST:-host.docker.internal}"
@@ -253,6 +256,9 @@ services:
       - ./nginx/appdashboard.conf.template:/etc/nginx/templates/appdashboard.conf.template:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData
+      - appdashboard-vdisk1:/vdisks/vdisk1
+      - appdashboard-vdisk2:/vdisks/vdisk2
+      - appdashboard-vdisk3:/vdisks/vdisk3
       - appdashboard-logs:/var/log/nginx
       - appdashboard-logs:/var/log/bot
       - appdashboard-waf-logs:/var/log/modsecurity
@@ -477,6 +483,9 @@ volumes:
   appdashboard-waf-logs:
   appdashboard-data:
   appdashboard-appdata:
+  appdashboard-vdisk1:
+  appdashboard-vdisk2:
+  appdashboard-vdisk3:
   appdashboard-db-data:
   appdashboard-redis-data:
   portainer-data:
