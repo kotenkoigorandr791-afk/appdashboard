@@ -173,7 +173,18 @@ final class AppDataBackup
             'sources' => $sources,
             'excludes' => array_values(array_unique(array_merge(
                 (array)($existing['excludes'] ?? []),
-                ['*.appdashboard-part-*', '*.tmp.appdashboard-*']
+                [
+                    '*.appdashboard-part-*',
+                    '*.tmp.appdashboard-*',
+                    // Caches and model/toolchain trees are not user data.
+                    'models',
+                    'bot-venv',
+                    'cloud_video_tmp',
+                    'cloud_libreoffice_home',
+                    'latex-texmf',
+                    'latex-pdf-cache',
+                    '.composer-cache',
+                ]
             ))),
             'schedule' => $schedule,
             'retention' => $retention,
@@ -205,6 +216,7 @@ final class AppDataBackup
 
         $saved = resticFindProfile($cfg, self::PROFILE_ID);
         if ($saved === null) return null;
+        self::chownAppUser(resticDataDir(), false);
         $repoCfg = resticRepoConfig($cfg, self::PROFILE_ID);
         $localRepo = backupRepoIsLocal($repository) ? rtrim(resticRepositoryLocation($repository), '/') : '';
         $repositoryMissing = $localRepo !== '' && !is_file($localRepo . '/config');

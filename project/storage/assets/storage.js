@@ -120,6 +120,9 @@
         var bar = el('#stg-used-bar');
         bar.style.width = pct + '%';
         bar.className = pct >= 90 ? 'danger' : (pct >= 75 ? 'warn' : '');
+        var ring = el('#stg-ring');
+        if (ring) ring.style.setProperty('--pct', String(pct));
+        el('#stg-ring-pct').textContent = pct.toFixed(0) + '%';
         el('#stg-used-pct').textContent = pct.toFixed(1) + '% used';
         el('#stg-free-sub').textContent = 'pool: ' + (d.storage_root || '/storage');
         el('#stg-mergerfs').textContent = m.mounted ? (m.writable ? 'Online' : 'Read only') : 'Not mounted';
@@ -148,15 +151,16 @@
     }
 
     function renderDisks() {
-        var body = el('#stg-disks-body');
+        var body = el('#stg-disks-grid');
         var empty = el('#stg-disks-empty');
         var disks = (state.data && state.data.disks ? state.data.disks : []);
+        if (!body) return;
         if (!disks.length) {
             body.innerHTML = '';
-            empty.hidden = false;
+            if (empty) empty.hidden = false;
             return;
         }
-        empty.hidden = true;
+        if (empty) empty.hidden = true;
         body.innerHTML = disks.map(function (disk) {
             var pct = Math.max(0, Math.min(100, Number(disk.percent_used) || 0));
             var barClass = pct >= 90 ? 'danger' : (pct >= 75 ? 'warn' : '');
@@ -164,23 +168,16 @@
             var canRemove = status === 'online' && !(state.data && state.data.active_migration);
             var actions = '';
             if (status === 'ready_to_remove') {
-                actions = '<span class="stg-muted">Remove its compose line</span>';
+                actions = '<span class="stg-muted">Remove its compose line, then recreate the container.</span>';
             } else {
-                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">Check</button> ';
-                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>Safely Remove</button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">Check</button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>Safely remove</button>';
             }
-            return '<tr>' +
-                '<td data-label="Disk"><div class="stg-disk-name">' + esc(disk.name) + '</div><div class="stg-disk-path">' + esc(disk.mount_path) + '</div></td>' +
-                '<td data-label="Identity"><span class="stg-uuid" title="' + esc(disk.uuid) + '">' + esc(disk.uuid) + '</span></td>' +
-                '<td data-label="Filesystem">' + esc(disk.filesystem || '—') + '</td>' +
-                '<td data-label="Capacity">' + fmtBytes(disk.total_bytes) + '</td>' +
-                '<td data-label="Used" class="stg-cap"><div class="stg-cap-text">' + fmtBytes(disk.used_bytes) + ' · ' + pct.toFixed(1) + '%</div><div class="stg-bar"><span class="' + barClass + '" style="width:' + pct + '%"></span></div></td>' +
-                '<td data-label="Free">' + fmtBytes(disk.free_bytes) + '</td>' +
-                '<td data-label="Status">' + badge(status) + '</td>' +
-                '<td data-label="Last check">' + fmtDate(disk.last_health_check_at) + '</td>' +
-                '<td data-label="Last backup">' + fmtDate(disk.last_backup_at) + '</td>' +
-                '<td data-label="Actions"><div class="stg-actions">' + actions + '</div></td>' +
-                '</tr>';
+            return '<article class="stg-disk-card' + (status === 'ready_to_remove' ? ' stg-disk-ready' : '') + '">' +
+                '<div class="stg-disk-card-head"><div><div class="stg-disk-name">' + esc(disk.name) + '</div><div class="stg-disk-path">' + esc(disk.mount_path) + '</div></div>' + badge(status) + '</div>' +
+                '<div class="stg-disk-usage"><div class="stg-disk-usage-line"><strong>' + fmtBytes(disk.used_bytes) + '</strong><span>of ' + fmtBytes(disk.total_bytes) + '</span><span class="stg-disk-free">' + fmtBytes(disk.free_bytes) + ' free</span></div><div class="stg-bar"><span class="' + barClass + '" style="width:' + pct + '%"></span></div><div class="stg-disk-pct">' + pct.toFixed(1) + '% used</div></div>' +
+                '<div class="stg-disk-facts"><div><span>Filesystem</span><strong>' + esc(disk.filesystem || '—') + '</strong></div><div><span>Identity</span><strong class="stg-uuid" title="' + esc(disk.uuid) + '">' + esc(disk.uuid) + '</strong></div><div><span>Last check</span><strong>' + fmtDate(disk.last_health_check_at) + '</strong></div><div><span>Last backup</span><strong>' + fmtDate(disk.last_backup_at) + '</strong></div></div>' +
+                '<div class="stg-disk-actions">' + actions + '</div></article>';
         }).join('');
     }
 

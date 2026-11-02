@@ -1779,14 +1779,32 @@ function resticResolveHostPath(string $path): ?string {
     return $mapped;
 }
 
-function resticAssertInsideRoot(string $real): bool {
+function resticAssertInsideRoot(string $real): bool
+{
     $bind = resticBindHome();
     if ($bind !== null && ($real === $bind['dest'] || str_starts_with($real, $bind['dest'] . '/'))) return true;
     $root = resticHostRoot();
     if ($root === '/' || $root === '') return true;
     $rootReal = realpath($root);
     if ($rootReal === false) $rootReal = $root;
-    return $real === $rootReal || str_starts_with($real, rtrim($rootReal, '/') . '/');
+    if ($real === $rootReal || str_starts_with($real, rtrim($rootReal, '/') . '/')) return true;
+    // Container-local application data is a legitimate backup source (the
+    // wizard opens /opt/ApplicationData and the backup state directory even
+    // when the whole host is mounted at /host). Keep the allow-list narrow.
+    $candidates = [
+        getenv('APPDATA_DATA_DIR') ?: (defined('APP_ROOT') ? APP_ROOT . '/data' : '/opt/AppDashboard/data'),
+        getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData',
+        getenv('UPLOADS_BASE_DIR') ?: '',
+        getenv('STORAGE_ROOT') ?: '/storage',
+    ];
+    foreach ($candidates as $candidate) {
+        $candidate = trim((string)$candidate);
+        if ($candidate === '' || $candidate[0] !== '/') continue;
+        $resolved = realpath($candidate);
+        if ($resolved === false) $resolved = rtrim($candidate, '/');
+        if ($real === $resolved || str_starts_with($real, rtrim($resolved, '/') . '/')) return true;
+    }
+    return false;
 }
 
 function resticHostBrowse(string $path, bool $onlyFolders = true, bool $showHidden = false): array {

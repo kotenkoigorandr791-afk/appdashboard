@@ -38,6 +38,30 @@ $bkpI18nJson = htmlspecialchars((string)json_encode($bkpPayload, JSON_UNESCAPED_
 
     <div id="bdp-alert" class="bdp-alert" hidden></div>
 
+    <section class="bdp-overview" id="bdp-overview" aria-label="Backup overview">
+        <div class="bdp-hero">
+            <div class="bdp-ring" id="bdp-ring"><div><strong id="bdp-ring-value">—</strong><span>protected</span></div></div>
+            <div class="bdp-hero-copy">
+                <div class="bdp-eyebrow">Data protection</div>
+                <h2 id="bdp-hero-title">Your data is protected</h2>
+                <p id="bdp-hero-sub">Restic snapshots keep user files and the database recoverable.</p>
+            </div>
+            <div class="bdp-hero-actions">
+                <button type="button" class="bdp-btn bdp-btn-primary" data-bdp-action="run_backup" data-profile="" id="bdp-run-active">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+                    Back up now
+                </button>
+                <button type="button" class="bdp-btn" data-bdp-action="add_backup">Add another backup</button>
+            </div>
+        </div>
+        <div class="bdp-kpi-grid">
+            <div class="bdp-kpi"><span>Backups</span><strong id="bdp-kpi-backups">—</strong><small>configured profiles</small></div>
+            <div class="bdp-kpi"><span>Snapshots</span><strong id="bdp-kpi-snapshots">—</strong><small>recovery points</small></div>
+            <div class="bdp-kpi"><span>Last backup</span><strong id="bdp-kpi-last">—</strong><small>latest snapshot</small></div>
+            <div class="bdp-kpi"><span>Next run</span><strong id="bdp-kpi-next">—</strong><small>scheduled</small></div>
+        </div>
+    </section>
+
     <section class="bdp-card" id="bdp-backups-card">
         <div class="bdp-card-head">
             <div class="bdp-card-title" data-bdp-i18n="backups">Backups</div>
@@ -46,23 +70,8 @@ $bkpI18nJson = htmlspecialchars((string)json_encode($bkpPayload, JSON_UNESCAPED_
                 <span data-bdp-i18n="add">Add backup</span>
             </button>
         </div>
-        <div class="bdp-table-wrap">
-            <table class="bdp-table">
-                <thead>
-                    <tr>
-                        <th data-bdp-i18n="name">Backup name</th>
-                        <th data-bdp-i18n="sources">Backup sources</th>
-                        <th data-bdp-i18n="schedule">Schedule</th>
-                        <th data-bdp-i18n="job_status">Status</th>
-                        <th data-bdp-i18n="last_run">Last run</th>
-                        <th data-bdp-i18n="next_run">Next run</th>
-                        <th data-bdp-i18n="actions">Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="bdp-backups-body">
-                    <tr><td colspan="7"><div class="bdp-empty" data-bdp-i18n="loading">Loading…</div></td></tr>
-                </tbody>
-            </table>
+        <div class="bdp-backup-grid" id="bdp-backups-grid">
+            <div class="bdp-empty" data-bdp-i18n="loading">Loading…</div>
         </div>
         <div class="bdp-empty" id="bdp-backups-empty" hidden>
             <span data-bdp-i18n="no_backups">No backups yet. Create the first one.</span>
