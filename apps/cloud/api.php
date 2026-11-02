@@ -866,7 +866,7 @@ function cloud_sync_logs_prune(AppDatabase $db, string $email, int $max = 1000):
     if (!$probe->execute() || $probe->fetch() === false) {
         return;
     }
-    $probe->closeCursor();
+    $probe->reset();
     $stmt = $db->prepare("DELETE FROM cloud_sync_logs WHERE email = :e AND id NOT IN (SELECT id FROM cloud_sync_logs WHERE email = :e2 ORDER BY ts DESC, id DESC LIMIT :lim)");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':e2', $email, PDO::PARAM_STR);
