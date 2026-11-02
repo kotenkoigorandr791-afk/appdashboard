@@ -164,7 +164,7 @@ function storage_bytes_from_setting(string $value, int $defaultBytes): int {
 function storage_default_settings(): array {
     return [
         'reserve_percent' => 12,
-        'min_free_gb' => 10,
+        'min_free_gb' => 1,
         'watch_interval_seconds' => 30,
         'backup_required' => true,
         'backup_profile' => '',

@@ -1,3 +1,4 @@
+#bdp-app > * { flex-shrink: 0; }
 /* Backup Manager — scoped to #bdp-app so it can live inside the Admin Panel. */
 
 #bdp-app {

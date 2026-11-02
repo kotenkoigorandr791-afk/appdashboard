@@ -13,11 +13,22 @@
         poll: null,
         removeDiskId: 0,
         removeCheck: null,
-        activeTab: 'overview'
+        activeTab: 'overview',
+        i18n: {}
     };
 
     function el(sel, root) { return (root || state.root || document).querySelector(sel); }
     function els(sel, root) { return Array.prototype.slice.call((root || state.root || document).querySelectorAll(sel)); }
+
+    function t(key, vars) {
+        var str = (state.i18n && state.i18n[key]) || key;
+        if (vars) {
+            Object.keys(vars).forEach(function (k) {
+                str = str.replace(new RegExp('\\{' + k + '\\}', 'g'), String(vars[k]));
+            });
+        }
+        return str;
+    }
 
     function esc(value) {
         return String(value == null ? '' : value)
@@ -50,6 +61,31 @@
         return (i === 0 ? Math.round(bytes) : bytes.toFixed(bytes >= 100 ? 0 : 1)) + ' ' + units[i];
     }
 
+    function sparkline(points, diskId) {
+        var rows = Array.isArray(points) ? points : [];
+        if (rows.length === 1) rows = [rows[0], rows[0]];
+        if (rows.length < 2) {
+            return '<div class="stg-spark-empty">' + esc(t('usage_pending')) + '</div>';
+        }
+        var width = 240;
+        var height = 44;
+        var coords = rows.map(function (p, i) {
+            var total = Number(p.total) || 1;
+            var pct = Math.max(0, Math.min(100, (Number(p.used) || 0) / total * 100));
+            var x = rows.length === 1 ? width : (i / (rows.length - 1)) * width;
+            var y = height - (pct / 100) * (height - 4) - 2;
+            return [x, y];
+        });
+        var line = coords.map(function (c) { return c[0].toFixed(1) + ',' + c[1].toFixed(1); }).join(' ');
+        var area = '0,' + height + ' ' + line + ' ' + width + ',' + height;
+        var gid = 'stg-spark-' + String(diskId).replace(/[^a-zA-Z0-9_-]/g, '');
+        return '<svg class="stg-spark" viewBox="0 0 ' + width + ' ' + height + '" preserveAspectRatio="none" role="img" aria-label="' + esc(t('usage_history')) + '">' +
+            '<defs><linearGradient id="' + gid + '" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="currentColor" stop-opacity=".35"/><stop offset="100%" stop-color="currentColor" stop-opacity="0"/></linearGradient></defs>' +
+            '<polygon points="' + area + '" fill="url(#' + gid + ')"></polygon>' +
+            '<polyline points="' + line + '" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></polyline>' +
+            '</svg>';
+    }
+
     function fmtDate(ts) {
         var n = Number(ts) || 0;
         if (n <= 0) return '—';
@@ -64,9 +100,16 @@
         return Math.floor(m / 60) + 'h ' + (m % 60) + 'm';
     }
 
+    function statusLabel(status) {
+        var value = String(status || 'unknown');
+        var key = 'status_' + value;
+        var label = t(key);
+        return label === key ? value.replace(/_/g, ' ') : label;
+    }
+
     function badge(status) {
         var value = String(status || 'unknown');
-        return '<span class="stg-badge ' + esc(value) + '">' + esc(value.replace(/_/g, ' ')) + '</span>';
+        return '<span class="stg-badge ' + esc(value) + '">' + esc(statusLabel(value)) + '</span>';
     }
 
     function setText(selector, value) {
@@ -116,9 +159,9 @@
             renderAll();
             managePolling();
         }).catch(function (err) {
-            showAlert('Failed to load storage status: ' + err.message, 'error');
+            showAlert(t('load_failed', { error: err.message }), 'error');
             var pill = el('#stg-pill');
-            if (pill) { pill.className = 'stg-pill err'; el('#stg-pill-text').textContent = 'Unavailable'; }
+            if (pill) { pill.className = 'stg-pill err'; el('#stg-pill-text').textContent = t('not_mounted'); }
         });
     }
 
@@ -162,11 +205,11 @@
         setText('#stg-free', fmtBytes(free));
         setText('#stg-kpi-total', fmtBytes(total));
         setText('#stg-kpi-used', fmtBytes(used));
-        setText('#stg-kpi-used-sub', pct.toFixed(1) + '% of the pool');
+        setText('#stg-kpi-used-sub', t('percent_of_pool', { pct: pct.toFixed(1) }));
         setText('#stg-kpi-free', fmtBytes(free));
         setText('#stg-kpi-disks', (d.online_count || 0) + ' / ' + (d.disk_count || 0));
-        setText('#stg-kpi-disks-sub', (d.disk_count || 0) === 1 ? 'disk registered' : 'disks registered');
-        setText('#stg-disk-count', (d.online_count || 0) + ' online / ' + (d.disk_count || 0) + ' registered');
+        setText('#stg-kpi-disks-sub', (d.disk_count || 0) === 1 ? t('disk_registered') : t('disks_registered'));
+        setText('#stg-disk-count', t('online_registered', { online: d.online_count || 0, total: d.disk_count || 0 }));
 
         var bar = el('#stg-used-bar');
         bar.style.width = pct + '%';
@@ -177,19 +220,19 @@
             ring.className = 'stg-ring' + (pct >= 90 ? ' danger' : (pct >= 75 ? ' warn' : ''));
         }
         setText('#stg-ring-pct', pct.toFixed(0) + '%');
-        setText('#stg-used-pct', pct.toFixed(1) + '% used');
-        setText('#stg-free-sub', 'pool: ' + (d.storage_root || '/storage'));
+        setText('#stg-used-pct', t('percent_used', { pct: pct.toFixed(1) }));
+        setText('#stg-free-sub', t('pool_prefix', { path: d.storage_root || '/storage' }));
 
-        setText('#stg-mergerfs', m.mounted ? (m.writable ? 'Online' : 'Read only') : 'Not mounted');
+        setText('#stg-mergerfs', m.mounted ? (m.writable ? t('label_online') : t('label_readonly')) : t('not_mounted'));
         setText('#stg-mergerfs-sub', m.mounted
-            ? ((m.branches || []).length + ' branch(es)' + (m.runtime_api ? ' · runtime API' : ''))
-            : (m.binary_available ? 'waiting for disks' : 'mergerfs not installed'));
-        setText('#stg-restic', r.configured ? 'Configured' : 'Not configured');
-        setText('#stg-last-backup', r.last_backup_at ? fmtDate(r.last_backup_at) : 'Never');
+            ? (t('mergerfs_branches', { count: (m.branches || []).length }) + (m.runtime_api ? t('mergerfs_runtime_suffix') : ''))
+            : (m.binary_available ? t('waiting_for_disks') : t('mergerfs_missing')));
+        setText('#stg-restic', r.configured ? t('label_configured') : t('not_configured'));
+        setText('#stg-last-backup', r.last_backup_at ? fmtDate(r.last_backup_at) : t('never'));
         var backupState = el('#stg-backup-state');
         if (backupState) {
             backupState.className = 'stg-badge ' + (r.configured ? 'online' : 'offline');
-            backupState.textContent = r.configured ? 'Protected' : 'Not configured';
+            backupState.textContent = r.configured ? t('repository_configured') : t('not_configured');
         }
         var backupPath = el('#stg-backup-path');
         if (backupPath) backupPath.textContent = d.storage_root || '/storage';
@@ -201,18 +244,18 @@
         var pillText = el('#stg-pill-text');
         if (d.active_migration) {
             pill.className = 'stg-pill warn';
-            pillText.textContent = 'Migration ' + String(d.active_migration.status || '').replace(/_/g, ' ');
+            pillText.textContent = t('migration_word') + ' ' + String(d.active_migration.status || '').replace(/_/g, ' ');
         } else if (!m.mounted) {
             pill.className = 'stg-pill';
-            pillText.textContent = (d.disk_count || 0) > 0 ? 'Pool not mounted' : 'No disks';
+            pillText.textContent = (d.disk_count || 0) > 0 ? t('pool_not_mounted') : t('no_disks_short');
         } else if (!m.writable) {
             pill.className = 'stg-pill err';
-            pillText.textContent = 'Pool is not writable';
+            pillText.textContent = t('pool_readonly');
         } else {
             pill.className = 'stg-pill ok';
-            pillText.textContent = 'Pool online';
+            pillText.textContent = t('pool_online');
         }
-        setText('#stg-disks-hint', (d.disks_root || '/disks') + ' · scanned automatically');
+        setText('#stg-disks-hint', (d.disks_root || '/disks') + ' · ' + t('auto_scanned'));
         var countDisks = el('#stg-tab-count-disks');
         if (countDisks) countDisks.textContent = String((d.disk_count || 0));
         var countMigrations = el('#stg-tab-count-migrations');
@@ -225,7 +268,7 @@
         if (!map || !legend) return;
         var active = disks.filter(function (d) { return ['online', 'initializing', 'error'].indexOf(String(d.status)) !== -1 && Number(d.total_bytes) > 0; });
         if (!active.length || total <= 0) {
-            map.innerHTML = '<div class="stg-empty">No pooled capacity yet.</div>';
+            map.innerHTML = '<div class="stg-empty">' + esc(t('no_disks_short')) + '</div>';
             legend.innerHTML = '';
             return;
         }
@@ -235,7 +278,7 @@
             return '<span class="stg-pool-seg" style="width:' + share.toFixed(2) + '%;background:' + colors[i % colors.length] + '" title="' + esc(disk.name) + ' · ' + fmtBytes(disk.total_bytes) + '"></span>';
         }).join('') + '</div>';
         legend.innerHTML = active.map(function (disk, i) {
-            return '<div class="stg-legend-item"><span class="stg-legend-dot" style="background:' + colors[i % colors.length] + '"></span><span class="stg-legend-name">' + esc(disk.name) + '</span><strong>' + fmtBytes(disk.total_bytes) + '</strong><small>' + (Number(disk.percent_used) || 0).toFixed(0) + '% used</small></div>';
+            return '<div class="stg-legend-item"><span class="stg-legend-dot" style="background:' + colors[i % colors.length] + '"></span><span class="stg-legend-name">' + esc(disk.name) + '</span><strong>' + fmtBytes(disk.total_bytes) + '</strong><small>' + esc(t('legend_used', { pct: (Number(disk.percent_used) || 0).toFixed(0) })) + '</small></div>';
         }).join('');
     }
 
@@ -245,20 +288,20 @@
         if (!list) return;
         var online = disks.filter(function (d) { return String(d.status) === 'online'; }).length;
         var issues = [];
-        if (!m.mounted) issues.push('Pool is not mounted');
-        if (m.mounted && !m.writable) issues.push('Pool is read-only');
-        if (!m.fuse_device) issues.push('/dev/fuse is not available');
-        if (!r.configured) issues.push('No backup repository configured');
-        if (online < disks.length) issues.push((disks.length - online) + ' disk(s) offline');
+        if (!m.mounted) issues.push(t('pool_not_mounted'));
+        if (m.mounted && !m.writable) issues.push(t('pool_readonly'));
+        if (!m.fuse_device) issues.push(t('fuse_missing'));
+        if (!r.configured) issues.push(t('repository_not_configured'));
+        if (online < disks.length) issues.push(t('online_total', { online: online, total: disks.length }));
         if (score) {
             score.className = 'stg-badge ' + (issues.length === 0 ? 'online' : (online > 0 ? 'initializing' : 'error'));
-            score.textContent = issues.length === 0 ? 'Healthy' : issues.length + ' check(s)';
+            score.textContent = issues.length === 0 ? t('healthy') : t('checks', { count: issues.length });
         }
         var rows = [
-            { icon: 'server', title: 'MergerFS pool', value: m.mounted ? (m.writable ? 'Mounted & writable' : 'Mounted read-only') : 'Not mounted', ok: !!(m.mounted && m.writable), detail: (m.branches || []).length + ' branch(es)' },
-            { icon: 'shield', title: 'FUSE device', value: m.fuse_device ? '/dev/fuse available' : 'Not available', ok: !!m.fuse_device, detail: m.runtime_api ? 'runtime API supported' : 'runtime API unavailable' },
-            { icon: 'disk', title: 'Registered disks', value: online + ' online / ' + disks.length + ' total', ok: online > 0 && online === disks.length, detail: (state.data && state.data.disks_root) || '/disks' },
-            { icon: 'check', title: 'Restic backup', value: r.configured ? 'Repository configured' : 'Not configured', ok: !!r.configured, detail: r.last_backup_at ? 'Last: ' + fmtDate(r.last_backup_at) : 'No snapshot yet' }
+            { icon: 'server', title: t('health_pool'), value: m.mounted ? (m.writable ? t('mounted_writable') : t('mounted_readonly')) : t('not_mounted'), ok: !!(m.mounted && m.writable), detail: t('branch_count', { count: (m.branches || []).length }) },
+            { icon: 'shield', title: t('health_fuse'), value: m.fuse_device ? t('fuse_available') : t('fuse_missing'), ok: !!m.fuse_device, detail: m.runtime_api ? t('runtime_api') : t('runtime_unavailable') },
+            { icon: 'disk', title: t('health_disks'), value: t('online_total', { online: online, total: disks.length }), ok: online > 0 && online === disks.length, detail: (state.data && state.data.disks_root) || '/disks' },
+            { icon: 'check', title: t('health_restic'), value: r.configured ? t('repository_configured') : t('not_configured'), ok: !!r.configured, detail: r.last_backup_at ? t('last_prefix', { time: fmtDate(r.last_backup_at) }) : t('no_snapshot_yet') }
         ];
         list.innerHTML = rows.map(function (row) {
             return '<div class="stg-health-row">' +
@@ -288,25 +331,27 @@
             var canRemove = status === 'online' && !(state.data && state.data.active_migration);
             var actions = '';
             if (status === 'ready_to_remove') {
-                actions = '<span class="stg-muted">Remove its compose line, then recreate the container.</span>';
+                actions = '<span class="stg-muted">' + esc(t('add_another_disk_text')) + '</span>';
             } else {
-                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">' + icon('scan', 13) + '<span>Check</span></button>';
-                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>' + icon('trash', 13) + '<span>Safely remove</span></button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">' + icon('scan', 13) + '<span>' + esc(t('check_disk_btn')) + '</span></button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>' + icon('trash', 13) + '<span>' + esc(t('safely_remove')) + '</span></button>';
             }
             var total = Number(disk.total_bytes) || 0;
             var used = Number(disk.used_bytes) || 0;
             var free = Number(disk.free_bytes) || 0;
+            var history = (state.data && state.data.usage_history && state.data.usage_history[disk.id]) || [];
             return '<article class="stg-disk-card' + (status === 'ready_to_remove' ? ' stg-disk-ready' : '') + '">' +
                 '<div class="stg-disk-card-head">' +
                 '<span class="stg-disk-icon">' + icon('disk', 22) + '</span>' +
                 '<div class="stg-disk-ident"><div class="stg-disk-name">' + esc(disk.name) + '</div><div class="stg-disk-path">' + esc(disk.mount_path) + '</div></div>' +
                 badge(status) + '</div>' +
-                '<div class="stg-disk-usage"><div class="stg-disk-usage-line"><strong>' + fmtBytes(used) + '</strong><span>of ' + fmtBytes(total) + '</span><span class="stg-disk-free">' + fmtBytes(free) + ' free</span></div><div class="stg-bar"><span class="' + barClass + '" style="width:' + pct + '%"></span></div><div class="stg-disk-pct">' + pct.toFixed(1) + '% used</div></div>' +
+                '<div class="stg-disk-usage"><div class="stg-disk-usage-line"><strong>' + fmtBytes(used) + '</strong><span>/ ' + fmtBytes(total) + '</span><span class="stg-disk-free">' + fmtBytes(free) + ' ' + esc(t('free')) + '</span></div><div class="stg-bar"><span class="' + barClass + '" style="width:' + pct + '%"></span></div><div class="stg-disk-pct">' + esc(t('percent_used', { pct: pct.toFixed(1) })) + '</div></div>' +
+                '<div class="stg-disk-history"><div class="stg-disk-history-head"><span>' + esc(t('usage_history')) + '</span><span>' + esc(t('usage_hours')) + '</span></div>' + sparkline(history, disk.id) + '</div>' +
                 '<div class="stg-disk-facts">' +
-                '<div><span>Filesystem</span><strong>' + esc(disk.filesystem || '—') + '</strong></div>' +
-                '<div><span>Identity</span><strong class="stg-uuid" title="' + esc(disk.uuid) + '">' + esc(disk.uuid) + '</strong></div>' +
-                '<div><span>Last check</span><strong>' + fmtDate(disk.last_health_check_at) + '</strong></div>' +
-                '<div><span>Last backup</span><strong>' + fmtDate(disk.last_backup_at) + '</strong></div>' +
+                '<div><span>' + esc(t('filesystem')) + '</span><strong>' + esc(disk.filesystem || '—') + '</strong></div>' +
+                '<div><span>' + esc(t('identity')) + '</span><strong class="stg-uuid" title="' + esc(disk.uuid) + '">' + esc(disk.uuid) + '</strong></div>' +
+                '<div><span>' + esc(t('last_check')) + '</span><strong>' + fmtDate(disk.last_health_check_at) + '</strong></div>' +
+                '<div><span>' + esc(t('last_backup')) + '</span><strong>' + fmtDate(disk.last_backup_at) + '</strong></div>' +
                 '</div>' +
                 '<div class="stg-disk-actions">' + actions + '</div></article>';
         }).join('');
@@ -337,7 +382,7 @@
         if (chart) {
             var recent = rows.slice(0, 8).reverse();
             if (!recent.length) {
-                chart.innerHTML = '<div class="stg-empty">No migrations yet.</div>';
+                chart.innerHTML = '<div class="stg-empty">' + esc(t('no_migrations')) + '</div>';
             } else {
                 chart.innerHTML = recent.map(function (m) {
                     var pct = Math.max(0, Math.min(100, Number(m.progress) || 0));
@@ -347,17 +392,17 @@
             }
         }
         var hint = el('#stg-history-hint');
-        if (hint) hint.textContent = rows.length ? rows.length + ' operation(s)' : '';
+        if (hint) hint.textContent = rows.length ? t('operations_count', { count: rows.length }) : '';
         if (!rows.length) {
-            body.innerHTML = '<tr><td colspan="8"><div class="stg-empty">No migrations yet.</div></td></tr>';
+            body.innerHTML = '<tr><td colspan="8"><div class="stg-empty">' + esc(t('no_migrations')) + '</div></td></tr>';
             return;
         }
         body.innerHTML = rows.map(function (m) {
             var pct = Math.max(0, Math.min(100, Number(m.progress) || 0));
             var err = m.error ? '<span class="stg-conflict">' + esc(m.error) + '</span>' : '—';
-            var actions = '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="progress_details" data-stg-migration="' + esc(m.id) + '">Details</button>';
+            var actions = '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="progress_details" data-stg-migration="' + esc(m.id) + '">' + esc(t('details')) + '</button>';
             if (m.status === 'paused' || m.status === 'failed') {
-                actions += ' <button type="button" class="stg-btn stg-btn-sm" data-stg-action="migration_resume" data-stg-migration="' + esc(m.id) + '">Resume</button>';
+                actions += ' <button type="button" class="stg-btn stg-btn-sm" data-stg-action="migration_resume" data-stg-migration="' + esc(m.id) + '">' + esc(t('resume')) + '</button>';
             }
             return '<tr>' +
                 '<td>' + fmtDate(m.started_at || m.created_at) + '</td>' +
@@ -380,16 +425,16 @@
         var speed = Number(m.speed_bytes) || 0;
         el('#stg-migration-speed').textContent = speed > 0 ? (fmtBytes(speed) + '/s') : '';
         var remaining = speed > 0 ? ((Number(m.total_bytes) || 0) - (Number(m.migrated_bytes) || 0)) / speed : 0;
-        el('#stg-migration-eta').textContent = remaining > 0 ? ('ETA ' + fmtDuration(remaining)) : '';
-        el('#stg-migration-errors').textContent = Number(m.error_count) > 0 ? (m.error_count + ' error(s)') : '';
-        el('#stg-migration-current').textContent = m.current_file ? ('Current: ' + m.current_file) : (m.error ? m.error : '');
+        el('#stg-migration-eta').textContent = remaining > 0 ? (t('eta') + ' ' + fmtDuration(remaining)) : '';
+        el('#stg-migration-errors').textContent = Number(m.error_count) > 0 ? t('errors', { count: m.error_count }) : '';
+        el('#stg-migration-current').textContent = m.current_file ? t('current_file', { file: m.current_file }) : (m.error ? m.error : '');
     }
 
     function renderEvents() {
         var box = el('#stg-events');
         var events = (state.data && state.data.events) || [];
         if (!events.length) {
-            box.innerHTML = '<div class="stg-empty">No events.</div>';
+            box.innerHTML = '<div class="stg-empty">' + esc(t('no_events')) + '</div>';
             return;
         }
         box.innerHTML = events.slice(0, 40).map(function (e) {
@@ -415,7 +460,7 @@
         var select = el('#stg-backup-profile');
         var profiles = (state.data && state.data.backup_profiles) || [];
         var current = s.backup_profile || '';
-        select.innerHTML = '<option value="">Not configured</option>' + profiles.map(function (p) {
+        select.innerHTML = '<option value="">' + esc(t('not_configured')) + '</option>' + profiles.map(function (p) {
             return '<option value="' + esc(p.id) + '">' + esc(p.name || p.id) + (p.repository ? ' · ' + esc(p.repository) : '') + '</option>';
         }).join('');
         if (current && profiles.some(function (p) { return p.id === current; })) select.value = current;
@@ -455,7 +500,7 @@
         var overlay = el('#stg-remove-overlay');
         overlay.hidden = false;
         el('#stg-remove-confirm').disabled = true;
-        el('#stg-remove-body').innerHTML = '<div class="stg-empty">Checking free space and conflicts…</div>';
+        el('#stg-remove-body').innerHTML = '<div class="stg-empty">' + esc(t('checking_space')) + '</div>';
         api('migration_check?id=' + encodeURIComponent(diskId)).then(function (res) {
             if (state.removeDiskId !== Number(diskId)) return;
             state.removeCheck = res.precheck;
@@ -470,29 +515,29 @@
         var enough = !!p.enough_space;
         var conflicts = p.conflicts_count || 0;
         var targets = (p.targets || []).map(function (t) {
-            return '<div class="stg-target"><span>' + esc(t.name) + '</span><span>' + fmtBytes(t.usable_bytes) + ' usable of ' + fmtBytes(t.free_bytes) + '</span></div>';
-        }).join('') || '<div class="stg-empty">No online target disks.</div>';
+            return '<div class="stg-target"><span>' + esc(t.name) + '</span><span>' + esc(t('usable_of', { usable: fmtBytes(t.usable_bytes), free: fmtBytes(t.free_bytes) })) + '</span></div>';
+        }).join('') || '<div class="stg-empty">' + esc(t('no_target_disks')) + '</div>';
         var conflictHtml = '';
         if (conflicts > 0) {
-            conflictHtml = '<div><div class="stg-warn-text">' + conflicts + ' conflicting file(s)</div><ul class="stg-list">' +
+            conflictHtml = '<div><div class="stg-warn-text">' + esc(t('conflicting_files', { count: conflicts })) + '</div><ul class="stg-list">' +
                 (p.conflicts || []).slice(0, 12).map(function (c) {
-                    return '<li><span class="stg-conflict">' + esc(c.rel_path) + '</span> on ' + esc(c.target) + '</li>';
+                    return '<li><span class="stg-conflict">' + esc(c.rel_path) + '</span> ' + esc(t('conflict_on', { target: c.target })) + '</li>';
                 }).join('') +
-                '</ul><div class="stg-note">Conflicting files are never overwritten. Resolve them manually and retry.</div></div>';
+                '</ul><div class="stg-note">' + esc(t('conflicts_hint')) + '</div></div>';
         }
         var html =
             '<div class="stg-check-grid">' +
-            '<div class="stg-check-box"><span>Disk</span><strong>' + esc(disk.name || '') + '</strong></div>' +
-            '<div class="stg-check-box"><span>Data to move</span><strong>' + fmtBytes(p.source_bytes) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Files</span><strong>' + (p.source_files || 0) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Required headroom</span><strong>' + fmtBytes(p.required_bytes) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Free on targets</span><strong>' + fmtBytes(p.total_usable_bytes) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Additional space needed</span><strong class="' + (enough ? 'stg-ok-text' : 'stg-warn-text') + '">' + fmtBytes(p.shortfall_bytes) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('disk')) + '</span><strong>' + esc(disk.name || '') + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('data_move')) + '</span><strong>' + fmtBytes(p.source_bytes) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('files')) + '</span><strong>' + (p.source_files || 0) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('required_headroom')) + '</span><strong>' + fmtBytes(p.required_bytes) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('free_on_targets')) + '</span><strong>' + fmtBytes(p.total_usable_bytes) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('additional_space')) + '</span><strong class="' + (enough ? 'stg-ok-text' : 'stg-warn-text') + '">' + fmtBytes(p.shortfall_bytes) + '</strong></div>' +
             '</div>' +
-            '<div><div class="stg-muted">Target disks</div>' + targets + '</div>' +
-            (enough ? '<div class="stg-ok-text">There is enough free space to evacuate this disk.</div>' : '<div class="stg-warn-text">Not enough free space. Removal is blocked.</div>') +
+            '<div><div class="stg-muted">' + esc(t('target_disks')) + '</div>' + targets + '</div>' +
+            (enough ? '<div class="stg-ok-text">' + esc(t('enough_space')) + '</div>' : '<div class="stg-warn-text">' + esc(t('not_enough_space')) + '</div>') +
             conflictHtml +
-            '<div class="stg-note">A Restic snapshot is created before copying. Files are copied to explicit target disks and verified by SHA-256. Original files are kept unless deletion is enabled in settings.</div>';
+            '<div class="stg-note">' + esc(t('removal_note')) + '</div>';
         el('#stg-remove-body').innerHTML = html;
         el('#stg-remove-confirm').disabled = !(p.can_start && enough && conflicts === 0);
     }
@@ -501,19 +546,22 @@
         if (!state.removeDiskId) return;
         var check = state.removeCheck;
         if (!check || !check.can_start) return;
-        var msg = 'Copy ' + fmtBytes(check.source_bytes) + ' from ' + (check.disk ? check.disk.name : 'the disk') +
-            ' to ' + check.targets.length + ' disk(s)? The disk will be removed from the pool after verification.';
+        var msg = t('confirm_remove', {
+            size: fmtBytes(check.source_bytes),
+            disk: (check.disk ? check.disk.name : t('disk')),
+            count: check.targets.length
+        });
         if (!window.confirm(msg)) return;
         el('#stg-remove-confirm').disabled = true;
         api('migration_start', { method: 'POST', body: { id: state.removeDiskId, confirm: true } })
             .then(function () {
                 el('#stg-remove-overlay').hidden = true;
-                showAlert('Migration started. You can close this page; the worker continues in the background.', 'ok');
+                showAlert(t('migration_started'), 'ok');
                 showTab('migrations');
                 return refresh(true);
             })
             .catch(function (err) {
-                showAlert('Could not start migration: ' + err.message, 'error');
+                showAlert(t('migration_start_failed', { error: err.message }), 'error');
                 el('#stg-remove-confirm').disabled = false;
             });
     }
@@ -525,17 +573,17 @@
         var pct = Math.max(0, Math.min(100, Number(m.progress) || 0));
         var html =
             '<div class="stg-check-grid">' +
-            '<div class="stg-check-box"><span>Status</span><strong>' + badge(m.status) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Progress</span><strong>' + pct.toFixed(1) + '%</strong></div>' +
-            '<div class="stg-check-box"><span>Data</span><strong>' + fmtBytes(m.migrated_bytes) + ' / ' + fmtBytes(m.total_bytes) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Files</span><strong>' + (m.migrated_files || 0) + ' / ' + (m.total_files || 0) + '</strong></div>' +
-            '<div class="stg-check-box"><span>Speed</span><strong>' + (Number(m.speed_bytes) > 0 ? fmtBytes(m.speed_bytes) + '/s' : '—') + '</strong></div>' +
-            '<div class="stg-check-box"><span>Errors</span><strong>' + (m.error_count || 0) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('status')) + '</span><strong>' + badge(m.status) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('progress')) + '</span><strong>' + pct.toFixed(1) + '%</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('data')) + '</span><strong>' + fmtBytes(m.migrated_bytes) + ' / ' + fmtBytes(m.total_bytes) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('files')) + '</span><strong>' + (m.migrated_files || 0) + ' / ' + (m.total_files || 0) + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('speed')) + '</span><strong>' + (Number(m.speed_bytes) > 0 ? fmtBytes(m.speed_bytes) + '/s' : '—') + '</strong></div>' +
+            '<div class="stg-check-box"><span>' + esc(t('error')) + '</span><strong>' + (m.error_count || 0) + '</strong></div>' +
             '</div>' +
             '<div class="stg-progress"><span style="width:' + pct + '%"></span></div>' +
             '<div class="stg-current">' + esc(m.current_file || '') + '</div>' +
             (m.error ? '<div class="stg-alert error">' + esc(m.error) + '</div>' : '') +
-            '<div class="stg-muted">Files: ' + Object.keys(counts).map(function (k) { return esc(k) + ' ' + counts[k]; }).join(' · ') + '</div>' +
+            '<div class="stg-muted">' + esc(t('files_breakdown', { list: Object.keys(counts).map(function (k) { return esc(k) + ' ' + counts[k]; }).join(' · ') })) + '</div>' +
             (events.length ? '<div class="stg-events">' + events.slice(0, 12).map(function (e) {
                 return '<div class="stg-event"><div class="stg-event-time">' + fmtDate(e.created_at) + '</div><div><div class="stg-event-msg">' + esc(e.message) + '</div></div></div>';
             }).join('') + '</div>' : '');
@@ -546,11 +594,11 @@
         var active = migrationId ? { id: migrationId } : (state.data && state.data.active_migration);
         if (!active) {
             var latest = state.data && state.data.migrations && state.data.migrations[0];
-            if (!latest) { showAlert('No migration to show.', 'warn'); return; }
+            if (!latest) { showAlert(t('no_migration'), 'warn'); return; }
             active = latest;
         }
         el('#stg-progress-overlay').hidden = false;
-        el('#stg-progress-body').innerHTML = '<div class="stg-empty">Loading…</div>';
+        el('#stg-progress-body').innerHTML = '<div class="stg-empty">' + esc(t('loading')) + '</div>';
         api('migration_status?id=' + encodeURIComponent(active.id)).then(renderProgressDialog).catch(function (err) {
             el('#stg-progress-body').innerHTML = '<div class="stg-alert error">' + esc(err.message) + '</div>';
         });
@@ -568,44 +616,44 @@
             backup_profile: el('#stg-backup-profile').value
         };
         api('settings_save', { method: 'POST', body: body }).then(function () {
-            showAlert('Storage settings saved.', 'ok');
+            showAlert(t('settings_saved'), 'ok');
             return refresh(true);
-        }).catch(function (err) { showAlert('Could not save settings: ' + err.message, 'error'); });
+        }).catch(function (err) { showAlert(t('settings_failed', { error: err.message }), 'error'); });
     }
 
     function attachBackup() {
         var profile = el('#stg-backup-profile').value;
-        if (!profile) { showAlert('Select a backup profile first.', 'warn'); return; }
+        if (!profile) { showAlert(t('select_profile'), 'warn'); return; }
         api('backup_attach', { method: 'POST', body: { profile: profile } }).then(function () {
-            showAlert('The /storage path was added to the backup profile.', 'ok');
+            showAlert(t('profile_added'), 'ok');
             return refresh(true);
-        }).catch(function (err) { showAlert('Could not update the profile: ' + err.message, 'error'); });
+        }).catch(function (err) { showAlert(t('profile_failed', { error: err.message }), 'error'); });
     }
 
     function backupNow() {
         api('backup_now', { method: 'POST', body: {} }).then(function (res) {
-            showAlert('Storage backup queued (job ' + ((res.job && res.job.id) || '') + '). Track it in the Backup manager.', 'ok');
-        }).catch(function (err) { showAlert('Could not start backup: ' + err.message, 'error'); });
+            showAlert(t('backup_queued', { job: (res.job && res.job.id) || '' }), 'ok');
+        }).catch(function (err) { showAlert(t('backup_failed', { error: err.message }), 'error'); });
     }
 
     function runDiskCheck(diskId) {
-        showAlert('Checking disk…');
+        showAlert(t('checking_disk'));
         api('disk_check', { method: 'POST', body: { id: diskId } }).then(function (res) {
             var report = (res.result && res.result.report) || {};
             var errors = (report.errors || []).join(', ');
-            showAlert(errors ? ('Disk check: ' + errors) : ('Disk check: ' + (res.result.status || 'ok')), errors ? 'warn' : 'ok');
+            showAlert(t('disk_check_report', { detail: errors || (res.result.status || 'ok') }), errors ? 'warn' : 'ok');
             return refresh(true);
-        }).catch(function (err) { showAlert('Disk check failed: ' + err.message, 'error'); });
+        }).catch(function (err) { showAlert(t('disk_check_failed', { error: err.message }), 'error'); });
     }
 
     function cancelMigration() {
         var active = state.data && state.data.active_migration;
         if (!active) return;
-        if (!window.confirm('Cancel the running migration? Already copied and verified files are kept; the source disk stays in the pool.')) return;
+        if (!window.confirm(t('cancel_confirm'))) return;
         api('migration_cancel', { method: 'POST', body: { id: active.id } }).then(function () {
-            showAlert('Cancellation requested.', 'warn');
+            showAlert(t('cancellation_requested'), 'warn');
             return refresh(true);
-        }).catch(function (err) { showAlert('Could not cancel: ' + err.message, 'error'); });
+        }).catch(function (err) { showAlert(t('cancel_failed', { error: err.message }), 'error'); });
     }
 
     function onClick(event) {
@@ -636,9 +684,9 @@
         var migrationId = trigger.getAttribute('data-stg-migration') || '';
         if (action === 'refresh') { refresh(); return; }
         if (action === 'scan') {
-            showAlert('Scanning /disks…');
-            api('scan').then(function () { showAlert('Disk scan completed.', 'ok'); return refresh(true); })
-                .catch(function (err) { showAlert('Scan failed: ' + err.message, 'error'); });
+            showAlert(t('scanning_disks'));
+            api('scan').then(function () { showAlert(t('scan_completed'), 'ok'); return refresh(true); })
+                .catch(function (err) { showAlert(t('scan_failed', { error: err.message }), 'error'); });
             return;
         }
         if (action === 'disk_check') { runDiskCheck(diskId); return; }
@@ -647,10 +695,10 @@
         if (action === 'migration_cancel') { cancelMigration(); return; }
         if (action === 'progress_details') { openProgressDialog(migrationId); return; }
         if (action === 'migration_resume') {
-            if (!window.confirm('Resume this migration from its last verified checkpoint?')) return;
+            if (!window.confirm(t('resume_confirm'))) return;
             api('migration_resume', { method: 'POST', body: { id: migrationId } })
-                .then(function () { showAlert('Migration resumed.', 'ok'); return refresh(true); })
-                .catch(function (err) { showAlert('Could not resume: ' + err.message, 'error'); });
+                .then(function () { showAlert(t('migration_resumed'), 'ok'); return refresh(true); })
+                .catch(function (err) { showAlert(t('resume_failed', { error: err.message }), 'error'); });
             return;
         }
         if (action === 'save_settings') { saveSettings(); return; }
@@ -659,9 +707,10 @@
     }
 
     function init(root) {
-        root = root && root.querySelector ? root : document.getElementById('stg-app');
+        root = root && root.querySelector ? (root.id === 'stg-app' ? root : (root.querySelector('#stg-app') || root)) : document.getElementById('stg-app');
         if (!root) return;
-        if (root.dataset.stgReady === '1') { state.root = root; return; }
+        try { state.i18n = JSON.parse(root.getAttribute('data-stg-i18n') || '{}') || {}; } catch (e) { state.i18n = {}; }
+        if (root.dataset.stgReady === '1') { state.root = root; refresh(true); return; }
         root.dataset.stgReady = '1';
         state.root = root;
         state.base = root.getAttribute('data-stg-base') || '/project/storage/index.php';

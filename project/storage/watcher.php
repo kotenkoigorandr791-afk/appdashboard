@@ -60,6 +60,7 @@ do {
         }
         StorageManager::ensurePoolLayout();
         MergerFSManager::writeState();
+        StorageMonitor::recordUsage();
 
         if (time() - $lastRecovery >= 60) {
             $lastRecovery = time();

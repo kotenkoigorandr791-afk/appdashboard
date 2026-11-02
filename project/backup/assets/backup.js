@@ -309,16 +309,18 @@
         if (ring) ring.style.setProperty('--pct', pct);
         function set(id, value) { var node = el(root, id); if (node) node.textContent = value; }
         set('#bdp-ring-value', healthy ? '100%' : (pct ? pct + '%' : '—'));
+        var ringLabel = el(root, '#bdp-ring-label');
+        if (ringLabel) ringLabel.textContent = healthy ? t('ring_protected') : t('ring_label');
         set('#bdp-kpi-backups', String(list.length));
         set('#bdp-kpi-snapshots', String(snapshots.length));
         set('#bdp-kpi-last', last ? fmtDate(last) : '—');
         set('#bdp-kpi-next', next ? fmtDate(next) : '—');
         var title = el(root, '#bdp-hero-title');
         var sub = el(root, '#bdp-hero-sub');
-        if (title) title.textContent = healthy ? 'Your data is protected' : (configured ? 'Backup needs attention' : 'Set up your first backup');
+        if (title) title.textContent = healthy ? t('hero_protected') : (configured ? t('hero_attention') : t('hero_setup'));
         if (sub) sub.textContent = healthy
-            ? 'The latest snapshot includes application user files and the PostgreSQL dump.'
-            : (configured ? 'Open a backup profile and run a snapshot, or check the repository.' : 'Create a repository to start protecting user data.');
+            ? t('hero_protected_sub')
+            : (configured ? t('hero_attention_sub') : t('hero_setup_sub'));
         var run = el(root, '#bdp-run-active');
         if (run) run.setAttribute('data-profile', state.activeRepo || ((list[0] || {}).id || ''));
         var countBackups = el(root, '#bdp-tab-count-backups');
@@ -336,7 +338,7 @@
         if (!box) return;
         var list = (snapshots || []).slice(0, 10).reverse();
         if (!list.length) {
-            box.innerHTML = '<div class="bdp-empty">No snapshots yet.</div>';
+            box.innerHTML = '<div class="bdp-empty">' + esc(t('no_snapshots_chart')) + '</div>';
             return;
         }
         var values = list.map(function (s) { return Math.max(1, Number(s.files) || Number(s.size) || 1); });
@@ -355,10 +357,10 @@
         var snap = (snapshots || [])[0] || null;
         var running = (state.jobs || []).filter(function (j) { return j.status === 'running' || j.status === 'queued'; }).length;
         var rows = [
-            { label: 'Repository', value: configured ? 'Configured' : 'Not configured', ok: configured > 0, detail: state.repoOk ? 'Connection verified' : 'Check the repository' },
-            { label: 'Application data', value: mandatory ? 'Required profile' : 'Missing', ok: !!mandatory, detail: mandatory ? 'Protected by policy' : 'Create the mandatory profile' },
-            { label: 'Latest snapshot', value: snap ? fmtDate(snap.time) : 'Never', ok: !!snap, detail: snap ? ((snap.files || 0) + ' files · ' + fmtSize(snap.size)) : 'No recovery point yet' },
-            { label: 'Running jobs', value: running ? String(running) : 'Idle', ok: running === 0, detail: running ? 'Backup in progress' : 'Nothing running' }
+            { label: t('health_repo'), value: configured ? t('health_configured') : t('not_configured'), ok: configured > 0, detail: state.repoOk ? t('health_connection_ok') : t('health_check_repo') },
+            { label: t('health_app_data'), value: mandatory ? t('health_required_profile') : t('health_missing_profile'), ok: !!mandatory, detail: mandatory ? t('health_policy_ok') : t('health_create_mandatory') },
+            { label: t('health_latest_snapshot'), value: snap ? fmtDate(snap.time) : t('never'), ok: !!snap, detail: snap ? t('health_files_size', { files: snap.files || 0, size: fmtSize(snap.size) }) : t('health_no_recovery') },
+            { label: t('health_running_jobs'), value: running ? String(running) : t('health_idle'), ok: running === 0, detail: running ? t('health_in_progress') : t('health_nothing_running') }
         ];
         box.innerHTML = rows.map(function (row) {
             return '<div class="bdp-health-row"><span class="bdp-health-dot ' + (row.ok ? 'ok' : 'warn') + '"></span>'
@@ -1315,6 +1317,13 @@
         Array.prototype.forEach.call(root.querySelectorAll('[data-bdp-i18n-ph]'), function (node) {
             var key = node.getAttribute('data-bdp-i18n-ph');
             if (dict[key]) node.setAttribute('placeholder', dict[key]);
+        });
+        Array.prototype.forEach.call(root.querySelectorAll('[data-bdp-tip]'), function (node) {
+            var key = node.getAttribute('data-bdp-tip');
+            if (!dict[key]) return;
+            node.setAttribute('data-tip', dict[key]);
+            var ariaKey = node.getAttribute('data-bdp-tip-aria');
+            if (ariaKey && dict[ariaKey]) node.setAttribute('aria-label', dict[ariaKey]);
         });
     }
 

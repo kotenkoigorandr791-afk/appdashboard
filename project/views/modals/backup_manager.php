@@ -38,10 +38,10 @@ $bkpI18nJson = htmlspecialchars((string)json_encode($bkpPayload, JSON_UNESCAPED_
 
     <div id="bdp-alert" class="bdp-alert" hidden></div>
 
-    <nav class="bdp-tabs" role="tablist" aria-label="Backup sections">
+    <nav class="bdp-tabs" role="tablist" aria-label="<?php echo htmlspecialchars((string)($bkpPayload['sections_aria'] ?? 'Backup sections'), ENT_QUOTES, 'UTF-8'); ?>">
         <button type="button" class="bdp-tab active" role="tab" data-bdp-tab="overview" aria-selected="true">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-            <span>Overview</span>
+            <span data-bdp-i18n="overview">Overview</span>
         </button>
         <button type="button" class="bdp-tab" role="tab" data-bdp-tab="backups" aria-selected="false">
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
@@ -63,33 +63,33 @@ $bkpI18nJson = htmlspecialchars((string)json_encode($bkpPayload, JSON_UNESCAPED_
 
     <section class="bdp-overview" id="bdp-overview" data-bdp-panel="overview" aria-label="Backup overview">
         <div class="bdp-hero">
-            <div class="bdp-ring" id="bdp-ring"><div><strong id="bdp-ring-value">—</strong><span>protected</span></div></div>
+            <div class="bdp-ring" id="bdp-ring"><div><strong id="bdp-ring-value">—</strong><span id="bdp-ring-label" data-bdp-i18n="ring_label">protected</span></div></div>
             <div class="bdp-hero-copy">
-                <div class="bdp-eyebrow">Data protection</div>
+                <div class="bdp-eyebrow" data-bdp-i18n="data_protection">Data protection</div>
                 <h2 id="bdp-hero-title">Your data is protected</h2>
                 <p id="bdp-hero-sub">Restic snapshots keep user files and the database recoverable.</p>
             </div>
             <div class="bdp-hero-actions">
                 <button type="button" class="bdp-btn bdp-btn-primary" data-bdp-action="run_backup" data-profile="" id="bdp-run-active">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polygon points="5 3 19 12 5 21 5 3"/></svg>
-                    Back up now
+                    <span data-bdp-i18n="run_now">Back up now</span>
                 </button>
-                <button type="button" class="bdp-btn" data-bdp-action="add_backup">Add another backup</button>
+                <button type="button" class="bdp-btn" data-bdp-action="add_backup"><span data-bdp-i18n="add_another">Add another backup</span></button>
             </div>
         </div>
         <div class="bdp-kpi-grid">
-            <div class="bdp-kpi"><span class="bdp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span><span>Backups</span><strong id="bdp-kpi-backups">—</strong><small>configured profiles</small></div>
-            <div class="bdp-kpi"><span class="bdp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Snapshots</span><strong id="bdp-kpi-snapshots">—</strong><small>recovery points</small></div>
-            <div class="bdp-kpi"><span class="bdp-kpi-icon is-ok"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span>Last backup</span><strong id="bdp-kpi-last">—</strong><small>latest snapshot</small></div>
-            <div class="bdp-kpi"><span class="bdp-kpi-icon is-warn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span>Next run</span><strong id="bdp-kpi-next">—</strong><small>scheduled</small></div>
+            <div class="bdp-kpi"><span class="bdp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg></span><span data-bdp-i18n="backups">Backups</span><strong id="bdp-kpi-backups">—</strong><small data-bdp-i18n="kpi_profiles">configured profiles</small></div>
+            <div class="bdp-kpi"><span class="bdp-kpi-icon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span data-bdp-i18n="snapshots">Snapshots</span><strong id="bdp-kpi-snapshots">—</strong><small data-bdp-i18n="kpi_recovery_points">recovery points</small></div>
+            <div class="bdp-kpi"><span class="bdp-kpi-icon is-ok"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span><span data-bdp-i18n="last_backup">Last backup</span><strong id="bdp-kpi-last">—</strong><small data-bdp-i18n="kpi_latest_snapshot">latest snapshot</small></div>
+            <div class="bdp-kpi"><span class="bdp-kpi-icon is-warn"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg></span><span data-bdp-i18n="next_run">Next run</span><strong id="bdp-kpi-next">—</strong><small data-bdp-i18n="kpi_scheduled">scheduled</small></div>
         </div>
         <div class="bdp-overview-charts">
             <section class="bdp-mini-card">
-                <div class="bdp-mini-head"><strong>Recovery timeline</strong><button type="button" class="bdp-tip" data-tip="Each bar is one snapshot. Taller bars mean more recovery points available for that period." aria-label="About recovery timeline">?</button></div>
-                <div class="bdp-chart-bars" id="bdp-chart-bars"><div class="bdp-empty">No snapshots yet.</div></div>
+                <div class="bdp-mini-head"><strong data-bdp-i18n="recovery_timeline">Recovery timeline</strong><button type="button" class="bdp-tip" data-bdp-tip="tip_recovery" data-bdp-tip-aria="tip_recovery_aria" data-tip="Each bar is one snapshot. Taller bars mean more recovery points available for that period." aria-label="About recovery timeline">?</button></div>
+                <div class="bdp-chart-bars" id="bdp-chart-bars"><div class="bdp-empty" data-bdp-i18n="no_snapshots_chart">No snapshots yet.</div></div>
             </section>
             <section class="bdp-mini-card">
-                <div class="bdp-mini-head"><strong>Protection status</strong><button type="button" class="bdp-tip" data-tip="Checks the repository, required app-data profile, latest snapshot and running jobs." aria-label="About protection status">?</button></div>
+                <div class="bdp-mini-head"><strong data-bdp-i18n="protection_status">Protection status</strong><button type="button" class="bdp-tip" data-bdp-tip="tip_protection" data-bdp-tip-aria="tip_protection_aria" data-tip="Checks the repository, required app-data profile, latest snapshot and running jobs." aria-label="About protection status">?</button></div>
                 <div class="bdp-health-list" id="bdp-health-list"><div class="bdp-empty">Loading…</div></div>
             </section>
         </div>
