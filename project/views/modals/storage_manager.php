@@ -28,39 +28,33 @@ $stgVersion = static fn(string $file): string => is_file($file) ? (string)filemt
 
     <div id="stg-alert" class="stg-alert" hidden></div>
 
-    <section class="stg-summary" id="stg-summary">
-        <div class="stg-stat"><span class="stg-stat-label">Total capacity</span><strong id="stg-total">—</strong><span class="stg-stat-sub" id="stg-disk-count">—</span></div>
-        <div class="stg-stat"><span class="stg-stat-label">Used</span><strong id="stg-used">—</strong><div class="stg-bar"><span id="stg-used-bar"></span></div><span class="stg-stat-sub" id="stg-used-pct">—</span></div>
-        <div class="stg-stat"><span class="stg-stat-label">Free</span><strong id="stg-free">—</strong><span class="stg-stat-sub" id="stg-free-sub">—</span></div>
-        <div class="stg-stat"><span class="stg-stat-label">MergerFS</span><strong id="stg-mergerfs">—</strong><span class="stg-stat-sub" id="stg-mergerfs-sub">—</span></div>
-        <div class="stg-stat"><span class="stg-stat-label">Restic</span><strong id="stg-restic">—</strong><span class="stg-stat-sub" id="stg-last-backup">—</span></div>
+    <section class="stg-hero" id="stg-summary">
+        <div class="stg-ring" id="stg-ring"><div><strong id="stg-ring-pct">—</strong><span>used</span></div></div>
+        <div class="stg-hero-main">
+            <div class="stg-eyebrow">Merged storage pool</div>
+            <div class="stg-hero-value"><strong id="stg-total">—</strong><span id="stg-disk-count">—</span></div>
+            <div class="stg-bar stg-bar-lg"><span id="stg-used-bar"></span></div>
+            <div class="stg-hero-meta"><span id="stg-used-pct">—</span><span id="stg-free-sub">—</span></div>
+        </div>
+        <div class="stg-hero-side">
+            <div class="stg-mini"><span>Used</span><strong id="stg-used">—</strong></div>
+            <div class="stg-mini"><span>Free</span><strong id="stg-free">—</strong></div>
+            <div class="stg-mini"><span>MergerFS</span><strong id="stg-mergerfs">—</strong><small id="stg-mergerfs-sub">—</small></div>
+            <div class="stg-mini"><span>Restic</span><strong id="stg-restic">—</strong><small id="stg-last-backup">—</small></div>
+        </div>
     </section>
+
+    <div class="stg-guide">
+        <strong>One pool, all disks.</strong> New files are placed on the disk with the most free space. Add a disk with one line in <code>docker-compose.yml</code> and recreate the container — detection, registration and the MergerFS mount happen automatically.
+    </div>
 
     <section class="stg-card">
         <div class="stg-card-head">
             <div class="stg-card-title">Disks</div>
             <span class="stg-muted" id="stg-disks-hint"></span>
         </div>
-        <div class="stg-table-wrap">
-            <table class="stg-table stg-disks-table">
-                <thead>
-                    <tr>
-                        <th>Disk</th>
-                        <th>Identity</th>
-                        <th>Filesystem</th>
-                        <th>Capacity</th>
-                        <th>Used</th>
-                        <th>Free</th>
-                        <th>Status</th>
-                        <th>Last check</th>
-                        <th>Last backup</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody id="stg-disks-body">
-                    <tr><td colspan="10"><div class="stg-empty">Loading…</div></td></tr>
-                </tbody>
-            </table>
+        <div class="stg-disks-grid" id="stg-disks-grid">
+            <div class="stg-empty">Loading…</div>
         </div>
         <div class="stg-empty" id="stg-disks-empty" hidden>
             <div>No disks detected. Add a bind mount under <code>/disks</code> in docker-compose.yml and recreate the container:</div>

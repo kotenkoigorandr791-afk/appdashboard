@@ -181,11 +181,13 @@
             state.snapshots = data.snapshots || [];
             state.repoOk = true;
             renderSnapshots();
+            renderOverview();
             updateStatus();
         }).catch(function (err) {
             state.snapshots = [];
             state.repoOk = false;
             renderSnapshots();
+            renderOverview();
             updateStatus();
             setAlert('warn', err.message);
         });
@@ -246,22 +248,21 @@
 
     function renderBackups() {
         var root = state.root;
-        var body = el(root, '#bdp-backups-body');
+        var body = el(root, '#bdp-backups-grid');
         var empty = el(root, '#bdp-backups-empty');
         if (!body) return;
         var list = state.backups || [];
         if (!list.length) {
-            body.innerHTML = '<tr><td colspan="7"><div class="bdp-empty">' + esc(t('no_backups')) + '</div></td></tr>';
+            body.innerHTML = '<div class="bdp-empty">' + esc(t('no_backups')) + '</div>';
             if (empty) empty.hidden = false;
+            renderOverview();
             return;
         }
         if (empty) empty.hidden = true;
         body.innerHTML = list.map(function (p) {
-            var sources = (p.sources || []).slice(0, 2).map(function (s) {
-                return '<span class="bdp-mono">' + esc(s) + '</span>';
-            }).join('<br>');
-            var more = (p.sources || []).length > 2
-                ? '<div class="bdp-muted">+' + ((p.sources || []).length - 2) + '</div>' : '';
+            var sources = (p.sources || []).map(function (s) {
+                return '<span class="bdp-chip bdp-mono">' + esc(s) + '</span>';
+            }).join('');
             var job = profileStatus(p.id || '');
             var status = '<span class="bdp-badge queued">—</span>';
             var lastRun = t('never_run');
@@ -270,24 +271,56 @@
                 if (job.finished_at) lastRun = fmtDate(job.finished_at);
             }
             var nextRun = p.enabled ? (profileNextRun(p) ? fmtDate(profileNextRun(p)) : '—') : t('manual');
-            return '<tr data-bdp-profile="' + esc(p.id) + '">'
-                + '<td data-label="' + esc(t('name')) + '"><strong>' + esc(p.name || '') + '</strong>'
-                + (p.description ? '<div class="bdp-muted">' + esc(p.description) + '</div>' : '')
-                + (p.enabled ? '' : '<div class="bdp-muted">' + esc(t('manual')) + '</div>') + '</td>'
-                + '<td class="bdp-paths" data-label="' + esc(t('sources')) + '">' + (sources || '<span class="bdp-muted">—</span>') + more + '</td>'
-                + '<td data-label="' + esc(t('schedule')) + '">' + esc(scheduleSummary(p.schedule)) + '<div class="bdp-muted">' + esc(retentionSummary(p.retention)) + '</div></td>'
-                + '<td data-label="' + esc(t('job_status')) + '">' + status + '</td>'
-                + '<td class="bdp-muted" data-label="' + esc(t('last_run')) + '">' + esc(lastRun) + '</td>'
-                + '<td class="bdp-muted" data-label="' + esc(t('next_run')) + '">' + esc(nextRun) + '</td>'
-                + '<td data-label="' + esc(t('actions')) + '"><div class="bdp-actions">'
+            var repo = p.repository || t('repo_not_configured');
+            return '<article class="bdp-backup-card' + (p.mandatory ? ' is-protected' : '') + '" data-bdp-profile="' + esc(p.id) + '">'
+                + '<div class="bdp-backup-head"><div class="bdp-backup-ident">'
+                + '<div class="bdp-backup-name">' + esc(p.name || '') + (p.mandatory ? '<span class="bdp-badge success">Required</span>' : '') + '</div>'
+                + '<div class="bdp-backup-repo bdp-mono" title="' + esc(repo) + '">' + esc(repo) + '</div></div>'
+                + status + '</div>'
+                + '<div class="bdp-backup-meta">'
+                + '<div><span>' + esc(t('schedule')) + '</span><strong>' + esc(scheduleSummary(p.schedule)) + '</strong><small>' + esc(retentionSummary(p.retention)) + '</small></div>'
+                + '<div><span>' + esc(t('last_run')) + '</span><strong>' + esc(lastRun) + '</strong><small>' + esc(t('next_run')) + ': ' + esc(nextRun) + '</small></div>'
+                + '</div>'
+                + '<div class="bdp-source-chips">' + (sources || '<span class="bdp-muted">—</span>') + '</div>'
+                + '<div class="bdp-backup-actions">'
                 + '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-primary" data-bdp-action="run_backup" data-profile="' + esc(p.id) + '">' + esc(t('run_now')) + '</button>'
                 + '<button type="button" class="bdp-btn bdp-btn-sm" data-bdp-action="edit_backup" data-profile="' + esc(p.id) + '">' + esc(t('edit')) + '</button>'
                 + (p.mandatory
-                    ? '<span class="bdp-badge success" title="Required backup of this application\'s user data">Required</span>'
+                    ? '<span class="bdp-lock" title="Required backup of this application\'s user data">Protected</span>'
                     : '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-danger" data-bdp-action="delete_backup" data-profile="' + esc(p.id) + '">' + esc(t('delete')) + '</button>')
-                + '</div></td>'
-                + '</tr>';
+                + '</div></article>';
         }).join('');
+        renderOverview();
+    }
+
+    function renderOverview() {
+        var root = state.root;
+        if (!root) return;
+        var list = state.backups || [];
+        var configured = list.filter(function (p) { return p.repository && p.has_password !== false; }).length;
+        var mandatory = list.filter(function (p) { return p.mandatory; })[0] || null;
+        var active = activeRepoProfile();
+        var snapshots = state.snapshots || [];
+        var last = snapshots[0] ? snapshots[0].time : '';
+        var next = active && active.enabled ? profileNextRun(active) : (state.nextRun || 0);
+        var healthy = !!(mandatory && mandatory.repository && last);
+        var pct = healthy ? 100 : (configured > 0 ? 55 : 0);
+        var ring = el(root, '#bdp-ring');
+        if (ring) ring.style.setProperty('--pct', pct);
+        function set(id, value) { var node = el(root, id); if (node) node.textContent = value; }
+        set('#bdp-ring-value', healthy ? '100%' : (pct ? pct + '%' : '—'));
+        set('#bdp-kpi-backups', String(list.length));
+        set('#bdp-kpi-snapshots', String(snapshots.length));
+        set('#bdp-kpi-last', last ? fmtDate(last) : '—');
+        set('#bdp-kpi-next', next ? fmtDate(next) : '—');
+        var title = el(root, '#bdp-hero-title');
+        var sub = el(root, '#bdp-hero-sub');
+        if (title) title.textContent = healthy ? 'Your data is protected' : (configured ? 'Backup needs attention' : 'Set up your first backup');
+        if (sub) sub.textContent = healthy
+            ? 'The latest snapshot includes application user files and the PostgreSQL dump.'
+            : (configured ? 'Open a backup profile and run a snapshot, or check the repository.' : 'Create a repository to start protecting user data.');
+        var run = el(root, '#bdp-run-active');
+        if (run) run.setAttribute('data-profile', state.activeRepo || ((list[0] || {}).id || ''));
     }
 
     function runBackup(profileId) {
