@@ -1590,7 +1590,7 @@ cloud_require_session_auth();
             
             <div class="ai-input">
                 <textarea id="ai-input-text" data-i18n-placeholder="askAI"></textarea>
-                <button id="btn-ai-send" class="btn primary" data-i18n-title="sendMessage">
+                <button id="btn-ai-send" type="button" class="btn primary" data-i18n-title="sendMessage" aria-label="Send message">
                     <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
                         <line x1="22" y1="2" x2="11" y2="13"></line>
                         <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
