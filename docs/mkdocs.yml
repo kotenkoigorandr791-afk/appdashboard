@@ -1,0 +1,105 @@
+site_name: AppDashboard Documentation
+site_description: Self-hosted personal dashboard for files, media, home automation, health, finance, recipes, and AI integration
+site_url: https://your-domain.com/docs
+repo_url: https://github.com/yourorg/apps-dashboard
+repo_name: apps-dashboard
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  language: en
+  palette:
+    - scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  font:
+    text: Roboto
+    code: Roboto Mono
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.expand
+    - navigation.top
+    - search.highlight
+    - search.share
+    - content.code.copy
+    - content.tabs.link
+    - toc.integrate
+
+plugins:
+  - search:
+      lang: en
+  - git-revision-date-localized:
+      type: date
+      fallback_to_build_date: true
+  - minify:
+      minify_html: true
+
+markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.emoji
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+
+nav:
+  - Home: index.md
+  - Getting Started: getting-started.md
+  - Core Concepts: core-concepts.md
+  - Services:
+      - Cloud (Files, WebDAV, Office, Transcription): services/cloud.md
+      - Sharepoint (Public Landing Pages): services/sharepoint.md
+      - Films (Media Library): services/films.md
+      - Smart Home (IoT, MQTT, Automations): services/smart-home.md
+      - Steps (Health Connect Sync): services/steps.md
+      - Spends (Expense Tracking): services/spends.md
+      - Recipes (Meal Planning): services/recipes.md
+      - External Integrations (Dawarich, Gitea, Sentry, Immich, Kanboard): services/integrations.md
+      - Admin Panel: services/admin.md
+      - Authentication & OAuth: services/auth.md
+      - MCP Server (AI Assistants): services/mcp.md
+      - Public Sharing: services/sharing.md
+  - API Reference: api-reference.md
+  - User Guides:
+      - Set Up WebDAV: user-guides/webdav-setup.md
+      - Connect Health Connect (Android): user-guides/health-connect-setup.md
+      - Add OAuth Provider: user-guides/oauth-setup.md
+      - Set Up MCP for AI Assistants: user-guides/mcp-setup.md
+      - Backup & Restore: user-guides/backup-restore.md
+  - Admin Guides:
+      - Deployment & Scaling: admin-guides/deployment.md
+      - Security Hardening: admin-guides/security.md
+  - Troubleshooting: troubleshooting.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/yourorg/apps-dashboard
+    - icon: fontawesome/brands/docker
+      link: https://hub.docker.com/r/yourorg/appdashboard
+  version:
+    provider: mike
+
+copyright: Copyright &copy; 2026 AppDashboard Contributors
