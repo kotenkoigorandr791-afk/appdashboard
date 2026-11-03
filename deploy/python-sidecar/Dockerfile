@@ -11,10 +11,21 @@ ENV XDG_CACHE_HOME=/opt/ApplicationData/models/cache
 ENV XDG_DATA_HOME=/opt/ApplicationData/models
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ffmpeg libgl1 libglib2.0-0 fonts-dejavu-core curl \
-    texlive-full latexmk \
+    ffmpeg libgl1 libglib2.0-0 fonts-dejavu-core curl perl xz-utils \
     tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-ukr tesseract-ocr-bel \
     && rm -rf /var/lib/apt/lists/*
+
+RUN set -eux; \
+    workdir="$(mktemp -d)"; \
+    curl -fsSL https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz | tar -xz -C "$workdir"; \
+    installer="$(find "$workdir" -maxdepth 2 -type f -name install-tl -print -quit)"; \
+    perl "$installer" --no-interaction --scheme=small --texdir=/opt/texlive; \
+    texbin="$(find /opt/texlive -type d -path '*/bin/*-linux' -print -quit)"; \
+    ln -s "$texbin" /opt/texlive/bin; \
+    /opt/texlive/bin/tlmgr install latexmk collection-latexrecommended collection-latexextra collection-fontsrecommended luatex; \
+    rm -rf "$workdir"
+
+ENV PATH=/opt/texlive/bin:${PATH}
 
 WORKDIR /app
 
