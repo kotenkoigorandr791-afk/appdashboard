@@ -10,6 +10,7 @@ import shutil
 import time
 import uuid
 from pathlib import Path
+from threading import Lock
 from typing import Optional
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
@@ -97,8 +98,10 @@ LATEX_MAX_CONCURRENT = max(1, int(os.environ.get("LATEX_MAX_CONCURRENT", "2")))
 LATEX_QUEUE_WAIT = float(os.environ.get("LATEX_QUEUE_WAIT", "90"))
 LATEX_MAX_SOURCE_BYTES = int(os.environ.get("LATEX_MAX_SOURCE_BYTES", str(1_500_000)))
 LATEX_COMPILE_TIMEOUT = int(os.environ.get("LATEX_COMPILE_TIMEOUT", "180"))
+LATEX_PACKAGE_RETRIES = max(0, int(os.environ.get("LATEX_PACKAGE_RETRIES", "3")))
 
 _latex_sem = asyncio.Semaphore(LATEX_MAX_CONCURRENT)
+_latex_package_lock = Lock()
 
 
 def _prune_dir_tree(root: Path, ttl: int, max_entries: int = 0) -> None:
@@ -185,8 +188,28 @@ def _latex_env(home: Path) -> dict:
         "TEXMFVAR": texmf,
         "TEXMFCACHE": texmf,
         "TEXMFHOME": str(LATEX_TEXMF / "home"),
+        "TEXMFCONFIG": str(LATEX_TEXMF / "config"),
         "OSFONTDIR": "/usr/share/fonts",
     }
+
+
+def _latex_missing_file(output: str) -> str:
+    match = re.search(r"(?:File|I can't find file) [`']([^`']+\.(?:sty|cls|def|fd|cfg|clo|ldf|bbx|cbx|lbx|bst))[`']", output, re.I)
+    if not match:
+        return ""
+    name = Path(match.group(1)).name
+    return name if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\.(?:sty|cls|def|fd|cfg|clo|ldf|bbx|cbx|lbx|bst)", name, re.I) else ""
+
+
+def _latex_install_missing_package(filename: str, env: dict) -> bool:
+    with _latex_package_lock:
+        _run(["tlmgr", "init-usertree"], timeout=60, extra_env=env)
+        search = _run(["tlmgr", "search", "--global", "--file", f"/{filename}"], timeout=90, extra_env=env)
+        package = next((line.split(":", 1)[0] for line in search.stdout.splitlines() if re.fullmatch(r"[A-Za-z0-9_.-]+:", line)), "")
+        if not package:
+            return False
+        install = _run(["tlmgr", "install", "--usermode", package], timeout=180, extra_env=env)
+        return install.returncode == 0
 
 
 def _respond_latex(ok: bool, pdf: Path, output: str, sid: str, format: str):
@@ -249,12 +272,13 @@ def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str):
         pdf = work / "document.pdf"
         source.write_text(latex, encoding="utf-8")
         try:
-            proc = _run(
-                cmd + [source.name],
-                timeout=LATEX_COMPILE_TIMEOUT,
-                cwd=str(work),
-                extra_env=_latex_env(work),
-            )
+            env = _latex_env(work)
+            proc = None
+            for attempt in range(LATEX_PACKAGE_RETRIES + 1):
+                proc = _run(cmd + [source.name], timeout=LATEX_COMPILE_TIMEOUT, cwd=str(work), extra_env=env)
+                missing = _latex_missing_file(proc.stdout or "")
+                if proc.returncode == 0 or not missing or attempt == LATEX_PACKAGE_RETRIES or not _latex_install_missing_package(missing, env):
+                    break
             output = proc.stdout or ""
             ok = proc.returncode == 0 and pdf.is_file()
         except subprocess.TimeoutExpired as exc:
