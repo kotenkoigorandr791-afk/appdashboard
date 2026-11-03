@@ -1418,6 +1418,23 @@ function monacoCreateSpellcheckWorker() {
                         word: data.word,
                         suggestions: Array.from(new Set(suggestions)).slice(0, 5)
                     });
+                    return;
+                }
+                if (data.type === 'prefetch') {
+                    const suggestions = {};
+                    const words = data.words || [];
+                    for (let index = 0; index < words.length; index++) {
+                        const word = words[index];
+                        const wordSuggestions = [];
+                        for (const languageId of wordLanguageIds(word, data.languageId)) {
+                            const dictionary = await ensureDictionary(languageId, data.languages[languageId]);
+                            wordSuggestions.push(...dictionary.suggest(word).slice(0, 5));
+                            if (wordSuggestions.length >= 5) break;
+                        }
+                        suggestions[word] = Array.from(new Set(wordSuggestions)).slice(0, 5);
+                        if ((index + 1) % 8 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+                    }
+                    self.postMessage({ type: 'prefetched', requestId: data.requestId, suggestions });
                 }
             } catch (error) {
                 self.postMessage({ type: 'error', requestId: data.requestId, message: error.message || String(error) });
@@ -1485,6 +1502,15 @@ function monacoHandleSpellcheckMessage(event) {
             monacoRememberSuggestion(state, word, data.suggestions[word]);
         });
         if (state.editor) monacoApplySpellcheckDecorations(state.editor, data.errors || []);
+        monacoPrefetchSpellcheckSuggestions(state, data.errors || []);
+        return;
+    }
+    if (data.type === 'prefetched') {
+        monacoSpellcheckRoutes.delete(data.requestId);
+        Object.keys(data.suggestions || {}).forEach((word) => {
+            monacoRememberSuggestion(state, word, data.suggestions[word]);
+            state.pendingPrefetch.delete(word);
+        });
         return;
     }
     if (data.type === 'suggestions') {
@@ -1499,6 +1525,7 @@ function monacoHandleSpellcheckMessage(event) {
     }
     if (data.type === 'error') {
         monacoSpellcheckRoutes.delete(data.requestId);
+        if (route.kind === 'prefetch') route.words.forEach((word) => state.pendingPrefetch.delete(word));
         console.error('Spellcheck failed:', data.message);
         if (state.statusElement) state.statusElement.textContent = monacoT('monacoSpellcheckUnavailable');
         const pending = state.pendingSuggestions.get(data.requestId);
@@ -1540,6 +1567,23 @@ function monacoRequestSpellcheckSuggestions(state, word) {
             languageId: state.languageId,
             languages: monacoSpellcheckLanguagesPayload()
         });
+    });
+}
+
+function monacoPrefetchSpellcheckSuggestions(state, errors) {
+    if (!state || !state.worker) return;
+    const words = Array.from(new Set(errors.map((error) => error.word)))
+        .filter((word) => !state.suggestionCache.has(word) && !state.pendingPrefetch.has(word));
+    if (!words.length) return;
+    words.forEach((word) => state.pendingPrefetch.add(word));
+    const requestId = monacoNextSpellcheckRequestId();
+    monacoSpellcheckRoutes.set(requestId, { state, kind: 'prefetch', words });
+    monacoGetSpellcheckWorker().postMessage({
+        type: 'prefetch',
+        requestId,
+        words,
+        languageId: state.languageId,
+        languages: monacoSpellcheckLanguagesPayload()
     });
 }
 
@@ -1942,7 +1986,8 @@ async function monacoEnableSpellcheck(editor, container, statusElement, language
         decorationIds: [],
         errors: [],
         suggestionCache: new Map(),
-        pendingSuggestions: new Map()
+        pendingSuggestions: new Map(),
+        pendingPrefetch: new Set()
     };
     monacoSpellcheckStates.set(editor, state);
 
