@@ -40,6 +40,25 @@ function cloud_reviews_scope(string $email, string $rootKey): string
     return cloud_is_group_root($rootKey) ? $rootKey : $email . '|' . $rootKey;
 }
 
+function cloud_reviews_delete_path(string $email, string $rootKey, string $path): void
+{
+    $path = safe_path($path);
+    if ($email === '' || $path === '') return;
+    try {
+        $db = getDB();
+        if (!$db) return;
+        cloud_reviews_ensure_schema($db);
+        $scope = cloud_reviews_scope($email, $rootKey);
+        cloud_reviews_run($db, 'DELETE FROM cloud_file_reviews WHERE scope_key = :s AND (file_path = :p OR file_path LIKE :prefix)', [
+            ':s' => $scope,
+            ':p' => $path,
+            ':prefix' => $path . '/%'
+        ]);
+    } catch (Throwable $e) {
+        cloud_safe_error_log('cloud_reviews_delete_path: ' . $e->getMessage());
+    }
+}
+
 function cloud_reviews_row(array $r): array
 {
     return [

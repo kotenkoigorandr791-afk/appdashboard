@@ -8,6 +8,7 @@ require_once dirname(__DIR__, 2) . '/includes/ai_config_store.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_hardening.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_file_index.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_reviews.php';
 if (!in_array($action, cloud_public_api_actions(), true)) {
     cloud_require_api_auth_unless_public($action);
     cloud_require_cookie_csrf();
@@ -302,6 +303,7 @@ if ($action === 'move_to_trash') {
 
   try {
     $meta = move_path_to_trash($user, $rootKey, $path);
+    cloud_reviews_delete_path((string)get_session_email(), $rootKey, $path);
     cloud_index_touch_delete($user, $rootKey, $path, 'deleted');
     $trashPath = (string)($meta['id'] ?? '');
     if ($trashPath !== '') cloud_index_touch_restore($user, 'trash', $trashPath);
@@ -2328,6 +2330,7 @@ if ($action === 'delete') {
   if (!file_exists($target)) json_out(['error'=>'not found'], 404);
   $wasDir = is_dir($target);
   remove_path_recursive($target);
+  cloud_reviews_delete_path((string)get_session_email(), $rootKey, $path);
   cloud_index_touch_delete($user, $rootKey, $path, 'deleted');
   if ($rootKey === 'trash') {
     $meta = load_trash_metadata($user);

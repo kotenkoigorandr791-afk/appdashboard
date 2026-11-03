@@ -8,6 +8,7 @@ require_once dirname(__DIR__, 2) . '/includes/ai_code_security.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_syntax_check.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_sandbox.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_file_index.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_reviews.php';
 require_once dirname(__DIR__, 4) . '/lib/Storage/AppFiles.php';
 require_once __DIR__ . '/ai_tools_speech.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
@@ -1246,6 +1247,7 @@ if ($action === 'ai_agent_tool') {
         if (!@unlink($resolved['target'])) {
             json_out(['ok' => false, 'error' => 'Delete failed'], 500);
         }
+        cloud_reviews_delete_path((string)get_session_email(), $resolved['root'], $resolved['path']);
         cloud_ai_sync_file_tree_after_write($resolved, 'delete');
         json_out(['ok' => true, 'deleted_path' => $resolved['path'], 'persisted' => true, 'deleted' => true]);
     }
@@ -1266,6 +1268,7 @@ if ($action === 'ai_agent_tool') {
         if (!cloud_ai_remove_path_recursive($resolved['target'])) {
             json_out(['ok' => false, 'error' => 'Directory delete failed'], 500);
         }
+        cloud_reviews_delete_path((string)get_session_email(), $resolved['root'], $resolved['path']);
         cloud_ai_sync_file_tree_after_write($resolved, 'delete');
         json_out(['ok' => true, 'deleted_path' => $resolved['path'], 'persisted' => true, 'deleted' => true, 'type' => 'dir']);
     }
