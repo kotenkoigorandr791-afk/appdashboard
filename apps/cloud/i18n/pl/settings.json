@@ -2,7 +2,6 @@
     "apiEndpoint": "Punkt końcowy API",
     "colorType": "Typ koloru",
     "english": "Wył",
-    "sharePasswordSetPlaceholder": "Hasło jest ustawione. Wpisz nowe, aby je zmienić",
     "hideLanguageSwitcherOnMainPage": "Ukryj przełącznik języków na stronie głównej",
     "quota": "Limit",
     "quotaUpdated": "Limit został pomyślnie zaktualizowany",

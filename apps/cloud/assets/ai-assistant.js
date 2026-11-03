@@ -1325,6 +1325,17 @@
                 order: 3 !important;
             }
 
+            .ai-composer-row {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                flex: 0 0 100% !important;
+                order: 2 !important;
+            }
+            .ai-composer-row #ai-input-text { flex: 1 1 auto !important; }
+
             .ai-attachments-row {
                 display: flex !important;
                 align-items: center !important;
@@ -1880,25 +1891,23 @@
                 color: var(--fg) !important;
             }
             .ai-agent-plan-head .ai-agent-plan-pulse {
-                width: 8px !important;
-                height: 8px !important;
-                border-radius: 50% !important;
-                background: var(--accent) !important;
+                width: 18px !important;
+                height: 18px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                color: var(--accent) !important;
                 animation: ai-agent-pulse 1.2s ease-in-out infinite !important;
             }
-            .ai-agent-plan.running .ai-agent-plan-pulse { display: inline-block !important; }
+            .ai-agent-plan-head .ai-agent-plan-pulse svg { width: 18px !important; height: 18px !important; }
             .ai-agent-plan.done .ai-agent-plan-pulse {
-                display: none !important;
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
             }
-            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse,
-            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse,
-            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { display: inline-block !important; }
-            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse { background: #6fbf3f !important; }
-            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse { background: #d14a4a !important; }
-            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { background: color-mix(in srgb, var(--fg) 35%, transparent) !important; }
+            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse { color: #6fbf3f !important; }
+            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse { color: #d14a4a !important; }
+            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { color: color-mix(in srgb, var(--fg) 45%, transparent) !important; }
             .ai-agent-plan.ai-agent-plan-empty { display: none !important; }
             .ai-agent-stream-shell {
                 display: none !important;
@@ -1949,6 +1958,7 @@
                 background: var(--border) !important;
                 color: var(--muted) !important;
             }
+            .ai-agent-plan-icon svg { width: 13px !important; height: 13px !important; }
             .ai-agent-plan-step.running .ai-agent-plan-icon { background: var(--accent) !important; color: #fff !important; }
             .ai-agent-plan-step.done .ai-agent-plan-icon { background: #85b503 !important; color: #111 !important; }
             .ai-agent-plan-step.error .ai-agent-plan-icon { background: var(--ai-err-icon-bg, #d14a4a) !important; color: #fff !important; }
@@ -3393,6 +3403,17 @@
         }
         if (inputActionStack && elements.attachWrap && elements.attachWrap.parentElement !== inputActionStack) {
             inputActionStack.appendChild(elements.attachWrap);
+        }
+        let composerRow = aiInput?.querySelector('.ai-composer-row') || null;
+        if (!composerRow && aiInput && elements.input && elements.sendBtn) {
+            composerRow = document.createElement('div');
+            composerRow.className = 'ai-composer-row';
+            aiInput.appendChild(composerRow);
+        }
+        if (composerRow) {
+            if (inputActionStack && inputActionStack.parentElement !== composerRow) composerRow.appendChild(inputActionStack);
+            if (elements.input.parentElement !== composerRow) composerRow.appendChild(elements.input);
+            if (elements.sendBtn.parentElement !== composerRow) composerRow.appendChild(elements.sendBtn);
         }
         if (!elements.settingsModal) {
             const modal = document.createElement('div');
@@ -5334,7 +5355,7 @@
             plan.className = 'ai-agent-plan running ai-agent-plan-empty';
             const head = document.createElement('div');
             head.className = 'ai-agent-plan-head';
-            head.innerHTML = '<span class="ai-agent-plan-pulse"></span><span class="ai-agent-plan-head-text"></span>';
+            head.innerHTML = '<span class="ai-agent-plan-pulse" aria-hidden="true"></span><span class="ai-agent-plan-head-text"></span>';
             const steps = document.createElement('div');
             steps.className = 'ai-agent-plan-steps';
             const streamShell = document.createElement('div');
@@ -5433,6 +5454,18 @@
         return isChatToolRunMode()
             ? tr('aiChatThinking', 'Thinking…')
             : tr('aiAgentThinking', 'Thinking…');
+    }
+    function agentPlanStatusLabel(status) {
+        return tr({ running: 'aiStatusRunning', done: 'aiStatusSuccess', error: 'aiStatusError', pending: 'aiStatusPending' }[status] || 'aiStatusPending', status || 'Pending');
+    }
+    function agentPlanStatusIconMarkup(status) {
+        const icons = {
+            running: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/></svg>',
+            done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+            error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>',
+            pending: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>'
+        };
+        return icons[status] || icons.pending;
     }
     function applyToolRunRoleToMessage(messageId) {
         if (!messageId) return;
@@ -5783,7 +5816,10 @@
         row.className = `ai-agent-plan-step ${step.status || 'pending'}`;
         const icon = document.createElement('span');
         icon.className = 'ai-agent-plan-icon';
-        icon.textContent = step.status === 'done' ? '✓' : (step.status === 'error' ? '!' : (step.status === 'running' ? '…' : '·'));
+        const status = step.status || 'pending';
+        icon.innerHTML = agentPlanStatusIconMarkup(status);
+        icon.title = agentPlanStatusLabel(status);
+        icon.setAttribute('aria-label', agentPlanStatusLabel(status));
         const label = document.createElement('span');
         label.className = 'ai-agent-plan-label';
         const toolIcon = document.createElement('span');
@@ -5846,6 +5882,12 @@
         plan.classList.toggle('outcome-error', outcome === 'error');
         plan.classList.toggle('outcome-stopped', outcome === 'stopped');
         const headText = plan.querySelector('.ai-agent-plan-head-text');
+        const headIcon = plan.querySelector('.ai-agent-plan-pulse');
+        const headStatus = running ? 'running' : (outcome === 'success' ? 'done' : (outcome === 'error' ? 'error' : 'pending'));
+        if (headIcon) {
+            headIcon.innerHTML = agentPlanStatusIconMarkup(headStatus);
+            headIcon.title = agentPlanStatusLabel(headStatus);
+        }
         if (headText) {
             headText.textContent = running ? getToolRunWorkingLabel() : getToolRunPlanDoneLabel();
         }
@@ -8067,7 +8109,7 @@
         plan.className = 'ai-agent-plan done';
         const head = document.createElement('div');
         head.className = 'ai-agent-plan-head';
-        head.innerHTML = `<span class="ai-agent-plan-pulse"></span><span class="ai-agent-plan-head-text">${escapeHtml(tr('aiAgentPlanDone', 'Agent plan'))}</span>`;
+        head.innerHTML = `<span class="ai-agent-plan-pulse" aria-hidden="true">${agentPlanStatusIconMarkup('done')}</span><span class="ai-agent-plan-head-text">${escapeHtml(tr('aiAgentPlanDone', 'Agent plan'))}</span>`;
         const stepsEl = document.createElement('div');
         stepsEl.className = 'ai-agent-plan-steps';
         steps.forEach((step) => appendPlanStepRow(stepsEl, { ...step, label: planLabelFromStoredStep(step) || step.label }));
