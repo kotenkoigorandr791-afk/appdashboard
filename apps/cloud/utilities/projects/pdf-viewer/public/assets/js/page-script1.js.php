@@ -510,19 +510,30 @@ loadPDF();
 function updateZoomSelect(newScale) {
     const percent = Math.round(newScale * 100);
     let found = false;
+    let value = newScale.toFixed(2);
     for (let i = 0; i < zoomSelect.options.length; i++) {
         if (Math.abs(parseFloat(zoomSelect.options[i].value) - newScale) < 0.01) {
             zoomSelect.selectedIndex = i;
+            value = zoomSelect.options[i].value;
             found = true;
             break;
         }
     }
     if (!found) {
         const option = document.createElement('option');
-        option.value = newScale.toFixed(2);
+        option.value = value;
         option.text = percent + '%';
         option.selected = true;
         zoomSelect.add(option, zoomSelect.options[0]);
+    }
+    zoomSelect.value = value;
+    const wrapper = zoomSelect.closest('.ui-select');
+    if (wrapper) {
+        const selected = zoomSelect.options[zoomSelect.selectedIndex];
+        wrapper.querySelector('.ui-select-label').textContent = selected ? selected.textContent.trim() : '';
+        wrapper.querySelectorAll('.ui-select-item').forEach(item => {
+            item.setAttribute('aria-selected', item.dataset.value === zoomSelect.value ? 'true' : 'false');
+        });
     }
 }
 
@@ -530,8 +541,7 @@ function setViewerPreviewScale(nextScale, immediate = false) {
     if (!viewer || !Number.isFinite(nextScale) || !Number.isFinite(renderedScale) || renderedScale <= 0) return;
     const ratio = nextScale / renderedScale;
     viewer.classList.add('is-zooming');
-    // Disable transition to prevent horizontal scrollbar flicker
-    viewer.style.transition = 'none';
+    viewer.style.transition = immediate ? 'none' : 'transform 160ms ease-out';
     viewer.style.transformOrigin = 'top center';
     viewer.style.transform = `scale(${ratio})`;
 }
@@ -539,7 +549,6 @@ function setViewerPreviewScale(nextScale, immediate = false) {
 function clearViewerPreviewScale() {
     if (!viewer) return;
     viewer.classList.remove('is-zooming');
-    // Immediately reset scale without transition
     viewer.style.transition = 'none';
     viewer.style.transform = 'scale(1)';
 }
@@ -825,15 +834,10 @@ function updateScale(newScale, immediate = true) {
     renderAborted = true;
     currentRenderId++;
     
-    // Hide scrollbar during scale transition to prevent flicker
-    viewerContainer.style.overflow = 'hidden';
-    
-    setViewerPreviewScale(newScale, !immediate);
+    setViewerPreviewScale(newScale, false);
     pendingRender = requestAnimationFrame(async () => {
         await renderAllPages();
         pendingRender = null;
-        // Restore overflow after render completes
-        viewerContainer.style.overflow = 'auto';
         requestAnimationFrame(() => {
             viewerContainer.scrollTop = scrollTop * (scale / oldScale);
             viewerContainer.scrollLeft = scrollLeft * (scale / oldScale);
