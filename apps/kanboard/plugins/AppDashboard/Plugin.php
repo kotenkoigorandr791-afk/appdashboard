@@ -232,7 +232,7 @@ class Plugin extends Base
 
     private function ensurePerformanceIndexes(): void
     {
-        if ($this->configModel->get('appdashboard_perf_indexes_v2') === '1') {
+        if ($this->configModel->get('appdashboard_perf_indexes_v3') === '1') {
             return;
         }
         $statements = [
@@ -242,12 +242,20 @@ class Plugin extends Base
             'CREATE INDEX IF NOT EXISTS tasks_column_active_idx ON kanboard.tasks (column_id, is_active)',
             'CREATE INDEX IF NOT EXISTS tasks_swimlane_column_idx ON kanboard.tasks (swimlane_id, column_id)',
             'CREATE INDEX IF NOT EXISTS project_has_users_project_role_idx ON kanboard.project_has_users (project_id, role)',
+            'CREATE INDEX IF NOT EXISTS tasks_project_active_position_idx ON kanboard.tasks (project_id, is_active, position)',
+            'CREATE INDEX IF NOT EXISTS task_has_tags_task_idx ON kanboard.task_has_tags (task_id)',
+            'CREATE INDEX IF NOT EXISTS task_has_external_links_task_idx ON kanboard.task_has_external_links (task_id)',
+            'CREATE INDEX IF NOT EXISTS project_activities_project_idx ON kanboard.project_activities (project_id, id DESC)',
+            'CREATE INDEX IF NOT EXISTS project_activities_task_idx ON kanboard.project_activities (task_id, id DESC)',
         ];
         try {
             foreach ($statements as $sql) {
                 $this->db->getConnection()->exec($sql);
             }
-            $this->configModel->save(['appdashboard_perf_indexes_v2' => '1']);
+            $this->configModel->save([
+                'appdashboard_perf_indexes_v2' => '1',
+                'appdashboard_perf_indexes_v3' => '1',
+            ]);
         } catch (\Throwable $e) {
         }
     }

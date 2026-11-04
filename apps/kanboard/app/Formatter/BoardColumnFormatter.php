@@ -116,6 +116,10 @@ class BoardColumnFormatter extends BaseFormatter implements FormatterInterface
             } else {
                 $column['column_nb_open_tasks'] = isset($this->taskCountBySwimlaneAndColumn[$this->swimlaneId][$column['id']]) ? $this->taskCountBySwimlaneAndColumn[$this->swimlaneId][$column['id']] : 0;
             }
+
+            $column['nb_loaded'] = $column['nb_tasks'];
+            $column['total_tasks'] = max((int) $column['column_nb_open_tasks'], (int) $column['nb_tasks']);
+            $column['has_more'] = $column['total_tasks'] > $column['nb_tasks'];
         }
 
         return $this->columns;

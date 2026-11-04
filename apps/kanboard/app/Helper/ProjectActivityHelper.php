@@ -98,7 +98,10 @@ class ProjectActivityHelper extends Base
         $queryBuilder = $this->projectActivityQuery
             ->withFilter(new ProjectActivityTaskIdFilter($task_id));
 
-        $queryBuilder->getQuery()->desc(ProjectActivityModel::TABLE.'.id');
+        $queryBuilder->getQuery()
+            ->desc(ProjectActivityModel::TABLE.'.id')
+            ->limit(200)
+        ;
 
         return $queryBuilder->format($this->projectActivityEventFormatter);
     }

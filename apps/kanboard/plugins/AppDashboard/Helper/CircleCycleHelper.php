@@ -4,6 +4,7 @@ namespace Kanboard\Plugin\AppDashboard\Helper;
 
 use Kanboard\Core\Base;
 use Kanboard\Model\TaskModel;
+use Kanboard\Plugin\AppDashboard\Cache\CycleCache;
 
 class CircleCycleHelper extends Base
 {
@@ -26,6 +27,7 @@ class CircleCycleHelper extends Base
                         'title' => (string) ($column['title'] ?? ''),
                         'position' => (int) ($column['position'] ?? 0),
                         'tasks' => [],
+                        'total' => max((int) ($column['nb_unfiltered_tasks_across_swimlane'] ?? 0), (int) ($column['column_nb_open_tasks'] ?? 0)),
                     ];
                 }
                 foreach (($column['tasks'] ?? []) as $task) {
@@ -44,11 +46,15 @@ class CircleCycleHelper extends Base
 
         $groups = [];
         foreach ($columns as $column) {
+            $loaded = count($column['tasks']);
+            $total = max((int) $column['total'], $loaded);
             $groups[] = [
                 'id' => $column['id'],
                 'title' => $column['title'],
                 'status_key' => $this->statusKey($column['title'], $column['position'], count($columns)),
-                'count' => count($column['tasks']),
+                'count' => $loaded,
+                'total' => $total,
+                'has_more' => $total > $loaded,
                 'tasks' => $column['tasks'],
             ];
         }
@@ -99,14 +105,26 @@ class CircleCycleHelper extends Base
             }
         }
 
+        foreach ($groups as &$group) {
+            $group['count'] = count($group['tasks']);
+            $group['total'] = max((int) ($group['total'] ?? 0), $group['count']);
+            $group['has_more'] = $group['total'] > $group['count'];
+            foreach ($group['tasks'] as &$groupTask) {
+                $groupTask['_status_key'] = $group['status_key'];
+                $groupTask['_column_id'] = $group['id'];
+            }
+            unset($groupTask);
+        }
+        unset($group);
+
         $keyMap = [];
         foreach ($groups as $g) {
             $keyMap[(int) $g['id']] = $g['status_key'];
         }
-        $statTasks = $this->loadStatTasks((int) $project['id']);
-        $stats = $this->computeStats($statTasks, $keyMap);
-        $burnup = $this->buildBurnup($statTasks, 14);
-        $assignees = $this->buildAssigneeProgress($statTasks);
+        $panel = $this->buildPanelData((int) $project['id'], $keyMap);
+        $stats = $panel['stats'];
+        $burnup = $panel['burnup'];
+        $assignees = $panel['assignees'];
 
         return [
             'cycle_name' => $this->cycleName($project),
@@ -116,6 +134,131 @@ class CircleCycleHelper extends Base
             'assignees' => $assignees,
             'task_count' => count($tasks),
         ];
+    }
+
+    private function buildPanelData(int $projectId, array $keyMap): array
+    {
+        $fingerprint = $this->taskFingerprint($projectId);
+        $cached = CycleCache::get($projectId);
+
+        if (is_array($cached)
+            && isset($cached['stats'], $cached['burnup'], $cached['assignees'])
+            && ($cached['fingerprint'] ?? null) === $fingerprint
+        ) {
+            return $cached;
+        }
+
+        $statTasks = $this->loadStatTasks($projectId);
+        $panel = [
+            'fingerprint' => $fingerprint,
+            'stats' => $this->computeStats($statTasks, $keyMap),
+            'burnup' => $this->buildBurnupSql($projectId, 14, $statTasks),
+            'assignees' => $this->buildAssigneeProgress($statTasks),
+        ];
+
+        CycleCache::set($projectId, $panel);
+
+        return $panel;
+    }
+
+    /**
+     * Cheap project fingerprint used to invalidate the cached panel as soon as
+     * a task is created, edited, moved or closed.
+     */
+    private function taskFingerprint(int $projectId): array
+    {
+        $row = $this->db->table(TaskModel::TABLE)
+            ->columns(
+                'COUNT(*) AS nb_tasks',
+                'COALESCE(SUM(CASE WHEN is_active THEN 1 ELSE 0 END), 0) AS nb_open',
+                'COALESCE(SUM(score), 0) AS score_sum',
+                'COALESCE(SUM(position), 0) AS position_sum',
+                'COALESCE(MAX(date_modification), 0) AS max_modified',
+                'COALESCE(MAX(date_moved), 0) AS max_moved',
+                'COALESCE(MAX(date_completed), 0) AS max_completed'
+            )
+            ->eq('project_id', $projectId)
+            ->findOne();
+
+        if (! is_array($row)) {
+            return [0, 0, 0, 0, 0, 0, 0];
+        }
+
+        return array_map('intval', array_values($row));
+    }
+
+    /**
+     * Build the 14-day burnup with one SQL aggregate per day instead of a
+     * PHP loop over every project task.
+     */
+    private function buildBurnupSql(int $projectId, int $days, array $statTasks): array
+    {
+        $sql = "
+            WITH days AS (
+                SELECT gs::date AS day,
+                       (extract(epoch FROM (gs + interval '1 day'))::bigint - 1) AS day_end
+                FROM generate_series(
+                    date_trunc('day', now()) - (? - 1) * interval '1 day',
+                    date_trunc('day', now()),
+                    interval '1 day'
+                ) gs
+            ),
+            effort AS (
+                SELECT t.id, t.date_creation, t.date_completed, t.date_started, t.column_id, t.is_active,
+                       CASE WHEN t.score > 0 THEN t.score
+                            WHEN t.time_estimated > 0 THEN GREATEST(1, ROUND(t.time_estimated)::int)
+                            ELSE 1 END AS e
+                FROM ".TaskModel::TABLE.' t'.
+                ' WHERE t.project_id = ?'.
+            ")
+            SELECT d.day, d.day_end,
+                   COALESCE(SUM(CASE WHEN (e.date_creation IS NULL OR e.date_creation = 0 OR e.date_creation <= d.day_end) THEN e.e END), 0)::int AS scope,
+                   COALESCE(SUM(CASE WHEN (e.date_creation IS NULL OR e.date_creation = 0 OR e.date_creation <= d.day_end) AND (
+                       (e.date_completed > 0 AND e.date_completed <= d.day_end)
+                       OR (e.is_active = false AND (e.date_completed = 0 OR e.date_completed <= d.day_end))
+                       OR (e.date_started > 0 AND e.date_started <= d.day_end)
+                       OR c.position > 1
+                   ) THEN e.e END), 0)::int AS started,
+                   COALESCE(SUM(CASE WHEN (e.date_creation IS NULL OR e.date_creation = 0 OR e.date_creation <= d.day_end) AND (
+                       (e.date_completed > 0 AND e.date_completed <= d.day_end)
+                       OR (e.is_active = false AND (e.date_completed = 0 OR e.date_completed <= d.day_end))
+                   ) THEN e.e END), 0)::int AS completed
+            FROM days d
+            LEFT JOIN effort e ON true
+            LEFT JOIN columns c ON c.id = e.column_id
+            GROUP BY d.day, d.day_end
+            ORDER BY d.day";
+
+        try {
+            $statement = $this->db->getConnection()->prepare($sql);
+            $statement->execute([(int) $days, (int) $projectId]);
+            $rows = $statement->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            return $this->buildBurnup($statTasks, $days);
+        }
+
+        if (empty($rows)) {
+            return $this->buildBurnup($statTasks, $days);
+        }
+
+        $scopeFinal = (int) end($rows)['scope'];
+        $points = [];
+        $count = count($rows);
+
+        foreach (array_values($rows) as $i => $row) {
+            $ts = strtotime($row['day'].' 00:00:00');
+            $t = $count > 1 ? $i / ($count - 1) : 1;
+            $points[] = [
+                'date' => $row['day'],
+                'label' => date('M j', $ts),
+                'scope' => (int) $row['scope'],
+                'started' => (int) $row['started'],
+                'completed' => (int) $row['completed'],
+                'ideal' => (int) round($scopeFinal * $t),
+            ];
+        }
+
+        return $points;
     }
 
     private function loadStatTasks(int $projectId): array
@@ -136,11 +279,58 @@ class CircleCycleHelper extends Base
                 'u.name AS assignee_name',
                 'u.username AS assignee_username'
             )
-            ->join('columns AS c', 'id', 'column_id')
-            ->left('users AS u', 'id', 'owner_id', TaskModel::TABLE)
+            ->left('columns', 'c', 'id', TaskModel::TABLE, 'column_id')
+            ->left('users', 'u', 'id', TaskModel::TABLE, 'owner_id')
             ->eq(TaskModel::TABLE.'.project_id', $projectId)
             ->findAll();
         return is_array($rows) ? $rows : [];
+    }
+
+    public function statusIcons(): array
+    {
+        return [
+            'backlog' => '<svg class="kb-st-icon kb-st-backlog" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5" stroke-dasharray="2.2 2"/></svg>',
+            'todo' => '<svg class="kb-st-icon kb-st-todo" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/></svg>',
+            'progress' => '<svg class="kb-st-icon kb-st-progress" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 2.75a5.25 5.25 0 0 1 0 10.5Z" fill="currentColor"/></svg>',
+            'review' => '<svg class="kb-st-icon kb-st-review" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="5.25" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="m5.6 8.2 1.7 1.7 3.2-3.4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+            'done' => '<svg class="kb-st-icon kb-st-done" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="6" fill="currentColor"/><path d="m5.4 8.1 1.8 1.8 3.5-3.7" fill="none" stroke="#0f0f12" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        ];
+    }
+
+    public function priorityIconSvg(int $priority, int $min, int $max): string
+    {
+        $span = max(1, $max - $min);
+        $level = (int) round((($priority - $min) / $span) * 3);
+        $level = max(0, min(3, $level));
+        $colors = ['#94a3b8', '#3b82f6', '#f59e0b', '#ef4444'];
+        $color = $colors[$level];
+        $bars = '';
+        for ($i = 0; $i < 3; $i++) {
+            $h = 4 + $i * 3;
+            $y = 14 - $h;
+            $x = 3 + $i * 4;
+            if ($level === 0) {
+                $fill = 'rgba(148,163,184,0.35)';
+            } elseif ($i < $level) {
+                $fill = $color;
+            } else {
+                $fill = 'rgba(148,163,184,0.28)';
+            }
+            $bars .= '<rect x="'.$x.'" y="'.$y.'" width="2.5" height="'.$h.'" rx="0.6" fill="'.$fill.'"/>';
+        }
+        return '<svg class="kb-prio-icon kb-prio-'.$level.'" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">'.$bars.'</svg>';
+    }
+
+    public function taskStatusKey(array $task, int $totalColumns = 1): string
+    {
+        if (! empty($task['_status_key'])) {
+            return (string) $task['_status_key'];
+        }
+        return $this->statusKey(
+            (string) ($task['column_name'] ?? ''),
+            (int) ($task['column_position'] ?? 0),
+            $totalColumns
+        );
     }
 
     public function formatDue(?int $ts): string

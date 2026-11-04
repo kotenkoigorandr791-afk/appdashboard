@@ -40,6 +40,57 @@
 })();
 (function () {
   'use strict';
+  function fetchMore(marker) {
+    if (marker.getAttribute('data-kb-loading') === '1') return;
+    marker.setAttribute('data-kb-loading', '1');
+    var url = marker.getAttribute('data-kb-url');
+    if (!url) return;
+    var offset = parseInt(marker.getAttribute('data-kb-offset'), 10) || 0;
+    var total = parseInt(marker.getAttribute('data-kb-total'), 10) || 0;
+    fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
+      .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
+      .then(function (html) {
+        var tpl = document.createElement('template');
+        tpl.innerHTML = html;
+        var added = 0;
+        while (tpl.content.firstChild) {
+          marker.parentNode.insertBefore(tpl.content.firstChild, marker);
+          added++;
+        }
+        marker.removeAttribute('data-kb-loading');
+        if (added === 0) { marker.remove(); return; }
+        offset += added;
+        marker.setAttribute('data-kb-offset', String(offset));
+        if (total > 0 && offset >= total) { marker.remove(); }
+      })
+      .catch(function () { marker.removeAttribute('data-kb-loading'); });
+  }
+  function scanMore() {
+    var list = document.querySelectorAll('[data-kb-board-more]:not([data-kb-more-bound])');
+    for (var i = 0; i < list.length; i++) {
+      var m = list[i];
+      m.setAttribute('data-kb-more-bound', '1');
+      if ('IntersectionObserver' in window) {
+        m._moreIO = new IntersectionObserver(function (entries) {
+          entries.forEach(function (e) {
+            if (e.isIntersecting) { e.target._moreIO.disconnect(); fetchMore(e.target); }
+          });
+        }, { rootMargin: '300px 0px' });
+        m._moreIO.observe(m);
+      } else {
+        fetchMore(m);
+      }
+    }
+  }
+  var moreTimer = null;
+  new MutationObserver(function () {
+    if (moreTimer) return;
+    moreTimer = setTimeout(function () { moreTimer = null; scanMore(); }, 80);
+  }).observe(document.documentElement, { childList: true, subtree: true });
+  scanMore();
+})();
+(function () {
+  'use strict';
   function reveal(marker) {
     var step = parseInt(marker.getAttribute('data-kb-chunk-more'), 10) || 25;
     var parent = marker.parentNode;

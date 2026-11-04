@@ -94,29 +94,57 @@ class TaskFinderModel extends Base
             $counters[$id] = array_fill_keys($keys, 0);
             $counters[$id]['is_milestone'] = null;
         }
-        $sources = array(
-            array(CommentModel::TABLE, 'nb_comments', null),
-            array(TaskFileModel::TABLE, 'nb_files', null),
-            array(SubtaskModel::TABLE, 'nb_subtasks', null),
-            array(SubtaskModel::TABLE, 'nb_completed_subtasks', 2),
-            array(TaskLinkModel::TABLE, 'nb_links', null),
-            array(TaskExternalLinkModel::TABLE, 'nb_external_links', null),
-        );
-        foreach ($sources as $src) {
-            $q = $this->db->table($src[0])->columns('task_id', 'COUNT(*) AS c')->in('task_id', $taskIds)->groupBy('task_id');
-            if ($src[2] !== null) {
-                $q->eq('status', $src[2]);
+        $taskIds = array_values(array_map('intval', $taskIds));
+        $placeholders = implode(', ', array_fill(0, count($taskIds), '?'));
+
+        // All counters are resolved in a single round trip: one scalar subquery
+        // per counter is cheaper than six separate IN(...) GROUP BY queries
+        // when the page already fetches the tasks in one query.
+        $sql = 'SELECT '.TaskModel::TABLE.'.id'
+            .', COALESCE(c.nb, 0) AS nb_comments'
+            .', COALESCE(f.nb, 0) AS nb_files'
+            .', COALESCE(s.nb, 0) AS nb_subtasks'
+            .', COALESCE(sd.nb, 0) AS nb_completed_subtasks'
+            .', COALESCE(l.nb, 0) AS nb_links'
+            .', COALESCE(e.nb, 0) AS nb_external_links'
+            .', m.task_id AS is_milestone'
+            .' FROM '.TaskModel::TABLE
+            .' LEFT JOIN (SELECT task_id, COUNT(*) AS nb FROM '.CommentModel::TABLE.' WHERE task_id IN ('.$placeholders.') GROUP BY task_id) c ON c.task_id = '.TaskModel::TABLE.'.id'
+            .' LEFT JOIN (SELECT task_id, COUNT(*) AS nb FROM '.TaskFileModel::TABLE.' WHERE task_id IN ('.$placeholders.') GROUP BY task_id) f ON f.task_id = '.TaskModel::TABLE.'.id'
+            .' LEFT JOIN (SELECT task_id, COUNT(*) AS nb FROM '.SubtaskModel::TABLE.' WHERE task_id IN ('.$placeholders.') GROUP BY task_id) s ON s.task_id = '.TaskModel::TABLE.'.id'
+            .' LEFT JOIN (SELECT task_id, COUNT(*) AS nb FROM '.SubtaskModel::TABLE.' WHERE status = ? AND task_id IN ('.$placeholders.') GROUP BY task_id) sd ON sd.task_id = '.TaskModel::TABLE.'.id'
+            .' LEFT JOIN (SELECT task_id, COUNT(*) AS nb FROM '.TaskLinkModel::TABLE.' WHERE task_id IN ('.$placeholders.') GROUP BY task_id) l ON l.task_id = '.TaskModel::TABLE.'.id'
+            .' LEFT JOIN (SELECT task_id, COUNT(*) AS nb FROM '.TaskExternalLinkModel::TABLE.' WHERE task_id IN ('.$placeholders.') GROUP BY task_id) e ON e.task_id = '.TaskModel::TABLE.'.id'
+            .' LEFT JOIN (SELECT tl.task_id FROM '.TaskLinkModel::TABLE.' tl JOIN '.LinkModel::TABLE.' lk ON lk.id = tl.link_id'
+            .' WHERE lk.label = ? AND tl.task_id IN ('.$placeholders.') GROUP BY tl.task_id) m ON m.task_id = '.TaskModel::TABLE.'.id'
+            .' WHERE '.TaskModel::TABLE.'.id IN ('.$placeholders.')';
+
+        // Bind order matches the placeholder order: comments, files, subtasks,
+        // (status +) completed subtasks, links, external links, milestones, ids.
+        $bind = array_merge($taskIds, $taskIds, $taskIds, array(SubtaskModel::STATUS_DONE), $taskIds, $taskIds, $taskIds, array('is a milestone of'), $taskIds, $taskIds);
+
+        try {
+            $stmt = $this->db->getConnection()->prepare($sql);
+            $stmt->execute($bind);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            return $counters;
+        }
+
+        foreach ($rows as $row) {
+            $id = (int) $row['id'];
+            if (! isset($counters[$id])) {
+                continue;
             }
-            foreach ($q->findAll() as $row) {
-                $counters[$row['task_id']][$src[1]] = (int) $row['c'];
+            foreach ($keys as $key) {
+                if ($key === 'is_milestone') {
+                    $counters[$id][$key] = empty($row[$key]) ? null : 1;
+                } else {
+                    $counters[$id][$key] = (int) $row[$key];
+                }
             }
         }
-        $milestones = $this->db->table(TaskLinkModel::TABLE)->columns(TaskLinkModel::TABLE.'.task_id')
-            ->join(LinkModel::TABLE, 'id', 'link_id')
-            ->in(TaskLinkModel::TABLE.'.task_id', $taskIds)->eq(LinkModel::TABLE.'.label', 'is a milestone of')->findAllByColumn(TaskLinkModel::TABLE.'.task_id');
-        foreach ($milestones as $id) {
-            $counters[$id]['is_milestone'] = 1;
-        }
+
         return $counters;
     }
 

@@ -11,6 +11,8 @@ final class StorageDb
 {
     public static ?PDO $pdo = null;
     private static bool $schemaReady = false;
+    /** Request-scoped cache for single-disk lookups (hot path: file index pages). */
+    private static array $diskCache = [];
 
     public const STATUSES = ['online', 'offline', 'initializing', 'migrating', 'removing', 'error', 'ready_to_remove'];
     public const MIGRATION_STATUSES = [
@@ -167,34 +169,39 @@ final class StorageDb
         self::$schemaReady = true;
     }
 
+    /** Drop the request-scoped disk lookup cache. */
+    public static function flushDiskCache(): void
+    {
+        self::$diskCache = [];
+    }
+
     /** @return array<string,mixed>|null */
     public static function diskByUuid(string $uuid): ?array
     {
-        self::ensureSchema();
-        $stmt = self::pdo()->prepare('SELECT * FROM storage_disks WHERE uuid = :uuid LIMIT 1');
-        $stmt->bindValue(':uuid', $uuid, PDO::PARAM_STR);
-        $row = self::fetchOne($stmt);
-        return is_array($row) ? self::decodeDisk($row) : null;
+        return self::cachedDisk('uuid:' . $uuid, 'SELECT * FROM storage_disks WHERE uuid = :v LIMIT 1', $uuid, PDO::PARAM_STR);
     }
 
     /** @return array<string,mixed>|null */
     public static function diskById(int $id): ?array
     {
-        self::ensureSchema();
-        $stmt = self::pdo()->prepare('SELECT * FROM storage_disks WHERE id = :id LIMIT 1');
-        $stmt->bindValue(':id', $id, PDO::PARAM_INT);
-        $row = self::fetchOne($stmt);
-        return is_array($row) ? self::decodeDisk($row) : null;
+        return self::cachedDisk('id:' . $id, 'SELECT * FROM storage_disks WHERE id = :v LIMIT 1', $id, PDO::PARAM_INT);
     }
 
     /** @return array<string,mixed>|null */
     public static function diskByPath(string $path): ?array
     {
+        return self::cachedDisk('path:' . $path, 'SELECT * FROM storage_disks WHERE mount_path = :v LIMIT 1', $path, PDO::PARAM_STR);
+    }
+
+    /** @return array<string,mixed>|null */
+    private static function cachedDisk(string $key, string $sql, $value, int $type): ?array
+    {
+        if (array_key_exists($key, self::$diskCache)) return self::$diskCache[$key];
         self::ensureSchema();
-        $stmt = self::pdo()->prepare('SELECT * FROM storage_disks WHERE mount_path = :p LIMIT 1');
-        $stmt->bindValue(':p', $path, PDO::PARAM_STR);
+        $stmt = self::pdo()->prepare($sql);
+        $stmt->bindValue(':v', $value, $type);
         $row = self::fetchOne($stmt);
-        return is_array($row) ? self::decodeDisk($row) : null;
+        return self::$diskCache[$key] = (is_array($row) ? self::decodeDisk($row) : null);
     }
 
     /** @return list<array<string,mixed>> */
@@ -245,6 +252,7 @@ final class StorageDb
         }
         if ($id <= 0) $id = (int)self::pdo()->lastInsertId();
         $disk['id'] = $id;
+        self::flushDiskCache();
         return $id;
     }
 
@@ -268,6 +276,7 @@ final class StorageDb
         $stmt = self::pdo()->prepare('UPDATE storage_disks SET ' . implode(', ', $sets) . ' WHERE id = :id');
         foreach ($bind as $k => $v) $stmt->bindValue($k, $v, is_int($v) ? PDO::PARAM_INT : PDO::PARAM_STR);
         $stmt->execute();
+        self::flushDiskCache();
     }
 
     public static function markAllOffline(array $seenUuids): void

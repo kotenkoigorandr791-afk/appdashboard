@@ -4,6 +4,7 @@ namespace Kanboard\Controller;
 
 use Exception;
 use Kanboard\Core\Controller\AccessForbiddenException;
+use Kanboard\Formatter\BoardFormatter;
 use Kanboard\Model\UserMetadataModel;
 
 /**
@@ -96,6 +97,74 @@ class BoardAjaxController extends BaseController
     }
 
     /**
+     * Load more tasks for a column (server-side board pagination)
+     *
+     * @access public
+     */
+    public function tasks()
+    {
+        $project_id = $this->request->getIntegerParam('project_id');
+        $mode = $this->request->getStringParam('mode', 'board');
+
+        if (! $project_id || ! $this->request->isAjax()) {
+            throw new AccessForbiddenException();
+        }
+
+        $column_id = $this->request->getIntegerParam('column_id');
+        $swimlane_id = $this->request->getIntegerParam('swimlane_id');
+        $offset = max(0, $this->request->getIntegerParam('offset'));
+        $limit = min(100, max(1, $this->request->getIntegerParam('limit', 50)));
+
+        $this->taskFinderModel->withLightQuery();
+
+        $query = $this->taskLexer
+            ->build($this->userSession->getFilters($project_id))
+            ->getQuery();
+
+        $formatter = new BoardFormatter($this->container);
+        $formatter->withProjectId($project_id)->withQuery($query);
+
+        if ($mode === 'board') {
+            $tasks = $formatter->withPartitionBySwimlane(true)
+                ->formatTaskSlice($column_id, $swimlane_id, $offset, $limit);
+
+            $this->response->html($this->template->render('board/task_rows', array(
+                'project' => $this->projectModel->getById($project_id),
+                'tasks' => $tasks,
+                'board_highlight_period' => $this->configModel->get('board_highlight_period'),
+                'not_editable' => false,
+            )));
+            return;
+        }
+
+        if ($mode === 'table') {
+            $tasks = $this->taskFinderModel
+                ->getExtendedQuery()
+                ->eq('tasks.project_id', $project_id)
+                ->asc('column_position')
+                ->asc('tasks.position')
+                ->limit($limit)
+                ->offset($offset)
+                ->findAll();
+
+            $this->response->html($this->template->render('appDashboard:board/task_rows_table', array(
+                'tasks' => $tasks,
+                'project' => $this->projectModel->getById($project_id),
+                'columns' => $this->columnModel->getAll($project_id),
+            )));
+            return;
+        }
+
+        $tasks = $formatter->formatColumnSlice($column_id, $offset, $limit);
+
+        $this->response->html($this->template->render('appDashboard:board/task_rows_list', array(
+            'tasks' => $tasks,
+            'project' => $this->projectModel->getById($project_id),
+            'column' => $this->columnModel->getById($column_id),
+        )));
+    }
+
+    /**
      * Enable collapsed mode
      *
      * @access public
@@ -150,7 +219,7 @@ class BoardAjaxController extends BaseController
             'board_highlight_period' => $this->configModel->get('board_highlight_period'),
             'swimlanes' => $this->taskLexer
                 ->build($this->userSession->getFilters($project_id))
-                ->format($this->boardFormatter->withProjectId($project_id))
+                ->format($this->boardFormatter->withProjectId($project_id)->withPartitionBySwimlane(true))
         ));
     }
 }

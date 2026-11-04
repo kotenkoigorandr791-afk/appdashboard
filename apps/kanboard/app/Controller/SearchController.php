@@ -26,6 +26,7 @@ class SearchController extends BaseController
                 ->setDirection('DESC');
 
         if ($search !== '' && ! empty($projects)) {
+            $this->taskFinderModel->withLightQuery();
             $paginator
                 ->setFormatter($this->taskListFormatter)
                 ->setQuery(

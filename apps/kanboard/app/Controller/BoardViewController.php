@@ -28,6 +28,8 @@ class BoardViewController extends BaseController
             throw AccessForbiddenException::getInstance()->withoutLayout();
         }
 
+        $this->taskFinderModel->withLightQuery();
+
         $query = $this->taskFinderModel
             ->getExtendedQuery()
             ->eq(TaskModel::TABLE.'.is_active', TaskModel::STATUS_OPEN);
@@ -37,6 +39,7 @@ class BoardViewController extends BaseController
             'swimlanes' => $this->boardFormatter
                 ->withProjectId($project['id'])
                 ->withQuery($query)
+                ->withTaskLimit(PHP_INT_MAX)
                 ->format(),
             'title' => $project['name'],
             'description' => $project['description'],
@@ -57,9 +60,10 @@ class BoardViewController extends BaseController
     {
         $project = $this->getProject();
         $search = $this->helper->projectHeader->getSearchQuery($project);
+        $view = isset($_GET['view']) ? (string) $_GET['view'] : 'list';
         $this->taskFinderModel->withLightQuery();
 
-        $this->response->html($this->helper->layout->app('board/view_private', array(
+        $params = array(
             'project' => $project,
             'title' => $project['name'],
             'description' => $this->helper->projectHeader->getDescription($project),
@@ -67,7 +71,26 @@ class BoardViewController extends BaseController
             'board_highlight_period' => $this->configModel->get('board_highlight_period'),
             'swimlanes' => $this->taskLexer
                 ->build($search)
-                ->format($this->boardFormatter->withProjectId($project['id']))
-        )));
+                ->format($this->boardFormatter
+                    ->withProjectId($project['id'])
+                    ->withPartitionBySwimlane($view === 'board')),
+        );
+
+        if ($view === 'table') {
+            $table_limit = 50;
+            $params['table_limit'] = $table_limit;
+            $this->taskFinderModel->withLightQuery();
+            $params['table_tasks'] = $this->taskFinderModel
+                ->getExtendedQuery()
+                ->eq('tasks.project_id', $project['id'])
+                ->asc('column_position')
+                ->asc('tasks.position')
+                ->limit($table_limit)
+                ->findAll();
+            $params['table_has_more'] = count($params['table_tasks']) === $table_limit;
+            $params['table_columns'] = $this->columnModel->getAll($project['id']);
+        }
+
+        $this->response->html($this->helper->layout->app('board/view_private', $params));
     }
 }

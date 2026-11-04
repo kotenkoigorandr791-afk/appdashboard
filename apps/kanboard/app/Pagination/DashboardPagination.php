@@ -27,6 +27,9 @@ class DashboardPagination extends Base
         $projects = $this->projectUserRoleModel->getActiveProjectsByUser($userId);
 
         foreach ($projects as $projectId => $projectName) {
+            // Counters are batched later by the formatter, so the pagination
+            // count does not need the correlated counter subqueries.
+            $this->taskFinderModel->withLightQuery();
 
             $query = $this->taskFinderModel->getUserQuery($userId)->eq(ProjectModel::TABLE.'.id', $projectId);
             $this->hook->reference('pagination:dashboard:task:query', $query);
