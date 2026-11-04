@@ -20,7 +20,39 @@
     animation: crvSlideIn .18s ease-out;
 }
 
+/* When panel is dragged to a custom position, it uses left/top instead of right/bottom */
+.crv-panel.crv-dragged {
+    right: auto;
+    bottom: auto;
+}
+
 .crv-panel[hidden] { display: none; }
+
+/* Visible resize marker in the bottom-right corner. */
+.crv-resize-grip {
+    position: absolute;
+    right: 4px;
+    bottom: 4px;
+    width: 20px;
+    height: 20px;
+    padding: 4px;
+    display: flex;
+    align-items: flex-end;
+    justify-content: flex-end;
+    border-radius: 8px;
+    color: color-mix(in srgb, var(--fg) 50%, transparent);
+    cursor: nwse-resize;
+    z-index: 20;
+    opacity: .7;
+    transition: color .15s ease, background-color .15s ease, opacity .15s ease;
+    touch-action: none;
+}
+.crv-resize-grip:hover {
+    opacity: 1;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+.crv-resize-grip svg { display: block; pointer-events: none; }
 
 @keyframes crvSlideIn {
     from { opacity: 0; transform: translateX(14px); }

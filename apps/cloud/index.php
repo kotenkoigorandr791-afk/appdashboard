@@ -73,8 +73,8 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=59" />
-  <link rel="stylesheet" href="assets/app/reviews.css?v=2" />
+  <link rel="stylesheet" href="assets/styles.css?v=66" />
+  <link rel="stylesheet" href="assets/app/reviews.css?v=5" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -88,7 +88,7 @@ cloud_require_session_auth();
 .dropdown-menu,.context-menu,.tab-preview,.search-panel{background:color-mix(in srgb,var(--panel) 24%,transparent)!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
 .settings-menu{background:color-mix(in srgb,var(--panel) 92%,var(--bg))!important;backdrop-filter:blur(10px)!important;-webkit-backdrop-filter:blur(10px)!important;}
 .modal-content{background:color-mix(in srgb,var(--panel) 88%,var(--bg));backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);}
-.root-toolbar{width:50px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 7px;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:opacity 0.3s ease,transform 0.3s ease}
+.root-toolbar{width:50px;display:flex;flex-direction:column;align-items:center;gap:10px;padding:12px 7px;border-right:1px solid color-mix(in srgb,var(--border) 70%,transparent);background:var(--glass-panel);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:opacity 0.3s ease,transform 0.3s ease;min-height:0;overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) transparent}
 .root-toolbar.hidden-by-sidebar{opacity:0;transform:translateX(-100%);pointer-events:none;position:absolute;height:100%;z-index:-1}
 .trash-mode .root-toolbar.hidden-by-sidebar{opacity:1;transform:none;pointer-events:auto;position:static;height:auto;z-index:auto}
 .root-toolbar-btn{width:36px;height:36px;border:1px solid color-mix(in srgb,var(--ui-border) 80%,transparent);background:var(--glass-bg);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:var(--fg);border-radius:10px;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .18s ease,border-color .18s ease,box-shadow .18s ease,color .18s ease,transform .18s ease}
@@ -232,7 +232,7 @@ cloud_require_session_auth();
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
 <script defer src="assets/app.js?v=58"></script>
-<script defer src="assets/app/reviews.js?v=2"></script>
+<script defer src="assets/app/reviews.js?v=5"></script>
 <script defer src="assets/app/editors-and-tree.js?v=17"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
@@ -241,7 +241,7 @@ cloud_require_session_auth();
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=9"></script>
 <script defer src="assets/audio-player.js?v=4"></script>
-<script defer src="assets/app/cloud-group-chat.js?v=11"></script>
+<script defer src="assets/app/cloud-group-chat.js?v=16"></script>
 <script defer src="assets/ui/button-feedback.js?v=1"></script>
 <script defer src="assets/ui/topbar.js?v=4"></script>
 <script defer src="assets/settings/sync-modals.js?v=9"></script>
@@ -250,7 +250,7 @@ cloud_require_session_auth();
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
-<script defer src="assets/ai-assistant.js?v=44"></script>
+<script defer src="assets/ai-assistant.js?v=45"></script>
 <script defer src="assets/monaco-shared.js?v=6"></script>
 <script defer src="assets/monaco-editor.js?v=24"></script>
 
@@ -690,9 +690,17 @@ cloud_require_session_auth();
     <aside id="group-chat-panel" class="group-chat-panel group-chat-panel--docked hidden" aria-label="Group chat">
       <div id="group-chat-resize" class="group-chat-resize" title="Resize"></div>
       <div id="group-chat-resize-h" class="group-chat-resize-h hidden" title="Resize height"></div>
+      <div id="group-chat-resize-se" class="group-chat-resize-se" title="Resize" aria-hidden="true">
+        <svg width="12" height="12" viewBox="0 0 12 12"><path d="M11 1 1 11M11 5 5 11M11 9 9 11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+      </div>
       <header id="group-chat-drag-handle" class="group-chat-header">
-        <select id="group-chat-group-select" class="group-chat-group-select" aria-label="Group"></select>
-        <span id="group-chat-title" class="group-chat-title" data-i18n="groupChatTitle">Group chat</span>
+        <div class="group-chat-head-main">
+          <span class="group-chat-title-icon" aria-hidden="true">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><line x1="8" y1="9" x2="16" y2="9"/><line x1="8" y1="13" x2="13" y2="13"/></svg>
+          </span>
+          <select id="group-chat-group-select" class="group-chat-group-select" aria-label="Group"></select>
+          <span id="group-chat-title" class="group-chat-title" data-i18n="groupChatTitle">Group chat</span>
+        </div>
         <div class="group-chat-header-actions">
           <button type="button" id="group-chat-delete" class="icon-btn group-chat-icon-btn group-chat-delete-btn hidden" title="Delete chat" aria-label="Delete chat">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
