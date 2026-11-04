@@ -502,41 +502,109 @@
     }
   }
 
+  var rowMenu = null;
+  function closeRowMenu() {
+    if (rowMenu) {
+      rowMenu.remove();
+      rowMenu = null;
+    }
+    document.removeEventListener('mousedown', onRowMenuDoc, true);
+  }
+  function onRowMenuDoc(ev) {
+    if (rowMenu && !rowMenu.contains(ev.target)) closeRowMenu();
+  }
+  function openRowMenu(trigger, items, onPick) {
+    closeRowMenu();
+    var menu = document.createElement('ul');
+    menu.className = 'kb-menu kb-menu-select kb-icon-select-menu';
+    menu.setAttribute('role', 'listbox');
+    items.forEach(function (it) {
+      var li = document.createElement('li');
+      li.className = 'kb-menu-item' + (it.selected ? ' kb-menu-selected' : '');
+      li.setAttribute('role', 'option');
+      var ico = document.createElement('span');
+      ico.className = 'kb-icon-select-ico';
+      ico.innerHTML = it.icon;
+      var lbl = document.createElement('span');
+      lbl.textContent = it.label;
+      li.appendChild(ico);
+      li.appendChild(lbl);
+      li.addEventListener('click', function (e) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeRowMenu();
+        if (!it.selected) onPick(it);
+      });
+      menu.appendChild(li);
+    });
+    document.body.appendChild(menu);
+    var r = trigger.getBoundingClientRect();
+    menu.style.left = Math.round(r.left) + 'px';
+    menu.style.top = Math.round(r.bottom + 6) + 'px';
+    menu.style.minWidth = '160px';
+    rowMenu = menu;
+    setTimeout(function () {
+      document.addEventListener('mousedown', onRowMenuDoc, true);
+    }, 0);
+  }
+
   var statusClickBound = false;
   function initStatusClick() {
     if (!document.getElementById('kb-cycle-issues') || statusClickBound) return;
     statusClickBound = true;
     document.addEventListener('click', function (e) {
-      var status = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-status') : null;
-      if (!status) return;
       var root = document.getElementById('kb-cycle-issues');
-      if (!root) return;
-      var row = status.closest('.kb-issue-row');
+      if (!root || root.getAttribute('data-can-edit') !== '1') return;
+      var status = e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-status') : null;
+      var prio = !status && e.target && e.target.closest ? e.target.closest('#kb-cycle-issues .kb-issue-prio') : null;
+      var trigger = status || prio;
+      if (!trigger) return;
+      var row = trigger.closest('.kb-issue-row');
       if (!row || row.getAttribute('data-status-changing') === '1') return;
-      var groups = Array.prototype.slice.call(root.querySelectorAll('.kb-issue-group[data-column-id]')).filter(function (group) {
-        return Number(group.getAttribute('data-column-id') || 0) > 0;
-      });
-      var currentId = Number(row.getAttribute('data-column-id') || 0);
-      var currentIndex = groups.findIndex(function (group) {
-        return Number(group.getAttribute('data-column-id') || 0) === currentId;
-      });
-      if (!groups.length || currentIndex < 0) return;
+      var taskId = Number(row.getAttribute('data-task-id') || 0);
+      if (!taskId) return;
       e.preventDefault();
       e.stopPropagation();
-      var targetGroup = groups[(currentIndex + 1) % groups.length];
-      var targetRows = targetGroup.querySelector('.kb-issue-rows');
-      var taskId = Number(row.getAttribute('data-task-id') || 0);
-      var columnId = Number(targetGroup.getAttribute('data-column-id') || 0);
-      var statusKey = targetGroup.getAttribute('data-status') || 'todo';
-      if (!targetRows || !taskId || !columnId || columnId === currentId) return;
-      row.setAttribute('data-status-changing', '1');
-      status.classList.add('is-changing');
-      postQuickUpdate(taskId, 'column_id', columnId).then(function (res) {
-        if (!res.ok) throw new Error('status_update_failed');
-        moveTaskDomToGroup(row, targetRows, statusKey, columnId);
-      }).catch(function () {
-        row.removeAttribute('data-status-changing');
-        status.classList.remove('is-changing');
+      if (status) {
+        var groups = Array.prototype.slice.call(root.querySelectorAll('.kb-issue-group[data-column-id]')).filter(function (group) {
+          return Number(group.getAttribute('data-column-id') || 0) > 0;
+        });
+        var currentId = Number(row.getAttribute('data-column-id') || 0);
+        openRowMenu(status, groups.map(function (g) {
+          var t = g.querySelector('.kb-issue-group-title > span');
+          var id = Number(g.getAttribute('data-column-id'));
+          var key = g.getAttribute('data-status') || 'todo';
+          return { id: id, key: key, rows: g.querySelector('.kb-issue-rows'), label: t ? t.textContent.trim() : key, icon: STATUS_ICONS[key] || STATUS_ICONS.todo, selected: id === currentId };
+        }), function (it) {
+          if (!it.rows) return;
+          row.setAttribute('data-status-changing', '1');
+          status.classList.add('is-changing');
+          postQuickUpdate(taskId, 'column_id', it.id).then(function (res) {
+            if (!res.ok) throw new Error('status_update_failed');
+            moveTaskDomToGroup(row, it.rows, it.key, it.id);
+          }).catch(function () {
+            row.removeAttribute('data-status-changing');
+            status.classList.remove('is-changing');
+          });
+        });
+        return;
+      }
+      var min = Number(root.getAttribute('data-prio-min') || 0);
+      var max = Number(root.getAttribute('data-prio-max') || 3);
+      var labels = [];
+      try { labels = JSON.parse(root.getAttribute('data-prio-labels') || '[]'); } catch (err) {}
+      var cur = Number(prio.getAttribute('data-priority') || 0);
+      var items = [];
+      for (var p = min; p <= max; p++) {
+        items.push({ value: p, label: labels[p] || ('P' + p), icon: prioIconSvg(p, min, max), selected: p === cur });
+      }
+      openRowMenu(prio, items, function (it) {
+        postQuickUpdate(taskId, 'priority', it.value).then(function (res) {
+          if (!res.ok) return;
+          prio.setAttribute('data-priority', String(it.value));
+          prio.setAttribute('title', 'P' + it.value);
+          prio.innerHTML = prioIconSvg(it.value, min, max);
+        });
       });
     });
   }

@@ -14,8 +14,6 @@
     var revokeBtn = document.getElementById('kb-mobile-token-revoke');
     var hintBtn = document.getElementById('kb-mobile-manual-hint');
     var closeBtn = document.getElementById('kb-mobile-app-close');
-    var openBtn = document.getElementById('kb-open-mobile-app');
-    var settingsBtn = document.getElementById('kb-open-settings');
 
     var lanEndpoint = modal.getAttribute('data-endpoint') || '';
     var accountEmail = modal.getAttribute('data-account') || '';
@@ -91,8 +89,14 @@
       openModal(hintModal);
     }
 
-    openBtn && openBtn.addEventListener('click', function () { openSettings('mobile'); });
-    settingsBtn && settingsBtn.addEventListener('click', function () { openSettings('profile'); });
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target.closest('[data-kb-open]') : null;
+      if (!t) return;
+      e.preventDefault();
+      var dd = document.getElementById('dropdown');
+      if (dd && dd.parentNode) { try { document.body.click(); } catch (err) {} }
+      openSettings(t.getAttribute('data-kb-open') === 'mobile' ? 'mobile' : 'profile');
+    });
     document.querySelectorAll('.kb-settings-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
         activateTab(tab.getAttribute('data-kb-settings-tab') || 'profile');

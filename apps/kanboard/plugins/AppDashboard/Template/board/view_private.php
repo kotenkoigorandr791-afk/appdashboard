@@ -92,41 +92,46 @@ foreach ($cycle['groups'] as $g) {
 ?>
 <section id="main" class="kb-cycle-main" data-view="<?= $this->text->e($view) ?>" data-quick-url="<?= $this->text->e($quickUrl) ?>">
     <div class="kb-cycle-workspace">
+        <header class="kb-cycle-header">
+            <div class="kb-cycle-header-left">
+                <span class="kb-cycle-meta"><?= (int) $stats['effort'] ?></span>
+                <div class="kb-cycle-filter-wrap">
+                    <?= $this->render('project_header/search', [
+                        'project' => $project,
+                        'filters' => [
+                            'controller' => 'BoardViewController',
+                            'action' => 'show',
+                            'project_id' => $project['id'],
+                            'search' => $searchQ,
+                            'plugin' => '',
+                        ],
+                        'custom_filters_list' => [],
+                        'users_list' => [],
+                        'categories_list' => [],
+                    ]) ?>
+                </div>
+            </div>
+            <div class="kb-cycle-header-right">
+                <div class="kb-cycle-header-ring" title="<?= (int) $stats['percent'] ?>%">
+                    <?= $ring((int) $stats['percent'], 28) ?>
+                    <span><?= (int) $stats['percent'] ?>%</span>
+                </div>
+                <div class="kb-cycle-views" role="tablist">
+                    <a href="<?= $listUrl ?>" class="kb-cycle-view-link<?= $view === 'list' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12M2 8h12M2 13h12"/></svg><?= t('List') ?></a>
+                    <a href="<?= $boardUrl ?>" class="kb-cycle-view-link<?= $view === 'board' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg><?= t('Board') ?></a>
+                    <a href="<?= $tableUrl ?>" class="kb-cycle-view-link<?= $view === 'table' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 6h12M2 10h12M6 2v12M10 2v12"/></svg><?= t('Table') ?></a>
+                </div>
+                <?php if ($this->user->hasProjectAccess('TaskCreationController', 'show', $project['id'])): ?>
+                    <?= $this->url->link('<span class="kb-plus">+</span> '.t('New task'), 'TaskCreationController', 'show', ['project_id' => $project['id']], false, 'js-modal-large kb-cycle-new-task') ?>
+                <?php endif ?>
+                <div class="menus-container kb-cycle-menus">
+                    <?= $this->render('header/user_notifications') ?>
+                    <?= $this->render('header/creation_dropdown') ?>
+                    <?= $this->render('header/user_dropdown') ?>
+                </div>
+            </div>
+        </header>
         <div class="kb-cycle-center">
-            <header class="kb-cycle-header">
-                <div class="kb-cycle-header-left">
-                    <span class="kb-cycle-meta"><?= (int) $stats['effort'] ?></span>
-                    <div class="kb-cycle-filter-wrap">
-                        <?= $this->render('project_header/search', [
-                            'project' => $project,
-                            'filters' => [
-                                'controller' => 'BoardViewController',
-                                'action' => 'show',
-                                'project_id' => $project['id'],
-                                'search' => $searchQ,
-                                'plugin' => '',
-                            ],
-                            'custom_filters_list' => [],
-                            'users_list' => [],
-                            'categories_list' => [],
-                        ]) ?>
-                    </div>
-                </div>
-                <div class="kb-cycle-header-right">
-                    <div class="kb-cycle-header-ring" title="<?= (int) $stats['percent'] ?>%">
-                        <?= $ring((int) $stats['percent'], 28) ?>
-                        <span><?= (int) $stats['percent'] ?>%</span>
-                    </div>
-                    <div class="kb-cycle-views" role="tablist">
-                        <a href="<?= $listUrl ?>" class="kb-cycle-view-link<?= $view === 'list' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12M2 8h12M2 13h12"/></svg><?= t('List') ?></a>
-                        <a href="<?= $boardUrl ?>" class="kb-cycle-view-link<?= $view === 'board' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="5" height="5" rx="1"/><rect x="9" y="2" width="5" height="5" rx="1"/><rect x="2" y="9" width="5" height="5" rx="1"/><rect x="9" y="9" width="5" height="5" rx="1"/></svg><?= t('Board') ?></a>
-                        <a href="<?= $tableUrl ?>" class="kb-cycle-view-link<?= $view === 'table' ? ' is-active' : '' ?>"><svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="2" width="12" height="12" rx="1"/><path d="M2 6h12M2 10h12M6 2v12M10 2v12"/></svg><?= t('Table') ?></a>
-                    </div>
-                    <?php if ($this->user->hasProjectAccess('TaskCreationController', 'show', $project['id'])): ?>
-                        <?= $this->url->link('<span class="kb-plus">+</span> '.t('New task'), 'TaskCreationController', 'show', ['project_id' => $project['id']], false, 'js-modal-large kb-cycle-new-task') ?>
-                    <?php endif ?>
-                </div>
-            </header>
 
             <?php if ($view === 'board'): ?>
                 <script type="application/json" id="kb-board-status-map"><?= json_encode($boardStatusMap, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
@@ -224,7 +229,7 @@ foreach ($cycle['groups'] as $g) {
                     </table>
                 </div>
             <?php else: ?>
-                <div class="kb-cycle-issues" id="kb-cycle-issues" data-can-edit="<?= $canEdit ? '1' : '0' ?>">
+                <div class="kb-cycle-issues" id="kb-cycle-issues" data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-prio-min="<?= (int) $prioStart ?>" data-prio-max="<?= (int) $prioEnd ?>" data-prio-labels="<?= $this->text->e(json_encode([t('Low'), t('Normal'), t('High'), t('Urgent')])) ?>">
                     <?php foreach ($cycle['groups'] as $group): ?>
                         <?php if ((int) $group['id'] <= 0 && (int) $group['count'] === 0) continue; ?>
                         <section class="kb-issue-group kb-tint-<?= $this->text->e($group['status_key']) ?>" data-status="<?= $this->text->e($group['status_key']) ?>" data-column-id="<?= (int) $group['id'] ?>">
@@ -259,7 +264,7 @@ foreach ($cycle['groups'] as $g) {
                                         </a>
                                         <div class="kb-issue-trail">
                                             <?php if (isset($task['priority'])): ?>
-                                                <span class="kb-issue-prio" title="P<?= (int) $task['priority'] ?>"><?= $prioIcon((int) $task['priority'], $prioStart, $prioEnd) ?></span>
+                                                <span class="kb-issue-prio" data-priority="<?= (int) $task['priority'] ?>" title="P<?= (int) $task['priority'] ?>"><?= $prioIcon((int) $task['priority'], $prioStart, $prioEnd) ?></span>
                                             <?php endif ?>
                                             <?php if ($category !== ''): ?>
                                                 <span class="kb-issue-tag"><?= $this->text->e($category) ?></span>

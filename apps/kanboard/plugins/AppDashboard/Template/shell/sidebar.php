@@ -56,7 +56,7 @@ $initial = mb_strtoupper(mb_substr($fullname !== '' ? $fullname : 'U', 0, 1));
                     <a href="<?= $this->url->href('SearchController', 'index') ?>"><?= $icon('search') ?><span><?= t('Search') ?></span></a>
                 </li>
                 <li class="<?= $isActivity ? 'active' : '' ?>">
-                    <a href="<?= $this->url->href('ActivityController', 'user') ?>" class="js-modal-medium"><?= $icon('inbox') ?><span><?= t('Inbox') ?></span></a>
+                    <a href="<?= $this->url->href('ActivityController', 'user') ?>"><?= $icon('inbox') ?><span><?= t('Inbox') ?></span></a>
                 </li>
                 <li class="<?= $isMyTasks ? 'active' : '' ?>">
                     <a href="<?= $this->url->href('DashboardController', 'tasks', ['user_id' => $userId]) ?>"><?= $icon('issues') ?><span><?= t('My tasks') ?></span></a>

@@ -5788,3 +5788,25 @@ input[type="radio"]:not([class*="df-"]):checked {
   }
   #modal-box:has(.task-form-container) .task-form-bottom { order: 4; }
 }
+#modal-content .js-file-upload-rendered > div:has(> .alert-success) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+#modal-content .js-file-upload-rendered > div:has(> .alert-success) > .btn {
+  align-self: flex-end;
+  min-width: 104px;
+  height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--primary-color, #2563eb);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+#modal-content #file-list progress {
+  transition: none;
+}

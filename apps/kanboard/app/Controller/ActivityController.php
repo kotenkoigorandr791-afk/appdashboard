@@ -19,11 +19,17 @@ class ActivityController extends BaseController
     {
         $user = $this->getUser();
 
-        $this->response->html($this->template->render('activity/user', array(
+        $params = array(
             'title'  => t('Activity stream for %s', $this->helper->user->getFullname($user)),
             'events' => $this->helper->projectActivity->getProjectsEvents($this->projectPermissionModel->getActiveProjectIds($user['id']), 100),
             'user'   => $user,
-        )));
+        );
+
+        if ($this->request->isAjax()) {
+            $this->response->html($this->template->render('activity/user', $params));
+        } else {
+            $this->response->html($this->helper->layout->app('activity/user', $params));
+        }
     }
 
     /**

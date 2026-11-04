@@ -772,7 +772,10 @@
     var lists = scope.querySelectorAll('section.page .table-list');
     for (var i = 0; i < lists.length; i++) {
       lists[i].classList.add('kb-frame');
+      if (lists[i].querySelector(':scope > .table-list-row[class*="color-"]:not(.kb-project-row)')) lists[i].classList.add('kb-issue-list');
     }
+    var rows = scope.querySelectorAll('section#dashboard .table-list-row[class*="color-"]:not(.kb-project-row)');
+    for (var j = 0; j < rows.length; j++) rows[j].classList.add('kb-issue-row');
   }
   var kbMoScheduled = false;
   function kbMoPolish() {
@@ -943,7 +946,7 @@
   }
   function setupPanelResizer(id, selector, cssVar, storageKey, min, max, direction) {
     var el = document.getElementById(id);
-    var handle = el && el.querySelector(selector);
+    var handle = el && (el.querySelector(selector) || document.querySelector(selector));
     if (!el || !handle || handle.getAttribute('data-kb-resize-bound') === '1') return;
     handle.setAttribute('data-kb-resize-bound', '1');
     var saved = 0;

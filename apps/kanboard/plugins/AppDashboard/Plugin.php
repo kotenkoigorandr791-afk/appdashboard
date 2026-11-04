@@ -59,6 +59,7 @@ class Plugin extends Base
         $this->template->setTemplateOverride('task_list/task_details', 'appDashboard:task_list/task_details');
         $this->template->setTemplateOverride('board/view_private', 'appDashboard:board/view_private');
         $this->template->setTemplateOverride('task_creation/show', 'appDashboard:task_creation/show');
+        $this->template->setTemplateOverride('task_modification/show', 'appDashboard:task_modification/show');
         $this->template->setTemplateOverride('task_comments/show', 'appDashboard:task_comments/show');
         $this->template->setTemplateOverride('comment/show', 'appDashboard:comment/show');
         $this->template->setTemplateOverride('task/show', 'appDashboard:task/show');
@@ -80,6 +81,7 @@ class Plugin extends Base
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/circle-cycle.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/md-live.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/qr-generator.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);
