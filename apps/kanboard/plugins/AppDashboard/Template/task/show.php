@@ -20,19 +20,23 @@
     )) ?>
 
     <?= $this->hook->render('template:task:show:before-attachments', array('task' => $task, 'project' => $project)) ?>
-    <?= $this->render('task_file/show', array(
-        'task' => $task,
-        'files' => $files,
-        'images' => $images
-    )) ?>
+    <?php if (! empty($files) || ! empty($images)): ?>
+        <?= $this->render('task_file/show', array(
+            'task' => $task,
+            'files' => $files,
+            'images' => $images
+        )) ?>
+    <?php endif ?>
 
     <?= $this->hook->render('template:task:show:before-comments', array('task' => $task, 'project' => $project)) ?>
-    <?= $this->render('task_comments/show', array(
-        'task' => $task,
-        'comments' => $comments,
-        'project' => $project,
-        'editable' => $this->user->hasProjectAccess('CommentController', 'edit', $project['id']),
-    )) ?>
+    <?php if (! empty($comments)): ?>
+        <?= $this->render('task_comments/show', array(
+            'task' => $task,
+            'comments' => $comments,
+            'project' => $project,
+            'editable' => $this->user->hasProjectAccess('CommentController', 'edit', $project['id']),
+        )) ?>
+    <?php endif ?>
 </div>
 
 <?= $this->hook->render('template:task:show:bottom', array('task' => $task, 'project' => $project)) ?>

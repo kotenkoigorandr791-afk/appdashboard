@@ -21,13 +21,5 @@
             <i class="fa fa-calendar-check-o fa-fw" aria-hidden="true"></i>
             <?= $paginator->order(t('End date'), \Kanboard\Model\ProjectModel::TABLE.'.end_date') ?>
         </li>
-        <li>
-            <i class="fa fa-globe fa-fw" aria-hidden="true"></i>
-            <?= $paginator->order(t('Public'), \Kanboard\Model\ProjectModel::TABLE.'.is_public') ?>
-        </li>
-        <li>
-            <i class="fa fa-lock fa-fw" aria-hidden="true"></i>
-            <?= $paginator->order(t('Personal'), \Kanboard\Model\ProjectModel::TABLE.'.is_private') ?>
-        </li>
     </ul>
 </div>

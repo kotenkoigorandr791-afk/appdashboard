@@ -95,7 +95,6 @@ foreach ($cycle['groups'] as $g) {
         <div class="kb-cycle-center">
             <header class="kb-cycle-header">
                 <div class="kb-cycle-header-left">
-                    <h1 class="kb-cycle-title"><?= $this->text->e($cycle['cycle_name']) ?></h1>
                     <span class="kb-cycle-meta"><?= (int) $stats['effort'] ?></span>
                     <div class="kb-cycle-filter-wrap">
                         <?= $this->render('project_header/search', [
@@ -286,11 +285,11 @@ foreach ($cycle['groups'] as $g) {
             <?php endif ?>
         </div>
 
-        <?php if ($view === 'list'): ?>
+        <div class="kb-panel-resizer kb-panel-resizer-cycle" data-kb-resizer="cycle" role="separator" aria-orientation="vertical" aria-label="<?= t('Resize panel') ?>" title="<?= t('Resize panel') ?>"></div>
         <aside class="kb-cycle-panel" id="kb-cycle-panel" aria-label="<?= t('Analytics') ?>">
             <div class="kb-cycle-panel-head">
                 <h2>Cycle Details</h2>
-                <span class="kb-cycle-panel-sub"><?= $this->text->e($project['name']) ?> · <?= $this->text->e($cycle['cycle_name']) ?></span>
+                <span class="kb-cycle-panel-sub"><?= $this->text->e($project['name']) ?></span>
             </div>
             <div class="kb-cycle-stats">
                 <div class="kb-cycle-stat kb-cycle-stat-ring">
@@ -338,6 +337,5 @@ foreach ($cycle['groups'] as $g) {
                 <?php endif ?>
             </div>
         </aside>
-        <?php endif ?>
     </div>
 </section>

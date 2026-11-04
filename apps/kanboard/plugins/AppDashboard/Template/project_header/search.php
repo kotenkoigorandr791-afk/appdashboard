@@ -26,8 +26,6 @@
                 <div class="dropdown">
                     <a href="#" class="dropdown-menu dropdown-menu-link-icon" title="<?= t('User filters') ?>" aria-label="<?= t('User filters') ?>"><i class="fa fa-user"></i></a>
                     <ul>
-                        <li><a href="#" class="filter-helper" data-unique-filter="assignee:nobody"><i class="fa fa-user-times fa-fw" aria-hidden="true"></i><?= t('Not assigned') ?></a></li>
-                        <li><a href="#" class="filter-helper" data-unique-filter="assignee:anybody"><i class="fa fa-users fa-fw" aria-hidden="true"></i><?= t('Assigned') ?></a></li>
                         <?php foreach ($users_list as $user): ?>
                             <li><a href="#" class="filter-helper" data-unique-filter='assignee:"<?= $this->text->e($user) ?>"'><i class="fa fa-user fa-fw" aria-hidden="true"></i><?= $this->text->e($user) ?></a></li>
                         <?php endforeach ?>
@@ -40,7 +38,6 @@
                 <div class="dropdown">
                     <a href="#" class="dropdown-menu dropdown-menu-link-icon" title="<?= t('Category filters') ?>" aria-label="<?= t('Category filters') ?>"><i class="fa fa-folder-open"></i></a>
                     <ul>
-                        <li><a href="#" class="filter-helper" data-unique-filter="category:none"><i class="fa fa-ban fa-fw" aria-hidden="true"></i><?= t('No category') ?></a></li>
                         <?php foreach ($categories_list as $category): ?>
                             <li><a href="#" class="filter-helper" data-unique-filter='category:"<?= $this->text->e($category) ?>"'><i class="fa fa-folder fa-fw" aria-hidden="true"></i><?= $this->text->e($category) ?></a></li>
                         <?php endforeach ?>

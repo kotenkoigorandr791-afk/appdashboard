@@ -1,4 +1,7 @@
 {
+  "active": "Active",
+  "closed": "Closed",
+  "no_results": "Nothing here yet",
   "skip_to_content": "Skip to content",
   "app_dashboard": "AppDashboard",
   "breadcrumb": "Breadcrumb",

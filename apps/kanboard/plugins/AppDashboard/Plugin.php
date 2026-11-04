@@ -52,12 +52,15 @@ class Plugin extends Base
         $this->template->setTemplateOverride('app/filters_helper', 'appDashboard:app/filters_helper');
         $this->template->setTemplateOverride('project_creation/create', 'appDashboard:project_creation/create');
         $this->template->setTemplateOverride('project_view/show', 'appDashboard:project_view/show');
+        $this->template->setTemplateOverride('project_view/share', 'appDashboard:project_view/share');
         $this->template->setTemplateOverride('project/sidebar', 'appDashboard:project/sidebar');
         $this->template->setTemplateOverride('project_overview/show', 'appDashboard:project_overview/show');
         $this->template->setTemplateOverride('task_list/task_title', 'appDashboard:task_list/task_title');
         $this->template->setTemplateOverride('task_list/task_details', 'appDashboard:task_list/task_details');
         $this->template->setTemplateOverride('board/view_private', 'appDashboard:board/view_private');
         $this->template->setTemplateOverride('task_creation/show', 'appDashboard:task_creation/show');
+        $this->template->setTemplateOverride('task_comments/show', 'appDashboard:task_comments/show');
+        $this->template->setTemplateOverride('comment/show', 'appDashboard:comment/show');
         $this->template->setTemplateOverride('task/show', 'appDashboard:task/show');
         $this->template->setTemplateOverride('task/sidebar', 'appDashboard:task/sidebar');
         $this->template->setTemplateOverride('project_permission/index', 'appDashboard:project_permission/index');
@@ -66,6 +69,7 @@ class Plugin extends Base
         $this->template->setTemplateOverride('analytic/cfd', 'appDashboard:analytic/cfd');
         $this->template->setTemplateOverride('analytic/lead_cycle_time', 'appDashboard:analytic/lead_cycle_time');
         $this->template->setTemplateOverride('analytic/task_distribution', 'appDashboard:analytic/task_distribution');
+        $this->template->setTemplateOverride('analytic/sidebar', 'appDashboard:analytic/sidebar');
         $this->template->setTemplateOverride('search/index', 'appDashboard:search/index');
         $this->template->setTemplateOverride('search/activity', 'appDashboard:search/activity');
         $this->template->setTemplateOverride('activity/user', 'appDashboard:activity/user');
@@ -83,6 +87,7 @@ class Plugin extends Base
 
         $this->projectAccessMap->add('OverviewCalendarController', 'updateDates', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('TaskQuickUpdateController', 'updateField', Role::PROJECT_MEMBER);
+        $this->projectAccessMap->add('SharepointController', 'share', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('ProjectMemberController', 'searchAssignable', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('ProjectMemberController', 'add', Role::PROJECT_MANAGER);
         $this->applicationAccessMap->add('ProjectMemberController', 'search', Role::APP_USER);

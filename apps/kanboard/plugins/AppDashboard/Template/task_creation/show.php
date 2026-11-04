@@ -5,15 +5,30 @@ $columnLabel = $columns_list[$columnId] ?? reset($columns_list) ?: t('Backlog');
 ?>
 <div class="kb-plane-create">
     <div class="kb-plane-create-head">
-        <h2 class="kb-plane-create-title"><?= t('New task') ?></h2>
-        <div class="kb-plane-crumbs">
-            <span class="kb-plane-crumb">
-                <svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><rect x="2.5" y="4" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 4V3.2A1.2 1.2 0 0 1 6.2 2h3.6A1.2 1.2 0 0 1 11 3.2V4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
-                <?= $this->text->e($projectName) ?>
-            </span>
-            <span class="kb-plane-crumb-sep">›</span>
-            <span class="kb-plane-crumb"><?= $this->text->e((string) $columnLabel) ?></span>
+        <div class="kb-plane-head-text">
+            <h2 class="kb-plane-create-title"><?= t('New task') ?></h2>
+            <div class="kb-plane-crumbs" aria-label="<?= t('Breadcrumb') ?>">
+                <span class="kb-plane-crumb kb-plane-crumb-project">
+                    <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><rect x="2.5" y="4" width="11" height="9" rx="1.5" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M5 4V3.2A1.2 1.2 0 0 1 6.2 2h3.6A1.2 1.2 0 0 1 11 3.2V4" fill="none" stroke="currentColor" stroke-width="1.3"/></svg>
+                    <span><?= $this->text->e($projectName) ?></span>
+                </span>
+                <span class="kb-plane-crumb-sep" aria-hidden="true">
+                    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 3 5 5-5 5"/></svg>
+                </span>
+                <button type="button" class="kb-plane-crumb kb-plane-crumb-column" aria-haspopup="listbox" aria-expanded="false">
+                    <span class="kb-plane-crumb-ico" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><rect x="2.5" y="3" width="3.5" height="10" rx="1"/><rect x="6.25" y="3" width="3.5" height="7" rx="1"/><rect x="10" y="3" width="3.5" height="10" rx="1"/></svg>
+                    </span>
+                    <span class="kb-plane-crumb-label"><?= $this->text->e((string) $columnLabel) ?></span>
+                    <span class="kb-plane-crumb-caret" aria-hidden="true">
+                        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m4 6 4 4 4-4"/></svg>
+                    </span>
+                </button>
+            </div>
         </div>
+        <button type="button" class="kb-plane-close" data-kb-plane-discard="1" aria-label="<?= t('Close') ?>" title="<?= t('Close') ?>">
+            <svg viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="m4 4 8 8"/><path d="m12 4-8 8"/></svg>
+        </button>
     </div>
     <form method="post" action="<?= $this->url->href('TaskCreationController', 'save', array('project_id' => $project['id'])) ?>" autocomplete="off" class="kb-plane-form">
         <?= $this->form->csrf() ?>
@@ -60,7 +75,7 @@ $columnLabel = $columns_list[$columnId] ?? reset($columns_list) ?: t('Backlog');
                 <span></span>
             <?php endif ?>
             <div class="kb-plane-actions">
-                <a href="#" class="kb-plane-discard" data-kb-plane-discard="1"><?= t('Discard') ?></a>
+                <a href="#" class="kb-plane-discard" data-kb-plane-discard="1"><?= t('Cancel') ?></a>
                 <button type="submit" class="kb-plane-save" tabindex="15"><?= t('Save') ?></button>
             </div>
         </div>

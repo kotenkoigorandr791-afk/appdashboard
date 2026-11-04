@@ -509,6 +509,8 @@
     if (select.classList.contains('ui-timepicker-select')) return;
     if (select.classList.contains('kb-quick-select') || select.classList.contains('kb-quick-select-native')) return;
     if (select.multiple || select.size > 1) return;
+    // Never build a second dropdown for a select already handled by select2.
+    if (select.classList.contains('select2-hidden-accessible')) return;
     var rect = select.getBoundingClientRect();
     if (rect.width === 0 && rect.height === 0) return;
     select.setAttribute('data-kb-select', '1');
@@ -555,17 +557,21 @@
       $menu = $('<ul class="kb-menu kb-menu-select" role="listbox"></ul>');
       var dirPref = 'right';
       if (wrap.closest('.kb-modal-form, form, #modal-content').length) dirPref = 'left';
-      $(select.options).each(function () {
+      var inPlane = !!(select.closest && select.closest('.kb-plane-create'));
+      $(select.options).each(function (index) {
         var opt = this;
         var item = $('<li class="kb-menu-item" role="option"></li>')
           .text(opt.textContent.replace(/\s+/g, ' ').trim())
           .attr('data-value', opt.value);
+        if (inPlane) {
+          item.prepend($('<span class="kb-menu-item-icon" aria-hidden="true"></span>').html(planeOptionIcon(select, opt, index)));
+        }
         if (opt.selected) item.addClass('kb-menu-selected');
         item.on('mousedown', function (e) { e.preventDefault(); })
           .on('click', function (e) {
             e.preventDefault();
             select.value = opt.value;
-            $(select).trigger('change');
+            select.dispatchEvent(new Event('change', { bubbles: true }));
             sync();
             close();
             trigger.focus();
@@ -595,6 +601,7 @@
         close();
       }
     });
+    select.addEventListener('change', sync);
     sync();
   }
   var kbSelectUid = 0;
@@ -603,6 +610,160 @@
     var selects = scope.querySelectorAll('select');
     for (var i = 0; i < selects.length; i++) {
       try { enhanceSelect(selects[i]); } catch (e) {}
+    }
+  }
+  /* ===== SVG icons for the dropdowns in the task creation modal ===== */
+  var KB_PROP_ICONS = {
+    column_id: '<rect x="2.5" y="3" width="3.5" height="10" rx="1"/><rect x="6.25" y="3" width="3.5" height="7" rx="1"/><rect x="10" y="3" width="3.5" height="10" rx="1"/>',
+    priority: '<path d="M3.5 2.5v11"/><path d="M3.5 3.2h8.2l-1.7 2.6 1.7 2.6H3.5"/>',
+    category_id: '<path d="M2.5 2.5h4.8l6.2 6.2-4.8 4.8-6.2-6.2z"/><circle cx="5.6" cy="5.6" r="0.9"/>',
+    swimlane_id: '<path d="M8 2.4 13.6 5 8 7.6 2.4 5z"/><path d="m2.4 8 5.6 2.6L13.6 8"/><path d="m2.4 10.9 5.6 2.6 5.6-2.6"/>',
+    tags: '<path d="M2.5 2.5h4.8l6.2 6.2-4.8 4.8-6.2-6.2z"/><circle cx="5.6" cy="5.6" r="0.9"/>',
+    user_id: '<circle cx="8" cy="5.9" r="2.6"/><path d="M3.3 13.5c.5-2.4 2.4-3.7 4.7-3.7s4.2 1.3 4.7 3.7"/>'
+  };
+  function kbPropIconSvg(name) {
+    var body = KB_PROP_ICONS[name] || '<path d="M3.5 5.5h9"/><path d="M3.5 8h9"/><path d="M3.5 10.5h6"/>';
+    return '<svg class="kb-prop-svg" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+  }
+  function kbColumnOptionIcon(label, index, total) {
+    var text = String(label || '').toLowerCase();
+    if (/done|closed|complete|готов/.test(text)) {
+      return '<circle cx="8" cy="8" r="5.5"/><path d="m5.2 8.2 2 2 3.8-4.4"/>';
+    }
+    if (/progress|doing|work|в работе/.test(text)) {
+      return '<circle cx="8" cy="8" r="5.5"/><path d="M8 4.7v3.5h3.4"/>';
+    }
+    if (/review|проверк/.test(text)) {
+      return '<circle cx="8" cy="8" r="2.2"/><path d="M2.4 8s2.2-3.2 5.6-3.2S13.6 8 13.6 8s-2.2 3.2-5.6 3.2S2.4 8 2.4 8Z"/>';
+    }
+    if (/todo|to do|к выполнению/.test(text)) {
+      return '<circle cx="8" cy="8" r="5.5"/><circle cx="8" cy="8" r="1.7" fill="currentColor" stroke="none"/>';
+    }
+    if (/backlog|бэклог/.test(text)) {
+      return '<circle cx="8" cy="8" r="5.5" stroke-dasharray="2.2 2.2"/>';
+    }
+    if (index === total - 1) {
+      return '<circle cx="8" cy="8" r="5.5"/><path d="m5.2 8.2 2 2 3.8-4.4"/>';
+    }
+    return '<circle cx="8" cy="8" r="5.5"/>';
+  }
+  function kbPriorityOptionIcon(value) {
+    var palette = ['#94a3b8', '#38bdf8', '#f59e0b', '#ef4444'];
+    var n = parseInt(value, 10);
+    if (isNaN(n)) n = 0;
+    n = Math.max(0, Math.min(palette.length - 1, n));
+    var color = palette[n];
+    return '<path d="M3.5 2.5v11"/><path d="M3.5 3.2h8.2l-1.7 2.6 1.7 2.6H3.5" fill="' + color + '" stroke="' + color + '"/>';
+  }
+  function planeOptionIcon(select, opt, index) {
+    var key = String(select.name || '').replace(/\[\]$/, '');
+    var body;
+    if (key === 'column_id') body = kbColumnOptionIcon(opt.textContent, index, select.options.length);
+    else if (key === 'priority') body = kbPriorityOptionIcon(opt.value);
+    else body = KB_PROP_ICONS[key] || '<path d="M3.5 5.5h9"/><path d="M3.5 8h9"/><path d="M3.5 10.5h6"/>';
+    return '<svg viewBox="0 0 16 16" width="15" height="15" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">' + body + '</svg>';
+  }
+  function initPlaneColumnCrumb(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var crumb = scope.querySelector('.kb-plane-crumb-column');
+    var plane = crumb && crumb.closest('.kb-plane-create');
+    var select = plane && plane.querySelector('select[name="column_id"]');
+    if (!crumb || !select || crumb.getAttribute('data-kb-crumb-ready') === '1') return;
+    crumb.setAttribute('data-kb-crumb-ready', '1');
+    var labelEl = crumb.querySelector('.kb-plane-crumb-label');
+    var iconEl = crumb.querySelector('.kb-plane-crumb-ico');
+    var $menu = null;
+    function sync() {
+      var opt = select.options[select.selectedIndex];
+      if (!opt) return;
+      if (labelEl) labelEl.textContent = opt.textContent.replace(/\s+/g, ' ').trim();
+      if (iconEl) iconEl.innerHTML = planeOptionIcon(select, opt, select.selectedIndex);
+    }
+    function close() {
+      if ($menu) { $menu.remove(); $menu = null; }
+      crumb.classList.remove('open');
+      crumb.setAttribute('aria-expanded', 'false');
+      $(document).off('mousedown.kb-crumb');
+      $(window).off('resize.kb-crumb scroll.kb-crumb');
+    }
+    function open() {
+      if ($menu) { close(); return; }
+      $menu = $('<ul class="kb-menu kb-menu-select kb-crumb-menu" role="listbox"></ul>');
+      $(select.options).each(function (index) {
+        var opt = this;
+        var item = $('<li class="kb-menu-item" role="option"></li>')
+          .append($('<span class="kb-menu-item-icon" aria-hidden="true"></span>').html(planeOptionIcon(select, opt, index)))
+          .append($('<span class="kb-menu-item-text"></span>').text(opt.textContent.replace(/\s+/g, ' ').trim()))
+          .attr('data-value', opt.value);
+        if (opt.selected) item.addClass('kb-menu-selected');
+        item.on('mousedown', function (e) { e.preventDefault(); })
+          .on('click', function (e) {
+            e.preventDefault();
+            select.value = opt.value;
+            select.dispatchEvent(new Event('change', { bubbles: true }));
+            sync();
+            close();
+          });
+        $menu.append(item);
+      });
+      $('body').append($menu);
+      crumb.classList.add('open');
+      crumb.setAttribute('aria-expanded', 'true');
+      openMenuAt($menu, crumb, 'left');
+      $(document).on('mousedown.kb-crumb', function (e) {
+        if (!$(e.target).closest('.kb-crumb-menu, .kb-plane-crumb-column').length) close();
+      });
+      $(window).on('resize.kb-crumb scroll.kb-crumb', close);
+    }
+    crumb.addEventListener('click', function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      open();
+    });
+    select.addEventListener('change', sync);
+    sync();
+  }
+  /* Wrap the raw filename text of each upload row so it can be ellipsized
+     instead of wrapping inside the progress row. */
+  function polishUploadFileList(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var items = scope.querySelectorAll('#file-list > li');
+    for (var i = 0; i < items.length; i++) {
+      var li = items[i];
+      if (li.getAttribute('data-kb-file-polished') === '1') continue;
+      var nodes = Array.prototype.slice.call(li.childNodes);
+      for (var n = 0; n < nodes.length; n++) {
+        var node = nodes[n];
+        if (node.nodeType === 3 && node.textContent.replace(/\s+/g, '') !== '') {
+          var name = document.createElement('span');
+          name.className = 'kb-file-name';
+          name.textContent = node.textContent.replace(/^\s+|\s+$/g, '');
+          li.replaceChild(name, node);
+        }
+      }
+      li.setAttribute('data-kb-file-polished', '1');
+    }
+  }
+  function decoratePlaneSelectIcons(root) {
+    var scope = root && root.querySelectorAll ? root : document;
+    var plane = scope.querySelector('.kb-plane-create') || (scope.classList && scope.classList.contains('kb-plane-create') ? scope : null);
+    if (!plane) return;
+    var selects = plane.querySelectorAll('.kb-plane-prop select, .kb-plane-fields select');
+    for (var i = 0; i < selects.length; i++) {
+      var select = selects[i];
+      if (!select) continue;
+      var key = String(select.name || '').replace(/\[\]$/, '');
+      var svg = kbPropIconSvg(key);
+      var pill = select.closest('.kb-plane-prop');
+      var label = pill ? pill.querySelector(':scope > label') : null;
+      if (!label || label.querySelector('.kb-prop-icon')) continue;
+      var icon = pill.querySelector(':scope > .kb-prop-icon');
+      if (!icon) {
+        icon = document.createElement('span');
+        icon.className = 'kb-prop-icon';
+        icon.innerHTML = svg;
+      }
+      label.insertBefore(icon, label.firstChild);
     }
   }
   /* ===== Project list frame (no scrollbars) ===== */
@@ -620,6 +781,9 @@
     setTimeout(function () {
       kbMoScheduled = false;
       enhanceAllSelects(document);
+      decoratePlaneSelectIcons(document);
+      initPlaneColumnCrumb(document);
+      polishUploadFileList(document);
       frameProjectLists(document);
     }, 60);
   }
@@ -629,6 +793,9 @@
     kbEnhanceTimer = setTimeout(function () {
       kbEnhanceTimer = null;
       enhanceAllSelects(document);
+      decoratePlaneSelectIcons(document);
+      initPlaneColumnCrumb(document);
+      polishUploadFileList(document);
       frameProjectLists(document);
     }, 50);
   }
@@ -735,8 +902,98 @@
       });
     } catch (e) {}
   }
+  /* Comments: reorder in place instead of reloading the page */
+  function initCommentSorting() {
+    document.addEventListener('click', function (e) {
+      var link = e.target && e.target.closest ? e.target.closest('#comments .comment-sorting a') : null;
+      if (!link || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      var container = link.closest('#comments');
+      if (!container) return;
+      var cards = [];
+      for (var i = 0; i < container.children.length; i++) {
+        if (container.children[i].classList.contains('comment')) cards.push(container.children[i]);
+      }
+      if (!cards.length) return;
+      e.preventDefault();
+      var idOf = function (node) {
+        var m = /comment-(\d+)/.exec(node.id || '');
+        return m ? parseInt(m[1], 10) : 0;
+      };
+      var ascending = true;
+      for (var j = 1; j < cards.length; j++) {
+        if (idOf(cards[j]) < idOf(cards[j - 1])) {
+          ascending = false;
+          break;
+        }
+      }
+      cards.sort(function (a, b) { return idOf(a) - idOf(b); });
+      if (ascending) cards.reverse();
+      var anchor = container.querySelector(':scope > .comment-sorting');
+      var last = anchor;
+      for (var k = 0; k < cards.length; k++) {
+        if (last) last.after(cards[k]);
+        else container.appendChild(cards[k]);
+        last = cards[k];
+      }
+      // Persist the new direction for the next page load without navigating.
+      try {
+        fetch(link.href, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } }).catch(function () {});
+      } catch (err) {}
+    });
+  }
+  function setupPanelResizer(id, selector, cssVar, storageKey, min, max, direction) {
+    var el = document.getElementById(id);
+    var handle = el && el.querySelector(selector);
+    if (!el || !handle || handle.getAttribute('data-kb-resize-bound') === '1') return;
+    handle.setAttribute('data-kb-resize-bound', '1');
+    var saved = 0;
+    // The width variables are declared on body.kb-circle, so they must be
+    // overridden on <body>: a value set on <html> would be shadowed for every
+    // descendant and dragging would appear to do nothing.
+    try { saved = parseInt(localStorage.getItem(storageKey), 10) || 0; } catch (e) {}
+    if (saved >= min && saved <= max) document.body.style.setProperty(cssVar, saved + 'px');
+    var startX = 0;
+    var startW = 0;
+    var active = false;
+    function onMove(e) {
+      if (!active) return;
+      var next = Math.round(startW + (e.clientX - startX) * direction);
+      next = Math.max(min, Math.min(max, next));
+      document.body.style.setProperty(cssVar, next + 'px');
+    }
+    function onEnd() {
+      if (!active) return;
+      active = false;
+      document.body.classList.remove('kb-panel-resizing');
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onEnd);
+      document.removeEventListener('pointercancel', onEnd);
+      try {
+        var w = Math.round(el.getBoundingClientRect().width);
+        localStorage.setItem(storageKey, String(w));
+      } catch (e) {}
+      try { if (window.Event) window.dispatchEvent(new Event('resize')); } catch (e2) {}
+    }
+    handle.addEventListener('pointerdown', function (e) {
+      if (window.matchMedia && window.matchMedia('(max-width: 900px)').matches) return;
+      active = true;
+      startX = e.clientX;
+      startW = el.getBoundingClientRect().width;
+      document.body.classList.add('kb-panel-resizing');
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onEnd);
+      document.addEventListener('pointercancel', onEnd);
+      e.preventDefault();
+    });
+  }
+  function initPanelResizers() {
+    setupPanelResizer('kb-app-sidebar', '[data-kb-resizer="sidebar"]', '--kb-sidebar-w', 'kb-sidebar-width', 200, 420, 1);
+    setupPanelResizer('kb-cycle-panel', '[data-kb-resizer="cycle"]', '--kb-cycle-panel-w', 'kb-cycle-panel-width', 260, 560, -1);
+  }
   function bootShellUi() {
     initSidebarToggle();
+    initCommentSorting();
+    initPanelResizers();
     setTimeout(tightenMemberAutocomplete, 0);
     setTimeout(tightenMemberAutocomplete, 400);
   }
@@ -779,6 +1036,7 @@
     }
   }
   function softNavReboot(root) {
+    initPanelResizers();
     try {
       if (window.jQuery) {
         jQuery('.autocomplete, .kb-member-email, .kb-assignee-search', root || document).each(function () {

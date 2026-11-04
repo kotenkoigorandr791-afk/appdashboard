@@ -54,6 +54,7 @@ final class ShareRegistry
             'steps' => ['label' => 'Steps', 'icon' => 'directions_walk'],
             'films' => ['label' => 'Films', 'icon' => 'movie'],
             'smart_home' => ['label' => 'Smart Home', 'icon' => 'home'],
+            'kanboard' => ['label' => 'Kanboard', 'icon' => 'view_kanban'],
         ];
     }
 
@@ -71,6 +72,7 @@ final class ShareRegistry
             'step_routine' => 'Step Routine',
             'film' => 'Film',
             'smart_home_scene' => 'Smart Home Scene',
+            'kanboard_board' => 'Kanban Board',
         ];
     }
 }

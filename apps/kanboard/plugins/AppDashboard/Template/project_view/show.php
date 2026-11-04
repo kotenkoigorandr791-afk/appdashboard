@@ -14,8 +14,9 @@
         <li><i class="fa fa-lock"></i> <?= t('This project is personal') ?></li>
     <?php endif ?>
 
+    <li><?= $this->url->icon('share-alt', t('Share via SharePoint'), 'SharepointController', 'share', array('plugin' => 'AppDashboard', 'project_id' => $project['id']), false, '', '', true) ?></li>
+
     <?php if ($project['is_public']): ?>
-        <li><?= $this->url->icon('share-alt', t('Public link'), 'BoardViewController', 'readonly', array('token' => $project['token']), false, '', '', true) ?></li>
         <li><?= $this->url->icon('rss-square', t('RSS feed'), 'FeedController', 'project', array('token' => $project['token']), false, '', '', true) ?></li>
         <li><?= $this->url->icon('calendar', t('iCal feed'), 'ICalendarController', 'project', array('token' => $project['token'])) ?></li>
     <?php else: ?>
