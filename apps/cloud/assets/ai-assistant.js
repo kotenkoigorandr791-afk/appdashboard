@@ -232,7 +232,6 @@
             const domain = url.hostname.replace(/^www\./i, '');
             return [
                 `https://icons.duckduckgo.com/ip3/${domain}.ico`,
-                `https://www.google.com/s2/favicons?sz=32&domain=${encodeURIComponent(domain)}`,
                 new URL('/favicon.ico', url).href
             ];
         } catch (_) {

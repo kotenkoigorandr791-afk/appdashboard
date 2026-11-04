@@ -19,6 +19,9 @@
         audioPlayers: [],
         userEmail: '',
         width: 320,
+        dockedX: null,
+        dockedY: null,
+        dockedH: null,
         detachedX: null,
         detachedY: null,
         detachedW: 360,
@@ -28,6 +31,7 @@
     let audioChunks = [];
     let isRecording = false;
     const panel = () => document.getElementById('group-chat-panel');
+    const isMobile = () => window.matchMedia('(max-width: 768px)').matches;
     const messagesEl = () => document.getElementById('group-chat-messages');
     const inputEl = () => document.getElementById('group-chat-input');
     const fileInput = () => document.getElementById('group-chat-file');
@@ -177,6 +181,9 @@
             const p = JSON.parse(raw);
             if (p.width) state.width = Math.max(260, Math.min(560, +p.width || 320));
             state.detached = !!p.detached;
+            if (p.dockedX != null) state.dockedX = +p.dockedX;
+            if (p.dockedY != null) state.dockedY = +p.dockedY;
+            if (p.dockedH) state.dockedH = Math.max(240, Math.min(1200, +p.dockedH));
             if (p.detachedX != null) state.detachedX = +p.detachedX;
             if (p.detachedY != null) state.detachedY = +p.detachedY;
             if (p.detachedW) state.detachedW = Math.max(280, Math.min(720, +p.detachedW));
@@ -192,6 +199,9 @@
                 detached: state.detached,
                 width: state.width,
                 groupId: state.groupId,
+                dockedX: state.dockedX,
+                dockedY: state.dockedY,
+                dockedH: state.dockedH,
                 detachedX: state.detachedX,
                 detachedY: state.detachedY,
                 detachedW: state.detachedW,
@@ -208,25 +218,58 @@
     function applyLayout() {
         const el = panel();
         if (!el) return;
+        const mobile = isMobile();
+        const detached = state.detached && !mobile;
         const g = groups();
         const groupsReady = !!(window.cloudGroupsState && window.cloudGroupsState.loaded);
         el.classList.toggle('hidden', !state.open || (groupsReady && !g.length));
-        el.classList.toggle('group-chat-panel--detached', state.detached);
-        el.classList.toggle('group-chat-panel--docked', !state.detached);
+        el.classList.toggle('group-chat-panel--detached', detached);
+        el.classList.toggle('group-chat-panel--docked', !detached);
+        // Detached mode is a layout sidebar, not a custom floating position.
+        // In particular, do not leave the dragged class on it: that class
+        // switches the right/bottom anchors to left/top coordinates.
+        if (detached || mobile) el.classList.remove('crv-dragged');
         const resizeH = document.getElementById('group-chat-resize-h');
-        if (resizeH) resizeH.classList.toggle('hidden', !state.detached);
-        if (state.detached) {
-            el.style.width = state.detachedW + 'px';
-            el.style.height = state.detachedH + 'px';
-            if (state.detachedX != null) el.style.left = state.detachedX + 'px';
-            if (state.detachedY != null) el.style.top = state.detachedY + 'px';
+        if (resizeH) resizeH.classList.toggle('hidden', !detached);
+        // Detached chat is a real right-hand sidebar, not an overlay. Reserve
+        // its current width in the main layout just like the file tree does.
+        const reservedWidth = detached
+            ? Math.max(280, Math.round(Math.min(state.detachedW, Math.max(280, window.innerWidth - 24))))
+            : 0;
+        document.documentElement.style.setProperty('--group-chat-reserved-width', reservedWidth + 'px');
+        document.body.classList.toggle('group-chat-detached-open', state.open && detached && (!groupsReady || g.length > 0));
+        document.body.classList.toggle('group-chat-mobile-open', state.open && mobile && (!groupsReady || g.length > 0));
+        if (detached) {
+            const detachedW = Math.min(state.detachedW, Math.max(280, window.innerWidth - 24));
+            state.detachedW = detachedW;
+            el.style.width = detachedW + 'px';
+            el.style.height = '';
+            el.style.left = '';
+            el.style.top = '';
+            el.style.right = '';
+            el.style.bottom = '';
+        } else if (!mobile && state.dockedX != null && state.dockedY != null) {
+            // Docked panel was dragged earlier — restore its custom position/size.
+            const w = Math.min(state.width, window.innerWidth - 16);
+            const x = Math.min(Math.max(8, state.dockedX), Math.max(8, window.innerWidth - w - 8));
+            const y = Math.min(Math.max(8, state.dockedY), Math.max(8, window.innerHeight - 240 - 8));
+            const maxH = Math.max(240, window.innerHeight - y - 8);
+            const h = Math.max(240, Math.min(state.dockedH || maxH, maxH));
+            el.style.width = w + 'px';
+            el.style.height = h + 'px';
+            el.style.left = x + 'px';
+            el.style.top = y + 'px';
             el.style.right = 'auto';
+            el.style.bottom = 'auto';
+            el.classList.add('crv-dragged');
         } else {
             el.style.width = state.width + 'px';
             el.style.height = '';
             el.style.left = '';
             el.style.top = '';
             el.style.right = '';
+            el.style.bottom = '';
+            el.classList.remove('crv-dragged');
         }
         document.body.classList.toggle('group-chat-open', state.open && !state.detached && (!groupsReady || g.length > 0));
         savePrefs();
@@ -825,15 +868,32 @@
         else openPanel();
     }
     function toggleDetach() {
+        if (isMobile()) return;
         state.detached = !state.detached;
         const el = panel();
         if (state.detached && el) {
-            const w = Math.max(280, Math.min(480, state.detachedW || 360));
-            const h = Math.max(320, Math.min(620, state.detachedH || 480));
+            // Detach into a proper right-hand sidebar. Do not preserve the
+            // docked panel's right edge as a left coordinate: that could place
+            // the detached panel partly outside the viewport.
+            const rect = el.getBoundingClientRect();
+            const w = Math.max(280, Math.min(480, state.detachedW || rect.width || 360));
+            const h = Math.max(320, Math.min(900, state.detachedH || window.innerHeight - 96));
             state.detachedW = w;
             state.detachedH = h;
-            state.detachedX = Math.max(8, window.innerWidth - w - 16);
-            state.detachedY = Math.max(48, Math.min(window.innerHeight - h - 16, (window.innerHeight - h) * 0.15));
+            state.detachedX = null;
+            state.detachedY = null;
+        } else if (el) {
+            // Return to the normal docked side panel layout.  Clear every
+            // floating inline anchor so CSS can restore top/right/bottom.
+            state.dockedX = null;
+            state.dockedY = null;
+            state.dockedH = null;
+            el.classList.remove('crv-dragged');
+            el.style.left = '';
+            el.style.top = '';
+            el.style.right = '';
+            el.style.bottom = '';
+            el.style.height = '';
         }
         applyLayout();
     }
@@ -908,17 +968,20 @@
             document.addEventListener('mouseup', finish);
         };
         handle.addEventListener('mousedown', (e) => {
+            if (isMobile()) return;
             e.preventDefault();
             const startX = e.clientX;
             const startY = e.clientY;
             const startW = state.detached ? state.detachedW : state.width;
             const startH = state.detachedH;
-            const onMove = (ev) => {
-                const dx = ev.clientX - startX;
-                const dy = ev.clientY - startY;
-                if (state.detached) {
-                    state.detachedW = Math.max(280, Math.min(720, startW + dx));
-                    state.detachedH = Math.max(280, Math.min(720, startH + dy));
+                const onMove = (ev) => {
+                    const dx = ev.clientX - startX;
+                    const dy = ev.clientY - startY;
+                    if (state.detached) {
+                        // The detached panel is anchored to the right edge, so
+                        // dragging its left edge left increases its width.
+                        state.detachedW = Math.max(280, Math.min(720, startW - dx));
+                        state.detachedH = Math.max(280, Math.min(720, startH + dy));
                 } else {
                     state.width = Math.max(260, Math.min(560, startW - dx));
                 }
@@ -931,6 +994,7 @@
         });
         if (handleH) {
             handleH.addEventListener('mousedown', (e) => {
+                if (isMobile()) return;
                 if (!state.detached) return;
                 e.preventDefault();
                 e.stopPropagation();
@@ -946,53 +1010,99 @@
                 startPointerDrag('ns-resize', onMove, onUp);
             });
         }
+        const resizeSE = document.getElementById('group-chat-resize-se');
+        if (resizeSE) {
+            resizeSE.addEventListener('mousedown', (e) => {
+                if (isMobile()) return;
+                if (e.button !== 0) return;
+                e.preventDefault();
+                e.stopPropagation();
+                const rect = el.getBoundingClientRect();
+                if (!state.detached) {
+                    // Freeze the current spot so the panel grows from its corner.
+                    state.dockedX = rect.left;
+                    state.dockedY = rect.top;
+                    state.dockedH = rect.height;
+                }
+                const startX = e.clientX;
+                const startY = e.clientY;
+                const startW = state.detached ? state.detachedW : rect.width;
+                const startH = state.detached ? state.detachedH : rect.height;
+                const onMove = (ev) => {
+                    const maxW = state.detached ? 720 : Math.min(560, Math.max(260, window.innerWidth - rect.left - 8));
+                    const maxH = state.detached ? 900 : Math.max(240, window.innerHeight - rect.top - 8);
+                    const w = Math.min(maxW, Math.max(state.detached ? 280 : 260, startW + ev.clientX - startX));
+                    const h = Math.min(maxH, Math.max(state.detached ? 280 : 240, startH + ev.clientY - startY));
+                    if (state.detached) {
+                        state.detachedW = w;
+                        state.detachedH = h;
+                    } else {
+                        state.width = w;
+                        state.dockedH = h;
+                    }
+                    applyLayout();
+                };
+                startPointerDrag('nwse-resize', onMove, savePrefs);
+            });
+        }
         const dragHandle = document.getElementById('group-chat-drag-handle');
         if (dragHandle) {
-            if (!dragHandle.querySelector('.group-chat-header-resize-zone')) {
-                dragHandle.insertAdjacentHTML('afterbegin', '<div class="group-chat-header-resize-zone" title="Resize"></div>');
-            }
-            const headerResize = dragHandle.querySelector('.group-chat-header-resize-zone');
-            if (headerResize) {
-                headerResize.addEventListener('mousedown', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    const startX = e.clientX;
-                    const startY = e.clientY;
-                    const startW = state.detached ? state.detachedW : state.width;
-                    const startH = state.detachedH;
-                    const onMove = (ev) => {
-                        if (state.detached) {
-                            state.detachedW = Math.max(280, Math.min(720, startW + (ev.clientX - startX)));
-                            state.detachedH = Math.max(280, Math.min(720, startH + (ev.clientY - startY)));
-                        } else {
-                            state.width = Math.max(260, Math.min(560, startW - (ev.clientX - startX)));
-                        }
-                        applyLayout();
-                    };
-                    const onUp = () => {
-                        savePrefs();
-                    };
-                    startPointerDrag(state.detached ? 'nwse-resize' : 'ew-resize', onMove, onUp);
-                });
-            }
+            // The old injected resize zone broke the flex row and pushed the
+            // header buttons past the right edge — drop it if it is still there.
+            dragHandle.querySelectorAll('.group-chat-header-resize-zone').forEach((n) => n.remove());
             let dragX, dragY, origX, origY;
             dragHandle.addEventListener('mousedown', (e) => {
-                if (!state.detached || e.target.closest('button') || e.target.closest('select')) return;
+                if (isMobile()) return;
+                if (e.button !== 0) return;
+                // A detached chat is anchored to the reserved right column;
+                // allowing header dragging would turn it back into an overlay.
+                if (state.detached) return;
+                if (e.target.closest('button') || e.target.closest('select')) return;
                 e.preventDefault();
                 dragX = e.clientX;
                 dragY = e.clientY;
-                origX = state.detachedX ?? el.offsetLeft;
-                origY = state.detachedY ?? el.offsetTop;
+                const rect = el.getBoundingClientRect();
+                origX = rect.left;
+                origY = rect.top;
+                // Freeze the current size: the docked panel is stretched between
+                // `top` and `bottom`, so removing `bottom` alone would collapse it.
+                if (!state.detached) {
+                    el.style.width = rect.width + 'px';
+                    el.style.height = rect.height + 'px';
+                    el.style.left = origX + 'px';
+                    el.style.top = origY + 'px';
+                    el.style.right = 'auto';
+                    el.style.bottom = 'auto';
+                    el.classList.add('crv-dragged');
+                }
                 const onMove = (ev) => {
-                    state.detachedX = Math.max(0, origX + (ev.clientX - dragX));
-                    state.detachedY = Math.max(40, origY + (ev.clientY - dragY));
-                    el.style.left = state.detachedX + 'px';
-                    el.style.top = state.detachedY + 'px';
+                    const dx = ev.clientX - dragX;
+                    const dy = ev.clientY - dragY;
+                    const newX = Math.max(8, Math.min(window.innerWidth - rect.width - 8, origX + dx));
+                    const newY = Math.max(8 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')) || 56), Math.min(window.innerHeight - rect.height - 8 - (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--statusbar-height')) || 28), origY + dy));
+                    el.style.left = newX + 'px';
+                    el.style.top = newY + 'px';
+                    el.style.right = 'auto';
+                    el.style.bottom = 'auto';
+                    el.classList.add('crv-dragged');
+                    state.dockedX = newX;
+                    state.dockedY = newY;
+                    state.dockedH = rect.height;
                 };
                 const onUp = () => {
                     savePrefs();
                 };
                 startPointerDrag('move', onMove, onUp);
+            });
+            // Double-click the header restores the default docked position.
+            dragHandle.addEventListener('dblclick', (e) => {
+                if (isMobile()) return;
+                if (e.target.closest('button') || e.target.closest('select')) return;
+                state.dockedX = null;
+                state.dockedY = null;
+                state.dockedH = null;
+                applyLayout();
+                savePrefs();
             });
         }
     }
@@ -1167,6 +1277,7 @@
         });
         wireVoice();
         wireResize();
+        window.addEventListener('resize', applyLayout);
         updateDeleteButton();
         applyLayout();
         if (state.open) showMessagesLoading();
