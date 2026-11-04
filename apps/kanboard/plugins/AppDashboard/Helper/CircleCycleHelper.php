@@ -188,15 +188,15 @@ class CircleCycleHelper extends Base
     }
 
     /**
-     * Build the 14-day burnup with one SQL aggregate per day instead of a
-     * PHP loop over every project task.
+     * Build the 14-day burnup without the days×tasks cross join: every task is
+     * reduced once to the day it enters scope, starts and is completed, then
+     * the 14 points are three cumulative sums over those buckets.
      */
     private function buildBurnupSql(int $projectId, int $days, array $statTasks): array
     {
         $sql = "
             WITH days AS (
-                SELECT gs::date AS day,
-                       (extract(epoch FROM (gs + interval '1 day'))::bigint - 1) AS day_end
+                SELECT gs::date AS day
                 FROM generate_series(
                     date_trunc('day', now()) - (? - 1) * interval '1 day',
                     date_trunc('day', now()),
@@ -204,29 +204,45 @@ class CircleCycleHelper extends Base
                 ) gs
             ),
             effort AS (
-                SELECT t.id, t.date_creation, t.date_completed, t.date_started, t.column_id, t.is_active,
-                       CASE WHEN t.score > 0 THEN t.score
-                            WHEN t.time_estimated > 0 THEN GREATEST(1, ROUND(t.time_estimated)::int)
-                            ELSE 1 END AS e
-                FROM ".TaskModel::TABLE.' t'.
-                ' WHERE t.project_id = ?'.
-            ")
-            SELECT d.day, d.day_end,
-                   COALESCE(SUM(CASE WHEN (e.date_creation IS NULL OR e.date_creation = 0 OR e.date_creation <= d.day_end) THEN e.e END), 0)::int AS scope,
-                   COALESCE(SUM(CASE WHEN (e.date_creation IS NULL OR e.date_creation = 0 OR e.date_creation <= d.day_end) AND (
-                       (e.date_completed > 0 AND e.date_completed <= d.day_end)
-                       OR (e.is_active = false AND (e.date_completed = 0 OR e.date_completed <= d.day_end))
-                       OR (e.date_started > 0 AND e.date_started <= d.day_end)
-                       OR c.position > 1
-                   ) THEN e.e END), 0)::int AS started,
-                   COALESCE(SUM(CASE WHEN (e.date_creation IS NULL OR e.date_creation = 0 OR e.date_creation <= d.day_end) AND (
-                       (e.date_completed > 0 AND e.date_completed <= d.day_end)
-                       OR (e.is_active = false AND (e.date_completed = 0 OR e.date_completed <= d.day_end))
-                   ) THEN e.e END), 0)::int AS completed
+                SELECT x.e, x.c_day,
+                       CASE WHEN x.moved THEN x.c_day
+                            WHEN x.s_ts IS NULL THEN NULL
+                            WHEN x.s_ts <= 0 THEN x.c_day
+                            ELSE GREATEST(x.c_day, date_trunc('day', to_timestamp(x.s_ts))::date) END AS s_day,
+                       CASE WHEN x.d_ts IS NULL THEN NULL
+                            WHEN x.d_ts <= 0 THEN x.c_day
+                            ELSE GREATEST(x.c_day, date_trunc('day', to_timestamp(x.d_ts))::date) END AS d_day
+                FROM (
+                    SELECT CASE WHEN t.score > 0 THEN t.score
+                                WHEN t.time_estimated > 0 THEN GREATEST(1, ROUND(t.time_estimated)::int)
+                                ELSE 1 END AS e,
+                           CASE WHEN t.date_creation IS NULL OR t.date_creation = 0 THEN DATE '0001-01-01'
+                                ELSE date_trunc('day', to_timestamp(t.date_creation))::date END AS c_day,
+                           (c.position > 1) AS moved,
+                           LEAST(NULLIF(t.date_started, 0),
+                                 CASE WHEN t.date_completed > 0 THEN t.date_completed
+                                      WHEN t.is_active = false AND t.date_completed = 0 THEN 0
+                                      ELSE NULL END) AS s_ts,
+                           CASE WHEN t.date_completed > 0 THEN t.date_completed
+                                WHEN t.is_active = false AND t.date_completed = 0 THEN 0
+                                ELSE NULL END AS d_ts
+                    FROM ".TaskModel::TABLE.' t'.
+                    ' LEFT JOIN columns c ON c.id = t.column_id'.
+                    ' WHERE t.project_id = ?'.
+                "
+            ),
+            buckets AS (
+                SELECT 'scope' AS kind, c_day AS bday, SUM(e) AS e FROM effort GROUP BY c_day
+                UNION ALL
+                SELECT 'started', s_day, SUM(e) FROM effort WHERE s_day IS NOT NULL GROUP BY s_day
+                UNION ALL
+                SELECT 'completed', d_day, SUM(e) FROM effort WHERE d_day IS NOT NULL GROUP BY d_day
+            )
+            SELECT d.day,
+                   (SELECT COALESCE(SUM(b.e), 0) FROM buckets b WHERE b.kind = 'scope' AND b.bday <= d.day)::int AS scope,
+                   (SELECT COALESCE(SUM(b.e), 0) FROM buckets b WHERE b.kind = 'started' AND b.bday <= d.day)::int AS started,
+                   (SELECT COALESCE(SUM(b.e), 0) FROM buckets b WHERE b.kind = 'completed' AND b.bday <= d.day)::int AS completed
             FROM days d
-            LEFT JOIN effort e ON true
-            LEFT JOIN columns c ON c.id = e.column_id
-            GROUP BY d.day, d.day_end
             ORDER BY d.day";
 
         try {

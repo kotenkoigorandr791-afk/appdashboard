@@ -64,7 +64,18 @@ final class KanboardBoardShareHandler extends BaseAppHandler
                 (string)$projectId,
                 'kanboard',
                 (string)$project['name'],
-                ['owner_email' => $ownerEmail, 'project_id' => $projectId]
+                [
+                    'owner_email' => $ownerEmail,
+                    'project_id' => $projectId,
+                    // Reused by loadData() so a page view does not fetch the same
+                    // project row twice.
+                    'project' => [
+                        'id' => (int)$project['id'],
+                        'name' => (string)($project['name'] ?? ''),
+                        'description' => (string)($project['description'] ?? ''),
+                        'is_active' => (bool)($project['is_active'] ?? true),
+                    ],
+                ]
             );
         } catch (Throwable $e) {
             error_log('sharepoint kanboard resolve: ' . $e->getMessage());
@@ -80,10 +91,13 @@ final class KanboardBoardShareHandler extends BaseAppHandler
             return [];
         }
         try {
-            $stmt = $pdo->prepare('SELECT id, name, description, is_active FROM projects WHERE id = :id LIMIT 1');
-            $stmt->bindValue(':id', $projectId, PDO::PARAM_INT);
-            $stmt->execute();
-            $project = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            $project = $resource->get('project');
+            if (!is_array($project) || empty($project)) {
+                $stmt = $pdo->prepare('SELECT id, name, description, is_active FROM projects WHERE id = :id LIMIT 1');
+                $stmt->bindValue(':id', $projectId, PDO::PARAM_INT);
+                $stmt->execute();
+                $project = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
+            }
 
             $columns = [];
             $stmt = $pdo->prepare('SELECT id, title FROM columns WHERE project_id = :id ORDER BY position ASC, id ASC');
@@ -151,18 +165,22 @@ final class KanboardBoardShareHandler extends BaseAppHandler
             }
             unset($swimlane);
 
+            // Index the column slot per swimlane once, so placing a task does
+            // not scan the whole column list for every task.
+            $columnIndex = [];
+            foreach ($swimlanes as $swimlaneId => $swimlane) {
+                foreach ($swimlane['columns'] as $slot => $column) {
+                    $columnIndex[$swimlaneId][$column['id']] = $slot;
+                }
+            }
+
             foreach ($tasks as $task) {
                 $swimlaneId = (int)$task['swimlane_id'];
-                if (!isset($swimlanes[$swimlaneId])) {
+                $columnId = (int)$task['column_id'];
+                if (!isset($columnIndex[$swimlaneId][$columnId])) {
                     continue;
                 }
-                foreach ($swimlanes[$swimlaneId]['columns'] as &$column) {
-                    if ($column['id'] === (int)$task['column_id']) {
-                        $column['tasks'][] = $task;
-                        break;
-                    }
-                }
-                unset($column);
+                $swimlanes[$swimlaneId]['columns'][$columnIndex[$swimlaneId][$columnId]]['tasks'][] = $task;
             }
 
             return [

@@ -1118,7 +1118,12 @@ function monitorGetDbSafe() {
     }
 }
 
-function monitorTableColumns($db, string $table): array {
+function monitorTableColumns($db, string $table, bool $fresh = false): array {
+    // Column lists do not change during a collector run; cache them per process
+    // instead of asking information_schema for every table and cycle.
+    if (!$fresh && isset($GLOBALS['monitor_table_columns_cache'][$table])) {
+        return $GLOBALS['monitor_table_columns_cache'][$table];
+    }
     $columns = [];
     $stmt = $db->prepare("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name = :table");
     $stmt->bindValue(':table', $table, PDO::PARAM_STR);
@@ -1126,7 +1131,8 @@ function monitorTableColumns($db, string $table): array {
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $columns[(string)$row['name']] = true;
     }
-    return $columns;
+
+    return $GLOBALS['monitor_table_columns_cache'][$table] = $columns;
 }
 
 function monitorEnsureColumn($db, string $table, string $column, string $definition): void {
@@ -1137,6 +1143,7 @@ function monitorEnsureColumnImpl($db, string $table, string $column, string $def
     $columns = monitorTableColumns($db, $table);
     if (!isset($columns[$column])) {
         $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+        monitorTableColumns($db, $table, true);
     }
 }
 

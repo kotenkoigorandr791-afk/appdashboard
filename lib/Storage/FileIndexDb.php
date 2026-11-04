@@ -287,11 +287,17 @@ final class FileIndexDb
     public static function upsert(string $userId, string $appKey, string $relativePath, array $fields): int
     {
         self::ensureSchema();
+
+        if (!self::isSqlite()) {
+            $id = self::upsertPostgres($userId, $appKey, $relativePath, $fields);
+            if ($id > 0) return $id;
+        }
+
         $existing = self::findByPath($userId, $appKey, $relativePath, true);
         $now = time();
         $name = (string)($fields['name'] ?? ($relativePath === '' ? '' : basename($relativePath)));
-        $type = in_array((string)($fields['object_type'] ?? 'file'), self::OBJECT_TYPES, true)
-            ? (string)$fields['object_type'] : 'file';
+        $objectType = (string)($fields['object_type'] ?? 'file');
+        $type = in_array($objectType, self::OBJECT_TYPES, true) ? $objectType : 'file';
         if ($relativePath === '') $type = 'directory';
         $statusValue = (string)($fields['status'] ?? 'active');
         $status = in_array($statusValue, self::STATUSES, true) ? $statusValue : 'active';
@@ -350,6 +356,86 @@ final class FileIndexDb
             $id = (int)self::pdo()->lastInsertId();
         }
         return $id;
+    }
+
+    /**
+     * Single-statement upsert (PostgreSQL). Avoids the SELECT+UPDATE round trip
+     * per file and the race between two indexers writing the same path.
+     *
+     * @param array<string,mixed> $fields
+     */
+    private static function upsertPostgres(string $userId, string $appKey, string $relativePath, array $fields): int
+    {
+        $now = time();
+        $name = (string)($fields['name'] ?? ($relativePath === '' ? '' : basename($relativePath)));
+        $objectType = (string)($fields['object_type'] ?? 'file');
+        $type = in_array($objectType, self::OBJECT_TYPES, true) ? $objectType : 'file';
+        if ($relativePath === '') $type = 'directory';
+        $statusValue = (string)($fields['status'] ?? 'active');
+        $status = in_array($statusValue, self::STATUSES, true) ? $statusValue : 'active';
+        $metadata = $fields['metadata'] ?? [];
+        if (is_array($metadata)) $metadata = json_encode($metadata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        $parentId = $fields['parent_id'] ?? null;
+        if (is_string($parentId)) $parentId = (int)$parentId;
+
+        $createdAt = isset($fields['created_at']) ? (int)$fields['created_at'] : null;
+        $contentHash = isset($fields['content_hash']) ? (string)$fields['content_hash'] : null;
+        $diskId = isset($fields['disk_id']) ? (int)$fields['disk_id'] : null;
+        $sizeBytes = max(0, (int)($fields['size_bytes'] ?? 0));
+        $mtime = (int)($fields['mtime'] ?? $now);
+        $mimeType = (string)($fields['mime_type'] ?? '');
+        $extension = (string)($fields['extension'] ?? strtolower(pathinfo($name, PATHINFO_EXTENSION)));
+
+        $sql = 'INSERT INTO storage_files
+            (user_id,app_key,disk_id,parent_id,name,relative_path,object_type,mime_type,extension,size_bytes,mtime,created_at,updated_at,content_hash,status,metadata)
+            VALUES (:user_id,:app_key,:disk_id,:parent_id,:name,:relative_path,:object_type,:mime_type,:extension,:size_bytes,:mtime,COALESCE(:created_at,:now),:updated_at,:content_hash,:status,:metadata)
+            ON CONFLICT (user_id, app_key, relative_path) DO UPDATE SET
+                disk_id = EXCLUDED.disk_id,
+                parent_id = EXCLUDED.parent_id,
+                name = EXCLUDED.name,
+                object_type = EXCLUDED.object_type,
+                mime_type = EXCLUDED.mime_type,
+                extension = EXCLUDED.extension,
+                size_bytes = EXCLUDED.size_bytes,
+                mtime = EXCLUDED.mtime,
+                created_at = COALESCE(:created_at_upd, storage_files.created_at),
+                updated_at = EXCLUDED.updated_at,
+                content_hash = COALESCE(:content_hash_upd, storage_files.content_hash),
+                status = EXCLUDED.status,
+                metadata = EXCLUDED.metadata
+            RETURNING id';
+
+        $values = [
+            'user_id' => $userId,
+            'app_key' => $appKey,
+            'disk_id' => $diskId,
+            'parent_id' => $parentId !== null ? (int)$parentId : null,
+            'name' => $name,
+            'relative_path' => $relativePath,
+            'object_type' => $type,
+            'mime_type' => $mimeType,
+            'extension' => $extension,
+            'size_bytes' => $sizeBytes,
+            'mtime' => $mtime,
+            'created_at' => $createdAt,
+            'created_at_upd' => $createdAt,
+            'now' => $now,
+            'updated_at' => $now,
+            'content_hash' => $contentHash ?? '',
+            'content_hash_upd' => $contentHash,
+            'status' => $status,
+            'metadata' => (string)$metadata,
+        ];
+
+        $stmt = self::pdo()->prepare($sql);
+        foreach ($values as $col => $value) {
+            $bindType = ($value === null) ? PDO::PARAM_NULL : (is_int($value) ? PDO::PARAM_INT : PDO::PARAM_STR);
+            $stmt->bindValue(':' . $col, $value, $bindType);
+        }
+        $stmt->execute();
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return (int)($row['id'] ?? 0);
     }
 
     /** Merge keys into a row's metadata document without touching other columns. */
