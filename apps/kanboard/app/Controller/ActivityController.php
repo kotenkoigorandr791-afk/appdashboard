@@ -18,14 +18,23 @@ class ActivityController extends BaseController
     public function user()
     {
         $user = $this->getUser();
-
+        $limit = 30;
+        $offset = max(0, $this->request->getIntegerParam('offset', 0));
+        $events = $this->helper->projectActivity->getProjectsEvents($this->projectPermissionModel->getActiveProjectIds($user['id']), $limit + 1, $offset);
+        $hasMore = count($events) > $limit;
+        $events = array_slice($events, 0, $limit);
         $params = array(
-            'title'  => t('Activity stream for %s', $this->helper->user->getFullname($user)),
-            'events' => $this->helper->projectActivity->getProjectsEvents($this->projectPermissionModel->getActiveProjectIds($user['id']), 100),
-            'user'   => $user,
+            'title'    => t('Activity stream for %s', $this->helper->user->getFullname($user)),
+            'events'   => $events,
+            'user'     => $user,
+            'has_more' => $hasMore,
+            'next_url' => $this->helper->url->href('ActivityController', 'user', array('user_id' => $user['id'], 'offset' => $offset + $limit, 'chunk' => 1)),
+            'prev_ts'  => $this->request->getIntegerParam('prev_ts', 0),
         );
 
-        if ($this->request->isAjax()) {
+        if ($this->request->getIntegerParam('chunk', 0) === 1) {
+            $this->response->html($this->template->render('event/events_chunk', $params));
+        } elseif ($this->request->isAjax()) {
             $this->response->html($this->template->render('activity/user', $params));
         } else {
             $this->response->html($this->helper->layout->app('activity/user', $params));

@@ -1,7 +1,7 @@
 <?php if (empty($events)): ?>
     <p class="alert"><?= t('There is no activity yet.') ?></p>
 <?php else: ?>
-    <?php $lastMonth = ''; $lastDay = ''; ?>
+    <?php $lastMonth = !empty($prev_ts) ? date('Y-m', (int) $prev_ts) : ''; $lastDay = !empty($prev_ts) ? date('Y-m-d', (int) $prev_ts) : ''; ?>
     <?php foreach ($events as $event): ?>
         <?php
         $ts = (int) $event['date_creation'];
@@ -28,4 +28,7 @@
             </div>
         </div>
     <?php endforeach ?>
+<?php if (!empty($has_more) && !empty($next_url)): ?>
+        <div class="kb-lazy-sentinel" data-kb-lazy-url="<?= $this->text->e($next_url) ?>" data-prev-ts="<?= (int) end($events)['date_creation'] ?>"></div>
+    <?php endif ?>
 <?php endif ?>

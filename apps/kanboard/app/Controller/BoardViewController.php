@@ -57,6 +57,7 @@ class BoardViewController extends BaseController
     {
         $project = $this->getProject();
         $search = $this->helper->projectHeader->getSearchQuery($project);
+        $this->taskFinderModel->withLightQuery();
 
         $this->response->html($this->helper->layout->app('board/view_private', array(
             'project' => $project,

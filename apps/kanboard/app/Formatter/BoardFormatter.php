@@ -67,6 +67,13 @@ class BoardFormatter extends BaseFormatter implements FormatterInterface
             ->findAll();
 
         $task_ids = array_column($tasks, 'id');
+        if (! empty($tasks) && ! array_key_exists('nb_comments', $tasks[0])) {
+            $counters = $this->taskFinderModel->getBoardCounters($task_ids);
+            foreach ($tasks as &$task) {
+                $task += $counters[$task['id']];
+            }
+            unset($task);
+        }
         $tags = $this->taskTagModel->getTagsByTaskIds($task_ids);
 
         return $this->boardSwimlaneFormatter

@@ -91,11 +91,19 @@ class BoardColumnFormatter extends BaseFormatter implements FormatterInterface
      */
     public function format()
     {
+        $buckets = array();
+        foreach ($this->tasks as $task) {
+            if ($task['swimlane_id'] == $this->swimlaneId) {
+                $buckets[(int) $task['column_id']][] = $task;
+            }
+        }
+
         foreach ($this->columns as &$column) {
             $column['id'] = (int) $column['id'];
-            $column['tasks'] = $this->boardTaskFormatter
-                ->withTasks($this->tasks)
-                ->withTags($this->tags)
+            $bucket = isset($buckets[$column['id']]) ? $buckets[$column['id']] : array();
+            $column['tasks'] = empty($bucket) ? array() : $this->boardTaskFormatter
+                ->withTasks($bucket)
+                ->withTags(array_intersect_key($this->tags, array_flip(array_column($bucket, 'id'))))
                 ->withSwimlaneId($this->swimlaneId)
                 ->withColumnId($column['id'])
                 ->format();

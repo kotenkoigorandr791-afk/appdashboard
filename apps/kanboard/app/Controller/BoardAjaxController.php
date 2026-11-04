@@ -143,6 +143,7 @@ class BoardAjaxController extends BaseController
      */
     protected function renderBoard($project_id)
     {
+        $this->taskFinderModel->withLightQuery();
         return $this->template->render('board/table_container', array(
             'project' => $this->projectModel->getById($project_id),
             'board_private_refresh_interval' => $this->configModel->get('board_private_refresh_interval'),

@@ -3540,3 +3540,5 @@ body.kb-circle #modal-box:has(.kb-plane-create) .kb-plane-footer {
   letter-spacing: .06em;
   text-transform: uppercase;
 }
+.kb-lazy-sentinel { min-height: 1px; height: 40px; }
+[data-kb-chunk-hidden][hidden] { display: none !important; }

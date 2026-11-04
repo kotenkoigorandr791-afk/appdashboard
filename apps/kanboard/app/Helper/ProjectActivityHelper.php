@@ -34,7 +34,7 @@ class ProjectActivityHelper extends Base
                 ->withFilter(new ProjectActivityProjectIdsFilter(array_keys($projects)))
                 ->getQuery()
                 ->desc(ProjectActivityModel::TABLE.'.id')
-                ->limit(500)
+                ->limit(100)
             ;
 
             $events = $queryBuilder->format($this->projectActivityEventFormatter);
@@ -72,7 +72,7 @@ class ProjectActivityHelper extends Base
      * @param  int      $limit
      * @return array
      */
-    public function getProjectsEvents(array $project_ids, $limit = 50)
+    public function getProjectsEvents(array $project_ids, $limit = 50, $offset = 0)
     {
         $queryBuilder = $this->projectActivityQuery
             ->withFilter(new ProjectActivityProjectIdsFilter($project_ids));
@@ -80,6 +80,7 @@ class ProjectActivityHelper extends Base
         $queryBuilder->getQuery()
             ->desc(ProjectActivityModel::TABLE.'.id')
             ->limit($limit)
+            ->offset((int) $offset)
         ;
 
         return $queryBuilder->format($this->projectActivityEventFormatter);

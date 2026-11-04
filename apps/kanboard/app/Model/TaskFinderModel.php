@@ -75,11 +75,56 @@ class TaskFinderModel extends Base
      * @access public
      * @return \PicoDb\Table
      */
+    protected $light = false;
+
+    public function withLightQuery($light = true)
+    {
+        $this->light = (bool) $light;
+        return $this;
+    }
+
+    public function getBoardCounters(array $taskIds)
+    {
+        $counters = array();
+        if (empty($taskIds)) {
+            return $counters;
+        }
+        $keys = array('nb_comments', 'nb_files', 'nb_subtasks', 'nb_completed_subtasks', 'nb_links', 'nb_external_links', 'is_milestone');
+        foreach ($taskIds as $id) {
+            $counters[$id] = array_fill_keys($keys, 0);
+            $counters[$id]['is_milestone'] = null;
+        }
+        $sources = array(
+            array(CommentModel::TABLE, 'nb_comments', null),
+            array(TaskFileModel::TABLE, 'nb_files', null),
+            array(SubtaskModel::TABLE, 'nb_subtasks', null),
+            array(SubtaskModel::TABLE, 'nb_completed_subtasks', 2),
+            array(TaskLinkModel::TABLE, 'nb_links', null),
+            array(TaskExternalLinkModel::TABLE, 'nb_external_links', null),
+        );
+        foreach ($sources as $src) {
+            $q = $this->db->table($src[0])->columns('task_id', 'COUNT(*) AS c')->in('task_id', $taskIds)->groupBy('task_id');
+            if ($src[2] !== null) {
+                $q->eq('status', $src[2]);
+            }
+            foreach ($q->findAll() as $row) {
+                $counters[$row['task_id']][$src[1]] = (int) $row['c'];
+            }
+        }
+        $milestones = $this->db->table(TaskLinkModel::TABLE)->columns(TaskLinkModel::TABLE.'.task_id')
+            ->join(LinkModel::TABLE, 'id', 'link_id')
+            ->in(TaskLinkModel::TABLE.'.task_id', $taskIds)->eq(LinkModel::TABLE.'.label', 'is a milestone of')->findAllByColumn(TaskLinkModel::TABLE.'.task_id');
+        foreach ($milestones as $id) {
+            $counters[$id]['is_milestone'] = 1;
+        }
+        return $counters;
+    }
+
     public function getExtendedQuery()
     {
-        return $this->db
-            ->table(TaskModel::TABLE)
-            ->columns(
+        $light = $this->light;
+        $this->light = false;
+        $counts = $light ? array() : array(
                 '(SELECT COUNT(*) FROM '.CommentModel::TABLE.' WHERE task_id=tasks.id) AS nb_comments',
                 '(SELECT COUNT(*) FROM '.TaskFileModel::TABLE.' WHERE task_id=tasks.id) AS nb_files',
                 '(SELECT COUNT(*) FROM '.SubtaskModel::TABLE.' WHERE '.SubtaskModel::TABLE.'.task_id=tasks.id) AS nb_subtasks',
@@ -87,10 +132,18 @@ class TaskFinderModel extends Base
                 '(SELECT COUNT(*) FROM '.TaskLinkModel::TABLE.' WHERE '.TaskLinkModel::TABLE.'.task_id = tasks.id) AS nb_links',
                 '(SELECT COUNT(*) FROM '.TaskExternalLinkModel::TABLE.' WHERE '.TaskExternalLinkModel::TABLE.'.task_id = tasks.id) AS nb_external_links',
                 '(SELECT DISTINCT 1 FROM '.TaskLinkModel::TABLE.' tl JOIN '.LinkModel::TABLE.' l ON tl.link_id = l.id WHERE tl.task_id = tasks.id AND l.label = '."'is a milestone of') AS is_milestone",
+        );
+        $description = $light
+            ? "CASE WHEN tasks.description <> '' THEN '1' ELSE '' END AS description"
+            : TaskModel::TABLE.'.description';
+        return $this->db
+            ->table(TaskModel::TABLE)
+            ->columns(
+                ...array_merge($counts, array(
                 TaskModel::TABLE.'.id',
                 TaskModel::TABLE.'.reference',
                 TaskModel::TABLE.'.title',
-                TaskModel::TABLE.'.description',
+                $description,
                 TaskModel::TABLE.'.date_creation',
                 TaskModel::TABLE.'.date_modification',
                 TaskModel::TABLE.'.date_completed',
@@ -129,6 +182,7 @@ class TaskFinderModel extends Base
                 ColumnModel::TABLE.'.position AS column_position',
                 SwimlaneModel::TABLE.'.name AS swimlane_name',
                 ProjectModel::TABLE.'.name AS project_name'
+                ))
             )
             ->join(UserModel::TABLE, 'id', 'owner_id', TaskModel::TABLE)
             ->left(UserModel::TABLE, 'uc', 'id', TaskModel::TABLE, 'creator_id')

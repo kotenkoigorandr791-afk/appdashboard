@@ -160,14 +160,14 @@ foreach ($cycle['groups'] as $g) {
                             <?php if (empty($flatTasks)): ?>
                                 <tr><td colspan="6" class="kb-table-empty"><?= t('There is nothing assigned to you.') ?></td></tr>
                             <?php else: ?>
-                                <?php foreach ($flatTasks as $task): ?>
+                                <?php foreach (array_values($flatTasks) as $taskIdx => $task): ?>
                                     <?php
                                     $prio = isset($task['priority']) ? (int) $task['priority'] : $prioStart;
                                     $assignee = ($task['assignee_name'] ?? '') ?: ($task['assignee_username'] ?? '');
                                     $dueTs = !empty($task['date_due']) ? (int) $task['date_due'] : 0;
                                     $colId = (int) ($task['column_id'] ?? $task['_column_id'] ?? 0);
                                     ?>
-                                    <tr class="kb-table-row status-<?= $this->text->e($task['_status_key']) ?> kb-tint-<?= $this->text->e($task['_status_key']) ?>"
+                                    <tr class="kb-table-row status-<?= $this->text->e($task['_status_key']) ?> kb-tint-<?= $this->text->e($task['_status_key']) ?>"<?= $taskIdx >= 50 ? ' hidden data-kb-chunk-hidden="1"' : '' ?>
                                         data-task-id="<?= (int) $task['id'] ?>"
                                         data-id="<?= (int) $task['id'] ?>"
                                         data-title="<?= $this->text->e($task['title']) ?>"
@@ -224,6 +224,9 @@ foreach ($cycle['groups'] as $g) {
                                         </td>
                                     </tr>
                                 <?php endforeach ?>
+                                <?php if (count($flatTasks) > 50): ?>
+                                    <tr class="kb-chunk-more-row" data-kb-chunk-more="50"><td colspan="6"></td></tr>
+                                <?php endif ?>
                             <?php endif ?>
                         </tbody>
                     </table>
@@ -247,14 +250,14 @@ foreach ($cycle['groups'] as $g) {
                                 <?php if (empty($group['tasks'])): ?>
                                     <div class="kb-issue-empty kb-drop-hint"><?= t('Drop tasks here') ?></div>
                                 <?php endif ?>
-                                <?php foreach ($group['tasks'] as $task): ?>
+                                <?php foreach (array_values($group['tasks']) as $taskIdx => $task): ?>
                                     <?php
                                     $due = $this->CircleCycleHelper->formatDue(!empty($task['date_due']) ? (int) $task['date_due'] : null);
                                     $initials = $this->CircleCycleHelper->initials($task);
                                     $tags = $task['tags'] ?? [];
                                     $category = trim((string) ($task['category_name'] ?? ''));
                                     ?>
-                                    <div class="kb-issue-row <?= ((int) ($task['is_active'] ?? 1) === 0 || $group['status_key'] === 'done') ? 'is-done' : '' ?>" data-task-id="<?= (int) $task['id'] ?>" data-column-id="<?= (int) $group['id'] ?>"<?= $canEdit && (int) $group['id'] > 0 ? ' draggable="true"' : '' ?>>
+                                    <div class="kb-issue-row <?= ((int) ($task['is_active'] ?? 1) === 0 || $group['status_key'] === 'done') ? 'is-done' : '' ?>"<?= $taskIdx >= 25 ? ' hidden data-kb-chunk-hidden="1"' : '' ?> data-task-id="<?= (int) $task['id'] ?>" data-column-id="<?= (int) $group['id'] ?>"<?= $canEdit && (int) $group['id'] > 0 ? ' draggable="true"' : '' ?>>
                                         <span class="kb-issue-grip" aria-hidden="true"></span>
                                         <span class="kb-issue-status">
                                             <?= $statusIcons[$group['status_key']] ?? $statusIcons['todo'] ?>
@@ -283,6 +286,9 @@ foreach ($cycle['groups'] as $g) {
                                         </div>
                                     </div>
                                 <?php endforeach ?>
+                                <?php if (count($group['tasks']) > 25): ?>
+                                    <div class="kb-chunk-more-row" data-kb-chunk-more="25"></div>
+                                <?php endif ?>
                             </div>
                         </section>
                     <?php endforeach ?>

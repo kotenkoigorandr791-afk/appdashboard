@@ -53,7 +53,12 @@ class CircleCycleHelper extends Base
             ];
         }
 
-        $closed = $this->taskFinderModel->getAll((int) $project['id'], TaskModel::STATUS_CLOSED);
+        $closed = $this->db->table(TaskModel::TABLE)
+            ->eq('project_id', (int) $project['id'])
+            ->eq('is_active', TaskModel::STATUS_CLOSED)
+            ->desc('date_completed')
+            ->limit(100)
+            ->findAll();
         $doneGroup = null;
         foreach ($groups as &$group) {
             if ($group['status_key'] === 'done') {
@@ -94,9 +99,14 @@ class CircleCycleHelper extends Base
             }
         }
 
-        $stats = $this->computeStats($tasks, $groups);
-        $burnup = $this->buildBurnup($tasks, 14);
-        $assignees = $this->buildAssigneeProgress($tasks);
+        $keyMap = [];
+        foreach ($groups as $g) {
+            $keyMap[(int) $g['id']] = $g['status_key'];
+        }
+        $statTasks = $this->loadStatTasks((int) $project['id']);
+        $stats = $this->computeStats($statTasks, $keyMap);
+        $burnup = $this->buildBurnup($statTasks, 14);
+        $assignees = $this->buildAssigneeProgress($statTasks);
 
         return [
             'cycle_name' => $this->cycleName($project),
@@ -106,6 +116,31 @@ class CircleCycleHelper extends Base
             'assignees' => $assignees,
             'task_count' => count($tasks),
         ];
+    }
+
+    private function loadStatTasks(int $projectId): array
+    {
+        $rows = $this->db->table(TaskModel::TABLE)
+            ->columns(
+                TaskModel::TABLE.'.id',
+                TaskModel::TABLE.'.score',
+                TaskModel::TABLE.'.time_estimated',
+                TaskModel::TABLE.'.date_creation',
+                TaskModel::TABLE.'.date_completed',
+                TaskModel::TABLE.'.date_started',
+                TaskModel::TABLE.'.is_active',
+                TaskModel::TABLE.'.owner_id',
+                TaskModel::TABLE.'.column_id',
+                'c.position AS column_position',
+                'c.title AS column_name',
+                'u.name AS assignee_name',
+                'u.username AS assignee_username'
+            )
+            ->join('columns AS c', 'id', 'column_id')
+            ->left('users AS u', 'id', 'owner_id', TaskModel::TABLE)
+            ->eq(TaskModel::TABLE.'.project_id', $projectId)
+            ->findAll();
+        return is_array($rows) ? $rows : [];
     }
 
     public function formatDue(?int $ts): string
@@ -202,7 +237,7 @@ class CircleCycleHelper extends Base
         return 'progress';
     }
 
-    private function computeStats(array $tasks, array $groups): array
+    private function computeStats(array $tasks, array $keyMap): array
     {
         $scope = 0;
         $started = 0;
@@ -210,20 +245,11 @@ class CircleCycleHelper extends Base
         foreach ($tasks as $task) {
             $effort = $this->effort($task);
             $scope += $effort;
-            $key = 'todo';
-            foreach ($groups as $group) {
-                foreach ($group['tasks'] as $gt) {
-                    if ((int) $gt['id'] === (int) $task['id']) {
-                        $key = $group['status_key'];
-                        break 2;
-                    }
-                }
-            }
+            $key = $keyMap[(int) ($task['column_id'] ?? 0)] ?? 'todo';
             if ($key === 'done' || (int) ($task['is_active'] ?? 1) === 0) {
                 $completed += $effort;
             } elseif ($key === 'progress' || $key === 'review') {
                 $started += $effort;
-                $completed += 0;
             }
         }
         $pct = $scope > 0 ? (int) round(($completed / $scope) * 100) : 0;
