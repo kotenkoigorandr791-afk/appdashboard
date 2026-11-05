@@ -34,7 +34,11 @@
     var revokeLabel = revokeBtn ? revokeBtn.innerHTML : '';
     var noTokenMsg = modal.getAttribute('data-no-token-msg') || 'Generate a QR code first.';
     var noPhonesMsg = modal.getAttribute('data-no-phones-msg') || 'No phones connected yet';
-    var noPhonesNote = modal.getAttribute('data-no-phones-note') || 'Generate a pairing code to connect the Android app.';
+    var noPhonesNote =
+      modal.getAttribute('data-no-phones-note') || 'Generate a pairing code to connect the Android app.';
+    var qrErrorMsg = modal.getAttribute('data-qr-error-msg') || 'QR code unavailable';
+    var tokenErrorMsg = modal.getAttribute('data-token-error-msg') || 'Token generation failed';
+    var deviceName = modal.getAttribute('data-device-name') || 'Planning Mobile';
 
     function openModal(el) {
       if (!el) return;
@@ -156,7 +160,7 @@
         hostEl.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
       } catch (error) {
         console.error('Pairing QR error:', error);
-        hostEl.innerHTML = '<p style="color:#121212;padding:12px;">QR code unavailable</p>';
+        hostEl.innerHTML = '<p style="color:#121212;padding:12px;">' + qrErrorMsg + '</p>';
       }
     }
 
@@ -179,7 +183,7 @@
         fd.append('action', 'generate_mcp_token');
         fd.append('generate_mcp_token', '1');
         fd.append('ajax', '1');
-        fd.append('mcp_token_name', 'Planning Mobile');
+        fd.append('mcp_token_name', deviceName);
         fd.append('token_app', 'kanboard');
         var opts = { method: 'POST', body: fd, credentials: 'same-origin' };
         if (csrf) {
@@ -198,7 +202,9 @@
           res = await sendRequest(csrf);
           data = await res.json().catch(function () { return null; });
         }
-        if (!data || !data.success || !data.token) throw new Error((data && data.error) || 'Token generation failed');
+        if (!data || !data.success || !data.token) {
+          throw new Error((data && data.error) || tokenErrorMsg);
+        }
         pairing.token = String(data.token);
         pairing.link =
           'appdashboard-planning://auth?endpoint=' +

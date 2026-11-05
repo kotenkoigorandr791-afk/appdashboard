@@ -24,6 +24,7 @@ class LanguageModel extends Base
     {
         return array(
             'id_ID',
+            'be_BY',
             'bg_BG',
             'bs_BA',
             'ca_ES',
@@ -93,6 +94,7 @@ class LanguageModel extends Base
         // Sorted by value
         $languages = array(
             'id_ID' => 'Bahasa Indonesia',
+            'be_BY' => 'Беларуская',
             'bg_BG' => 'Български',
             'bs_BA' => 'Bosanski',
             'ca_ES' => 'Català',
@@ -151,6 +153,7 @@ class LanguageModel extends Base
     public function getJsLanguageCode()
     {
         $languages = array(
+            'be_BY' => 'be',
             'bg_BG' => 'bg',
             'cs_CZ' => 'cs',
             'ca_ES' => 'ca',

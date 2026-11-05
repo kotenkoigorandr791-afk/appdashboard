@@ -13,8 +13,8 @@ function kanboard_bridge_lang_map(): array
         'ru' => 'ru_RU',
         'uk' => 'uk_UA',
         'ua' => 'uk_UA',
-        'be' => 'ru_RU',
-        'by' => 'ru_RU',
+        'be' => 'be_BY',
+        'by' => 'be_BY',
         'pl' => 'pl_PL',
         'cs' => 'cs_CZ',
     ];

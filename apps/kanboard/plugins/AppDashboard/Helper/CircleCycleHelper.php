@@ -413,19 +413,19 @@ class CircleCycleHelper extends Base
     private function statusKey(string $title, int $position, int $total): string
     {
         $t = mb_strtolower(trim($title));
-        if (preg_match('/done|complete|closed|закрыт|готово/', $t)) {
+        if (preg_match('/done|complete|closed|закрыт|готово|зроблен|сконча|заверш|гатов[ао]/', $t)) {
             return 'done';
         }
-        if (preg_match('/review|qa|test|проверк/', $t)) {
+        if (preg_match('/review|qa|test|проверк|праверк|рэцэнз|тэсц/', $t)) {
             return 'review';
         }
-        if (preg_match('/progress|doing|wip|работ/', $t)) {
+        if (preg_match('/progress|doing|wip|работ|у працы|прац|выконва/', $t)) {
             return 'progress';
         }
-        if (preg_match('/backlog|бэклог/', $t)) {
+        if (preg_match('/backlog|бэклог|чарг/', $t)) {
             return 'backlog';
         }
-        if (preg_match('/todo|ready|to.?do|ожид/', $t)) {
+        if (preg_match('/todo|ready|to.?do|ожид|гатов|чакан/', $t)) {
             return 'todo';
         }
         if ($total <= 1) {
@@ -572,6 +572,6 @@ class CircleCycleHelper extends Base
     private function isDoneTask(array $task): bool
     {
         $name = mb_strtolower((string) ($task['column_name'] ?? ''));
-        return (bool) preg_match('/done|complete|closed|готово|закрыт/', $name);
+        return (bool) preg_match('/done|complete|closed|готово|закрыт|зроблен|сконча|заверш|гатов[ао]/', $name);
     }
 }

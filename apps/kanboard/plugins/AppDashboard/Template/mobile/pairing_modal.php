@@ -49,7 +49,10 @@ $tokens = $this->MobilePairingHelper->tokens();
      data-account="<?= $this->text->e($accountEmail) ?>"
      data-no-token-msg="<?= $this->text->e(t('Generate a QR code first.')) ?>"
      data-no-phones-msg="<?= $this->text->e(t('No phones connected yet')) ?>"
-     data-no-phones-note="<?= $this->text->e(t('Generate a pairing code to connect the Android app.')) ?>">
+     data-no-phones-note="<?= $this->text->e(t('Generate a pairing code to connect the Android app.')) ?>"
+     data-qr-error-msg="<?= $this->text->e(t('QR code unavailable')) ?>"
+     data-token-error-msg="<?= $this->text->e(t('Token generation failed')) ?>"
+     data-device-name="<?= $this->text->e(t('Planning Mobile')) ?>">
     <div class="kb-settings-content">
         <button type="button" class="kb-mobile-close" id="kb-mobile-app-close" aria-label="<?= t('Close') ?>">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>

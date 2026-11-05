@@ -435,6 +435,8 @@
       var countEl = group.querySelector('.kb-issue-group-count');
       if (countEl) countEl.textContent = String(targetRows.querySelectorAll('.kb-issue-row').length);
     }
+    var cycleRoot = document.getElementById('kb-cycle-issues');
+    var dropHint = (cycleRoot && cycleRoot.getAttribute('data-drop-hint')) || 'Drop tasks here';
     document.querySelectorAll('#kb-cycle-issues .kb-issue-group').forEach(function (g) {
       var rows = g.querySelector('.kb-issue-rows');
       var c = g.querySelector('.kb-issue-group-count');
@@ -442,7 +444,7 @@
       if (rows && !rows.querySelector('.kb-issue-row') && !rows.querySelector('.kb-issue-empty')) {
         var hint = document.createElement('div');
         hint.className = 'kb-issue-empty kb-drop-hint';
-        hint.textContent = 'Drop tasks here';
+        hint.textContent = dropHint;
         rows.appendChild(hint);
       }
     });

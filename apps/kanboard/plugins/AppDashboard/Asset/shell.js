@@ -385,7 +385,8 @@
       }
     }
     if (!title) {
-      title = 'Dialog';
+      title =
+        (document.body && document.body.getAttribute('data-kb-dialog-label')) || 'Dialog';
     }
     header.className = 'kb-modal-topbar';
     header.innerHTML = '';

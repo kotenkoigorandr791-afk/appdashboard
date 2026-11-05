@@ -221,7 +221,7 @@ class Plugin extends Base
         if ($this->configModel->get('appdashboard_todo_column_migrated') === '1') {
             return;
         }
-        $titles = array('Ready', 'Согласованные', 'Відібрані', 'Připraveno', 'Gotowe');
+        $titles = array('Ready', 'Согласованные', 'Відібрані', 'Připraveno', 'Gotowe', 'Гатовыя');
         try {
             foreach ($titles as $title) {
                 $this->db->table(ColumnModel::TABLE)->eq('title', $title)->update(array('title' => 'todo'));

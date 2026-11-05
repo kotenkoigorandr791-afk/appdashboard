@@ -160,7 +160,7 @@ foreach ($cycle['groups'] as $g) {
                     </table>
                 </div>
             <?php else: ?>
-                <div class="kb-cycle-issues" id="kb-cycle-issues" data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-prio-min="<?= (int) $prioStart ?>" data-prio-max="<?= (int) $prioEnd ?>" data-prio-labels="<?= $this->text->e(json_encode([t('Low'), t('Normal'), t('High'), t('Urgent')])) ?>">
+                <div class="kb-cycle-issues" id="kb-cycle-issues" data-drop-hint="<?= t('Drop tasks here') ?>" data-can-edit="<?= $canEdit ? '1' : '0' ?>" data-prio-min="<?= (int) $prioStart ?>" data-prio-max="<?= (int) $prioEnd ?>" data-prio-labels="<?= $this->text->e(json_encode([t('Low'), t('Normal'), t('High'), t('Urgent')])) ?>">
                     <?php foreach ($cycle['groups'] as $group): ?>
                         <?php if ((int) $group['id'] <= 0 && (int) $group['count'] === 0) continue; ?>
                         <section class="kb-issue-group kb-tint-<?= $this->text->e($group['status_key']) ?>" data-status="<?= $this->text->e($group['status_key']) ?>" data-column-id="<?= (int) $group['id'] ?>">
@@ -209,7 +209,7 @@ foreach ($cycle['groups'] as $g) {
         <div class="kb-panel-resizer kb-panel-resizer-cycle" data-kb-resizer="cycle" role="separator" aria-orientation="vertical" aria-label="<?= t('Resize panel') ?>" title="<?= t('Resize panel') ?>"></div>
         <aside class="kb-cycle-panel" id="kb-cycle-panel" aria-label="<?= t('Analytics') ?>">
             <div class="kb-cycle-panel-head">
-                <h2>Cycle Details</h2>
+                <h2><?= t('Cycle Details') ?></h2>
                 <span class="kb-cycle-panel-sub"><?= $this->text->e($project['name']) ?></span>
             </div>
             <div class="kb-cycle-stats">
@@ -217,29 +217,29 @@ foreach ($cycle['groups'] as $g) {
                     <?= $ring((int) $stats['percent'], 72) ?>
                     <div class="kb-cycle-stat-ring-label">
                         <strong><?= (int) $stats['percent'] ?>%</strong>
-                        <span>done</span>
+                        <span><?= t('Done') ?></span>
                     </div>
                 </div>
                 <div class="kb-cycle-stat">
                     <strong><?= (int) $stats['effort'] ?></strong>
-                    <span>effort</span>
+                    <span><?= t('Effort') ?></span>
                 </div>
                 <div class="kb-cycle-stat">
                     <strong><?= (int) $stats['weekdays_left'] ?></strong>
-                    <span>weekdays left</span>
+                    <span><?= t('Weekdays left') ?></span>
                 </div>
             </div>
             <div class="kb-cycle-chart-block">
                 <div class="kb-cycle-chart-legend">
-                    <span><i style="background:#6771c5"></i>Effort</span>
-                    <span><i style="background:#c4c8d0"></i>Scope</span>
-                    <span><i style="background:#facc15"></i>Started</span>
+                    <span><i style="background:#6771c5"></i><?= t('Effort') ?></span>
+                    <span><i style="background:#c4c8d0"></i><?= t('Scope') ?></span>
+                    <span><i style="background:#facc15"></i><?= t('Started') ?></span>
                 </div>
                 <script type="application/json" id="kb-burnup-data"><?= json_encode($cycle['burnup'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS) ?></script>
                 <canvas id="kb-burnup-chart" class="kb-burnup-chart" width="360" height="160"></canvas>
             </div>
             <div class="kb-cycle-assignees">
-                <h3>Progress on effort</h3>
+                <h3><?= t('Progress on effort') ?></h3>
                 <?php if (empty($cycle['assignees'])): ?>
                     <p class="kb-cycle-empty"><?= t('There is nothing assigned to you.') ?></p>
                 <?php else: ?>
