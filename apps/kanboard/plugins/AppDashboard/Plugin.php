@@ -6,9 +6,11 @@ use Kanboard\Core\Plugin\Base;
 use Kanboard\Core\Security\AuthenticationManager;
 use Kanboard\Core\Security\Role;
 use Kanboard\Model\ColumnModel;
+use Kanboard\Model\TaskModel;
 use Kanboard\Notification\WebNotification;
 use Kanboard\Plugin\AppDashboard\Auth\DashboardAuth;
 use Kanboard\Plugin\AppDashboard\Notification\ShellNotification;
+use Kanboard\Plugin\AppDashboard\Notification\TaskCreatedNotifier;
 use Kanboard\Plugin\AppDashboard\User\Avatar\ShellAvatarProvider;
 use Kanboard\Plugin\AppDashboard\User\ShellDirectoryBackendUserProvider;
 
@@ -32,6 +34,12 @@ class Plugin extends Base
             ShellNotification::class,
             true
         );
+
+        // New tasks must surface in the shell bell even when nobody is assigned yet.
+        $taskCreatedNotifier = new TaskCreatedNotifier($this->container);
+        $this->dispatcher->addListener(TaskModel::EVENT_CREATE, function ($event) use ($taskCreatedNotifier) {
+            $taskCreatedNotifier->handleEvent($event);
+        });
 
         $this->template->setTemplateOverride('layout', 'appDashboard:layout');
         $this->template->setTemplateOverride('header/title', 'appDashboard:header/title');
