@@ -233,7 +233,7 @@ class Plugin extends Base
 
     private function ensurePerformanceIndexes(): void
     {
-        if ($this->configModel->get('appdashboard_perf_indexes_v3') === '1') {
+        if ($this->configModel->get('appdashboard_perf_indexes_v4') === '1') {
             return;
         }
         $statements = [
@@ -248,6 +248,16 @@ class Plugin extends Base
             'CREATE INDEX IF NOT EXISTS task_has_external_links_task_idx ON kanboard.task_has_external_links (task_id)',
             'CREATE INDEX IF NOT EXISTS project_activities_project_idx ON kanboard.project_activities (project_id, id DESC)',
             'CREATE INDEX IF NOT EXISTS project_activities_task_idx ON kanboard.project_activities (task_id, id DESC)',
+            // Board windows rank tasks per column (and per swimlane+column); these
+            // composites let Postgres read rows already in window order instead of
+            // sorting the whole project on every board render.
+            'CREATE INDEX IF NOT EXISTS tasks_project_column_position_idx ON kanboard.tasks (project_id, column_id, position, id)',
+            'CREATE INDEX IF NOT EXISTS tasks_project_swimlane_column_position_idx ON kanboard.tasks (project_id, swimlane_id, column_id, position, id)',
+            // Board cards show comment/file/subtask/link counters for one page of tasks.
+            'CREATE INDEX IF NOT EXISTS comments_task_idx ON kanboard.comments (task_id)',
+            'CREATE INDEX IF NOT EXISTS task_has_files_task_idx ON kanboard.task_has_files (task_id)',
+            'CREATE INDEX IF NOT EXISTS subtasks_task_idx ON kanboard.subtasks (task_id)',
+            'CREATE INDEX IF NOT EXISTS task_has_links_task_idx ON kanboard.task_has_links (task_id)',
         ];
         try {
             foreach ($statements as $sql) {
@@ -256,6 +266,7 @@ class Plugin extends Base
             $this->configModel->save([
                 'appdashboard_perf_indexes_v2' => '1',
                 'appdashboard_perf_indexes_v3' => '1',
+                'appdashboard_perf_indexes_v4' => '1',
             ]);
         } catch (\Throwable $e) {
         }

@@ -169,10 +169,10 @@ class BoardFormatter extends BaseFormatter implements FormatterInterface
      */
     protected function fetchTasks($offset, $limit, $columnId = null, $swimlaneId = null)
     {
-        $this->query
-            ->eq(TaskModel::TABLE.'.project_id', $this->projectId)
-            ->asc(TaskModel::TABLE.'.position')
-            ->asc(TaskModel::TABLE.'.id');
+        // No ORDER BY here on purpose: the window function below and the outer
+        // query already sort, and letting Postgres sort the whole project twice
+        // was the single most expensive part of rendering a board.
+        $this->query->eq(TaskModel::TABLE.'.project_id', $this->projectId);
 
         $baseSql = $this->query->buildSelectQuery();
         $values = $this->query->getConditionBuilder()->getValues();
@@ -181,16 +181,20 @@ class BoardFormatter extends BaseFormatter implements FormatterInterface
             ? 'kb_base.swimlane_id, kb_base.column_id'
             : 'kb_base.column_id';
 
-        $rankedSql = 'SELECT kb_base.*, ROW_NUMBER() OVER (PARTITION BY '.$partition.' ORDER BY kb_base.position ASC, kb_base.id ASC) AS kb_row_number'
-            .' FROM ('.$baseSql.') kb_base';
+        // Rank only the narrow key columns and join the wide rows back afterwards:
+        // sorting (id, column_id, position) instead of the full task rows keeps the
+        // sort buffer small, which is what dominates this query on big projects.
+        $rankedSql = 'WITH kb_base AS ('.$baseSql.'),'
+            .' kb_ranked AS (SELECT kb_base.id AS kb_id, ROW_NUMBER() OVER (PARTITION BY '.$partition.' ORDER BY kb_base.position ASC, kb_base.id ASC) AS kb_row_number FROM kb_base)'
+            .' SELECT kb_base.* FROM kb_base JOIN kb_ranked ON kb_ranked.kb_id = kb_base.id';
 
         $where = array();
         if ($columnId !== null) {
-            $where[] = 'kb_ranked.column_id = ?';
+            $where[] = 'kb_base.column_id = ?';
             $values[] = (int) $columnId;
         }
         if ($swimlaneId !== null) {
-            $where[] = 'kb_ranked.swimlane_id = ?';
+            $where[] = 'kb_base.swimlane_id = ?';
             $values[] = (int) $swimlaneId;
         }
 
@@ -199,8 +203,8 @@ class BoardFormatter extends BaseFormatter implements FormatterInterface
         $where[] = 'kb_ranked.kb_row_number <= ?';
         $values[] = (int) $offset + (int) $limit;
 
-        $sql = 'SELECT * FROM ('.$rankedSql.') kb_ranked WHERE '.implode(' AND ', $where)
-            .' ORDER BY kb_ranked.position ASC, kb_ranked.id ASC';
+        $sql = $rankedSql.' WHERE '.implode(' AND ', $where)
+            .' ORDER BY kb_base.position ASC, kb_base.id ASC';
 
         $statement = $this->db->getConnection()->prepare($sql);
         $statement->execute($values);
