@@ -3428,7 +3428,13 @@ function trustedDeviceGpuMatches(string $email, string $fingerprint): bool {
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':f', $fingerprint, PDO::PARAM_STR);
     $stored = (string)($stmt->execute()->fetchColumn() ?: '');
-    return $stored === '' || ($current = getGpuFingerprint()) !== '' && hash_equals($stored, $current);
+    $current = getGpuFingerprint();
+    // GPU/WebGL is a risk signal, not a hard requirement. WebGL can be
+    // unavailable (privacy browsers, mobile WebViews, blocklisted drivers) or
+    // the cookie can be stale/cleared, and that must not revoke an otherwise
+    // valid trusted device. Only a confirmed different hash is a mismatch.
+    if ($stored === '' || $current === '') return true;
+    return hash_equals($stored, $current);
 }
 
 /**
