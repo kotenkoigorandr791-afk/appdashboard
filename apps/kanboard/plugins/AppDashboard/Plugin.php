@@ -83,6 +83,7 @@ class Plugin extends Base
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/circle-cycle.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/md-live.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/lazy-load.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/board-menu.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/qr-generator.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);

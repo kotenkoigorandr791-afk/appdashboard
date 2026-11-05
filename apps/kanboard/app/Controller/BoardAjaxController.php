@@ -4,6 +4,7 @@ namespace Kanboard\Controller;
 
 use Exception;
 use Kanboard\Core\Controller\AccessForbiddenException;
+use Kanboard\Core\Controller\PageNotFoundException;
 use Kanboard\Formatter\BoardFormatter;
 use Kanboard\Model\UserMetadataModel;
 
@@ -128,12 +129,12 @@ class BoardAjaxController extends BaseController
             $tasks = $formatter->withPartitionBySwimlane(true)
                 ->formatTaskSlice($column_id, $swimlane_id, $offset, $limit);
 
-            $this->response->html($this->template->render('board/task_rows', array(
+            $this->response->html(minify_html($this->template->render('board/task_rows', array(
                 'project' => $this->projectModel->getById($project_id),
                 'tasks' => $tasks,
                 'board_highlight_period' => $this->configModel->get('board_highlight_period'),
                 'not_editable' => false,
-            )));
+            ))));
             return;
         }
 
@@ -161,6 +162,31 @@ class BoardAjaxController extends BaseController
             'tasks' => $tasks,
             'project' => $this->projectModel->getById($project_id),
             'column' => $this->columnModel->getById($column_id),
+        )));
+    }
+
+    /**
+     * Render the actions dropdown of one board card (loaded on demand)
+     *
+     * @access public
+     */
+    public function taskMenu()
+    {
+        if (! $this->request->isAjax()) {
+            throw new AccessForbiddenException();
+        }
+
+        $task = $this->taskFinderModel->getById($this->request->getIntegerParam('task_id'));
+
+        if (empty($task)) {
+            throw new PageNotFoundException();
+        }
+
+        $this->getProject($task['project_id']);
+
+        $this->response->html($this->template->render('task/dropdown', array(
+            'task' => $task,
+            'redirect' => 'board',
         )));
     }
 
@@ -213,13 +239,13 @@ class BoardAjaxController extends BaseController
     protected function renderBoard($project_id)
     {
         $this->taskFinderModel->withLightQuery();
-        return $this->template->render('board/table_container', array(
+        return minify_html($this->template->render('board/table_container', array(
             'project' => $this->projectModel->getById($project_id),
             'board_private_refresh_interval' => $this->configModel->get('board_private_refresh_interval'),
             'board_highlight_period' => $this->configModel->get('board_highlight_period'),
             'swimlanes' => $this->taskLexer
                 ->build($this->userSession->getFilters($project_id))
-                ->format($this->boardFormatter->withProjectId($project_id)->withPartitionBySwimlane(true))
-        ));
+                ->format($this->boardFormatter->withProjectId($project_id)->withPartitionBySwimlane(true)->withTaskLimit(BoardViewController::BOARD_COLUMN_PAGE_SIZE))
+        )));
     }
 }

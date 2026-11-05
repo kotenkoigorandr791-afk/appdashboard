@@ -47,21 +47,29 @@
     if (!url) return;
     var offset = parseInt(marker.getAttribute('data-kb-offset'), 10) || 0;
     var total = parseInt(marker.getAttribute('data-kb-total'), 10) || 0;
+    // the url carries the initial offset, keep it in sync with the current position
+    url = url.replace(/([?&]offset=)\d+/, '$1' + offset);
     fetch(url, { credentials: 'same-origin', headers: { 'X-Requested-With': 'XMLHttpRequest' } })
       .then(function (r) { return r.ok ? r.text() : Promise.reject(); })
       .then(function (html) {
         var tpl = document.createElement('template');
         tpl.innerHTML = html;
-        var added = 0;
+        // count task cards only, text nodes between them would break the offset
+        var added = tpl.content.querySelectorAll('.task-board').length;
         while (tpl.content.firstChild) {
           marker.parentNode.insertBefore(tpl.content.firstChild, marker);
-          added++;
         }
         marker.removeAttribute('data-kb-loading');
         if (added === 0) { marker.remove(); return; }
         offset += added;
         marker.setAttribute('data-kb-offset', String(offset));
-        if (total > 0 && offset >= total) { marker.remove(); }
+        if (total > 0 && offset >= total) { marker.remove(); return; }
+        if (marker._moreIO) {
+          marker._moreIO.disconnect();
+          setTimeout(function () {
+            if (marker.isConnected) marker._moreIO.observe(marker);
+          }, 120);
+        }
       })
       .catch(function () { marker.removeAttribute('data-kb-loading'); });
   }
@@ -73,7 +81,7 @@
       if ('IntersectionObserver' in window) {
         m._moreIO = new IntersectionObserver(function (entries) {
           entries.forEach(function (e) {
-            if (e.isIntersecting) { e.target._moreIO.disconnect(); fetchMore(e.target); }
+            if (e.isIntersecting) fetchMore(e.target);
           });
         }, { rootMargin: '300px 0px' });
         m._moreIO.observe(m);
