@@ -322,7 +322,14 @@
       background: rgba(0,0,0,0.3); 
       padding: 15px; 
       border-radius: 8px; 
+      scrollbar-width: thin;
+      scrollbar-color: rgba(255,255,255,0.45) transparent;
+      overscroll-behavior: contain;
     }
+    .error-content::-webkit-scrollbar { width: 5px; height: 5px; }
+    .error-content::-webkit-scrollbar-track { background: transparent; }
+    .error-content::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.35); border-radius: 999px; }
+    .error-content::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.65); }
     .error-content pre { 
       margin: 0; 
       white-space: pre-wrap; 

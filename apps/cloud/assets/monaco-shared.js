@@ -575,8 +575,17 @@
         if (overlay) return overlay;
         overlay = document.createElement('div');
         overlay.className = 'monaco-ai-action-overlay hidden';
-        overlay.style.cssText = 'position:absolute;z-index:20000;width:min(320px,calc(100% - 24px));padding:12px;border:1px solid rgba(255,255,255,.18);border-radius:14px;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--panel,#252526) 78%,transparent);box-shadow:0 18px 48px rgba(0,0,0,.28);display:flex;flex-direction:column;gap:10px;touch-action:none';
-        overlay.innerHTML = '<div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;user-select:none;"><strong data-role="title" style="font-size:13px;"></strong><button type="button" data-role="close" style="width:28px;height:28px;min-width:28px;cursor:pointer;border:none;background:transparent;color:inherit;font-size:18px;">×</button></div><textarea data-role="prompt" rows="2" style="width:100%;min-height:52px;max-height:120px;padding:8px 10px;border-radius:10px;border:1px solid var(--border,#444);background:var(--bg,#1e1e1e);color:var(--fg,#eee);resize:vertical;box-sizing:border-box;font:inherit;"></textarea><div data-role="status" style="min-height:18px;font-size:12px;color:var(--muted,#999);"></div><div style="display:flex;gap:8px;justify-content:flex-end;"><button type="button" data-role="undo" class="hidden" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border,#444);background:transparent;color:inherit;cursor:pointer;"></button><button type="button" data-role="apply" style="padding:6px 10px;border-radius:8px;border:1px solid transparent;background:var(--accent,#569cd6);color:#fff;cursor:pointer;"></button></div>';
+        // Theme variables first, light fallbacks second: the editor can be opened in a
+        // light theme where --panel/--bg/--fg are not defined at all.
+        overlay.style.cssText = 'position:absolute;z-index:20000;width:min(264px,calc(100% - 16px));max-width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border-color,rgba(0,0,0,.14));border-radius:12px;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--panel-bg,#ffffff) 92%,transparent);color:var(--text-color,#222);box-shadow:0 10px 28px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:6px;touch-action:none';
+        const sendIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>';
+        overlay.innerHTML = '<div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:move;user-select:none;"><strong data-role="title" style="font-size:12px;"></strong><button type="button" data-role="close" style="width:22px;height:22px;min-width:22px;cursor:pointer;border:none;background:transparent;color:inherit;font-size:15px;line-height:1;">×</button></div>'
+            + '<div style="display:flex;align-items:flex-end;gap:6px;">'
+            + '<textarea data-role="prompt" rows="2" style="flex:1 1 auto;min-width:0;min-height:38px;max-height:96px;padding:6px 8px;border-radius:10px;border:1px solid var(--border-color,#d0d0d0);background:var(--bg-color,#fff);color:var(--text-color,#222);resize:vertical;box-sizing:border-box;font:inherit;font-size:12px;"></textarea>'
+            + '<button type="button" data-role="apply" class="ai-send-btn" aria-label="Apply" title="Apply" style="width:32px;height:32px;min-width:32px;padding:0;border:none;border-radius:50%;background:var(--accent-color,#007bff);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">' + sendIcon + '</button>'
+            + '</div>'
+            + '<div data-role="status" style="min-height:0;font-size:11px;line-height:1.3;color:var(--text-color,#666);opacity:.75;"></div>'
+            + '<div class="ai-actions" style="display:flex;gap:6px;justify-content:flex-end;"><button type="button" data-role="undo" class="hidden" style="padding:6px 10px;border-radius:8px;border:1px solid var(--border-color,#d0d0d0);background:transparent;color:inherit;cursor:pointer;"></button></div>';
         const mount = hostContainer || document.body;
         if (getComputedStyle(mount).position === 'static') mount.style.position = 'relative';
         mount.appendChild(overlay);
@@ -611,13 +620,22 @@
         const prompt = overlay.querySelector('[data-role="prompt"]');
         if (prompt) prompt.placeholder = L.prompt || tKey('monacoAiPromptPlaceholder', 'What should AI change?');
         const apply = overlay.querySelector('[data-role="apply"]');
-        if (apply) apply.textContent = L.apply || tKey('apply', 'Apply');
+        if (apply) {
+            const label = L.apply || tKey('apply', 'Apply');
+            // Icon-only button: keep the text off the button, use it as a label.
+            apply.setAttribute('aria-label', label);
+            apply.title = label;
+        }
         const undo = overlay.querySelector('[data-role="undo"]');
         if (undo) undo.textContent = L.undo || tKey('monacoAiUndo', 'Undo');
         if (!document.getElementById('cloud-monaco-ai-overlay-style')) {
             const st = document.createElement('style');
             st.id = 'cloud-monaco-ai-overlay-style';
-            st.textContent = '.monaco-ai-action-overlay.hidden{display:none!important}.monaco-ai-action-overlay .hidden{display:none!important}';
+            st.textContent = '.monaco-ai-action-overlay.hidden{display:none!important}.monaco-ai-action-overlay .hidden{display:none!important}'
+                + '.monaco-ai-action-overlay .ai-send-btn:disabled{opacity:.55;cursor:default}'
+                // Keep the card compact: collapse the empty status line and the undo row.
+                + '.monaco-ai-action-overlay [data-role="status"]:empty{display:none}'
+                + '.monaco-ai-action-overlay .ai-actions:has(.hidden){display:none!important}';
             document.head.appendChild(st);
         }
     }

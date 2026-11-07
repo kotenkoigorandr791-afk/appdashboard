@@ -1622,7 +1622,14 @@
       const dpr = window.devicePixelRatio || 1;
       return Math.min(Math.max(dpr, 1), PDF_OUTPUT_SCALE_CAP);
     }
+    // The preview->code arrows only make sense once a PDF is actually rendered.
+    function setSyncArrowsReady(ready) {
+      if (window.cloudEditorPanes && typeof cloudEditorPanes.setSyncReady === 'function') {
+        cloudEditorPanes.setSyncReady(!!ready);
+      }
+    }
     function teardownPdfViewer() {
+      setSyncArrowsReady(false);
       if (pdfPageObserver) {
         try { pdfPageObserver.disconnect(); } catch (_) {}
         pdfPageObserver = null;
@@ -1973,6 +1980,7 @@
           }
         }, { root: pdfView, rootMargin: '240px 0px', threshold: 0.01 });
         wrappers.forEach(w => pdfPageObserver.observe(w));
+        setSyncArrowsReady(true);
         setStatus(t['pdf_loaded'], 'status-ok');
       }).catch(error => {
         if (token !== pdfRenderToken) return;
