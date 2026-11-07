@@ -28,6 +28,7 @@ vendor/
 webssh/vendor/
 apps/cloud/vendor/
 apps/steps/utils/.venv/
+apps/steps/utils/.venv/lib64
 bot/.venv/
 bot/*.log
 *.bak-*
