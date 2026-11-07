@@ -307,51 +307,86 @@ function devicesLayoutKey(devices) {
   return JSON.stringify(rooms);
 }
 
+function cardPreviewParams(d) {
+  const vis = visibleParams(d);
+  return d.displayed_params?.length ? d.displayed_params.filter(p => !isHiddenParam(p)) : vis;
+}
+function cardPrimarySwitch(d) {
+  // Sensors only expose settings (telemetry_enabled); a sensor tile shows its
+  // reading, not a power switch.
+  if ((d.type || '') === 'generic_sensor') return null;
+  return getPreviewControls(d).find(c => c.type === 'switch') || null;
+}
+function cardPrimaryRange(d) {
+  return getPreviewControls(d).find(c => c.type === 'range') || null;
+}
+function cardStatusLabel(d) {
+  const s = d.status || 'unknown';
+  return uiText['status_' + s] || s;
+}
+function cardStateText(d) {
+  const status = d.status || 'unknown';
+  if (status !== 'online') return cardStatusLabel(d);
+  const sw = cardPrimarySwitch(d);
+  if (!sw) {
+    const p = cardPreviewParams(d)[0];
+    if (!p) return cardStatusLabel(d);
+    if (p.type === 'chart') return chartParamChipHtml(p);
+    return String(p.value ?? '').trim() || cardStatusLabel(d);
+  }
+  if (!asSwitchVal(sw.value)) return 'Off';
+  const rg = cardPrimaryRange(d);
+  if (!rg) return 'On';
+  const unit = rg.unit ? ' ' + rg.unit : ' %';
+  return 'On · ' + String(rg.value ?? '') + unit;
+}
+
 function renderCardHeadInner(d) {
-  return `<div class="device-icon-box">${getIconSvg(d.icon||'smart-device')}</div>
-    <div style="display:flex;align-items:center;gap:8px">
-      <span class="status-label">${esc(d.status||'unknown')}</span>
-      <div class="status-dot-sm ${d.status||'unknown'}"></div>
-    </div>`;
+  const sw = cardPrimarySwitch(d);
+  let action = '';
+  if (sw) {
+    const on = asSwitchVal(sw.value);
+    action = `<button type="button" class="card-power${on ? ' on' : ''}" data-control="${esc(sw.id)}" aria-label="${esc(sw.label||sw.id)}" aria-pressed="${on ? 'true' : 'false'}" onclick="event.stopPropagation();quickToggle('${escJs(d.id)}','${escJs(sw.id)}')"><span class="card-power-knob"></span></button>`;
+  }
+  return `<div class="device-icon-box">${getIconSvg(d.icon||'smart-device')}</div>${action}`;
 }
 
 function renderCardMetaInner(d) {
-  return `<div class="card-title">${esc(d.name)}</div><div class="card-subtitle">${esc(typeNames[d.type]||d.type)}</div>`;
+  const status = d.status || 'unknown';
+  const dot = status !== 'online' ? `<span class="status-dot-sm ${esc(status)}"></span>` : '';
+  return `<div class="card-title">${esc(d.name)}</div>
+    <div class="card-subtitle">${dot}<span>${esc(cardStateText(d))}</span></div>`;
 }
 
 function renderCardParamsInner(d) {
-  const vis = visibleParams(d);
-  const params = (d.displayed_params?.length ? d.displayed_params.filter(p => !isHiddenParam(p)) : vis).slice(0, 3);
+  const params = cardPreviewParams(d).slice(0, 3);
   if (!params.length) return '';
-  return params.map(p => p.type === 'chart'
-    ? `<span class="param-chip">${esc(p.label||'')}: <span class="val">${chartParamChipHtml(p)}</span></span>`
-    : `<span class="param-chip">${esc(p.label||'')}: <span class="val">${paramValueHtml(p)}</span></span>`).join('');
+  return params.map(p => `<div class="card-param">
+      <span class="param-label" title="${esc(p.label||'')}">${esc(p.label||'')}</span>
+      <span class="param-value">${p.type === 'chart' ? chartParamChipHtml(p) : paramValueHtml(p)}</span>
+    </div>`).join('');
 }
 
 function renderCardControlsInner(d) {
-  const previewCtrls = getPreviewControls(d);
-  if (!previewCtrls.length) return '';
-  return previewCtrls.map(c => {
-    if (c.type === 'switch') {
-      const on = asSwitchVal(c.value);
-      return `<span class="card-control-chip ${on?'on':''}" onclick="event.stopPropagation();quickToggle('${esc(d.id)}','${esc(c.id)}')">${esc(c.label||c.id)}: ${on ? 'ON' : 'OFF'}</span>`;
-    }
-    if (c.type === 'range') {
-      return `<span class="card-control-chip">${esc(c.label||c.id)}: ${esc(String(c.value))}</span>`;
-    }
-    return '';
+  if ((d.type || '') === 'generic_sensor') return '';
+  const primary = cardPrimarySwitch(d);
+  return getPreviewControls(d).filter(c => c.type === 'switch' && c !== primary).map(c => {
+    const on = asSwitchVal(c.value);
+    return `<span class="card-control-chip${on ? ' on' : ''}" onclick="event.stopPropagation();quickToggle('${escJs(d.id)}','${escJs(c.id)}')">${esc(c.label||c.id)}: ${on ? 'On' : 'Off'}</span>`;
   }).join('');
 }
 
-function buildDeviceCardHtml(d, room) {
+function buildDeviceCardHtml(d) {
   const params = renderCardParamsInner(d);
   const ctrls = renderCardControlsInner(d);
-  return `<div class="device-card" data-id="${esc(d.id)}">
+  const sw = cardPrimarySwitch(d);
+  const status = d.status || 'unknown';
+  const cls = ['device-card', sw ? (asSwitchVal(sw.value) ? 'is-on' : 'is-off') : 'no-power', 'is-' + status].join(' ');
+  return `<div class="${cls}" data-id="${esc(d.id)}">
     <div class="device-card-head" data-part="head">${renderCardHeadInner(d)}</div>
     <div class="device-card-meta" data-part="meta">${renderCardMetaInner(d)}</div>
     ${params ? `<div class="card-params" data-part="params">${params}</div>` : '<div class="card-params" data-part="params" style="display:none"></div>'}
     ${ctrls ? `<div class="card-controls" data-part="controls">${ctrls}</div>` : '<div class="card-controls" data-part="controls" style="display:none"></div>'}
-    <div class="card-footer" data-part="footer"><div class="card-open">${esc(room)}</div></div>
   </div>`;
 }
 
@@ -359,11 +394,19 @@ function updateDeviceCard(d, prev) {
   const card = deviceCardEl(d.id);
   if (!card) return false;
   const p = prev || {};
-  if ((p.status||'') !== (d.status||'') || (p.icon||'') !== (d.icon||'')) {
+  const ctrlChanged = deviceControlsKey(p) !== deviceControlsKey(d);
+  const statusChanged = (p.status||'') !== (d.status||'');
+  const sw = cardPrimarySwitch(d);
+  const isOn = !!sw && asSwitchVal(sw.value);
+  card.classList.toggle('is-on', isOn);
+  card.classList.toggle('is-off', !!sw && !isOn);
+  card.classList.toggle('no-power', !sw);
+  ['online','offline','unknown'].forEach(s => card.classList.toggle('is-' + s, (d.status||'unknown') === s));
+  if ((p.icon||'') !== (d.icon||'') || ctrlChanged) {
     const el = card.querySelector('[data-part="head"]');
     if (el) el.innerHTML = renderCardHeadInner(d);
   }
-  if ((p.name||'') !== (d.name||'') || (p.type||'') !== (d.type||'')) {
+  if ((p.name||'') !== (d.name||'') || (p.type||'') !== (d.type||'') || statusChanged || ctrlChanged) {
     const el = card.querySelector('[data-part="meta"]');
     if (el) el.innerHTML = renderCardMetaInner(d);
   }
@@ -372,14 +415,10 @@ function updateDeviceCard(d, prev) {
     const html = renderCardParamsInner(d);
     if (el) { el.innerHTML = html; el.style.display = html ? '' : 'none'; }
   }
-  if (deviceControlsKey(p) !== deviceControlsKey(d)) {
+  if (ctrlChanged) {
     const el = card.querySelector('[data-part="controls"]');
     const html = renderCardControlsInner(d);
     if (el) { el.innerHTML = html; el.style.display = html ? '' : 'none'; }
-  }
-  if ((p.room||'Home') !== (d.room||'Home')) {
-    const el = card.querySelector('[data-part="footer"] .card-open');
-    if (el) el.textContent = d.room || 'Home';
   }
   return true;
 }
@@ -483,7 +522,7 @@ function renderHome() {
     html += `<div class="room-section" data-room="${esc(room)}">
       <div class="room-header"><h2>${esc(room)}</h2><span class="count">${devices.length}</span></div>
       <div class="device-grid">`;
-    devices.forEach(d => { html += buildDeviceCardHtml(d, room); });
+    devices.forEach(d => { html += buildDeviceCardHtml(d); });
     html += '</div></div>';
   });
   container.innerHTML = html;
