@@ -239,6 +239,84 @@ function latex_extract_errors(string $logContent, array $outputLines, string $wo
     return latex_sanitize_output(implode("\n", $lines), $workDir, $baseName);
 }
 
+/**
+ * Project files the document pulls in (\includegraphics, \input, \include).
+ * The editor posts only the .tex text, so without these the sidecar compiles in an
+ * empty directory and every \includegraphics fails with "File not found".
+ *
+ * @return array<string, CURLFile> multipart fields, keyed asset_0, asset_1, ...
+ */
+function latex_asset_fields(string $latex, string $documentPath): array {
+    $baseDir = realpath(dirname($documentPath));
+    if ($baseDir === false) return [];
+    $names = [];
+    if (preg_match_all('/\\\\includegraphics\*?\s*(?:\[[^\]]*\])?\s*\{([^}]+)\}/', $latex, $m)) {
+        foreach ($m[1] as $name) $names[] = trim($name);
+    }
+    if (preg_match_all('/\\\\(?:input|include|subfile)\s*\{([^}]+)\}/', $latex, $m)) {
+        foreach ($m[1] as $name) $names[] = trim($name);
+    }
+    $fields = [];
+    // Photo-heavy reports run well past 24 MB (a 28-asset thesis hit 32 MB); the
+    // sidecar enforces its own cap, so keep this one generous.
+    $budget = 64 * 1024 * 1024;
+    $basePrefix = str_replace('\\', '/', $baseDir) . '/';
+    foreach (array_unique($names) as $name) {
+        $rel = str_replace('\\', '/', $name);
+        if ($rel === '' || strlen($rel) > 200 || $rel[0] === '/' || strpos($rel, '..') !== false) continue;
+        $candidates = [$rel];
+        if (pathinfo($rel, PATHINFO_EXTENSION) === '') {
+            foreach (['.png', '.jpg', '.jpeg', '.pdf', '.eps', '.tex', '.tikz'] as $ext) $candidates[] = $rel . $ext;
+        }
+        foreach ($candidates as $cand) {
+            $real = realpath($baseDir . DIRECTORY_SEPARATOR . $cand);
+            if ($real === false || !is_file($real)) continue;
+            if (strpos(str_replace('\\', '/', $real), $basePrefix) !== 0) continue;
+            $size = (int)filesize($real);
+            if ($size <= 0 || $size > $budget) continue;
+            $budget -= $size;
+            $fields['asset_' . count($fields)] = new CURLFile($real, mime_content_type($real) ?: 'application/octet-stream', $cand);
+            break;
+        }
+        if (count($fields) >= 60 || $budget <= 0) break;
+    }
+    return $fields;
+}
+
+function latex_contains_non_latin(string $latex): bool {
+    return (bool)preg_match('/[\x{0400}-\x{04FF}\x{0370}-\x{03FF}\x{4E00}-\x{9FFF}\x{AC00}-\x{D7AF}]/u', $latex);
+}
+
+function latex_has_unicode_setup(string $latex): bool {
+    foreach (['fontspec', 'polyglossia', 'luaotfload', 'unicode-math'] as $pkg) {
+        if (strpos($latex, $pkg) !== false) return true;
+    }
+    return false;
+}
+
+/** LuaLaTeX handles Cyrillic/Greek/CJK natively; pdflatex + inputenc cannot. */
+function latex_engine_for(string $latex): string {
+    return (latex_needs_lualatex($latex) || latex_contains_non_latin($latex)) ? 'lualatex' : 'pdflatex';
+}
+
+/**
+ * Non-Latin text needs a Unicode font: add fontspec right after \documentclass
+ * when the document does not set one up itself. Compile-time only, the editor
+ * content is never rewritten.
+ */
+function latex_prepare_for_engine(string $latex, string $engine): string {
+    if ($engine !== 'lualatex' || latex_has_unicode_setup($latex) || !latex_contains_non_latin($latex)) {
+        return $latex;
+    }
+    $preamble = "\\usepackage{fontspec}\n\\setmainfont{DejaVu Serif}\n";
+    $pattern = '/' . preg_quote('\\documentclass', '/') . '(?:\[[^\]]*\])?\{[^}]+\}\s*\r?\n/';
+    if (preg_match($pattern, $latex, $m, PREG_OFFSET_CAPTURE)) {
+        $pos = $m[0][1] + strlen($m[0][0]);
+        return substr($latex, 0, $pos) . $preamble . substr($latex, $pos);
+    }
+    return $preamble . $latex;
+}
+
 function latex_needs_lualatex(string $latex): bool {
     return (bool)preg_match('/\\\\usepackage(?:\[[^\]]*\])?\{(?:fontspec|polyglossia|luaotfload|unicode-math)\}/', $latex);
 }
@@ -295,9 +373,12 @@ if (isset($_POST['latex'])) {
         latex_respond_compile_error('LaTeX compile sidecar is not configured.', $savePdf);
     }
     require_once dirname(__DIR__, 6) . '/lib/py_sidecar.php';
-    $engine = latex_needs_lualatex($latex) ? 'lualatex' : 'pdflatex';
+    $engine = latex_engine_for($latex);
+    $compileLatex = latex_prepare_for_engine($latex, $engine);
+    // Images/\input files live next to the document in the user's storage.
+    $assetFields = latex_asset_fields($compileLatex, $userStoragePath);
     if ($savePdf) {
-        $sidecar = py_sidecar('latex', ['latex' => $latex, 'engine' => $engine, 'synctex' => '1', 'format' => 'json'], null, null, 300);
+        $sidecar = py_sidecar('latex', ['latex' => $compileLatex, 'engine' => $engine, 'synctex' => '1', 'format' => 'json'] + $assetFields, null, null, 300);
         $body = is_array($sidecar['body']) ? $sidecar['body'] : [];
         if (empty($body['success']) || empty($body['pdf'])) {
             latex_respond_compile_error((string)($body['output'] ?? '') !== '' ? (string)$body['output'] : ($sidecar['error'] ?: 'Compilation failed'), true);
@@ -323,7 +404,7 @@ if (isset($_POST['latex'])) {
         }
         exit;
     }
-    $res = py_sidecar_raw('latex', ['latex' => $latex, 'engine' => $engine, 'synctex' => '1', 'format' => 'raw'], 300);
+    $res = py_sidecar_raw('latex', ['latex' => $compileLatex, 'engine' => $engine, 'synctex' => '1', 'format' => 'raw'] + $assetFields, 300);
     if (!$res['ok'] || stripos($res['content_type'], 'pdf') === false) {
         $err = $res['error'] ?: 'Compilation failed';
         if ($res['raw'] !== '') {

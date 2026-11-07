@@ -13,7 +13,8 @@ from pathlib import Path
 from threading import Lock
 from typing import Optional
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, Request, UploadFile
+from starlette.datastructures import UploadFile as StarletteUploadFile
 from fastapi.responses import JSONResponse, Response
 
 # Prefer the bind-mounted checkout when it is present: the dev compose file mounts
@@ -99,6 +100,11 @@ LATEX_QUEUE_WAIT = float(os.environ.get("LATEX_QUEUE_WAIT", "90"))
 LATEX_MAX_SOURCE_BYTES = int(os.environ.get("LATEX_MAX_SOURCE_BYTES", str(1_500_000)))
 LATEX_COMPILE_TIMEOUT = int(os.environ.get("LATEX_COMPILE_TIMEOUT", "180"))
 LATEX_PACKAGE_RETRIES = max(0, int(os.environ.get("LATEX_PACKAGE_RETRIES", "3")))
+LATEX_LOG_DISPLAY_CHARS = max(1000, int(os.environ.get("LATEX_LOG_DISPLAY_CHARS", "12000")))
+# Project files referenced by the document (images, \input parts): caps so one
+# request cannot flood the compile disk.
+LATEX_MAX_ASSETS = max(0, int(os.environ.get("LATEX_MAX_ASSETS", "80")))
+LATEX_MAX_ASSETS_BYTES = max(0, int(os.environ.get("LATEX_MAX_ASSETS_BYTES", str(64 * 1024 * 1024))))
 
 _latex_sem = asyncio.Semaphore(LATEX_MAX_CONCURRENT)
 _latex_package_lock = Lock()
@@ -170,14 +176,32 @@ def _parse_synctex(output: str) -> dict:
     return data
 
 
-def _latex_content_key(latex: str, engine: str, synctex: str) -> str:
+def _latex_content_key(latex: str, engine: str, synctex: str, assets: Optional[list] = None) -> str:
     h = hashlib.sha256()
     h.update(engine.encode())
     h.update(b"\0")
     h.update(b"1" if synctex else b"0")
     h.update(b"\0")
     h.update(latex.encode("utf-8", errors="surrogatepass"))
+    # Referenced files belong to the build: a different image must not hit the
+    # cached PDF of an earlier compile.
+    for name, data in assets or []:
+        h.update(b"\0")
+        h.update(str(name).encode("utf-8", errors="surrogatepass"))
+        h.update(b"\0")
+        h.update(data)
     return h.hexdigest()
+
+
+def _latex_safe_asset_name(name: str) -> str:
+    """Keep the document-relative path, drop separators/references that escape it."""
+    parts = []
+    for part in re.split(r"[\\/]+", (name or "").replace("\x00", "")):
+        part = part.strip()
+        if not part or part in (".", ".."):
+            continue
+        parts.append(re.sub(r'[<>:"|?*\x00-\x1f]', "_", part))
+    return "/".join(parts[:12])[:240]
 
 
 def _latex_env(home: Path) -> dict:
@@ -190,7 +214,42 @@ def _latex_env(home: Path) -> dict:
         "TEXMFHOME": str(LATEX_TEXMF / "home"),
         "TEXMFCONFIG": str(LATEX_TEXMF / "config"),
         "OSFONTDIR": "/usr/share/fonts",
+        # Do not hard-wrap log lines: wrapped paths are impossible to sanitise
+        # afterwards (a path can be split in the middle of a directory name).
+        "max_print_line": "10000",
+        "error_line": "254",
+        "half_error_line": "238",
     }
+
+
+# Absolute/relative file paths inside compile output are noise for the user: the
+# temp work dir is meaningless outside the container and TeX Live paths are huge.
+# Anchored on a word boundary so dates like 2013/05/19 survive; max_print_line keeps
+# TeX from wrapping a path, so no path can hide half a line.
+_LATEX_PATH_RE = re.compile(r"(?<![\w.])/(?:[^\s()\[\]{}<>:,;\"']+/)+([^\s()\[\]{}<>:,;\"']+)")
+
+
+def _latex_sanitize_paths(text: str, work: Path) -> str:
+    text = text.replace(str(work) + "/", "").replace(str(work), "")
+    text = _LATEX_PATH_RE.sub(r"\1", text)
+    text = text.replace("./", "")
+    # TeX pads error lines to error_line columns.
+    return "\n".join(line.rstrip() for line in text.splitlines())
+
+
+def _latex_log_for_display(work: Path) -> str:
+    """document.log tail, with file paths stripped, for the error panel."""
+    log_file = work / "document.log"
+    try:
+        if not log_file.is_file():
+            return ""
+        text = log_file.read_text(encoding="utf-8", errors="replace")
+    except OSError:
+        return ""
+    body = _latex_sanitize_paths(text, work).strip()
+    if not body:
+        return ""
+    return body[-LATEX_LOG_DISPLAY_CHARS:]
 
 
 def _latex_missing_file(output: str) -> str:
@@ -231,11 +290,11 @@ def _respond_latex(ok: bool, pdf: Path, output: str, sid: str, format: str):
     }
 
 
-def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str):
+def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str, assets: Optional[list] = None):
     _prune_dir_tree(LATEX_PDF_CACHE, LATEX_CACHE_TTL, LATEX_PDF_CACHE_MAX)
     _prune_synctex()
 
-    content_key = _latex_content_key(latex, selected, synctex)
+    content_key = _latex_content_key(latex, selected, synctex, assets)
     # Stable 32-hex id so identical sources reuse one SyncTeX slot (less disk churn).
     stable_sid = content_key[:32]
     pdf_cache = LATEX_PDF_CACHE / content_key
@@ -271,6 +330,15 @@ def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str):
         source = work / "document.tex"
         pdf = work / "document.pdf"
         source.write_text(latex, encoding="utf-8")
+        # The editor only sends the .tex text; images and \input parts travel with
+        # the request so \includegraphics resolves exactly as it does in the editor.
+        for asset_name, asset_data in assets or []:
+            rel = _latex_safe_asset_name(asset_name)
+            if not rel:
+                continue
+            target = work / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(asset_data)
         try:
             env = _latex_env(work)
             proc = None
@@ -281,6 +349,11 @@ def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str):
                     break
             output = proc.stdout or ""
             ok = proc.returncode == 0 and pdf.is_file()
+            # latexmk -quiet swallows pdflatex's own diagnostics, leaving a useless
+            # "gave return code 1" summary. Show the LaTeX log excerpt instead.
+            log_excerpt = _latex_log_for_display(work)
+            if log_excerpt:
+                output = output.rstrip() + "\n\n----- document.log -----\n" + log_excerpt + "\n"
         except subprocess.TimeoutExpired as exc:
             output = (exc.stdout or "") if isinstance(exc.stdout, str) else "compile timeout"
             ok = False
@@ -299,6 +372,7 @@ def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str):
 
 @app.post("/latex")
 async def latex_compile(
+    request: Request,
     latex: str = Form(...),
     engine: str = Form("pdflatex"),
     synctex: str = Form(""),
@@ -306,6 +380,19 @@ async def latex_compile(
 ):
     if len(latex.encode("utf-8", errors="ignore")) > LATEX_MAX_SOURCE_BYTES:
         raise HTTPException(413, "LaTeX source too large")
+    assets: list = []
+    total_asset_bytes = 0
+    form = await request.form()
+    for field, value in form.multi_items():
+        # FastAPI hands starlette's UploadFile to the parsed form; fastapi.UploadFile
+        # is a subclass, so testing against it would silently skip every asset.
+        if not field.startswith("asset_") or not isinstance(value, StarletteUploadFile):
+            continue
+        data = await value.read()
+        total_asset_bytes += len(data)
+        if len(assets) >= LATEX_MAX_ASSETS or total_asset_bytes > LATEX_MAX_ASSETS_BYTES:
+            raise HTTPException(413, "LaTeX assets too large")
+        assets.append((value.filename or field, data))
     selected = "lualatex" if engine == "lualatex" else "pdflatex"
     try:
         await asyncio.wait_for(_latex_sem.acquire(), timeout=LATEX_QUEUE_WAIT)
@@ -313,7 +400,7 @@ async def latex_compile(
         raise HTTPException(503, "LaTeX compile queue full, try again shortly")
     try:
         # Keep the event loop free for /health and other users while latexmk runs.
-        return await asyncio.to_thread(_latex_compile_sync, latex, selected, synctex, format)
+        return await asyncio.to_thread(_latex_compile_sync, latex, selected, synctex, format, assets)
     finally:
         _latex_sem.release()
 
