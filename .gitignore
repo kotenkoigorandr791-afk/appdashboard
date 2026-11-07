@@ -225,3 +225,7 @@ pnpm-debug.log*
 /apps/spends/spends-native-android/.idea/
 /apps/spends/spends-native-android/**/*.apk
 /apps/spends/spends-native-android/**/*.aab
+
+# Shared local Android toolchain (JDK/Gradle/SDK/emulator, download cache)
+/tools/
+
