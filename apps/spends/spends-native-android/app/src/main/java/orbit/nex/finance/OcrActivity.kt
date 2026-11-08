@@ -168,6 +168,16 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
         }
     }
 
+    // The worker writes the recognised charges on the server; pull them straight
+    // away so Home shows them without waiting for the next background refresh.
+    var refreshedJob by remember { mutableStateOf("") }
+    LaunchedEffect(state, jobId, session.token) {
+        if (state == "done" && jobId.isNotBlank() && session.token.isNotBlank() && refreshedJob != jobId) {
+            refreshedJob = jobId
+            runCatching { app.store.saveSnapshot(app.api.pull(session, Snapshot())) }
+        }
+    }
+
     fun photoFor(store: String): String =
         snapshot.stores.firstOrNull { it.name.equals(store, ignoreCase = true) }?.photoUrl.orEmpty()
 
@@ -419,7 +429,8 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                                 val left = status?.get("job")?.jsonObject?.get("unresolved")?.jsonArray.orEmpty()
                                 if (left.isEmpty()) {
                                     app.api.ocrFinalize(session, jobId)
-                                    message = "Saved. Pull to refresh on Home to see the new charges."
+                                    runCatching { app.store.saveSnapshot(app.api.pull(session, Snapshot())) }
+                                    message = "Saved. New charges are now in your ledger."
                                 }
                             }.onFailure { message = it.message.orEmpty() }
                             busy = false
@@ -434,7 +445,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
             if (state == "done" && unresolved.isEmpty() && shownRecords.isNotEmpty()) {
                 Card(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant)) {
                     Text(
-                        "OCR finished. Pull to refresh on Home to see the new charges.",
+                        "OCR finished. The recognised charges were added to your ledger.",
                         Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

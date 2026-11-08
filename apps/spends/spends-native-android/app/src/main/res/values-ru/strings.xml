@@ -232,6 +232,8 @@
     <string name="pending_raw">Текст уведомления</string>
     <string name="wallet_channel">Списания из кошелька</string>
     <string name="wallet_notification">Списаны средства. Нажмите, чтобы просмотреть.</string>
+    <string name="wallet_saved">Платёж добавлен в журнал.</string>
+    <string name="next_month">Следующий месяц</string>
     <string name="store_category_apartment">Квартира</string>
     <string name="store_category_beauty">Красота</string>
     <string name="store_category_build">Стройка</string>

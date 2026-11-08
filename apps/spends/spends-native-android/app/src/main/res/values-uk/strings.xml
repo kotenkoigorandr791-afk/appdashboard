@@ -232,6 +232,8 @@
     <string name="pending_raw">Текст сповіщення</string>
     <string name="wallet_channel">Списання з гаманця</string>
     <string name="wallet_notification">Списано кошти. Торкніться, щоб переглянути.</string>
+    <string name="wallet_saved">Платіж додано до журналу.</string>
+    <string name="next_month">Наступний місяць</string>
     <string name="store_category_apartment">Квартира</string>
     <string name="store_category_beauty">Краса</string>
     <string name="store_category_build">Будівництво</string>

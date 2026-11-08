@@ -209,6 +209,8 @@
     <string name="pending_raw">Тэкст апавяшчэння</string>
     <string name="wallet_channel">Спісанні з гаманца</string>
     <string name="wallet_notification">Спісаны сродкі. Націсніце, каб прагледзець.</string>
+    <string name="wallet_saved">Плацеж дададзены ў журнал.</string>
+    <string name="next_month">Наступны месяц</string>
     <string name="store_category_apartment">Кватэра</string>
     <string name="store_category_beauty">Прыгажосць</string>
     <string name="store_category_build">Будаўніцтва</string>
