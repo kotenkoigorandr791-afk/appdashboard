@@ -209,6 +209,8 @@
     <string name="pending_raw">Treść powiadomienia</string>
     <string name="wallet_channel">Obciążenia portfela</string>
     <string name="wallet_notification">Przechwycono płatność. Dotknij, aby przejrzeć.</string>
+    <string name="wallet_saved">Płatność zapisana w dzienniku.</string>
+    <string name="next_month">Następny miesiąc</string>
     <string name="store_category_apartment">Mieszkanie</string>
     <string name="store_category_beauty">Uroda</string>
     <string name="store_category_build">Budowa</string>

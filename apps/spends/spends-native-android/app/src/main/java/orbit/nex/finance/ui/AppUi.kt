@@ -85,15 +85,16 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -103,8 +104,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -128,6 +131,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import orbit.nex.finance.AppState
 import orbit.nex.finance.BuildConfig
@@ -137,6 +141,7 @@ import orbit.nex.finance.SpendsViewModel
 import orbit.nex.finance.data.BackupEntry
 import orbit.nex.finance.data.Expense
 import orbit.nex.finance.data.Goal
+import orbit.nex.finance.data.NetworkState
 import orbit.nex.finance.data.PendingCapture
 import orbit.nex.finance.data.Store
 import orbit.nex.finance.data.Tag
@@ -404,7 +409,7 @@ private val BudgetGreen = Color(0xFF6BCC41)
 private val BudgetAmber = Color(0xFFF2C230)
 private val BudgetRed = Color(0xFFC21919)
 
-/** Compact, consistently sized date picker used by all app date-selection flows. */
+/** Calendar picker drawn entirely from the app theme instead of the platform dialog. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDatePickerDialog(
@@ -413,34 +418,114 @@ fun AppDatePickerDialog(
     onConfirm: (Long) -> Unit,
     dismissLabel: String,
 ) {
-    val picker = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
+    val initial = remember(initialDateMillis) {
+        Instant.ofEpochMilli(initialDateMillis).atZone(ZoneOffset.UTC).toLocalDate()
+    }
+    var selected by remember(initialDateMillis) { mutableStateOf(initial) }
+    var month by remember(initialDateMillis) { mutableStateOf(java.time.YearMonth.from(initial)) }
+    val today = LocalDate.now()
+    val monthLabel = remember(month) {
+        month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
+    }
+    val weekDays = remember {
+        (0..6).map { java.time.DayOfWeek.MONDAY.plus(it.toLong()).getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()) }
+    }
+    val leading = (month.atDay(1).dayOfWeek.value - 1 + 7) % 7
+    val dayCount = month.lengthOfMonth()
+    val rows = (leading + dayCount + 6) / 7
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).widthIn(max = 480.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).widthIn(max = 460.dp),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
         ) {
-            Column(horizontalAlignment = Alignment.End, modifier = Modifier.heightIn(max = 520.dp)) {
-                DatePicker(
-                    picker,
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    title = null,
-                    headline = null,
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.date_label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    selected.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton({ month = month.minusMonths(1) }) {
+                        Icon(Icons.Outlined.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
+                    }
+                    Text(
+                        monthLabel.replaceFirstChar { it.titlecase(Locale.getDefault()) },
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    IconButton({ month = month.plusMonths(1) }) {
+                        Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    weekDays.forEach { label ->
+                        Text(
+                            label,
+                            Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    repeat(rows) { row ->
+                        Row(Modifier.fillMaxWidth()) {
+                            repeat(7) { column ->
+                                val day = row * 7 + column - leading + 1
+                                if (day in 1..dayCount) {
+                                    val date = month.atDay(day)
+                                    val isSelected = date == selected
+                                    val isToday = date == today
+                                    Box(
+                                        Modifier.weight(1f).padding(2.dp).height(40.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                when {
+                                                    isSelected -> MaterialTheme.colorScheme.primary
+                                                    isToday -> MaterialTheme.colorScheme.primaryContainer
+                                                    else -> Color.Transparent
+                                                },
+                                            )
+                                            .clickable { selected = date },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            day.toString(),
+                                            color = when {
+                                                isSelected -> MaterialTheme.colorScheme.onPrimary
+                                                isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+                                                else -> MaterialTheme.colorScheme.onSurface
+                                            },
+                                            fontWeight = if (isSelected || isToday) FontWeight.SemiBold else FontWeight.Normal,
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.weight(1f).height(40.dp))
+                                }
+                            }
+                        }
+                    }
+                }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) { Text(dismissLabel) }
-                    TextButton(onClick = { picker.selectedDateMillis?.let(onConfirm); onDismiss() }) {
-                        Text(stringResource(R.string.ok))
-                    }
+                    TextButton(onClick = {
+                        onConfirm(selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+                        onDismiss()
+                    }) { Text(stringResource(R.string.ok)) }
                 }
             }
         }
@@ -2227,8 +2312,16 @@ fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Uni
 }
 
 @Composable
-fun DetailScreen(title: String, onBack: () -> Unit, onEdit: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize().background(canvasBrush()).statusBarsPadding()) {
+fun DetailScreen(
+    title: String,
+    onBack: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    /** Standalone activities have no Scaffold inset; the in-app shell already applies it. */
+    insetTop: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val topInset = if (insetTop) Modifier.statusBarsPadding() else Modifier
+    Column(Modifier.fillMaxSize().background(canvasBrush()).then(topInset)) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = onBack,
@@ -2309,13 +2402,36 @@ private fun MiniFab(label: String, icon: ImageVector, color: Color, onClick: () 
 @Composable
 fun SpendsNavBar(tab: Int, onTab: (Int) -> Unit, onAdd: () -> Unit) {
     val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    val online by NetworkState.online.collectAsState()
+    // Red is held while offline; after reconnecting it turns green for a moment
+    // and then fades back into the normal bar colour.
+    var wasOffline by remember { mutableStateOf(!online) }
+    var flashOnline by remember { mutableStateOf(false) }
+    LaunchedEffect(online) {
+        if (!online) {
+            wasOffline = true
+            flashOnline = false
+        } else if (wasOffline) {
+            wasOffline = false
+            flashOnline = true
+            delay(2_800)
+            flashOnline = false
+        }
+    }
+    val base = MaterialTheme.colorScheme.surface
+    val targetBottom = when {
+        !online -> Color(0xFF7F1D1D)
+        flashOnline -> Color(0xFF15803D)
+        else -> base
+    }
+    val bottom by animateColorAsState(targetBottom, tween(700), label = "navConnection")
     Box(Modifier.fillMaxWidth().shadow(16.dp, shape, clip = false)) {
         // Background is painted across the navigation-bar inset too, so the bar
         // reaches the bottom edge instead of leaving a gap above the system keys.
         Box(
             Modifier.fillMaxWidth()
                 .clip(shape)
-                .background(MaterialTheme.colorScheme.surface)
+                .background(Brush.verticalGradient(listOf(base, bottom)))
                 .navigationBarsPadding()
                 .height(80.dp),
         )

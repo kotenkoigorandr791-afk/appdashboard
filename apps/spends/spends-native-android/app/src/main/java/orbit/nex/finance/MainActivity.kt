@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -166,7 +167,7 @@ private fun StartupNotice(screen: StartupScreen, onContinue: () -> Unit) {
     val isWelcome = screen == StartupScreen.Welcome
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .navigationBarsPadding().padding(horizontal = 24.dp, vertical = 18.dp),
+            .statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Box(
@@ -247,6 +248,7 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     val model: SpendsViewModel = viewModel { SpendsViewModel(app.store, app.api) }
     val state by model.state.collectAsState()
     val appearance by app.store.appearance.collectAsState(Appearance())
+    val online by orbit.nex.finance.data.NetworkState.online.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
     var dest by remember { mutableStateOf<Dest?>(null) }
     var addOpen by remember { mutableStateOf(false) }
@@ -313,6 +315,8 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     // Pull fresh data (expenses, incomes and stores) on every app start and keep it
     // in sync with the server while the app is open.
     LaunchedEffect(Unit) { model.refresh() }
+    // Replay queued writes the moment the connection comes back.
+    LaunchedEffect(online) { if (online) model.flushOutbox() }
     LaunchedEffect(Unit) {
         while (true) {
             delay(45_000)

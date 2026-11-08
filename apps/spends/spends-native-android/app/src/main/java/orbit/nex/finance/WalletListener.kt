@@ -3,6 +3,7 @@ package orbit.nex.finance
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
@@ -13,11 +14,12 @@ import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import orbit.nex.finance.data.Dispute
-import orbit.nex.finance.data.Expense
-import orbit.nex.finance.data.PendingCapture
+import orbit.nex.finance.data.OutboxItem
+import orbit.nex.finance.data.OutboxSync
 import orbit.nex.finance.data.SessionStore
 import orbit.nex.finance.data.SpendsApi
 import orbit.nex.finance.data.WalletNotification
@@ -65,8 +67,9 @@ data class ScanResult(
 
 /**
  * Background service that only listens to Google Wallet payment notifications.
- * Payment text is parsed locally, matched to a known store and queued for review;
- * nothing is uploaded until the user confirms the capture.
+ * Payment text is parsed locally and matched to a known store; a matched charge
+ * is written to the durable outbox immediately (uploaded when possible, retried
+ * later when offline), while unknown text becomes a dispute for review.
  */
 class WalletListener : NotificationListenerService() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -94,12 +97,25 @@ class WalletListener : NotificationListenerService() {
                 notifyCapture(this@WalletListener, parsed)
                 return@launch
             }
-            val duplicate = extrasNow.pending.any { it.store == parsed.store && it.amount == parsed.amount && it.date == LocalDate.now().toString() }
+            val today = LocalDate.now().toString()
+            val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 } ||
+                extrasNow.outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 }
             if (!duplicate) {
-                val item = PendingCapture(LocalDate.now().toString(), parsed.store, parsed.amount, parsed.raw)
-                app.store.saveExtras(extrasNow.copy(pending = listOf(item) + extrasNow.pending))
+                // A matched notification is booked immediately instead of waiting
+                // for confirmation. The write is durable, so it is replayed later
+                // when the phone is offline.
+                val item = OutboxItem(
+                    kind = "expense",
+                    date = today,
+                    store = parsed.store,
+                    amount = parsed.amount,
+                    source = "notification",
+                    raw = parsed.raw,
+                )
+                OutboxSync.enqueue(app.store, item)
+                runCatching { OutboxSync.flush(app.store, app.api) }
             }
-            notifyCapture(this@WalletListener, parsed)
+            notifyCapture(this@WalletListener, parsed, saved = true)
         }
     }
 
@@ -114,7 +130,7 @@ class WalletListener : NotificationListenerService() {
         super.onDestroy()
     }
 
-    private fun notifyCapture(context: Context, parsed: WalletNotification) {
+    private fun notifyCapture(context: Context, parsed: WalletNotification, saved: Boolean = false) {
         val manager = context.getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
         val channelId = "wallet_captures"
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && manager.getNotificationChannel(channelId) == null) {
@@ -124,7 +140,7 @@ class WalletListener : NotificationListenerService() {
         }
         val intent = Intent(context, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            .putExtra(MainActivity.EXTRA_OPEN_PENDING, true)
+            .putExtra(MainActivity.EXTRA_OPEN_PENDING, !saved)
         val pendingIntent = PendingIntent.getActivity(
             context,
             42,
@@ -134,7 +150,7 @@ class WalletListener : NotificationListenerService() {
         val notification = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_menu_agenda)
             .setContentTitle("${parsed.store} · ${"%.2f".format(parsed.amount)} ${parsed.currency}")
-            .setContentText(context.getString(R.string.wallet_notification))
+            .setContentText(context.getString(if (saved) R.string.wallet_saved else R.string.wallet_notification))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .build()
@@ -143,6 +159,24 @@ class WalletListener : NotificationListenerService() {
 
     companion object {
         @Volatile private var instance: WalletListener? = null
+        @Volatile private var appContext: Context? = null
+
+        /** Keeps an application context so the service can be rebound on demand. */
+        fun install(context: Context) {
+            appContext = context.applicationContext
+        }
+
+        /**
+         * Asks the system to reconnect the listener after a process restart. Without
+         * this a granted permission could still report "no access" because the
+         * service object was never recreated.
+         */
+        fun requestBind() {
+            val context = appContext ?: return
+            runCatching {
+                requestRebind(ComponentName(context, WalletListener::class.java))
+            }
+        }
 
         /** Currently posted wallet notifications, or null when the service is not connected. */
         fun activeWalletNotifications(): List<StatusBarNotification>? {
@@ -181,8 +215,19 @@ internal fun addDispute(list: List<Dispute>, item: Dispute): List<Dispute> =
  */
 object WalletScanner {
     suspend fun scan(store: SessionStore, api: SpendsApi): ScanResult {
-        val notifications = WalletListener.activeWalletNotifications()
-            ?: return ScanResult(error = "notification_access")
+        var active = WalletListener.activeWalletNotifications()
+        if (active == null) {
+            // The listener can be detached after the process was killed; rebind
+            // and give the system a moment before declaring access missing.
+            WalletListener.requestBind()
+            repeat(6) {
+                if (active == null) {
+                    delay(200)
+                    active = WalletListener.activeWalletNotifications()
+                }
+            }
+        }
+        val notifications = active ?: return ScanResult(error = "notification_access")
         val session = store.session.first()
         val snapshot = store.snapshot.first()
         if (session.token.isBlank()) return ScanResult(error = "not_paired")
@@ -225,18 +270,18 @@ object WalletScanner {
                 conflicts++
                 continue
             }
-            val stored = runCatching {
-                api.pushJson(
-                    session,
-                    """{"expenses":[${api.expenseJson(Expense(today, parsed.store, parsed.amount, entrySource = "notification"))}]}""",
-                )
-            }.isSuccess
-            if (stored) {
-                written++
-                toRemove += sbn.key
-            } else {
-                failed = true
+            val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 } ||
+                store.extrasNow().outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 }
+            if (!duplicate) {
+                val item = OutboxItem(kind = "expense", date = today, store = parsed.store, amount = parsed.amount, source = "notification", raw = parsed.raw)
+                OutboxSync.enqueue(store, item)
             }
+            val stored = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+            // The charge is already durable on disk, so the notification can be
+            // cleared even when the upload has to wait for a connection.
+            written++
+            toRemove += sbn.key
+            if (!stored) failed = true
         }
 
         if (disputes.size != originalDisputes.size) {

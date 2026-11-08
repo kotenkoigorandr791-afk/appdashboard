@@ -115,6 +115,10 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
     suspend fun pushJson(session: Session, body: String) = withContext(Dispatchers.IO) {
         val result = json.parseToJsonElement(request("POST", "${session.endpoint}/sync", session.token, body)).jsonObject
         if (result.text("status") != "success") error(result.text("message", "Sync rejected"))
+        // The server reports per-row problems without failing the request. Keep
+        // the write queued so it is retried instead of silently disappearing.
+        val rowErrors = result["errors"]?.jsonArray
+        if (!rowErrors.isNullOrEmpty()) error(result.text("message", "Sync rejected"))
     }
 
     suspend fun form(session: Session, fields: Map<String, String>, query: String = ""): JsonObject = withContext(Dispatchers.IO) {
@@ -198,6 +202,8 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
             repeat(if (method == "GET") 3 else 1) { attempt ->
                 try {
                     client.newCall(req).execute().use { response ->
+                        // Any HTTP answer proves the server itself is reachable.
+                        NetworkState.markReachable()
                         val text = response.body?.string().orEmpty()
                         if (!response.isSuccessful && response.code >= 500 && attempt < 2) {
                             Thread.sleep(200L * (attempt + 1))
@@ -205,7 +211,14 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
                         }
                         onLog(SyncLog(url = url, method = method, success = response.isSuccessful, statusCode = response.code, errorMessage = if (response.isSuccessful) null else text.take(800), payload = payload?.take(1200)))
                         if (!response.isSuccessful) error("Server error (HTTP ${response.code})")
-                        return runCatching { json.parseToJsonElement(text).jsonObject }.getOrElse { JsonObject(emptyMap()) }
+                        // Some endpoints prepend notices/whitespace to their JSON;
+                        // parse the object itself instead of failing the whole call.
+                        val trimmed = text.trim().removePrefix("\uFEFF").trim()
+                        val start = trimmed.indexOf('{')
+                        val end = trimmed.lastIndexOf('}')
+                        val candidate = if (start >= 0 && end > start) trimmed.substring(start, end + 1) else trimmed
+                        return runCatching { json.parseToJsonElement(candidate).jsonObject }
+                            .getOrElse { JsonObject(emptyMap()) }
                     }
                 } catch (e: Exception) {
                     lastError = e
@@ -216,6 +229,7 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
         } catch (e: Exception) {
             val network = isNetworkFailure(e)
             if (network) {
+                NetworkState.markUnreachable()
                 onLog(SyncLog(url = url, method = method, success = false, errorMessage = "offline", payload = payload?.take(1200)))
                 throw OfflineException()
             }
@@ -229,8 +243,8 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
     private fun JsonObject.flag(name: String): Boolean? = this[name]?.jsonPrimitive?.booleanOrNull ?: this[name]?.jsonPrimitive?.content?.let { it == "1" || it.equals("true", true) }
     private fun JsonObject.toGoal() = Goal(text("id"), text("name"), text("description"), number("target_amount"), number("current_amount"), text("currency", "USD"), text("target_date"), text("goal_type", "savings"), this["is_archived"]?.jsonPrimitive?.booleanOrNull == true, number("progress_percent"))
     private fun String.escape() = replace("\\", "\\\\").replace("\"", "\\\"")
-    fun expenseJson(e: Expense, mode: String = "force") = """{"date":"${e.date.escape()}","store":"${e.store.escape()}","amount":${e.amount},"source":"${e.entrySource.escape()}","mode":"$mode","raw":"${e.ocrRawStore.escape()}"}"""
-    fun incomeJson(i: Income, mode: String = "force") = """{"date":"${i.date.escape()}","amount":${i.amount},"mode":"$mode"}"""
+    fun expenseJson(e: Expense, mode: String = "force", signature: String? = null) = """{"date":"${e.date.escape()}","store":"${e.store.escape()}","amount":${e.amount},"source":"${e.entrySource.escape()}","mode":"$mode","raw":"${e.ocrRawStore.escape()}"${signature?.let { ",\"signature\":\"${it.escape()}\"" } ?: ""}}"""
+    fun incomeJson(i: Income, mode: String = "force", signature: String? = null) = """{"date":"${i.date.escape()}","amount":${i.amount},"mode":"$mode"${signature?.let { ",\"signature\":\"${it.escape()}\"" } ?: ""}}"""
 
     // The router exposes the OCR worker under /ocr/{action}; a deep .php path
     // below /api is not routed and used to answer 404.

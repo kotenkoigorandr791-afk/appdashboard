@@ -232,6 +232,8 @@
     <string name="pending_raw">Notification text</string>
     <string name="wallet_channel">Wallet captures</string>
     <string name="wallet_notification">Captured payment. Tap to review.</string>
+    <string name="wallet_saved">Payment saved to your ledger.</string>
+    <string name="next_month">Next month</string>
     <string name="store_category_apartment">Apartment</string>
     <string name="store_category_beauty">Beauty</string>
     <string name="store_category_build">Construction</string>

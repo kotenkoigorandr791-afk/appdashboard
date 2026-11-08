@@ -209,6 +209,8 @@
     <string name="pending_raw">Text oznámení</string>
     <string name="wallet_channel">Platby z peněženky</string>
     <string name="wallet_notification">Zachycena platba. Klepněte pro zobrazení.</string>
+    <string name="wallet_saved">Platba uložena do deníku.</string>
+    <string name="next_month">Další měsíc</string>
     <string name="store_category_apartment">Byt</string>
     <string name="store_category_beauty">Krása</string>
     <string name="store_category_build">Stavba</string>
