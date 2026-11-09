@@ -187,6 +187,7 @@
     <string name="update_downloading">Downloading… %1$d%%</string>
     <string name="update_failed">Could not check for updates.</string>
     <string name="update_not_connected">Connect to a server to check for updates.</string>
+    <string name="update_release_notes">Release notes</string>
     <string name="something_went_wrong">Something went wrong</string>
     <string name="ok">OK</string>
     <string name="rates_title">Exchange rates</string>

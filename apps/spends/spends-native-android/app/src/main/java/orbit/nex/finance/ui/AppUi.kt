@@ -148,6 +148,7 @@ import orbit.nex.finance.data.PendingCapture
 import orbit.nex.finance.data.Store
 import orbit.nex.finance.data.Tag
 import orbit.nex.finance.updates.AppUpdateChecker
+import orbit.nex.finance.updates.ReleaseNotes
 import orbit.nex.finance.updates.UpdateInfo
 import orbit.nex.finance.updates.UpdateOutcome
 
@@ -1359,6 +1360,7 @@ fun UpdatesScreen(state: AppState) {
     var checking by remember { mutableStateOf(false) }
     var downloading by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<UpdateInfo?>(null) }
+    var notes by remember { mutableStateOf<ReleaseNotes?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf(0) }
 
@@ -1368,6 +1370,10 @@ fun UpdatesScreen(state: AppState) {
             status = context.getString(R.string.checking_updates)
             val check = checker.checkForUpdate(state.session.endpoint, state.session.token)
             info = check.info
+            notes = check.releaseNotes
+                ?: check.info?.takeIf { it.release_notes.isNotBlank() }?.let {
+                    ReleaseNotes(version_name = it.version_name, body = it.release_notes)
+                }
             status = when (check.outcome) {
                 UpdateOutcome.UPDATE_AVAILABLE -> context.getString(R.string.update_available, check.info?.version_name.orEmpty())
                 UpdateOutcome.UP_TO_DATE -> context.getString(R.string.update_up_to_date)
@@ -1394,9 +1400,6 @@ fun UpdatesScreen(state: AppState) {
                     color = if (info != null) Color(0xFF16834A) else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                info?.release_notes?.takeIf { it.isNotBlank() }?.let {
-                    Text(it.take(500), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 6, overflow = TextOverflow.Ellipsis)
-                }
                 Button(
                     onClick = {
                         val available = info
@@ -1437,6 +1440,19 @@ fun UpdatesScreen(state: AppState) {
                     TextButton(onClick = { info = null; checkUpdates() }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.check_updates))
                     }
+                }
+            }
+        }
+        notes?.takeIf { it.body.isNotBlank() }?.let { releaseNotes ->
+            Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.update_release_notes), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        releaseNotes.version_name.takeIf { it.isNotBlank() }?.let {
+                            Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    ReleaseNotesBody(releaseNotes.body)
                 }
             }
         }
