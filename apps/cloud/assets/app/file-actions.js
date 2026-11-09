@@ -1554,7 +1554,9 @@ async function shareItem(path, type, root) {
         const normalizedPath = getShareActionPath(path, root);
         shareState.currentPath = normalizedPath;
         if (typeof renderShareModalForPath === 'function') {
-            await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
+            // Keep the file's root (group/hidden folder): without it the modal
+            // fell back to the active tab root and the API reported "file not found".
+            await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never', root || getCurrentCloudRoot());
         } else {
             const result = await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
@@ -1845,9 +1847,23 @@ function shouldHideEditMenuOption(path) {
 }
 function shouldRenameOnTreeDblClick(path) {
   if (!path) return false;
+
+  // list of file extensions that should be renamed on double-click
+  const renameExtensions = ['txt', 'md', 'js', 'jsx', 'ts', 'tsx', 'html', 'css', 'json', 'xml', 'py', 'java', 'c', 'cpp', 'php', 'rb', 'go', 'rs', 'swift', 'kt', 'sh', 'bat', 'vbs'];
+
+  const ext = path.split('.').pop().toLowerCase();
+
+  // Always rename text and code files
+  if (renameExtensions.includes(ext)) {
+    return true;
+  }
+
+  // Check if it's a special editable file
   if (typeof isEditableImage === 'function' && isEditableImage(path)) return false;
   if (typeof isEditableAudio === 'function' && isEditableAudio(path)) return false;
-  return true;
+
+  // For other files (images, folders, etc.), don't rename on double-click
+  return false;
 }
 function openFileFromTree(path, root = null) {
   if (!path) return;
@@ -2260,6 +2276,8 @@ function initDeleteModal() {
     confirmBtn.addEventListener('click', confirmDelete);
     permanentCheckbox?.addEventListener('change', () => {
         deleteState.permanent = !!permanentCheckbox.checked;
+        const triangle = document.getElementById('checkbox-triangle');
+        if (triangle) triangle.style.display = permanentCheckbox.checked ? 'block' : 'none';
     });
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
