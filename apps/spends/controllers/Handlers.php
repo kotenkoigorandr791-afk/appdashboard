@@ -76,47 +76,24 @@ if (isset($_GET['get_ocr_stats'])) {
     foreach ($userSettings['stores'] ?? [] as $s) {
         $categoryByStore[(string)($s['name'] ?? '')] = spendsNormalizeStoreCategory($s['category'] ?? 'other');
     }
-    if ($storeFilter === '__all__') {
-        $expWhere = "date >= :yearStart AND date <= :yearEnd";
-        $expParams = [':yearStart' => $yearStart, ':yearEnd' => $yearEnd];
-        if ($year > 0) {
-            $dr = $udb->prepare("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE $expWhere AND amount>0 GROUP BY date,store ORDER BY date ASC,store ASC");
-            foreach ($expParams as $k => $v) $dr->bindValue($k, $v);
-            $dr->execute();
-            while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-            $mr = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE $expWhere AND amount>0 GROUP BY ym,store ORDER BY ym ASC,store ASC");
-            foreach ($expParams as $k => $v) $mr->bindValue($k, $v);
-            $mr->execute();
-            while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
-        } else {
-            $dr = $udb->query("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE amount>0 GROUP BY date,store ORDER BY date ASC,store ASC");
-            while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-            $mr = $udb->query("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE amount>0 GROUP BY ym,store ORDER BY ym ASC,store ASC");
-            while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
-        }
-    } else {
-        $expWhere = "date >= :yearStart AND date <= :yearEnd";
-        $expParams = [':yearStart' => $yearStart, ':yearEnd' => $yearEnd];
-        if ($year > 0) {
-            $st = $udb->prepare("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE $expWhere AND amount>0 GROUP BY date,store ORDER BY date ASC");
-            foreach ($expParams as $k => $v) $st->bindValue($k, $v);
-            $st->execute();
-            while ($row = $st->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-            $st2 = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE $expWhere AND amount>0 GROUP BY ym,store ORDER BY ym ASC");
-            foreach ($expParams as $k => $v) $st2->bindValue($k, $v);
-            $st2->execute();
-            while ($row = $st2->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
-        } else {
-            $st = $udb->query("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE amount>0 GROUP BY date,store ORDER BY date ASC");
-            while ($row = $st->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-            $st2 = $udb->query("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE amount>0 GROUP BY ym,store ORDER BY ym ASC");
-            while ($row = $st2->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
-        }
+    $expWhere = $year > 0 ? 'date >= :yearStart AND date <= :yearEnd' : '1=1';
+    $expParams = $year > 0 ? [':yearStart' => $yearStart, ':yearEnd' => $yearEnd] : [];
+    if ($storeFilter !== '__all__') {
+        $expWhere .= ' AND store = :store';
+        $expParams[':store'] = $storeFilter;
     }
-    $summaryRes = $udb->prepare("SELECT store,ROUND(SUM(amount)::numeric,2) AS total,COUNT(DISTINCT date) AS active_days,ROUND(SUM(CASE WHEN date=:today THEN amount ELSE 0 END)::numeric,2) AS today FROM expenses WHERE amount>0 $expWhere GROUP BY store ORDER BY total DESC,store ASC");
-    $st->bindValue(':today', $today);
-    $st->execute();
-    while ($row = $summaryRes->fetch(PDO::FETCH_ASSOC))
+    $dr = $udb->prepare("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE $expWhere AND amount>0 GROUP BY date,store ORDER BY date ASC,store ASC");
+    foreach ($expParams as $name => $value) $dr->bindValue($name, $value);
+    $dr->execute();
+    while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
+    $mr = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE $expWhere AND amount>0 GROUP BY ym,store ORDER BY ym ASC,store ASC");
+    foreach ($expParams as $name => $value) $mr->bindValue($name, $value);
+    $mr->execute();
+    while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
+    $summaryRes = $udb->prepare("SELECT store,ROUND(SUM(amount)::numeric,2) AS total,COUNT(DISTINCT date) AS active_days,ROUND(SUM(CASE WHEN date=:today THEN amount ELSE 0 END)::numeric,2) AS today FROM expenses WHERE amount>0 AND $expWhere GROUP BY store ORDER BY total DESC,store ASC");
+    foreach ($expParams as $name => $value) $summaryRes->bindValue($name, $value);
+    $summaryRes->bindValue(':today', $today);
+    $summaryRes->execute();
     while ($row = $summaryRes->fetch(PDO::FETCH_ASSOC)) {
         $total = (float)($row['total'] ?? 0);
         $activeDays = max(0, (int)($row['active_days'] ?? 0));
