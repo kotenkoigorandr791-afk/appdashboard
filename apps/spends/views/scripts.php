@@ -775,6 +775,13 @@ function changeChartYear(d) {
         })
         .catch(()=>updateChart());
 }
+function changeAnalyticsYear(d){
+    const target=analyticsYear+Number(d);
+    if(!yearHasData(target))return;
+    analyticsYear=target;
+    updateYearButtons();
+    loadOCRAnalytics();
+}
 function toggleChartMode(){chartMode=chartMode==='total'?'stores':(chartMode==='stores'?'categories':'total');updateChart();}
 
 // ══ Exchange Rates ══════════════════════════════════════════════════════════
