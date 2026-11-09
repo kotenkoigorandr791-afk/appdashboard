@@ -429,24 +429,27 @@ if (isset($_POST['latex'])) {
 }
 
 if (isset($_POST['save']) && isset($_POST['content']) && $filePath) {
-    $content = $_POST['content'];
+    $content = (string)$_POST['content'];
     $fullPath = $userStoragePath;
     $dir = dirname($fullPath);
-    if (!is_dir($dir)) mkdir($dir, 0777, true);
-    $success = file_put_contents($fullPath, $content);
+    $directoryReady = is_dir($dir) || @mkdir($dir, 0775, true);
+    $written = $directoryReady ? @file_put_contents($fullPath, $content) : false;
+    // file_put_contents returns 0 for a valid empty file; only false is failure.
+    $success = $written !== false;
     header('Content-Type: application/json');
-    echo json_encode(['success' => $success,'file_path' => $filePath,'file_size' => $success ? filesize($fullPath) : 0,'user' => $currentUser]);
+    echo json_encode(['success' => $success, 'file_path' => $filePath, 'file_size' => $success ? (int)$written : 0, 'user' => $currentUser, 'error' => $success ? null : 'Unable to write file']);
     exit;
 }
 
 if (isset($_POST['autosave']) && isset($_POST['content']) && $filePath) {
-    $content = $_POST['content'];
+    $content = (string)$_POST['content'];
     $fullPath = $userStoragePath;
     $dir = dirname($fullPath);
-    if (!is_dir($dir)) mkdir($dir, 0777, true);
-    $success = file_put_contents($fullPath, $content);
+    $directoryReady = is_dir($dir) || @mkdir($dir, 0775, true);
+    $written = $directoryReady ? @file_put_contents($fullPath, $content) : false;
+    $success = $written !== false;
     header('Content-Type: application/json');
-    echo json_encode(['success' => $success,'autosaved' => true,'timestamp' => date('H:i:s')]);
+    echo json_encode(['success' => $success, 'autosaved' => true, 'timestamp' => date('H:i:s'), 'error' => $success ? null : 'Unable to write file']);
     exit;
 }
 
