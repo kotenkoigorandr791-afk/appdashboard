@@ -16,6 +16,9 @@ class HCWebhookApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         preferencesManager = PreferencesManager(this)
+        // Connectivity is observed app-wide so the offline banner and the bar
+        // indicator react the moment the network drops.
+        NetworkState.start(this)
 
         // Schedule syncs based on the selected sync mode
         when (preferencesManager.getSyncMode()) {

@@ -1,6 +1,7 @@
 package orbit.nex.steps.screens
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -217,7 +218,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(R.string.stats_heatmap_title), style = MaterialTheme.typography.titleMedium)
-                StepsHeatmap(monthSteps, chartMonth)
+                StepsHeatmap(monthSteps, chartMonth, goalSteps)
             }
         }
         if (!connected && localMonthSteps.isNotEmpty()) {
@@ -407,7 +408,9 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
     }
 }
 @Composable
-private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
+private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int) {
+    // Gold marks the days the daily step goal was reached.
+    val goalGold = Color(0xFFD4A017)
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
@@ -428,12 +431,18 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
                         val count = steps[date] ?: 0L
                         val intensity = (count.toFloat() / max.toFloat()).coerceIn(0f, 1f)
                         val color = if (count <= 0L) empty else lerp(base, warm, intensity).copy(alpha = 0.35f + 0.65f * intensity)
+                        val goalReached = goal > 0 && count >= goal
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(color)
+                                .then(
+                                    if (goalReached) {
+                                        Modifier.border(1.5.dp, goalGold, RoundedCornerShape(4.dp))
+                                    } else Modifier
+                                )
                                 .clickable { picked = if (picked == date) null else date },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -441,10 +450,10 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
                             Text(
                                 date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (intensity > 0.55f) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                color = when {
+                                    goalReached -> goalGold
+                                    intensity > 0.55f -> MaterialTheme.colorScheme.onPrimary
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                             )
                         }
