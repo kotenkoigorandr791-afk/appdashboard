@@ -9,7 +9,7 @@ let loadingModalElement = null;
   * @param {string} filePath - Path to the file or folder
   * @param {string} fileType - Type ('file' or 'dir')
  */
-async function showProperties(filePath, fileType) {
+async function showProperties(filePath, fileType, root = null) {
     if (!filePath) {
         flashStatus(t(window.i18n, 'selectItemFirst'));
         return;
@@ -51,17 +51,20 @@ async function showProperties(filePath, fileType) {
 
         let properties;
         
+        // Pass the item's root (group / hidden folder): without it the server
+        // looked the file up in "main" and answered 404.
+        const propsRoot = root || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
         if (fileType === 'dir') {
             properties = await apiWithAbort(
                 'get_folder_properties', 
-                { path: filePath }, 
+                { path: filePath, root: propsRoot }, 
                 'GET', 
                 signal
             );
         } else {
             properties = await apiWithAbort(
                 'get_properties', 
-                { path: filePath }, 
+                { path: filePath, root: propsRoot }, 
                 'GET', 
                 signal
             );

@@ -66,30 +66,47 @@
         header { 
             background: var(--panel); 
             border-bottom: 1px solid var(--border); 
-            padding: 4px 12px; 
+            padding: 0 12px; 
             display: flex; 
             align-items: center; 
-            gap: 12px; 
+            gap: 10px; 
             font-size: 13px; 
             flex-shrink: 0; 
             height: var(--header-height);
+            overflow: hidden;
+        }
+
+        .btn-group { 
+            display: flex; 
+            align-items: center; 
+            gap: 8px; 
+            flex: 0 0 auto; 
+            min-width: 0; 
         }
         
         .btn { 
             background: var(--panel); 
             border: 1px solid var(--border); 
             color: var(--fg); 
-            padding: 4px 10px; 
-            border-radius: 4px; 
+            height: 30px; 
+            padding: 0 12px; 
+            border-radius: 8px; 
             cursor: pointer; 
             font-size: 12px; 
+            font-weight: 500; 
+            line-height: 1; 
             display: inline-flex; 
             align-items: center; 
-            gap: 6px; 
+            justify-content: center; 
+            gap: 7px; 
             text-decoration: none; 
-            transition: all 0.2s; 
+            transition: background .16s ease, border-color .16s ease; 
             white-space: nowrap; 
+            flex: 0 0 auto;
         }
+
+        .btn.icon-only { width: 30px; padding: 0; }
+        .btn svg { display: block; width: 14px; height: 14px; flex: 0 0 auto; }
         
         .btn:hover { 
             background: var(--hover); 
@@ -98,33 +115,42 @@
         
         .btn i { 
             font-size: 12px; 
+            line-height: 1; 
+            display: inline-flex; 
+            align-items: center; 
         }
         
         .breadcrumbs { 
-            flex: 1; 
+            flex: 1 1 auto; 
             display: flex; 
             align-items: center; 
-            gap: 4px; 
+            gap: 6px; 
             background: var(--bg); 
             border: 1px solid var(--border); 
-            border-radius: 4px; 
-            padding: 2px 6px; 
-            min-width: 200px; 
+            border-radius: 8px; 
+            padding: 0 8px; 
+            min-width: 0; 
             overflow-x: auto; 
             white-space: nowrap; 
             scrollbar-width: thin; 
-            height: 28px;
+            height: 30px;
         }
         
         .breadcrumb-item { 
             display: inline-flex; 
             align-items: center; 
+            gap: 6px; 
+            height: 24px; 
             color: var(--fg); 
             text-decoration: none; 
-            padding: 2px 4px; 
-            border-radius: 3px; 
+            padding: 0 4px; 
+            border-radius: 4px; 
             font-size: 12px; 
+            line-height: 1; 
+            flex: 0 0 auto;
         }
+
+        .breadcrumb-item svg { display: block; width: 13px; height: 13px; flex: 0 0 auto; }
         
         .breadcrumb-item:hover { 
             background: var(--hover); 
@@ -132,20 +158,25 @@
         
         .breadcrumb-separator { 
             color: #888; 
-            margin: 0 2px; 
+            margin: 0; 
+            flex: 0 0 auto;
         }
         
         .archive-info { 
             display: flex; 
             align-items: center; 
             gap: 6px; 
-            padding: 0 6px; 
+            padding: 0 2px 0 10px; 
             color: #888; 
             border-left: 1px solid var(--border); 
-            margin-left: 4px; 
+            margin-left: 2px; 
             font-size: 12px;
-            height: 26px;
+            line-height: 1;
+            height: 30px;
+            flex: 0 0 auto;
         }
+
+        .archive-info svg { display: block; width: 14px; height: 14px; flex: 0 0 auto; color: var(--muted, #888); }
         
         .container { 
             flex: 1; 
@@ -179,6 +210,8 @@
             font-size: 12px; 
             align-items: center; 
             flex-shrink: 0; 
+            white-space: nowrap; 
+            min-width: 0; 
         }
         
         .header-name { 
@@ -390,14 +423,20 @@
             background: var(--panel); 
             border: 1px solid var(--border); 
             color: var(--fg); 
-            padding: 4px 8px; 
-            border-radius: 4px; 
+            height: 26px; 
+            padding: 0 9px; 
+            border-radius: 6px; 
             cursor: pointer; 
             font-size: 11px; 
+            line-height: 1; 
             display: inline-flex; 
             align-items: center; 
-            gap: 4px; 
+            justify-content: center;
+            gap: 5px; 
         }
+
+        .pdf-toolbar button svg { display: block; width: 13px; height: 13px; flex: 0 0 auto; }
+        .pdf-toolbar button span { line-height: 1; }
         
         .pdf-toolbar button:hover { 
             background: var(--hover); 
@@ -419,20 +458,46 @@
             padding: 16px; 
             display: flex; 
             flex-direction: column; 
-            align-items: center; 
+            align-items: flex-start; 
             background: var(--bg); 
         }
         
         .pdf-page { 
-            margin-bottom: 16px; 
+            position: relative; 
+            margin: 0 auto 16px; 
             box-shadow: 0 2px 8px rgba(0,0,0,0.3); 
             background: white; 
+            flex: 0 0 auto; 
+            line-height: 0; 
         }
         
         .pdf-page canvas { 
             display: block; 
-            width: 100%; 
-            height: auto; 
+            max-width: 100%; 
+        }
+
+        /* Selectable text overlay drawn by pdf.js on top of the canvas. */
+        .pdf-page .textLayer {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            line-height: 1;
+            text-size-adjust: none;
+            forced-color-adjust: none;
+            transform-origin: 0 0;
+            z-index: 2;
+            opacity: 1;
+        }
+        .pdf-page .textLayer span,
+        .pdf-page .textLayer br {
+            color: transparent;
+            position: absolute;
+            white-space: pre;
+            cursor: text;
+            transform-origin: 0 0;
+        }
+        .pdf-page .textLayer ::selection {
+            background: rgba(0, 123, 255, 0.35);
         }
         
         .playlist { 
@@ -522,10 +587,9 @@
         }
         
         @media (max-width: 768px) {
-            header { padding: 4px 6px; }
+            header { padding: 0 6px; }
             .btn span { display: none; }
-            .btn i { font-size: 14px; }
-            .btn { padding: 6px 10px; }
+            .btn { width: 30px; height: 30px; padding: 0; }
             .file-date, .header-date { display: none; }
             .file-size, .header-size { width: 60px; }
             .file-name, .header-name { padding-left: 0; }
@@ -638,10 +702,10 @@
     <div class="btn-group">
         <?php if ($viewFile): ?>
             <a href="<?= buildUrl(['view' => null, 'path' => $currentPath]) ?>" class="btn">
-                <i class="fa-solid fa-arrow-left"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5"/><path d="m12 19-7-7 7-7"/></svg>
                 <span><?= $i18n['back'] ?></span>
             </a>
-            <a href="<?= buildUrl(['download_from_zip' => '1', 'file' => urlencode($viewFile)]) ?>" class="btn" title="<?= htmlspecialchars($i18n['download_file']) ?>">
+            <a href="<?= buildUrl(['download_from_zip' => '1', 'file' => urlencode($viewFile)]) ?>" class="btn icon-only" title="<?= htmlspecialchars($i18n['download_file']) ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
             </a>
         <?php elseif (count($archiveChain) > 1): ?>
@@ -651,16 +715,16 @@
             $parentChain = array_slice($archiveChain, 0, -1);
             ?>
             <a href="?archive=<?= urlencode($parentArchive['path']) ?>&parent=<?= urlencode(json_encode(array_slice($parentChain, 0, -1))) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&folderColor=<?= urlencode($folderColor) ?>&path=<?= urlencode($parentArchive['internal_path'] ?? '') ?>" class="btn">
-                <i class="fa-solid fa-arrow-up"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                 <span><?= $i18n['back'] ?> (<?= basename($parentArchive['path']) ?>)</span>
             </a>
         <?php elseif ($currentPath !== ''): ?>
             <a href="<?= buildUrl(['path' => getParentPath($currentPath), 'view' => null]) ?>" class="btn">
-                <i class="fa-solid fa-arrow-up"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5"/><path d="m5 12 7-7 7 7"/></svg>
                 <span><?= $i18n['back'] ?></span>
             </a>
             <a href="<?= buildUrl(['path' => null, 'view' => null]) ?>" class="btn">
-                <i class="fa-solid fa-home"></i>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg>
                 <span><?= $i18n['root'] ?></span>
             </a>
         <?php endif; ?>
@@ -674,12 +738,12 @@
             <?php endif; ?>
             <?php if ($index < count($archiveChain) - 1): ?>
                 <a href="?archive=<?= urlencode($arch['path']) ?>&parent=<?= urlencode(json_encode(array_slice($archiveChain, 0, $index))) ?>&lang=<?= $lang ?>&theme=<?= $theme ?>&folderColor=<?= urlencode($folderColor) ?>&path=<?= urlencode($arch['internal_path'] ?? '') ?>" class="breadcrumb-item">
-                    <i class="fa-solid fa-file-zipper" style="color:<?= $folderColor ?>; margin-right:2px;"></i>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="<?= $folderColor ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
                     <?= htmlspecialchars(basename($arch['name'])) ?>
                 </a>
             <?php else: ?>
                 <span class="breadcrumb-item" style="color: var(--folder-color);">
-                    <i class="fa-solid fa-file-zipper" style="color:<?= $folderColor ?>; margin-right:2px;"></i>
+                    <svg viewBox="0 0 24 24" fill="none" stroke="<?= $folderColor ?>" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="4" rx="1"/><path d="M5 8v11a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
                     <?= htmlspecialchars(basename($arch['name'])) ?>
                 </span>
             <?php endif; ?>
@@ -702,7 +766,7 @@
     </div>
     
     <div class="archive-info">
-        <i class="fa-solid fa-cubes"></i>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5"/><path d="m3 16 9 5 9-5"/></svg>
         <span><?= count($files) ?> <?= $i18n['files'] ?></span>
     </div>
     <?php if ($archiveNeedsPassword): ?>
@@ -730,10 +794,7 @@
 <div class="container <?= $viewFile ? 'has-preview' : '' ?>">
     <div class="file-list-container">
         <div class="file-list-header">
-            <div class="header-name">
-                <i class="fa-solid fa-folder" style="color:var(--folder-color); margin-right:8px;"></i>
-                <?= $i18n['name'] ?>
-            </div>
+            <div class="header-name"><?= $i18n['name'] ?></div>
             <div class="header-size"><?= $i18n['size'] ?></div>
             <div class="header-date"><?= $i18n['date'] ?></div>
         </div>
@@ -848,16 +909,22 @@
             <?php elseif ($previewType === 'pdf'): ?>
                 <div class="pdf-container">
                     <div class="pdf-toolbar">
-                        <button id="pdf-prev" disabled><i class="fa-solid fa-chevron-left"></i> <?= $i18n['back'] ?></button>
+                        <button id="pdf-prev" disabled>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                            <span><?= $i18n['back'] ?></span>
+                        </button>
                         <span id="pdf-page-info"><?= $i18n['pdf_page'] ?> <span id="pdf-current-page">1</span> / <span id="pdf-total-pages">0</span></span>
-                        <button id="pdf-next" disabled><?= $i18n['next'] ?? 'Next' ?> <i class="fa-solid fa-chevron-right"></i></button>
+                        <button id="pdf-next" disabled>
+                            <span><?= $i18n['next'] ?? 'Next' ?></span>
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+                        </button>
                         <select id="pdf-scale" style="margin-left: auto; background: var(--panel); color: var(--fg); border: 1px solid var(--border); padding: 3px 6px; border-radius: 3px; font-size:11px;">
-                            <option value="auto">Auto</option>
+                            <option value="auto" selected>Auto</option>
                             <option value="page-width">Page Width</option>
                             <option value="page-height">Page Height</option>
                             <option value="0.5">50%</option>
                             <option value="0.75">75%</option>
-                            <option value="1" selected>100%</option>
+                            <option value="1">100%</option>
                             <option value="1.25">125%</option>
                             <option value="1.5">150%</option>
                             <option value="2">200%</option>

@@ -2755,6 +2755,26 @@ function cloud_archive_write_job(string $jobId, array $data): void {
         throw new RuntimeException('Archive job storage is not writable');
     }
 }
+function cloud_archive_find_active_folder_job(string $user, string $rootKey, string $folderPath): ?string {
+    foreach (glob(cloud_archive_jobs_dir() . '/*.json') ?: [] as $file) {
+        $job = json_decode((string)@file_get_contents($file), true) ?: [];
+        if (($job['type'] ?? '') !== 'archive_folder') continue;
+        if (!in_array(($job['status'] ?? ''), ['queued', 'running'], true)) continue;
+        $payload = $job['payload'] ?? [];
+        if ((string)($payload['user'] ?? '') !== $user || (string)($payload['root'] ?? '') !== $rootKey) continue;
+        if (safe_path((string)($payload['folder_path'] ?? '')) === $folderPath) return (string)($job['id'] ?? '');
+    }
+    return null;
+}
+function cloud_archive_verify_folder_contents(string $archivePath, string $format, string $folderName, string $password = ''): void {
+    $entries = cloud_archive_list_paths($archivePath, $format, $password);
+    $prefix = rtrim(str_replace('\\', '/', $folderName), '/') . '/';
+    foreach ($entries as $entry) {
+        $entry = ltrim(str_replace('\\', '/', (string)$entry), './');
+        if ($entry === $folderName || str_starts_with($entry, $prefix)) return;
+    }
+    throw new RuntimeException('Archive verification failed: folder contents are missing');
+}
 function cloud_archive_start_job(string $type, array $payload, callable $runner): void {
     $jobId = bin2hex(random_bytes(16));
     $token = bin2hex(random_bytes(16));
@@ -3065,6 +3085,7 @@ function cloud_archive_create_selected_job(string $jobId, array $payload): void 
         }
         if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
         if (!file_exists($archive_path) || filesize($archive_path) <= 0) throw new RuntimeException('Failed to create archive');
+        if (!$temporary) cloud_index_touch_file($user, $rootKey, $archive_name);
         $email = get_session_email();
         if (!$temporary && $email && $rootKey === 'main') invalidate_file_tree($email);
         if (!$temporary && $email) append_sync_log($email, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
@@ -3102,20 +3123,27 @@ function cloud_archive_folder_job(string $jobId, array $payload): void {
         $total = 1;
         $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.' . cloud_archive_format_extension($format);
         cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 20, 'processed' => 0, 'total' => $total]);
+        // Archive the folder from its parent so entries are rooted at the
+        // folder itself (folder_name/...). Using the full path produced
+        // "parent/folder/..." entries, which failed the contents check below.
         $parent = dirname($folder_path);
-        $folderItem = ($parent === '.' || $parent === '') ? basename($folder_path) : $folder_path;
-        $added = cloud_archive_create_file($base, [$folderItem], $tmp_path, $format, $password);
+        $parent = ($parent === '.' || $parent === '') ? '' : $parent;
+        $parent_base = $parent === '' ? $base : $base . '/' . $parent;
+        $added = cloud_archive_create_file($parent_base, [$folder_name], $tmp_path, $format, $password);
         cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 99, 'processed' => $total, 'total' => $total]);
         if (cloud_archive_job_cancelled($jobId)) {
             cloud_archive_cancelled_job($jobId, $tmp_path);
             return;
         }
+        if (!is_file($tmp_path) || filesize($tmp_path) <= 0) throw new RuntimeException('Failed to create archive file');
+        cloud_archive_verify_folder_contents($tmp_path, $format, $folder_name, $password);
         if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
         if (!file_exists($archive_path) || filesize($archive_path) <= 0) throw new RuntimeException('Failed to create archive file');
+        $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
+        cloud_index_touch_file($user, $rootKey, $result_path);
         $email = get_session_email();
         if ($email && $rootKey === 'main') invalidate_file_tree($email);
         if ($email) append_sync_log($email, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
-        $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
         cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'archive_path' => $result_path, 'archive_name' => $archive_name, 'size' => filesize($archive_path), 'files_count' => $added, 'payload' => [], 'worker_token' => '']);
         cloud_archive_notify_job($jobId, $payload, 'success', 'Cloud folder archive finished', $result_path);
     } catch (Throwable $e) {
@@ -3243,8 +3271,48 @@ if ($action === 'create_archive') {
     } catch (Throwable $e) {
         json_out(['error' => $e->getMessage()], 400);
     }
+    $temporary = (string)($_POST['temporary'] ?? '') === '1';
+    if ($temporary) {
+        // Direct download: build the archive in this request and hand back a
+        // one-time download URL. No background worker and no modal round-trip.
+        $jobId = bin2hex(random_bytes(16));
+        $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.' . cloud_archive_format_extension($format);
+        try {
+            $added_count = cloud_archive_create_file($base, $items, $tmp_path, $format, $password);
+            if (!is_file($tmp_path) || filesize($tmp_path) <= 0) throw new RuntimeException('Failed to create archive');
+        } catch (Throwable $e) {
+            @unlink($tmp_path);
+            json_out(['error' => $e->getMessage()], 500);
+        }
+        $downloadToken = bin2hex(random_bytes(16));
+        $downloadUrl = 'api.php?action=archive_job_download&job_id=' . rawurlencode($jobId) . '&token=' . rawurlencode($downloadToken);
+        cloud_archive_write_job($jobId, [
+            'id' => $jobId,
+            'type' => 'create_archive',
+            'status' => 'done',
+            'progress' => 100,
+            'archive_name' => $archive_name,
+            'items_count' => $added_count,
+            'size' => filesize($tmp_path),
+            'temporary' => true,
+            'temp_file' => basename($tmp_path),
+            'download_token' => $downloadToken,
+            'download_url' => $downloadUrl,
+            'payload' => [],
+            'worker_token' => '',
+        ]);
+        json_out([
+            'success' => true,
+            'temporary' => true,
+            'job_id' => $jobId,
+            'archive_name' => $archive_name,
+            'download_url' => $downloadUrl,
+            'items_count' => $added_count,
+            'size' => filesize($tmp_path),
+        ]);
+    }
     if ((string)($_POST['async'] ?? '') === '1') {
-        cloud_archive_start_job('create_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name, 'format' => $format, 'password' => $password, 'temporary' => (string)($_POST['temporary'] ?? '') === '1', 'type' => 'create_archive'], 'cloud_archive_create_selected_job');
+        cloud_archive_start_job('create_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name, 'format' => $format, 'password' => $password, 'temporary' => false, 'type' => 'create_archive'], 'cloud_archive_create_selected_job');
     }
     $archive_path = $base . '/' . $archive_name;
     if (file_exists($archive_path)) json_out(['error' => 'exists'], 409);
@@ -3256,6 +3324,7 @@ if ($action === 'create_archive') {
         @unlink($tmp_path);
         json_out(['error' => $e->getMessage()], 500);
     }
+    cloud_index_touch_file($user, $rootKey, $archive_name);
     $emailArch = get_session_email();
     if ($emailArch && $rootKey === 'main') invalidate_file_tree($emailArch);
     if ($emailArch) append_sync_log($emailArch, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
@@ -3637,6 +3706,10 @@ if ($action === 'archive_folder') {
         json_out(['error' => 'folder_path is required'], 400);
     }
     if ((string)($_POST['async'] ?? '') === '1') {
+        $activeJobId = cloud_archive_find_active_folder_job($user, $rootKey, $folder_path);
+        if ($activeJobId !== null) {
+            json_out(['error' => 'An archive for this folder is already in progress', 'job_id' => $activeJobId], 409);
+        }
         cloud_archive_start_job('archive_folder', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'folder_path' => $folder_path, 'format' => $format, 'password' => $password, 'archive_name' => (string)($_POST['archive_name'] ?? ''), 'type' => 'archive_folder'], 'cloud_archive_folder_job');
     }
     
@@ -3655,7 +3728,10 @@ if ($action === 'archive_folder') {
     if (file_exists($archive_path)) json_out(['error' => 'Archive already exists'], 409);
     $tmp_path = cloud_archive_tmp_dir() . '/' . bin2hex(random_bytes(8)) . '.' . cloud_archive_format_extension($format);
     try {
-        $added_count = cloud_archive_create_file($base, [$folder_path], $tmp_path, $format, $password);
+        $parent = dirname($folder_path);
+        $parent = ($parent === '.' || $parent === '') ? '' : $parent;
+        $parent_base = $parent === '' ? $base : $base . '/' . $parent;
+        $added_count = cloud_archive_create_file($parent_base, [$folder_name], $tmp_path, $format, $password);
         if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
     } catch (Throwable $e) {
         @unlink($tmp_path);
@@ -3665,6 +3741,7 @@ if ($action === 'archive_folder') {
     if ($emailArch2 && $rootKey === 'main') invalidate_file_tree($emailArch2);
     if ($emailArch2) append_sync_log($emailArch2, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
     $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
+    cloud_index_touch_file($user, $rootKey, $result_path);
     json_out([
         'success' => true,
         'archive_path' => $result_path,

@@ -175,9 +175,9 @@ const loadingTask = pdfjsLib.getDocument({ data: pdfData });
 let pdfDoc = null;
 let currentPage = 1;
 let totalPages = 0;
-let scale = 1.0;
-let pageRendering = false;
-let pageNumPending = null;
+let pdfScaleMode = 'auto';
+let pdfRenderToken = 0;
+let activeRenderTask = null;
 
 const pdfViewer = document.getElementById('pdf-viewer');
 const prevBtn = document.getElementById('pdf-prev');
@@ -186,58 +186,102 @@ const currentPageSpan = document.getElementById('pdf-current-page');
 const totalPagesSpan = document.getElementById('pdf-total-pages');
 const scaleSelect = document.getElementById('pdf-scale');
 
-function renderPage(num) {
-    pageRendering = true;
-    pdfDoc.getPage(num).then(function(page) {
-        const viewport = page.getViewport({ scale: scale });
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-        canvas.className = 'pdf-page';
-        
-        const renderContext = {
-            canvasContext: ctx,
-            viewport: viewport
-        };
-        
-        const renderTask = page.render(renderContext);
-        renderTask.promise.then(function() {
-            pageRendering = false;
-            if (pageNumPending !== null) {
-                renderPage(pageNumPending);
-                pageNumPending = null;
-            }
-        });
-        
-        pdfViewer.innerHTML = '';
-        pdfViewer.appendChild(canvas);
-        currentPageSpan.textContent = num;
-        
-        prevBtn.disabled = (num <= 1);
-        nextBtn.disabled = (num >= totalPages);
-    });
+function resolvePdfScale(page) {
+    const base = page.getViewport({ scale: 1 });
+    const availableWidth = Math.max(240, pdfViewer.clientWidth - 32);
+    const availableHeight = Math.max(240, pdfViewer.clientHeight - 32);
+    if (pdfScaleMode === 'auto' || pdfScaleMode === 'page-width') {
+        return Math.max(0.1, availableWidth / base.width);
+    }
+    if (pdfScaleMode === 'page-height') {
+        return Math.max(0.1, availableHeight / base.height);
+    }
+    return Math.max(0.1, parseFloat(pdfScaleMode) || 1);
 }
 
-function queueRenderPage(num) {
-    if (pageRendering) {
-        pageNumPending = num;
-    } else {
-        renderPage(num);
+async function renderPage(num) {
+    const token = ++pdfRenderToken;
+    if (activeRenderTask) {
+        try { activeRenderTask.cancel(); } catch (_) {}
+        activeRenderTask = null;
+    }
+
+    let page;
+    try {
+        page = await pdfDoc.getPage(num);
+    } catch (err) {
+        console.error('PDF page load failed:', err);
+        return;
+    }
+    if (token !== pdfRenderToken) return;
+
+    const cssScale = resolvePdfScale(page);
+    const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+    const textViewport = page.getViewport({ scale: cssScale });
+    const renderViewport = page.getViewport({ scale: cssScale * pixelRatio });
+    const cssWidth = Math.max(1, Math.floor(textViewport.width));
+    const cssHeight = Math.max(1, Math.floor(textViewport.height));
+
+    const pageEl = document.createElement('div');
+    pageEl.className = 'pdf-page';
+    pageEl.style.width = cssWidth + 'px';
+    pageEl.style.height = cssHeight + 'px';
+
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.max(1, Math.floor(renderViewport.width));
+    canvas.height = Math.max(1, Math.floor(renderViewport.height));
+    canvas.style.width = cssWidth + 'px';
+    canvas.style.height = cssHeight + 'px';
+
+    const textLayer = document.createElement('div');
+    textLayer.className = 'textLayer';
+
+    pageEl.appendChild(canvas);
+    pageEl.appendChild(textLayer);
+    pdfViewer.replaceChildren(pageEl);
+
+    currentPageSpan.textContent = num;
+    prevBtn.disabled = (num <= 1);
+    nextBtn.disabled = (num >= totalPages);
+
+    const renderTask = page.render({ canvasContext: canvas.getContext('2d'), viewport: renderViewport });
+    activeRenderTask = renderTask;
+    try {
+        await renderTask.promise;
+    } catch (err) {
+        if (err && err.name === 'RenderingCancelledException') return;
+        console.error('PDF page render failed:', err);
+        return;
+    }
+    if (token !== pdfRenderToken) return;
+
+    // Invisible text layer keeps the page selectable and searchable.
+    try {
+        const textContent = await page.getTextContent();
+        if (token !== pdfRenderToken) return;
+        const textLayerTask = pdfjsLib.renderTextLayer({
+            textContentSource: textContent,
+            container: textLayer,
+            viewport: textViewport,
+            textDivs: []
+        });
+        if (textLayerTask && textLayerTask.promise) await textLayerTask.promise;
+    } catch (err) {
+        console.error('PDF text layer failed:', err);
     }
 }
 
 function onPrevPage() {
     if (currentPage > 1) {
         currentPage--;
-        queueRenderPage(currentPage);
+        renderPage(currentPage);
     }
 }
 
 function onNextPage() {
     if (currentPage < totalPages) {
         currentPage++;
-        queueRenderPage(currentPage);
+        renderPage(currentPage);
     }
 }
 
@@ -252,18 +296,16 @@ prevBtn.addEventListener('click', onPrevPage);
 nextBtn.addEventListener('click', onNextPage);
 
 scaleSelect.addEventListener('change', function(e) {
-    const value = e.target.value;
-    if (value === 'auto') {
-        const containerWidth = pdfViewer.clientWidth;
-        scale = containerWidth / 800;
-    } else if (value === 'page-width') {
-        scale = pdfViewer.clientWidth / 800;
-    } else if (value === 'page-height') {
-        scale = pdfViewer.clientHeight / 1100;
-    } else {
-        scale = parseFloat(value);
-    }
+    pdfScaleMode = e.target.value;
     renderPage(currentPage);
+});
+
+let pdfResizeTimer = null;
+window.addEventListener('resize', function() {
+    if (!pdfDoc) return;
+    if (!['auto', 'page-width', 'page-height'].includes(pdfScaleMode)) return;
+    clearTimeout(pdfResizeTimer);
+    pdfResizeTimer = setTimeout(function() { renderPage(currentPage); }, 150);
 });
 
 document.addEventListener('keydown', function(e) {

@@ -148,6 +148,7 @@
         previewHighlightTabId: null
     };
     let modelDropdownState = { wrapper: null, button: null, menu: null, open: false };
+    let roleDropdownState = { wrapper: null, button: null, menu: null, open: false };
     const unavailableModels = new Set();
     let autoOcrProcessTimer = null;
 
@@ -940,19 +941,42 @@
     }
     function openModelDropdown() {
         if (!modelDropdownState.wrapper) return;
+        
+        // Ensure dropdown options are rendered before opening
+        if (modelDropdownState.menu && modelDropdownState.menu.children.length === 0) {
+            renderModelDropdownOptions();
+        }
+        
         const menu = modelDropdownState.menu;
         const btn = modelDropdownState.button;
         if (menu && btn) {
             modelDropdownState.wrapper.classList.remove('drop-up');
+            menu.classList.remove('drop-up');
             const rect = btn.getBoundingClientRect();
             const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
             const spaceBelow = Math.max(0, viewportH - rect.bottom - 8);
             const spaceAbove = Math.max(0, rect.top - 8);
             const menuHeight = Math.min(280, menu.scrollHeight || 280);
-            if (spaceBelow < Math.min(180, menuHeight) && spaceAbove > spaceBelow) modelDropdownState.wrapper.classList.add('drop-up');
+            
+            menu.style.left = rect.left + 'px';
+            menu.style.width = rect.width + 'px';
+            
+            if (spaceBelow < Math.min(180, menuHeight) && spaceAbove > spaceBelow) {
+                modelDropdownState.wrapper.classList.add('drop-up');
+                menu.classList.add('drop-up');
+                menu.style.top = 'auto';
+                menu.style.bottom = (viewportH - rect.top + 6) + 'px';
+            } else {
+                menu.style.top = (rect.bottom + 6) + 'px';
+                menu.style.bottom = 'auto';
+            }
         }
         modelDropdownState.open = true;
         modelDropdownState.wrapper.classList.add('open');
+        if (menu) {
+            menu.classList.add('open');
+            menu.style.display = 'block';
+        }
     }
     function markModelUnavailable(modelId) {
         const id = String(modelId || '').trim();
@@ -982,16 +1006,20 @@
             const menu = document.createElement('div');
             menu.className = 'ai-model-dropdown-menu';
             dd.appendChild(btn);
-            dd.appendChild(menu);
             wrap.appendChild(dd);
+            document.body.appendChild(menu);
             modelDropdownState.wrapper = dd;
             modelDropdownState.button = btn;
             modelDropdownState.menu = menu;
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (modelDropdownState.open) closeModelDropdown();
-                else openModelDropdown();
+                if (modelDropdownState.open) {
+                    closeModelDropdown();
+                } else {
+                    closeRoleDropdown();
+                    openModelDropdown();
+                }
             });
             menu.addEventListener('click', (e) => {
                 const item = e.target.closest('.ai-model-dropdown-item');
@@ -1006,18 +1034,163 @@
         renderModelDropdownOptions();
         updateModelDropdownLabel();
     }
+    function renderRoleDropdownOptions() {
+        if (!roleDropdownState.menu || !elements.roleSelect) return;
+        roleDropdownState.menu.innerHTML = '';
+        Array.from(elements.roleSelect.options).forEach((option) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'ai-role-dropdown-item';
+            if (option.value === elements.roleSelect.value) item.classList.add('is-selected');
+            item.setAttribute('data-value', option.value);
+            item.textContent = option.text;
+            roleDropdownState.menu.appendChild(item);
+        });
+    }
+    function updateRoleDropdownLabel() {
+        if (!roleDropdownState.button || !elements.roleSelect) return;
+        const selectedOption = elements.roleSelect.options[elements.roleSelect.selectedIndex];
+        roleDropdownState.button.querySelector('.ai-role-dropdown-text').textContent = selectedOption?.text || elements.roleSelect.value || 'General Assistant';
+    }
+    function closeRoleDropdown() {
+        if (!roleDropdownState.wrapper) return;
+        roleDropdownState.open = false;
+        roleDropdownState.wrapper.classList.remove('open');
+        if (roleDropdownState.menu) {
+            roleDropdownState.menu.classList.remove('open');
+            roleDropdownState.menu.style.display = 'none';
+        }
+    }
+    function openRoleDropdown() {
+        if (!roleDropdownState.wrapper) return;
+        const menu = roleDropdownState.menu;
+        const btn = roleDropdownState.button;
+        if (menu && btn) {
+            roleDropdownState.wrapper.classList.remove('drop-up');
+            menu.classList.remove('drop-up');
+            const rect = btn.getBoundingClientRect();
+            const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+            const spaceBelow = Math.max(0, viewportH - rect.bottom - 8);
+            const spaceAbove = Math.max(0, rect.top - 8);
+            const menuHeight = Math.min(280, menu.scrollHeight || 280);
+
+            menu.style.left = rect.left + 'px';
+            menu.style.width = rect.width + 'px';
+
+            if (spaceBelow < Math.min(180, menuHeight) && spaceAbove > spaceBelow) {
+                roleDropdownState.wrapper.classList.add('drop-up');
+                menu.classList.add('drop-up');
+                menu.style.top = 'auto';
+                menu.style.bottom = (viewportH - rect.top + 6) + 'px';
+            } else {
+                menu.style.top = (rect.bottom + 6) + 'px';
+                menu.style.bottom = 'auto';
+            }
+        }
+        roleDropdownState.open = true;
+        roleDropdownState.wrapper.classList.add('open');
+        if (menu) {
+            menu.classList.add('open');
+            menu.style.display = 'block';
+        }
+    }
+    function initCustomRoleDropdown() {
+        if (!elements.roleSelect) return;
+        const wrap = elements.roleSelect.closest('.select-wrapper');
+        if (!wrap) return;
+        
+        // Remove old dropdown wrapper if exists
+        const oldWrapper = wrap.querySelector('.ai-role-dropdown');
+        if (oldWrapper) {
+            oldWrapper.remove();
+        }
+        
+        // Remove old menu from body if exists
+        if (roleDropdownState.menu && roleDropdownState.menu.parentElement) {
+            roleDropdownState.menu.remove();
+        }
+        
+        const dd = document.createElement('div');
+        dd.className = 'ai-role-dropdown';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ai-role-dropdown-btn';
+        btn.innerHTML = '<span class="ai-role-dropdown-text"></span><span class="ai-role-dropdown-arrow">▾</span>';
+        const menu = document.createElement('div');
+        menu.className = 'ai-role-dropdown-menu';
+        dd.appendChild(btn);
+        wrap.appendChild(dd);
+        document.body.appendChild(menu);
+        roleDropdownState.wrapper = dd;
+        roleDropdownState.button = btn;
+        roleDropdownState.menu = menu;
+        roleDropdownState.open = false;
+        
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (roleDropdownState.open) {
+                closeRoleDropdown();
+            } else {
+                closeModelDropdown();
+                openRoleDropdown();
+            }
+        });
+        menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.ai-role-dropdown-item');
+            if (!item) return;
+            const value = item.getAttribute('data-value');
+            if (!value || !elements.roleSelect) return;
+            elements.roleSelect.value = value;
+            elements.roleSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            closeRoleDropdown();
+        });
+        
+        renderRoleDropdownOptions();
+        updateRoleDropdownLabel();
+    }
     async function loadModelsFromApi(force) {
         if (!elements.modelSelect) return;
-        await ensureDirectApiKeyLoaded(force === true);
-        let ids = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels.filter(Boolean) : [];
-        if (ids.length === 0) {
-            const response = await fetch(getAiProxyUrl('ai_models'), { method: 'GET', credentials: 'same-origin' });
-            if (!response.ok) throw new Error(`Failed to fetch models: HTTP ${response.status}`);
-            const payload = await response.json();
-            const models = Array.isArray(payload?.data) ? payload.data : [];
-            ids = models.map((m) => String(m?.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+        
+        try {
+            await ensureDirectApiKeyLoaded(force === true);
+        } catch (e) {
+            // AI not configured - use default model only
+            console.warn('[AI Models] AI not configured, using default model');
+            const defaultModel = AI_CONFIG.defaultModel || 'github/gpt-4o-mini';
+            elements.modelSelect.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = defaultModel;
+            option.textContent = formatModelLabel(defaultModel);
+            elements.modelSelect.appendChild(option);
+            elements.modelSelect.value = defaultModel;
+            aiState.selectedModel = defaultModel;
+            renderModelDropdownOptions();
+            updateModelDropdownLabel();
+            applyModelVisibilityForRole();
+            return;
         }
-        if (ids.length === 0) throw new Error('No models available');
+        
+        let ids = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels.filter(Boolean) : [];
+        
+        if (ids.length === 0) {
+            try {
+                const response = await fetch(getAiProxyUrl('ai_models'), { method: 'GET', credentials: 'same-origin' });
+                if (!response.ok) throw new Error(`Failed to fetch models: HTTP ${response.status}`);
+                const payload = await response.json();
+                const models = Array.isArray(payload?.data) ? payload.data : [];
+                ids = models.map((m) => String(m?.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+            } catch (e) {
+                console.warn('[AI Models] Failed to fetch from API, using default model');
+            }
+        }
+        
+        // Fallback to default model if no models available
+        if (ids.length === 0) {
+            const defaultModel = AI_CONFIG.defaultModel || 'github/gpt-4o-mini';
+            ids = [defaultModel];
+        }
+        
         const previous = aiState.selectedModel || elements.modelSelect.value || AI_CONFIG.defaultModel;
         elements.modelSelect.innerHTML = '';
         ids.forEach((id) => {
@@ -1027,6 +1200,7 @@
             syncModelOptionMeta(option, unavailableModels.has(id));
             elements.modelSelect.appendChild(option);
         });
+        
         const preferredModels = [previous, ...getPreferredModelCandidates()];
         const pickedPreferred = preferredModels.find((id) => ids.includes(id));
         elements.modelSelect.value = pickedPreferred || ids[0];
@@ -1064,7 +1238,20 @@
                 flex: 0 0 35% !important;
                 max-width: 35% !important;
             }
+            .ai-controls .select-wrapper:has(#ai-role-select) {
+                flex: 0 0 35% !important;
+                max-width: 35% !important;
+            }
             #ai-model-select {
+                position: absolute !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                width: 0 !important;
+                height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            #ai-role-select {
                 position: absolute !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
@@ -1077,10 +1264,22 @@
                 position: relative !important;
                 width: 100% !important;
             }
+            .ai-role-dropdown {
+                position: relative !important;
+                width: 100% !important;
+            }
             .select-wrapper:has(#ai-model-select) > svg {
                 display: none !important;
             }
+            .select-wrapper:has(#ai-role-select) > svg {
+                display: none !important;
+            }
             .select-wrapper:has(#ai-model-select)::after {
+                display: none !important;
+                content: none !important;
+                background-image: none !important;
+            }
+            .select-wrapper:has(#ai-role-select)::after {
                 display: none !important;
                 content: none !important;
                 background-image: none !important;
@@ -1101,7 +1300,30 @@
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
             }
+            .ai-role-dropdown-btn {
+                width: 100% !important;
+                border: 1px solid var(--border) !important;
+                background: var(--bg) !important;
+                color: var(--fg) !important;
+                border-radius: 999px !important;
+                min-height: 34px !important;
+                padding: 8px 32px 8px 12px !important;
+                text-align: left !important;
+                font-size: 12px !important;
+                cursor: pointer !important;
+                position: relative !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
             .ai-model-dropdown-arrow {
+                position: absolute !important;
+                right: 10px !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                opacity: .75 !important;
+            }
+            .ai-role-dropdown-arrow {
                 position: absolute !important;
                 right: 10px !important;
                 top: 50% !important;
@@ -1138,18 +1360,29 @@
                 box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
             }
             .ai-model-dropdown-menu {
-                position: absolute !important;
-                top: calc(100% + 6px) !important;
-                left: 0 !important;
-                right: 0 !important;
+                position: fixed !important;
                 max-height: 280px !important;
                 overflow-y: auto !important;
                 background: var(--panel) !important;
                 border: 1px solid var(--border) !important;
                 border-radius: 10px !important;
                 padding: 6px !important;
-                z-index: 120 !important;
-                display: none !important;
+                z-index: 9999999 !important;
+                display: none;
+                box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: rgba(160,160,170,.75) transparent !important;
+            }
+            .ai-role-dropdown-menu {
+                position: fixed !important;
+                max-height: 280px !important;
+                overflow-y: auto !important;
+                background: var(--panel) !important;
+                border: 1px solid var(--border) !important;
+                border-radius: 10px !important;
+                padding: 6px !important;
+                z-index: 9999999 !important;
+                display: none;
                 box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: rgba(160,160,170,.75) transparent !important;
@@ -1158,7 +1391,21 @@
                 top: auto !important;
                 bottom: calc(100% + 6px) !important;
             }
+            .ai-role-dropdown.drop-up .ai-role-dropdown-menu {
+                top: auto !important;
+                bottom: calc(100% + 6px) !important;
+            }
             .ai-model-dropdown.open .ai-model-dropdown-menu {
+                display: block !important;
+            }
+            .ai-role-dropdown.open .ai-role-dropdown-menu {
+                display: block !important;
+            }
+            /* The menu itself lives in <body>, so the .open class is applied to it
+               and not only to the wrapper — otherwise display:none!important kept
+               every dropdown closed. */
+            .ai-model-dropdown-menu.open,
+            .ai-role-dropdown-menu.open {
                 display: block !important;
             }
             .ai-model-dropdown-menu::-webkit-scrollbar {
@@ -1166,26 +1413,64 @@
                 height: 6px !important;
                 background: transparent !important;
             }
+            .ai-role-dropdown-menu::-webkit-scrollbar {
+                width: 6px !important;
+                height: 6px !important;
+                background: transparent !important;
+            }
             .ai-model-dropdown-menu::-webkit-scrollbar-track {
+                background: transparent !important;
+            }
+            .ai-role-dropdown-menu::-webkit-scrollbar-track {
                 background: transparent !important;
             }
             .ai-model-dropdown-menu::-webkit-scrollbar-thumb {
                 background: rgba(160,160,170,.75) !important;
                 border-radius: 999px !important;
             }
+            .ai-role-dropdown-menu::-webkit-scrollbar-thumb {
+                background: rgba(160,160,170,.75) !important;
+                border-radius: 999px !important;
+            }
             .ai-model-dropdown-item {
                 width: 100% !important;
                 border: 0 !important;
+                outline: none !important;
                 background: transparent !important;
                 color: var(--fg) !important;
                 text-align: left !important;
-                padding: 7px 8px !important;
-                border-radius: 7px !important;
+                padding: 8px 12px !important;
+                border-radius: 6px !important;
                 cursor: pointer !important;
-                font-size: 12px !important;
+                font-size: 13px !important;
+                transition: background 0.15s ease !important;
             }
-            .ai-model-dropdown-item:hover,.ai-model-dropdown-item.is-selected {
-                background: var(--bg) !important;
+            .ai-role-dropdown-item {
+                width: 100% !important;
+                border: 0 !important;
+                outline: none !important;
+                background: transparent !important;
+                color: var(--fg) !important;
+                text-align: left !important;
+                padding: 8px 12px !important;
+                border-radius: 6px !important;
+                cursor: pointer !important;
+                font-size: 13px !important;
+                transition: background 0.15s ease !important;
+            }
+            .ai-model-dropdown-item:hover {
+                background: var(--bg-hover, rgba(0,0,0,0.05)) !important;
+            }
+            .ai-model-dropdown-item.is-selected {
+                background: var(--bg-selected, rgba(0,0,0,0.08)) !important;
+                font-weight: 500 !important;
+            }
+            .ai-role-dropdown-item:hover {
+                background: var(--bg-hover, rgba(0,0,0,0.05)) !important;
+            }
+            .ai-role-dropdown-item.is-selected {
+                background: var(--bg-selected, rgba(0,0,0,0.08)) !important;
+                font-weight: 500 !important;
             }
             .ai-model-dropdown-divider {
                 height: 1px !important;
@@ -3001,6 +3286,7 @@
         await resolveAgentUserRole();
         applySavedSettings();
         initCustomModelDropdown();
+        initCustomRoleDropdown();
         applyModelVisibilityForRole();
         initChatScrollbar();
         try {
@@ -3056,6 +3342,8 @@
             if (optionExists) {
                 elements.roleSelect.value = aiState.selectedRole;
             }
+            updateRoleDropdownLabel();
+            renderRoleDropdownOptions();
         }
         if (elements.modeSelect) elements.modeSelect.checked = (aiState.chatMode || 'chat') === 'agent';
         if (elements.notifyCheckbox) elements.notifyCheckbox.checked = !!aiState.notifyOnComplete;
@@ -3120,7 +3408,11 @@
             });
         }
         if (elements.roleSelect) {
-            elements.roleSelect.addEventListener('change', saveSettings);
+            elements.roleSelect.addEventListener('change', () => {
+                saveSettings();
+                updateRoleDropdownLabel();
+                renderRoleDropdownOptions();
+            });
         }
     }
 
@@ -3374,9 +3666,13 @@
             aiInput.insertBefore(selectorsRow, aiInput.firstChild);
         }
         const modelWrap = elements.modelSelect?.parentElement || null;
+        const roleWrap = elements.roleSelect?.parentElement || null;
         const modeWrap = elements.modeSelect?.closest('.ai-mode-switch') || null;
         if (selectorsRow && modelWrap && modelWrap.parentElement !== selectorsRow) {
             selectorsRow.appendChild(modelWrap);
+        }
+        if (selectorsRow && roleWrap && roleWrap.parentElement !== selectorsRow) {
+            selectorsRow.appendChild(roleWrap);
         }
         if (selectorsRow && modeWrap && modeWrap.parentElement !== selectorsRow) {
             selectorsRow.appendChild(modeWrap);
@@ -3448,6 +3744,15 @@
         };
         ensureRow(elements.notifyCheckbox?.parentElement, 'aiNotifyOnComplete', 'Notify when finished');
         ensureRow(elements.roleSelect?.parentElement, 'aiRole', 'Role');
+        
+        // Reinitialize role dropdown after moving to settings modal
+        if (elements.roleSelect) {
+            roleDropdownState.wrapper = null;
+            roleDropdownState.button = null;
+            roleDropdownState.menu = null;
+            roleDropdownState.open = false;
+            initCustomRoleDropdown();
+        }
     }
 
     function attachEventListeners() {
@@ -3539,7 +3844,19 @@
         }
 
         document.addEventListener('click', async (e) => {
-            if (modelDropdownState.wrapper && !modelDropdownState.wrapper.contains(e.target)) closeModelDropdown();
+            // Check if click is inside model dropdown (button or menu)
+            const clickedModelBtn = modelDropdownState.wrapper && modelDropdownState.wrapper.contains(e.target);
+            const clickedModelMenu = modelDropdownState.menu && modelDropdownState.menu.contains(e.target);
+            if (!clickedModelBtn && !clickedModelMenu && modelDropdownState.open) {
+                closeModelDropdown();
+            }
+            
+            // Check if click is inside role dropdown (button or menu)
+            const clickedRoleBtn = roleDropdownState.wrapper && roleDropdownState.wrapper.contains(e.target);
+            const clickedRoleMenu = roleDropdownState.menu && roleDropdownState.menu.contains(e.target);
+            if (!clickedRoleBtn && !clickedRoleMenu && roleDropdownState.open) {
+                closeRoleDropdown();
+            }
             if (elements.attachWrap && elements.attachWrap.contains(e.target)) {
                 // keep dropdown open until toggle or outside click
             } else {
@@ -6974,6 +7291,10 @@
             return;
         }
 
+        // Close dropdowns when modal closes
+        closeModelDropdown();
+        closeRoleDropdown();
+
         elements.modal.classList.remove('ai-open');
         document.documentElement.classList.remove('ai-modal-open');
         elements.settingsModal?.classList.add('hidden');
@@ -7212,7 +7533,11 @@
         }
         const virtualKeyboard = navigator.virtualKeyboard;
         if (virtualKeyboard && modalContent.dataset.virtualKeyboardBound !== '1') {
-            try { virtualKeyboard.overlaysContent = true; } catch (_) {}
+            try {
+                if (window.self === window.top) {
+                    virtualKeyboard.overlaysContent = true;
+                }
+            } catch (_) {}
             virtualKeyboard.addEventListener('geometrychange', scheduleModalViewportHeightSync);
             modalContent.dataset.virtualKeyboardBound = '1';
         }

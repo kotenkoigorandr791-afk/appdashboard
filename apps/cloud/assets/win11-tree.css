@@ -1,0 +1,335 @@
+/* Windows 11 File Explorer Tree Styles */
+
+/* Main tree container */
+.tree {
+    --win-tree-guide-color: #73808c;
+    font-family: "Segoe UI Variable", "Segoe UI", system-ui, -apple-system, sans-serif;
+    font-size: 13px;
+    color: #1a1a1a;
+    user-select: none;
+    padding-left: 4px;
+}
+
+/* Tree container with smooth transitions */
+.tree .tree-container {
+    transform: translateX(var(--tree-auto-shift, 0px));
+    transition: transform 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Node styling - Windows 11 compact style */
+.tree .node {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    /* JS used to set depth * 16px inline. Win11 indentation is provided by
+       .children, so reset that legacy padding to avoid a double indent. */
+    padding: 0 4px !important;
+    height: 26px;
+    border-radius: 4px;
+    cursor: default;
+    min-width: 0;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    position: relative;
+}
+
+/* Hover effect - subtle Windows 11 style */
+.tree .node:hover {
+    background-color: rgba(0, 0, 0, 0.05);
+}
+
+/* Selected state */
+.tree .node.selected {
+    background-color: #e5e5e5;
+    font-weight: 500;
+}
+
+/* Toggle/Arrow container */
+.tree .toggle {
+    display: inline-flex;
+    align-items: center;
+    flex-shrink: 0;
+    line-height: 1;
+    width: 34px;
+    height: 18px;
+    margin-right: 0;
+    position: relative;
+    z-index: 1;
+}
+
+/* Windows 11 arrow styling */
+.tree .toggle .win-arrow {
+    display: inline-flex;
+    width: 16px;
+    height: 16px;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 16px;
+    cursor: pointer;
+    color: #555555;
+    transition: transform 0.15s ease;
+}
+
+.tree .toggle .win-arrow svg {
+    width: 12px;
+    height: 12px;
+    display: block;
+}
+
+/* Arrow rotation when expanded */
+.tree .toggle .win-arrow.open {
+    transform: rotate(90deg);
+}
+
+/* Spacer for files (no arrow) */
+.tree .toggle .win-arrow.spacer {
+    visibility: hidden;
+    pointer-events: none;
+}
+
+/* Label styling */
+.tree .label {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    line-height: 18px;
+    margin-left: 4px;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.tree .label.hidden {
+    display: none !important;
+}
+
+/* Children container with Windows 11 guide lines */
+.tree .children {
+    margin-left: 14px;
+    position: relative;
+    padding-left: 7px;
+    overflow: visible;
+    border-left: 0;
+}
+
+/* Explorer vertical guide. Reset all legacy guide properties first so only
+   this one vertical line can be painted for each nesting level. */
+.tree .children::before {
+    content: '' !important;
+    display: block;
+    position: absolute;
+    z-index: 2;
+    pointer-events: none;
+    left: 0;
+    top: 0;
+    right: auto;
+    bottom: 0;
+    width: 0;
+    height: auto !important;
+    transform: none !important;
+    background: none !important;
+    border: 0 !important;
+    border-left: 1px dashed var(--win-tree-guide-color) !important;
+    border-radius: 0 !important;
+}
+
+.tree .children .tree-container {
+    position: relative;
+    z-index: 1;
+}
+
+.tree .children .tree-container > .node {
+    position: relative;
+    z-index: 1;
+}
+
+/* No horizontal connectors or rounded corners from legacy guide system. */
+.tree .children .tree-container > .node::before {
+    content: none !important;
+}
+
+/* Reset the last-child legacy guide markers completely. */
+.tree .children .tree-container > .node.tree-guide-last::before {
+    content: none !important;
+    display: none !important;
+}
+
+/* Keep existing icon sizes */
+.tree .toggle .app-file-icon {
+    width: 18px;
+    height: 18px;
+}
+
+.tree .toggle .app-file-icon svg,
+.tree .toggle .app-file-icon img {
+    width: 18px;
+    height: 18px;
+}
+
+/* Existing folder icon system - preserved */
+.tree .toggle .tree-folder-icon {
+    position: relative;
+    display: inline-flex;
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+    color: #eb9a05;
+}
+
+.tree .toggle .tree-folder-icon-svg {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.22s ease, transform 0.22s ease;
+}
+
+.tree .toggle .tree-folder-icon-closed {
+    opacity: 1;
+    transform: scale(1);
+}
+
+.tree .toggle .tree-folder-icon-open {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.tree .toggle .tree-folder-icon.is-open .tree-folder-icon-closed {
+    opacity: 0;
+    transform: scale(0.9);
+}
+
+.tree .toggle .tree-folder-icon.is-open .tree-folder-icon-open {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Rename mode styling */
+.tree .node.tree-renaming {
+    background: color-mix(in srgb, var(--accent) 10%, transparent) !important;
+}
+
+.tree .tree-rename-input {
+    flex: 1;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 4px;
+    margin: 0;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    background: var(--bg);
+    color: var(--fg);
+    font: inherit;
+    font-size: 13px;
+    line-height: 18px;
+    outline: none;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 20%, transparent);
+}
+
+/* Remove animation states */
+.tree .node.tree-removing {
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.72;
+    max-height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    transition: max-height 0.32s cubic-bezier(0.32, 0, 0.2, 1),
+                padding 0.32s cubic-bezier(0.32, 0, 0.2, 1),
+                margin 0.32s cubic-bezier(0.32, 0, 0.2, 1),
+                opacity 0.24s ease;
+}
+
+.tree .node.tree-removing .toggle {
+    opacity: 0.28;
+    transition: opacity 0.2s ease;
+}
+
+.tree .node.tree-removing .label {
+    animation: treeLabelEraseBottomUp 0.3s cubic-bezier(0.35, 0, 0.2, 1) forwards;
+    transform-origin: bottom center;
+}
+
+.tree .children.tree-removing-children {
+    overflow: hidden;
+    pointer-events: none;
+    opacity: 0.28;
+    max-height: 0;
+    transition: max-height 0.32s cubic-bezier(0.32, 0, 0.2, 1), opacity 0.22s ease;
+}
+
+/* Drag & drop states */
+.tree .node.tree-drop-target {
+    background: color-mix(in srgb, var(--accent) 22%, transparent) !important;
+    outline: 1px solid var(--accent);
+    border-radius: 4px;
+}
+
+/* New file highlight */
+.tree .node.tree-new-file {
+    background: color-mix(in srgb, var(--accent) 32%, transparent) !important;
+    outline: 2px solid var(--accent) !important;
+    outline-offset: -1px;
+    transition: background 0.35s ease, outline-color 0.35s ease;
+}
+
+/* Pinned focus state */
+.tree .node.pinned-focus {
+    background: color-mix(in srgb, var(--accent) 30%, transparent) !important;
+    outline: 2px solid var(--accent);
+    outline-offset: -1px;
+}
+
+/* Empty tree state */
+.tree.is-empty::before {
+    content: "Click here to create files/folders";
+    display: block;
+    padding: 30px;
+    text-align: center;
+    color: var(--muted);
+    font-style: italic;
+    cursor: pointer;
+}
+
+.tree.is-empty::before:hover {
+    color: var(--accent);
+}
+
+/* Dark theme adjustments */
+body[data-theme="dark"] .tree {
+    --win-tree-guide-color: #9aa6b2;
+    color: #e6e6e6;
+}
+
+body[data-theme="dark"] .tree .node:hover {
+    background-color: rgba(255, 255, 255, 0.08);
+}
+
+body[data-theme="dark"] .tree .node.selected {
+    background-color: #3a3a3a;
+}
+
+body[data-theme="dark"] .tree .toggle .win-arrow {
+    color: #cccccc;
+}
+
+/* Light theme adjustments */
+body[data-theme="light"] .tree {
+    --win-tree-guide-color: #607080;
+    color: #3d4550;
+}
+
+body[data-theme="light"] .tree .node:hover {
+    background-color: rgba(0, 0, 0, 0.06);
+}
+
+body[data-theme="light"] .tree .node.selected {
+    background-color: #dfe3e8;
+}
