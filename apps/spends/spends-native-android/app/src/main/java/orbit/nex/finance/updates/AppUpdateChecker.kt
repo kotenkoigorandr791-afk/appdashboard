@@ -37,9 +37,21 @@ data class UpdateInfo(
     val release_notes: String = "",
 )
 
+/** Release notes of the newest published build, shown on the updates screen. */
+data class ReleaseNotes(
+    val version_name: String = "",
+    val body: String = "",
+    val html_url: String = "",
+    val published_at: String = "",
+)
+
 enum class UpdateOutcome { NOT_CONNECTED, UP_TO_DATE, UPDATE_AVAILABLE, ERROR }
 
-data class UpdateCheck(val outcome: UpdateOutcome, val info: UpdateInfo? = null)
+data class UpdateCheck(
+    val outcome: UpdateOutcome,
+    val info: UpdateInfo? = null,
+    val releaseNotes: ReleaseNotes? = null,
+)
 
 /**
  * Checks the paired server for a newer build of this app, downloads it and hands the
@@ -59,9 +71,19 @@ class AppUpdateChecker(private val context: Context) {
         val tag_name: String = "",
         val name: String = "",
         val body: String = "",
+        val html_url: String = "",
+        val published_at: String = "",
         val draft: Boolean = true,
         val prerelease: Boolean = true,
         val assets: List<GithubAsset> = emptyList(),
+    )
+
+    private data class PublishedRelease(
+        val version_name: String,
+        val body: String,
+        val html_url: String,
+        val published_at: String,
+        val info: UpdateInfo,
     )
 
     @Serializable
@@ -72,16 +94,27 @@ class AppUpdateChecker(private val context: Context) {
 
     suspend fun checkForUpdate(endpoint: String, token: String): UpdateCheck = withContext(Dispatchers.IO) {
         val serverResult = checkProductionServer(endpoint, token)
-        val githubResult = checkGithubReleases()
+        val published = fetchPublishedReleases()
+        val newest = published.maxWithOrNull { left, right ->
+            compareVersions(left.version_name, right.version_name)
+        }
+        val githubResult = newest?.info?.takeIf { isNewer(it.version_name) }
         val candidates = listOfNotNull(serverResult, githubResult)
-            .filter { isNewer(it.version_name) }
         val latest = candidates.maxWithOrNull { left, right ->
             compareVersions(left.version_name, right.version_name)
                 .takeIf { it != 0 } ?: left.version_code.compareTo(right.version_code)
         }
+        val notes = newest?.let {
+            ReleaseNotes(
+                version_name = it.version_name,
+                body = it.body,
+                html_url = it.html_url,
+                published_at = it.published_at,
+            )
+        }
         when {
-            latest != null -> UpdateCheck(UpdateOutcome.UPDATE_AVAILABLE, latest)
-            serverResult != null || githubResult != null -> UpdateCheck(UpdateOutcome.UP_TO_DATE)
+            latest != null -> UpdateCheck(UpdateOutcome.UPDATE_AVAILABLE, latest, notes)
+            serverResult != null || newest != null -> UpdateCheck(UpdateOutcome.UP_TO_DATE, null, notes)
             token.isBlank() -> UpdateCheck(UpdateOutcome.NOT_CONNECTED)
             else -> UpdateCheck(UpdateOutcome.ERROR)
         }
@@ -109,34 +142,49 @@ class AppUpdateChecker(private val context: Context) {
         }.getOrNull()
     }
 
-    private fun checkGithubReleases(): UpdateInfo? = runCatching {
+    /**
+     * Published (non-draft, non-prerelease) builds of this app with their release notes.
+     * Fetched fresh on every check so the updates screen follows new releases without an app update.
+     */
+    private fun fetchPublishedReleases(): List<PublishedRelease> = runCatching {
         val request = Request.Builder()
-            .url("$GITHUB_API/releases?per_page=100")
+            .url("$GITHUB_API/releases?per_page=50")
             .header("Accept", "application/vnd.github+json")
             .header("X-GitHub-Api-Version", "2022-11-28")
+            .header("Cache-Control", "no-cache")
             .get()
             .build()
         client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return@use null
-            json.decodeFromString<List<GithubRelease>>(response.body?.string().orEmpty())
-                .asSequence()
-                .filter { !it.draft && !it.prerelease }
-                .mapNotNull { release ->
-                    val version = SPENDS_TAG.matchEntire(release.tag_name)?.groupValues?.get(1) ?: return@mapNotNull null
-                    val apk = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
-                        ?: return@mapNotNull null
-                    if (apk.browser_download_url.isBlank()) return@mapNotNull null
-                    UpdateInfo(
-                        available = true,
-                        version_name = version,
-                        source = "github",
-                        download_url = apk.browser_download_url,
-                        release_notes = release.body,
-                    )
-                }
-                .maxWithOrNull { left, right -> compareVersions(left.version_name, right.version_name) }
+            if (!response.isSuccessful) {
+                emptyList()
+            } else {
+                json.decodeFromString<List<GithubRelease>>(response.body?.string().orEmpty())
+                    .asSequence()
+                    .filter { !it.draft && !it.prerelease }
+                    .mapNotNull { release ->
+                        val version = SPENDS_TAG.matchEntire(release.tag_name)?.groupValues?.get(1)
+                            ?: return@mapNotNull null
+                        val apk = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
+                            ?: return@mapNotNull null
+                        if (apk.browser_download_url.isBlank()) return@mapNotNull null
+                        PublishedRelease(
+                            version_name = version,
+                            body = release.body,
+                            html_url = release.html_url,
+                            published_at = release.published_at,
+                            info = UpdateInfo(
+                                available = true,
+                                version_name = version,
+                                source = "github",
+                                download_url = apk.browser_download_url,
+                                release_notes = release.body,
+                            ),
+                        )
+                    }
+                    .toList()
+            }
         }
-    }.getOrNull()
+    }.getOrDefault(emptyList())
 
     private fun isNewer(versionName: String): Boolean =
         versionName.isNotBlank() && compareVersions(versionName, BuildConfig.VERSION_NAME) > 0

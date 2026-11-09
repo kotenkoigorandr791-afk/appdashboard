@@ -187,6 +187,7 @@
     <string name="update_downloading">Завантаження… %1$d%%</string>
     <string name="update_failed">Не вдалося перевірити оновлення.</string>
     <string name="update_not_connected">Підключіться до сервера, щоб перевірити оновлення.</string>
+    <string name="update_release_notes">Що нового</string>
     <string name="something_went_wrong">Щось пішло не так</string>
     <string name="ok">OK</string>
     <string name="rates_title">Курси валют</string>
