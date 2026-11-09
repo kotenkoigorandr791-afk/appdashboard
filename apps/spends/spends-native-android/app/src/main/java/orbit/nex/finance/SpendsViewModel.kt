@@ -146,18 +146,20 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         if (date.isBlank() || storeName.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date, merchant, and amount")
         // Persist first: even if the request below fails the charge is safe.
         OutboxSync.enqueue(store, OutboxItem(kind = "expense", date = date, store = storeName, amount = numeric, source = source))
-        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        // The outbox overlay already shows the new row, so close the sheet
+        // immediately instead of waiting for a possibly slow server round-trip.
         markSaved()
         done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun addIncome(date: String, amount: String, done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date and amount")
         OutboxSync.enqueue(store, OutboxItem(kind = "income", date = date, amount = numeric, source = "manual"))
-        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         markSaved()
         done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun addTransfer(date: String, from: String, to: String, amount: String, done: () -> Unit = {}) = launch {
@@ -167,9 +169,9 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
             OutboxItem(kind = "expense", date = date, store = from, amount = numeric, source = "manual"),
             OutboxItem(kind = "income", date = date, amount = numeric, source = "manual"),
         ))
-        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         markSaved()
         done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     /** Edits every field of a payment. Server rows are keyed by date+store, so a key
@@ -183,13 +185,13 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
             add(OutboxItem(kind = "expense", mode = "set", date = date, store = storeName, amount = numeric, source = old.entrySource, raw = old.ocrRawStore))
         }
         OutboxSync.enqueueAll(store, writes)
+        markSaved()
+        done()
         val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         if (delivered && (date != old.date || storeName != old.store)) {
             val oldTags = state.value.snapshot.expenseTags["${old.date}\t${old.store}"].orEmpty()
             if (oldTags.isNotEmpty()) runCatching { api.setExpenseTags(state.value.session, date, storeName, oldTags) }
         }
-        markSaved()
-        done()
         if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun deleteExpense(expense: Expense) = launch {
@@ -371,12 +373,16 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         if (!quiet) loading.value = true
         error.value = null
         runCatching { block() }.onFailure { failure ->
-            error.value = when {
-                // A dropped connection is not a server fault: show a short, stable
-                // message instead of OkHttp's "Unable to resolve host …" text.
-                failure is orbit.nex.finance.data.OfflineException -> "No internet connection"
-                failure.message?.contains("resolve host", ignoreCase = true) == true -> "No internet connection"
-                else -> failure.message?.takeIf(String::isNotBlank) ?: fallback
+            val dropped = failure is orbit.nex.finance.data.OfflineException ||
+                failure.message?.contains("resolve host", ignoreCase = true) == true
+            when {
+                // When a paired account loses the server, the app keeps working
+                // from local storage. The offline banner already explains the
+                // state, so a blocking dialog would only get in the way.
+                dropped && state.value.session.token.isNotBlank() -> Unit
+                // The unpaired flow still needs a clear connection message.
+                dropped -> error.value = "No internet connection"
+                else -> error.value = failure.message?.takeIf(String::isNotBlank) ?: fallback
             }
         }
         if (!quiet) loading.value = false

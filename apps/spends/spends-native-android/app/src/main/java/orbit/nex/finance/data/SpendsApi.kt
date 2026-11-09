@@ -33,8 +33,14 @@ private fun isNetworkFailure(error: Throwable?): Boolean {
     while (current != null) {
         if (current is UnknownHostException || current is ConnectException || current is SocketTimeoutException) return true
         if (current is IOException && current !is OfflineException) {
-            val message = current.message.orEmpty()
-            if (message.contains("resolve host", true) || message.contains("Failed to connect", true) || message.contains("timeout", true)) return true
+            val message = current.message.orEmpty().lowercase()
+            if (message.contains("resolve host", true) 
+                || message.contains("failed to connect", true) 
+                || message.contains("timeout", true)
+                || message.contains("unexpected end of stream", true)
+                || message.contains("connection reset", true)
+                || message.contains("broken pipe", true)
+                || message.contains("eof", true)) return true
         }
         current = current.cause
     }

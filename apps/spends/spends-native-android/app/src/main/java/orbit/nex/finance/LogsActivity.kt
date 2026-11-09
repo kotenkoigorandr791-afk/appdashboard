@@ -107,7 +107,7 @@ private fun LogsScreen(app: SpendsApplication, onBack: () -> Unit) {
         containerColor = androidx.compose.ui.graphics.Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.logs)) },
+                title = { Text(stringResource(R.string.logs), modifier = Modifier.fillMaxWidth().padding(end = 8.dp), textAlign = TextAlign.End) },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
                 actions = { if (allLogs.isNotEmpty()) TextButton({ scope.launch { app.store.clearLogs() } }) { Text(stringResource(R.string.logs_clear)) } },
             )

@@ -36,6 +36,7 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CameraAlt
@@ -59,6 +60,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.ShowChart
@@ -721,13 +723,58 @@ private fun InsightCard(title: String, value: String, caption: String, accent: C
 
 @Composable
 fun NetWorthScreen(state: AppState) {
-    val incomes = state.snapshot.incomes.sumOf { it.amount }
-    val expenses = state.snapshot.expenses.sumOf { it.amount }
+    val currency = state.snapshot.currency
+    val allIn = state.snapshot.incomes.sumOf { it.amount }
+    val allOut = state.snapshot.expenses.sumOf { it.amount }
+    var month by remember { mutableStateOf(java.time.YearMonth.now()) }
+    val thisMonth = remember { java.time.YearMonth.now() }
+    val monthKey = month.toString()
+    val monthIn = state.snapshot.incomes.filter { it.date.startsWith(monthKey) }.sumOf { it.amount }
+    val monthOut = state.snapshot.expenses.filter { it.date.startsWith(monthKey) }.sumOf { it.amount }
+    val monthLabel = remember(month) {
+        month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
+            .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeading(R.string.net_position)
-        StatCard(stringResource(R.string.incomes), stringResource(R.string.net_in, money(incomes, state.snapshot.currency)), SpendsColors.income())
-        StatCard(stringResource(R.string.expenses), stringResource(R.string.net_out, money(expenses, state.snapshot.currency)), SpendsColors.expense())
-        StatCard(stringResource(R.string.net_position), stringResource(R.string.net_total, money(incomes - expenses, state.snapshot.currency)))
+        // All-time summary keeps the long-term picture visible while the month pager below
+        // lets the user browse recent months without leaving the screen.
+        TableCard(
+            title = stringResource(R.string.all_time),
+            rows = listOf(
+                stringResource(R.string.incomes) to "+${money(allIn, currency)}",
+                stringResource(R.string.expenses) to "−${money(allOut, currency)}",
+                stringResource(R.string.net_position) to money(allIn - allOut, currency),
+            ),
+        )
+        Card(
+            Modifier.fillMaxWidth(),
+            RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(0.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp)).padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton({ month = month.minusMonths(1) }) {
+                    Icon(Icons.Outlined.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
+                }
+                Text(
+                    monthLabel,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                IconButton({ month = month.plusMonths(1) }, enabled = month < thisMonth) {
+                    Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        StatCard(stringResource(R.string.incomes), "+${money(monthIn, currency)}", SpendsColors.income())
+        StatCard(stringResource(R.string.expenses), "−${money(monthOut, currency)}", SpendsColors.expense())
+        StatCard(stringResource(R.string.net_position), money(monthIn - monthOut, currency))
     }
 }
 
@@ -2230,9 +2277,60 @@ fun SyncScreen(state: AppState, model: SpendsViewModel, onLogs: () -> Unit) {
         PageHeading(R.string.sync_title)
         ConnectionCard(state, model)
         Text(state.session.endpoint, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val last = if (state.snapshot.syncedAt == 0L) "—" else java.text.DateFormat.getDateTimeInstance().format(java.util.Date(state.snapshot.syncedAt))
-        Text(stringResource(R.string.last_sync, last), color = MaterialTheme.colorScheme.onSurface)
+        LastSyncCard(state.snapshot.syncedAt)
         Button(onLogs, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.logs)) }
+    }
+}
+
+/** Framed "last synchronization" row with a tappable clock that toggles the full timestamp. */
+@Composable
+private fun LastSyncCard(timestamp: Long) {
+    var detailed by remember { mutableStateOf(false) }
+    val short = if (timestamp == 0L) "—" else java.text.DateFormat.getDateTimeInstance(
+        java.text.DateFormat.MEDIUM,
+        java.text.DateFormat.SHORT,
+    ).format(java.util.Date(timestamp))
+    val full = if (timestamp == 0L) "—" else java.text.DateFormat.getDateTimeInstance(
+        java.text.DateFormat.FULL,
+        java.text.DateFormat.FULL,
+    ).format(java.util.Date(timestamp))
+    Card(
+        Modifier.fillMaxWidth(),
+        RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp)).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                IconButton({ detailed = !detailed }) {
+                    Icon(
+                        Icons.Outlined.Schedule,
+                        contentDescription = stringResource(R.string.last_sync_title),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(R.string.last_sync_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    if (detailed) full else short,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
     }
 }
 
@@ -2334,7 +2432,13 @@ fun DetailScreen(
                     Text(stringResource(R.string.back), style = MaterialTheme.typography.labelLarge)
                 }
             }
-            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                textAlign = TextAlign.End,
+            )
             if (onEdit != null) {
                 IconButton(onEdit) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary) }
             }
@@ -2595,6 +2699,7 @@ private fun NavSlot(label: String, icon: ImageVector, selected: Boolean, modifie
 @Composable
 fun ErrorDialog(message: String?, dismiss: () -> Unit) {
     if (message != null) {
+        val network = looksLikeNetworkFailure(message)
         Dialog(
             onDismissRequest = dismiss,
             properties = DialogProperties(usePlatformDefaultWidth = false),
@@ -2605,14 +2710,53 @@ fun ErrorDialog(message: String?, dismiss: () -> Unit) {
                 color = MaterialTheme.colorScheme.surface,
                 tonalElevation = 6.dp,
             ) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(R.string.something_went_wrong), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
-                    Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Surface(
+                        modifier = Modifier.size(64.dp),
+                        shape = CircleShape,
+                        color = if (network) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    ) {
+                        Icon(
+                            if (network) Icons.Filled.WifiOff else Icons.Outlined.Info,
+                            contentDescription = null,
+                            modifier = Modifier.fillMaxSize().padding(16.dp),
+                            tint = if (network) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(
+                        stringResource(if (network) R.string.offline_title else R.string.something_went_wrong),
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        textAlign = TextAlign.Center,
+                    )
+                    // Never expose raw OkHttp/socket text to the user.
+                    Text(
+                        if (network) stringResource(R.string.offline_message) else message,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
                     TextButton(onClick = dismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.ok)) }
                 }
             }
         }
     }
+}
+
+/** True for socket/DNS/stream errors that should be presented as an offline state. */
+private fun looksLikeNetworkFailure(message: String): Boolean {
+    val text = message.lowercase(Locale.getDefault())
+    return listOf(
+        "unexpected end of stream",
+        "connection reset",
+        "broken pipe",
+        "eof",
+        "failed to connect",
+        "resolve host",
+        "timeout",
+        "no internet",
+        "offline",
+    ).any(text::contains)
 }
 
 private fun prettyDate(raw: String): String = try {

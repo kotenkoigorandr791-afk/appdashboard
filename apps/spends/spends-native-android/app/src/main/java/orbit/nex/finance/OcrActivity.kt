@@ -185,7 +185,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Receipt OCR") },
+                title = { Text("Receipt OCR", modifier = Modifier.fillMaxWidth().padding(end = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End) },
                 navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
             )
         },
