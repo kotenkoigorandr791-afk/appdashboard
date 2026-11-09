@@ -87,6 +87,7 @@ import orbit.nex.finance.ui.InsightsScreen
 import orbit.nex.finance.ui.NetWorthScreen
 import orbit.nex.finance.ui.PairingScreen
 import orbit.nex.finance.ui.PendingScreen
+import orbit.nex.finance.ui.OfflineBanner
 import orbit.nex.finance.ui.PrefsScreen
 import orbit.nex.finance.ui.SearchSheet
 import orbit.nex.finance.ui.SettingsHub
@@ -297,6 +298,10 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
         return
     }
 
+    // A paired account stays fully usable from local storage when the server is
+    // unreachable. A compact banner (rendered below) replaces the old
+    // full-screen gate, so adding or editing entries never gets blocked.
+
     // Quiet background update check, throttled to once a day.
     LaunchedEffect(state.session.token) {
         val session = state.session
@@ -316,10 +321,14 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     // in sync with the server while the app is open.
     LaunchedEffect(Unit) { model.refresh() }
     // Replay queued writes the moment the connection comes back.
-    LaunchedEffect(online) { if (online) model.flushOutbox() }
-    LaunchedEffect(Unit) {
+    LaunchedEffect(online) {
+        if (online) model.flushOutbox()
+    }
+    // Retry faster while offline so queued writes flush soon after the server
+    // is back; keep a relaxed interval when everything is healthy.
+    LaunchedEffect(online) {
         while (true) {
-            delay(45_000)
+            delay(if (online) 45_000 else 15_000)
             model.refreshQuietly()
         }
     }
@@ -378,6 +387,9 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
                         }
                     }
                 }
+            }
+            if (!online) {
+                OfflineBanner(pending = state.queuedWrites, onRetry = { model.refresh() })
             }
             Box(Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp)) {
             // Keeps each screen's scroll position when going back to it.

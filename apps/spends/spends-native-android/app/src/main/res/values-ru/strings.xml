@@ -144,6 +144,8 @@
     <string name="save_backup">Сохранить копию</string>
     <string name="sync_title">Синхронизация</string>
     <string name="last_sync">Последняя синхронизация %1$s</string>
+    <string name="last_sync_title">Последняя синхронизация</string>
+    <string name="all_time">За всё время</string>
     <string name="logs">Журнал запросов</string>
     <string name="new_income">Новый доход</string>
     <string name="new_expense">Новый расход</string>
@@ -205,6 +207,17 @@
     <string name="pair_connect">Подключить</string>
     <string name="pair_testing">Проверка…</string>
     <string name="pair_test">Проверить соединение</string>
+    <string name="pair_test_ok">Подключено</string>
+    <string name="pair_test_fail">Ошибка</string>
+    <string name="pair_logout">Отключиться</string>
+    <string name="offline_title">Нет соединения</string>
+    <string name="offline_message">Не удаётся соединиться с сервером. Проверьте подключение.</string>
+    <string name="offline_retry">Повторить</string>
+    <string name="offline_help">Убедитесь, что сервер запущен и вы в одной сети.</string>
+    <string name="offline_open_settings">Открыть настройки</string>
+    <string name="offline_banner_title">Работаем офлайн</string>
+    <string name="offline_banner_text">Сервер недоступен. Изменения сохраняются и синхронизируются автоматически.</string>
+    <string name="offline_pending">%d ожидает синхронизации</string>
     <string name="back">Назад</string>
     <string name="logs_clear">Очистить</string>
     <string name="logs_empty">Журнал пуст</string>
@@ -218,7 +231,7 @@
     <string name="notifications_status_off">Выключено</string>
     <string name="notifications_enable">Открыть доступ к уведомлениям</string>
     <string name="notifications_disabled_hint">Разрешите Spends в системном доступе к уведомлениям, чтобы ловить оплаты Google Wallet.</string>
-    <string name="notifications_info">Spends слушает только уведомления об оплате от Google Wallet. Текст распознаётся на устройстве, продавец сопоставляется с вашими магазинами, а результат ждёт подтверждения — ничего не отправляется само по себе.</string>
+    <string name="notifications_info">Spends слушает только уведомления об оплате Google Wallet. Текст распознаётся на устройстве, магазин сверяется с вашими магазинами, а распознанные списания автоматически сохраняются в журнал. Подтверждения ждут только неясные записи — данные не покидают устройство.</string>
     <string name="notifications_pending">Пойманные оплаты</string>
     <string name="notifications_empty">Уведомлений кошелька ещё не было.</string>
     <string name="categories_total">Всего расходов</string>

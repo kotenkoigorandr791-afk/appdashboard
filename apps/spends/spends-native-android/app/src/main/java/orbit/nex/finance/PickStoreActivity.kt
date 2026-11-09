@@ -83,7 +83,7 @@ private fun PickStoreScreen(stores: List<Store>, onBack: () -> Unit, onPick: (St
     Scaffold(
         containerColor = Color.Transparent,
         topBar = {
-            TopAppBar(title = { Text(stringResource(R.string.choose_store)) }, navigationIcon = {
+            TopAppBar(title = { Text(stringResource(R.string.choose_store), modifier = Modifier.fillMaxWidth().padding(end = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End) }, navigationIcon = {
                 IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) }
             })
         },

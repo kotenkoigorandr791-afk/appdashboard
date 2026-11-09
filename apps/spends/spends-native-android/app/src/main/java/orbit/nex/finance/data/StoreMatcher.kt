@@ -71,6 +71,36 @@ object StoreMatcher {
         return if (bestScore >= 0.72) best else null
     }
 
+    /**
+     * Finds a known store directly inside the notification text. This is the
+     * safety net for wallet formats where the merchant is not introduced by
+     * "at/to/в": if every word of a store name is present, the match is
+     * considered certain and the charge is booked automatically.
+     */
+    fun matchInText(rawText: String, stores: List<Store>): Store? {
+        val text = normalize(rawText)
+        if (text.isBlank()) return null
+        val textTokens = tokens(text)
+        var best: Store? = null
+        var bestScore = 0.0
+        stores.forEach { store ->
+            val name = normalize(store.name)
+            if (name.isBlank()) return@forEach
+            val nameTokens = tokens(name)
+            val exactTokens = nameTokens.isNotEmpty() && nameTokens.all { it in textTokens }
+            val candidate = when {
+                exactTokens -> 0.99
+                name.length >= 4 && text.contains(name) -> 0.96
+                else -> 0.0
+            }
+            if (candidate > bestScore) {
+                bestScore = candidate
+                best = store
+            }
+        }
+        return if (bestScore >= 0.9) best else null
+    }
+
     private fun levenshtein(a: String, b: String): Int {
         if (a == b) return 0
         if (a.isEmpty()) return b.length
@@ -98,7 +128,8 @@ object WalletParser {
     private val amountPattern = Regex("""(\d{1,3}(?:[ .,\u00a0]\d{3})*(?:[.,]\d{2})|\d+(?:[.,]\d{2}))""")
     private val currencyCodes = setOf("PLN", "EUR", "USD", "UAH", "GBP", "CZK", "CHF", "SEK", "NOK", "BYN", "TRY", "CAD")
     private val merchantPatterns = listOf(
-        Regex("""(?i)(?:at|in|w|u|в|у|bei|chez|a)\s+([\p{L}\d][\p{L}\d&'.\- ]{2,40})"""),
+        Regex("""(?i)\b(?:at|in|to|w|u|в|у|bei|chez|à)\s+([\p{L}\d][\p{L}\d&'.\- ]{2,40})"""),
+        Regex("""(?i)\b(?:payment to|paid to|sent to|transfer to|оплата|списание)\s+([\p{L}\d][\p{L}\d&'.\- ]{2,40})"""),
         Regex("""(?i)^([\p{L}\d][\p{L}\d&'.\- ]{2,40}?)\s*[·\-–|:]"""),
     )
 
@@ -125,7 +156,13 @@ object WalletParser {
             ?: title.takeIf { it.isNotBlank() && !it.any(Char::isDigit) })
             ?.trim()?.trim('·', '-', '|')?.take(60)
             ?: title.take(60)
+        // 1) fuzzy match the extracted merchant, 2) fall back to a confident
+        // whole-word search of the notification text so known stores are never
+        // sent to disputes just because the sentence structure changed.
         val matchedStore = StoreMatcher.match(merchant, stores)
+            ?: StoreMatcher.matchInText(title, stores)
+            ?: StoreMatcher.matchInText(text, stores)
+            ?: StoreMatcher.matchInText(raw, stores)
         val storeName = matchedStore?.name ?: merchant.ifBlank { "Wallet" }
         return WalletNotification(storeName, amount, currency, raw, matchedStore != null)
     }
