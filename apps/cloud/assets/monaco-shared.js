@@ -230,6 +230,13 @@
             roundedSelection: true,
             scrollBeyondLastLine: true,
             automaticLayout: true,
+            // Do not draw the warning box around Cyrillic/other non-ASCII text:
+            // mixed Russian/English content is normal in these editors.
+            unicodeHighlight: {
+                ambiguousCharacters: false,
+                invisibleCharacters: false,
+                nonBasicASCII: false
+            },
             fontFamily: 'Consolas, "Courier New", monospace'
         }, overrides || {});
     }
@@ -579,7 +586,7 @@
         // light theme where --panel/--bg/--fg are not defined at all.
         overlay.style.cssText = 'position:absolute;z-index:20000;width:min(264px,calc(100% - 16px));max-width:100%;box-sizing:border-box;padding:8px;border:1px solid var(--border-color,rgba(0,0,0,.14));border-radius:12px;backdrop-filter:blur(14px);background:color-mix(in srgb,var(--panel-bg,#ffffff) 92%,transparent);color:var(--text-color,#222);box-shadow:0 10px 28px rgba(0,0,0,.16);display:flex;flex-direction:column;gap:6px;touch-action:none';
         const sendIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg>';
-        overlay.innerHTML = '<div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:move;user-select:none;"><strong data-role="title" style="font-size:12px;"></strong><button type="button" data-role="close" style="width:22px;height:22px;min-width:22px;cursor:pointer;border:none;background:transparent;color:inherit;font-size:15px;line-height:1;">×</button></div>'
+        overlay.innerHTML = '<div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:move;user-select:none;"><strong data-role="title" style="font-size:12px;"></strong><button type="button" data-role="close" style="width:32px;height:32px;min-width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;border:none;border-radius:999px;background:transparent;color:inherit;font-size:20px;line-height:1;">×</button></div>'
             + '<div style="display:flex;align-items:flex-end;gap:6px;">'
             + '<textarea data-role="prompt" rows="2" style="flex:1 1 auto;min-width:0;min-height:38px;max-height:96px;padding:6px 8px;border-radius:10px;border:1px solid var(--border-color,#d0d0d0);background:var(--bg-color,#fff);color:var(--text-color,#222);resize:vertical;box-sizing:border-box;font:inherit;font-size:12px;"></textarea>'
             + '<button type="button" data-role="apply" class="ai-send-btn" aria-label="Apply" title="Apply" style="width:32px;height:32px;min-width:32px;padding:0;border:none;border-radius:50%;background:var(--accent-color,#007bff);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;">' + sendIcon + '</button>'

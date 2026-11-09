@@ -400,10 +400,16 @@ function monacoInjectSelectionHandlesCSS() {
             border: 0 !important;
             color: inherit !important;
             font: inherit !important;
-            font-size: 18px !important;
+            font-size: 20px !important;
             line-height: 1 !important;
-            padding: 2px 8px !important;
-            border-radius: 6px !important;
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 999px !important;
             cursor: pointer !important;
         }
         .monaco-spell-modal-close:hover {
@@ -3801,7 +3807,7 @@ function monacoEnsureAiActionOverlay(hostContainer) {
     overlay.innerHTML = `
         <div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:move;user-select:none;">
             <strong data-role="title" style="font-size:12px;"></strong>
-            <button type="button" data-role="close" class="icon-btn" style="width:22px;height:22px;min-width:22px;padding:0;cursor:pointer;line-height:1;">×</button>
+            <button type="button" data-role="close" class="icon-btn close-btn" style="flex:0 0 auto;">×</button>
         </div>
         <div style="display:flex;align-items:flex-end;gap:6px;">
             <textarea data-role="prompt" rows="2" style="flex:1 1 auto;min-width:0;min-height:38px;max-height:96px;padding:6px 8px;border-radius:10px;border:1px solid var(--border-color,#d0d0d0);background:var(--bg-color,#fff);color:var(--text-color,#222);resize:vertical;box-sizing:border-box;font:inherit;font-size:12px;"></textarea>
