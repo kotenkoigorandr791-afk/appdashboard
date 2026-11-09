@@ -538,6 +538,14 @@
     <string name="personal_title">Personal data</string>
     <string name="personal_name">Name</string>
     <string name="personal_email">Email</string>
+    <string name="account_title">Account</string>
+    <string name="account_server">Server</string>
+    <string name="account_status">Connection</string>
+    <string name="account_status_connected">Connected</string>
+    <string name="account_status_disconnected">Not connected</string>
+    <string name="offline_banner_title">No internet connection</string>
+    <string name="offline_banner_text">Showing saved data. Sync resumes when the connection is back.</string>
+    <string name="offline_retry">Retry</string>
     <string name="personal_body_title">Body parameters</string>
     <string name="personal_goal">Daily step goal</string>
     <string name="personal_height">Height, cm</string>
@@ -610,6 +618,7 @@
     <string name="logs_search_short">Search</string>
     <string name="advanced_settings_title">Advanced settings</string>
     <string name="saved_toast">Saved</string>
+    <string name="save_failed_toast">Not saved</string>
     <string name="logs_cleared_toast">Logs cleared</string>
     <string name="home_logs_title">Logs</string>
     <string name="home_logs_desc">Open the synchronization log, search it and export a report.</string>

@@ -571,6 +571,14 @@
     <string name="personal_title">Личные данные</string>
     <string name="personal_name">Имя</string>
     <string name="personal_email">Эл. почта</string>
+    <string name="account_title">Аккаунт</string>
+    <string name="account_server">Сервер</string>
+    <string name="account_status">Подключение</string>
+    <string name="account_status_connected">Подключено</string>
+    <string name="account_status_disconnected">Нет подключения</string>
+    <string name="offline_banner_title">Нет подключения к интернету</string>
+    <string name="offline_banner_text">Показаны сохранённые данные. Синхронизация возобновится, когда сеть вернётся.</string>
+    <string name="offline_retry">Повторить</string>
     <string name="personal_body_title">Параметры тела</string>
     <string name="personal_goal">Дневная цель шагов</string>
     <string name="personal_height">Рост, см</string>
@@ -599,6 +607,7 @@
     <string name="logs_search_short">Поиск</string>
     <string name="advanced_settings_title">Расширенные настройки</string>
     <string name="saved_toast">Сохранено</string>
+    <string name="save_failed_toast">Не сохранено</string>
     <string name="logs_cleared_toast">Логи очищены</string>
     <string name="home_logs_title">Логи</string>
     <string name="home_logs_desc">Открыть журнал синхронизации, найти запись и экспортировать отчёт.</string>

@@ -19,6 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.Brightness7
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -132,7 +135,21 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                             },
                                             shape = SegmentedButtonDefaults.itemShape(index, 3),
                                         ) {
-                                            Text(stringResource(label))
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                            ) {
+                                                Icon(
+                                                    when (value) {
+                                                        "auto" -> Icons.Filled.Contrast
+                                                        "light" -> Icons.Filled.Brightness7
+                                                        else -> Icons.Filled.Brightness4
+                                                    },
+                                                    contentDescription = null,
+                                                    modifier = Modifier.size(18.dp),
+                                                )
+                                                Text(stringResource(label))
+                                            }
                                         }
                                     }
                                 }
