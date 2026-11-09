@@ -101,9 +101,23 @@ function spends_backup_path(string $userEmail, string $fileName): ?string
     $ctx = spends_index_backup_context($userEmail);
     if ($ctx === null) return null;
     $fileName = basename($fileName);
+    // Reject any traversal attempt in the name itself.
+    if ($fileName === '' || $fileName === '.' || $fileName === '..'
+        || str_contains($fileName, '/') || str_contains($fileName, '\\') || str_contains($fileName, "\0")) {
+        return null;
+    }
     try {
-        return AppFiles::absolute('spends', $ctx['owner'], $ctx['root'], $ctx['relative'] . '/' . $fileName);
+        $abs = AppFiles::absolute('spends', $ctx['owner'], $ctx['root'], $ctx['relative'] . '/' . $fileName);
     } catch (Throwable $e) {
         return null;
     }
+    // Defense in depth: the resolved file must be a direct child of the
+    // user's own backup directory (prevents traversal via symlinks/realpath).
+    $realDir = realpath($ctx['dir']);
+    $realAbs = realpath($abs);
+    if ($realDir === false || $realAbs === false) return null;
+    $realDir = rtrim(str_replace('\\', '/', $realDir), '/');
+    $realAbs = str_replace('\\', '/', $realAbs);
+    if ($realAbs !== $realDir . '/' . $fileName) return null;
+    return $abs;
 }

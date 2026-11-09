@@ -67,6 +67,19 @@ function spendsCacheSet(string $key, string $value, int $ttl): void {
     } catch (Throwable $e) {
     }
 }
+/**
+ * Sliding-window counter rate limit. Returns true when the request is
+ * allowed, false when the bucket is exhausted. Backed by Redis; if Redis
+ * is unavailable the call fails open (returns true) like the chat limiter.
+ */
+function spendsRateLimit(string $bucket, int $limit, int $ttl): bool {
+    $key = 'rl:' . $bucket;
+    $raw = spendsCacheGet($key);
+    $n = $raw === null ? 0 : (int)$raw;
+    if ($n >= $limit) return false;
+    spendsCacheSet($key, (string)($n + 1), $ttl);
+    return true;
+}
 function spendsSlotAcquire(string $name, int $limit, int $ttl): bool {
     $r = app_redis();
     if (!$r) return true;
