@@ -132,13 +132,20 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .app-expenses { max-width:1440px; width:100%; margin:0 auto; position:relative; box-sizing:border-box; padding:calc(var(--top-bar-height) + 16px) clamp(12px,2.4vw,28px) 22px; }
         .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; position:fixed; top:0; left:0; right:0; z-index:900; min-height:var(--top-bar-height); margin:0; padding:10px clamp(12px,2vw,24px) 10px calc(var(--menu-safe-width) + 10px); box-sizing:border-box; background:<?= $theme==='dark'?'rgba(17,20,22,.78)':'rgba(244,247,242,.78)' ?>; border-bottom:1px solid var(--border-color); backdrop-filter:blur(var(--glass-blur)) saturate(1.1); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.1); }
         .header h2 { margin:0; white-space:nowrap; font-size:1.5em; line-height:1.2; font-weight:760; letter-spacing:0; min-width:0; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto; }
-        .header-buttons { display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; }
+        .header-buttons { display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; position:relative; }
         .header-btn { background:var(--group-block-bg); border:1px solid var(--border-color); cursor:pointer; font-size:20px; color:var(--text-color); padding:0; border-radius:var(--radius-sm); transition:background .2s,color .2s,transform .2s,border-color .2s; display:flex; align-items:center; justify-content:center; overflow:visible; width:40px; height:40px; backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
         .header-btn:hover { background:var(--primary-color); color:#fff; border-color:var(--primary-color); transform:translateY(-1px); }
         .add-menu-wrap { position:relative; display:inline-block; }
         .import-dropdown { display:none; position:absolute; top:100%; left:0; margin-top:4px; min-width:min(96vw,320px); background:var(--surface-solid); border:1px solid var(--border-color); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.22); z-index:3000; padding:6px 0; }
         .import-dropdown button { display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:transparent; color:var(--text-color); cursor:pointer; font-size:14px; }
         .import-dropdown button:hover { background:rgba(var(--primary-color-rgb),.18); }
+        /* The toolbar keeps only add + statistics; the rest live in this menu. */
+        .profile-dropdown { display:none; position:absolute; top:calc(100% + 6px); right:0; min-width:min(84vw,260px); background:var(--surface-solid); border:1px solid var(--border-color); border-radius:12px; box-shadow:0 10px 28px rgba(0,0,0,.24); z-index:3100; padding:6px; box-sizing:border-box; }
+        .profile-dropdown.open { display:block; }
+        .profile-dropdown .profile-menu-item { display:flex; align-items:center; justify-content:flex-start; gap:10px; width:100%; height:auto; min-height:42px; padding:9px 12px; border:0; border-radius:8px; background:transparent; color:var(--text-color); font-size:14px; cursor:pointer; transform:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
+        .profile-dropdown .profile-menu-item:hover { background:rgba(var(--primary-color-rgb),.16); color:var(--text-color); border-color:transparent; transform:none; }
+        .profile-dropdown .profile-menu-item svg { flex:0 0 auto; }
+        .profile-dropdown .profile-menu-label { flex:1 1 auto; min-width:0; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
         /* ── Manual expense modal: same chrome as the table modal, a bit smaller ── */
         @media (min-width:769px){
@@ -515,7 +522,7 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .xr-spark path { fill:none; stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round; }
         .xr-foot { padding:12px 0; border-top:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; font-size:11px; color:var(--muted-text); flex-wrap:wrap; gap:6px; }
         .xr-foot i { color:var(--primary-color); margin-right:5px; }
-        @media (max-width:480px){ .xr-row { grid-template-columns:32px 1fr auto; gap:10px; } .xr-spark { display:none; } .xr-change { min-width:56px; padding:4px 8px; } }
+        @media (max-width:480px){ .xr-row { grid-template-columns:minmax(0,1fr) auto auto 44px; gap:8px; padding:10px 4px; } .xr-flag { display:none; } .xr-spark { display:block; width:44px; height:22px; } .xr-change { min-width:52px; padding:4px 6px; } }
         .currency-select { padding:8px 12px; background:var(--group-block-bg); color:var(--text-color); border:1px solid var(--border-color); border-radius:6px; margin:10px 0; width:100%; max-width:100%; min-width:0; box-sizing:border-box; }
         .rate-chart-container { margin-top:20px; padding:15px; background:var(--group-block-bg); border-radius:8px; }
 
@@ -558,6 +565,9 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .divider { height:1px; background:var(--border-color); margin:18px 0; }
         .controls-container { display:flex; justify-content:center; align-items:center; margin:12px 0; padding:0; border:0; background:transparent; box-shadow:none; }
         .chart-toggle-btn { justify-self: end; }
+        .chart-legend-list { display:flex; flex-direction:column; gap:10px; max-height:min(60vh,460px); overflow:auto; }
+        .chart-legend-item { display:flex; align-items:center; gap:10px; font-size:14px; color:var(--text-color); }
+        .chart-legend-swatch { width:14px; height:14px; border-radius:4px; flex:0 0 auto; }
         .currency-selector { justify-self: start; }
         .table-toolbar .search-container { position:relative; display:flex; align-items:center; width:min(44vw,260px); min-width:220px; height:40px; }
         .table-toolbar .search-icon { position:absolute; left:12px; top:50%; transform:translateY(-50%); width:16px; height:16px; display:flex; align-items:center; justify-content:center; color:var(--muted-text); pointer-events:none; z-index:1; }
@@ -704,7 +714,7 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
             .ocr-shell .ocrw-shell { padding-top:74px!important; }
             .header { justify-content:flex-end; align-content:center; }
             .header h2 { display:none; }
-            .header-buttons { gap:4px; justify-content:flex-end; width:100%; flex-shrink:0; flex-wrap:wrap; overflow:visible; padding-bottom:2px; }
+            .header-buttons { gap:4px; justify-content:flex-end; width:100%; flex-shrink:0; flex-wrap:nowrap; overflow:visible; padding-bottom:2px; }
             .header-btn { padding:4px; }
             .chart-container { max-width:100%; }
             .modal { padding:0!important; align-items:stretch!important; justify-content:stretch!important; }

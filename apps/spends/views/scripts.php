@@ -607,6 +607,7 @@ function hidePreviewTooltip() {
 // ══ Chart ══════════════════════════════════════════════════════════════════
 let exchangeRatesToUSD = {USD:1,EUR:1.1696,PLN:0.275,UAH:0.02416,BYN:0.2942};
 let chartCurrency = userSettings.currency;
+let chartLegendEntries = [];
 
 async function switchChartCurrency(cur) {
     chartCurrency = cur;
@@ -718,23 +719,38 @@ function updateChart() {
             if(s.visible===false)return;
             datasets.push(...splitLine(months.map(m=>(monthly[m][s.name]||0)*conv),storeColors[i%storeColors.length],{_label:s.name}));
         });
-        if(userSettings.show_trend){
-            const trendData=linearRegression(perStoreTotals);
-            datasets.push(...splitLine(trendData,'#f59e0b',{tension:0,_label:t('difference_line','Trend')}));
-        }
+        // Per store view: no difference/trend line, the store curves are enough.
     }
+    // More than five legend entries clutter the canvas, so the legend moves
+    // into a modal and only a button stays next to the chart.
+    chartLegendEntries=datasets.filter(d=>d&&d.label).map(d=>({label:d.label,color:d.borderColor}));
+    const hideChartLegend=chartLegendEntries.length>5;
     chart=new Chart(ctx,{type:'line',data:{labels:months,datasets},options:{responsive:true,maintainAspectRatio:false,
         interaction:{mode:'index',intersect:false},
         scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
                x:{title:{display:true,text:t('chart_month','Month'),color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
-        plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
+        plugins:{legend:{display:!hideChartLegend,labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
                  tooltip:{mode:'index',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+    const chartLegendBtn=document.getElementById('chart-legend-btn');
+    if(chartLegendBtn){
+        chartLegendBtn.style.display=hideChartLegend?'':'none';
+        chartLegendBtn.textContent=`${t('legend','Legend')} (${chartLegendEntries.length})`;
+    }
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
     document.querySelectorAll('.chart-toggle-btn').forEach(btn=>{
         btn.textContent=chartMode==='total'?translations.per_store_expenses:(chartMode==='stores'?t('chart_by_category','By category'):translations.total_expenses);
     });
     updateYearButtons();
 }
+function openChartLegend(){
+    const list=document.getElementById('chart-legend-list');
+    if(list){
+        const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+        list.innerHTML=chartLegendEntries.map(e=>`<div class="chart-legend-item"><i class="chart-legend-swatch" style="background:${esc(e.color)}"></i><span>${esc(e.label)}</span></div>`).join('');
+    }
+    showModal('chart-legend-modal');
+}
+
 function yearHasData(y){return availableYears.includes(Number(y));}
 function updateYearButtons(){
     const prev=document.getElementById('chart-year-prev-btn');
@@ -2773,6 +2789,53 @@ loadAvailableYears().then(()=>{updateChart();});
         const el=document.getElementById(id);
         el.addEventListener('wheel',e=>{e.preventDefault();changeDateValue(id.replace('date-',''),e.deltaY>0?-1:1);});
     });
+
+    // Toolbar overflow: add and statistics stay visible, everything else moves
+    // into the profile menu so the bar always fits on one line.
+    (function initProfileMenu(){
+        const menu=document.getElementById('profile-menu');
+        const btn=document.getElementById('profile-menu-btn');
+        if(!menu||!btn)return;
+        const close=function(){
+            menu.classList.remove('open');
+            menu.hidden=true;
+            btn.setAttribute('aria-expanded','false');
+        };
+        ['button[onclick*="settings-modal"]','button[onclick*="backup-modal"]','button[onclick*="showShareModal"]','button[onclick*="exchange-rates-modal"]','#mobile-app-btn'].forEach(function(sel){
+            document.querySelectorAll('.header-buttons '+sel).forEach(function(el){
+                if(el.closest('#profile-menu'))return;
+                const label=el.getAttribute('title')||el.textContent.trim();
+                el.classList.remove('header-btn');
+                el.classList.add('profile-menu-item');
+                el.removeAttribute('title');
+                el.setAttribute('role','menuitem');
+                el.setAttribute('type','button');
+                if(!el.querySelector('.profile-menu-label')){
+                    const span=document.createElement('span');
+                    span.className='profile-menu-label';
+                    span.textContent=label;
+                    el.appendChild(span);
+                }
+                el.addEventListener('click',close);
+                menu.appendChild(el);
+            });
+        });
+        btn.addEventListener('click',function(e){
+            e.stopPropagation();
+            const open=menu.hidden;
+            menu.hidden=!open;
+            menu.classList.toggle('open',open);
+            btn.setAttribute('aria-expanded',open?'true':'false');
+        });
+        document.addEventListener('click',function(e){
+            if(menu.hidden)return;
+            if(menu.contains(e.target)||btn.contains(e.target))return;
+            close();
+        });
+        document.addEventListener('keydown',function(e){
+            if(e.key==='Escape'&&!menu.hidden)close();
+        });
+    })();
 
     renderMonthPagination();
     loadPage();
