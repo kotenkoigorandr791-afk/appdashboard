@@ -4438,11 +4438,33 @@ if ($action === 'patch_file_tree') {
 
 if ($action === 'monaco_collab_ticket') {
     $email = cloud_api_email();
+    // The standalone WebSocket service and PHP-FPM can run in different systemd
+    // temp namespaces (PrivateTmp), so tickets must not rely on /tmp or /var/tmp:
+    // the app storage directory is on the filesystem both processes share.
+    // Legacy temp locations are still written for older server processes.
+    $ticketDirs = [
+        dirname(__DIR__, 2) . '/storage/.monaco_collab_tickets',
+        '/var/tmp/cloud_monaco_tickets',
+        sys_get_temp_dir() . '/cloud_monaco_tickets',
+    ];
     $ticket = bin2hex(random_bytes(16));
-    $dir = sys_get_temp_dir() . '/cloud_monaco_tickets';
-    if (!is_dir($dir)) @mkdir($dir, 0700, true);
     $payload = json_encode(['email' => $email, 'exp' => time() + 3600], JSON_UNESCAPED_UNICODE);
-    @file_put_contents($dir . '/' . $ticket . '.json', $payload);
+    if ($payload === false) {
+        json_out(['ok' => false, 'error' => 'Unable to create collaboration ticket'], 500);
+    }
+    $written = false;
+    foreach (array_unique($ticketDirs) as $dir) {
+        // PHP-FPM and the WebSocket service may use different users, so the
+        // directory has to be traversable/readable by both.
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) continue;
+        @chmod($dir, 0777);
+        if (!is_writable($dir)) continue;
+        $file = $dir . '/' . $ticket . '.json';
+        if (@file_put_contents($file, $payload, LOCK_EX) === false) continue;
+        @chmod($file, 0644);
+        $written = true;
+    }
+    if (!$written) json_out(['ok' => false, 'error' => 'Unable to create collaboration ticket'], 500);
     json_out(['ok' => true, 'ticket' => $ticket, 'expires_in' => 3600]);
 }
 

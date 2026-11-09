@@ -562,39 +562,81 @@ function getFileIconForPreview(item) {
 function renderFileGeneralProperties(properties, filePath) {
     return `
         <div class="property-row">
-            <span class="property-label">${t(window.i18n, 'fileType')}:</span>
+            <span class="property-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                </svg>
+                ${t(window.i18n, 'fileType')}:
+            </span>
             <span class="property-value">${properties.type || 'Unknown'}</span>
         </div>
         <div class="property-row">
-            <span class="property-label">${t(window.i18n, 'filePath')}:</span>
+            <span class="property-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M3 7v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-6l-2-2H5a2 2 0 0 0-2 2z"></path>
+                </svg>
+                ${t(window.i18n, 'filePath')}:
+            </span>
             <span class="property-value" title="${filePath}">${filePath}</span>
         </div>
         <div class="property-row">
-            <span class="property-label">${t(window.i18n, 'fileSize')}:</span>
+            <span class="property-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                </svg>
+                ${t(window.i18n, 'fileSize')}:
+            </span>
             <span class="property-value">${formatFileSize(properties.size)} (${(properties.size || 0).toLocaleString('en-US').replace(/,/g, ' ')} ${t(window.i18n, 'bytes')})</span>
         </div>
         ${properties.created ? `
         <div class="property-row">
-            <span class="property-label">${t(window.i18n, 'createdDate')}:</span>
+            <span class="property-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                ${t(window.i18n, 'createdDate')}:
+            </span>
             <span class="property-value">${formatDate(properties.created)}</span>
         </div>
         ` : ''}
         ${properties.modified ? `
         <div class="property-row">
-            <span class="property-label">${t(window.i18n, 'modifiedDate')}:</span>
+            <span class="property-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                </svg>
+                ${t(window.i18n, 'modifiedDate')}:
+            </span>
             <span class="property-value">${formatDate(properties.modified)}</span>
         </div>
         ` : ''}
         ${properties.accessed ? `
         <div class="property-row">
-            <span class="property-label">${t(window.i18n, 'accessedDate')}:</span>
+            <span class="property-label">
+                <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+                ${t(window.i18n, 'accessedDate')}:
+            </span>
             <span class="property-value">${formatDate(properties.accessed)}</span>
         </div>
         ` : ''}
         ${properties.attributes ? `
-        <div style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--border);">
-            <h5 style="margin: 0 0 10px 0; color: var(--muted);">${t(window.i18n, 'fileAttributes')}</h5>
-            ${renderAttributes(properties.attributes)}
+        <div class="property-row-section attributes-section">
+            <div style="margin-top: 10px;border-top: 2px solid var(--border);padding-top:10px;"></div>
+            <div class="property-section-header">
+                <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path>
+                </svg>
+                ${t(window.i18n, 'fileAttributes')}
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+                ${renderAttributes(properties.attributes)}
+            </div>
         </div>
         ` : ''}
     `;
@@ -605,46 +647,80 @@ function renderFileGeneralProperties(properties, filePath) {
  */
 function renderImageDetails(details) {
     let detailsHTML = '';
-    
+
+    // Dimensions
     if (details.width && details.height) {
         detailsHTML += `
             <div class="property-row">
-                <span class="property-label">${t(window.i18n, 'dimensions')}:</span>
+                <span class="property-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                        <rect x="3" y="3" width="18" height="18" rx="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                    ${t(window.i18n, 'dimensions')}:
+                </span>
                 <span class="property-value">${details.width} × ${details.height} ${t(window.i18n, 'pixels')}</span>
             </div>
         `;
     }
-    
+
+    // Resolution
     if (details.resolution) {
         detailsHTML += `
             <div class="property-row">
-                <span class="property-label">${t(window.i18n, 'resolution')}:</span>
+                <span class="property-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                        <rect x="2" y="2" width="20" height="20"></rect>
+                        <path d="M4 20V10"></path>
+                        <path d="M5 8h16"></path>
+                    </svg>
+                    ${t(window.i18n, 'resolution')}:
+                </span>
                 <span class="property-value">${details.resolution.horizontal} × ${details.resolution.vertical} DPI</span>
             </div>
         `;
     }
-    
+
+    // Bit Depth
     if (details.bitDepth) {
         detailsHTML += `
             <div class="property-row">
-                <span class="property-label">${t(window.i18n, 'bitDepth')}:</span>
+                <span class="property-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                        <rect x="2" y="3" width="20" height="18" rx="2" ry="2"></rect>
+                        <rect x="7" y="7" width="3" height="3"></rect>
+                        <rect x="14" y="7" width="3" height="3"></rect>
+                        <rect x="7" y="14" width="3" height="3"></rect>
+                    </svg>
+                    ${t(window.i18n, 'bitDepth')}:
+                </span>
                 <span class="property-value">${details.bitDepth} bit</span>
             </div>
         `;
     }
-    
+
+    // Compression
     if (details.compression) {
         detailsHTML += `
             <div class="property-row">
-                <span class="property-label">${t(window.i18n, 'compression')}:</span>
+                <span class="property-label">
+                    <svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
+                        <polyline points="4 14 10 14 10 20"></polyline>
+                        <polyline points="20 10 14 10 14 4"></polyline>
+                        <line x1="14" y1="10" x2="21" y2="3"></line>
+                        <line x1="3" y1="21" x2="10" y2="14"></line>
+                    </svg>
+                    ${t(window.i18n, 'compression')}:
+                </span>
                 <span class="property-value">${details.compression}</span>
             </div>
         `;
     }
-    
+
         // Camera properties
-    const cameraProps = [];
-    if (details.cameraModel) cameraProps.push(`<div class="property-row"><span class="property-label">${t(window.i18n, 'cameraModel')}:</span><span class="property-value">${details.cameraModel}</span></div>`);
+        const cameraProps = [];
+        cameraProps.push(`<div class="property-row"><span class="property-label"><svg width="14" height="14" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><rect x="4" y="2" width="16" height="20" rx="2"/><circle cx="12" cy="14" r="3"/><line x1="12" y1="2" x2="12" y2="4"/></svg> ${t(window.i18n, 'cameraModel')}:</span><span class="property-value">${details.cameraModel}</span></div>`);
     if (details.exposure) cameraProps.push(`<div class="property-row"><span class="property-label">${t(window.i18n, 'exposure')}:</span><span class="property-value">${details.exposure}</span></div>`);
     if (details.focalLength) cameraProps.push(`<div class="property-row"><span class="property-label">${t(window.i18n, 'focalLength')}:</span><span class="property-value">${details.focalLength}</span></div>`);
     if (details.aperture) cameraProps.push(`<div class="property-row"><span class="property-label">${t(window.i18n, 'aperture')}:</span><span class="property-value">${details.aperture}</span></div>`);
@@ -729,15 +805,36 @@ function renderSecurityProperties(properties) {
   * Renders attributes
  */
 function renderAttributes(attributes) {
+    const attrColors = {
+        readOnly: '#e74c3c',
+        hidden: '#f39c12',
+        system: '#8e44ad',
+        archive: '#3498db'
+    };
+    const attrIcons = {
+        readOnly: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>',
+        hidden: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>',
+        system: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>',
+        archive: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="21 8 21 21 3 21 3 8"></polyline><rect x="1" y="3" width="22" height="5"></rect><line x1="10" y1="12" x2="14" y2="12"></line></svg>'
+    };
+    
     const attrList = [];
-    if (attributes.readOnly) attrList.push(t(window.i18n, 'readOnly'));
-    if (attributes.hidden) attrList.push(t(window.i18n, 'hidden'));
-    if (attributes.system) attrList.push(t(window.i18n, 'system'));
-    if (attributes.archive) attrList.push(t(window.i18n, 'archive'));
+    if (attributes.readOnly) attrList.push(`<div class="property-list-item" style="color:${attrColors.readOnly}">
+        ${attrIcons.readOnly} ${t(window.i18n, 'readOnly')}
+    </div>`);
+    if (attributes.hidden) attrList.push(`<div class="property-list-item" style="color:${attrColors.hidden}">
+        ${attrIcons.hidden} ${t(window.i18n, 'hidden')}
+    </div>`);
+    if (attributes.system) attrList.push(`<div class="property-list-item" style="color:${attrColors.system}">
+        ${attrIcons.system} ${t(window.i18n, 'system')}
+    </div>`);
+    if (attributes.archive) attrList.push(`<div class="property-list-item" style="color:${attrColors.archive}">
+        ${attrIcons.archive} ${t(window.i18n, 'archive')}
+    </div>`);
     
     return attrList.length > 0 ? 
-        `<div class="property-value">${attrList.join(', ')}</div>` :
-        `<div class="property-value">-</div>`;
+        `<div style="display:flex;flex-direction:column;gap:2px;">${attrList.join('')}</div>` :
+        `<div class="property-value italic-gray">${t(window.i18n, 'noAttributes')}</div>`;
 }
 
 /**

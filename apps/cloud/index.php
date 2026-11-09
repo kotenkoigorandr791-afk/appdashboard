@@ -73,8 +73,8 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=66" />
-  <link rel="stylesheet" href="assets/app/reviews.css?v=5" />
+  <link rel="stylesheet" href="assets/styles.css?v=67" />
+  <link rel="stylesheet" href="assets/app/reviews.css?v=6" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -231,13 +231,13 @@ cloud_require_session_auth();
 <script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=58"></script>
-<script defer src="assets/app/reviews.js?v=5"></script>
+<script defer src="assets/app.js?v=59"></script>
+<script defer src="assets/app/reviews.js?v=6"></script>
 <script defer src="assets/app/editors-and-tree.js?v=17"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
-<script defer src="assets/app/file-viewers.js?v=4"></script>
-<script defer src="assets/app/file-actions.js?v=16"></script>
+<script defer src="assets/app/file-viewers.js?v=5"></script>
+<script defer src="assets/app/file-actions.js?v=17"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=9"></script>
 <script defer src="assets/audio-player.js?v=4"></script>
@@ -250,9 +250,9 @@ cloud_require_session_auth();
 <script defer src="assets/advanced-search.js?v=1"></script>
 <script defer src="assets/properties-modal.js?v=1"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
-<script defer src="assets/ai-assistant.js?v=45"></script>
-<script defer src="assets/monaco-shared.js?v=6"></script>
-<script defer src="assets/monaco-editor.js?v=24"></script>
+<script defer src="assets/ai-assistant.js?v=46"></script>
+<script defer src="assets/monaco-shared.js?v=7"></script>
+<script defer src="assets/monaco-editor.js?v=25"></script>
 
 
 </head>
@@ -1327,16 +1327,14 @@ cloud_require_session_auth();
       <button class="icon-btn close-btn" id="btn-close-delete-modal">&times;</button>
     </div>
     <div class="modal-body">
-      <div style="display: flex; align-items: center; margin-bottom: 15px;">
-        <div style="margin-right: 12px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255, 100, 100, 0.1); border-radius: 50%;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ff6b6b;">
-            <path d="M10 11v6"/>
-            <path d="M14 11v6"/>
-            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
-            <path d="M3 6h18"/>
-            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-          </svg>
-        </div>
+      <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 15px;">
+        <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ff6b6b;">
+          <path d="M10 11v6"/>
+          <path d="M14 11v6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
+          <path d="M3 6h18"/>
+          <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
         <div>
           <p id="delete-confirmation-text"></p>
           <label id="delete-permanent-option" class="animated-check-label" style="margin-top:12px;">
@@ -1346,6 +1344,9 @@ cloud_require_session_auth();
                 <path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
               </svg>
             </span>
+            <svg id="checkbox-triangle" class="triangle-svg" style="width: 16px; height: 16px; display: none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c">
+              <path d="M12 16L4 6h16l-8 10z"/>
+            </svg>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
             <span data-i18n="deletePermanently">Delete permanently</span>
           </label>

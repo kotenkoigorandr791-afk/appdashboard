@@ -229,3 +229,7 @@ pnpm-debug.log*
 # Shared local Android toolchain (JDK/Gradle/SDK/emulator, download cache)
 /tools/
 
+.tgrep/
+.tgrep-*/
+
+

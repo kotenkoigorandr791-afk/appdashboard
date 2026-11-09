@@ -348,6 +348,7 @@
     /* ----------------------------------------------- parent Monaco markers */
 
     const parentMarkers = new WeakMap();
+    const parentClickBound = new WeakSet();
 
     function clearParentMarkers(ed) {
         const entry = parentMarkers.get(ed);
@@ -374,31 +375,34 @@
         const decorations = [];
         byLine.forEach((group, line) => {
             const endLine = Math.max(line, Math.min(model.getLineCount(), Number(group[0].end_line) || line));
+            // Inline comment chip: rendered in the line flow after the last
+            // character, so it never floats over / hides the source text.
             decorations.push({
                 range: new window.monaco.Range(line, 1, endLine, 1),
-                options: { isWholeLine: true, className: 'rv-line' }
+                options: {
+                    isWholeLine: true,
+                    className: 'rv-line',
+                    after: {
+                        content: '💬 ' + (((group[0].author ? group[0].author + ': ' : '') + (group[0].comment || group[0].suggestion || '')).slice(0, 90) || 'Review'),
+                        inlineClassName: 'rv-annot-inline',
+                        cursorStops: window.monaco.editor.InjectedTextCursorStops.None
+                    },
+                    hoverMessage: { value: group.map((i) => (i.author ? i.author + ': ' : '') + (i.comment || i.suggestion || '')).join('\n\n') }
+                }
             });
-            const node = el('div', 'rv-annot');
-            const dot = el('span', 'rv-annot-dot', group.length > 1 ? String(group.length) : '💬');
-            const text = el('span', 'rv-annot-text', ((group[0].author ? group[0].author + ': ' : '') + (group[0].comment || group[0].suggestion || '')).slice(0, 90) || 'Review');
-            node.title = group.map((i) => (i.author ? i.author + ': ' : '') + (i.comment || i.suggestion || '')).join('\n');
-            node.append(dot, text);
-            node.addEventListener('click', () => {
-                setOpen(true);
-                focusCard(group[0].id);
-                revealLine(line);
-            });
-            const widget = {
-                getId: () => 'rv-annot-' + state.tabId + '-' + line,
-                getDomNode: () => node,
-                getPosition: () => ({
-                    position: { lineNumber: line, column: model.getLineMaxColumn(line) },
-                    preference: [window.monaco.editor.ContentWidgetPositionPreference.EXACT]
-                })
-            };
-            ed.addContentWidget(widget);
-            widgets.push(widget);
         });
+        if (!parentClickBound.has(ed)) {
+            parentClickBound.add(ed);
+            ed.onMouseDown((ev) => {
+                const target = ev && ev.target && ev.target.element;
+                if (!target || !target.classList || !target.classList.contains('rv-annot-inline')) return;
+                const lineNo = ev.target.position && ev.target.position.lineNumber;
+                const item = (state.items || []).find((i) => i.status === 'open' && Number(i.start_line) === lineNo);
+                setOpen(true);
+                if (item) focusCard(item.id);
+                if (lineNo) revealLine(lineNo);
+            });
+        }
         const deco = ed.createDecorationsCollection(decorations);
         parentMarkers.set(ed, { widgets, deco });
     }

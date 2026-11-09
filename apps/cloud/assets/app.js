@@ -9134,7 +9134,60 @@ function handleMonacoCollabSocketMessage(payload) {
         });
     }
 }
+function startMonacoCollabHeartbeat(socket) {
+    stopMonacoCollabHeartbeat();
+    monacoCollabSocketState.lastMessageAt = Date.now();
+    // A connection that dies silently (sleep, network switch, dead proxy) never
+    // fires `close`, so ping the server and drop the socket when it goes quiet.
+    monacoCollabSocketState.heartbeatTimer = setInterval(() => {
+        if (monacoCollabSocketState.socket !== socket || socket.readyState !== WebSocket.OPEN) return;
+        if (!monacoCollabSocketState.authed) return;
+        if (Date.now() - (monacoCollabSocketState.lastMessageAt || 0) > 65000) {
+            try { socket.close(); } catch (_) {}
+            return;
+        }
+        try { socket.send(JSON.stringify({ type: 'ping', at: Date.now() })); } catch (_) {}
+    }, 20000);
+}
+function stopMonacoCollabHeartbeat() {
+    if (monacoCollabSocketState.heartbeatTimer) {
+        clearInterval(monacoCollabSocketState.heartbeatTimer);
+        monacoCollabSocketState.heartbeatTimer = null;
+    }
+}
+function resumeMonacoCollabSessions() {
+    monacoCollabSessions.forEach((session, tabId) => {
+        const editor = editorsMap.get(tabId);
+        sendMonacoCollabSocketMessage({
+            type: 'join',
+            roomKey: session.roomKey,
+            path: session.filePath,
+            root: session.rootKey,
+            clientId: monacoCollabSocketState.clientId,
+            name: currentUserState.user || 'user',
+            color: session.color,
+            content: editor?.getValue?.() ?? session.lastSyncedContent ?? '',
+            revision: session.docRevision || 0,
+            updatedAt: Date.now()
+        });
+        requestMonacoCollabSync(tabId);
+    });
+}
+function attachMonacoCollabRecoveryListeners() {
+    if (monacoCollabSocketState.recoveryAttached) return;
+    monacoCollabSocketState.recoveryAttached = true;
+    const resume = () => {
+        ensureMonacoCollabSocket();
+        if (monacoCollabSocketState.authed) resumeMonacoCollabSessions();
+    };
+    window.addEventListener('online', resume);
+    window.addEventListener('focus', resume);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) resume();
+    });
+}
 function ensureMonacoCollabSocket() {
+    attachMonacoCollabRecoveryListeners();
     // Do not try to connect while the browser is offline.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const existing = monacoCollabSocketState.socket;
@@ -9152,6 +9205,7 @@ function ensureMonacoCollabSocket() {
         socket.addEventListener('open', async () => {
             monacoCollabSocketState.wasConnected = true;
             monacoCollabSocketState.reconnectAttempts = 0;
+            startMonacoCollabHeartbeat(socket);
             try {
                 const ticketRes = await api('monaco_collab_ticket', {}, 'POST');
                 if (ticketRes?.ok && ticketRes.ticket && monacoCollabSocketState.socket === socket) {
@@ -9162,8 +9216,10 @@ function ensureMonacoCollabSocket() {
             }
         });
         socket.addEventListener('message', (event) => {
+            monacoCollabSocketState.lastMessageAt = Date.now();
             try {
                 const payload = JSON.parse(event.data);
+                if (payload?.type === 'pong') return;
                 if (payload?.type === 'auth_ok') {
                     monacoCollabSocketState.authed = true;
                     const isReconnect = !!monacoCollabSocketState.wasConnected;
@@ -9185,19 +9241,24 @@ function ensureMonacoCollabSocket() {
                             revision: session.docRevision || 0,
                             updatedAt: Date.now()
                         });
-                        if (isReconnect) {
-                            if (session.syncRequestTimer) clearTimeout(session.syncRequestTimer);
-                            session.syncRequestTimer = setTimeout(() => {
-                                session.syncRequestTimer = null;
-                                requestMonacoCollabSync(tabId);
-                            }, MONACO_COLLAB_SYNC_REQUEST_MS);
-                        }
+                        // Always pull the room state after (re)connecting: a user who
+                        // joined later or lost the connection must catch up without
+                        // reloading the file.
+                        if (session.syncRequestTimer) clearTimeout(session.syncRequestTimer);
+                        session.syncRequestTimer = setTimeout(() => {
+                            session.syncRequestTimer = null;
+                            requestMonacoCollabSync(tabId);
+                        }, isReconnect ? MONACO_COLLAB_SYNC_REQUEST_MS : 400);
                     });
                     flushMonacoCollabSocketQueue();
                     return;
                 }
                 if (payload?.type === 'auth_error') {
                     console.error('Monaco collab auth failed:', payload.error);
+                    // The ticket is single-use: reconnect so a fresh one is
+                    // requested instead of staying on a dead, unauthenticated socket.
+                    monacoCollabSocketState.authed = false;
+                    try { socket.close(); } catch (_) {}
                     return;
                 }
                 handleMonacoCollabSocketMessage(payload);
@@ -9207,6 +9268,7 @@ function ensureMonacoCollabSocket() {
         });
         socket.addEventListener('close', () => {
             if (monacoCollabSocketState.socket !== socket) return;
+            stopMonacoCollabHeartbeat();
             monacoCollabSocketState.socket = null;
             monacoCollabSocketState.authed = false;
             if (monacoCollabSocketState.reconnectTimer) clearTimeout(monacoCollabSocketState.reconnectTimer);
@@ -9359,7 +9421,9 @@ async function autoSaveFile(editor, filePath, tabId = null) {
     if (content === null || content === undefined) return;
     const resolvedTab = resolvedTabId ? tabsState.tabs.find(t => t.id === resolvedTabId) : null;
     try {
-        await api('save_file', { path: filePath, content, root: getTabRoot(resolvedTab) });
+        // getResolvedTabRoot() also recovers the root from the path prefix, so a
+        // restored tab (or a hidden root) never saves into the wrong storage.
+        await api('save_file', { path: filePath, content, root: getResolvedTabRoot(resolvedTab) });
         const collabSession = resolvedTabId ? getMonacoCollabSession(resolvedTabId) : null;
         if (collabSession) {
             collabSession.lastSyncedContent = content;
@@ -9378,11 +9442,20 @@ async function autoSaveFile(editor, filePath, tabId = null) {
     } catch (err) {
         flashStatus(t(i18n, 'autoSaveFailed') + err.message);
         if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showErrorCross(document.getElementById('btn-save'));
-    } finally {
+        // One transient failure used to drop the changes for good because the
+        // timer was cleared below. Keep retrying while the tab is still open.
         if (resolvedTabId) {
             clearAutoSaveTimer(resolvedTabId);
+            const retryTab = tabsState.tabs.find(t => t.id === resolvedTabId);
+            const retryEditor = editorsMap.get(resolvedTabId) || editor || null;
+            if (retryTab && retryEditor) {
+                const retryId = setTimeout(() => autoSaveFile(retryEditor, filePath, resolvedTabId), 5000);
+                autoSaveTimers.set(resolvedTabId, retryId);
+            }
         }
+        return;
     }
+    if (resolvedTabId) clearAutoSaveTimer(resolvedTabId);
 }
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -9432,7 +9505,7 @@ function flushPendingAutoSavesSync() {
         const content = getCurrentEditorContent(tabId);
         try {
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'api.php', false);
+            xhr.open('POST', (window.APP_CONFIG && window.APP_CONFIG.apiBase) || 'api.php', false);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.send(new URLSearchParams({
                 action: 'save_file',
@@ -10529,7 +10602,7 @@ function refreshTabContent(tabId) {
     if (tab.photoEditor) {
         openPhotoEditor(tab.path);
     } else if (tab.latexEditor) {
-        openLatexEditor(tab.path);
+        openLatexEditor(tab.path, getResolvedTabRoot(tab));
     } else if (tab.transcriptionEditor) {
         openTranscriptionEditor(tab.path);
     } else if (tab.ttsEditor) {
@@ -10537,9 +10610,9 @@ function refreshTabContent(tabId) {
     } else if (tab.onlyOfficeEditor) {
         openOnlyOfficeEditor(tab.path);
     } else if (tab.markdownEditor) {
-        openMarkdownEditor(tab.path);
+        openMarkdownEditor(tab.path, getResolvedTabRoot(tab));
     } else if (tab.htmlEditor) {
-        openHtmlEditor(tab.path);
+        openHtmlEditor(tab.path, getResolvedTabRoot(tab));
     } else if (tab.zipViewer) {
         const newTab = {
             id: tabsState.nextTabId++,

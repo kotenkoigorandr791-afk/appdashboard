@@ -29,7 +29,8 @@ body.tabs-open::before{opacity:0.45;transition:opacity 0.3s ease}
 .btn.danger{background:var(--danger);border-color:var(--danger);color:white}
 .btn.hidden{display:none}
 .icon-btn{padding:6px 8px;font-size:14px;display:flex;align-items:center}
-.icon-btn.close-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:999px}
+.icon-btn.close-btn{width:32px;height:32px;min-width:32px;padding:0;display:inline-flex;align-items:center;justify-content:center;border-radius:999px;font-size:20px;line-height:1;flex:0 0 auto}
+.icon-btn.close-btn svg,.icon-btn.close-btn .icon{width:18px;height:18px}
 .icon-btn.minimize-btn{width:32px;height:32px;padding:0;justify-content:center;border-radius:999px;flex:0 0 auto}
 .upload-modal-actions{display:flex;align-items:center;gap:6px;flex:0 0 auto}
 .upload-modal-actions .icon-btn{flex:0 0 auto}
@@ -416,7 +417,10 @@ body.modal-stack-active>.modal:not(.modal-top){background:transparent;backdrop-f
 @keyframes modalFadeIn{from{opacity:0;transform:scale(0.95)}to{opacity:1;transform:scale(1)}}
 body[data-theme="light"] .modal{background:rgba(255,255,255,0.7);backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
 body[data-theme="dark"] .modal{background:rgba(32,32,32,0.72)}
-.modal-content{background:color-mix(in srgb,var(--panel) 92%,var(--bg));border:1px solid var(--border);border-radius:12px;width:90%;max-width:500px;height:auto;max-height:60vh;max-height:60dvh;display:flex;flex-direction:column;overflow:hidden}
+.modal-content{background:color-mix(in srgb,var(--panel) 92%,var(--bg));border:1px solid var(--border);border-radius:16px;width:90%;max-width:500px;height:auto;max-height:60vh;max-height:60dvh;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 8px 30px color-mix(in srgb,var(--border) 15%,transparent);transition:all 0.2s ease}
+.modal-content[data-delete-modal="true"] .modal-header{border-bottom-color:var(--border)}
+.modal-content[data-delete-modal="true"] .modal-header .close-btn{color:var(--muted)}
+.modal-content[data-delete-modal="true"] .modal-header .close-btn:hover{background:var(--border);color:var(--fg)}
 .modal-header{display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);flex-shrink:0}
 .modal-header h3{margin:0;font-size:18px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .modal-body{padding:20px;overflow-y:auto;flex:1 1 auto;position:relative;min-height:0}
@@ -565,6 +569,44 @@ body[data-theme="dark"] .preview-container embed,body[data-theme="dark"] .previe
 .tab-pane.active{display:block}property-row{display:flex;align-items:flex-start;margin-bottom:8px;padding:4px 0}
 .property-label{flex:0 0 120px;font-weight:500;color:var(--muted);font-size:13px}
 .property-value{flex:1;color:var(--fg);font-size:13px;word-break:break-word}
+
+/* Improved Property Grid System */
+.property-row{
+display:flex;align-items:center;padding:6px 0;gap:12px;transition:all 0.2s ease
+}
+.property-row:hover{
+background:color-mix(in srgb,var(--panel) 40%,transparent);border-radius:6px;padding:6px 8px
+}
+.property-row-section{
+margin-bottom:12px;padding:12px;border:1px solid var(--border);border-radius:8px;background:color-mix(in srgb,var(--panel) 10%,transparent)
+}
+.property-row-section.attributes-section{
+border:none;background:none;padding:0
+}
+.property-section-header{
+display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:13px;font-weight:700;color:var(--accent)
+}
+.property-section-header svg{
+width:16px;height:16px;flex-shrink:0
+}
+.property-label{
+flex:0 0 200px;min-width:150px;max-width:250px;font-weight:600;color:var(--muted);font-size:13px;display:flex;align-items:center;gap:8px
+}
+.property-label svg{
+width:16px;height:16px;color:var(--accent);flex-shrink:0
+}
+.property-row-section.expandable{
+border-left:3px solid var(--accent);border-right:3px solid var(--accent);border-bottom:3px solid var(--accent)
+}
+.property-list-item{
+padding:6px 10px;margin:2px 0;border-radius:4px;display:flex;align-items:center;gap:8px
+}
+.property-list-item:hover{
+background:color-mix(in srgb,var(--accent) 12%,transparent)
+}
+.property-value.italic-gray{
+font-style:italic;color:var(--muted);font-size:12px
+}
 .selection-checkbox{accent-color:var(--accent);appearance:none;-webkit-appearance:none;width:18px;height:18px;border:2px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;position:relative;margin-right:8px;transition:all 0.2s ease;flex-shrink:0}
 .selection-checkbox:hover{border-color:var(--accent);background:var(--panel)}
 .selection-checkbox:checked{background:var(--accent);border-color:var(--accent)}
@@ -1656,12 +1698,13 @@ body.group-chat-detached-open .layout{
     max-width:none;
 }
 .group-chat-panel--detached .group-chat-header{cursor:default}
-.group-chat-resize{position:absolute;top:0;left:-4px;right:auto;width:8px;height:100%;cursor:col-resize;z-index:2}
+.group-chat-resize{position:absolute;top:0;left:0;right:auto;width:8px;height:100%;cursor:col-resize;z-index:20}
+.group-chat-resize:hover{background:color-mix(in srgb,var(--accent) 35%,transparent)}
 .group-chat-resize-h{position:absolute;bottom:-4px;left:0;right:0;height:8px;cursor:ns-resize;z-index:2}
 .group-chat-resize-se{position:absolute;right:4px;bottom:4px;width:20px;height:20px;padding:4px;display:flex;align-items:flex-end;justify-content:flex-end;border-radius:8px;color:color-mix(in srgb,var(--fg) 50%,transparent);cursor:nwse-resize;z-index:20;opacity:.7;transition:color .15s ease,background-color .15s ease,opacity .15s ease;touch-action:none}
 .group-chat-resize-se:hover{opacity:1;color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
 .group-chat-resize-se svg{display:block;pointer-events:none}
-.group-chat-panel--detached .group-chat-resize{right:-4px;left:auto;bottom:-4px;top:auto;width:14px;height:14px;cursor:nwse-resize}
+.group-chat-panel--detached .group-chat-resize{left:0;right:auto;top:0;bottom:0;width:8px;height:auto;cursor:col-resize}
 .group-chat-media{position:relative;max-width:240px}
 .group-chat-media--audio{max-width:100%;min-width:0;width:100%;overflow:hidden}
 .group-chat-media--loading::before{content:'';position:absolute;inset:0;border-radius:10px;background:linear-gradient(90deg,color-mix(in srgb,var(--border) 30%,transparent) 25%,color-mix(in srgb,var(--border) 50%,transparent) 50%,color-mix(in srgb,var(--border) 30%,transparent) 75%);background-size:200% 100%;animation:group-chat-media-shimmer 1.2s infinite}
@@ -1778,9 +1821,11 @@ body[data-theme="light"] .group-chat-panel { box-shadow: 0 24px 60px rgba(30, 50
 .animated-check-label{display:flex;align-items:center;gap:8px;color:var(--text);font-size:14px;cursor:pointer;position:relative}
 .animated-checkbox{position:absolute;opacity:0;width:44px;height:44px;margin:0;cursor:pointer;z-index:1}
 .animated-checkbox-box{width:24px;height:24px;border-radius:6px;border:2px solid rgba(255,255,255,0.25);background:transparent;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background 0.2s ease,border-color 0.2s ease,transform 0.15s ease}
+body[data-theme="light"] .animated-checkbox-box{border-color:rgba(0,0,0,0.25)}
 .animated-checkbox-box svg path{stroke-dasharray:30;stroke-dashoffset:30;transition:stroke-dashoffset 0.4s ease 0.05s}
 .animated-checkbox:checked ~ .animated-checkbox-box{background:var(--accent,#e74c3c);border-color:var(--accent,#e74c3c);transform:scale(1.08)}
 .animated-checkbox:checked ~ .animated-checkbox-box svg path{stroke-dashoffset:0}
+body[data-theme="light"] .animated-checkbox:checked ~ .animated-checkbox-box{border-color:#e74c3c}
 .animated-checkbox:active ~ .animated-checkbox-box{transform:scale(0.9)}
 
 /* ── Storage admin panel (quotas + analytics) ─────────────────────────── */

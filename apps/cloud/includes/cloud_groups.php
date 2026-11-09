@@ -9,8 +9,11 @@ function cloud_is_group_root(?string $rootKey): bool
 function cloud_parse_group_id(?string $rootKey): ?string
 {
     if (!cloud_is_group_root($rootKey)) return null;
+    // Older editor URLs could append a transient suffix after the UUID.
+    // Resolve the canonical group id so their files remain writable.
     $id = substr((string)$rootKey, 6);
-    return preg_match('/^[a-f0-9\-]{36}$/i', $id) ? strtolower($id) : null;
+    if (preg_match('/^([a-f0-9\-]{36})(?::.*)?$/i', $id, $matches)) return strtolower($matches[1]);
+    return null;
 }
 
 function cloud_group_root_key(string $groupId): string

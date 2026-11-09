@@ -59,11 +59,40 @@ function cloud_reviews_delete_path(string $email, string $rootKey, string $path)
     }
 }
 
+// Human-facing name of a reviewer. Stored author_name may be a cloud username
+// derived from the e-mail ("root_root"); always resolve the profile name and
+// fall back to the humanised local part so an e-mail address never leaks into
+// the review preview.
+function cloud_reviews_author_name(string $email): string
+{
+    static $cache = [];
+    $key = strtolower(trim($email));
+    if ($key === '') return '';
+    if (array_key_exists($key, $cache)) return $cache[$key];
+    $name = '';
+    try {
+        $db = getDB();
+        if ($db) {
+            $stmt = $db->prepare('SELECT name FROM users WHERE lower(email) = :e LIMIT 1');
+            $stmt->execute([':e' => $key]);
+            $name = trim((string)($stmt->fetchColumn() ?: ''));
+        }
+    } catch (Throwable $e) {
+        cloud_safe_error_log('cloud_reviews_author_name: ' . $e->getMessage());
+    }
+    if ($name === '') {
+        $local = explode('@', $key)[0];
+        $name = ucwords(trim((string)preg_replace('/[._\-]+/', ' ', $local)));
+    }
+    return $cache[$key] = $name;
+}
+
 function cloud_reviews_row(array $r): array
 {
+    $authorEmail = (string)($r['author_email'] ?? '');
     return [
         'id' => (int)$r['id'],
-        'author' => (string)$r['author_name'] ?: (string)$r['author_email'],
+        'author' => cloud_reviews_author_name($authorEmail),
         'mine' => !empty($r['mine']),
         'start_line' => (int)$r['start_line'],
         'end_line' => (int)$r['end_line'],
@@ -101,7 +130,7 @@ function cloud_reviews_handle(string $action): void
         if ($comment === '' && $suggestion === null) json_out(['ok' => false, 'error' => 'empty review'], 400);
         $start = max(1, (int)($_POST['start_line'] ?? 1));
         $end = max($start, (int)($_POST['end_line'] ?? $start));
-        $res = cloud_reviews_run($db, "INSERT INTO cloud_file_reviews (scope_key, file_path, author_email, author_name, start_line, end_line, quote, comment, suggestion) VALUES (:s, :p, :e, :n, :a, :b, :q, :c, :g) RETURNING id", [':s' => $scope, ':p' => $path, ':e' => $email, ':n' => $user, ':a' => $start, ':b' => $end, ':q' => mb_substr((string)($_POST['quote'] ?? ''), 0, 4000), ':c' => mb_substr($comment, 0, 4000), ':g' => $suggestion]);
+        $res = cloud_reviews_run($db, "INSERT INTO cloud_file_reviews (scope_key, file_path, author_email, author_name, start_line, end_line, quote, comment, suggestion) VALUES (:s, :p, :e, :n, :a, :b, :q, :c, :g) RETURNING id", [':s' => $scope, ':p' => $path, ':e' => $email, ':n' => cloud_reviews_author_name($email), ':a' => $start, ':b' => $end, ':q' => mb_substr((string)($_POST['quote'] ?? ''), 0, 4000), ':c' => mb_substr($comment, 0, 4000), ':g' => $suggestion]);
         json_out(['ok' => true, 'id' => (int)$res->fetchColumn()]);
     }
     $id = (int)($_POST['id'] ?? 0);
