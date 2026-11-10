@@ -60,8 +60,6 @@ try{
 .mcp-setup-scroll::-webkit-scrollbar-track{background:transparent;border-radius:10px;}
 .mcp-setup-scroll::-webkit-scrollbar-thumb{background:rgba(255,255,255,.14);border-radius:10px;min-width:6px;min-height:6px;}
 .mcp-setup-scroll:hover::-webkit-scrollbar-thumb{background:rgba(255,255,255,.2);}
-#close-mcp-setup{position:absolute;top:10px;right:12px;background:none;border:none;color:var(--text-color);font-size:22px;cursor:pointer;line-height:1;}
-#close-mcp-setup:hover{color:#ef4444;}
 .mcp-setup-lead{opacity:.78;margin:0 0 16px;line-height:1.45;font-size:14px;}
 .mcp-setup-meta{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px;}
 .mcp-setup-pill{font-size:12px;padding:5px 10px;border-radius:999px;border:1px solid var(--border-color);background:var(--group-block-bg,rgba(127,127,127,.08));}

@@ -15,5 +15,5 @@
                         <?php endforeach;?>
                         </tbody>
                     </table>
-                    <div style="margin-top:20px;"><form method="post"><button type="submit" name="terminate_all_sessions" class="auth-button" style="background:#ff4444;"><?php echo my_htmlspecialchars($translations['terminate_all_sessions']); ?></button></form></div>
+                    <div style="margin-top:20px;"><form method="post"><button type="submit" name="terminate_all_sessions" class="terminate-btn terminate-all-btn"><?php echo my_htmlspecialchars($translations['terminate_all_sessions']); ?></button></form></div>
                 <?php endif;?>

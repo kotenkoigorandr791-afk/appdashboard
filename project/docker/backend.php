@@ -131,6 +131,24 @@ if ($view === 'stats' && isset($_GET['id'])) {
     viewPageShell(t('docker_resources'), $html);
     exit;
 }
+if ($view === 'system_df') {
+    if (!headers_sent()) {
+        header('Content-Type: text/html; charset=UTF-8');
+    }
+    $systemDfData = callDockerAPI(dockerApi('system/df'), 'GET', null, 30);
+    if (($systemDfData['code'] ?? 0) !== 200 || !is_array($systemDfData['data'] ?? null)) {
+        echo '<p class="docker-lazy-error">' . htmlspecialchars(t('unavailable'), ENT_QUOTES, 'UTF-8') . ' (HTTP ' . (int)($systemDfData['code'] ?? 0) . ')</p>';
+        exit;
+    }
+    $sdf = $systemDfData['data'];
+    echo '<div class="info-grid">'
+        . '<div><strong>' . htmlspecialchars(t('layers_size'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . (isset($sdf['LayersSize']) ? round($sdf['LayersSize'] / 1024 / 1024 / 1024, 2) : 0) . ' GB</div>'
+        . '<div><strong>' . htmlspecialchars(t('images_in_report'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . (isset($sdf['Images']) && is_array($sdf['Images']) ? count($sdf['Images']) : 0) . '</div>'
+        . '<div><strong>' . htmlspecialchars(t('containers_in_report'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . (isset($sdf['Containers']) && is_array($sdf['Containers']) ? count($sdf['Containers']) : 0) . '</div>'
+        . '<div><strong>' . htmlspecialchars(t('volumes_in_report'), ENT_QUOTES, 'UTF-8') . ':</strong> ' . (isset($sdf['Volumes']) && is_array($sdf['Volumes']) ? count($sdf['Volumes']) : 0) . '</div>'
+        . '</div>';
+    exit;
+}
 if ($view === 'stats_data' && isset($_GET['id'])) {
     // An earlier PHP warning (e.g. "Too many open files") may already have
     // flushed output; discard it so the JSON response stays parseable and no
@@ -331,16 +349,25 @@ if ($action === 'kill_container' && isset($_GET['id'])) {
 // --- Main page data load (after actions/views) ---
 $message = $_GET['message'] ?? '';
 $epId = getDockerEndpointId();
-$containers = callDockerAPI(dockerApi('containers/json?all=true'));
+$dockerLoadStartedAt = microtime(true);
+$dockerInitialData = docker_call_many([
+    'containers' => dockerApi('containers/json?all=true'),
+    'info' => dockerApi('info'),
+    'images' => dockerApi('images/json'),
+    'version' => dockerApi('version'),
+    'networks' => dockerApi('networks'),
+    'volumes' => dockerApi('volumes'),
+], 30);
+$dockerLoadDurationMs = (int)round((microtime(true) - $dockerLoadStartedAt) * 1000);
+$containers = $dockerInitialData['containers'];
 $stacks = ['code' => 200, 'data' => []];
-$stats = callDockerAPI(dockerApi('info'));
-$images = callDockerAPI(dockerApi('images/json'));
+$stats = $dockerInitialData['info'];
+$images = $dockerInitialData['images'];
 $systemInfo = ['code' => 200, 'data' => ['Name' => 'Local Docker socket', 'URL' => docker_socket_path(), 'Status' => 1]];
-$dockerStatus = callDockerAPI(dockerApi('version'));
-$networksList = callDockerAPI(dockerApi('networks'));
-$volumesList = callDockerAPI(dockerApi('volumes'));
-$dockerVersionInfo = callDockerAPI(dockerApi('version'));
-$systemDfData = callDockerAPI(dockerApi('system/df'));
+$dockerStatus = $dockerInitialData['version'];
+$networksList = $dockerInitialData['networks'];
+$volumesList = $dockerInitialData['volumes'];
+$dockerVersionInfo = $dockerStatus;
 $apiError = null;
 $cd = $containers['data'];
 if ($containers['code'] !== 200) {

@@ -43,18 +43,20 @@
 .stat-cleanup-btn svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 .stat-cleanup-btn:hover { background: var(--error-color); border-color: var(--error-color); color: #fff; transform: scale(1.05); }
 .stat-cleanup-btn:active { transform: scale(0.95); }
-.monitor-charts-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; }
-.monitor-charts-toolbar h2 { margin: 0; }
-.monitor-charts-period { min-width: 96px; border: 1px solid var(--border-color); background: var(--card-bg); color: var(--text-color); border-radius: 8px; padding: 9px 12px; font-weight: 650; }
+.monitor-charts-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 16px; padding: 16px 18px; border: 1px solid var(--border-color); border-radius: 12px; background: var(--card-bg); }
+.monitor-charts-toolbar h2 { margin: 0; font-size: 17px; }
+.monitor-charts-period { min-width: 96px; border: 1px solid var(--border-color); background: var(--bg-color); color: var(--text-color); border-radius: 8px; padding: 9px 12px; font-weight: 650; outline: none; }
+.monitor-charts-period:focus { border-color: var(--primary-color); box-shadow: 0 0 0 2px color-mix(in srgb, var(--primary-color) 20%, transparent); }
 .monitor-charts-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; margin-bottom: 18px; }
-.monitor-chart-panel { min-width: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 8px; padding: 16px; box-shadow: 0 2px 10px rgba(0,0,0,.1); }
-.monitor-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; }
-.monitor-chart-head h3 { margin: 0; font-size: 1rem; overflow-wrap: anywhere; }
-.monitor-chart-cleanup { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--card-bg); color: var(--text-color); cursor: pointer; flex: 0 0 auto; }
+.monitor-chart-panel { min-width: 0; background: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; box-shadow: none; transition: border-color .2s ease; }
+.monitor-chart-panel:hover { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color)); }
+.monitor-chart-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 14px; padding-bottom: 12px; border-bottom: 1px solid var(--border-color); }
+.monitor-chart-head h3 { margin: 0; font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.monitor-chart-cleanup { display: inline-flex; align-items: center; justify-content: center; width: 32px; height: 32px; border: 1px solid var(--border-color); border-radius: 8px; background: transparent; color: var(--text-secondary); cursor: pointer; flex: 0 0 auto; transition: color .15s ease, border-color .15s ease, background .15s ease; }
 .monitor-chart-cleanup svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
-.monitor-chart-cleanup:hover { border-color: var(--error-color); color: var(--error-color); }
+.monitor-chart-cleanup:hover { border-color: var(--error-color); background: color-mix(in srgb, var(--error-color) 12%, transparent); color: var(--error-color); }
 .monitor-chart-wrap { position: relative; height: 280px; min-width: 0; }
-.stats-status { padding: 12px 14px; margin-bottom: 18px; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-secondary); }
+.stats-status { padding: 12px 14px; margin-bottom: 18px; border: 1px solid var(--border-color); border-radius: 10px; background: var(--card-bg); color: var(--text-secondary); }
 .stats-status.error { border-color: var(--error-color); color: var(--error-color); }
 
 /* ---------- SEARCH ---------- */
@@ -163,11 +165,49 @@
 .uptime-check-form input, .uptime-check-form select { width: 100%; min-width: 0; border: 1px solid var(--border-color); border-radius: 8px; padding: 9px 10px; background: var(--bg-color); color: var(--text-color); }
 .uptime-enabled { justify-content: flex-end; flex-direction: row !important; align-items: center; }
 .uptime-enabled input { width: auto; }
-.uptime-form-actions { display: flex; align-items: end; gap: 8px; flex-wrap: wrap; }
-.uptime-modal-content .app-dialog { width: min(480px, 100%); }
-.app-dialog h2 { margin: 0 0 12px; font-size: 1.2rem; color: var(--text-color); }
-.app-dialog p { margin: 0 0 20px; color: var(--text-secondary); line-height: 1.5; overflow-wrap: anywhere; }
-.app-dialog .uptime-form-actions { justify-content: flex-end; }
+.uptime-form-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.uptime-modal-content .app-dialog {
+    width: min(480px, 100%);
+    padding: 20px;
+    border-radius: 12px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 20px 48px rgba(0, 0, 0, .28);
+}
+.app-dialog h2 {
+    margin: 0;
+    padding: 0 0 12px;
+    border-bottom: 1px solid var(--border-color);
+    font-size: 17px;
+    font-weight: 600;
+    line-height: 1.35;
+    color: var(--text-color);
+}
+.app-dialog p {
+    margin: 16px 0 20px;
+    color: var(--text-secondary);
+    font-size: 14px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
+}
+.app-dialog .uptime-form-actions {
+    justify-content: flex-end;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-color);
+}
+.app-dialog .uptime-form-actions .btn-primary,
+.app-dialog .uptime-form-actions .btn-secondary {
+    min-width: 88px;
+    min-height: 36px;
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 12.5px;
+    font-weight: 600;
+    line-height: 18px;
+    box-shadow: none;
+}
+.app-dialog .uptime-form-actions .btn-primary { background: var(--primary-color); border-color: var(--primary-color); }
+.app-dialog .uptime-form-actions .btn-secondary { background: transparent; border-color: var(--border-color); }
+.app-dialog .uptime-form-actions .btn-secondary:hover { background: var(--hover-color); border-color: var(--primary-color); }
 
 /* ---------- UPTIME ADD DROPDOWN ---------- */
 .uptime-add-dropdown { position: relative; display: inline-flex; }
@@ -278,52 +318,60 @@
 }
 .perf-root .admin-monitor-topbar {
     flex: 0 0 auto;
-    min-height: 52px;
+    min-height: auto;
     height: auto;
     display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 8px 14px;
-    background: var(--sidebar-bg, var(--card-bg));
+    flex-direction: column;
+    gap: 0;
+    padding: 0;
+    background: var(--card-bg);
     border-bottom: 1px solid var(--border-color);
     box-sizing: border-box;
-    overflow-x: auto;
-    overflow-y: hidden;
-    scrollbar-width: thin;
+    overflow: visible;
+    border-radius: 0;
 }
 .perf-root .admin-monitor-title { display: none !important; }
 .perf-root .admin-monitor-tabs {
-    flex: 1 1 auto;
+    flex: 0 0 auto;
     min-width: 0;
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 5px;
     overflow-x: auto;
     scrollbar-width: thin;
+    padding: 5px;
+    scrollbar-width: none;
 }
+.perf-root .admin-monitor-tabs::-webkit-scrollbar { display: none; }
 .perf-root .admin-monitor-actions {
     flex: 0 0 auto;
     display: flex;
     align-items: center;
+    justify-content: flex-end;
     gap: 8px;
+    padding: 8px 14px;
+    border-top: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--card-bg) 96%, var(--text-color) 4%);
 }
 .perf-root .admin-monitor-tab {
-    height: 34px;
+    height: 36px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 7px;
     flex: 0 0 auto;
-    padding: 0 11px;
+    padding: 0 12px;
     border: 1px solid transparent;
+    border-left: 3px solid transparent;
     border-radius: 8px;
     background: transparent;
-    color: var(--text-color);
-    opacity: .72;
-    font-size: 12px;
-    font-weight: 600;
+    color: var(--text-secondary);
+    font-size: 12.5px;
+    font-weight: 500;
     cursor: pointer;
     text-decoration: none;
+    white-space: nowrap;
+    transition: background .2s, color .2s, border-color .2s;
 }
 .perf-root .admin-monitor-tab svg,
 .perf-root .admin-monitor-actions svg {
@@ -337,14 +385,14 @@
     stroke-linejoin: round;
 }
 .perf-root .admin-monitor-tab:hover {
-    background: var(--group-block-bg);
-    opacity: 1;
+    background: var(--hover-color);
+    color: var(--text-color);
 }
 .perf-root .admin-monitor-tab.active {
-    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
-    border-color: color-mix(in srgb, var(--primary-color) 35%, transparent);
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+    border-left-color: var(--primary-color);
     color: var(--primary-color);
-    opacity: 1;
+    font-weight: 600;
 }
 .perf-root .admin-monitor-actions {
     display: flex;
@@ -410,29 +458,43 @@
 .perf-root .modules-table {
     background: var(--modal-bg, var(--card-bg));
     border: 1px solid var(--border-color);
-    border-radius: 8px;
+    border-radius: 12px;
     box-shadow: none;
     backdrop-filter: blur(18px) saturate(140%);
     -webkit-backdrop-filter: blur(18px) saturate(140%);
 }
 .perf-root .stat-card {
-    padding: 14px;
+    min-height: 220px;
+    padding: 18px;
+    border-color: color-mix(in srgb, var(--border-color) 80%, var(--primary-color) 20%);
+    transition: border-color .2s ease, background .2s ease;
 }
 .perf-root .stat-card:hover,
 .perf-root .drive-card:hover {
     transform: none;
     box-shadow: none;
+    border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color));
 }
 .perf-root .stat-card h3 {
-    margin-bottom: 10px;
-    font-size: 13px;
+    margin: 0 0 12px;
+    font-size: 12px;
     font-weight: 700;
+    letter-spacing: .06em;
+    text-transform: uppercase;
+    color: var(--text-secondary);
     padding-right: 40px;
     width: 100%;
     box-sizing: border-box;
 }
+.perf-root .stat-card canvas {
+    filter: drop-shadow(0 6px 12px color-mix(in srgb, var(--primary-color) 20%, transparent));
+}
 .perf-root .stat-val {
-    font-size: 20px;
+    margin-top: 4px;
+    font-size: 24px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    color: var(--text-color);
 }
 .perf-root .btn-secondary {
     min-height: 34px;
@@ -500,31 +562,24 @@
 }
 @media (max-width: 768px) {
     .perf-root .admin-monitor-topbar {
-        height: auto;
-        min-height: 52px;
-        align-items: stretch;
-        flex-wrap: nowrap;
-        padding: 8px 10px;
-        overflow-x: auto;
-    }
-    .perf-root .admin-monitor-actions {
-        flex: 0 0 auto;
-        min-width: 0;
-        gap: 6px;
-        flex-wrap: nowrap;
+        min-height: auto;
     }
     .perf-root .admin-monitor-tabs {
-        flex: 1 1 auto;
         min-width: 0;
+        padding: 5px;
+    }
+    .perf-root .admin-monitor-actions {
+        width: 100%;
+        justify-content: flex-end;
+        gap: 6px;
+        padding: 8px 10px;
+        flex-wrap: nowrap;
     }
     .perf-root .container {
         padding: 12px;
     }
 }
 @media (max-width: 560px) {
-    .perf-root .admin-monitor-actions {
-        flex-wrap: nowrap;
-    }
     .perf-root .admin-monitor-actions .icon-button,
     .perf-root .auto-zoom-toggle {
         min-width: 0;
@@ -590,14 +645,3 @@
 #appConfirmModal > .modal-close { display: none !important; }
 body.perf-modal-open { overflow: hidden; }
 .perf-root.modal { display: none; position: fixed; inset: 0; width: auto; height: auto; overflow: auto; flex-direction: initial; }
-
-.perf-root .perf-menu-toggle { position: absolute; top: 10px; right: 14px; z-index: 31; width: 36px; height: 36px; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid var(--border-color); border-radius: 8px; background: var(--card-bg); color: var(--text-color); cursor: pointer; }
-.perf-root .perf-menu-toggle svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-.perf-root .perf-menu-toggle:hover { border-color: var(--primary-color); color: var(--primary-color); }
-.perf-root { position: relative; }
-.perf-root .admin-monitor-topbar { position: absolute; top: 0; right: 0; bottom: 0; z-index: 30; width: 280px; max-width: 86%; flex-direction: column; align-items: stretch; justify-content: flex-start; gap: 16px; padding: 60px 14px 14px; overflow-x: hidden; overflow-y: auto; background: var(--sidebar-bg); border-bottom: 0; border-left: 1px solid var(--border-color); transform: translateX(100%); transition: transform .25s ease; box-shadow: none; }
-.perf-root.menu-open .admin-monitor-topbar { transform: translateX(0); box-shadow: -12px 0 32px rgba(0,0,0,.35); }
-.perf-root .admin-monitor-tabs { flex: 0 0 auto; flex-direction: column; align-items: stretch; overflow: visible; }
-.perf-root .admin-monitor-tab { width: 100%; justify-content: flex-start; }
-.perf-root .admin-monitor-actions { flex-direction: column; align-items: stretch; border-top: 1px solid var(--border-color); padding-top: 14px; }
-.perf-root .container { padding-top: 56px; }
