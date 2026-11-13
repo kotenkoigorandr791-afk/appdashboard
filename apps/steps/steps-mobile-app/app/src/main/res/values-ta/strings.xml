@@ -442,4 +442,5 @@
     <string name="tracking_notification_text">பதிவேற்ற காத்திருக்கும் அளவீடுகள்: %1$d</string>
     <string name="tracking_action_pause">இடைநிறுத்து</string>
     <string name="tracking_action_stop">நிறுத்து</string>
+    <string name="tracking_diagnostics">%1$d காத்திருப்பு · %2$d நிராகரிப்பு · %3$d தோல்வி</string>
 </resources>

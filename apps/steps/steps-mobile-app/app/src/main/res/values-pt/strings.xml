@@ -442,4 +442,5 @@
     <string name="tracking_notification_text">%1$d medições aguardando envio</string>
     <string name="tracking_action_pause">Pausar</string>
     <string name="tracking_action_stop">Parar</string>
+    <string name="tracking_diagnostics">%1$d pendentes · %2$d rejeitadas · %3$d falhadas</string>
 </resources>

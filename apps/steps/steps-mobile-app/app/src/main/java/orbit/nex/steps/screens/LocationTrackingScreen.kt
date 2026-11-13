@@ -46,6 +46,7 @@ import kotlinx.coroutines.delay
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.location.LocationAccuracy
+import orbit.nex.steps.location.LocationEventStore
 import orbit.nex.steps.location.LocationPermissions
 import orbit.nex.steps.location.LocationPermissionState
 import orbit.nex.steps.location.LocationTrackingManager
@@ -71,6 +72,7 @@ fun LocationTrackingScreen(modifier: Modifier = Modifier) {
     var permissionState by remember { mutableStateOf(LocationPermissions.state(context)) }
     var notificationsEnabled by remember { mutableStateOf(LocationPermissions.areNotificationsEnabled(context)) }
     var pending by remember { mutableIntStateOf(LocationTrackingManager.pendingCount(context)) }
+    var counts by remember { mutableStateOf<Map<String, Int>>(emptyMap()) }
     var lastUploadAt by remember { mutableStateOf<Long?>(prefs.getLocationUploadOkAt()) }
     var lastError by remember { mutableStateOf<String?>(prefs.getLocationUploadError()) }
     var permissionLost by remember { mutableStateOf(prefs.isLocationPermissionLost()) }
@@ -84,6 +86,7 @@ fun LocationTrackingScreen(modifier: Modifier = Modifier) {
         permissionState = LocationPermissions.state(context)
         notificationsEnabled = LocationPermissions.areNotificationsEnabled(context)
         pending = LocationTrackingManager.pendingCount(context)
+        counts = LocationEventStore(context).counts()
         lastUploadAt = prefs.getLocationUploadOkAt()
         lastError = prefs.getLocationUploadError()
         permissionLost = prefs.isLocationPermissionLost()
@@ -163,6 +166,16 @@ fun LocationTrackingScreen(modifier: Modifier = Modifier) {
                     Text(
                         stringResource(R.string.tracking_pending, pending),
                         style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Text(
+                        stringResource(
+                            R.string.tracking_diagnostics,
+                            counts[LocationEventStore.STATE_PENDING] ?: 0,
+                            counts[LocationEventStore.STATE_REJECTED] ?: 0,
+                            counts[LocationEventStore.STATE_FAILED] ?: 0,
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     when {
                         asTimeText(lastUploadAt) != null -> Text(

@@ -19,23 +19,26 @@ import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.WebhookConfig
 import java.io.IOException
 
-/** Result of one upload attempt; [error] is null when the batch was accepted. */
+/** Result of one upload attempt; [error] is null when every row was settled. */
 data class UploadReport(
     val accepted: Int = 0,
     val duplicate: Int = 0,
     val rejected: Int = 0,
+    val failed: Int = 0,
     val pending: Int = 0,
     val error: String? = null,
     val retryable: Boolean = false,
 )
 
 /**
- * Uploads the local outbox to the Steps ingestion endpoint from tasks 04/05.
+ * Uploads the leased outbox to the Steps ingestion endpoint from tasks 04/05.
  *
- * The endpoint is derived from the paired server URL, exactly like the other
- * app calls, so no extra host or transport setting is introduced. Accepted,
- * duplicate and rejected items are removed from the outbox; network failures
- * leave them queued for the next attempt.
+ * Rows are leased before the request and settled one by one from the per-item
+ * results, so a crash or a lost connection leaves them leased only until the
+ * lease expires. Result statuses are reconciled by client event id; an
+ * unexpected shape releases the lease and retries instead of dropping data.
+ * Accepted, duplicate and rejected rows are terminal, while a transport error
+ * or an unknown status returns to pending with bounded backoff.
  */
 class LocationUploader(
     context: Context,
@@ -49,8 +52,8 @@ class LocationUploader(
         limit: Int = LocationEventStore.DEFAULT_BATCH,
     ): UploadReport = withContext(Dispatchers.IO) {
         val store = LocationEventStore(appContext)
-        store.purgeUploaded()
-        val events = store.pending(limit)
+        store.trim()
+        val events = store.claim(limit)
         if (events.isEmpty()) return@withContext UploadReport(pending = 0)
 
         val body = buildJsonObject {
@@ -72,10 +75,17 @@ class LocationUploader(
                 if (!response.isSuccessful) {
                     if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
                     val retryable = response.code == 408 || response.code == 429 || response.code >= 500
-                    store.markAttempt(events.map { it.id })
                     val error = "HTTP ${response.code}"
+                    if (retryable) {
+                        store.retryLater(events.map { it.id }, error)
+                    } else {
+                        // A permanently rejected batch (bad route, oversized body)
+                        // must not spin forever.
+                        events.forEach { store.settle(it.eventId, LocationEventStore.STATE_FAILED, error) }
+                    }
                     prefs.setLocationUploadFailure(error)
                     return@use UploadReport(
+                        failed = if (retryable) 0 else events.size,
                         pending = store.pendingCount(),
                         error = error,
                         retryable = retryable,
@@ -86,42 +96,57 @@ class LocationUploader(
                     Json.parseToJsonElement(response.body?.string().orEmpty())
                         .jsonObject["results"]?.jsonArray
                 }.getOrNull()
-                val uploadedIds = mutableListOf<Long>()
+                if (results == null || results.size != events.size) {
+                    // Server contract changed or response truncated: keep the data.
+                    store.release(events.map { it.id })
+                    store.retryLater(events.map { it.id }, "unexpected_response")
+                    prefs.setLocationUploadFailure("unexpected_response")
+                    return@use UploadReport(
+                        pending = store.pendingCount(),
+                        error = "unexpected_response",
+                        retryable = true,
+                    )
+                }
+
                 var accepted = 0
                 var duplicate = 0
                 var rejected = 0
+                var unknown = 0
                 events.forEachIndexed { index, event ->
-                    val status = results?.getOrNull(index)
-                        ?.jsonObject?.get("status")?.jsonPrimitive?.content
-                        ?: "rejected"
+                    val status = results[index].jsonObject["status"]?.jsonPrimitive?.content
                     when (status) {
                         "accepted" -> {
                             accepted++
-                            uploadedIds += event.id
+                            store.settle(event.eventId, LocationEventStore.STATE_ACCEPTED)
                         }
                         "duplicate" -> {
                             duplicate++
-                            uploadedIds += event.id
+                            store.settle(event.eventId, LocationEventStore.STATE_DUPLICATE)
+                        }
+                        "rejected" -> {
+                            rejected++
+                            store.settle(event.eventId, LocationEventStore.STATE_REJECTED, "rejected")
                         }
                         else -> {
-                            // A permanently invalid point must not block the queue.
-                            rejected++
-                            uploadedIds += event.id
+                            // Unknown or missing status: retry rather than discard.
+                            unknown++
+                            store.retryLater(listOf(event.id), "unknown_status")
                         }
                     }
                 }
-                store.markUploaded(uploadedIds)
                 val pending = store.pendingCount()
-                prefs.setLocationUploadSuccess()
+                if (unknown == 0) prefs.setLocationUploadSuccess()
                 UploadReport(
                     accepted = accepted,
                     duplicate = duplicate,
                     rejected = rejected,
                     pending = pending,
+                    error = if (unknown == 0) null else "unknown_status",
+                    retryable = unknown > 0,
                 )
             }
         } catch (e: IOException) {
-            store.markAttempt(events.map { it.id })
+            store.retryLater(events.map { it.id }, e.message ?: "network")
             prefs.setLocationUploadFailure(e.message ?: "network")
             UploadReport(
                 pending = store.pendingCount(),

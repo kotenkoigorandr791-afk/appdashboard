@@ -442,4 +442,5 @@
     <string name="tracking_notification_text">업로드 대기 중인 측정값 %1$d개</string>
     <string name="tracking_action_pause">일시정지</string>
     <string name="tracking_action_stop">중지</string>
+    <string name="tracking_diagnostics">%1$d개 대기 · %2$d개 거부 · %3$d개 실패</string>
 </resources>

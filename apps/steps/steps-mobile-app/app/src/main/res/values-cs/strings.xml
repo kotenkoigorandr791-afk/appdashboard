@@ -613,4 +613,5 @@
     <string name="tracking_notification_text">%1$d měření čeká na odeslání</string>
     <string name="tracking_action_pause">Pozastavit</string>
     <string name="tracking_action_stop">Zastavit</string>
+    <string name="tracking_diagnostics">%1$d čeká · %2$d odmítnuto · %3$d selhalo</string>
 </resources>

@@ -442,4 +442,5 @@
     <string name="tracking_notification_text">%1$d misure in attesa di invio</string>
     <string name="tracking_action_pause">Pausa</string>
     <string name="tracking_action_stop">Arresta</string>
+    <string name="tracking_diagnostics">%1$d in attesa · %2$d rifiutate · %3$d non riuscite</string>
 </resources>

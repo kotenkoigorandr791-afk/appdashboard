@@ -613,4 +613,5 @@
     <string name="tracking_notification_text">%1$d pomiarów czeka na wysłanie</string>
     <string name="tracking_action_pause">Pauza</string>
     <string name="tracking_action_stop">Stop</string>
+    <string name="tracking_diagnostics">%1$d oczekuje · %2$d odrzucone · %3$d błędne</string>
 </resources>

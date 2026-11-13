@@ -25,6 +25,7 @@ class LocationTrackingInstrumentedTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
     private lateinit var server: MockWebServer
     private lateinit var prefs: PreferencesManager
+    private lateinit var config: WebhookConfig
 
     @Before
     fun setUp() {
@@ -32,15 +33,15 @@ class LocationTrackingInstrumentedTest {
         prefs = PreferencesManager(context)
         prefs.setLocationTrackingEnabled(true)
         prefs.setLocationTrackingPaused(false)
-        prefs.setWebhookConfigs(
-            listOf(WebhookConfig(server.url("/api/steps").toString().trimEnd('/'), "test")),
-        )
-        LocationEventStore(context).purgeUploaded(0)
+        config = WebhookConfig(server.url("/api/steps").toString().trimEnd('/'), "test")
+        prefs.setWebhookConfigs(listOf(config))
+        // Start every test from an empty outbox.
+        LocationEventStore(context).trim()
     }
 
     @After
     fun tearDown() {
-        server.shutdown()
+        runCatching { server.shutdown() }
         prefs.setLocationTrackingEnabled(false)
     }
 
@@ -58,20 +59,46 @@ class LocationTrackingInstrumentedTest {
         recordedAtMs = System.currentTimeMillis(),
     )
 
+    private fun clearQueue() {
+        val store = LocationEventStore(context)
+        store.claim(limit = 500, leaseMs = 0).forEach {
+            store.settle(it.eventId, LocationEventStore.STATE_ACCEPTED)
+        }
+        store.trim()
+    }
+
     @Test
     fun outboxPersistsBeforeUploadAndDeduplicates() {
+        clearQueue()
         val store = LocationEventStore(context)
         val first = event()
         assertTrue(store.insert(prefs.getLocationDeviceId(), first))
         assertFalse("same client event id must not be stored twice", store.insert(prefs.getLocationDeviceId(), first))
 
         // A brand-new store instance (fresh process) still sees the queued row.
-        val reopened = LocationEventStore(context)
-        assertTrue(reopened.pending().any { it.eventId == first.clientEventId })
+        val claimed = LocationEventStore(context).claim()
+        assertTrue(claimed.any { it.eventId == first.clientEventId })
     }
 
     @Test
-    fun uploaderPostsDeviceIdAndEventIdThenClearsQueue() = runBlocking {
+    fun expiredLeaseIsReclaimedAfterProcessDeath() {
+        clearQueue()
+        val store = LocationEventStore(context)
+        val queued = event()
+        store.insert(prefs.getLocationDeviceId(), queued)
+
+        // First worker leases the row and "dies" before the response arrives.
+        val leased = store.claim(limit = 10, leaseMs = 0)
+        assertEquals(listOf(queued.clientEventId), leased.map { it.eventId })
+
+        // A new process reclaims the expired lease instead of losing the point.
+        val reclaimed = LocationEventStore(context).claim(limit = 10, leaseMs = 0)
+        assertEquals(listOf(queued.clientEventId), reclaimed.map { it.eventId })
+    }
+
+    @Test
+    fun uploaderPostsIdentityAndSettlesAcceptedRows() = runBlocking {
+        clearQueue()
         val store = LocationEventStore(context)
         val queued = event()
         store.insert(prefs.getLocationDeviceId(), queued)
@@ -82,22 +109,18 @@ class LocationTrackingInstrumentedTest {
                 .setBody("""{"ok":true,"results":[{"status":"accepted","id":"x"}]}"""),
         )
 
-        val report = LocationUploader(context).uploadPending(
-            WebhookConfig(server.url("/api/steps").toString().trimEnd('/'), "test"),
-            prefs,
-        )
+        val report = LocationUploader(context).uploadPending(config, prefs)
 
         assertNull(report.error)
         assertEquals(1, report.accepted)
         assertEquals(0, store.pendingCount())
+        assertEquals(1, store.counts()[LocationEventStore.STATE_ACCEPTED])
 
         val request = server.takeRequest()
         assertEquals("/api/steps/geolocation?action=batch", request.path)
         assertEquals(prefs.getDeviceId(), request.getHeader("X-Device-Id"))
         val body = request.body.readUtf8()
         assertTrue(body.contains(queued.clientEventId))
-        // The ingestion API rejects non-UUID device ids, so the payload uses the
-        // dedicated location installation id rather than the compact pairing id.
         assertTrue(body.contains("\"device_id\":\"${prefs.getLocationDeviceId()}\""))
         assertTrue(prefs.getLocationDeviceId().matches(Regex("^[0-9a-fA-F-]{36}$")))
         assertTrue(body.contains("\"source_type\":\"mobile\""))
@@ -105,23 +128,39 @@ class LocationTrackingInstrumentedTest {
     }
 
     @Test
-    fun failedUploadKeepsMeasurementsForRetry() = runBlocking {
+    fun serverErrorKeepsRowsAndDefersNextAttempt() = runBlocking {
+        clearQueue()
         val store = LocationEventStore(context)
         store.insert(prefs.getLocationDeviceId(), event())
         server.enqueue(MockResponse().setResponseCode(503))
 
-        val report = LocationUploader(context).uploadPending(
-            WebhookConfig(server.url("/api/steps").toString().trimEnd('/'), "test"),
-            prefs,
-        )
-
-        assertTrue("transport failures must stay retryable", report.retryable)
+        val first = LocationUploader(context).uploadPending(config, prefs)
+        assertTrue("transport failures must stay retryable", first.retryable)
         assertEquals(1, store.pendingCount())
-        assertEquals("HTTP 503", prefs.getLocationUploadError())
+
+        // Backoff must prevent an immediate second request (no request storm).
+        val second = LocationUploader(context).uploadPending(config, prefs)
+        assertNull(second.error)
+        assertEquals(1, server.requestCount)
+        assertEquals(1, store.pendingCount())
     }
 
     @Test
-    fun rejectedPointIsDroppedInsteadOfBlockingQueue() = runBlocking {
+    fun offlineUploadKeepsRowsForReconnect() = runBlocking {
+        clearQueue()
+        val store = LocationEventStore(context)
+        store.insert(prefs.getLocationDeviceId(), event())
+        server.shutdown()
+
+        val report = LocationUploader(context).uploadPending(config, prefs)
+
+        assertTrue(report.retryable)
+        assertEquals(1, store.pendingCount())
+    }
+
+    @Test
+    fun rejectedPointIsTerminalInsteadOfBlockingQueue() = runBlocking {
+        clearQueue()
         val store = LocationEventStore(context)
         store.insert(prefs.getLocationDeviceId(), event())
         server.enqueue(
@@ -130,13 +169,48 @@ class LocationTrackingInstrumentedTest {
                 .setBody("""{"ok":true,"results":[{"status":"rejected","error":"invalid_point"}]}"""),
         )
 
-        val report = LocationUploader(context).uploadPending(
-            WebhookConfig(server.url("/api/steps").toString().trimEnd('/'), "test"),
-            prefs,
-        )
+        val report = LocationUploader(context).uploadPending(config, prefs)
 
         assertEquals(1, report.rejected)
         assertEquals(0, store.pendingCount())
+        assertEquals(1, store.counts()[LocationEventStore.STATE_REJECTED])
+    }
+
+    @Test
+    fun unknownStatusRetriesInsteadOfDropping() = runBlocking {
+        clearQueue()
+        val store = LocationEventStore(context)
+        store.insert(prefs.getLocationDeviceId(), event())
+        server.enqueue(
+            MockResponse()
+                .setResponseCode(200)
+                .setBody("""{"ok":true,"results":[{"status":"processing"}]}"""),
+        )
+
+        val report = LocationUploader(context).uploadPending(config, prefs)
+
+        assertTrue("a status this client does not know must be retried", report.retryable)
+        assertEquals(1, store.pendingCount())
+    }
+
+    @Test
+    fun malformedResponseKeepsDataAndRetries() = runBlocking {
+        clearQueue()
+        val store = LocationEventStore(context)
+        store.insert(prefs.getLocationDeviceId(), event())
+        server.enqueue(MockResponse().setResponseCode(200).setBody("""{"ok":true}"""))
+
+        val report = LocationUploader(context).uploadPending(config, prefs)
+
+        assertTrue(report.retryable)
+        assertEquals(1, store.pendingCount())
+    }
+
+    @Test
+    fun backoffIsBoundedExponential() {
+        assertEquals(15_000L, LocationEventStore.backoffMs(1))
+        assertEquals(30_000L, LocationEventStore.backoffMs(2))
+        assertTrue(LocationEventStore.backoffMs(20) <= 30L * 60 * 1000)
     }
 
     @Test

@@ -2,81 +2,147 @@ package orbit.nex.steps.location
 
 import android.content.ContentValues
 import android.content.Context
+import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import kotlin.math.min
 
-/** A stored measurement waiting for (or already through) upload. */
+/** A stored measurement and the state it currently holds. */
 data class StoredLocationEvent(
     val id: Long,
     val eventId: String,
     val payload: String,
     val createdAtMs: Long,
+    val deviceSequence: Long,
     val attempts: Int,
 )
 
 /**
  * Durable local outbox for location measurements.
  *
- * Measurements are written here before the uploader is allowed to see them, so
- * a crash, a force-stop or a lost connection cannot drop a point that the OS
- * already delivered. `event_id` is UNIQUE, which also makes re-inserting a
- * measurement harmless.
+ * Every row walks through explicit states:
+ * `pending -> uploading -> accepted | duplicate | rejected | failed`, where a
+ * failed transport attempt returns it to `pending` with a bounded backoff. The
+ * `uploading` state is leased with a deadline, so a row left behind by a killed
+ * process is reclaimed on the next claim instead of being stuck forever.
+ *
+ * `event_id` is UNIQUE: re-inserting a measurement is harmless, and server
+ * acknowledgements are reconciled per row, so a retry after process death
+ * cannot store the same point twice.
  */
 class LocationEventStore(context: Context) {
 
     private val helper = Helper(context.applicationContext)
 
-    /** @return true when this event id was not stored before. */
+    /** @return true when this event id was not stored before and the queue has room. */
     fun insert(deviceId: String, event: LocationEvent): Boolean {
+        if (pendingCount() >= MAX_PENDING) return false
         val values = ContentValues().apply {
             put(COLUMN_EVENT_ID, event.clientEventId)
             put(COLUMN_PAYLOAD, event.toServerJson(deviceId))
             put(COLUMN_CREATED_AT, event.recordedAtMs)
-            put(COLUMN_UPLOADED, 0)
+            put(COLUMN_DEVICE_SEQUENCE, event.deviceSequence)
+            put(COLUMN_STATE, STATE_PENDING)
             put(COLUMN_ATTEMPTS, 0)
+            put(COLUMN_NEXT_ATTEMPT_AT, 0)
         }
-        return helper.writableDatabase.insertWithOnConflict(
+        val inserted = helper.writableDatabase.insertWithOnConflict(
             TABLE,
             null,
             values,
             SQLiteDatabase.CONFLICT_IGNORE,
         ) != -1L
+        if (inserted) trim()
+        return inserted
     }
 
-    /** Oldest pending measurements first, so the server sees them in order. */
-    fun pending(limit: Int = DEFAULT_BATCH): List<StoredLocationEvent> {
-        val out = mutableListOf<StoredLocationEvent>()
-        helper.readableDatabase.query(
-            TABLE,
-            arrayOf(COLUMN_ID, COLUMN_EVENT_ID, COLUMN_PAYLOAD, COLUMN_CREATED_AT, COLUMN_ATTEMPTS),
-            "$COLUMN_UPLOADED = 0",
-            null,
-            null,
-            null,
-            "$COLUMN_ID ASC",
-            limit.toString(),
-        ).use { cursor ->
-            while (cursor.moveToNext()) {
-                out += StoredLocationEvent(
-                    id = cursor.getLong(0),
-                    eventId = cursor.getString(1),
-                    payload = cursor.getString(2),
-                    createdAtMs = cursor.getLong(3),
-                    attempts = cursor.getInt(4),
-                )
+    /**
+     * Atomically leases up to [limit] due rows for upload.
+     *
+     * Expired leases are reclaimed inside the same transaction, so a batch
+     * interrupted by process death is uploaded again by the next worker run.
+     */
+    fun claim(limit: Int = DEFAULT_BATCH, leaseMs: Long = LEASE_MS): List<StoredLocationEvent> {
+        val db = helper.writableDatabase
+        val now = System.currentTimeMillis()
+        val claimed = mutableListOf<StoredLocationEvent>()
+        db.beginTransaction()
+        try {
+            db.execSQL(
+                "UPDATE $TABLE SET $COLUMN_STATE = '$STATE_PENDING' " +
+                    "WHERE $COLUMN_STATE = '$STATE_UPLOADING' AND $COLUMN_LEASE_UNTIL <= ?",
+                arrayOf(now),
+            )
+            val ids = mutableListOf<Long>()
+            db.rawQuery(
+                "SELECT $COLUMN_ID FROM $TABLE WHERE $COLUMN_STATE = '$STATE_PENDING' " +
+                    "AND $COLUMN_NEXT_ATTEMPT_AT <= ? ORDER BY $COLUMN_DEVICE_SEQUENCE ASC, $COLUMN_ID ASC LIMIT ?",
+                arrayOf(now.toString(), limit.toString()),
+            ).use { cursor ->
+                while (cursor.moveToNext()) ids += cursor.getLong(0)
             }
+            if (ids.isEmpty()) {
+                db.setTransactionSuccessful()
+                return emptyList()
+            }
+            val leaseUntil = now + leaseMs
+            db.execSQL(
+                "UPDATE $TABLE SET $COLUMN_STATE = '$STATE_UPLOADING', $COLUMN_LEASE_UNTIL = ? " +
+                    "WHERE $COLUMN_ID IN (${ids.joinToString(",")})",
+                arrayOf(leaseUntil),
+            )
+            readByIds(db, ids).forEach { claimed += it }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
+        return claimed
+    }
+
+    private fun readByIds(db: SQLiteDatabase, ids: List<Long>): List<StoredLocationEvent> {
+        val out = mutableListOf<StoredLocationEvent>()
+        db.rawQuery(
+            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, " +
+                "$COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS FROM $TABLE " +
+                "WHERE $COLUMN_ID IN (${ids.joinToString(",")}) " +
+                "ORDER BY $COLUMN_DEVICE_SEQUENCE ASC, $COLUMN_ID ASC",
+            null,
+        ).use { cursor -> while (cursor.moveToNext()) out += cursor.toEvent() }
         return out
     }
 
-    /** Marks measurements the server accepted (or explicitly rejected) as done. */
-    fun markUploaded(ids: List<Long>) {
+    /** Terminal state per row, reconciled by client event id. */
+    fun settle(eventId: String, state: String, error: String? = null) {
+        require(state in SETTLED_STATES) { "not a terminal state: $state" }
+        val values = ContentValues().apply {
+            put(COLUMN_STATE, state)
+            put(COLUMN_SETTLED_AT, System.currentTimeMillis())
+            put(COLUMN_LEASE_UNTIL, 0)
+            put(COLUMN_NEXT_ATTEMPT_AT, 0)
+            if (error != null) put(COLUMN_LAST_ERROR, error.take(240))
+        }
+        helper.writableDatabase.update(TABLE, values, "$COLUMN_EVENT_ID = ?", arrayOf(eventId))
+    }
+
+    /**
+     * Returns rows to `pending` with a bounded exponential delay. Used for
+     * transport failures, expired server batches and unknown result statuses.
+     */
+    fun retryLater(ids: List<Long>, error: String?) {
         if (ids.isEmpty()) return
         val db = helper.writableDatabase
+        val now = System.currentTimeMillis()
         db.beginTransaction()
         try {
             ids.forEach { id ->
-                val values = ContentValues().apply { put(COLUMN_UPLOADED, 1) }
+                val attempts = readAttempts(db, id) + 1
+                val values = ContentValues().apply {
+                    put(COLUMN_STATE, STATE_PENDING)
+                    put(COLUMN_ATTEMPTS, attempts)
+                    put(COLUMN_NEXT_ATTEMPT_AT, now + backoffMs(attempts))
+                    put(COLUMN_LEASE_UNTIL, 0)
+                    if (error != null) put(COLUMN_LAST_ERROR, error.take(240))
+                }
                 db.update(TABLE, values, "$COLUMN_ID = ?", arrayOf(id.toString()))
             }
             db.setTransactionSuccessful()
@@ -85,27 +151,67 @@ class LocationEventStore(context: Context) {
         }
     }
 
-    /** Records a failed network attempt without losing the measurements. */
-    fun markAttempt(ids: List<Long>) {
+    /** Gives a lease back without counting an attempt (e.g. malformed response). */
+    fun release(ids: List<Long>) {
         if (ids.isEmpty()) return
         helper.writableDatabase.execSQL(
-            "UPDATE $TABLE SET $COLUMN_ATTEMPTS = $COLUMN_ATTEMPTS + 1 WHERE $COLUMN_ID IN (${ids.joinToString(",")})",
+            "UPDATE $TABLE SET $COLUMN_STATE = '$STATE_PENDING', $COLUMN_LEASE_UNTIL = 0 " +
+                "WHERE $COLUMN_ID IN (${ids.joinToString(",")})",
         )
     }
 
-    fun pendingCount(): Int = helper.readableDatabase.rawQuery(
-        "SELECT COUNT(*) FROM $TABLE WHERE $COLUMN_UPLOADED = 0",
-        null,
-    ).use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+    /** Rows not yet settled: pending plus currently uploading. */
+    fun pendingCount(): Int = countWhere(
+        "$COLUMN_STATE IN ('$STATE_PENDING','$STATE_UPLOADING')",
+    )
 
-    /** Drops uploaded rows older than [olderThanMs] so the outbox stays bounded. */
-    fun purgeUploaded(olderThanMs: Long = SEVEN_DAYS_MS) {
-        helper.writableDatabase.delete(
+    /** Local diagnostics; never contains coordinates. */
+    fun counts(): Map<String, Int> {
+        val out = mutableMapOf<String, Int>()
+        helper.readableDatabase.rawQuery(
+            "SELECT $COLUMN_STATE, COUNT(*) FROM $TABLE GROUP BY $COLUMN_STATE",
+            null,
+        ).use { cursor ->
+            while (cursor.moveToNext()) out[cursor.getString(0)] = cursor.getInt(1)
+        }
+        return out
+    }
+
+    /**
+     * Keeps storage bounded: settled rows expire after [RETENTION_DAYS], and at
+     * most [MAX_SETTLED_ROWS] settled rows are kept. Pending rows are never
+     * discarded here; [insert] refuses new work once [MAX_PENDING] is reached.
+     */
+    fun trim() {
+        val db = helper.writableDatabase
+        db.delete(
             TABLE,
-            "$COLUMN_UPLOADED = 1 AND $COLUMN_CREATED_AT < ?",
-            arrayOf((System.currentTimeMillis() - olderThanMs).toString()),
+            "$COLUMN_STATE IN ($SETTLED_SQL) AND $COLUMN_CREATED_AT < ?",
+            arrayOf((System.currentTimeMillis() - RETENTION_MS).toString()),
+        )
+        db.execSQL(
+            "DELETE FROM $TABLE WHERE $COLUMN_ID IN (" +
+                "SELECT $COLUMN_ID FROM $TABLE WHERE $COLUMN_STATE IN ($SETTLED_SQL) " +
+                "ORDER BY $COLUMN_ID DESC LIMIT -1 OFFSET $MAX_SETTLED_ROWS)",
         )
     }
+
+    private fun readAttempts(db: SQLiteDatabase, id: Long): Int =
+        db.rawQuery("SELECT $COLUMN_ATTEMPTS FROM $TABLE WHERE $COLUMN_ID = ?", arrayOf(id.toString()))
+            .use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+
+    private fun countWhere(where: String): Int =
+        helper.readableDatabase.rawQuery("SELECT COUNT(*) FROM $TABLE WHERE $where", null)
+            .use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
+
+    private fun Cursor.toEvent() = StoredLocationEvent(
+        id = getLong(0),
+        eventId = getString(1),
+        payload = getString(2),
+        createdAtMs = getLong(3),
+        deviceSequence = getLong(4),
+        attempts = getInt(5),
+    )
 
     private class Helper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {
         override fun onCreate(db: SQLiteDatabase) {
@@ -116,28 +222,80 @@ class LocationEventStore(context: Context) {
                     $COLUMN_EVENT_ID TEXT NOT NULL UNIQUE,
                     $COLUMN_PAYLOAD TEXT NOT NULL,
                     $COLUMN_CREATED_AT INTEGER NOT NULL,
-                    $COLUMN_UPLOADED INTEGER NOT NULL DEFAULT 0,
-                    $COLUMN_ATTEMPTS INTEGER NOT NULL DEFAULT 0
+                    $COLUMN_DEVICE_SEQUENCE INTEGER NOT NULL DEFAULT 0,
+                    $COLUMN_STATE TEXT NOT NULL DEFAULT '$STATE_PENDING',
+                    $COLUMN_ATTEMPTS INTEGER NOT NULL DEFAULT 0,
+                    $COLUMN_NEXT_ATTEMPT_AT INTEGER NOT NULL DEFAULT 0,
+                    $COLUMN_LEASE_UNTIL INTEGER NOT NULL DEFAULT 0,
+                    $COLUMN_LAST_ERROR TEXT,
+                    $COLUMN_SETTLED_AT INTEGER
                 )
                 """.trimIndent(),
             )
-            db.execSQL("CREATE INDEX ${TABLE}_pending ON $TABLE($COLUMN_UPLOADED, $COLUMN_ID)")
+            db.execSQL(
+                "CREATE INDEX ${TABLE}_due ON $TABLE($COLUMN_STATE, $COLUMN_NEXT_ATTEMPT_AT, $COLUMN_DEVICE_SEQUENCE)",
+            )
         }
 
-        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+        override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+            if (oldVersion < 2) {
+                // Version 1 stored only a boolean "uploaded" flag.
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_DEVICE_SEQUENCE INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_STATE TEXT NOT NULL DEFAULT '$STATE_PENDING'")
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_NEXT_ATTEMPT_AT INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_LEASE_UNTIL INTEGER NOT NULL DEFAULT 0")
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_LAST_ERROR TEXT")
+                db.execSQL("ALTER TABLE $TABLE ADD COLUMN $COLUMN_SETTLED_AT INTEGER")
+                db.execSQL("UPDATE $TABLE SET $COLUMN_STATE = '$STATE_ACCEPTED', $COLUMN_SETTLED_AT = $COLUMN_CREATED_AT WHERE $COLUMN_UPLOADED = 1")
+                db.execSQL("UPDATE $TABLE SET $COLUMN_STATE = '$STATE_PENDING' WHERE $COLUMN_UPLOADED = 0")
+                db.execSQL(
+                    "CREATE INDEX ${TABLE}_due ON $TABLE($COLUMN_STATE, $COLUMN_NEXT_ATTEMPT_AT, $COLUMN_DEVICE_SEQUENCE)",
+                )
+            }
+        }
     }
 
     companion object {
         const val DEFAULT_BATCH = 200
+        const val MAX_PENDING = 20_000
+        private const val MAX_SETTLED_ROWS = 5_000
+        private const val RETENTION_DAYS = 7L
+        private const val RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000
+        const val LEASE_MS = 2L * 60 * 1000
+
+        const val STATE_PENDING = "pending"
+        const val STATE_UPLOADING = "uploading"
+        const val STATE_ACCEPTED = "accepted"
+        const val STATE_DUPLICATE = "duplicate"
+        const val STATE_REJECTED = "rejected"
+        const val STATE_FAILED = "failed"
+
+        val SETTLED_STATES = setOf(STATE_ACCEPTED, STATE_DUPLICATE, STATE_REJECTED, STATE_FAILED)
+        private val SETTLED_SQL = SETTLED_STATES.joinToString(",") { "'$it'" }
+
         private const val DB_NAME = "location_events.db"
-        private const val DB_VERSION = 1
+        private const val DB_VERSION = 2
         private const val TABLE = "location_events"
         private const val COLUMN_ID = "id"
         private const val COLUMN_EVENT_ID = "event_id"
         private const val COLUMN_PAYLOAD = "payload"
         private const val COLUMN_CREATED_AT = "created_at"
-        private const val COLUMN_UPLOADED = "uploaded"
+        private const val COLUMN_DEVICE_SEQUENCE = "device_sequence"
+        private const val COLUMN_STATE = "state"
         private const val COLUMN_ATTEMPTS = "attempts"
-        private const val SEVEN_DAYS_MS = 7L * 24 * 60 * 60 * 1000
+        private const val COLUMN_NEXT_ATTEMPT_AT = "next_attempt_at"
+        private const val COLUMN_LEASE_UNTIL = "lease_until"
+        private const val COLUMN_LAST_ERROR = "last_error"
+        private const val COLUMN_SETTLED_AT = "settled_at"
+        private const val COLUMN_UPLOADED = "uploaded"
+
+        /** 15 s, doubling, capped at 30 minutes. */
+        fun backoffMs(attempts: Int): Long {
+            val exponent = (attempts - 1).coerceIn(0, 10)
+            return min(MAX_BACKOFF_MS, BASE_BACKOFF_MS * (1L shl exponent))
+        }
+
+        private const val BASE_BACKOFF_MS = 15_000L
+        private const val MAX_BACKOFF_MS = 30L * 60 * 1000
     }
 }
