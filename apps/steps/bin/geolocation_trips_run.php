@@ -82,19 +82,45 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             $watermark = $wm->fetchColumn() ?: null;
             $from = $watermark !== null ? gmdate('c', strtotime($watermark) - (int)$thresholds['max_gap_s']) : gmdate('c', 0);
 
+            // Manual trip edits enqueue bounded refreshes. Process their window
+            // as well so a rebuild keeps automatic trips around the edit fresh.
+            $pending = $pdo->prepare("SELECT id, input_from, input_to FROM geo_processor_runs WHERE user_email = :owner AND kind = 'trips' AND state = 'pending' AND input_from IS NOT NULL AND input_to IS NOT NULL");
+            $pending->execute([':owner' => $owner]);
+            $pendingRows = $pending->fetchAll(PDO::FETCH_ASSOC);
+            $pendingIds = [];
+            $boundTo = null;
+            foreach ($pendingRows as $row) {
+                $pendingIds[] = (string)$row['id'];
+                if ($row['input_from'] !== null && strtotime((string)$row['input_from']) < strtotime($from)) {
+                    $from = gmdate('c', strtotime((string)$row['input_from']));
+                }
+                if ($row['input_to'] !== null && ($boundTo === null || strtotime((string)$row['input_to']) > strtotime($boundTo))) {
+                    $boundTo = (string)$row['input_to'];
+                }
+            }
+
+            $toSql = $boundTo !== null ? ' AND source_at <= :to' : '';
             $stmt = $pdo->prepare(
                 "SELECT id, device_id, source_at, accuracy_m, quality_state,
                         ST_Y(position) AS latitude, ST_X(position) AS longitude
                    FROM geo_location_points
-                  WHERE user_email = :owner AND quality_state = 'accepted' AND source_at >= :from
+                  WHERE user_email = :owner AND quality_state = 'accepted' AND source_at >= :from$toSql
                ORDER BY source_at ASC
                   LIMIT $limit"
             );
-            $stmt->execute([':owner' => $owner, ':from' => $from]);
+            $pointParams = [':owner' => $owner, ':from' => $from];
+            if ($boundTo !== null) $pointParams[':to'] = $boundTo;
+            $stmt->execute($pointParams);
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $markPending = static function (PDO $pdo, array $ids, string $state, array $details): void {
+                if ($ids === []) return;
+                $list = implode(',', array_map(static fn(string $id): string => $pdo->quote($id), $ids));
+                $pdo->exec("UPDATE geo_processor_runs SET state = '" . $state . "', details_json = COALESCE(details_json, '{}'::jsonb) || " . $pdo->quote(json_encode($details, JSON_UNESCAPED_SLASHES)) . "::jsonb, updated_at = now() WHERE id IN ($list)");
+            };
             if ($rows === []) {
                 $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = :details, updated_at = now() WHERE id = :id");
                 $finish->execute([':details' => json_encode(['processed' => 0, 'trips' => 0, 'thresholds' => $thresholds]), ':id' => $runId]);
+                $markPending($pdo, $pendingIds, 'ready', ['processed' => 0, 'covered_by' => $runId]);
                 $pdo->commit();
                 continue;
             }
@@ -134,6 +160,7 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
                 ':details' => json_encode($details, JSON_UNESCAPED_SLASHES),
                 ':id' => $runId,
             ]);
+            $markPending($pdo, $pendingIds, 'ready', ['processed' => count($merged), 'covered_by' => $runId]);
             $pdo->commit();
             $processed += count($merged);
             $dropped += $result['dropped'];
@@ -148,6 +175,10 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             try {
                 $mark = $pdo->prepare("UPDATE geo_processor_runs SET state = 'failed', updated_at = now() WHERE id = :id");
                 $mark->execute([':id' => $runId]);
+                if (!empty($pendingIds)) {
+                    $list = implode(',', array_map(static fn(string $id): string => $pdo->quote($id), $pendingIds));
+                    $pdo->exec("UPDATE geo_processor_runs SET state = 'failed', updated_at = now() WHERE id IN ($list)");
+                }
             } catch (Throwable $ignored) {
             }
         }

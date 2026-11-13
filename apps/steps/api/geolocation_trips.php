@@ -31,18 +31,27 @@ if ($method === 'GET') {
     $limit = isset($_GET['limit']) && is_numeric($_GET['limit']) ? max(1, min(500, (int)$_GET['limit'])) : 100;
     $includeArchived = !empty($_GET['include_archived']);
     $stateFilter = $includeArchived ? '' : " AND state <> 'archived'";
+    $rangeSql = '';
+    $params = [':owner' => $owner];
+    $rangeFrom = trim((string)($_GET['from'] ?? ''));
+    $rangeTo = trim((string)($_GET['to'] ?? ''));
+    if ($rangeFrom !== '' && $rangeTo !== '' && strtotime($rangeFrom) !== false && strtotime($rangeTo) !== false) {
+        $rangeSql = ' AND started_at <= :to AND ended_at >= :from';
+        $params[':from'] = gmdate('c', strtotime($rangeFrom));
+        $params[':to'] = gmdate('c', strtotime($rangeTo));
+    }
     $stmt = $pdo->prepare(
         "SELECT id, started_at, ended_at, distance_m, duration_s, title, notes, state, boundary_reason,
                 processor_version, geometry_visible, override_json
            FROM geo_trips
-          WHERE user_email = :owner AND deleted_at IS NULL" . $stateFilter .
+          WHERE user_email = :owner AND deleted_at IS NULL" . $stateFilter . $rangeSql .
         " ORDER BY started_at DESC LIMIT $limit"
     );
-    $stmt->execute([':owner' => $owner]);
+    $stmt->execute($params);
     $trips = $stmt->fetchAll(PDO::FETCH_ASSOC);
     foreach ($trips as &$trip) {
         $trip['override_json'] = json_decode((string)$trip['override_json'], true) ?: [];
-        $trip['geometry_visible'] = (bool)$trip['geometry_visible'];
+        $trip['geometry_visible'] = !in_array($trip['geometry_visible'], [false, 0, '0', 'f', 'false'], true);
     }
     unset($trip);
     public_api_json(['ok' => true, 'trips' => $trips]);

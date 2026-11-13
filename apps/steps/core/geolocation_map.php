@@ -227,7 +227,7 @@ final class StepsGeolocationMap
         $wantsPoints = in_array('points', $layers, true);
 
         if (in_array('trips', $layers, true)) {
-            $sql = "SELECT id, started_at, ended_at, distance_m, title, boundary_reason,
+            $sql = "SELECT id, started_at, ended_at, distance_m, title, boundary_reason, geometry_visible,
                            ST_AsGeoJSON(ST_SimplifyPreserveTopology(geometry, $tolerance)) AS geojson
                       FROM geo_trips
                      WHERE user_email = :owner AND deleted_at IS NULL AND geometry IS NOT NULL
@@ -241,6 +241,7 @@ final class StepsGeolocationMap
             $stmt->execute($tripParams);
             $tripRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($tripRows as $row) {
+                if (in_array($row['geometry_visible'], [false, 0, '0', 'f', 'false'], true)) continue;
                 $geometry = json_decode((string)$row['geojson'], true);
                 if (!is_array($geometry)) continue;
                 $features[] = [

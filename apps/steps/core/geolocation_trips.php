@@ -372,7 +372,7 @@ final class StepsGeolocationTrips
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
         $row['override_json'] = json_decode((string)$row['override_json'], true) ?: [];
-        $row['geometry_visible'] = (bool)$row['geometry_visible'];
+        $row['geometry_visible'] = !in_array($row['geometry_visible'], [false, 0, '0', 'f', 'false'], true);
         $row['has_geometry'] = $row['geojson'] !== null;
         $row['geojson'] = $row['geojson'] !== null ? json_decode((string)$row['geojson'], true) : null;
         $row['place_ids'] = self::linkIds($pdo, 'geo_trip_places', 'place_id', $owner, $id);
