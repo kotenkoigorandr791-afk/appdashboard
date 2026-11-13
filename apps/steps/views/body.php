@@ -313,6 +313,122 @@ $metricButtons = [
                     <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
                 </div>
 
+                <!-- Location sources: rename, pause, revoke, delete, re-enable -->
+                <section id="ma-devices" style="margin:0 0 18px;padding:14px 16px;border:1px solid rgba(127,127,127,.25);border-radius:14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px;">
+                        <h3 style="margin:0;font-size:15px;"><?php echo htmlspecialchars($translations['devices_title'] ?? 'Location devices'); ?></h3>
+                        <button type="button" id="ma-devices-refresh" style="background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:inherit;"><?php echo htmlspecialchars($translations['devices_refresh'] ?? 'Refresh'); ?></button>
+                    </div>
+                    <p id="ma-devices-empty" style="margin:4px 0 0;font-size:12px;opacity:.7;"><?php echo htmlspecialchars($translations['devices_empty'] ?? 'No devices have uploaded location yet.'); ?></p>
+                    <ul id="ma-devices-list" style="list-style:none;margin:0;padding:0;"></ul>
+                    <p id="ma-devices-error" style="display:none;color:#ef4444;font-size:12px;margin:8px 0 0;"></p>
+                </section>
+                <script>
+                (function(){
+                    const modal=document.getElementById('mobile-app-modal');
+                    const list=document.getElementById('ma-devices-list');
+                    const empty=document.getElementById('ma-devices-empty');
+                    const errorEl=document.getElementById('ma-devices-error');
+                    const refresh=document.getElementById('ma-devices-refresh');
+                    if(!modal||!list) return;
+                    const t={
+                        refresh: <?php echo json_encode($translations['devices_refresh'] ?? 'Refresh'); ?>,
+                        rename: <?php echo json_encode($translations['devices_rename'] ?? 'Rename'); ?>,
+                        pause: <?php echo json_encode($translations['devices_pause'] ?? 'Pause'); ?>,
+                        resume: <?php echo json_encode($translations['devices_resume'] ?? 'Resume'); ?>,
+                        revoke: <?php echo json_encode($translations['devices_revoke'] ?? 'Revoke'); ?>,
+                        delete: <?php echo json_encode($translations['devices_delete'] ?? 'Delete'); ?>,
+                        enroll: <?php echo json_encode($translations['devices_enroll'] ?? 'Re-enable'); ?>,
+                        active: <?php echo json_encode($translations['devices_status_active'] ?? 'Active'); ?>,
+                        paused: <?php echo json_encode($translations['devices_status_paused'] ?? 'Paused'); ?>,
+                        revoked: <?php echo json_encode($translations['devices_status_revoked'] ?? 'Revoked'); ?>,
+                        deleted: <?php echo json_encode($translations['devices_status_deleted'] ?? 'Deleted'); ?>,
+                        lastSeen: <?php echo json_encode($translations['devices_last_seen'] ?? 'Last seen {t}'); ?>,
+                        points: <?php echo json_encode($translations['devices_points'] ?? '{n} points'); ?>,
+                        confirmRevoke: <?php echo json_encode($translations['devices_confirm_revoke'] ?? 'Revoke this device? It stops uploading immediately.'); ?>,
+                        confirmDelete: <?php echo json_encode($translations['devices_confirm_delete'] ?? 'Delete this device? Historical points stay attributed to it.'); ?>,
+                        promptName: <?php echo json_encode($translations['devices_prompt_name'] ?? 'Device name'); ?>,
+                        error: <?php echo json_encode($translations['devices_error'] ?? 'Could not update devices.'); ?>,
+                        saved: <?php echo json_encode($translations['devices_saved'] ?? 'Device updated'); ?>
+                    };
+                    const sourceLabel={mobile:'Mobile',import:'Import',api:'API'};
+                    let busy=false;
+                    function esc(v){ return String(v==null?'':v).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+                    function fmt(iso){ if(!iso) return ''; const d=new Date(iso); return isNaN(d.getTime())?String(iso):d.toLocaleString(); }
+                    function showError(message){ if(!errorEl) return; errorEl.textContent=message||''; errorEl.style.display=message?'':'none'; }
+                    async function call(payload){
+                        const res=await fetch('/api/steps/devices',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+                        const data=await res.json().catch(()=>({ok:false}));
+                        if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
+                        return data;
+                    }
+                    function button(label, action, device, extra){
+                        const b=document.createElement('button');
+                        b.type='button';
+                        b.textContent=label;
+                        b.style.cssText='background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:7px;padding:4px 9px;font-size:11px;cursor:pointer;color:inherit;';
+                        b.addEventListener('click', async ()=>{
+                            if(busy) return;
+                            let body=Object.assign({action:action,device_id:device.id}, extra||{});
+                            if(action==='rename'){
+                                const name=window.prompt(t.promptName, device.name||'');
+                                if(name===null || !name.trim()) return;
+                                body.name=name.trim();
+                            }
+                            if(action==='revoke' && !window.confirm(t.confirmRevoke)) return;
+                            if(action==='delete' && !window.confirm(t.confirmDelete)) return;
+                            busy=true; showError('');
+                            try{ await call(body); await fetchDevices(); }
+                            catch(e){ showError((e&&e.message)||t.error); }
+                            finally{ busy=false; }
+                        });
+                        return b;
+                    }
+                    function renderList(devices){
+                        list.innerHTML='';
+                        if(empty) empty.style.display=devices.length?'none':'block';
+                        devices.forEach(d=>{
+                            const li=document.createElement('li');
+                            li.style.cssText='padding:10px 0;border-top:1px solid rgba(127,127,127,.2);';
+                            const head=document.createElement('div');
+                            head.style.cssText='display:flex;align-items:center;justify-content:space-between;gap:8px;';
+                            const name=document.createElement('strong');
+                            name.textContent=d.name||d.id;
+                            name.style.cssText='font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;';
+                            const status=document.createElement('span');
+                            status.textContent=t[d.status]||d.status;
+                            status.style.cssText='font-size:11px;opacity:.75;flex:0 0 auto;';
+                            head.appendChild(name); head.appendChild(status);
+                            const meta=document.createElement('div');
+                            meta.style.cssText='font-size:11px;opacity:.7;margin:2px 0 8px;';
+                            meta.textContent=[sourceLabel[d.source_type]||d.source_type, t.points.replace('{n}', String(d.point_count||0)), d.last_seen_at?t.lastSeen.replace('{t}', fmt(d.last_seen_at)):''].filter(Boolean).join(' · ');
+                            const row=document.createElement('div');
+                            row.style.cssText='display:flex;flex-wrap:wrap;gap:6px;';
+                            row.appendChild(button(t.rename,'rename',d));
+                            if(d.status==='active') row.appendChild(button(t.pause,'pause',d));
+                            if(d.status==='paused') row.appendChild(button(t.resume,'resume',d));
+                            if(d.status!=='revoked' && d.status!=='deleted') row.appendChild(button(t.revoke,'revoke',d));
+                            if(d.status==='revoked') row.appendChild(button(t.enroll,'enroll',d));
+                            if(d.status!=='deleted') row.appendChild(button(t.delete,'delete',d));
+                            li.appendChild(head); li.appendChild(meta); li.appendChild(row);
+                            list.appendChild(li);
+                        });
+                    }
+                    async function fetchDevices(){
+                        showError('');
+                        try{
+                            const res=await fetch('/api/steps/devices',{credentials:'same-origin'});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
+                            renderList(Array.isArray(data.devices)?data.devices:[]);
+                        }catch(e){ showError((e&&e.message)||t.error); }
+                    }
+                    refresh?.addEventListener('click', fetchDevices);
+                    new MutationObserver(()=>{ if(modal.style.display!=='none') fetchDevices(); })
+                        .observe(modal,{attributes:true,attributeFilter:['style']});
+                })();
+                </script>
+
                 <div class="ma-grid">
                     <div class="ma-action">
                         <button type="button" id="mobile-app-manual-hint" class="ma-qr-hint" title="<?php echo htmlspecialchars($translations['mobile_app_manual_hint_title'] ?? 'Manual pairing'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_manual_hint_title'] ?? 'Manual pairing'); ?>">

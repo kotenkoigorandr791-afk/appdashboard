@@ -4,6 +4,35 @@ final class StepsGeolocationDomain {
     public const POINT_STATES = ['pending', 'accepted', 'flagged', 'rejected'];
     public const DERIVED_STATES = ['pending', 'processing', 'ready', 'failed', 'stale'];
     public const FAMILY_ACCESS = ['none', 'current', 'recent', 'range', 'places'];
+    public const DEVICE_STATUSES = ['active', 'paused', 'revoked', 'deleted'];
+    public const DEVICE_STATUS_TRANSITIONS = [
+        'active' => ['paused', 'revoked', 'deleted'],
+        'paused' => ['active', 'revoked', 'deleted'],
+        'revoked' => ['active'], // explicit re-enrollment only
+        'deleted' => [],
+    ];
+
+    public static function isDeviceStatus(string $status): bool {
+        return in_array($status, self::DEVICE_STATUSES, true);
+    }
+
+    public static function canTransitionDevice(string $from, string $to): bool {
+        return isset(self::DEVICE_STATUS_TRANSITIONS[$from])
+            && in_array($to, self::DEVICE_STATUS_TRANSITIONS[$from], true);
+    }
+
+    /** Trim, drop control characters, collapse whitespace and cap the label. */
+    public static function normalizeDeviceName(string $name): string {
+        $name = preg_replace('/[\x00-\x1F\x7F]+/u', ' ', $name) ?? '';
+        $name = trim(preg_replace('/\s+/u', ' ', $name) ?? '');
+        if ($name === '') return '';
+        return function_exists('mb_substr') ? mb_substr($name, 0, 64) : substr($name, 0, 64);
+    }
+
+    /** Ingestion is allowed only for devices the owner has not paused or revoked. */
+    public static function deviceAcceptsPoints(string $status): bool {
+        return $status === 'active';
+    }
 
     public static function normalizeOwner(string $email): string {
         return strtolower(trim($email));
