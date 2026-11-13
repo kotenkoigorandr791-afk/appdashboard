@@ -3,7 +3,7 @@ name: appdashboard
 services:
   appdashboard-db:
     profiles: ["container-db"]
-    image: postgres:16
+    image: postgis/postgis:16-3.5
     container_name: appdashboard-db
     restart: unless-stopped
     command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=2GB", "-c", "effective_cache_size=6GB", "-c", "work_mem=8MB", "-c", "maintenance_work_mem=256MB", "-c", "wal_compression=on", "-c", "checkpoint_timeout=15min", "-c", "max_wal_size=4GB", "-c", "autovacuum_vacuum_scale_factor=0.05", "-c", "autovacuum_analyze_scale_factor=0.02", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
