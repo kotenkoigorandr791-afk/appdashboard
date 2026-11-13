@@ -408,6 +408,11 @@ $metricButtons = [
                         layerGroup=L.layerGroup().addTo(map);
                         selectProvider(provider);
                         map.on('moveend',()=>{ if(map._ready) fetchViewport(); });
+                        window.addEventListener('steps-map-focus',(event)=>{
+                            const bbox=event.detail&&event.detail.bbox;
+                            if(!bbox) return;
+                            map.fitBounds([[bbox.minLat,bbox.minLon],[bbox.maxLat,bbox.maxLon]],{padding:[30,30],maxZoom:16});
+                        });
                     }
                     function popupHtml(title, lines){
                         const div=document.createElement('div');
@@ -503,6 +508,120 @@ $metricButtons = [
                         catch(e){ canvas.style.display='none'; showError(t.unavailable); }
                         await fetchViewport();
                     })();
+                })();
+                </script>
+
+                <!-- Timeline: day/month/year, explicit timezone, cursor pagination -->
+                <section id="ma-timeline" aria-labelledby="ma-timeline-title" style="margin:0 0 18px;padding:14px 16px;border:1px solid rgba(127,127,127,.25);border-radius:14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                        <h3 id="ma-timeline-title" style="margin:0;font-size:15px;"><?php echo htmlspecialchars($translations['timeline_title'] ?? 'History'); ?></h3>
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                            <select id="ma-tl-view" aria-label="<?php echo htmlspecialchars($translations['timeline_view'] ?? 'View'); ?>" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
+                                <option value="day"><?php echo htmlspecialchars($translations['timeline_day'] ?? 'Day'); ?></option>
+                                <option value="month"><?php echo htmlspecialchars($translations['timeline_month'] ?? 'Month'); ?></option>
+                                <option value="year"><?php echo htmlspecialchars($translations['timeline_year'] ?? 'Year'); ?></option>
+                            </select>
+                            <input type="date" id="ma-tl-date" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
+                            <input type="text" id="ma-tl-tz" aria-label="<?php echo htmlspecialchars($translations['timeline_timezone'] ?? 'Timezone'); ?>" placeholder="Europe/Kyiv" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;width:130px;">
+                            <input type="search" id="ma-tl-q" placeholder="<?php echo htmlspecialchars($translations['timeline_search'] ?? 'Search place or trip'); ?>" aria-label="<?php echo htmlspecialchars($translations['timeline_search'] ?? 'Search place or trip'); ?>" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;width:160px;">
+                        </div>
+                    </div>
+                    <p id="ma-tl-tz-note" style="font-size:11px;opacity:.65;margin:6px 0 0;"></p>
+                    <p id="ma-tl-status" role="status" aria-live="polite" style="font-size:12px;opacity:.75;margin:6px 0;"></p>
+                    <ul id="ma-tl-list" style="list-style:none;margin:0;padding:0;"></ul>
+                    <button type="button" id="ma-tl-more" style="display:none;margin-top:8px;background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:8px;padding:6px 10px;font-size:12px;cursor:pointer;color:inherit;"><?php echo htmlspecialchars($translations['timeline_more'] ?? 'Load more'); ?></button>
+                    <p id="ma-tl-error" role="alert" style="display:none;color:#ef4444;font-size:12px;margin:6px 0 0;"></p>
+                </section>
+                <script>
+                (function(){
+                    const section=document.getElementById('ma-timeline');
+                    if(!section) return;
+                    const viewSel=document.getElementById('ma-tl-view');
+                    const dateInput=document.getElementById('ma-tl-date');
+                    const tzInput=document.getElementById('ma-tl-tz');
+                    const queryInput=document.getElementById('ma-tl-q');
+                    const list=document.getElementById('ma-tl-list');
+                    const statusEl=document.getElementById('ma-tl-status');
+                    const errorEl=document.getElementById('ma-tl-error');
+                    const moreBtn=document.getElementById('ma-tl-more');
+                    const t={
+                        loading: <?php echo json_encode($translations['timeline_loading'] ?? 'Loading history…'); ?>,
+                        empty: <?php echo json_encode($translations['timeline_empty'] ?? 'Nothing recorded for this period.'); ?>,
+                        error: <?php echo json_encode($translations['timeline_error'] ?? 'Could not load history.'); ?>,
+                        trip: <?php echo json_encode($translations['timeline_trip'] ?? 'Trip'); ?>,
+                        stop: <?php echo json_encode($translations['timeline_stop'] ?? 'Stop'); ?>,
+                        visit: <?php echo json_encode($translations['timeline_visit'] ?? 'Visit'); ?>,
+                        gap: <?php echo json_encode($translations['timeline_gap'] ?? 'Gap'); ?>,
+                        map: <?php echo json_encode($translations['timeline_show_on_map'] ?? 'Show on map'); ?>,
+                        processing: <?php echo json_encode($translations['timeline_processing'] ?? 'Processing'); ?>,
+                        tzNote: <?php echo json_encode($translations['timeline_timezone_note'] ?? 'Times are shown in {tz}.'); ?>
+                    };
+                    const kindLabel={trip:t.trip,stop:t.stop,visit:t.visit,gap:t.gap};
+                    const kindColor={trip:'#2b8aef',stop:'#f59e0b',visit:'#8b5cf6',gap:'#94a3b8'};
+                    let cursor=null, loading=false;
+                    if(!dateInput.value) dateInput.value=new Date().toISOString().slice(0,10);
+                    if(!tzInput.value){
+                        try{ tzInput.value=Intl.DateTimeFormat().resolvedOptions().timeZone||'UTC'; }catch(e){ tzInput.value='UTC'; }
+                    }
+                    function fmtLocal(iso){
+                        if(!iso) return '';
+                        try{ return new Date(iso).toLocaleString(undefined,{dateStyle:'short',timeStyle:'short',timeZone:tzInput.value||'UTC'}); }catch(e){ return new Date(iso).toLocaleString(); }
+                    }
+                    function showError(message){ errorEl.textContent=message||''; errorEl.style.display=message?'':'none'; }
+                    function renderEntry(entry){
+                        const li=document.createElement('li');
+                        li.style.cssText='display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-top:1px solid rgba(127,127,127,.18);';
+                        const dot=document.createElement('span');
+                        dot.style.cssText='flex:0 0 8px;width:8px;height:8px;border-radius:50%;margin-top:5px;background:'+(kindColor[entry.kind]||'#94a3b8');
+                        const body=document.createElement('div'); body.style.cssText='flex:1 1 auto;min-width:0;';
+                        const head=document.createElement('div'); head.style.cssText='display:flex;justify-content:space-between;gap:8px;';
+                        const title=document.createElement('strong'); title.style.cssText='font-size:13px;'; title.textContent=(kindLabel[entry.kind]||entry.kind)+' · '+(entry.title||'');
+                        const when=document.createElement('span'); when.style.cssText='font-size:11px;opacity:.7;white-space:nowrap;'; when.textContent=fmtLocal(entry.local_started_at||entry.started_at);
+                        head.appendChild(title); head.appendChild(when);
+                        const meta=document.createElement('div'); meta.style.cssText='font-size:11px;opacity:.72;margin-top:2px;';
+                        const parts=[];
+                        if(entry.detail) parts.push(entry.detail);
+                        if(entry.distance_m) parts.push(Math.round(entry.distance_m)+' m');
+                        if(entry.duration_s) parts.push(Math.round(entry.duration_s/60)+' min');
+                        if(entry.state&&entry.state!=='ready') parts.push(t.processing+': '+entry.state);
+                        if(entry.processor_version) parts.push(entry.processor_version);
+                        meta.textContent=parts.join(' · ');
+                        body.appendChild(head); body.appendChild(meta);
+                        if(entry.bbox){
+                            const mapBtn=document.createElement('button');
+                            mapBtn.type='button'; mapBtn.textContent=t.map;
+                            mapBtn.style.cssText='margin-top:6px;background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:7px;padding:3px 8px;font-size:11px;cursor:pointer;color:inherit;';
+                            mapBtn.addEventListener('click',()=>window.dispatchEvent(new CustomEvent('steps-map-focus',{detail:{bbox:entry.bbox}})));
+                            body.appendChild(mapBtn);
+                        }
+                        li.appendChild(dot); li.appendChild(body);
+                        return li;
+                    }
+                    async function load(reset){
+                        if(loading) return; loading=true;
+                        if(reset){ cursor=null; list.innerHTML=''; moreBtn.style.display='none'; }
+                        statusEl.textContent=t.loading; showError('');
+                        try{
+                            const params=new URLSearchParams({view:viewSel.value,at:dateInput.value,tz:tzInput.value||'UTC',limit:'50'});
+                            if(queryInput.value.trim()) params.set('q',queryInput.value.trim());
+                            if(cursor) params.set('cursor',cursor);
+                            const res=await fetch('/api/steps/geolocation_timeline?'+params.toString(),{credentials:'same-origin'});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
+                            document.getElementById('ma-tl-tz-note').textContent=t.tzNote.replace('{tz}',data.timezone||'UTC');
+                            (data.entries||[]).forEach(entry=>list.appendChild(renderEntry(entry)));
+                            cursor=data.next_cursor||null;
+                            moreBtn.style.display=cursor?'':'none';
+                            statusEl.textContent=data.entries&&data.entries.length?(''+data.entries.length):(reset?t.empty:'');
+                        }catch(e){ showError((e&&e.message)||t.error); statusEl.textContent=''; }
+                        finally{ loading=false; }
+                    }
+                    viewSel.addEventListener('change',()=>load(true));
+                    dateInput.addEventListener('change',()=>load(true));
+                    tzInput.addEventListener('change',()=>load(true));
+                    queryInput.addEventListener('input',()=>{ clearTimeout(queryInput._timer); queryInput._timer=setTimeout(()=>load(true),350); });
+                    moreBtn.addEventListener('click',()=>load(false));
+                    load(true);
                 })();
                 </script>
 
