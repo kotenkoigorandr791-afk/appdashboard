@@ -1684,10 +1684,14 @@
             justify-content: center;
         }
 
-        .info-header-icon svg {
+        .info-header-icon svg,
+        .info-header-icon i {
             width: 32px;
             height: 32px;
-            display: block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
         }
 
         .info-header h2 {
@@ -1730,10 +1734,14 @@
             justify-content: center;
         }
 
-        .info-card-icon svg {
+        .info-card-icon svg,
+        .info-card-icon i {
             width: 24px;
             height: 24px;
-            display: block;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
         }
 
         .info-card h3 {
@@ -3944,6 +3952,192 @@ height: 48px;
 }
 .day-steps-actions button:hover { filter: brightness(1.05); }
 .day-steps-actions .day-steps-save { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+
+/* --- Map settings tab, day navigation and custom date pickers --- */
+#settings-modal .settings-content {
+    width: min(780px, calc(100vw - 40px));
+    height: auto;
+    aspect-ratio: 16 / 10;
+    max-height: calc(100dvh - 40px);
+    padding: 22px 24px 20px;
+    overflow: hidden;
+}
+#settings-modal .settings-content > h2 { margin-bottom: 14px; }
+.settings-tab { padding: 10px 8px; font-size: 13px; gap: 7px; white-space: nowrap; }
+.settings-map-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; text-align: left; padding-bottom: 4px; }
+.settings-map-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 16px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--group-block-bg);
+}
+.settings-map-section h3 { display: flex; align-items: center; gap: 8px; margin: 0; font-size: 14px; font-weight: 800; }
+.settings-map-section h3 i { color: var(--primary-color); font-size: 14px; }
+.settings-map-hint { margin: -4px 0 0; font-size: 12px; line-height: 1.45; color: var(--muted-text); }
+.settings-map-section .map-slider { font-size: 13px; }
+.settings-map-actions { display: flex; justify-content: flex-end; margin-top: auto; padding-top: 4px; }
+.settings-map-reset {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 9px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--surface-solid);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: color 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+.settings-map-reset:hover {
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
+    background: color-mix(in srgb, var(--primary-color) 12%, var(--surface-solid));
+}
+.map-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.map-day-nav { display: flex; gap: 4px; }
+.map-day-btn {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--group-block-bg);
+    color: var(--muted-text);
+    font-size: 10px;
+    cursor: pointer;
+    transition: color 0.16s ease, border-color 0.16s ease, background-color 0.16s ease;
+}
+.map-day-btn:hover {
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color));
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+.map-field > span { font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; }
+.dp-field { position: relative; display: flex; }
+.dp-native {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    opacity: 0;
+    pointer-events: none;
+}
+.dp-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--group-block-bg);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.16s ease, box-shadow 0.16s ease;
+}
+.dp-trigger:hover { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color)); }
+.dp-trigger[aria-expanded="true"] {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+.dp-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dp-icon { flex: 0 0 auto; font-size: 12px; color: var(--primary-color); }
+.dp-popover {
+    position: fixed;
+    z-index: 10050;
+    box-sizing: border-box;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--surface-solid);
+    box-shadow: var(--shadow-soft);
+}
+.dp-popover[hidden] { display: none !important; }
+.dp-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.dp-title { font-size: 12px; font-weight: 800; text-transform: capitalize; }
+.dp-nav {
+    width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--group-block-bg);
+    color: var(--text-color);
+    font-size: 10px;
+    cursor: pointer;
+}
+.dp-nav:hover { color: var(--primary-color); border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color)); }
+.dp-weekdays {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 2px;
+    margin-bottom: 4px;
+    color: var(--muted-text);
+    font-size: 9px;
+    font-weight: 800;
+    text-transform: uppercase;
+    text-align: center;
+}
+.dp-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.dp-day {
+    aspect-ratio: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-color);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.dp-day:hover { background: color-mix(in srgb, var(--primary-color) 16%, transparent); }
+.dp-day.is-today { border-color: color-mix(in srgb, var(--primary-color) 55%, transparent); }
+.dp-day.is-selected { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+.dp-empty { aspect-ratio: 1; }
+.dp-foot { display: flex; justify-content: center; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border-color); }
+.dp-today {
+    padding: 3px 6px;
+    border: 0;
+    background: transparent;
+    color: var(--primary-color);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 800;
+    cursor: pointer;
+}
+.custom-select-menu { background: var(--surface-solid); }
+.custom-select-option { background: color-mix(in srgb, var(--text-color) 6%, var(--surface-solid)); }
+@media (max-width: 700px) {
+    .settings-map-grid { grid-template-columns: 1fr; }
+    #settings-modal .settings-content { border-radius: 0; }
+}
+@media (max-width: 560px) {
+    .settings-tab { font-size: 0; gap: 0; padding: 12px 6px; }
+    .settings-tab i { font-size: 15px; }
+    .settings-map-section { padding: 14px; }
+}
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>

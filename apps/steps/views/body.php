@@ -78,16 +78,14 @@ $metricButtons = [
         <div class="app-topbar">
             <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
             <div class="app-topbar-actions">
-                <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg></button>
+                <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><i class="fas fa-share-nodes" style="font-size:22px" aria-hidden="true"></i></button>
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
                 <button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-chart-pie-icon lucide-chart-pie" aria-hidden="true" focusable="false">
-                        <path d="M21 12c.552 0 1.005-.449.95-.998a10 10 0 0 0-8.953-8.951c-.55-.055-.998.398-.998.95v8a1 1 0 0 0 1 1z"/><path d="M21.21 15.89A10 10 0 1 1 8 2.83"/>
-                    </svg>
+                    <i class="fas fa-chart-pie lucide-view-pie" style="font-size:24px" aria-hidden="true"></i>
                 </button>
                 <?php endif; ?>
                 <button id="settings-button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
@@ -186,21 +184,42 @@ $metricButtons = [
                                 <span class="map-sidebar-kicker"><?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?></span>
                                 <strong><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></strong>
                             </div>
-                            <button type="button" id="ma-map-reset" class="map-reset-btn" title="<?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>">
-                                <i class="fas fa-arrow-rotate-left" aria-hidden="true"></i>
-                            </button>
                         </div>
                         <div class="map-panel">
-                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_date_range'] ?? 'Date range'); ?></span>
+                            <div class="map-panel-head">
+                                <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_date_range'] ?? 'Date range'); ?></span>
+                                <div class="map-day-nav">
+                                    <button type="button" id="ma-map-day-prev" class="map-day-btn" aria-label="<?php echo htmlspecialchars($translations['map_day_prev'] ?? 'Previous day'); ?>" title="<?php echo htmlspecialchars($translations['map_day_prev'] ?? 'Previous day'); ?>">
+                                        <i class="fas fa-chevron-left" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" id="ma-map-day-next" class="map-day-btn" aria-label="<?php echo htmlspecialchars($translations['map_day_next'] ?? 'Next day'); ?>" title="<?php echo htmlspecialchars($translations['map_day_next'] ?? 'Next day'); ?>">
+                                        <i class="fas fa-chevron-right" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
                             <div class="map-date-grid">
-                                <label class="map-field">
+                                <div class="map-field">
                                     <span><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></span>
-                                    <input type="date" id="ma-map-from">
-                                </label>
-                                <label class="map-field">
+                                    <div class="dp-field">
+                                        <input type="date" id="ma-map-from" class="dp-native" tabindex="-1" aria-hidden="true">
+                                        <button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false">
+                                            <span class="dp-value">—</span>
+                                            <i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i>
+                                        </button>
+                                        <div class="dp-popover" role="dialog" hidden></div>
+                                    </div>
+                                </div>
+                                <div class="map-field">
                                     <span><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></span>
-                                    <input type="date" id="ma-map-to">
-                                </label>
+                                    <div class="dp-field">
+                                        <input type="date" id="ma-map-to" class="dp-native" tabindex="-1" aria-hidden="true">
+                                        <button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false">
+                                            <span class="dp-value">—</span>
+                                            <i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i>
+                                        </button>
+                                        <div class="dp-popover" role="dialog" hidden></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         <div class="map-panel">
@@ -229,25 +248,6 @@ $metricButtons = [
                                 <?php endforeach; ?>
                             </div>
                         </div>
-                        <div class="map-panel">
-                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_appearance'] ?? 'Appearance'); ?></span>
-                            <label class="map-slider">
-                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_point_size'] ?? 'Point size'); ?></span><output data-for="pointSize">5 px</output></span>
-                                <input type="range" id="ma-map-point-size" min="2" max="14" step="1" value="5">
-                            </label>
-                            <label class="map-slider">
-                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_opacity'] ?? 'Opacity'); ?></span><output data-for="opacity">85%</output></span>
-                                <input type="range" id="ma-map-opacity" min="20" max="100" step="5" value="85">
-                            </label>
-                            <label class="map-slider">
-                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_route_width'] ?? 'Route width'); ?></span><output data-for="routeWidth">4 px</output></span>
-                                <input type="range" id="ma-map-route-width" min="1" max="8" step="1" value="4">
-                            </label>
-                            <label class="map-slider">
-                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_heat_intensity'] ?? 'Heat intensity'); ?></span><output data-for="heat">60%</output></span>
-                                <input type="range" id="ma-map-heat-intensity" min="10" max="100" step="5" value="60">
-                            </label>
-                        </div>
                         <button type="button" id="ma-map-refresh" class="map-apply-btn">
                             <i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
                         </button>
@@ -255,6 +255,7 @@ $metricButtons = [
                 </section>
                 <script>
                 (function(){
+                    function boot(){
                     const section=document.getElementById('ma-map');
                     if(!section) return;
                     const mapHost=document.getElementById('map-view');
@@ -298,7 +299,7 @@ $metricButtons = [
                     const saveAppearance=()=>{ try{ localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance)); }catch(e){} };
                     const sliders=sliderDefs.map(def=>{
                         const input=document.getElementById(def.id);
-                        const out=section.querySelector(`output[data-for="${def.key}"]`);
+                        const out=document.querySelector(`output[data-for="${def.key}"]`);
                         if(!input) return null;
                         input.value=appearance[def.key];
                         if(out) out.textContent=def.out(appearance[def.key]);
@@ -457,6 +458,97 @@ $metricButtons = [
                         return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(5)).join(',');
                     }
                     let fetchPending=false;
+                    function dateLocale(){ return (typeof currentLocale!=='undefined' && currentLocale) ? currentLocale : 'en-US'; }
+                    function parseYMD(value){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value||'')); return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):null; }
+                    function toYMD(date){ return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0'); }
+                    function initDatePickers(){
+                        const weekdays=(window.translations&&Array.isArray(translations.days_of_week)&&translations.days_of_week.length===7)?translations.days_of_week:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+                        const todayLabel=(window.translations&&translations.map_today)||'Today';
+                        section.querySelectorAll('.dp-field').forEach(field=>{
+                            const native=field.querySelector('.dp-native'),
+                                  trigger=field.querySelector('.dp-trigger'),
+                                  valueEl=field.querySelector('.dp-value'),
+                                  pop=field.querySelector('.dp-popover');
+                            if(!native||!trigger||!pop) return;
+                            let view=parseYMD(native.value)||new Date();
+                            const syncValue=()=>{
+                                const d=parseYMD(native.value);
+                                valueEl.textContent=d?d.toLocaleDateString(dateLocale(),{day:'numeric',month:'short',year:'numeric'}):'—';
+                            };
+                            const render=()=>{
+                                view=new Date(view.getFullYear(),view.getMonth(),1);
+                                const year=view.getFullYear(), month=view.getMonth(),
+                                      first=new Date(year,month,1), offset=(first.getDay()+6)%7,
+                                      days=new Date(year,month+1,0).getDate(),
+                                      selected=native.value, today=toYMD(new Date());
+                                let html=`<div class="dp-head"><button type="button" class="dp-nav" data-dp-nav="-1" aria-label="${t.prevMonth||'Previous month'}"><i class="fas fa-chevron-left"></i></button><span class="dp-title">${first.toLocaleDateString(dateLocale(),{month:'long',year:'numeric'})}</span><button type="button" class="dp-nav" data-dp-nav="1" aria-label="${t.nextMonth||'Next month'}"><i class="fas fa-chevron-right"></i></button></div>`;
+                                html+='<div class="dp-weekdays">'+weekdays.map(d=>`<span>${d.slice(0,2)}</span>`).join('')+'</div><div class="dp-grid">';
+                                for(let i=0;i<offset;i++) html+='<span class="dp-empty"></span>';
+                                for(let day=1;day<=days;day++){
+                                    const dateStr=toYMD(new Date(year,month,day));
+                                    html+=`<button type="button" class="dp-day${dateStr===selected?' is-selected':''}${dateStr===today?' is-today':''}" data-dp-date="${dateStr}">${day}</button>`;
+                                }
+                                html+='</div><div class="dp-foot"><button type="button" class="dp-today" data-dp-today>'+todayLabel+'</button></div>';
+                                pop.innerHTML=html;
+                            };
+                            const close=()=>{ pop.hidden=true; trigger.setAttribute('aria-expanded','false'); };
+                            const open=()=>{
+                                section.querySelectorAll('.dp-popover').forEach(p=>{p.hidden=true;});
+                                view=parseYMD(native.value)||new Date();
+                                render();
+                                pop.hidden=false;
+                                trigger.setAttribute('aria-expanded','true');
+                                const rect=trigger.getBoundingClientRect(),
+                                      width=Math.min(300, window.innerWidth-16),
+                                      height=pop.offsetHeight||330;
+                                let left=Math.min(Math.max(8,rect.left), window.innerWidth-width-8);
+                                let top=rect.bottom+8;
+                                if(top+height>window.innerHeight-8) top=Math.max(8,rect.top-height-8);
+                                pop.style.width=width+'px';
+                                pop.style.left=left+'px';
+                                pop.style.top=top+'px';
+                            };
+                            trigger.addEventListener('click',event=>{
+                                event.stopPropagation();
+                                if(pop.hidden) open(); else close();
+                            });
+                            pop.addEventListener('click',event=>{
+                                const nav=event.target.closest('[data-dp-nav]');
+                                if(nav){ view.setMonth(view.getMonth()+Number(nav.getAttribute('data-dp-nav'))); render(); return; }
+                                const day=event.target.closest('[data-dp-date]');
+                                if(day){
+                                    native.value=day.getAttribute('data-dp-date');
+                                    syncValue();
+                                    close();
+                                    native.dispatchEvent(new Event('change',{bubbles:true}));
+                                    return;
+                                }
+                                if(event.target.closest('[data-dp-today]')){
+                                    native.value=toYMD(new Date());
+                                    syncValue();
+                                    close();
+                                    native.dispatchEvent(new Event('change',{bubbles:true}));
+                                }
+                            });
+                            document.addEventListener('click',event=>{
+                                if(pop.hidden) return;
+                                if(!pop.contains(event.target)&&!field.contains(event.target)) close();
+                            });
+                            document.addEventListener('keydown',event=>{ if(event.key==='Escape'&&!pop.hidden) close(); });
+                            native.addEventListener('change',syncValue);
+                            syncValue();
+                        });
+                    }
+                    function shiftRange(days){
+                        const from=parseYMD(fromInput.value)||new Date(),
+                              to=parseYMD(toInput.value)||new Date();
+                        from.setDate(from.getDate()+days);
+                        to.setDate(to.getDate()+days);
+                        fromInput.value=toYMD(from);
+                        toInput.value=toYMD(to);
+                        fromInput.dispatchEvent(new Event('change',{bubbles:true}));
+                        toInput.dispatchEvent(new Event('change',{bubbles:true}));
+                    }
                     async function fetchViewport(){
                         if(busy){ fetchPending=true; return; }
                         busy=true;
@@ -470,6 +562,13 @@ $metricButtons = [
                             params.set('layers',selectedLayers().join(','));
                             const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin'});
                             const data=await res.json();
+                            // An empty date range has no data extent, which the API reports as
+                            // invalid_bbox; treat it as an empty map instead of an error.
+                            if(data&&data.error==='invalid_bbox'){
+                                render([]);
+                                summary.textContent=t.empty;
+                                return;
+                            }
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                             providers=data.providers||providers;
                             if(!provider) provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
@@ -513,9 +612,13 @@ $metricButtons = [
                         fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
                     }
                     refresh.addEventListener('click',fetchViewport);
-                    resetBtn.addEventListener('click',resetAppearance);
-                    fromInput.addEventListener('change',fetchViewport);
-                    toInput.addEventListener('change',fetchViewport);
+                    if(resetBtn) resetBtn.addEventListener('click',resetAppearance);
+                    const onRangeChanged=()=>{ didFit=false; fetchViewport(); };
+                    fromInput.addEventListener('change',onRangeChanged);
+                    toInput.addEventListener('change',onRangeChanged);
+                    document.getElementById('ma-map-day-prev')?.addEventListener('click',()=>shiftRange(-1));
+                    document.getElementById('ma-map-day-next')?.addEventListener('click',()=>shiftRange(1));
+                    initDatePickers();
                     providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
                     section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ saveSettings(); fetchViewport(); }));
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
@@ -531,6 +634,12 @@ $metricButtons = [
                         }
                         await fetchViewport();
                     })();
+                    }
+                    if(document.readyState==='loading'){
+                        document.addEventListener('DOMContentLoaded',boot,{once:true});
+                    } else {
+                        boot();
+                    }
                 })();
                 </script>
         </div>
@@ -542,7 +651,7 @@ $metricButtons = [
                     <div class="notification-title">
                         <i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['max_steps']); ?>
                     </div>
-                    <button class="close-notification">×</button>
+                    <button class="close-notification"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
                 <div class="notification-content" id="stats-content"></div>
             </div>
@@ -551,7 +660,7 @@ $metricButtons = [
                     <div class="notification-title">
                         <i class="fas fa-trophy"></i> <?php echo htmlspecialchars($translations['weekly_goal']); ?>
                     </div>
-                    <button class="close-notification">×</button>
+                    <button class="close-notification"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
                 <div class="notification-content" id="goal-content"></div>
             </div>
@@ -560,7 +669,7 @@ $metricButtons = [
                     <div class="notification-title" id="video-recognition-notif-title">
                         <i class="fas fa-file-archive"></i> <?php echo htmlspecialchars($translations['zeep_notif_title'] ?? 'Zeep Life import'); ?>
                     </div>
-                    <button type="button" class="close-notification" id="video-recognition-notif-close" title="<?php echo htmlspecialchars($translations['video_notif_snooze_hint'] ?? 'Hide for 12 hours'); ?>" aria-label="<?php echo htmlspecialchars($translations['video_notif_snooze_hint'] ?? 'Close'); ?>">×</button>
+                    <button type="button" class="close-notification" id="video-recognition-notif-close" title="<?php echo htmlspecialchars($translations['video_notif_snooze_hint'] ?? 'Hide for 12 hours'); ?>" aria-label="<?php echo htmlspecialchars($translations['video_notif_snooze_hint'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
                 <div class="notification-content" id="video-recognition-notif-body"><?php echo htmlspecialchars($translations['zeep_notif_body'] ?? ''); ?></div>
                 <div style="margin-top: 10px; display: flex; flex-wrap: wrap; gap: 8px; justify-content: flex-end;">
@@ -571,7 +680,7 @@ $metricButtons = [
 
         <div id="stats-modal" style="display:none;">
             <div class="stats-content">
-                <button class="modal-close">×</button>
+                <button class="modal-close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <h2><i class="fas fa-chart-pie"></i> <?php echo htmlspecialchars($translations['statistics_title'] ?? 'Statistics'); ?></h2>
                 <div class="stats-grid">
                     <section class="stats-card">
@@ -593,14 +702,11 @@ $metricButtons = [
         <!-- Info Modal -->
         <div id="info-modal" style="display:none;">
             <div class="info-content">
-                <button class="modal-close">×</button>
+                <button class="modal-close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <div class="info-scroll">
                 <div class="info-header">
                     <div class="info-header-icon">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
-                            <polyline points="14 2 14 8 20 8"/>
-                        </svg>
+                        <i class="fas fa-file-lines" style="font-size:28px" aria-hidden="true"></i>
                     </div>
                     <div>
                         <h2><?php echo htmlspecialchars($translations['app_info'] ?? 'Application Information'); ?></h2>
@@ -609,78 +715,49 @@ $metricButtons = [
                 <div class="info-grid">
                     <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z"/>
-                                <line x1="4" y1="22" x2="4" y2="15"/>
-                            </svg>
+                            <i class="fas fa-flag" style="font-size:24px" aria-hidden="true"></i>
                         </div>
 <h3><?php echo htmlspecialchars($translations['info_card_tracking_title'] ?? 'Activity Tracking'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_tracking_text'] ?? 'Log your daily steps, distance walked, and calories burned with detailed statistics.'); ?></p>
                     </div>
                     <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <line x1="18" y1="20" x2="18" y2="10"></line>
-                                <line x1="12" y1="20" x2="12" y2="4"></line>
-                                <line x1="6" y1="20" x2="6" y2="14"></line>
-                            </svg>
+                            <i class="fas fa-chart-column" style="font-size:24px" aria-hidden="true"></i>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['info_card_charts_title'] ?? 'Data Visualization'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_charts_text'] ?? 'Visualize trends with interactive bar and line charts across different time periods.'); ?></p>
                     </div>
                     <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-                                <line x1="16" y1="2" x2="16" y2="6"/>
-                                <line x1="8" y1="2" x2="8" y2="6"/>
-                                <line x1="3" y1="10" x2="21" y2="10"/>
-                            </svg>
+                            <i class="fas fa-calendar-days" style="font-size:24px" aria-hidden="true"></i>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['info_card_calendar_title'] ?? 'Goal Calendar'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_calendar_text'] ?? 'Track your progress with calendar view and visually see goal achievement indicators.'); ?></p>
                     </div>
                     <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
-                                <polyline points="9 22 9 12 15 12 15 22"/>
-                            </svg>
+                            <i class="fas fa-house" style="font-size:24px" aria-hidden="true"></i>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['info_card_views_title'] ?? 'Flexible Layouts'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_views_text'] ?? 'Switch between Year, Month, and Week views to analyze your data from different perspectives.'); ?></p>
                     </div>
                     <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
-                                <circle cx="9" cy="7" r="4"/>
-                                <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
-                                <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
-                            </svg>
+                            <i class="fas fa-user-group" style="font-size:24px" aria-hidden="true"></i>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['info_card_metrics_title'] ?? 'Metric Options'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_metrics_text'] ?? 'Select between Steps, Distance, and Calories to focus on the metrics that matter for your goals.'); ?></p>
                     </div>
                     <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                                <polyline points="7 10 12 15 17 10"/>
-                                <line x1="12" y1="15" x2="12" y2="3"/>
-                            </svg>
+                            <i class="fas fa-download" style="font-size:24px" aria-hidden="true"></i>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['info_card_backup_title'] ?? 'Backup & Restore'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_backup_text'] ?? 'Keep your data safe with automatic backups and the ability to restore to any previous point.'); ?></p>
                     </div>
                 <div class="info-card">
                         <div class="info-card-icon">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <rect x="7" y="2" width="10" height="20" rx="2" ry="2"></rect>
-                                <line x1="2" y1="12" x2="5" y2="12"></line>
-                                <line x1="5" y1="9" x2="5" y2="15"></line>
-                                <line x1="15" y1="9" x2="15" y2="15"></line>
-                            </svg>
+                            <i class="fas fa-mobile-screen-button" style="font-size:24px" aria-hidden="true"></i>
                         </div>
                         <h3><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h3>
                         <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
@@ -694,7 +771,7 @@ $metricButtons = [
         <div id="mobile-app-modal" style="display:none;">
             <div class="mobile-app-content">
                 <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <i class="fas fa-xmark" style="font-size:14px" aria-hidden="true"></i>
                 </button>
 
                 <div class="ma-header">
@@ -935,7 +1012,7 @@ $metricButtons = [
                 <div class="ma-grid">
                     <div class="ma-action">
                         <button type="button" id="mobile-app-manual-hint" class="ma-qr-hint" title="<?php echo htmlspecialchars($translations['mobile_app_manual_hint_title'] ?? 'Manual pairing'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_manual_hint_title'] ?? 'Manual pairing'); ?>">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                            <i class="fas fa-circle-question" style="font-size:14px" aria-hidden="true"></i>
                         </button>
                         <div class="ma-qr-frame">
                             <div class="ma-qr-placeholder" aria-hidden="true">
@@ -946,17 +1023,17 @@ $metricButtons = [
                             </div>
                             <div class="ma-qr-code" id="mobile-app-qr-code"></div>
                             <button type="button" id="mobile-app-qr-generate" class="ma-qr-generate">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                                <i class="fas fa-power-off" style="font-size:14px" aria-hidden="true"></i>
                                 <?php echo htmlspecialchars($translations['mobile_app_qr_generate'] ?? 'Generate'); ?>
                             </button>
                         </div>
                         <div class="ma-qr-actions" id="mobile-app-qr-actions">
                             <button type="button" id="mobile-app-copy-link" class="ma-copy-link-btn">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                                <i class="fas fa-copy" style="font-size:14px" aria-hidden="true"></i>
                                 <?php echo htmlspecialchars($translations['mobile_app_copy_link'] ?? 'Copy pairing link'); ?>
                             </button>
                             <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
+                                <i class="fas fa-trash-can" style="font-size:14px" aria-hidden="true"></i>
                                 <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
                             </button>
                         </div>
@@ -967,11 +1044,11 @@ $metricButtons = [
                         <?php if ($stepmonitorAvailable): ?>
                         <div class="ma-download-row">
                             <a class="ma-download" href="/downloads/stepmonitor.apk" download="<?php echo htmlspecialchars($stepmonitorApkDownloadName); ?>">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                                <i class="fas fa-download" style="font-size:18px" aria-hidden="true"></i>
                                 <?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>
                             </a>
                             <button type="button" id="mobile-app-play-protect-guide" class="ma-play-protect">
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                                <i class="fas fa-shield-halved" style="font-size:18px" aria-hidden="true"></i>
                                 <?php echo htmlspecialchars($translations['mobile_app_play_protect'] ?? 'Play Protect guide'); ?>
                             </button>
                         </div>
@@ -989,7 +1066,7 @@ $metricButtons = [
                     <div class="ma-features">
                         <div class="ma-feature">
                             <div class="ma-feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                                <i class="fas fa-heart-pulse" style="font-size:20px" aria-hidden="true"></i>
                             </div>
                             <div class="ma-feature-text">
                                 <h4><?php echo htmlspecialchars($translations['mobile_app_feature_sync_title'] ?? 'Health Connect Sync'); ?></h4>
@@ -999,7 +1076,7 @@ $metricButtons = [
 
                         <div class="ma-feature">
                             <div class="ma-feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                                <i class="fas fa-table-cells-large" style="font-size:20px" aria-hidden="true"></i>
                             </div>
                             <div class="ma-feature-text">
                                 <h4><?php echo htmlspecialchars($translations['mobile_app_feature_qr_title'] ?? 'QR Pairing'); ?></h4>
@@ -1009,7 +1086,7 @@ $metricButtons = [
 
                         <div class="ma-feature">
                             <div class="ma-feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
+                                <i class="fas fa-shield-halved" style="font-size:20px" aria-hidden="true"></i>
                             </div>
                             <div class="ma-feature-text">
                                 <h4><?php echo htmlspecialchars($translations['mobile_app_feature_secure_title'] ?? 'Secure Token Auth'); ?></h4>
@@ -1019,7 +1096,7 @@ $metricButtons = [
 
                         <div class="ma-feature">
                             <div class="ma-feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"></path><line x1="12" y1="2" x2="12" y2="12"></line></svg>
+                                <i class="fas fa-power-off" style="font-size:20px" aria-hidden="true"></i>
                             </div>
                             <div class="ma-feature-text">
                                 <h4><?php echo htmlspecialchars($translations['mobile_app_feature_offline_title'] ?? 'Offline Tracking'); ?></h4>
@@ -1029,7 +1106,7 @@ $metricButtons = [
 
                         <div class="ma-feature">
                             <div class="ma-feature-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+                                <i class="fas fa-user-group" style="font-size:20px" aria-hidden="true"></i>
                             </div>
                             <div class="ma-feature-text">
                                 <h4><?php echo htmlspecialchars($translations['mobile_app_devices'] ?? 'Connected devices'); ?></h4>
@@ -1045,7 +1122,7 @@ $metricButtons = [
         <div id="manual-pair-modal" style="display:none;">
             <div class="manual-pair-content">
                 <button type="button" id="manual-pair-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['manual_pair_close'] ?? 'Close'); ?>">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                    <i class="fas fa-xmark" style="font-size:14px" aria-hidden="true"></i>
                 </button>
                 <div class="ma-header">
                     <h1><?php echo htmlspecialchars($translations['manual_pair_title'] ?? 'Manual pairing'); ?></h1>
@@ -1063,8 +1140,8 @@ $metricButtons = [
                             <pre id="manual-pair-endpoint"></pre>
                         </div>
                         <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-endpoint" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
-                            <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <i class="fas fa-copy ma-copy-icon" style="font-size:16px" aria-hidden="true"></i>
+                            <i class="fas fa-check ma-copy-check" style="font-size:16px" aria-hidden="true"></i>
                         </button>
                     </div>
                     <div class="manual-pair-row">
@@ -1073,8 +1150,8 @@ $metricButtons = [
                             <pre id="manual-pair-link"></pre>
                         </div>
                         <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-link" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
-                            <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <i class="fas fa-copy ma-copy-icon" style="font-size:16px" aria-hidden="true"></i>
+                            <i class="fas fa-check ma-copy-check" style="font-size:16px" aria-hidden="true"></i>
                         </button>
                     </div>
                     <div class="manual-pair-row">
@@ -1083,14 +1160,14 @@ $metricButtons = [
                             <pre id="manual-pair-token"><?php echo htmlspecialchars($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.'); ?></pre>
                         </div>
                         <button type="button" class="ma-copy-btn" data-copy-target="manual-pair-token" aria-label="<?php echo htmlspecialchars($translations['copy'] ?? 'Copy'); ?>">
-                            <svg class="ma-copy-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                            <svg class="ma-copy-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                            <i class="fas fa-copy ma-copy-icon" style="font-size:16px" aria-hidden="true"></i>
+                            <i class="fas fa-check ma-copy-check" style="font-size:16px" aria-hidden="true"></i>
                         </button>
                     </div>
                 </div>
                 <div class="manual-pair-footer">
                     <button type="button" id="manual-pair-regenerate" class="manual-pair-regen-btn">
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-refresh-ccw"><path d="M21 12a9 9 0 0 0-9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M3 12a9 9 0 0 0 9 9 9.75 9.75 0 0 0 6.74-2.74L21 16"/><path d="M16 16h5v5"/></svg>
+                        <i class="fas fa-rotate-left lucide-refresh-ccw" style="font-size:15px" aria-hidden="true"></i>
                         <?php echo htmlspecialchars($translations['manual_pair_regenerate'] ?? 'Regenerate'); ?>
                     </button>
                 </div>
@@ -1100,7 +1177,7 @@ $metricButtons = [
         <!-- Settings Modal -->
         <div id="settings-modal" style="display:none;">
             <div class="settings-content">
-                <button class="modal-close">×</button>
+                <button class="modal-close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <h2><i class="fas fa-cog"></i> <?php echo htmlspecialchars($translations['settings_title']); ?></h2>
                 <div class="settings-tab-bar" role="tablist">
                     <button type="button" class="settings-tab active" data-settings-tab="profile" role="tab" aria-selected="true">
@@ -1108,6 +1185,9 @@ $metricButtons = [
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="chart" role="tab" aria-selected="false">
                         <i class="fas fa-chart-area"></i> <?php echo htmlspecialchars($translations['settings_tab_chart'] ?? 'Chart'); ?>
+                    </button>
+                    <button type="button" class="settings-tab" data-settings-tab="map" role="tab" aria-selected="false">
+                        <i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['map_settings_title'] ?? 'Map'); ?>
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
                         <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
@@ -1186,6 +1266,39 @@ $metricButtons = [
                         </div>
                     </div>
                 </div>
+                <div id="settings-panel-map" class="settings-tab-panel" role="tabpanel">
+                    <div class="settings-map-grid">
+                        <section class="settings-map-section">
+                            <h3><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($translations['map_settings_markers'] ?? 'Markers'); ?></h3>
+                            <p class="settings-map-hint"><?php echo htmlspecialchars($translations['map_settings_hint'] ?? 'Tune how location points and clusters are drawn on the map.'); ?></p>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_point_size'] ?? 'Point size'); ?></span><output data-for="pointSize">5 px</output></span>
+                                <input type="range" id="ma-map-point-size" min="2" max="14" step="1" value="5">
+                            </label>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_opacity'] ?? 'Opacity'); ?></span><output data-for="opacity">85%</output></span>
+                                <input type="range" id="ma-map-opacity" min="20" max="100" step="5" value="85">
+                            </label>
+                        </section>
+                        <section class="settings-map-section">
+                            <h3><i class="fas fa-route"></i> <?php echo htmlspecialchars($translations['map_settings_routes'] ?? 'Routes & heat'); ?></h3>
+                            <p class="settings-map-hint"><?php echo htmlspecialchars($translations['map_settings_hint_routes'] ?? 'Control route thickness and heat-map intensity.'); ?></p>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_route_width'] ?? 'Route width'); ?></span><output data-for="routeWidth">4 px</output></span>
+                                <input type="range" id="ma-map-route-width" min="1" max="8" step="1" value="4">
+                            </label>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_heat_intensity'] ?? 'Heat intensity'); ?></span><output data-for="heat">60%</output></span>
+                                <input type="range" id="ma-map-heat-intensity" min="10" max="100" step="5" value="60">
+                            </label>
+                            <div class="settings-map-actions">
+                                <button type="button" id="ma-map-reset" class="settings-map-reset">
+                                    <i class="fas fa-arrow-rotate-left" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>
+                                </button>
+                            </div>
+                        </section>
+                    </div>
+                </div>
                 <div id="settings-panel-backups" class="settings-tab-panel" role="tabpanel">
                     <div class="excel-actions settings-backup-actions">
                         <button class="excel-btn create-backup" id="create-backup" type="button" style="background: #17a2b8;">
@@ -1225,7 +1338,7 @@ $metricButtons = [
         
         <div id="day-steps-modal" style="display:none;">
             <div class="day-steps-content">
-                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <div class="day-steps-title"><?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?></div>
                 <div class="day-steps-date" id="day-steps-date"></div>
                 <input type="text" id="day-steps-input" inputmode="numeric" placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?>">
@@ -1238,7 +1351,7 @@ $metricButtons = [
 
         <div id="add-steps-modal" style="display:none;">
             <div class="add-steps-content add-steps-merged">
-                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <h2 class="add-steps-main-title"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps']); ?></h2>
                 <div class="add-tab-bar" role="tablist">
                     <button type="button" class="add-tab active" data-add-tab="manual" role="tab" aria-selected="true">
@@ -1411,7 +1524,7 @@ $metricButtons = [
                         <span><?php echo htmlspecialchars($translations['back'] ?? 'Back'); ?></span>
                     </button>
                     <h2 class="guide-expand-title"><i class="fas fa-book-open"></i> <span id="guide-expand-title-text"></span></h2>
-                    <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                    <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 </div>
                 <div class="guide-expand-frame-wrap">
                     <iframe id="guide-expand-frame" name="steps-guide-expand" loading="lazy"></iframe>
@@ -1434,10 +1547,7 @@ $metricButtons = [
         <div id="alert-modal" style="display:none;">
             <div class="alert-content">
                 <button class="modal-close alert-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <i class="fas fa-xmark" style="font-size:18px" aria-hidden="true"></i>
                 </button>
                 <div class="alert-header" id="alert-header">
                     <h3 class="alert-title" id="alert-title"></h3>
@@ -1459,10 +1569,7 @@ $metricButtons = [
         <div id="video-confirm-modal" style="display:none;">
             <div class="video-confirm-inner excel-content">
                 <button class="modal-close" type="button" id="video-confirm-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <i class="fas fa-xmark" style="font-size:18px" aria-hidden="true"></i>
                 </button>
                 <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px;max-width:100%;padding-right:48px;box-sizing:border-box;">
                     <button type="button" id="video-confirm-gaps-btn" class="excel-btn" style="display:none;flex-shrink:0;padding:8px 12px;background:#ffc107;color:#212529;align-self:flex-start;" title="<?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Missing days in range'); ?>" aria-label="<?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Gaps'); ?>"><i class="fas fa-exclamation-triangle"></i></button>
@@ -1506,10 +1613,7 @@ $metricButtons = [
         <div id="video-confirm-gaps-modal" style="display:none;">
             <div class="video-confirm-gaps-inner excel-content">
                 <button class="modal-close" type="button" id="video-confirm-gaps-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                    </svg>
+                    <i class="fas fa-xmark" style="font-size:18px" aria-hidden="true"></i>
                 </button>
                 <h2 style="margin-top:0;"><i class="fas fa-calendar-day"></i> <span id="video-confirm-gaps-heading"><?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Missing days'); ?></span></h2>
                 <p id="video-confirm-gaps-sub" style="text-align:left;font-size:14px;opacity:0.9;"><?php echo htmlspecialchars($translations['video_gaps_sub'] ?? 'Days between the first and last recognized date with no data. Enter steps, then apply.'); ?></p>
@@ -1520,7 +1624,7 @@ $metricButtons = [
             </div>
         </div>
         <div id="global-image-viewer" aria-hidden="true">
-            <button type="button" id="global-image-viewer-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+            <button type="button" id="global-image-viewer-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 
@@ -1531,7 +1635,7 @@ $metricButtons = [
                 </div>
                 <div class="smc-body">
                     <div class="smc-box">
-                        <div class="smc-icon" aria-hidden="true"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
+                        <div class="smc-icon" aria-hidden="true"><i class="fas fa-triangle-exclamation" style="font-size:24px" aria-hidden="true"></i></div>
                         <p class="smc-msg" id="stepmonitor-conflict-message"></p>
                     </div>
                 </div>
