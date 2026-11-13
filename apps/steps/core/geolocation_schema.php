@@ -22,6 +22,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v2_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '002']);
         }
+        // 003: manual trip management (duration, geometry visibility, links).
+        $applied->execute([':version' => '003']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v3_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '003']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -33,6 +39,18 @@ function steps_geolocation_migrate(AppDatabase $db): void {
 {
     return [
         "CREATE TABLE IF NOT EXISTS geo_map_preferences (user_email TEXT PRIMARY KEY, provider TEXT NOT NULL DEFAULT 'osm', layers_json JSONB NOT NULL DEFAULT '[]'::jsonb, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+    ];
+}
+function steps_geolocation_schema_v3_sql(): array
+{
+    return [
+        "ALTER TABLE geo_trips ADD COLUMN IF NOT EXISTS duration_s INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_trips ADD COLUMN IF NOT EXISTS geometry_visible BOOLEAN NOT NULL DEFAULT true",
+        "UPDATE geo_trips SET duration_s = GREATEST(0, EXTRACT(EPOCH FROM (ended_at - started_at))::int) WHERE duration_s = 0",
+        "CREATE TABLE IF NOT EXISTS geo_trip_places (trip_id UUID NOT NULL REFERENCES geo_trips(id) ON DELETE CASCADE, place_id UUID NOT NULL REFERENCES geo_places(id) ON DELETE CASCADE, user_email TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (trip_id, place_id))",
+        "CREATE TABLE IF NOT EXISTS geo_trip_photos (trip_id UUID NOT NULL REFERENCES geo_trips(id) ON DELETE CASCADE, asset_id UUID NOT NULL REFERENCES geo_immich_assets(id) ON DELETE CASCADE, user_email TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (trip_id, asset_id))",
+        "CREATE INDEX IF NOT EXISTS geo_trip_places_user_idx ON geo_trip_places(user_email, place_id)",
+        "CREATE INDEX IF NOT EXISTS geo_trip_photos_user_idx ON geo_trip_photos(user_email, asset_id)",
     ];
 }
 function steps_geolocation_schema_sql(): array
