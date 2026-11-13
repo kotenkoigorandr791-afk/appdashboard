@@ -2,6 +2,7 @@
 require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
+require_once dirname(__DIR__) . '/core/geolocation_quality.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -90,4 +91,8 @@ if (!is_array($points) || count($points) === 0 || count($points) > 500) public_a
 $pdo = app_main_db()->getPdo();
 $results = [];
 foreach ($points as $point) $results[] = is_array($point) ? geo_api_point($pdo, $owner, $point) : ['status' => 'rejected', 'error' => 'invalid_point'];
+// Only a durable marker: the existing app worker path performs the quality pass.
+if (in_array('accepted', array_column($results, 'status'), true)) {
+    try { StepsGeolocationQuality::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation quality enqueue: ' . $e->getMessage()); }
+}
 public_api_json(['ok' => true, 'results' => $results]);
