@@ -248,6 +248,39 @@ $metricButtons = [
                                 <?php endforeach; ?>
                             </div>
                         </div>
+                        <div class="map-panel">
+                            <div class="map-panel-head">
+                                <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_trips_title'] ?? 'Trips'); ?></span>
+                                <div class="map-day-nav">
+                                    <button type="button" id="ma-trip-new" class="map-day-btn" title="<?php echo htmlspecialchars($translations['map_trip_new'] ?? 'Create trip from this range'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_trip_new'] ?? 'Create trip from this range'); ?>">
+                                        <i class="fas fa-plus" aria-hidden="true"></i>
+                                    </button>
+                                    <button type="button" id="ma-trip-merge" class="map-day-btn" title="<?php echo htmlspecialchars($translations['map_trip_merge'] ?? 'Merge selected trips'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_trip_merge'] ?? 'Merge selected trips'); ?>" disabled>
+                                        <i class="fas fa-code-merge" aria-hidden="true"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div id="ma-trips-list" class="trip-list">
+                                <span class="trip-empty"><?php echo htmlspecialchars($translations['map_trip_loading'] ?? 'Loading trips…'); ?></span>
+                            </div>
+                            <div id="ma-trip-editor" class="trip-editor" hidden>
+                                <div class="trip-editor-head">
+                                    <strong><?php echo htmlspecialchars($translations['map_trip_edit'] ?? 'Edit trip'); ?></strong>
+                                    <button type="button" id="ma-trip-close" class="trip-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                                </div>
+                                <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_name'] ?? 'Title'); ?></span><input type="text" id="ma-trip-title" maxlength="120"></label>
+                                <div class="trip-dates">
+                                    <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_start'] ?? 'Start'); ?></span><input type="datetime-local" id="ma-trip-start"></label>
+                                    <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_end'] ?? 'End'); ?></span><input type="datetime-local" id="ma-trip-end"></label>
+                                </div>
+                                <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_notes'] ?? 'Notes'); ?></span><textarea id="ma-trip-notes" rows="2" maxlength="4000"></textarea></label>
+                                <label class="trip-visible"><input type="checkbox" id="ma-trip-visible"> <span><?php echo htmlspecialchars($translations['map_trip_visible'] ?? 'Show route line on map'); ?></span></label>
+                                <div class="trip-editor-actions">
+                                    <button type="button" id="ma-trip-recalc" class="trip-btn"><i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_trip_recalculate'] ?? 'Recalculate'); ?></button>
+                                    <button type="button" id="ma-trip-save" class="trip-btn trip-btn-primary"><?php echo htmlspecialchars($translations['map_trip_save'] ?? 'Save'); ?></button>
+                                </div>
+                            </div>
+                        </div>
                         <button type="button" id="ma-map-refresh" class="map-apply-btn">
                             <i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
                         </button>
@@ -267,6 +300,10 @@ $metricButtons = [
                     const toInput=document.getElementById('ma-map-to');
                     const refresh=document.getElementById('ma-map-refresh');
                     const resetBtn=document.getElementById('ma-map-reset');
+                    const tripsList=document.getElementById('ma-trips-list');
+                    const tripEditor=document.getElementById('ma-trip-editor');
+                    const tripMergeBtn=document.getElementById('ma-trip-merge');
+                    let tripsCache=[], editingTripId=null, tripsLoadSeq=0;
                     const t={
                         loading: <?php echo json_encode($translations['map_loading'] ?? 'Loading map…'); ?>,
                         empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
@@ -379,7 +416,7 @@ $metricButtons = [
                             if(!map) return;
                             didFit=false;
                             requestAnimationFrame(()=>map.invalidateSize({pan:false}));
-                            setTimeout(()=>{ map.invalidateSize({pan:false}); fetchViewport(); },80);
+                            setTimeout(()=>{ map.invalidateSize({pan:false}); fetchViewport(); loadTrips(); },80);
                         });
                         window.addEventListener('steps-map-focus',(event)=>{
                             const bbox=event.detail&&event.detail.bbox;
@@ -549,6 +586,222 @@ $metricButtons = [
                         fromInput.dispatchEvent(new Event('change',{bubbles:true}));
                         toInput.dispatchEvent(new Event('change',{bubbles:true}));
                     }
+                    const tr=(key,fallback)=>(window.translations&&translations[key])||fallback;
+                    const tripApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_trips';
+                    function tripErrorText(error){
+                        const messages={
+                            invalid_range:tr('map_trip_err_range','Choose a valid date range.'),
+                            trip_needs_points:tr('map_trip_err_points','No accepted points in this selection.'),
+                            trip_not_found:tr('map_trip_err_missing','Trip not found.'),
+                            split_failed:tr('map_trip_err_split','Could not split this trip.'),
+                            split_outside_trip:tr('map_trip_err_split','Could not split this trip.'),
+                            merge_failed:tr('map_trip_err_merge','Could not merge these trips.'),
+                        };
+                        return messages[error]||error||tr('map_trip_err','Something went wrong.');
+                    }
+                    async function tripCommand(payload){
+                        const res=await fetch(tripApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+                        const data=await res.json();
+                        if(!res.ok||!data.ok) throw new Error((data&&data.error)||'trip_command_failed');
+                        return data;
+                    }
+                    function reportTripError(error){
+                        const message=tripErrorText(error&&error.message?error.message:error);
+                        if(typeof window.showAlert==='function') window.showAlert(message);
+                        else showError(message);
+                    }
+                    async function confirmTripAction(message){
+                        if(typeof window.showAlert==='function'){
+                            try{ return await window.showAlert(message,true); }catch(e){ return false; }
+                        }
+                        return window.confirm(message);
+                    }
+                    function tripMeta(trip){
+                        const format=value=>{ const d=new Date(value); return isNaN(d)?'':d.toLocaleString(dateLocale(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}); };
+                        const km=(Number(trip.distance_m||0)/1000).toFixed(1);
+                        return format(trip.started_at)+' → '+format(trip.ended_at)+' · '+km+' km'+(trip.state==='archived'?' · '+tr('map_trip_archived','archived'):'');
+                    }
+                    function updateMergeButton(){
+                        const selected=tripsList.querySelectorAll('.trip-pick:checked').length;
+                        if(tripMergeBtn) tripMergeBtn.disabled=selected<2;
+                    }
+                    function renderTrips(){
+                        tripsList.innerHTML='';
+                        if(!tripsCache.length){
+                            const empty=document.createElement('span');
+                            empty.className='trip-empty';
+                            empty.textContent=tr('map_trip_none','No trips in this range.');
+                            tripsList.appendChild(empty);
+                            updateMergeButton();
+                            return;
+                        }
+                        tripsCache.forEach(trip=>{
+                            const item=document.createElement('div');
+                            item.className='trip-item'+(editingTripId===trip.id?' is-editing':'');
+                            const pick=document.createElement('input');
+                            pick.type='checkbox'; pick.className='trip-pick'; pick.value=trip.id;
+                            pick.setAttribute('aria-label',tr('map_trip_select','Select trip'));
+                            pick.addEventListener('change',updateMergeButton);
+                            const open=document.createElement('button');
+                            open.type='button'; open.className='trip-open';
+                            const title=document.createElement('span'); title.className='trip-title';
+                            title.textContent=trip.title||tr('map_trip_untitled','Untitled trip');
+                            const meta=document.createElement('span'); meta.className='trip-meta'; meta.textContent=tripMeta(trip);
+                            open.append(title,meta);
+                            open.addEventListener('click',()=>openTripEditor(trip));
+                            const actions=document.createElement('div'); actions.className='trip-actions';
+                            const tripAction=(icon,label,handler)=>{
+                                const button=document.createElement('button');
+                                button.type='button'; button.className='trip-action'; button.title=label;
+                                button.setAttribute('aria-label',label);
+                                button.innerHTML='<i class="fas '+icon+'" aria-hidden="true"></i>';
+                                button.addEventListener('click',handler);
+                                return button;
+                            };
+                            actions.append(
+                                tripAction('fa-scissors',tr('map_trip_split','Split'),()=>splitTrip(trip)),
+                                tripAction('fa-box-archive',tr('map_trip_archive','Archive'),()=>archiveTrip(trip,false)),
+                                tripAction('fa-trash-can',tr('map_trip_delete','Delete'),()=>archiveTrip(trip,true))
+                            );
+                            item.append(pick,open,actions);
+                            tripsList.appendChild(item);
+                        });
+                        updateMergeButton();
+                    }
+                    async function loadTrips(){
+                        const seq=++tripsLoadSeq;
+                        try{
+                            const params=new URLSearchParams({
+                                from:fromInput.value+'T00:00:00Z',
+                                to:toInput.value+'T23:59:59Z',
+                                limit:'50',
+                            });
+                            const res=await fetch(tripApi+'&'+params.toString(),{credentials:'same-origin'});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||'trip_list_failed');
+                            if(seq!==tripsLoadSeq) return;
+                            tripsCache=Array.isArray(data.trips)?data.trips:[];
+                            renderTrips();
+                        }catch(e){
+                            if(seq!==tripsLoadSeq) return;
+                            tripsList.innerHTML='';
+                            const empty=document.createElement('span');
+                            empty.className='trip-empty';
+                            empty.textContent=tr('map_trip_err_load','Could not load trips.');
+                            tripsList.appendChild(empty);
+                        }
+                    }
+                    function isoToInput(value){
+                        const d=new Date(value);
+                        if(isNaN(d)) return '';
+                        const pad=n=>String(n).padStart(2,'0');
+                        return d.getFullYear()+'-'+pad(d.getMonth()+1)+'-'+pad(d.getDate())+'T'+pad(d.getHours())+':'+pad(d.getMinutes());
+                    }
+                    function inputToIso(value){
+                        const d=new Date(value);
+                        return isNaN(d)?null:d.toISOString();
+                    }
+                    function openTripEditor(trip){
+                        if(!trip) return;
+                        editingTripId=trip.id;
+                        tripEditor.dataset.id=trip.id;
+                        document.getElementById('ma-trip-title').value=trip.title||'';
+                        document.getElementById('ma-trip-notes').value=trip.notes||'';
+                        document.getElementById('ma-trip-start').value=isoToInput(trip.started_at);
+                        document.getElementById('ma-trip-end').value=isoToInput(trip.ended_at);
+                        document.getElementById('ma-trip-visible').checked=trip.geometry_visible!==false;
+                        tripEditor.hidden=false;
+                        renderTrips();
+                        if(window.innerWidth<=820) tripEditor.scrollIntoView({block:'nearest',behavior:'smooth'});
+                    }
+                    function closeTripEditor(){
+                        editingTripId=null;
+                        tripEditor.hidden=true;
+                        renderTrips();
+                    }
+                    async function saveTrip(){
+                        if(!editingTripId) return;
+                        const startedAt=inputToIso(document.getElementById('ma-trip-start').value);
+                        const endedAt=inputToIso(document.getElementById('ma-trip-end').value);
+                        if(!startedAt||!endedAt||new Date(startedAt)>=new Date(endedAt)){
+                            reportTripError({message:'invalid_range'});
+                            return;
+                        }
+                        try{
+                            await tripCommand({
+                                action:'update',
+                                id:editingTripId,
+                                title:document.getElementById('ma-trip-title').value,
+                                notes:document.getElementById('ma-trip-notes').value,
+                                geometry_visible:document.getElementById('ma-trip-visible').checked,
+                                started_at:startedAt,
+                                ended_at:endedAt,
+                            });
+                            closeTripEditor();
+                            await loadTrips();
+                            await fetchViewport();
+                        }catch(e){ reportTripError(e); }
+                    }
+                    async function createTripFromRange(){
+                        try{
+                            const data=await tripCommand({action:'create',from:fromInput.value+'T00:00:00Z',to:toInput.value+'T23:59:59Z',title:''});
+                            await loadTrips();
+                            await fetchViewport();
+                            if(data.trip) openTripEditor(data.trip);
+                        }catch(e){ reportTripError(e); }
+                    }
+                    async function mergeSelectedTrips(){
+                        const ids=Array.from(tripsList.querySelectorAll('.trip-pick:checked')).map(cb=>cb.value);
+                        if(ids.length<2) return;
+                        if(!await confirmTripAction(tr('map_trip_confirm_merge','Merge the selected trips into one?'))) return;
+                        try{
+                            await tripCommand({action:'merge',ids});
+                            closeTripEditor();
+                            await loadTrips();
+                            await fetchViewport();
+                        }catch(e){ reportTripError(e); }
+                    }
+                    async function splitTrip(trip){
+                        if(!await confirmTripAction(tr('map_trip_confirm_split','Split this trip at its midpoint?'))) return;
+                        const at=new Date((new Date(trip.started_at).getTime()+new Date(trip.ended_at).getTime())/2).toISOString();
+                        try{
+                            await tripCommand({action:'split',id:trip.id,at});
+                            closeTripEditor();
+                            await loadTrips();
+                            await fetchViewport();
+                        }catch(e){ reportTripError(e); }
+                    }
+                    async function archiveTrip(trip, remove){
+                        const message=remove
+                            ? tr('map_trip_confirm_delete','Delete this trip? The location history is kept.')
+                            : tr('map_trip_confirm_archive','Archive this trip?');
+                        if(!await confirmTripAction(message)) return;
+                        try{
+                            await tripCommand({action:remove?'delete':'archive',id:trip.id});
+                            if(editingTripId===trip.id) closeTripEditor();
+                            await loadTrips();
+                            await fetchViewport();
+                        }catch(e){ reportTripError(e); }
+                    }
+                    async function recalculateTrip(){
+                        if(!editingTripId) return;
+                        try{
+                            await tripCommand({action:'recalculate',id:editingTripId});
+                            await loadTrips();
+                            const updated=tripsCache.find(trip=>trip.id===editingTripId);
+                            if(updated) openTripEditor(updated);
+                            await fetchViewport();
+                        }catch(e){ reportTripError(e); }
+                    }
+                    function initTripManager(){
+                        document.getElementById('ma-trip-new')?.addEventListener('click',createTripFromRange);
+                        document.getElementById('ma-trip-merge')?.addEventListener('click',mergeSelectedTrips);
+                        document.getElementById('ma-trip-close')?.addEventListener('click',closeTripEditor);
+                        document.getElementById('ma-trip-save')?.addEventListener('click',saveTrip);
+                        document.getElementById('ma-trip-recalc')?.addEventListener('click',recalculateTrip);
+                        updateMergeButton();
+                        loadTrips();
+                    }
                     async function fetchViewport(){
                         if(busy){ fetchPending=true; return; }
                         busy=true;
@@ -613,12 +866,13 @@ $metricButtons = [
                     }
                     refresh.addEventListener('click',fetchViewport);
                     if(resetBtn) resetBtn.addEventListener('click',resetAppearance);
-                    const onRangeChanged=()=>{ didFit=false; fetchViewport(); };
+                    const onRangeChanged=()=>{ didFit=false; fetchViewport(); loadTrips(); };
                     fromInput.addEventListener('change',onRangeChanged);
                     toInput.addEventListener('change',onRangeChanged);
                     document.getElementById('ma-map-day-prev')?.addEventListener('click',()=>shiftRange(-1));
                     document.getElementById('ma-map-day-next')?.addEventListener('click',()=>shiftRange(1));
                     initDatePickers();
+                    initTripManager();
                     providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
                     section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ saveSettings(); fetchViewport(); }));
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);

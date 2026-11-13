@@ -4159,6 +4159,137 @@ height: 48px;
 }
 .data-type-btn:hover .data-type-icon,
 .data-type-btn.active .data-type-icon { transform: scale(1.08); }
+.trip-list { display: flex; flex-direction: column; gap: 6px; max-height: 220px; overflow: auto; padding-right: 2px; }
+.trip-empty { padding: 6px 2px; font-size: 12px; color: var(--muted-text); }
+.trip-item {
+    display: grid;
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: center;
+    padding: 7px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    background: var(--group-block-bg);
+}
+.trip-item.is-editing { border-color: color-mix(in srgb, var(--primary-color) 55%, var(--border-color)); }
+.trip-pick { width: 14px; height: 14px; margin: 0; accent-color: var(--primary-color); cursor: pointer; }
+.trip-open {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: var(--text-color);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.trip-title { font-size: 12px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-meta { font-size: 10px; color: var(--muted-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.trip-actions { display: flex; gap: 2px; }
+.trip-action {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--muted-text);
+    font-size: 11px;
+    cursor: pointer;
+}
+.trip-action:hover {
+    color: var(--primary-color);
+    border-color: color-mix(in srgb, var(--primary-color) 35%, var(--border-color));
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+.trip-editor {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 8px;
+    padding: 10px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--group-block-bg);
+}
+.trip-editor[hidden] { display: none !important; }
+.trip-editor-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.trip-editor-head strong { font-size: 12px; }
+.trip-close {
+    width: 24px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid var(--border-color);
+    border-radius: 7px;
+    background: var(--surface-solid);
+    color: var(--muted-text);
+    font-size: 10px;
+    cursor: pointer;
+}
+.trip-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-text);
+}
+.trip-field input,
+.trip-field textarea {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 7px 8px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-solid);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: 0;
+    text-transform: none;
+}
+.trip-field textarea { min-height: 44px; resize: vertical; }
+.trip-field input:focus,
+.trip-field textarea:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+.trip-dates { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.trip-visible { display: flex; align-items: center; gap: 7px; font-size: 12px; color: var(--text-color); }
+.trip-visible input { width: 14px; height: 14px; margin: 0; accent-color: var(--primary-color); }
+.trip-editor-actions { display: flex; justify-content: space-between; gap: 6px; }
+.trip-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 7px 9px;
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    background: var(--surface-solid);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.trip-btn:hover { color: var(--primary-color); border-color: color-mix(in srgb, var(--primary-color) 40%, var(--border-color)); }
+.trip-btn-primary { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
+.trip-btn-primary:hover { color: #fff; filter: brightness(1.06); }
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>
