@@ -468,7 +468,7 @@ $metricButtons = [
                             params.set('to',toInput.value+'T23:59:59Z');
                             params.set('zoom',String(map?Math.round(map.getZoom()):12));
                             params.set('layers',selectedLayers().join(','));
-                            const res=await fetch('/apps/steps/api/geolocation_map_session.php?'+params.toString(),{credentials:'same-origin'});
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin'});
                             const data=await res.json();
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                             providers=data.providers||providers;
@@ -499,7 +499,7 @@ $metricButtons = [
                     }
                     async function loadSettings(){
                         try{
-                            const res=await fetch('/apps/steps/api/geolocation_map_session.php?settings=1',{credentials:'same-origin'});
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&settings=1',{credentials:'same-origin'});
                             const data=await res.json();
                             if(data.ok){
                                 providers=data.providers||{};
@@ -510,7 +510,7 @@ $metricButtons = [
                         }catch(e){ /* defaults stay usable */ }
                     }
                     function saveSettings(){
-                        fetch('/apps/steps/api/geolocation_map_session.php?settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
+                        fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
                     }
                     refresh.addEventListener('click',fetchViewport);
                     resetBtn.addEventListener('click',resetAppearance);
@@ -796,7 +796,7 @@ $metricButtons = [
                             const params=new URLSearchParams({view:viewSel.value,at:dateInput.value,tz:tzInput.value||'UTC',limit:'50'});
                             if(queryInput.value.trim()) params.set('q',queryInput.value.trim());
                             if(cursor) params.set('cursor',cursor);
-                            const res=await fetch('/api/steps/geolocation_timeline?'+params.toString(),{credentials:'same-origin'});
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_timeline&'+params.toString(),{credentials:'same-origin'});
                             const data=await res.json();
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                             document.getElementById('ma-tl-tz-note').textContent=t.tzNote.replace('{tz}',data.timezone||'UTC');
@@ -860,7 +860,7 @@ $metricButtons = [
                     function fmt(iso){ if(!iso) return ''; const d=new Date(iso); return isNaN(d.getTime())?String(iso):d.toLocaleString(); }
                     function showError(message){ if(!errorEl) return; errorEl.textContent=message||''; errorEl.style.display=message?'':'none'; }
                     async function call(payload){
-                        const res=await fetch('/api/steps/devices',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+                        const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=devices',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
                         const data=await res.json().catch(()=>({ok:false}));
                         if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                         return data;
@@ -920,7 +920,7 @@ $metricButtons = [
                     async function fetchDevices(){
                         showError('');
                         try{
-                            const res=await fetch('/api/steps/devices',{credentials:'same-origin'});
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=devices',{credentials:'same-origin'});
                             const data=await res.json();
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                             renderList(Array.isArray(data.devices)?data.devices:[]);
