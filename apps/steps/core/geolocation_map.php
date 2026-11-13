@@ -38,7 +38,27 @@ final class StepsGeolocationMap
             'attribution' => '© OpenStreetMap contributors, SRTM | © OpenTopoMap',
             'max_zoom' => 17,
         ],
+        'esri_dark' => [
+            'name' => 'Esri Dark Gray Canvas',
+            'url' => 'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',
+            'attribution' => 'Tiles © Esri',
+            'max_zoom' => 16,
+        ],
+        'esri_imagery' => [
+            'name' => 'Esri World Imagery',
+            'url' => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+            'attribution' => 'Tiles © Esri',
+            'max_zoom' => 19,
+        ],
+        'esri_street' => [
+            'name' => 'Esri World Street Map',
+            'url' => 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',
+            'attribution' => 'Tiles © Esri',
+            'max_zoom' => 19,
+        ],
     ];
+
+    public const DEFAULT_PROVIDER = 'esri_dark';
 
     public const DEFAULT_LAYERS = ['trips', 'stops', 'places', 'visits'];
 
@@ -146,7 +166,7 @@ final class StepsGeolocationMap
         $stmt->execute([':owner' => $owner]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         return [
-            'provider' => $row['provider'] ?? 'osm',
+            'provider' => $row['provider'] ?? self::DEFAULT_PROVIDER,
             'layers' => isset($row['layers_json']) ? (json_decode((string)$row['layers_json'], true) ?: self::DEFAULT_LAYERS) : self::DEFAULT_LAYERS,
             'updated_at' => $row['updated_at'] ?? null,
         ];
@@ -219,7 +239,8 @@ final class StepsGeolocationMap
             if ($trip !== '') $tripParams[':trip'] = $trip;
             $stmt = $pdo->prepare($sql);
             $stmt->execute($tripParams);
-            foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $tripRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($tripRows as $row) {
                 $geometry = json_decode((string)$row['geojson'], true);
                 if (!is_array($geometry)) continue;
                 $features[] = [
@@ -236,7 +257,7 @@ final class StepsGeolocationMap
                     ],
                 ];
             }
-            $meta['counts']['trips'] = count($stmt->fetchAll());
+            $meta['counts']['trips'] = count($tripRows);
         }
 
         if (in_array('stops', $layers, true)) {

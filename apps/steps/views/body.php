@@ -170,38 +170,88 @@ $metricButtons = [
         </div>
         <div class="map-view" id="map-view" hidden>
                 <!-- Map: viewport-bounded layers, provider settings, non-map summary -->
-                <section id="ma-map" aria-labelledby="ma-map-title" style="margin:0 0 18px;padding:14px 16px;border:1px solid rgba(127,127,127,.25);border-radius:14px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                        <h3 id="ma-map-title" style="margin:0;font-size:15px;"><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></h3>
-                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                            <label style="font-size:11px;opacity:.75;" for="ma-map-from"><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></label>
-                            <input type="date" id="ma-map-from" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
-                            <label style="font-size:11px;opacity:.75;" for="ma-map-to"><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></label>
-                            <input type="date" id="ma-map-to" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
-                            <label style="font-size:11px;opacity:.75;" for="ma-map-provider"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></label>
-                            <select id="ma-map-provider" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;"></select>
-                            <button type="button" id="ma-map-refresh" style="background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:inherit;"><?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?></button>
+                <section id="ma-map" class="map-workspace" aria-labelledby="ma-map-title">
+                    <div class="map-stage">
+                        <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>"></div>
+                        <div class="map-hud">
+                            <h3 id="ma-map-title"><i class="fas fa-map-location-dot" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></h3>
+                            <p id="ma-map-summary" role="status" aria-live="polite"></p>
+                            <p id="ma-map-error" role="alert" style="display:none;"></p>
                         </div>
+                        <div class="map-vignette" aria-hidden="true"></div>
                     </div>
-                    <fieldset style="border:0;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
-                        <legend style="font-size:11px;opacity:.75;padding:0;margin-bottom:4px;"><?php echo htmlspecialchars($translations['map_layers'] ?? 'Layers'); ?></legend>
-                        <?php
-                        $mapLayers = [
-                            'trips' => $translations['map_layer_trips'] ?? 'Trips',
-                            'stops' => $translations['map_layer_stops'] ?? 'Stops',
-                            'places' => $translations['map_layer_places'] ?? 'Places',
-                            'visits' => $translations['map_layer_visits'] ?? 'Visits',
-                            'points' => $translations['map_layer_points'] ?? 'Points',
-                            'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
-                            'explored' => $translations['map_layer_explored'] ?? 'Explored area',
-                        ];
-                        foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits'], true); ?>
-                            <label style="display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>> <?php echo htmlspecialchars($layerLabel); ?></label>
-                        <?php endforeach; ?>
-                    </fieldset>
-                    <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>" style="height:340px;margin-top:10px;border-radius:12px;overflow:hidden;background:rgba(127,127,127,.14);"></div>
-                    <p id="ma-map-summary" role="status" aria-live="polite" style="font-size:12px;opacity:.75;margin:8px 0 0;"></p>
-                    <p id="ma-map-error" role="alert" style="display:none;color:#ef4444;font-size:12px;margin:6px 0 0;"></p>
+                    <aside class="map-sidebar" aria-label="<?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?>">
+                        <div class="map-sidebar-head">
+                            <div class="map-sidebar-title">
+                                <span class="map-sidebar-kicker"><?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?></span>
+                                <strong><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></strong>
+                            </div>
+                            <button type="button" id="ma-map-reset" class="map-reset-btn" title="<?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>">
+                                <i class="fas fa-arrow-rotate-left" aria-hidden="true"></i>
+                            </button>
+                        </div>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_date_range'] ?? 'Date range'); ?></span>
+                            <div class="map-date-grid">
+                                <label class="map-field">
+                                    <span><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></span>
+                                    <input type="date" id="ma-map-from">
+                                </label>
+                                <label class="map-field">
+                                    <span><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></span>
+                                    <input type="date" id="ma-map-to">
+                                </label>
+                            </div>
+                        </div>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></span>
+                            <select id="ma-map-provider" class="map-select" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>"></select>
+                        </div>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_layers'] ?? 'Layers'); ?></span>
+                            <div class="map-layers">
+                                <?php
+                                $mapLayers = [
+                                    'trips' => $translations['map_layer_trips'] ?? 'Trips',
+                                    'stops' => $translations['map_layer_stops'] ?? 'Stops',
+                                    'places' => $translations['map_layer_places'] ?? 'Places',
+                                    'visits' => $translations['map_layer_visits'] ?? 'Visits',
+                                    'points' => $translations['map_layer_points'] ?? 'Points',
+                                    'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
+                                    'explored' => $translations['map_layer_explored'] ?? 'Explored area',
+                                ];
+                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits'], true); ?>
+                                <label class="map-switch">
+                                    <input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>>
+                                    <span class="map-switch-track" aria-hidden="true"><span class="map-switch-thumb"></span></span>
+                                    <span class="map-switch-label"><?php echo htmlspecialchars($layerLabel); ?></span>
+                                </label>
+                                <?php endforeach; ?>
+                            </div>
+                        </div>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_appearance'] ?? 'Appearance'); ?></span>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_point_size'] ?? 'Point size'); ?></span><output data-for="pointSize">5 px</output></span>
+                                <input type="range" id="ma-map-point-size" min="2" max="14" step="1" value="5">
+                            </label>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_opacity'] ?? 'Opacity'); ?></span><output data-for="opacity">85%</output></span>
+                                <input type="range" id="ma-map-opacity" min="20" max="100" step="5" value="85">
+                            </label>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_route_width'] ?? 'Route width'); ?></span><output data-for="routeWidth">4 px</output></span>
+                                <input type="range" id="ma-map-route-width" min="1" max="8" step="1" value="4">
+                            </label>
+                            <label class="map-slider">
+                                <span class="map-slider-head"><span><?php echo htmlspecialchars($translations['map_heat_intensity'] ?? 'Heat intensity'); ?></span><output data-for="heat">60%</output></span>
+                                <input type="range" id="ma-map-heat-intensity" min="10" max="100" step="5" value="60">
+                            </label>
+                        </div>
+                        <button type="button" id="ma-map-refresh" class="map-apply-btn">
+                            <i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
+                        </button>
+                    </aside>
                 </section>
                 <script>
                 (function(){
@@ -215,6 +265,7 @@ $metricButtons = [
                     const fromInput=document.getElementById('ma-map-from');
                     const toInput=document.getElementById('ma-map-to');
                     const refresh=document.getElementById('ma-map-refresh');
+                    const resetBtn=document.getElementById('ma-map-reset');
                     const t={
                         loading: <?php echo json_encode($translations['map_loading'] ?? 'Loading map…'); ?>,
                         empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
@@ -225,8 +276,55 @@ $metricButtons = [
                     const iso = (d) => d.toISOString().slice(0,10);
                     if (!toInput.value) toInput.value = iso(new Date());
                     if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 30 * 864e5));
-                    let map=null, layerGroup=null, providers={}, provider='osm', busy=false;
-                    const selectedLayers = () => Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.value);
+                    const fallbackProviders={
+                        esri_dark:{name:'Esri Dark Gray Canvas',url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:16},
+                        esri_imagery:{name:'Esri Satellite',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:19},
+                        esri_street:{name:'Esri Streets',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:19},
+                        osm:{name:'OpenStreetMap',url:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',attribution:'© OpenStreetMap contributors',max_zoom:19}
+                    };
+                    // CARTO now watermarks keyless tiles, so the web UI only offers keyless providers.
+                    const keylessProviders=['esri_dark','esri_imagery','esri_street','osm','opentopomap'];
+                    let map=null, layerGroup=null, providers=Object.assign({},fallbackProviders), provider='esri_dark', busy=false, lastFeatures=[], didFit=false;
+                    const APPEARANCE_KEY='stepsMapAppearance';
+                    const sliderDefs=[
+                        {id:'ma-map-point-size', key:'pointSize', def:5, out:v=>v+' px'},
+                        {id:'ma-map-opacity', key:'opacity', def:85, out:v=>v+'%'},
+                        {id:'ma-map-route-width', key:'routeWidth', def:4, out:v=>v+' px'},
+                        {id:'ma-map-heat-intensity', key:'heat', def:60, out:v=>v+'%'}
+                    ];
+                    const defaultAppearance=()=>{ const d={}; sliderDefs.forEach(s=>d[s.key]=s.def); return d; };
+                    let appearance=defaultAppearance();
+                    try{ appearance=Object.assign(defaultAppearance(), JSON.parse(localStorage.getItem(APPEARANCE_KEY)||'{}')); }catch(e){}
+                    const saveAppearance=()=>{ try{ localStorage.setItem(APPEARANCE_KEY, JSON.stringify(appearance)); }catch(e){} };
+                    const sliders=sliderDefs.map(def=>{
+                        const input=document.getElementById(def.id);
+                        const out=section.querySelector(`output[data-for="${def.key}"]`);
+                        if(!input) return null;
+                        input.value=appearance[def.key];
+                        if(out) out.textContent=def.out(appearance[def.key]);
+                        input.addEventListener('input',()=>{
+                            appearance[def.key]=Number(input.value)||def.def;
+                            if(out) out.textContent=def.out(appearance[def.key]);
+                            saveAppearance();
+                            scheduleRender();
+                        });
+                        return {def,input,out};
+                    }).filter(Boolean);
+                    function resetAppearance(){
+                        appearance=defaultAppearance();
+                        sliders.forEach(s=>{
+                            s.input.value=appearance[s.def.key];
+                            if(s.out) s.out.textContent=s.def.out(appearance[s.def.key]);
+                        });
+                        saveAppearance();
+                        scheduleRender();
+                    }
+                    let renderTimer=null;
+                    function scheduleRender(){
+                        if(renderTimer) return;
+                        renderTimer=setTimeout(()=>{ renderTimer=null; render(lastFeatures); },80);
+                    }
+                    const selectedLayers = () => Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.getAttribute('data-layer'));
                     const showError = (m) => { errorEl.textContent = m || ''; errorEl.style.display = m ? '' : 'none'; };
                     function ensureLeaflet(){
                         if (window.L) return Promise.resolve(window.L);
@@ -234,19 +332,22 @@ $metricButtons = [
                             if (!document.getElementById('ma-leaflet-css')) {
                                 const css=document.createElement('link');
                                 css.id='ma-leaflet-css'; css.rel='stylesheet';
-                                css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                                css.href='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css';
                                 document.head.appendChild(css);
                             }
                             const script=document.createElement('script');
-                            script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                            script.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
                             script.onload=()=>resolve(window.L);
                             script.onerror=()=>reject(new Error('leaflet_unavailable'));
                             document.head.appendChild(script);
                         });
                     }
                     function renderProviders(){
+                        const keys=Object.keys(providers).filter(key=>keylessProviders.includes(key));
+                        const list=keys.length?keys:Object.keys(providers);
+                        if(!list.includes(provider)) provider=list.includes('esri_dark')?'esri_dark':(list[0]||'osm');
                         providerSel.innerHTML='';
-                        Object.keys(providers).forEach(key=>{
+                        list.forEach(key=>{
                             const opt=document.createElement('option');
                             opt.value=key; opt.textContent=providers[key].name;
                             if (key===provider) opt.selected=true;
@@ -257,55 +358,94 @@ $metricButtons = [
                         const p=providers[key]||providers.osm;
                         if(!map||!p) return;
                         if(map._tileLayer) map.removeLayer(map._tileLayer);
-                        map._tileLayer=window.L.tileLayer(p.url,{attribution:p.attribution,maxZoom:p.max_zoom||19}).addTo(map);
+                        map._tileLayer=window.L.tileLayer(p.url,{attribution:p.attribution,maxZoom:p.max_zoom||19,className:'map-tiles'}).addTo(map);
+                        canvas.dataset.provider=key;
                     }
                     function makeMap(L){
-                        map=L.map(canvas,{zoomControl:true,attributionControl:true}).setView([50.45,30.52],12);
+                        map=L.map(canvas,{zoomControl:false,attributionControl:false,preferCanvas:true,worldCopyJump:true}).setView([50.45,30.52],12);
+                        ['mapBackdrop','routesGlow','routes'].forEach((name,i)=>{
+                            const pane=map.createPane(name);
+                            pane.style.zIndex=String(395+i*5);
+                            pane.style.pointerEvents='none';
+                        });
                         layerGroup=L.layerGroup().addTo(map);
+                        L.control.zoom({position:'bottomright'}).addTo(map);
+                        L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
+                        try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
-                        map.on('moveend',()=>{ if(map._ready) fetchViewport(); });
-                        window.addEventListener('steps-map-shown',()=>{ if(!map) return; map.invalidateSize(); fetchViewport(); });
+                        map.on('moveend',()=>{ if(map.getZoom()>=2) fetchViewport(); });
+                        window.addEventListener('steps-map-shown',()=>{
+                            if(!map) return;
+                            didFit=false;
+                            requestAnimationFrame(()=>map.invalidateSize({pan:false}));
+                            setTimeout(()=>{ map.invalidateSize({pan:false}); fetchViewport(); },80);
+                        });
                         window.addEventListener('steps-map-focus',(event)=>{
                             const bbox=event.detail&&event.detail.bbox;
                             if(!bbox) return;
                             map.fitBounds([[bbox.minLat,bbox.minLon],[bbox.maxLat,bbox.maxLon]],{padding:[30,30],maxZoom:16});
                         });
+                        if(window.ResizeObserver){
+                            new ResizeObserver(()=>{ if(map && mapHost && !mapHost.hidden) map.invalidateSize({pan:false}); }).observe(canvas);
+                        }
                     }
                     function popupHtml(title, lines){
                         const div=document.createElement('div');
                         const strong=document.createElement('strong'); strong.textContent=title; div.appendChild(strong);
-                        (lines||[]).forEach(line=>{ const p=document.createElement('div'); p.textContent=line; p.style.fontSize='11px'; p.style.opacity='.8'; div.appendChild(p); });
+                        (lines||[]).forEach(line=>{ const p=document.createElement('div'); p.textContent=line; p.style.fontSize='11px'; p.style.opacity='.82'; div.appendChild(p); });
                         return div;
                     }
                     function addPoint(feature, style, title, lines){
                         const L=window.L;
                         const [lon,lat]=feature.geometry.coordinates;
-                        const marker=L.circleMarker([lat,lon],style).addTo(layerGroup);
+                        const marker=L.circleMarker([lat,lon],Object.assign({className:'map-dot',stroke:true,color:'#ffffff',weight:1.5},style)).addTo(layerGroup);
                         marker.bindPopup(popupHtml(title, lines));
+                        return marker;
+                    }
+                    function addCluster(feature, count){
+                        const L=window.L;
+                        const [lon,lat]=feature.geometry.coordinates;
+                        const size=Math.min(48, 26+Math.sqrt(count)*4);
+                        const marker=L.marker([lat,lon],{
+                            keyboard:false,
+                            icon:L.divIcon({className:'map-cluster', html:`<span>${count}</span>`, iconSize:[size,size], iconAnchor:[size/2,size/2]})
+                        }).addTo(layerGroup);
+                        marker.bindPopup(popupHtml(String(count), []));
                         return marker;
                     }
                     function render(features){
                         if(!map||!window.L) return;
+                        lastFeatures=Array.isArray(features)?features:[];
                         const L=window.L;
+                        const pointOpacity=Math.max(0.15, appearance.opacity/100);
+                        const baseRadius=Math.max(2, appearance.pointSize);
+                        const routeWidth=Math.max(1, appearance.routeWidth);
+                        const heatStrength=Math.max(0.1, appearance.heat/100);
                         layerGroup.clearLayers();
-                        features.forEach(feature=>{
+                        lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
-                            if(p.layer==='trip' && feature.geometry){
-                                L.geoJSON(feature,{style:{color:'#2b8aef',weight:3,opacity:.85}}).bindPopup(popupHtml(p.title||p.boundary_reason,['distance: '+Math.round(p.distance_m)+' m'])).addTo(layerGroup);
+                            if(!feature.geometry||!feature.geometry.coordinates) return;
+                            if(p.layer==='trip'){
+                                const popup=popupHtml(p.title||p.boundary_reason||'Trip',['distance: '+Math.round(p.distance_m||0)+' m']);
+                                L.geoJSON(feature,{pane:'routesGlow',style:{color:'#38bdf8',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                L.geoJSON(feature,{pane:'routes',style:{color:'#60a5fa',weight:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
                             } else if(p.layer==='place'){
-                                if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{radius:p.radius_m,color:p.color||'#22aa66',weight:1,fillOpacity:.08}).addTo(layerGroup);
-                                addPoint(feature,{radius:7,color:p.color||'#22aa66',fillOpacity:.9},p.name,[p.tag]);
-                            } else if(p.layer==='stop'||p.layer==='point_cluster'){
-                                const count=p.count||1;
-                                addPoint(feature,{radius:Math.min(18,6+Math.sqrt(count)*2),color:'#f59e0b',fillOpacity:.7},String(count),p.layer==='stop'?[t.summary.split('·')[1]||'stop']:[]);
+                                if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{pane:'mapBackdrop',radius:p.radius_m,color:p.color||'#22c55e',weight:1,opacity:0.6,fillColor:p.color||'#22c55e',fillOpacity:0.10}).addTo(layerGroup);
+                                addPoint(feature,{radius:baseRadius+2,color:p.color||'#22c55e',fillColor:p.color||'#22c55e',fillOpacity:pointOpacity},p.name||'place',[p.tag]);
+                            } else if(p.layer==='stop'){
+                                addPoint(feature,{radius:baseRadius-1,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:pointOpacity},p.name||'Stop',[p.started_at||'']);
+                            } else if(p.layer==='point_cluster'){
+                                addCluster(feature, p.count||1);
                             } else if(p.layer==='visit'){
-                                addPoint(feature,{radius:5,color:'#8b5cf6',fillOpacity:.85},p.place_name||'visit',[p.arrived_at||'']);
+                                addPoint(feature,{radius:baseRadius-0.5,color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:pointOpacity},p.place_name||'visit',[p.arrived_at||'']);
                             } else if(p.layer==='point'){
-                                addPoint(feature,{radius:3,color:p.quality_state==='flagged'?'#ef4444':'#0ea5e9',fillOpacity:.8},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
+                                const flagged=p.quality_state==='flagged';
+                                addPoint(feature,{radius:Math.max(2,baseRadius-2),color:flagged?'#ef4444':'#0ea5e9',fillColor:flagged?'#ef4444':'#0ea5e9',fillOpacity:pointOpacity},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
                             } else if(p.layer==='heatmap'){
-                                addPoint(feature,{radius:10,color:'#ef4444',stroke:false,fillOpacity:.12+0.5*(p.intensity||0)},String(p.weight||0),[]);
+                                const intensity=(p.intensity||0)*heatStrength;
+                                addPoint(feature,{pane:'mapBackdrop',radius:Math.max(8,baseRadius*2.4),stroke:false,fillColor: p.quality_state==='flagged'?'#ef4444':'#f97316',fillOpacity:Math.min(0.85,0.10+0.7*intensity)},String(p.weight||0),[]);
                             } else if(p.layer==='explored'){
-                                addPoint(feature,{radius:8,color:'#10b981',stroke:false,fillOpacity:.25},String(p.visits||0),[]);
+                                addPoint(feature,{pane:'mapBackdrop',radius:Math.max(6,baseRadius*1.8),stroke:false,fillColor:'#10b981',fillOpacity:Math.min(0.6,0.12+0.35*heatStrength)},String(p.visits||0),[]);
                             }
                         });
                     }
@@ -316,44 +456,64 @@ $metricButtons = [
                         if(!isFinite(span)||span<=0||span>85||(b.getNorth()-b.getSouth())>85) return '';
                         return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(5)).join(',');
                     }
+                    let fetchPending=false;
                     async function fetchViewport(){
-                        if(busy) return; busy=true;
+                        if(busy){ fetchPending=true; return; }
+                        busy=true;
                         summary.textContent=t.loading; showError('');
                         try{
                             const params=new URLSearchParams();
-                            const bbox=bboxQuery(); if(bbox) params.set('bbox',bbox);
+                            const bbox=didFit?bboxQuery():''; if(bbox) params.set('bbox',bbox);
                             params.set('from',fromInput.value+'T00:00:00Z');
                             params.set('to',toInput.value+'T23:59:59Z');
                             params.set('zoom',String(map?Math.round(map.getZoom()):12));
                             params.set('layers',selectedLayers().join(','));
-                            const res=await fetch('/api/steps/geolocation_map?'+params.toString(),{credentials:'same-origin'});
+                            const res=await fetch('/apps/steps/api/geolocation_map_session.php?'+params.toString(),{credentials:'same-origin'});
                             const data=await res.json();
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                             providers=data.providers||providers;
+                            if(!provider) provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
                             if(!providerSel.options.length) renderProviders();
                             render(data.geojson.features);
                             const c=data.meta.counts||{};
                             summary.textContent=t.summary.replace('{trips}',c.trips||0).replace('{stops}',(c.stops||0)+(c.point_clusters||0)).replace('{places}',c.places||0).replace('{visits}',c.visits||0).replace('{points}',c.points||(c.point_clusters||0));
-                            if(map && !map._ready && data.bbox){
-                                map._ready=true;
-                                map.fitBounds([[data.bbox.minLat,data.bbox.minLon],[data.bbox.maxLat,data.bbox.maxLon]],{padding:[20,20]});
-                                map._ready=false; map._ready=true;
+                            const mapReady=map && mapHost && !mapHost.hidden && canvas.clientWidth>60 && canvas.clientHeight>60;
+                            if(mapReady && !didFit){
+                                // data.bbox is the requested viewport on later calls, so fit to the
+                                // rendered features instead of echoing the current view back.
+                                const bounds=layerGroup.getBounds&&layerGroup.getBounds();
+                                if(bounds&&bounds.isValid()){
+                                    didFit=true;
+                                    map.fitBounds(bounds,{padding:[40,40],animate:false,maxZoom:15});
+                                } else if(data.bbox){
+                                    didFit=true;
+                                    map.fitBounds([[data.bbox.minLat,data.bbox.minLon],[data.bbox.maxLat,data.bbox.maxLon]],{padding:[28,28],animate:false,maxZoom:15});
+                                }
                             }
                             if(data.geojson.features.length===0) summary.textContent=t.empty;
                         }catch(e){ showError((e&&e.message)||t.error); summary.textContent=''; }
-                        finally{ busy=false; }
+                        finally{
+                            busy=false;
+                            if(fetchPending){ fetchPending=false; fetchViewport(); }
+                        }
                     }
                     async function loadSettings(){
                         try{
-                            const res=await fetch('/api/steps/geolocation_map?settings=1',{credentials:'same-origin'});
+                            const res=await fetch('/apps/steps/api/geolocation_map_session.php?settings=1',{credentials:'same-origin'});
                             const data=await res.json();
-                            if(data.ok){ providers=data.providers||{}; provider=(data.settings&&data.settings.provider)||'osm'; renderProviders(); }
+                            if(data.ok){
+                                providers=data.providers||{};
+                                provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
+                                if(!keylessProviders.includes(provider)) provider=providers.esri_dark?'esri_dark':'osm';
+                                renderProviders();
+                            }
                         }catch(e){ /* defaults stay usable */ }
                     }
                     function saveSettings(){
-                        fetch('/api/steps/geolocation_map?settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
+                        fetch('/apps/steps/api/geolocation_map_session.php?settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
                     }
                     refresh.addEventListener('click',fetchViewport);
+                    resetBtn.addEventListener('click',resetAppearance);
                     fromInput.addEventListener('change',fetchViewport);
                     toInput.addEventListener('change',fetchViewport);
                     providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
@@ -361,8 +521,14 @@ $metricButtons = [
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
                     (async function(){
                         await loadSettings();
-                        try{ const L=await ensureLeaflet(); makeMap(L); }
-                        catch(e){ canvas.style.display='none'; showError(t.unavailable); }
+                        try{
+                            const L=await ensureLeaflet();
+                            makeMap(L);
+                        }
+                        catch(e){
+                            canvas.style.display='none';
+                            showError(t.unavailable);
+                        }
                         await fetchViewport();
                     })();
                 })();
