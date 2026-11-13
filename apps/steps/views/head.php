@@ -4138,6 +4138,27 @@ height: 48px;
     .settings-tab i { font-size: 15px; }
     .settings-map-section { padding: 14px; }
 }
+.data-type-icon {
+    width: clamp(28px, 4vh, 40px);
+    height: clamp(28px, 4vh, 40px);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background: var(--metric-color, var(--primary-color));
+    color: #fff;
+    box-shadow: 0 8px 14px rgba(0, 0, 0, 0.16);
+    transition: transform 0.18s ease;
+}
+.data-type-btn .data-type-icon i,
+.data-type-btn:hover .data-type-icon i,
+.data-type-btn.active .data-type-icon i {
+    font-size: clamp(13px, 1.9vh, 18px);
+    line-height: 1;
+    color: #fff;
+}
+.data-type-btn:hover .data-type-icon,
+.data-type-btn.active .data-type-icon { transform: scale(1.08); }
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>
