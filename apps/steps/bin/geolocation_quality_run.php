@@ -13,6 +13,7 @@
  */
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_quality.php';
+require_once dirname(__DIR__) . '/core/geolocation_trips.php';
 
 /**
  * @return array{processed:int,failed:int}
@@ -88,6 +89,9 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
             $finish->execute([':details' => json_encode($summary, JSON_UNESCAPED_SLASHES), ':id' => $runId]);
             $pdo->commit();
             $processed += count($rows);
+            if ($counts['accepted'] > 0) {
+                try { StepsGeolocationTrips::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation trips enqueue: ' . $e->getMessage()); }
+            }
             fwrite(STDOUT, "quality: {$owner} processed " . count($rows) . " point(s)\n");
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
