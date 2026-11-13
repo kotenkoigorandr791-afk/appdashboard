@@ -13,6 +13,7 @@
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_trips.php';
+require_once dirname(__DIR__) . '/core/geolocation_stops.php';
 
 function steps_trips_rebuild_trip(PDO $pdo, string $owner, array $trip, string $version, array $thresholds): void
 {
@@ -136,6 +137,9 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             $pdo->commit();
             $processed += count($merged);
             $dropped += $result['dropped'];
+            if ($result['trips'] !== []) {
+                try { StepsGeolocationStops::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation stops enqueue: ' . $e->getMessage()); }
+            }
             fwrite(STDOUT, "trips: {$owner} {$details['trips']} trip(s) from " . count($merged) . " point(s)\n");
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
