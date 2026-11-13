@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">추적</string>
+    <string name="tracking_title">백그라운드 위치</string>
+    <string name="tracking_desc">앱이 닫혀 있어도 이동, 정차, 타임라인이 완전하게 남도록 위치를 기록합니다.</string>
+    <string name="tracking_privacy">이 지점은 연결된 서버만 받습니다. 각 측정값은 먼저 이 기기에 저장된 뒤 기기 ID와 고유 이벤트 ID와 함께 전송되므로 재시도해도 중복이 생기지 않습니다. 좌표는 일반 로그에 기록되지 않습니다. 추적은 시작을 눌렀을 때만 시작되고 일시정지 또는 중지로 끝납니다.</string>
+    <string name="tracking_status_off">추적이 꺼져 있습니다</string>
+    <string name="tracking_status_running">추적이 켜져 있습니다</string>
+    <string name="tracking_status_paused">추적이 일시정지되었습니다</string>
+    <string name="tracking_status_permission">위치 권한이 없습니다</string>
+    <string name="tracking_status_no_connection">먼저 서버에 연결하세요</string>
+    <string name="tracking_start">추적 시작</string>
+    <string name="tracking_pause">일시정지</string>
+    <string name="tracking_resume">재개</string>
+    <string name="tracking_stop">중지</string>
+    <string name="tracking_pending">업로드 대기 중인 측정값 %1$d개</string>
+    <string name="tracking_last_upload_never">아직 업로드 없음</string>
+    <string name="tracking_last_upload_ok">마지막 업로드 %1$s</string>
+    <string name="tracking_last_upload_failed">업로드 실패: %1$s</string>
+    <string name="tracking_interval_title">샘플링 간격</string>
+    <string name="tracking_interval_value">%1$d분</string>
+    <string name="tracking_accuracy_title">정확도</string>
+    <string name="tracking_accuracy_high">높음</string>
+    <string name="tracking_accuracy_balanced">균형</string>
+    <string name="tracking_accuracy_low">배터리 절약</string>
+    <string name="tracking_perm_foreground_title">앱 사용 중 위치 허용</string>
+    <string name="tracking_perm_foreground_desc">측정값을 기록하려면 필요합니다.</string>
+    <string name="tracking_perm_background_title">항상 위치 허용</string>
+    <string name="tracking_perm_background_desc">Android 시스템 설정에서 요청합니다. 허용하지 않으면 앱을 벗어날 때 기록이 중단됩니다.</string>
+    <string name="tracking_perm_grant">허용</string>
+    <string name="tracking_perm_settings">시스템 설정 열기</string>
+    <string name="tracking_perm_notifications">알림이 꺼져 있어 추적 상태가 보이지 않습니다.</string>
+    <string name="tracking_requires_connection">추적을 시작하기 전에 이 기기를 Steps 서버와 페어링하세요.</string>
+    <string name="tracking_autostart_hint">기기 재시작 전에 추적이 켜져 있었습니다. 시작을 눌러 계속하세요.</string>
+    <string name="tracking_channel_name">위치 추적</string>
+    <string name="tracking_channel_desc">위치 기록이 실행 중임을 표시합니다</string>
+    <string name="tracking_notification_title">위치 추적이 켜져 있습니다</string>
+    <string name="tracking_notification_text">업로드 대기 중인 측정값 %1$d개</string>
+    <string name="tracking_action_pause">일시정지</string>
+    <string name="tracking_action_stop">중지</string>
 </resources>

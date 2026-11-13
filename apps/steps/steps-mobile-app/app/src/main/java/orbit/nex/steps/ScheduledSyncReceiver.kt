@@ -56,6 +56,9 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                 if (intent.action == Intent.ACTION_MY_PACKAGE_REPLACED) {
                     prefsManager.setWhatsNewPending(true)
                 }
+                // Restore background location recording after reboot or an update.
+                // The service is restarted only when the user had enabled it.
+                orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(context)
                 AppUpdateManager.start(context)
             }
         }

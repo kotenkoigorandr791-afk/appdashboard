@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Tracking</string>
+    <string name="tracking_title">Standort im Hintergrund</string>
+    <string name="tracking_desc">Zeichnet Ihren Standort auf, damit Reisen, Stopps und die Zeitleiste auch bei geschlossener App vollständig bleiben.</string>
+    <string name="tracking_privacy">Nur Ihr gekoppelter Server erhält diese Punkte. Jede Messung wird zuerst auf diesem Telefon gespeichert und dann mit dieser Geräte-ID und einer eindeutigen Ereignis-ID hochgeladen, sodass Wiederholungen keine Duplikate erzeugen. Koordinaten werden nie in gewöhnliche Protokolle geschrieben. Die Aufzeichnung startet nur über „Start“ und endet über „Pause“ oder „Stopp“.</string>
+    <string name="tracking_status_off">Tracking ist aus</string>
+    <string name="tracking_status_running">Tracking ist an</string>
+    <string name="tracking_status_paused">Tracking ist pausiert</string>
+    <string name="tracking_status_permission">Standortberechtigung fehlt</string>
+    <string name="tracking_status_no_connection">Zuerst mit dem Server verbinden</string>
+    <string name="tracking_start">Tracking starten</string>
+    <string name="tracking_pause">Pause</string>
+    <string name="tracking_resume">Fortsetzen</string>
+    <string name="tracking_stop">Stopp</string>
+    <string name="tracking_pending">%1$d Messungen warten auf Upload</string>
+    <string name="tracking_last_upload_never">Noch kein Upload</string>
+    <string name="tracking_last_upload_ok">Letzter Upload um %1$s</string>
+    <string name="tracking_last_upload_failed">Upload fehlgeschlagen: %1$s</string>
+    <string name="tracking_interval_title">Messintervall</string>
+    <string name="tracking_interval_value">%1$d Min.</string>
+    <string name="tracking_accuracy_title">Genauigkeit</string>
+    <string name="tracking_accuracy_high">Hoch</string>
+    <string name="tracking_accuracy_balanced">Ausgeglichen</string>
+    <string name="tracking_accuracy_low">Akku sparen</string>
+    <string name="tracking_perm_foreground_title">Standort bei App-Nutzung erlauben</string>
+    <string name="tracking_perm_foreground_desc">Erforderlich, um überhaupt Messungen aufzuzeichnen.</string>
+    <string name="tracking_perm_background_title">Standort immer erlauben</string>
+    <string name="tracking_perm_background_desc">Android fragt dies in den Systemeinstellungen. Ohne diese Freigabe endet die Aufzeichnung, sobald Sie die App verlassen.</string>
+    <string name="tracking_perm_grant">Erlauben</string>
+    <string name="tracking_perm_settings">Systemeinstellungen öffnen</string>
+    <string name="tracking_perm_notifications">Benachrichtigungen sind deaktiviert, daher ist der Tracking-Status nicht sichtbar.</string>
+    <string name="tracking_requires_connection">Koppeln Sie dieses Telefon zuerst mit Ihrem Steps-Server.</string>
+    <string name="tracking_autostart_hint">Tracking war vor dem Neustart des Telefons aktiv. Tippen Sie auf „Start“, um fortzufahren.</string>
+    <string name="tracking_channel_name">Standortverfolgung</string>
+    <string name="tracking_channel_desc">Zeigt an, dass die Standortaufzeichnung läuft</string>
+    <string name="tracking_notification_title">Standortverfolgung ist an</string>
+    <string name="tracking_notification_text">%1$d Messungen warten auf Upload</string>
+    <string name="tracking_action_pause">Pause</string>
+    <string name="tracking_action_stop">Stopp</string>
 </resources>

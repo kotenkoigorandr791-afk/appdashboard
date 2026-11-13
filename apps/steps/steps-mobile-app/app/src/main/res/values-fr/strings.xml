@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Suivi</string>
+    <string name="tracking_title">Localisation en arrière-plan</string>
+    <string name="tracking_desc">Enregistre votre position pour que les trajets, arrêts et la chronologie restent complets lorsque l’application est fermée.</string>
+    <string name="tracking_privacy">Seul votre serveur appairé reçoit ces points. Chaque mesure est enregistrée d’abord sur ce téléphone, puis envoyée avec l’identifiant de cet appareil et un identifiant d’événement unique, afin que les nouvelles tentatives ne créent jamais de doublon. Les coordonnées ne sont jamais écrites dans les journaux ordinaires. Le suivi ne démarre qu’après « Démarrer » et s’arrête via « Pause » ou « Arrêter ».</string>
+    <string name="tracking_status_off">Le suivi est désactivé</string>
+    <string name="tracking_status_running">Le suivi est activé</string>
+    <string name="tracking_status_paused">Le suivi est en pause</string>
+    <string name="tracking_status_permission">Autorisation de localisation manquante</string>
+    <string name="tracking_status_no_connection">Connectez-vous d’abord au serveur</string>
+    <string name="tracking_start">Démarrer le suivi</string>
+    <string name="tracking_pause">Pause</string>
+    <string name="tracking_resume">Reprendre</string>
+    <string name="tracking_stop">Arrêter</string>
+    <string name="tracking_pending">%1$d mesures en attente d’envoi</string>
+    <string name="tracking_last_upload_never">Aucun envoi pour le moment</string>
+    <string name="tracking_last_upload_ok">Dernier envoi à %1$s</string>
+    <string name="tracking_last_upload_failed">Échec de l’envoi : %1$s</string>
+    <string name="tracking_interval_title">Intervalle d’échantillonnage</string>
+    <string name="tracking_interval_value">%1$d min</string>
+    <string name="tracking_accuracy_title">Précision</string>
+    <string name="tracking_accuracy_high">Élevée</string>
+    <string name="tracking_accuracy_balanced">Équilibrée</string>
+    <string name="tracking_accuracy_low">Économie de batterie</string>
+    <string name="tracking_perm_foreground_title">Autoriser la localisation pendant l’utilisation</string>
+    <string name="tracking_perm_foreground_desc">Nécessaire pour enregistrer des mesures.</string>
+    <string name="tracking_perm_background_title">Autoriser la localisation en permanence</string>
+    <string name="tracking_perm_background_desc">Android le demande dans les réglages système. Sans cela, l’enregistrement s’arrête lorsque vous quittez l’application.</string>
+    <string name="tracking_perm_grant">Autoriser</string>
+    <string name="tracking_perm_settings">Ouvrir les réglages système</string>
+    <string name="tracking_perm_notifications">Les notifications sont désactivées, le statut du suivi n’est donc pas visible.</string>
+    <string name="tracking_requires_connection">Appairez d’abord ce téléphone avec votre serveur Steps.</string>
+    <string name="tracking_autostart_hint">Le suivi était actif avant le redémarrage du téléphone. Appuyez sur « Démarrer » pour continuer.</string>
+    <string name="tracking_channel_name">Suivi de localisation</string>
+    <string name="tracking_channel_desc">Indique que l’enregistrement de la localisation est actif</string>
+    <string name="tracking_notification_title">Le suivi de localisation est activé</string>
+    <string name="tracking_notification_text">%1$d mesures en attente d’envoi</string>
+    <string name="tracking_action_pause">Pause</string>
+    <string name="tracking_action_stop">Arrêter</string>
 </resources>

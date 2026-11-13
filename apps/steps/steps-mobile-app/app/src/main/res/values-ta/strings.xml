@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">கண்காணிப்பு</string>
+    <string name="tracking_title">பின்னணி இருப்பிடம்</string>
+    <string name="tracking_desc">செயலி மூடப்பட்டிருந்தாலும் பயணங்கள், நிறுத்தங்கள், காலவரிசை முழுமையாக இருக்க உங்கள் இருப்பிடத்தைப் பதிவு செய்கிறது.</string>
+    <string name="tracking_privacy">இந்தப் புள்ளிகளை உங்கள் இணைக்கப்பட்ட சேவையகம் மட்டுமே பெறும். ஒவ்வொரு அளவீடும் முதலில் இந்த மொபைலில் சேமிக்கப்பட்டு, சாதன ஐடி மற்றும் தனித்துவமான நிகழ்வு ஐடியுடன் பதிவேற்றப்படும், எனவே மீண்டும் முயலும்போது நகல்கள் உருவாகாது. ஆயத்தொலைவுகள் சாதாரண பதிவுகளில் எழுதப்படுவதில்லை. தொடங்கு அழுத்தினால் மட்டுமே கண்காணிப்பு தொடங்கும், இடைநிறுத்து அல்லது நிறுத்து அழுத்தினால் முடிவடையும்.</string>
+    <string name="tracking_status_off">கண்காணிப்பு அணைக்கப்பட்டுள்ளது</string>
+    <string name="tracking_status_running">கண்காணிப்பு இயக்கத்தில் உள்ளது</string>
+    <string name="tracking_status_paused">கண்காணிப்பு இடைநிறுத்தப்பட்டுள்ளது</string>
+    <string name="tracking_status_permission">இருப்பிட அனுமதி இல்லை</string>
+    <string name="tracking_status_no_connection">முதலில் சேவையகத்துடன் இணைக்கவும்</string>
+    <string name="tracking_start">கண்காணிப்பைத் தொடங்கு</string>
+    <string name="tracking_pause">இடைநிறுத்து</string>
+    <string name="tracking_resume">தொடர்</string>
+    <string name="tracking_stop">நிறுத்து</string>
+    <string name="tracking_pending">பதிவேற்ற காத்திருக்கும் அளவீடுகள்: %1$d</string>
+    <string name="tracking_last_upload_never">இன்னும் பதிவேற்றம் இல்லை</string>
+    <string name="tracking_last_upload_ok">கடைசி பதிவேற்றம் %1$s</string>
+    <string name="tracking_last_upload_failed">பதிவேற்றம் தோல்வி: %1$s</string>
+    <string name="tracking_interval_title">மாதிரி இடைவெளி</string>
+    <string name="tracking_interval_value">%1$d நிமிடம்</string>
+    <string name="tracking_accuracy_title">துல்லியம்</string>
+    <string name="tracking_accuracy_high">அதிகம்</string>
+    <string name="tracking_accuracy_balanced">சமநிலை</string>
+    <string name="tracking_accuracy_low">மின்கல சேமிப்பு</string>
+    <string name="tracking_perm_foreground_title">செயலி பயன்பாட்டின்போது இருப்பிடத்தை அனுமதி</string>
+    <string name="tracking_perm_foreground_desc">எந்த அளவீட்டையும் பதிவு செய்ய இது தேவை.</string>
+    <string name="tracking_perm_background_title">எப்போதும் இருப்பிடத்தை அனுமதி</string>
+    <string name="tracking_perm_background_desc">Android இதை கணினி அமைப்புகளில் கேட்கும். இல்லையெனில், செயலியை விட்டு வெளியேறும்போது பதிவு நிற்கும்.</string>
+    <string name="tracking_perm_grant">அனுமதி</string>
+    <string name="tracking_perm_settings">கணினி அமைப்புகளைத் திற</string>
+    <string name="tracking_perm_notifications">அறிவிப்புகள் முடக்கப்பட்டுள்ளதால் கண்காணிப்பு நிலை தெரியாது.</string>
+    <string name="tracking_requires_connection">கண்காணிப்பைத் தொடங்கும் முன் இந்த மொபைலை Steps சேவையகத்துடன் இணைக்கவும்.</string>
+    <string name="tracking_autostart_hint">மொபைல் மீள்தொடக்கத்திற்கு முன் கண்காணிப்பு இயக்கத்தில் இருந்தது. தொடர தொடங்கு அழுத்தவும்.</string>
+    <string name="tracking_channel_name">இருப்பிடக் கண்காணிப்பு</string>
+    <string name="tracking_channel_desc">இருப்பிடப் பதிவு இயங்குவதைக் காட்டுகிறது</string>
+    <string name="tracking_notification_title">இருப்பிடக் கண்காணிப்பு இயக்கத்தில் உள்ளது</string>
+    <string name="tracking_notification_text">பதிவேற்ற காத்திருக்கும் அளவீடுகள்: %1$d</string>
+    <string name="tracking_action_pause">இடைநிறுத்து</string>
+    <string name="tracking_action_stop">நிறுத்து</string>
 </resources>

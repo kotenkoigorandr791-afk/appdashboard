@@ -634,4 +634,44 @@
     <string name="unit_mmhg">%1$s мм рт. ст.</string>
     <string name="unit_percent">%1$s%%</string>
     <string name="settings_personalization_desc">Тема, цвет акцента, язык и ориентация экрана</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Трекинг</string>
+    <string name="tracking_title">Геолокация в фоне</string>
+    <string name="tracking_desc">Записывает ваше местоположение, чтобы поездки, остановки и хронология оставались полными при закрытом приложении.</string>
+    <string name="tracking_privacy">Эти точки получает только ваш подключённый сервер. Каждое измерение сначала сохраняется на телефоне, затем отправляется с идентификатором устройства и уникальным идентификатором события, поэтому повторные попытки не создают дубликатов. Координаты никогда не пишутся в обычные логи. Запись начинается только после нажатия «Начать» и прекращается по кнопкам «Пауза» или «Стоп».</string>
+    <string name="tracking_status_off">Запись выключена</string>
+    <string name="tracking_status_running">Запись включена</string>
+    <string name="tracking_status_paused">Запись на паузе</string>
+    <string name="tracking_status_permission">Нет разрешения на геолокацию</string>
+    <string name="tracking_status_no_connection">Сначала подключитесь к серверу</string>
+    <string name="tracking_start">Начать запись</string>
+    <string name="tracking_pause">Пауза</string>
+    <string name="tracking_resume">Продолжить</string>
+    <string name="tracking_stop">Стоп</string>
+    <string name="tracking_pending">%1$d измерений ждут отправки</string>
+    <string name="tracking_last_upload_never">Отправок ещё не было</string>
+    <string name="tracking_last_upload_ok">Последняя отправка в %1$s</string>
+    <string name="tracking_last_upload_failed">Ошибка отправки: %1$s</string>
+    <string name="tracking_interval_title">Интервал измерений</string>
+    <string name="tracking_interval_value">%1$d мин</string>
+    <string name="tracking_accuracy_title">Точность</string>
+    <string name="tracking_accuracy_high">Высокая</string>
+    <string name="tracking_accuracy_balanced">Сбалансированная</string>
+    <string name="tracking_accuracy_low">Экономия батареи</string>
+    <string name="tracking_perm_foreground_title">Разрешить геолокацию при использовании приложения</string>
+    <string name="tracking_perm_foreground_desc">Нужно, чтобы записывать измерения.</string>
+    <string name="tracking_perm_background_title">Разрешить геолокацию всегда</string>
+    <string name="tracking_perm_background_desc">Android запрашивает это в системных настройках. Без этого запись останавливается, когда вы выходите из приложения.</string>
+    <string name="tracking_perm_grant">Разрешить</string>
+    <string name="tracking_perm_settings">Открыть настройки системы</string>
+    <string name="tracking_perm_notifications">Уведомления отключены, поэтому статус записи не виден.</string>
+    <string name="tracking_requires_connection">Сначала подключите телефон к серверу Steps.</string>
+    <string name="tracking_autostart_hint">Запись была включена до перезагрузки телефона. Нажмите «Начать», чтобы продолжить.</string>
+    <string name="tracking_channel_name">Отслеживание местоположения</string>
+    <string name="tracking_channel_desc">Показывает, что запись местоположения работает</string>
+    <string name="tracking_notification_title">Отслеживание местоположения включено</string>
+    <string name="tracking_notification_text">%1$d измерений ждут отправки</string>
+    <string name="tracking_action_pause">Пауза</string>
+    <string name="tracking_action_stop">Стоп</string>
 </resources>

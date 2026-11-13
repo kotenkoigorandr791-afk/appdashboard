@@ -2,6 +2,7 @@ package orbit.nex.steps
 
 import android.content.Context
 import android.content.SharedPreferences
+import orbit.nex.steps.location.LocationAccuracy
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 
@@ -76,6 +77,16 @@ class PreferencesManager(context: Context) {
         private const val KEY_CONFLICT_REMEMBER = "conflict_remember"
         private const val KEY_CONFLICT_DEFAULT_ACTION = "conflict_default_action"
         private const val KEY_DEVICE_ID = "device_id"
+        private const val KEY_LOCATION_TRACKING_ENABLED = "location_tracking_enabled"
+        private const val KEY_LOCATION_TRACKING_PAUSED = "location_tracking_paused"
+        private const val KEY_LOCATION_INTERVAL_MINUTES = "location_interval_minutes"
+        private const val KEY_LOCATION_ACCURACY = "location_accuracy"
+        private const val KEY_LOCATION_SEQUENCE = "location_sequence"
+        private const val KEY_LOCATION_DEVICE_ID = "location_device_id"
+        private const val KEY_LOCATION_PERMISSION_LOST = "location_permission_lost"
+        private const val KEY_LOCATION_UPLOAD_OK_AT = "location_upload_ok_at"
+        private const val KEY_LOCATION_UPLOAD_ERROR = "location_upload_error"
+        private const val DEFAULT_LOCATION_INTERVAL_MINUTES = 15
         private const val KEY_LAST_SYNC_OK_AT = "last_sync_ok_at"
         private const val KEY_LAST_AUTH_ERROR_AT = "last_auth_error_at"
         private const val KEY_LAST_AUTH_ERROR_CODE = "last_auth_error_code"
@@ -716,6 +727,85 @@ class PreferencesManager(context: Context) {
         val generated = java.util.UUID.randomUUID().toString().replace("-", "")
         prefs.edit().putString(KEY_DEVICE_ID, generated).apply()
         return generated
+    }
+
+    // -------------------------------------------------------------------------
+    // Background location tracking
+    // -------------------------------------------------------------------------
+
+    fun isLocationTrackingEnabled(): Boolean =
+        prefs.getBoolean(KEY_LOCATION_TRACKING_ENABLED, false)
+
+    fun setLocationTrackingEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCATION_TRACKING_ENABLED, enabled).apply()
+    }
+
+    fun isLocationTrackingPaused(): Boolean =
+        prefs.getBoolean(KEY_LOCATION_TRACKING_PAUSED, false)
+
+    fun setLocationTrackingPaused(paused: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCATION_TRACKING_PAUSED, paused).apply()
+    }
+
+    /** Sampling interval in minutes; clamped to the range the UI offers. */
+    fun getLocationIntervalMinutes(): Int =
+        prefs.getInt(KEY_LOCATION_INTERVAL_MINUTES, DEFAULT_LOCATION_INTERVAL_MINUTES).coerceIn(1, 60)
+
+    fun setLocationIntervalMinutes(minutes: Int) {
+        prefs.edit().putInt(KEY_LOCATION_INTERVAL_MINUTES, minutes.coerceIn(1, 60)).apply()
+    }
+
+    fun getLocationAccuracy(): LocationAccuracy =
+        LocationAccuracy.fromStorage(prefs.getString(KEY_LOCATION_ACCURACY, null))
+
+    fun setLocationAccuracy(accuracy: LocationAccuracy) {
+        prefs.edit().putString(KEY_LOCATION_ACCURACY, accuracy.storageValue).apply()
+    }
+
+    /**
+     * Installation id for location records. The websync device id is stored as
+     * compact hex; the geolocation API expects a dashed UUID, so location keeps
+     * its own generated id instead of reformatting the pairing identity.
+     */
+    fun getLocationDeviceId(): String {
+        val existing = prefs.getString(KEY_LOCATION_DEVICE_ID, null)
+        if (!existing.isNullOrBlank()) return existing
+        val generated = java.util.UUID.randomUUID().toString()
+        prefs.edit().putString(KEY_LOCATION_DEVICE_ID, generated).apply()
+        return generated
+    }
+
+    /** Monotonic per-installation counter sent with every measurement. */
+    fun nextLocationSequence(): Long {
+        val next = prefs.getLong(KEY_LOCATION_SEQUENCE, 0L) + 1L
+        prefs.edit().putLong(KEY_LOCATION_SEQUENCE, next).apply()
+        return next
+    }
+
+    fun isLocationPermissionLost(): Boolean =
+        prefs.getBoolean(KEY_LOCATION_PERMISSION_LOST, false)
+
+    fun setLocationPermissionLost(lost: Boolean) {
+        prefs.edit().putBoolean(KEY_LOCATION_PERMISSION_LOST, lost).apply()
+    }
+
+    fun getLocationUploadOkAt(): Long? {
+        val value = prefs.getLong(KEY_LOCATION_UPLOAD_OK_AT, 0L)
+        return if (value == 0L) null else value
+    }
+
+    fun getLocationUploadError(): String? =
+        prefs.getString(KEY_LOCATION_UPLOAD_ERROR, null)?.takeIf { it.isNotBlank() }
+
+    fun setLocationUploadSuccess() {
+        prefs.edit()
+            .putLong(KEY_LOCATION_UPLOAD_OK_AT, System.currentTimeMillis())
+            .remove(KEY_LOCATION_UPLOAD_ERROR)
+            .apply()
+    }
+
+    fun setLocationUploadFailure(message: String) {
+        prefs.edit().putString(KEY_LOCATION_UPLOAD_ERROR, message).apply()
     }
 
     fun markSyncSuccess() {

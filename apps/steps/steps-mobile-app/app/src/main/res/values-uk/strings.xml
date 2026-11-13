@@ -568,4 +568,44 @@
     <string name="settings_conflict_default_action">Дія за замовчуванням</string>
     <string name="settings_conflict_forget">Очистити пам’ять (показувати діалог щоразу)</string>
 
-<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="next_sync_title">Next Sync</string><string name="next_sync_at">at %1$s</string><string name="next_sync_in">in %1$s</string><string name="next_sync_not_scheduled">No sync scheduled</string><string name="next_sync_not_synced_yet">Not synced yet</string><string name="conflict_remember">Remember my choice</string><string name="manual_sync_previous_day">Previous day</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string></resources>
+<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="next_sync_title">Next Sync</string><string name="next_sync_at">at %1$s</string><string name="next_sync_in">in %1$s</string><string name="next_sync_not_scheduled">No sync scheduled</string><string name="next_sync_not_synced_yet">Not synced yet</string><string name="conflict_remember">Remember my choice</string><string name="manual_sync_previous_day">Previous day</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string>
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Трекінг</string>
+    <string name="tracking_title">Геолокація у фоні</string>
+    <string name="tracking_desc">Записує ваше місцеположення, щоб поїздки, зупинки та хронологія залишалися повними, коли застосунок закрито.</string>
+    <string name="tracking_privacy">Ці точки отримує лише ваш підключений сервер. Кожне вимірювання спершу зберігається на телефоні, а потім надсилається з ідентифікатором пристрою та унікальним ідентифікатором події, тому повторні спроби не створюють дублікатів. Координати ніколи не записуються у звичайні логи. Запис починається лише після натискання «Почати» і припиняється кнопками «Пауза» або «Стоп».</string>
+    <string name="tracking_status_off">Запис вимкнено</string>
+    <string name="tracking_status_running">Запис увімкнено</string>
+    <string name="tracking_status_paused">Запис призупинено</string>
+    <string name="tracking_status_permission">Немає дозволу на геолокацію</string>
+    <string name="tracking_status_no_connection">Спершу підключіться до сервера</string>
+    <string name="tracking_start">Почати запис</string>
+    <string name="tracking_pause">Пауза</string>
+    <string name="tracking_resume">Продовжити</string>
+    <string name="tracking_stop">Стоп</string>
+    <string name="tracking_pending">%1$d вимірювань очікують надсилання</string>
+    <string name="tracking_last_upload_never">Надсилань ще не було</string>
+    <string name="tracking_last_upload_ok">Останнє надсилання о %1$s</string>
+    <string name="tracking_last_upload_failed">Помилка надсилання: %1$s</string>
+    <string name="tracking_interval_title">Інтервал вимірювань</string>
+    <string name="tracking_interval_value">%1$d хв</string>
+    <string name="tracking_accuracy_title">Точність</string>
+    <string name="tracking_accuracy_high">Висока</string>
+    <string name="tracking_accuracy_balanced">Збалансована</string>
+    <string name="tracking_accuracy_low">Економія батареї</string>
+    <string name="tracking_perm_foreground_title">Дозволити геолокацію під час використання застосунку</string>
+    <string name="tracking_perm_foreground_desc">Потрібно, щоб записувати вимірювання.</string>
+    <string name="tracking_perm_background_title">Дозволити геолокацію завжди</string>
+    <string name="tracking_perm_background_desc">Android запитує це в системних налаштуваннях. Без цього запис зупиняється, коли ви виходите із застосунку.</string>
+    <string name="tracking_perm_grant">Дозволити</string>
+    <string name="tracking_perm_settings">Відкрити системні налаштування</string>
+    <string name="tracking_perm_notifications">Сповіщення вимкнено, тому статус запису не видно.</string>
+    <string name="tracking_requires_connection">Спершу підключіть телефон до сервера Steps.</string>
+    <string name="tracking_autostart_hint">Запис було ввімкнено до перезавантаження телефона. Натисніть «Почати», щоб продовжити.</string>
+    <string name="tracking_channel_name">Відстеження місцеположення</string>
+    <string name="tracking_channel_desc">Показує, що запис місцеположення працює</string>
+    <string name="tracking_notification_title">Відстеження місцеположення ввімкнено</string>
+    <string name="tracking_notification_text">%1$d вимірювань очікують надсилання</string>
+    <string name="tracking_action_pause">Пауза</string>
+    <string name="tracking_action_stop">Стоп</string>
+</resources>

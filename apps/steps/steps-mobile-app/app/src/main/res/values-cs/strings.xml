@@ -573,4 +573,44 @@
     <string name="notifications_label_key">Klíč</string>
     <string name="notifications_label_value">Hodnota</string>
     <string name="notifications_local_push_desc">Pošle systémové oznámení v Androidu po každé synchronizaci. Klepnutím otevřete logy.</string>
-<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string></resources>
+<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string>
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Sledování</string>
+    <string name="tracking_title">Poloha na pozadí</string>
+    <string name="tracking_desc">Zaznamenává vaši polohu, aby cesty, zastávky a časová osa zůstaly úplné i při zavřené aplikaci.</string>
+    <string name="tracking_privacy">Tyto body dostává pouze váš spárovaný server. Každé měření se nejprve uloží do telefonu a poté odešle s identifikátorem zařízení a jedinečným identifikátorem události, takže opakované pokusy nevytvářejí duplicity. Souřadnice se nikdy nezapisují do běžných logů. Záznam začíná jen po stisku „Start“ a končí tlačítky „Pozastavit“ nebo „Zastavit“.</string>
+    <string name="tracking_status_off">Sledování je vypnuté</string>
+    <string name="tracking_status_running">Sledování je zapnuté</string>
+    <string name="tracking_status_paused">Sledování je pozastaveno</string>
+    <string name="tracking_status_permission">Chybí oprávnění k poloze</string>
+    <string name="tracking_status_no_connection">Nejprve se připojte k serveru</string>
+    <string name="tracking_start">Spustit sledování</string>
+    <string name="tracking_pause">Pozastavit</string>
+    <string name="tracking_resume">Pokračovat</string>
+    <string name="tracking_stop">Zastavit</string>
+    <string name="tracking_pending">%1$d měření čeká na odeslání</string>
+    <string name="tracking_last_upload_never">Zatím žádné odeslání</string>
+    <string name="tracking_last_upload_ok">Poslední odeslání v %1$s</string>
+    <string name="tracking_last_upload_failed">Odeslání selhalo: %1$s</string>
+    <string name="tracking_interval_title">Interval měření</string>
+    <string name="tracking_interval_value">%1$d min</string>
+    <string name="tracking_accuracy_title">Přesnost</string>
+    <string name="tracking_accuracy_high">Vysoká</string>
+    <string name="tracking_accuracy_balanced">Vyvážená</string>
+    <string name="tracking_accuracy_low">Úspora baterie</string>
+    <string name="tracking_perm_foreground_title">Povolit polohu při používání aplikace</string>
+    <string name="tracking_perm_foreground_desc">Nutné k zaznamenání měření.</string>
+    <string name="tracking_perm_background_title">Povolit polohu vždy</string>
+    <string name="tracking_perm_background_desc">Android se na to ptá v systémovém nastavení. Bez toho se záznam zastaví po opuštění aplikace.</string>
+    <string name="tracking_perm_grant">Povolit</string>
+    <string name="tracking_perm_settings">Otevřít systémové nastavení</string>
+    <string name="tracking_perm_notifications">Oznámení jsou vypnutá, takže stav sledování není vidět.</string>
+    <string name="tracking_requires_connection">Nejprve spárujte telefon se serverem Steps.</string>
+    <string name="tracking_autostart_hint">Sledování bylo zapnuté před restartem telefonu. Stisknutím „Start“ pokračujte.</string>
+    <string name="tracking_channel_name">Sledování polohy</string>
+    <string name="tracking_channel_desc">Ukazuje, že záznam polohy běží</string>
+    <string name="tracking_notification_title">Sledování polohy je zapnuté</string>
+    <string name="tracking_notification_text">%1$d měření čeká na odeslání</string>
+    <string name="tracking_action_pause">Pozastavit</string>
+    <string name="tracking_action_stop">Zastavit</string>
+</resources>

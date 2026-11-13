@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Rastreamento</string>
+    <string name="tracking_title">Localização em segundo plano</string>
+    <string name="tracking_desc">Registra sua localização para que viagens, paradas e a linha do tempo fiquem completas com o app fechado.</string>
+    <string name="tracking_privacy">Apenas o seu servidor pareado recebe esses pontos. Cada medição é gravada primeiro neste telefone e depois enviada com o id deste dispositivo e um id de evento único, então novas tentativas nunca criam duplicatas. As coordenadas nunca são gravadas nos logs comuns. O rastreamento só começa ao tocar em «Iniciar» e termina em «Pausar» ou «Parar».</string>
+    <string name="tracking_status_off">O rastreamento está desligado</string>
+    <string name="tracking_status_running">O rastreamento está ligado</string>
+    <string name="tracking_status_paused">O rastreamento está pausado</string>
+    <string name="tracking_status_permission">Permissão de localização ausente</string>
+    <string name="tracking_status_no_connection">Conecte-se primeiro ao servidor</string>
+    <string name="tracking_start">Iniciar rastreamento</string>
+    <string name="tracking_pause">Pausar</string>
+    <string name="tracking_resume">Retomar</string>
+    <string name="tracking_stop">Parar</string>
+    <string name="tracking_pending">%1$d medições aguardando envio</string>
+    <string name="tracking_last_upload_never">Nenhum envio ainda</string>
+    <string name="tracking_last_upload_ok">Último envio às %1$s</string>
+    <string name="tracking_last_upload_failed">Falha no envio: %1$s</string>
+    <string name="tracking_interval_title">Intervalo de amostragem</string>
+    <string name="tracking_interval_value">%1$d min</string>
+    <string name="tracking_accuracy_title">Precisão</string>
+    <string name="tracking_accuracy_high">Alta</string>
+    <string name="tracking_accuracy_balanced">Equilibrada</string>
+    <string name="tracking_accuracy_low">Economia de bateria</string>
+    <string name="tracking_perm_foreground_title">Permitir localização durante o uso do app</string>
+    <string name="tracking_perm_foreground_desc">Necessário para registrar qualquer medição.</string>
+    <string name="tracking_perm_background_title">Permitir localização o tempo todo</string>
+    <string name="tracking_perm_background_desc">O Android pede isso nas configurações do sistema. Sem isso, o registro para quando você sai do app.</string>
+    <string name="tracking_perm_grant">Permitir</string>
+    <string name="tracking_perm_settings">Abrir configurações do sistema</string>
+    <string name="tracking_perm_notifications">As notificações estão desativadas, então o status do rastreamento não fica visível.</string>
+    <string name="tracking_requires_connection">Pareie este telefone com o servidor Steps antes de iniciar o rastreamento.</string>
+    <string name="tracking_autostart_hint">O rastreamento estava ligado antes de o telefone reiniciar. Toque em «Iniciar» para continuar.</string>
+    <string name="tracking_channel_name">Rastreamento de localização</string>
+    <string name="tracking_channel_desc">Mostra que o registro de localização está ativo</string>
+    <string name="tracking_notification_title">O rastreamento de localização está ligado</string>
+    <string name="tracking_notification_text">%1$d medições aguardando envio</string>
+    <string name="tracking_action_pause">Pausar</string>
+    <string name="tracking_action_stop">Parar</string>
 </resources>

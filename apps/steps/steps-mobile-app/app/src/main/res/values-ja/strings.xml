@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">トラッキング</string>
+    <string name="tracking_title">バックグラウンド位置情報</string>
+    <string name="tracking_desc">アプリを閉じていても移動・滞在・タイムラインが欠けないように位置情報を記録します。</string>
+    <string name="tracking_privacy">これらの地点を受け取るのはペアリング済みのサーバーだけです。各測定値はまずこの端末に保存され、端末IDと一意のイベントIDを付けて送信されるため、再試行で重複することはありません。座標が通常のログに書かれることはありません。記録は「開始」を押したときだけ始まり、「一時停止」または「停止」で終わります。</string>
+    <string name="tracking_status_off">トラッキングはオフです</string>
+    <string name="tracking_status_running">トラッキングはオンです</string>
+    <string name="tracking_status_paused">トラッキングは一時停止中です</string>
+    <string name="tracking_status_permission">位置情報の権限がありません</string>
+    <string name="tracking_status_no_connection">先にサーバーへ接続してください</string>
+    <string name="tracking_start">トラッキングを開始</string>
+    <string name="tracking_pause">一時停止</string>
+    <string name="tracking_resume">再開</string>
+    <string name="tracking_stop">停止</string>
+    <string name="tracking_pending">アップロード待ちの測定値: %1$d 件</string>
+    <string name="tracking_last_upload_never">まだアップロードはありません</string>
+    <string name="tracking_last_upload_ok">最終アップロード %1$s</string>
+    <string name="tracking_last_upload_failed">アップロード失敗: %1$s</string>
+    <string name="tracking_interval_title">サンプリング間隔</string>
+    <string name="tracking_interval_value">%1$d 分</string>
+    <string name="tracking_accuracy_title">精度</string>
+    <string name="tracking_accuracy_high">高</string>
+    <string name="tracking_accuracy_balanced">バランス</string>
+    <string name="tracking_accuracy_low">バッテリー節約</string>
+    <string name="tracking_perm_foreground_title">アプリ使用中のみ位置情報を許可</string>
+    <string name="tracking_perm_foreground_desc">測定値を記録するために必要です。</string>
+    <string name="tracking_perm_background_title">常に位置情報を許可</string>
+    <string name="tracking_perm_background_desc">Android のシステム設定で求められます。許可しない場合、アプリを離れると記録が止まります。</string>
+    <string name="tracking_perm_grant">許可する</string>
+    <string name="tracking_perm_settings">システム設定を開く</string>
+    <string name="tracking_perm_notifications">通知が無効のため、トラッキング状態が表示されません。</string>
+    <string name="tracking_requires_connection">トラッキングを開始する前に、この端末を Steps サーバーとペアリングしてください。</string>
+    <string name="tracking_autostart_hint">端末の再起動前にトラッキングはオンでした。「開始」を押して続行してください。</string>
+    <string name="tracking_channel_name">位置情報トラッキング</string>
+    <string name="tracking_channel_desc">位置情報の記録が動作中であることを表示します</string>
+    <string name="tracking_notification_title">位置情報トラッキングはオンです</string>
+    <string name="tracking_notification_text">アップロード待ちの測定値: %1$d 件</string>
+    <string name="tracking_action_pause">一時停止</string>
+    <string name="tracking_action_stop">停止</string>
 </resources>

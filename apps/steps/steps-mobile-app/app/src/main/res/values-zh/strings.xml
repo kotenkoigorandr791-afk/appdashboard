@@ -402,4 +402,44 @@
 <string name="update_downloaded_title">Update ready</string>
 <string name="update_downloaded_text">Version %1$s downloaded. Tap to install.</string>
 <string name="update_install">Install</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">定位追踪</string>
+    <string name="tracking_title">后台定位</string>
+    <string name="tracking_desc">记录您的位置，让应用关闭时的行程、停留和时间线依然完整。</string>
+    <string name="tracking_privacy">只有您配对的服务器会收到这些点。每次测量先保存在本机，再带上设备 ID 和唯一事件 ID 上传，因此重试不会产生重复。坐标绝不会写入普通日志。只有点击开始才会开始记录，点击暂停或停止即结束。</string>
+    <string name="tracking_status_off">追踪已关闭</string>
+    <string name="tracking_status_running">追踪已开启</string>
+    <string name="tracking_status_paused">追踪已暂停</string>
+    <string name="tracking_status_permission">缺少定位权限</string>
+    <string name="tracking_status_no_connection">请先连接服务器</string>
+    <string name="tracking_start">开始追踪</string>
+    <string name="tracking_pause">暂停</string>
+    <string name="tracking_resume">继续</string>
+    <string name="tracking_stop">停止</string>
+    <string name="tracking_pending">%1$d 条测量待上传</string>
+    <string name="tracking_last_upload_never">尚未上传</string>
+    <string name="tracking_last_upload_ok">上次上传 %1$s</string>
+    <string name="tracking_last_upload_failed">上传失败：%1$s</string>
+    <string name="tracking_interval_title">采样间隔</string>
+    <string name="tracking_interval_value">%1$d 分钟</string>
+    <string name="tracking_accuracy_title">精度</string>
+    <string name="tracking_accuracy_high">高</string>
+    <string name="tracking_accuracy_balanced">均衡</string>
+    <string name="tracking_accuracy_low">省电</string>
+    <string name="tracking_perm_foreground_title">使用应用时允许定位</string>
+    <string name="tracking_perm_foreground_desc">记录任何测量都需要此权限。</string>
+    <string name="tracking_perm_background_title">始终允许定位</string>
+    <string name="tracking_perm_background_desc">Android 会在系统设置中询问。若不允许，离开应用后记录会停止。</string>
+    <string name="tracking_perm_grant">允许</string>
+    <string name="tracking_perm_settings">打开系统设置</string>
+    <string name="tracking_perm_notifications">通知已关闭，因此看不到追踪状态。</string>
+    <string name="tracking_requires_connection">开始追踪前请先将此手机与 Steps 服务器配对。</string>
+    <string name="tracking_autostart_hint">手机重启前追踪处于开启状态。点击开始继续。</string>
+    <string name="tracking_channel_name">定位追踪</string>
+    <string name="tracking_channel_desc">显示位置记录正在运行</string>
+    <string name="tracking_notification_title">定位追踪已开启</string>
+    <string name="tracking_notification_text">%1$d 条测量待上传</string>
+    <string name="tracking_action_pause">暂停</string>
+    <string name="tracking_action_stop">停止</string>
 </resources>

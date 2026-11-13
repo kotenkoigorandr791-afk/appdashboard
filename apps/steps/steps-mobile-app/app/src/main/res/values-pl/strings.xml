@@ -573,4 +573,44 @@
     <string name="notifications_label_key">Klucz</string>
     <string name="notifications_label_value">Wartość</string>
     <string name="notifications_local_push_desc">Wyśle powiadomienie systemowe Android po każdej synchronizacji. Stuknij, aby otworzyć logi.</string>
-<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string></resources>
+<string name="app_version_short">v%1$s</string><string name="onboarding_select_language_cd">Select Language</string><string name="logs_clear">Clear</string><string name="notifications_configuration_format">%1$s Configuration</string>
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Śledzenie</string>
+    <string name="tracking_title">Lokalizacja w tle</string>
+    <string name="tracking_desc">Zapisuje Twoją lokalizację, aby podróże, postoje i os czasu pozostały kompletne, gdy aplikacja jest zamknięta.</string>
+    <string name="tracking_privacy">Te punkty otrzymuje tylko Twój sparowany serwer. Każdy pomiar jest najpierw zapisywany w telefonie, a następnie wysyłany z identyfikatorem urządzenia i unikalnym identyfikatorem zdarzenia, więc ponowienia nie tworzą duplikatów. Współrzędne nigdy nie trafiają do zwykłych logów. Zapisywanie zaczyna się tylko po naciśnięciu „Start”, a kończy przy „Pauza” lub „Stop”.</string>
+    <string name="tracking_status_off">Śledzenie wyłączone</string>
+    <string name="tracking_status_running">Śledzenie włączone</string>
+    <string name="tracking_status_paused">Śledzenie wstrzymane</string>
+    <string name="tracking_status_permission">Brak uprawnienia do lokalizacji</string>
+    <string name="tracking_status_no_connection">Najpierw połącz się z serwerem</string>
+    <string name="tracking_start">Rozpocznij śledzenie</string>
+    <string name="tracking_pause">Pauza</string>
+    <string name="tracking_resume">Wznów</string>
+    <string name="tracking_stop">Stop</string>
+    <string name="tracking_pending">%1$d pomiarów czeka na wysłanie</string>
+    <string name="tracking_last_upload_never">Brak wysyłek</string>
+    <string name="tracking_last_upload_ok">Ostatnia wysyłka o %1$s</string>
+    <string name="tracking_last_upload_failed">Wysyłka nie powiodła się: %1$s</string>
+    <string name="tracking_interval_title">Interwał pomiarów</string>
+    <string name="tracking_interval_value">%1$d min</string>
+    <string name="tracking_accuracy_title">Dokładność</string>
+    <string name="tracking_accuracy_high">Wysoka</string>
+    <string name="tracking_accuracy_balanced">Zbalansowana</string>
+    <string name="tracking_accuracy_low">Oszczędzanie baterii</string>
+    <string name="tracking_perm_foreground_title">Zezwól na lokalizację podczas korzystania z aplikacji</string>
+    <string name="tracking_perm_foreground_desc">Wymagane, aby cokolwiek zapisać.</string>
+    <string name="tracking_perm_background_title">Zezwól na lokalizację przez cały czas</string>
+    <string name="tracking_perm_background_desc">Android pyta o to w ustawieniach systemowych. Bez tego zapis zatrzymuje się po wyjściu z aplikacji.</string>
+    <string name="tracking_perm_grant">Zezwól</string>
+    <string name="tracking_perm_settings">Otwórz ustawienia systemowe</string>
+    <string name="tracking_perm_notifications">Powiadomienia są wyłączone, więc status śledzenia jest niewidoczny.</string>
+    <string name="tracking_requires_connection">Najpierw sparuj telefon z serwerem Steps.</string>
+    <string name="tracking_autostart_hint">Śledzenie było włączone przed restartem telefonu. Naciśnij „Start”, aby kontynuować.</string>
+    <string name="tracking_channel_name">Śledzenie lokalizacji</string>
+    <string name="tracking_channel_desc">Pokazuje, że zapis lokalizacji działa</string>
+    <string name="tracking_notification_title">Śledzenie lokalizacji jest włączone</string>
+    <string name="tracking_notification_text">%1$d pomiarów czeka na wysłanie</string>
+    <string name="tracking_action_pause">Pauza</string>
+    <string name="tracking_action_stop">Stop</string>
+</resources>

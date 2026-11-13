@@ -645,4 +645,44 @@
     <string name="unit_mmhg">%1$s mmHg</string>
     <string name="unit_percent">%1$s%%</string>
     <string name="settings_personalization_desc">Theme, accent color, language and screen orientation</string>
+
+    <!-- Background location tracking -->
+    <string name="nav_tracking">Tracking</string>
+    <string name="tracking_title">Background location</string>
+    <string name="tracking_desc">Records your location so trips, stops and your timeline stay complete while the app is closed.</string>
+    <string name="tracking_privacy">Only your paired server receives these points. Every measurement is saved on this phone first, then uploaded with this device id and a unique event id, so retries never create duplicates. Coordinates are never written to ordinary logs. Tracking starts only when you tap Start and stops when you tap Pause or Stop.</string>
+    <string name="tracking_status_off">Tracking is off</string>
+    <string name="tracking_status_running">Tracking is on</string>
+    <string name="tracking_status_paused">Tracking is paused</string>
+    <string name="tracking_status_permission">Location permission is missing</string>
+    <string name="tracking_status_no_connection">Connect to your server first</string>
+    <string name="tracking_start">Start tracking</string>
+    <string name="tracking_pause">Pause</string>
+    <string name="tracking_resume">Resume</string>
+    <string name="tracking_stop">Stop</string>
+    <string name="tracking_pending">%1$d measurements waiting to upload</string>
+    <string name="tracking_last_upload_never">No upload yet</string>
+    <string name="tracking_last_upload_ok">Last upload at %1$s</string>
+    <string name="tracking_last_upload_failed">Upload failed: %1$s</string>
+    <string name="tracking_interval_title">Sampling interval</string>
+    <string name="tracking_interval_value">%1$d min</string>
+    <string name="tracking_accuracy_title">Accuracy</string>
+    <string name="tracking_accuracy_high">High</string>
+    <string name="tracking_accuracy_balanced">Balanced</string>
+    <string name="tracking_accuracy_low">Battery saver</string>
+    <string name="tracking_perm_foreground_title">Allow location while using the app</string>
+    <string name="tracking_perm_foreground_desc">Required before any measurement can be recorded.</string>
+    <string name="tracking_perm_background_title">Allow location all the time</string>
+    <string name="tracking_perm_background_desc">Android asks for this in system settings. Without it, recording stops when you leave the app.</string>
+    <string name="tracking_perm_grant">Grant</string>
+    <string name="tracking_perm_settings">Open system settings</string>
+    <string name="tracking_perm_notifications">Notifications are disabled, so the tracking status is not visible.</string>
+    <string name="tracking_requires_connection">Pair this phone with your Steps server before starting tracking.</string>
+    <string name="tracking_autostart_hint">Tracking was on before the phone restarted. Tap Start to continue.</string>
+    <string name="tracking_channel_name">Location tracking</string>
+    <string name="tracking_channel_desc">Shows that location recording is running</string>
+    <string name="tracking_notification_title">Location tracking is on</string>
+    <string name="tracking_notification_text">%1$d measurements waiting to upload</string>
+    <string name="tracking_action_pause">Pause</string>
+    <string name="tracking_action_stop">Stop</string>
 </resources>

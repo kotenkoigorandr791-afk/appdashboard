@@ -20,6 +20,11 @@ class HCWebhookApplication : Application() {
         // indicator react the moment the network drops.
         NetworkState.start(this)
 
+        // Location work is only resumed when the user previously enabled it.
+        if (preferencesManager.isLocationTrackingEnabled()) {
+            orbit.nex.steps.location.LocationUploadWorker.ensurePeriodic(this)
+        }
+
         // Schedule syncs based on the selected sync mode
         when (preferencesManager.getSyncMode()) {
             SyncMode.INTERVAL -> {

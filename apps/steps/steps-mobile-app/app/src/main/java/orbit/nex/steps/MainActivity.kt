@@ -64,6 +64,7 @@ import androidx.lifecycle.lifecycleScope
 import orbit.nex.steps.screens.AboutScreen
 import orbit.nex.steps.screens.ConfigurationScreen
 import orbit.nex.steps.screens.ConnectionGateScreen
+import orbit.nex.steps.screens.LocationTrackingScreen
 import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
 import orbit.nex.steps.screens.WhatsNewSheet
@@ -175,6 +176,9 @@ class MainActivity : AppCompatActivity() {
         }
         LaunchedEffect(Unit) {
             AppUpdateManager.start(applicationContext)
+            // A force-stop or OEM cleanup can end the service; opening the app is
+            // the earliest reliable moment to restore a user-enabled session.
+            orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(this@MainActivity)
         }
         if (showWhatsNew) {
             WhatsNewSheet(
@@ -284,6 +288,7 @@ class MainActivity : AppCompatActivity() {
                     ) {
                         when (selected) {
                             NavigationScreen.Home -> ConfigurationScreen(Modifier)
+                            NavigationScreen.Tracking -> LocationTrackingScreen(Modifier)
                             NavigationScreen.Statistics -> StatisticsScreen(Modifier)
                             NavigationScreen.About -> AboutScreen(Modifier)
                         }
