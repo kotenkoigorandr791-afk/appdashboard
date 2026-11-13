@@ -10,14 +10,18 @@ function steps_geolocation_migrate(AppDatabase $db): void {
         if ($version === '') throw new RuntimeException('PostGIS extension is unavailable');
         $pdo->exec("CREATE TABLE IF NOT EXISTS geo_schema_migrations (version TEXT PRIMARY KEY, applied_at TIMESTAMPTZ NOT NULL DEFAULT now())");
         $applied = $pdo->prepare('SELECT 1 FROM geo_schema_migrations WHERE version = :version');
-        $applied->execute([':version' => '001']);
-        if ($applied->fetchColumn()) {
-            $pdo->commit();
-            return;
-        }
-        foreach (steps_geolocation_schema_sql() as $sql) $pdo->exec($sql);
         $insert = $pdo->prepare('INSERT INTO geo_schema_migrations(version) VALUES (:version)');
-        $insert->execute([':version' => '001']);
+        $applied->execute([':version' => '001']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '001']);
+        }
+        // 002: presentation settings for the map layer (tile provider, layers).
+        $applied->execute([':version' => '002']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v2_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '002']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -25,8 +29,14 @@ function steps_geolocation_migrate(AppDatabase $db): void {
     } finally {
         $pdo->exec('SELECT pg_advisory_unlock(710102)');
     }
+}function steps_geolocation_schema_v2_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_map_preferences (user_email TEXT PRIMARY KEY, provider TEXT NOT NULL DEFAULT 'osm', layers_json JSONB NOT NULL DEFAULT '[]'::jsonb, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+    ];
 }
-function steps_geolocation_schema_sql(): array {
+function steps_geolocation_schema_sql(): array
+{
     return [
         "CREATE TABLE geo_devices (id UUID PRIMARY KEY, user_email TEXT NOT NULL, name TEXT NOT NULL, platform TEXT NOT NULL DEFAULT '', app_version TEXT NOT NULL DEFAULT '', source_type TEXT NOT NULL CHECK (source_type IN ('mobile','import','api')), status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active','paused','revoked','deleted')), credential_hash TEXT, last_seen_at TIMESTAMPTZ, last_upload_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (user_email, id))",
         "CREATE TABLE geo_location_points (id UUID PRIMARY KEY, user_email TEXT NOT NULL, device_id UUID, client_event_id UUID, device_sequence BIGINT, source_type TEXT NOT NULL CHECK (source_type IN ('mobile','import','api')), source_at TIMESTAMPTZ NOT NULL, source_offset_minutes SMALLINT, received_at TIMESTAMPTZ NOT NULL DEFAULT now(), position geometry(Point,4326) NOT NULL, accuracy_m DOUBLE PRECISION, altitude_m DOUBLE PRECISION, speed_mps DOUBLE PRECISION, bearing_degrees DOUBLE PRECISION, quality_state TEXT NOT NULL DEFAULT 'pending' CHECK (quality_state IN ('pending','accepted','flagged','rejected')), quality_reason TEXT NOT NULL DEFAULT '', correction_json JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), CONSTRAINT geo_location_points_position_valid CHECK (ST_SRID(position) = 4326 AND ST_IsValid(position) AND ST_Y(position) BETWEEN -90 AND 90 AND ST_X(position) BETWEEN -180 AND 180), CONSTRAINT geo_location_points_device_owner FOREIGN KEY (user_email, device_id) REFERENCES geo_devices(user_email, id))",
