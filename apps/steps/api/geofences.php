@@ -21,7 +21,7 @@ function geo_geofences_find(PDO $pdo, string $owner, string $id): ?array
     $stmt = $pdo->prepare(
         'SELECT id, name, place_id, is_active, notification_json,
                 ST_Y(ST_Centroid(geometry)) AS latitude, ST_X(ST_Centroid(geometry)) AS longitude,
-                GREATEST(1, ST_MaxDistance(ST_Centroid(geometry), geometry)) AS radius_m
+                GREATEST(1, ST_Distance(ST_Centroid(geometry)::geography, ST_StartPoint(ST_ExteriorRing(geometry))::geography)) AS radius_m
            FROM geo_geofences WHERE user_email = :owner AND id = :id'
     );
     $stmt->execute([':owner' => $owner, ':id' => $id]);
@@ -47,7 +47,7 @@ if ($method === 'GET') {
     $stmt = $pdo->prepare(
         'SELECT id, name, place_id, is_active, notification_json,
                 ST_Y(ST_Centroid(geometry)) AS latitude, ST_X(ST_Centroid(geometry)) AS longitude,
-                GREATEST(1, ST_MaxDistance(ST_Centroid(geometry), geometry)) AS radius_m
+                GREATEST(1, ST_Distance(ST_Centroid(geometry)::geography, ST_StartPoint(ST_ExteriorRing(geometry))::geography)) AS radius_m
            FROM geo_geofences WHERE user_email = :owner ORDER BY name ASC'
     );
     $stmt->execute([':owner' => $owner]);

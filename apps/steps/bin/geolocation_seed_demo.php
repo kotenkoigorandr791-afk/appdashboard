@@ -23,8 +23,8 @@ $pdo = $db->getPdo();
 
 $pdo->beginTransaction();
 try {
-    foreach (['geo_location_points', 'geo_trips', 'geo_devices', 'geo_processor_runs', 'geo_audit_events'] as $table) {
-        $pdo->prepare("DELETE FROM $table WHERE user_email = :owner")->execute([':owner' => $owner]);
+    foreach ([['geo_geofence_events', 'user_email'], ['geo_geofences', 'user_email'], ['geo_visits', 'user_email'], ['geo_stops', 'user_email'], ['geo_places', 'user_email'], ['geo_location_points', 'user_email'], ['geo_trips', 'user_email'], ['geo_devices', 'user_email'], ['geo_processor_runs', 'user_email'], ['geo_audit_events', 'user_email']] as [$table, $column]) {
+        $pdo->prepare("DELETE FROM $table WHERE $column = :owner")->execute([':owner' => $owner]);
     }
 
     $phone = StepsGeolocationTrips::uuid();
@@ -33,6 +33,14 @@ try {
     $device->execute([':id' => $phone, ':owner' => $owner, ':name' => 'Pixel demo', ':platform' => 'android', ':status' => 'active']);
     $device->execute([':id' => $watch, ':owner' => $owner, ':name' => 'Watch demo', ':platform' => 'android', ':status' => 'paused']);
 
+    $homeLat = 50.4501;
+    $homeLon = 30.5234;
+    $homeId = StepsGeolocationTrips::uuid();
+    $pdo->prepare("INSERT INTO geo_places(id, user_email, name, tag, position, radius_m, color, notes, timezone) VALUES(:id, :owner, 'Home', 'home', ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), 120, '#22aa66', 'Demo home', 'Europe/Kyiv')")
+        ->execute([':id' => $homeId, ':owner' => $owner, ':lon' => $homeLon, ':lat' => $homeLat]);
+    $pdo->prepare("INSERT INTO geo_geofences(id, user_email, place_id, name, geometry, is_active, notification_json) VALUES(:id, :owner, :place, 'Home zone', ST_Buffer(ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, 150)::geometry, true, :notifications)")
+        ->execute([':id' => StepsGeolocationTrips::uuid(), ':owner' => $owner, ':place' => $homeId, ':lon' => $homeLon, ':lat' => $homeLat, ':notifications' => json_encode(['notify' => true, 'webhook' => false])]);
+
     $base = time() - 7200;
     $insert = $pdo->prepare(
         "INSERT INTO geo_location_points(id, user_email, device_id, client_event_id, device_sequence, source_type, source_at, position, accuracy_m)
@@ -40,11 +48,27 @@ try {
          RETURNING id"
     );
     $points = [];
-    $lat = 50.4501;
-    $lon = 30.5234;
+    // 20 minute dwell at Home: produces a stop, a place visit and an enter event.
+    for ($i = 0; $i < 12; $i++) {
+        $insert->execute([
+            ':id' => StepsGeolocationTrips::uuid(),
+            ':owner' => $owner,
+            ':device' => $phone,
+            ':event' => StepsGeolocationTrips::uuid(),
+            ':sequence' => count($points) + 1,
+            ':at' => gmdate('c', $base + $i * 60),
+            ':lat' => $homeLat,
+            ':lon' => $homeLon,
+            ':accuracy' => 6,
+        ]);
+        $points[] = $insert->fetchColumn();
+    }
+
+    $lat = $homeLat;
+    $lon = $homeLon;
     for ($i = 0; $i < 30; $i++) {
         // A 20 minute stop in the middle creates a second, explainable trip.
-        $offset = $i * 60 + ($i >= 15 ? 1200 : 0);
+        $offset = 1800 + $i * 60 + ($i >= 15 ? 1200 : 0);
         $lat += 0.0004;
         $lon += 0.00012;
         $insert->execute([
@@ -52,7 +76,7 @@ try {
             ':owner' => $owner,
             ':device' => $phone,
             ':event' => StepsGeolocationTrips::uuid(),
-            ':sequence' => $i + 1,
+            ':sequence' => count($points) + 1,
             ':at' => gmdate('c', $base + $offset),
             ':lat' => $lat,
             ':lon' => $lon,

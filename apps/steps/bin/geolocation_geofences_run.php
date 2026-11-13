@@ -60,7 +60,7 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
                 "SELECT id, name, is_active, notification_json,
                         ST_Y(ST_Centroid(geometry)) AS latitude,
                         ST_X(ST_Centroid(geometry)) AS longitude,
-                        GREATEST(1, ST_MaxDistance(ST_Centroid(geometry), geometry)) AS radius_m
+                        GREATEST(1, ST_Distance(ST_Centroid(geometry)::geography, ST_StartPoint(ST_ExteriorRing(geometry))::geography)) AS radius_m
                    FROM geo_geofences
                   WHERE user_email = :owner AND is_active"
             );
