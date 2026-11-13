@@ -333,5 +333,11 @@
     "devices_confirm_delete": "Usunąć urządzenie? Historyczne punkty pozostaną do niego przypisane.",
     "devices_prompt_name": "Nazwa urządzenia",
     "devices_error": "Nie udało się zaktualizować urządzeń.",
-    "devices_saved": "Urządzenie zaktualizowane"
+    "devices_saved": "Urządzenie zaktualizowane",
+    "places_tag_home": "Dom",
+    "places_tag_work": "Praca",
+    "places_tag_gym": "Siłownia",
+    "places_tag_parents": "Rodzice",
+    "places_tag_school": "Szkoła",
+    "places_tag_favorite": "Ulubione"
 }

@@ -333,5 +333,11 @@
     "devices_confirm_delete": "Delete this device? Historical points stay attributed to it.",
     "devices_prompt_name": "Device name",
     "devices_error": "Could not update devices.",
-    "devices_saved": "Device updated"
+    "devices_saved": "Device updated",
+    "places_tag_home": "Home",
+    "places_tag_work": "Work",
+    "places_tag_gym": "Gym",
+    "places_tag_parents": "Parents",
+    "places_tag_school": "School",
+    "places_tag_favorite": "Favorite"
 }

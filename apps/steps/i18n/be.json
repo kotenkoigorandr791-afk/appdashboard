@@ -333,5 +333,11 @@
     "devices_confirm_delete": "Выдаліць прыладу? Гістарычныя кропкі застануцца прывязаныя да яе.",
     "devices_prompt_name": "Назва прылады",
     "devices_error": "Не ўдалося абнавіць прылады.",
-    "devices_saved": "Прылада абноўлена"
+    "devices_saved": "Прылада абноўлена",
+    "places_tag_home": "Дом",
+    "places_tag_work": "Праца",
+    "places_tag_gym": "Спартзала",
+    "places_tag_parents": "Бацькі",
+    "places_tag_school": "Школа",
+    "places_tag_favorite": "Выбранае"
 }

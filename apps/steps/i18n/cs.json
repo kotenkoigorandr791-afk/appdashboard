@@ -333,5 +333,11 @@
     "devices_confirm_delete": "Smazat zařízení? Historické body u něj zůstanou.",
     "devices_prompt_name": "Název zařízení",
     "devices_error": "Zařízení se nepodařilo aktualizovat.",
-    "devices_saved": "Zařízení aktualizováno"
+    "devices_saved": "Zařízení aktualizováno",
+    "places_tag_home": "Domov",
+    "places_tag_work": "Práce",
+    "places_tag_gym": "Posilovna",
+    "places_tag_parents": "Rodiče",
+    "places_tag_school": "Škola",
+    "places_tag_favorite": "Oblíbené"
 }

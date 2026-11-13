@@ -333,5 +333,11 @@
     "devices_confirm_delete": "Видалити пристрій? Історичні точки залишаться прив’язані до нього.",
     "devices_prompt_name": "Назва пристрою",
     "devices_error": "Не вдалося оновити пристрої.",
-    "devices_saved": "Пристрій оновлено"
+    "devices_saved": "Пристрій оновлено",
+    "places_tag_home": "Дім",
+    "places_tag_work": "Робота",
+    "places_tag_gym": "Спортзал",
+    "places_tag_parents": "Батьки",
+    "places_tag_school": "Школа",
+    "places_tag_favorite": "Обране"
 }

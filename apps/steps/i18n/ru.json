@@ -333,5 +333,11 @@
     "devices_confirm_delete": "Удалить устройство? Исторические точки останутся привязаны к нему.",
     "devices_prompt_name": "Название устройства",
     "devices_error": "Не удалось обновить устройства.",
-    "devices_saved": "Устройство обновлено"
+    "devices_saved": "Устройство обновлено",
+    "places_tag_home": "Дом",
+    "places_tag_work": "Работа",
+    "places_tag_gym": "Спортзал",
+    "places_tag_parents": "Родители",
+    "places_tag_school": "Школа",
+    "places_tag_favorite": "Избранное"
 }
