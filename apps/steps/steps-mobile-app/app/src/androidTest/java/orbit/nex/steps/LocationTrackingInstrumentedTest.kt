@@ -35,8 +35,9 @@ class LocationTrackingInstrumentedTest {
         prefs.setLocationTrackingPaused(false)
         config = WebhookConfig(server.url("/api/steps").toString().trimEnd('/'), "test")
         prefs.setWebhookConfigs(listOf(config))
-        // Start every test from an empty outbox.
-        LocationEventStore(context).trim()
+        // Start every test from an empty outbox, including rows still waiting
+        // out a backoff, which claim() would not return yet.
+        LocationEventStore(context).clearAll()
     }
 
     @After

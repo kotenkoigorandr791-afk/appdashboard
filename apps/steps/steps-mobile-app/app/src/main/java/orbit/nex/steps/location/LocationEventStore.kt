@@ -196,6 +196,11 @@ class LocationEventStore(context: Context) {
         )
     }
 
+    /** Drops every queued and settled row; used when the owner resets diagnostics. */
+    fun clearAll() {
+        helper.writableDatabase.delete(TABLE, null, null)
+    }
+
     private fun readAttempts(db: SQLiteDatabase, id: Long): Int =
         db.rawQuery("SELECT $COLUMN_ATTEMPTS FROM $TABLE WHERE $COLUMN_ID = ?", arrayOf(id.toString()))
             .use { cursor -> if (cursor.moveToFirst()) cursor.getInt(0) else 0 }
