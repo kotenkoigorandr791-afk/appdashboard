@@ -1,6 +1,7 @@
 package orbit.nex.steps.location
 
 import android.content.Context
+import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -59,7 +60,7 @@ class LocationUploader(
         val body = buildJsonObject {
             put("points", buildJsonArray { events.forEach { add(Json.parseToJsonElement(it.payload)) } })
         }
-        val url = config.url.trimEnd('/') + "/api/steps/geolocation?action=batch"
+        val url = batchUrl(config)
         val request = Request.Builder()
             .url(url)
             .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
@@ -154,6 +155,21 @@ class LocationUploader(
                 retryable = true,
             )
         }
+    }
+
+    /**
+     * Builds the endpoint from the stored config the same way the rest of the
+     * app does: only scheme and host are reused, so a pairing URL that already
+     * contains `/api/steps` is not duplicated.
+     */
+    private fun batchUrl(config: WebhookConfig): String {
+        val uri = Uri.parse(config.url)
+        val base = if (uri.scheme != null && uri.authority != null) {
+            "${uri.scheme}://${uri.authority}"
+        } else {
+            config.url.trimEnd('/')
+        }
+        return "$base/api/steps/geolocation?action=batch"
     }
 
     companion object {
