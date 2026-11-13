@@ -101,13 +101,16 @@ $metricButtons = [
                 </div>
             </div>
         </div>
-        <div class="app-main">
-        <div class="view-selector">
-            <button class="view-btn active" data-view="year"><?php echo htmlspecialchars($translations['year']); ?></button>
-            <button class="view-btn" data-view="month"><?php echo htmlspecialchars($translations['month']); ?></button>
-            <button class="view-btn" data-view="week"><?php echo htmlspecialchars($translations['week']); ?></button>
+        <div class="mode-switch" role="tablist" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?> / <?php echo htmlspecialchars($translations['map_title'] ?? 'Map'); ?>">
+            <button type="button" class="mode-switch-btn active" data-mode="steps" role="tab" aria-selected="true">
+                <i class="fas fa-shoe-prints" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?>
+            </button>
+            <button type="button" class="mode-switch-btn" data-mode="map" role="tab" aria-selected="false">
+                <i class="fas fa-map-location-dot" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_title'] ?? 'Map'); ?>
+            </button>
         </div>
         
+        <div class="app-main">
         <div class="data-type-selector">
             <?php foreach ($metricButtons as $metricType => $metricButton): ?>
             <?php if (!empty($availableMetricTypes[$metricType])): ?>
@@ -133,17 +136,237 @@ $metricButtons = [
             </button>
         </div>
         
+        <div class="view-selector">
+            <button class="view-btn active" data-view="year"><?php echo htmlspecialchars($translations['year']); ?></button>
+            <button class="view-btn" data-view="month"><?php echo htmlspecialchars($translations['month']); ?></button>
+            <button class="view-btn" data-view="week"><?php echo htmlspecialchars($translations['week']); ?></button>
+        </div>
+
         <div class="calendar-container">
             <div class="calendar-header">
                 <div class="calendar-selector-box">
-                    <select id="year-selector"></select>
-                    <select id="month-selector" disabled><option value="-">—</option></select>
+                    <div class="custom-select" data-custom-select="year-selector">
+                        <select id="year-selector" class="custom-select-native" tabindex="-1" aria-hidden="true"></select>
+                        <button type="button" class="custom-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="custom-select-value">—</span>
+                            <i class="fas fa-chevron-down custom-select-caret" aria-hidden="true"></i>
+                        </button>
+                        <div class="custom-select-menu" role="listbox"></div>
+                    </div>
+                    <div class="custom-select" data-custom-select="month-selector">
+                        <select id="month-selector" class="custom-select-native" tabindex="-1" aria-hidden="true" disabled><option value="-">—</option></select>
+                        <button type="button" class="custom-select-trigger" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="custom-select-value">—</span>
+                            <i class="fas fa-chevron-down custom-select-caret" aria-hidden="true"></i>
+                        </button>
+                        <div class="custom-select-menu" role="listbox"></div>
+                    </div>
                 </div>
             </div>
             <div id="calendar"></div>
             <div class="goal-summary" id="goal-summary"></div>
         </div>
         
+        </div>
+        <div class="map-view" id="map-view" hidden>
+                <!-- Map: viewport-bounded layers, provider settings, non-map summary -->
+                <section id="ma-map" aria-labelledby="ma-map-title" style="margin:0 0 18px;padding:14px 16px;border:1px solid rgba(127,127,127,.25);border-radius:14px;">
+                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+                        <h3 id="ma-map-title" style="margin:0;font-size:15px;"><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></h3>
+                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
+                            <label style="font-size:11px;opacity:.75;" for="ma-map-from"><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></label>
+                            <input type="date" id="ma-map-from" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
+                            <label style="font-size:11px;opacity:.75;" for="ma-map-to"><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></label>
+                            <input type="date" id="ma-map-to" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
+                            <label style="font-size:11px;opacity:.75;" for="ma-map-provider"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></label>
+                            <select id="ma-map-provider" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;"></select>
+                            <button type="button" id="ma-map-refresh" style="background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:inherit;"><?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?></button>
+                        </div>
+                    </div>
+                    <fieldset style="border:0;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
+                        <legend style="font-size:11px;opacity:.75;padding:0;margin-bottom:4px;"><?php echo htmlspecialchars($translations['map_layers'] ?? 'Layers'); ?></legend>
+                        <?php
+                        $mapLayers = [
+                            'trips' => $translations['map_layer_trips'] ?? 'Trips',
+                            'stops' => $translations['map_layer_stops'] ?? 'Stops',
+                            'places' => $translations['map_layer_places'] ?? 'Places',
+                            'visits' => $translations['map_layer_visits'] ?? 'Visits',
+                            'points' => $translations['map_layer_points'] ?? 'Points',
+                            'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
+                            'explored' => $translations['map_layer_explored'] ?? 'Explored area',
+                        ];
+                        foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits'], true); ?>
+                            <label style="display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>> <?php echo htmlspecialchars($layerLabel); ?></label>
+                        <?php endforeach; ?>
+                    </fieldset>
+                    <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>" style="height:340px;margin-top:10px;border-radius:12px;overflow:hidden;background:rgba(127,127,127,.14);"></div>
+                    <p id="ma-map-summary" role="status" aria-live="polite" style="font-size:12px;opacity:.75;margin:8px 0 0;"></p>
+                    <p id="ma-map-error" role="alert" style="display:none;color:#ef4444;font-size:12px;margin:6px 0 0;"></p>
+                </section>
+                <script>
+                (function(){
+                    const section=document.getElementById('ma-map');
+                    if(!section) return;
+                    const mapHost=document.getElementById('map-view');
+                    const canvas=document.getElementById('ma-map-canvas');
+                    const summary=document.getElementById('ma-map-summary');
+                    const errorEl=document.getElementById('ma-map-error');
+                    const providerSel=document.getElementById('ma-map-provider');
+                    const fromInput=document.getElementById('ma-map-from');
+                    const toInput=document.getElementById('ma-map-to');
+                    const refresh=document.getElementById('ma-map-refresh');
+                    const t={
+                        loading: <?php echo json_encode($translations['map_loading'] ?? 'Loading map…'); ?>,
+                        empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
+                        unavailable: <?php echo json_encode($translations['map_unavailable'] ?? 'Map tiles are unavailable; showing counts only.'); ?>,
+                        error: <?php echo json_encode($translations['map_error'] ?? 'Could not load map data.'); ?>,
+                        summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}'); ?>
+                    };
+                    const iso = (d) => d.toISOString().slice(0,10);
+                    if (!toInput.value) toInput.value = iso(new Date());
+                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 30 * 864e5));
+                    let map=null, layerGroup=null, providers={}, provider='osm', busy=false;
+                    const selectedLayers = () => Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.value);
+                    const showError = (m) => { errorEl.textContent = m || ''; errorEl.style.display = m ? '' : 'none'; };
+                    function ensureLeaflet(){
+                        if (window.L) return Promise.resolve(window.L);
+                        return new Promise((resolve, reject) => {
+                            if (!document.getElementById('ma-leaflet-css')) {
+                                const css=document.createElement('link');
+                                css.id='ma-leaflet-css'; css.rel='stylesheet';
+                                css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+                                document.head.appendChild(css);
+                            }
+                            const script=document.createElement('script');
+                            script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
+                            script.onload=()=>resolve(window.L);
+                            script.onerror=()=>reject(new Error('leaflet_unavailable'));
+                            document.head.appendChild(script);
+                        });
+                    }
+                    function renderProviders(){
+                        providerSel.innerHTML='';
+                        Object.keys(providers).forEach(key=>{
+                            const opt=document.createElement('option');
+                            opt.value=key; opt.textContent=providers[key].name;
+                            if (key===provider) opt.selected=true;
+                            providerSel.appendChild(opt);
+                        });
+                    }
+                    function selectProvider(key){
+                        const p=providers[key]||providers.osm;
+                        if(!map||!p) return;
+                        if(map._tileLayer) map.removeLayer(map._tileLayer);
+                        map._tileLayer=window.L.tileLayer(p.url,{attribution:p.attribution,maxZoom:p.max_zoom||19}).addTo(map);
+                    }
+                    function makeMap(L){
+                        map=L.map(canvas,{zoomControl:true,attributionControl:true}).setView([50.45,30.52],12);
+                        layerGroup=L.layerGroup().addTo(map);
+                        selectProvider(provider);
+                        map.on('moveend',()=>{ if(map._ready) fetchViewport(); });
+                        window.addEventListener('steps-map-shown',()=>{ if(!map) return; map.invalidateSize(); fetchViewport(); });
+                        window.addEventListener('steps-map-focus',(event)=>{
+                            const bbox=event.detail&&event.detail.bbox;
+                            if(!bbox) return;
+                            map.fitBounds([[bbox.minLat,bbox.minLon],[bbox.maxLat,bbox.maxLon]],{padding:[30,30],maxZoom:16});
+                        });
+                    }
+                    function popupHtml(title, lines){
+                        const div=document.createElement('div');
+                        const strong=document.createElement('strong'); strong.textContent=title; div.appendChild(strong);
+                        (lines||[]).forEach(line=>{ const p=document.createElement('div'); p.textContent=line; p.style.fontSize='11px'; p.style.opacity='.8'; div.appendChild(p); });
+                        return div;
+                    }
+                    function addPoint(feature, style, title, lines){
+                        const L=window.L;
+                        const [lon,lat]=feature.geometry.coordinates;
+                        const marker=L.circleMarker([lat,lon],style).addTo(layerGroup);
+                        marker.bindPopup(popupHtml(title, lines));
+                        return marker;
+                    }
+                    function render(features){
+                        if(!map||!window.L) return;
+                        const L=window.L;
+                        layerGroup.clearLayers();
+                        features.forEach(feature=>{
+                            const p=feature.properties||{};
+                            if(p.layer==='trip' && feature.geometry){
+                                L.geoJSON(feature,{style:{color:'#2b8aef',weight:3,opacity:.85}}).bindPopup(popupHtml(p.title||p.boundary_reason,['distance: '+Math.round(p.distance_m)+' m'])).addTo(layerGroup);
+                            } else if(p.layer==='place'){
+                                if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{radius:p.radius_m,color:p.color||'#22aa66',weight:1,fillOpacity:.08}).addTo(layerGroup);
+                                addPoint(feature,{radius:7,color:p.color||'#22aa66',fillOpacity:.9},p.name,[p.tag]);
+                            } else if(p.layer==='stop'||p.layer==='point_cluster'){
+                                const count=p.count||1;
+                                addPoint(feature,{radius:Math.min(18,6+Math.sqrt(count)*2),color:'#f59e0b',fillOpacity:.7},String(count),p.layer==='stop'?[t.summary.split('·')[1]||'stop']:[]);
+                            } else if(p.layer==='visit'){
+                                addPoint(feature,{radius:5,color:'#8b5cf6',fillOpacity:.85},p.place_name||'visit',[p.arrived_at||'']);
+                            } else if(p.layer==='point'){
+                                addPoint(feature,{radius:3,color:p.quality_state==='flagged'?'#ef4444':'#0ea5e9',fillOpacity:.8},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
+                            } else if(p.layer==='heatmap'){
+                                addPoint(feature,{radius:10,color:'#ef4444',stroke:false,fillOpacity:.12+0.5*(p.intensity||0)},String(p.weight||0),[]);
+                            } else if(p.layer==='explored'){
+                                addPoint(feature,{radius:8,color:'#10b981',stroke:false,fillOpacity:.25},String(p.visits||0),[]);
+                            }
+                        });
+                    }
+                    function bboxQuery(){
+                        if(!map) return '';
+                        const b=map.getBounds();
+                        const span=b.getEast()-b.getWest();
+                        if(!isFinite(span)||span<=0||span>85||(b.getNorth()-b.getSouth())>85) return '';
+                        return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(5)).join(',');
+                    }
+                    async function fetchViewport(){
+                        if(busy) return; busy=true;
+                        summary.textContent=t.loading; showError('');
+                        try{
+                            const params=new URLSearchParams();
+                            const bbox=bboxQuery(); if(bbox) params.set('bbox',bbox);
+                            params.set('from',fromInput.value+'T00:00:00Z');
+                            params.set('to',toInput.value+'T23:59:59Z');
+                            params.set('zoom',String(map?Math.round(map.getZoom()):12));
+                            params.set('layers',selectedLayers().join(','));
+                            const res=await fetch('/api/steps/geolocation_map?'+params.toString(),{credentials:'same-origin'});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
+                            providers=data.providers||providers;
+                            if(!providerSel.options.length) renderProviders();
+                            render(data.geojson.features);
+                            const c=data.meta.counts||{};
+                            summary.textContent=t.summary.replace('{trips}',c.trips||0).replace('{stops}',(c.stops||0)+(c.point_clusters||0)).replace('{places}',c.places||0).replace('{visits}',c.visits||0).replace('{points}',c.points||(c.point_clusters||0));
+                            if(map && !map._ready && data.bbox){
+                                map._ready=true;
+                                map.fitBounds([[data.bbox.minLat,data.bbox.minLon],[data.bbox.maxLat,data.bbox.maxLon]],{padding:[20,20]});
+                                map._ready=false; map._ready=true;
+                            }
+                            if(data.geojson.features.length===0) summary.textContent=t.empty;
+                        }catch(e){ showError((e&&e.message)||t.error); summary.textContent=''; }
+                        finally{ busy=false; }
+                    }
+                    async function loadSettings(){
+                        try{
+                            const res=await fetch('/api/steps/geolocation_map?settings=1',{credentials:'same-origin'});
+                            const data=await res.json();
+                            if(data.ok){ providers=data.providers||{}; provider=(data.settings&&data.settings.provider)||'osm'; renderProviders(); }
+                        }catch(e){ /* defaults stay usable */ }
+                    }
+                    function saveSettings(){
+                        fetch('/api/steps/geolocation_map?settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
+                    }
+                    refresh.addEventListener('click',fetchViewport);
+                    fromInput.addEventListener('change',fetchViewport);
+                    toInput.addEventListener('change',fetchViewport);
+                    providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
+                    section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ saveSettings(); fetchViewport(); }));
+                    setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
+                    (async function(){
+                        await loadSettings();
+                        try{ const L=await ensureLeaflet(); makeMap(L); }
+                        catch(e){ canvas.style.display='none'; showError(t.unavailable); }
+                        await fetchViewport();
+                    })();
+                })();
+                </script>
         </div>
         </div>
 
@@ -179,7 +402,7 @@ $metricButtons = [
                 </div>
             </div>
         </div>
-        
+
         <div id="stats-modal" style="display:none;">
             <div class="stats-content">
                 <button class="modal-close">×</button>
@@ -300,7 +523,7 @@ $metricButtons = [
                 </div>
             </div>
         </div>
-        
+
         <!-- Mobile App Modal -->
         <div id="mobile-app-modal" style="display:none;">
             <div class="mobile-app-content">
@@ -312,204 +535,6 @@ $metricButtons = [
                     <h1><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h1>
                     <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
                 </div>
-
-                <!-- Map: viewport-bounded layers, provider settings, non-map summary -->
-                <section id="ma-map" aria-labelledby="ma-map-title" style="margin:0 0 18px;padding:14px 16px;border:1px solid rgba(127,127,127,.25);border-radius:14px;">
-                    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
-                        <h3 id="ma-map-title" style="margin:0;font-size:15px;"><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></h3>
-                        <div style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
-                            <label style="font-size:11px;opacity:.75;" for="ma-map-from"><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></label>
-                            <input type="date" id="ma-map-from" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
-                            <label style="font-size:11px;opacity:.75;" for="ma-map-to"><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></label>
-                            <input type="date" id="ma-map-to" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;">
-                            <label style="font-size:11px;opacity:.75;" for="ma-map-provider"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></label>
-                            <select id="ma-map-provider" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>" style="font-size:12px;padding:3px 6px;border-radius:7px;border:1px solid rgba(127,127,127,.35);background:transparent;color:inherit;"></select>
-                            <button type="button" id="ma-map-refresh" style="background:transparent;border:1px solid rgba(127,127,127,.35);border-radius:8px;padding:5px 10px;font-size:12px;cursor:pointer;color:inherit;"><?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?></button>
-                        </div>
-                    </div>
-                    <fieldset style="border:0;margin:10px 0 0;padding:0;display:flex;flex-wrap:wrap;gap:10px;font-size:12px;">
-                        <legend style="font-size:11px;opacity:.75;padding:0;margin-bottom:4px;"><?php echo htmlspecialchars($translations['map_layers'] ?? 'Layers'); ?></legend>
-                        <?php
-                        $mapLayers = [
-                            'trips' => $translations['map_layer_trips'] ?? 'Trips',
-                            'stops' => $translations['map_layer_stops'] ?? 'Stops',
-                            'places' => $translations['map_layer_places'] ?? 'Places',
-                            'visits' => $translations['map_layer_visits'] ?? 'Visits',
-                            'points' => $translations['map_layer_points'] ?? 'Points',
-                            'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
-                            'explored' => $translations['map_layer_explored'] ?? 'Explored area',
-                        ];
-                        foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits'], true); ?>
-                            <label style="display:inline-flex;align-items:center;gap:4px;"><input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>> <?php echo htmlspecialchars($layerLabel); ?></label>
-                        <?php endforeach; ?>
-                    </fieldset>
-                    <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>" style="height:340px;margin-top:10px;border-radius:12px;overflow:hidden;background:rgba(127,127,127,.14);"></div>
-                    <p id="ma-map-summary" role="status" aria-live="polite" style="font-size:12px;opacity:.75;margin:8px 0 0;"></p>
-                    <p id="ma-map-error" role="alert" style="display:none;color:#ef4444;font-size:12px;margin:6px 0 0;"></p>
-                </section>
-                <script>
-                (function(){
-                    const section=document.getElementById('ma-map');
-                    if(!section) return;
-                    const modal=document.getElementById('mobile-app-modal');
-                    const canvas=document.getElementById('ma-map-canvas');
-                    const summary=document.getElementById('ma-map-summary');
-                    const errorEl=document.getElementById('ma-map-error');
-                    const providerSel=document.getElementById('ma-map-provider');
-                    const fromInput=document.getElementById('ma-map-from');
-                    const toInput=document.getElementById('ma-map-to');
-                    const refresh=document.getElementById('ma-map-refresh');
-                    const t={
-                        loading: <?php echo json_encode($translations['map_loading'] ?? 'Loading map…'); ?>,
-                        empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
-                        unavailable: <?php echo json_encode($translations['map_unavailable'] ?? 'Map tiles are unavailable; showing counts only.'); ?>,
-                        error: <?php echo json_encode($translations['map_error'] ?? 'Could not load map data.'); ?>,
-                        summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}'); ?>
-                    };
-                    const iso = (d) => d.toISOString().slice(0,10);
-                    if (!toInput.value) toInput.value = iso(new Date());
-                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 30 * 864e5));
-                    let map=null, layerGroup=null, providers={}, provider='osm', busy=false;
-                    const selectedLayers = () => Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.value);
-                    const showError = (m) => { errorEl.textContent = m || ''; errorEl.style.display = m ? '' : 'none'; };
-                    function ensureLeaflet(){
-                        if (window.L) return Promise.resolve(window.L);
-                        return new Promise((resolve, reject) => {
-                            if (!document.getElementById('ma-leaflet-css')) {
-                                const css=document.createElement('link');
-                                css.id='ma-leaflet-css'; css.rel='stylesheet';
-                                css.href='https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
-                                document.head.appendChild(css);
-                            }
-                            const script=document.createElement('script');
-                            script.src='https://unpkg.com/leaflet@1.9.4/dist/leaflet.js';
-                            script.onload=()=>resolve(window.L);
-                            script.onerror=()=>reject(new Error('leaflet_unavailable'));
-                            document.head.appendChild(script);
-                        });
-                    }
-                    function renderProviders(){
-                        providerSel.innerHTML='';
-                        Object.keys(providers).forEach(key=>{
-                            const opt=document.createElement('option');
-                            opt.value=key; opt.textContent=providers[key].name;
-                            if (key===provider) opt.selected=true;
-                            providerSel.appendChild(opt);
-                        });
-                    }
-                    function selectProvider(key){
-                        const p=providers[key]||providers.osm;
-                        if(!map||!p) return;
-                        if(map._tileLayer) map.removeLayer(map._tileLayer);
-                        map._tileLayer=window.L.tileLayer(p.url,{attribution:p.attribution,maxZoom:p.max_zoom||19}).addTo(map);
-                    }
-                    function makeMap(L){
-                        map=L.map(canvas,{zoomControl:true,attributionControl:true}).setView([50.45,30.52],12);
-                        layerGroup=L.layerGroup().addTo(map);
-                        selectProvider(provider);
-                        map.on('moveend',()=>{ if(map._ready) fetchViewport(); });
-                        window.addEventListener('steps-map-focus',(event)=>{
-                            const bbox=event.detail&&event.detail.bbox;
-                            if(!bbox) return;
-                            map.fitBounds([[bbox.minLat,bbox.minLon],[bbox.maxLat,bbox.maxLon]],{padding:[30,30],maxZoom:16});
-                        });
-                    }
-                    function popupHtml(title, lines){
-                        const div=document.createElement('div');
-                        const strong=document.createElement('strong'); strong.textContent=title; div.appendChild(strong);
-                        (lines||[]).forEach(line=>{ const p=document.createElement('div'); p.textContent=line; p.style.fontSize='11px'; p.style.opacity='.8'; div.appendChild(p); });
-                        return div;
-                    }
-                    function addPoint(feature, style, title, lines){
-                        const L=window.L;
-                        const [lon,lat]=feature.geometry.coordinates;
-                        const marker=L.circleMarker([lat,lon],style).addTo(layerGroup);
-                        marker.bindPopup(popupHtml(title, lines));
-                        return marker;
-                    }
-                    function render(features){
-                        if(!map||!window.L) return;
-                        const L=window.L;
-                        layerGroup.clearLayers();
-                        features.forEach(feature=>{
-                            const p=feature.properties||{};
-                            if(p.layer==='trip' && feature.geometry){
-                                L.geoJSON(feature,{style:{color:'#2b8aef',weight:3,opacity:.85}}).bindPopup(popupHtml(p.title||p.boundary_reason,['distance: '+Math.round(p.distance_m)+' m'])).addTo(layerGroup);
-                            } else if(p.layer==='place'){
-                                if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{radius:p.radius_m,color:p.color||'#22aa66',weight:1,fillOpacity:.08}).addTo(layerGroup);
-                                addPoint(feature,{radius:7,color:p.color||'#22aa66',fillOpacity:.9},p.name,[p.tag]);
-                            } else if(p.layer==='stop'||p.layer==='point_cluster'){
-                                const count=p.count||1;
-                                addPoint(feature,{radius:Math.min(18,6+Math.sqrt(count)*2),color:'#f59e0b',fillOpacity:.7},String(count),p.layer==='stop'?[t.summary.split('·')[1]||'stop']:[]);
-                            } else if(p.layer==='visit'){
-                                addPoint(feature,{radius:5,color:'#8b5cf6',fillOpacity:.85},p.place_name||'visit',[p.arrived_at||'']);
-                            } else if(p.layer==='point'){
-                                addPoint(feature,{radius:3,color:p.quality_state==='flagged'?'#ef4444':'#0ea5e9',fillOpacity:.8},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
-                            } else if(p.layer==='heatmap'){
-                                addPoint(feature,{radius:10,color:'#ef4444',stroke:false,fillOpacity:.12+0.5*(p.intensity||0)},String(p.weight||0),[]);
-                            } else if(p.layer==='explored'){
-                                addPoint(feature,{radius:8,color:'#10b981',stroke:false,fillOpacity:.25},String(p.visits||0),[]);
-                            }
-                        });
-                    }
-                    function bboxQuery(){
-                        if(!map) return '';
-                        const b=map.getBounds();
-                        const span=b.getEast()-b.getWest();
-                        if(!isFinite(span)||span<=0||span>85||(b.getNorth()-b.getSouth())>85) return '';
-                        return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(5)).join(',');
-                    }
-                    async function fetchViewport(){
-                        if(busy) return; busy=true;
-                        summary.textContent=t.loading; showError('');
-                        try{
-                            const params=new URLSearchParams();
-                            const bbox=bboxQuery(); if(bbox) params.set('bbox',bbox);
-                            params.set('from',fromInput.value+'T00:00:00Z');
-                            params.set('to',toInput.value+'T23:59:59Z');
-                            params.set('zoom',String(map?Math.round(map.getZoom()):12));
-                            params.set('layers',selectedLayers().join(','));
-                            const res=await fetch('/api/steps/geolocation_map?'+params.toString(),{credentials:'same-origin'});
-                            const data=await res.json();
-                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
-                            providers=data.providers||providers;
-                            if(!providerSel.options.length) renderProviders();
-                            render(data.geojson.features);
-                            const c=data.meta.counts||{};
-                            summary.textContent=t.summary.replace('{trips}',c.trips||0).replace('{stops}',(c.stops||0)+(c.point_clusters||0)).replace('{places}',c.places||0).replace('{visits}',c.visits||0).replace('{points}',c.points||(c.point_clusters||0));
-                            if(map && !map._ready && data.bbox){
-                                map._ready=true;
-                                map.fitBounds([[data.bbox.minLat,data.bbox.minLon],[data.bbox.maxLat,data.bbox.maxLon]],{padding:[20,20]});
-                                map._ready=false; map._ready=true;
-                            }
-                            if(data.geojson.features.length===0) summary.textContent=t.empty;
-                        }catch(e){ showError((e&&e.message)||t.error); summary.textContent=''; }
-                        finally{ busy=false; }
-                    }
-                    async function loadSettings(){
-                        try{
-                            const res=await fetch('/api/steps/geolocation_map?settings=1',{credentials:'same-origin'});
-                            const data=await res.json();
-                            if(data.ok){ providers=data.providers||{}; provider=(data.settings&&data.settings.provider)||'osm'; renderProviders(); }
-                        }catch(e){ /* defaults stay usable */ }
-                    }
-                    function saveSettings(){
-                        fetch('/api/steps/geolocation_map?settings=1',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({provider:provider,layers:selectedLayers()})}).catch(()=>{});
-                    }
-                    refresh.addEventListener('click',fetchViewport);
-                    fromInput.addEventListener('change',fetchViewport);
-                    toInput.addEventListener('change',fetchViewport);
-                    providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
-                    section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ saveSettings(); fetchViewport(); }));
-                    setInterval(()=>{ if(modal&&modal.style.display==='none') return; fetchViewport(); },30000);
-                    (async function(){
-                        await loadSettings();
-                        try{ const L=await ensureLeaflet(); makeMap(L); }
-                        catch(e){ canvas.style.display='none'; showError(t.unavailable); }
-                        await fetchViewport();
-                    })();
-                })();
-                </script>
 
                 <!-- Timeline: day/month/year, explicit timezone, cursor pagination -->
                 <section id="ma-timeline" aria-labelledby="ma-timeline-title" style="margin:0 0 18px;padding:14px 16px;border:1px solid rgba(127,127,127,.25);border-radius:14px;">
@@ -1032,6 +1057,19 @@ $metricButtons = [
             </div>
         </div>
         
+        <div id="day-steps-modal" style="display:none;">
+            <div class="day-steps-content">
+                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
+                <div class="day-steps-title"><?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?></div>
+                <div class="day-steps-date" id="day-steps-date"></div>
+                <input type="text" id="day-steps-input" inputmode="numeric" placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?>">
+                <div class="day-steps-actions">
+                    <button type="button" class="day-steps-cancel" id="day-steps-cancel"><?php echo htmlspecialchars($translations['cancel'] ?? 'Cancel'); ?></button>
+                    <button type="button" class="day-steps-save" id="day-steps-save"><?php echo htmlspecialchars($translations['save'] ?? 'Save'); ?></button>
+                </div>
+            </div>
+        </div>
+
         <div id="add-steps-modal" style="display:none;">
             <div class="add-steps-content add-steps-merged">
                 <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">×</button>
@@ -1350,14 +1388,6 @@ $metricButtons = [
                 msg.textContent=<?php echo json_encode($translations['sync_conflict_message'] ?? 'Different step values were found for {count} day(s). Choose which data to keep.', JSON_HEX_TAG); ?>.replace('{count}', String(days.length));
                 modal.style.display='flex';
             }
-            async function poll(){
-                try{
-                    const res=await fetch('/api/steps/conflicts',{credentials:'same-origin'});
-                    const data=await res.json();
-                    const conflict=data&&Array.isArray(data.conflicts)?data.conflicts[0]:null;
-                    if(conflict&&!current) show(conflict);
-                }catch(e){}
-            }
             modal.querySelectorAll('[data-conflict-action]').forEach(btn=>{
                 btn.addEventListener('click',async()=>{
                     if(!current) return;
@@ -1376,8 +1406,11 @@ $metricButtons = [
                     btn.disabled=false;
                 });
             });
-            poll();
-            setInterval(poll,60000);
+            // The web dashboard is authenticated by a PHP session, while
+            // /api/steps (public-api) only accepts a Bearer token, so polling
+            // conflicts from this page always answered 401 missing_token.
+            // Conflicts are surfaced and resolved in the mobile app, which has
+            // a token; keep the modal markup for that flow and do not poll here.
         })();
         </script>
 

@@ -527,7 +527,7 @@
         }
 
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','day-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer'];
             const any = ids.some(id => {
                 const m = document.getElementById(id);
                 if (!m) return false;
@@ -973,6 +973,7 @@
                 .join('');
             populateMonthSelectorForYear(currentDate.getFullYear(), lang, currentDate.getMonth() + 1);
             renderCalendar(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1), lang);
+            refreshCustomSelects();
         }
 
         function populateMonthSelectorForYear(year, lang = currentLocale, selectMonth = null) {
@@ -981,12 +982,14 @@
             if (!months.length) {
                 monthSelector.innerHTML = '<option value="-">—</option>';
                 monthSelector.disabled = true;
+                refreshCustomSelects();
                 return;
             }
             monthSelector.disabled = false;
             monthSelector.innerHTML = months
                 .map(m => `<option value="${m.value}" ${selectMonth && m.value === `${year}-${selectMonth}` ? 'selected' : ''}>${m.label}</option>`)
                 .join('');
+            refreshCustomSelects();
         }
 
         function syncCalendarSelectors() {
@@ -998,6 +1001,7 @@
             } else {
                 document.getElementById('month-selector').value = `${currentYear}-${currentDate.getMonth() + 1}`;
             }
+            refreshCustomSelects();
         }
 
         function renderCalendar(date, lang = currentLocale) {
@@ -1042,6 +1046,137 @@
             document.getElementById('goal-summary').innerHTML = `
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.total_steps}</span><span class="goal-summary-value">${formatNumber(totalSteps)}</span></div>
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.goal_days}</span><span class="goal-summary-value">${goalDays}</span></div>`;
+        }
+
+        // Main mode switch: steps / map
+        function initModeSwitch() {
+            const appMain = document.querySelector('.app-main'),
+                  mapView = document.getElementById('map-view'),
+                  buttons = Array.from(document.querySelectorAll('.mode-switch-btn'));
+            if (!buttons.length || !appMain || !mapView) return;
+            const applyMode = mode => {
+                buttons.forEach(btn => {
+                    const on = btn.getAttribute('data-mode') === mode;
+                    btn.classList.toggle('active', on);
+                    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                const showMap = mode === 'map';
+                appMain.hidden = showMap;
+                mapView.hidden = !showMap;
+                if (showMap) {
+                    window.dispatchEvent(new Event('steps-map-shown'));
+                } else if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            };
+            buttons.forEach(btn => btn.addEventListener('click', () => applyMode(btn.getAttribute('data-mode'))));
+        }
+
+        // Custom dropdowns for the calendar selectors
+        function initCustomSelect(nativeId, title) {
+            const native = document.getElementById(nativeId);
+            if (!native) return;
+            const root = native.closest('.custom-select');
+            if (!root) return;
+            const trigger = root.querySelector('.custom-select-trigger'),
+                  valueEl = root.querySelector('.custom-select-value'),
+                  menu = root.querySelector('.custom-select-menu');
+            if (!trigger || !valueEl || !menu) return;
+            const escapeHtml = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const render = () => {
+                const options = Array.from(native.options).filter(opt => opt.value !== '');
+                const selected = options.find(opt => opt.selected) || options[0] || null;
+                valueEl.textContent = selected ? selected.textContent.trim() : '—';
+                trigger.disabled = native.disabled || !options.length;
+                menu.innerHTML = `<div class="custom-select-header">${escapeHtml(title)}</div><div class="custom-select-grid">` +
+                    options.map(opt => `<button type="button" class="custom-select-option${opt.selected ? ' active' : ''}" data-value="${escapeHtml(opt.value)}" role="option" aria-selected="${opt.selected ? 'true' : 'false'}">${escapeHtml(opt.textContent.trim())}</button>`).join('') +
+                    '</div>';
+            };
+            const close = () => {
+                root.classList.remove('is-open');
+                trigger.setAttribute('aria-expanded', 'false');
+            };
+            trigger.addEventListener('click', () => {
+                if (trigger.disabled) return;
+                if (root.classList.contains('is-open')) { close(); return; }
+                document.querySelectorAll('.custom-select.is-open').forEach(other => {
+                    other.classList.remove('is-open');
+                    const otherTrigger = other.querySelector('.custom-select-trigger');
+                    if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+                });
+                render();
+                root.classList.add('is-open');
+                trigger.setAttribute('aria-expanded', 'true');
+            });
+            menu.addEventListener('click', e => {
+                const option = e.target.closest('.custom-select-option');
+                if (!option) return;
+                const value = option.getAttribute('data-value');
+                close();
+                if (native.value !== value) {
+                    native.value = value;
+                    native.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                render();
+            });
+            document.addEventListener('click', e => { if (!root.contains(e.target)) close(); });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+            native.addEventListener('change', render);
+            new MutationObserver(render).observe(native, { childList: true, subtree: true });
+            root._stepsRender = render;
+            render();
+        }
+        function refreshCustomSelects() {
+            document.querySelectorAll('.custom-select').forEach(root => {
+                if (typeof root._stepsRender === 'function') root._stepsRender();
+            });
+        }
+
+        // Minimalist day steps editor
+        function openDayStepsEditor(date) {
+            const input = document.getElementById('day-steps-input');
+            if (!input) return;
+            const entry = stepsData.find(item => item.date === date),
+                  steps = entry ? (Number(entry.steps) || 0) : 0;
+            input.dataset.date = date;
+            input.value = steps > 0 ? formatNumber(steps) : '';
+            const dateEl = document.getElementById('day-steps-date');
+            if (dateEl) dateEl.textContent = localDateFromYMD(date).toLocaleDateString(currentLocale, { day: 'numeric', month: 'long', year: 'numeric' });
+            openModal('day-steps-modal');
+            setTimeout(() => { input.focus(); input.select(); }, 60);
+        }
+        async function saveDaySteps() {
+            const input = document.getElementById('day-steps-input');
+            if (!input) return;
+            const date = input.dataset.date || '',
+                  steps = parseStepsRaw(input.value) || '0';
+            if (!date || !/^\d*$/.test(steps)) {
+                showToast(translations.invalid_date_steps || 'Invalid date or steps', 'error');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('date', date);
+            formData.append('steps', steps);
+            formData.append('add_steps', '1');
+            try {
+                const response = await fetch('', { method: 'POST', body: formData, credentials: 'same-origin' });
+                const data = await response.json();
+                if (data.status !== 'success') {
+                    showToast(data.message || translations.failed_save_settings || 'Error', 'error');
+                    return;
+                }
+                const value = parseInt(steps, 10) || 0;
+                stepsData = stepsData.filter(entry => entry.date !== date);
+                stepsData.push({ date, steps: value });
+                stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                closeModal('day-steps-modal');
+                renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                updateCalendar(currentLocale);
+                updateStatsNotification();
+                updateGoalNotification();
+            } catch (err) {
+                showToast(`${translations.failed_save_settings || 'Error'}: ${err.message}`, 'error');
+            }
         }
 
         // Functions for add steps modal
@@ -3007,6 +3142,9 @@
         function initApp() {
             renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
             updateCalendar(currentLocale);
+            initCustomSelect('year-selector', translations.year || 'Year');
+            initCustomSelect('month-selector', translations.month || 'Month');
+            initModeSwitch();
             updateStatsNotification();
             updateGoalNotification();
             hideEmptyDataTypeButtons();
@@ -3131,6 +3269,7 @@
                 populateMonthSelectorForYear(year, currentLocale);
                 document.getElementById('month-selector').value = '-';
                 renderCalendar(new Date(year, 0, 1), currentLocale);
+                refreshCustomSelects();
             });
 
             // Month selection
@@ -3582,11 +3721,15 @@
             // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {
                 const cell = e.target.closest('td[data-date]');
-                if (cell) {
-                    const date = cell.getAttribute('data-date');
-                    applyManualDate(date, currentLocale);
-                    openModal('add-steps-modal');
-                }
+                if (cell) openDayStepsEditor(cell.getAttribute('data-date'));
+            });
+
+            // Minimalist day steps editor
+            document.getElementById('day-steps-save')?.addEventListener('click', saveDaySteps);
+            document.getElementById('day-steps-cancel')?.addEventListener('click', () => closeModal('day-steps-modal'));
+            document.querySelector('#day-steps-modal .modal-close')?.addEventListener('click', () => closeModal('day-steps-modal'));
+            document.getElementById('day-steps-input')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); saveDaySteps(); }
             });
 
             // Handlers for Excel modal

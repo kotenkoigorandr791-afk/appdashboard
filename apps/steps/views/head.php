@@ -469,10 +469,10 @@
             display: grid;
             grid-template-columns: minmax(300px, 0.82fr) minmax(0, 1.42fr);
             grid-template-areas:
-                "view chart"
                 "types chart"
                 "calendar chart"
-                "goal chart";
+                "goal chart"
+                "view view";
             gap: 10px 14px;
             align-items: stretch;
             padding: clamp(10px, 1.6vw, 16px);
@@ -2598,9 +2598,9 @@
                 box-sizing: border-box;
                 grid-template-columns: 1fr;
                 grid-template-areas:
-                    "view"
                     "types"
                     "chart"
+                    "view"
                     "calendar"
                     "goal";
                 gap: 10px;
@@ -3468,6 +3468,237 @@ height: 48px;
         height: 40px;
     }
 }
+
+/* --- Main mode switch: steps / map --- */
+.mode-switch {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0 auto 12px;
+    padding: 4px;
+    border: 1px solid var(--border-color);
+    border-radius: 999px;
+    background: var(--group-block-bg);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.10);
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+}
+.mode-switch-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 20px;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted-text);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+.mode-switch-btn i { font-size: 15px; }
+.mode-switch-btn:hover { color: var(--text-color); }
+.mode-switch-btn.active {
+    background: var(--surface-solid);
+    color: var(--text-color);
+    box-shadow: inset 0 -2px 0 var(--primary-color), 0 8px 22px rgba(0,0,0,0.14);
+}
+.app-main[hidden] { display: none !important; }
+.map-view { width: 100%; min-width: 0; box-sizing: border-box; }
+.map-view[hidden] { display: none !important; }
+.map-view #ma-map {
+    margin: 0 !important;
+    padding: clamp(12px, 2vw, 20px) !important;
+    background: linear-gradient(120deg, var(--surface-rail), var(--modal-bg));
+    border: 1px solid var(--border-color) !important;
+    border-radius: var(--radius-lg) !important;
+    box-shadow: var(--shadow-soft);
+}
+.map-view #ma-map-canvas { height: min(58vh, 540px) !important; }
+
+/* --- Custom year/month dropdowns --- */
+.calendar-selector-box { align-items: stretch; gap: 10px; }
+.custom-select { position: relative; flex: 1 1 0; min-width: 0; }
+.calendar-selector-box select.custom-select-native {
+    position: absolute !important;
+    top: 0;
+    left: 0;
+    width: 1px !important;
+    height: 1px !important;
+    min-width: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+}
+.custom-select-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    background: var(--surface-solid);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+.custom-select-trigger:hover { border-color: color-mix(in srgb, var(--primary-color) 45%, var(--border-color)); }
+.custom-select-trigger:focus-visible {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+.custom-select-trigger:disabled { opacity: 0.5; cursor: not-allowed; }
+.custom-select-value { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.custom-select-caret { font-size: 11px; color: var(--muted-text); transition: transform 0.2s ease; }
+.custom-select.is-open .custom-select-caret { transform: rotate(180deg); }
+.custom-select.is-open .custom-select-trigger {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+.custom-select-menu {
+    position: absolute;
+    z-index: 70;
+    top: calc(100% + 8px);
+    left: 0;
+    right: 0;
+    display: none;
+    padding: 8px;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--surface-solid) 94%, var(--modal-bg));
+    box-shadow: var(--shadow-soft);
+    max-height: 280px;
+    overflow: auto;
+    -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+    backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+}
+.custom-select.is-open .custom-select-menu { display: block; }
+.custom-select-header {
+    padding: 4px 6px 8px;
+    margin-bottom: 8px;
+    border-bottom: 1px solid var(--border-color);
+    color: var(--muted-text);
+    font-size: 10px;
+    font-weight: 800;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+.custom-select-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(78px, 1fr)); gap: 6px; }
+.custom-select-option {
+    padding: 9px 8px;
+    border: 1px solid transparent;
+    border-radius: 10px;
+    background: rgba(127,127,127,0.07);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 13px;
+    font-weight: 600;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.16s ease, color 0.16s ease, border-color 0.16s ease;
+}
+.custom-select-option:hover {
+    background: color-mix(in srgb, var(--primary-color) 14%, transparent);
+    border-color: color-mix(in srgb, var(--primary-color) 30%, transparent);
+}
+.custom-select-option.active {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: #fff;
+    box-shadow: 0 6px 16px color-mix(in srgb, var(--primary-color) 34%, transparent);
+}
+
+/* --- Minimalist day steps editor --- */
+#day-steps-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: rgba(10,14,18,0.42);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    box-sizing: border-box;
+}
+#day-steps-modal .day-steps-content {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: min(320px, 100%);
+    padding: 22px;
+    border: 1px solid var(--border-color);
+    border-radius: 20px;
+    background: color-mix(in srgb, var(--modal-bg) 92%, var(--surface-solid));
+    box-shadow: var(--shadow-soft);
+    animation: alertPopIn 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.day-steps-title {
+    text-align: center;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: var(--muted-text);
+}
+.day-steps-date {
+    text-align: center;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-color);
+}
+#day-steps-input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 12px;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    background: var(--surface-solid);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 32px;
+    font-weight: 800;
+    letter-spacing: 0.02em;
+    text-align: center;
+}
+#day-steps-input::placeholder { color: color-mix(in srgb, var(--muted-text) 55%, transparent); font-weight: 800; }
+#day-steps-input:focus {
+    outline: none;
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 22%, transparent);
+}
+.day-steps-actions { display: flex; gap: 8px; }
+.day-steps-actions button {
+    flex: 1 1 0;
+    padding: 11px 14px;
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    background: var(--group-block-bg);
+    color: var(--text-color);
+    font: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: filter 0.16s ease, transform 0.16s ease;
+}
+.day-steps-actions button:hover { filter: brightness(1.05); }
+.day-steps-actions .day-steps-save { background: var(--primary-color); border-color: var(--primary-color); color: #fff; }
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>
