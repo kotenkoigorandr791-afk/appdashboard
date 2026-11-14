@@ -8,6 +8,7 @@
  */
 require_once __DIR__ . '/geolocation_domain.php';
 require_once __DIR__ . '/geolocation_secrets.php';
+require_once __DIR__ . '/geolocation_security.php';
 
 final class StepsGeolocationImmichError extends RuntimeException
 {
@@ -43,6 +44,11 @@ final class StepsGeolocationImmich
             throw new StepsGeolocationImmichError('invalid_server_url');
         }
         if (isset($parts['user']) || isset($parts['pass'])) throw new StepsGeolocationImmichError('invalid_server_url');
+        try {
+            StepsGeolocationSecurity::validateOutboundUrl($url);
+        } catch (StepsGeolocationSecurityError $e) {
+            throw new StepsGeolocationImmichError('invalid_server_url');
+        }
         return $url;
     }
 

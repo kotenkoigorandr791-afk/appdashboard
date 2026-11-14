@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_imports.php';
+require_once dirname(__DIR__) . '/core/geolocation_security.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -20,6 +21,12 @@ if ($method === 'GET') {
     ]);
 }
 if ($method !== 'POST') public_api_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
+
+try {
+    StepsGeolocationSecurity::assertUploadSize();
+} catch (StepsGeolocationSecurityError $e) {
+    public_api_json(['ok' => false, 'error' => $e->errorCode], $e->status);
+}
 
 if (isset($_FILES['file']) && is_array($_FILES['file'])) {
     $file = $_FILES['file'];

@@ -20,6 +20,7 @@ require_once dirname(__DIR__) . '/core/geolocation_permissions.php';
 require_once dirname(__DIR__) . '/core/geolocation_exports.php';
 require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
 require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
+require_once dirname(__DIR__) . '/core/geolocation_security.php';
 
 public_api_bootstrap();
 $pdo = app_main_db()->getPdo();
@@ -90,6 +91,7 @@ try {
         if ($method === 'GET') {
             StepsGeolocationApi::requireScope($key, 'read:points');
             $result = StepsGeolocationApi::points($pdo, $owner, $params);
+            StepsGeolocationSecurity::auditRead($pdo, $owner, 'points', (int)($result['total'] ?? 0), ['api' => 'v1']);
             StepsGeolocationApi::respond(['ok' => true] + $result);
         }
         if ($method === 'POST') {
@@ -109,20 +111,30 @@ try {
     if ($resource === 'trips') {
         if ($method !== 'GET') StepsGeolocationApi::fail('method_not_allowed', 405);
         StepsGeolocationApi::requireScope($key, 'read:trips');
-        if ($id !== '') StepsGeolocationApi::respond(['ok' => true, 'trip' => StepsGeolocationApi::trip($pdo, $owner, $id)]);
-        StepsGeolocationApi::respond(['ok' => true] + StepsGeolocationApi::trips($pdo, $owner, $params));
+        if ($id !== '') {
+            $trip = StepsGeolocationApi::trip($pdo, $owner, $id);
+            StepsGeolocationSecurity::auditRead($pdo, $owner, 'trip', 1, ['api' => 'v1']);
+            StepsGeolocationApi::respond(['ok' => true, 'trip' => $trip]);
+        }
+        $result = StepsGeolocationApi::trips($pdo, $owner, $params);
+        StepsGeolocationSecurity::auditRead($pdo, $owner, 'trips', (int)($result['total'] ?? 0), ['api' => 'v1']);
+        StepsGeolocationApi::respond(['ok' => true] + $result);
     }
 
     if ($resource === 'places') {
         if ($method !== 'GET') StepsGeolocationApi::fail('method_not_allowed', 405);
         StepsGeolocationApi::requireScope($key, 'read:places');
-        StepsGeolocationApi::respond(['ok' => true] + StepsGeolocationApi::places($pdo, $owner, $params));
+        $result = StepsGeolocationApi::places($pdo, $owner, $params);
+        StepsGeolocationSecurity::auditRead($pdo, $owner, 'places', (int)($result['total'] ?? 0), ['api' => 'v1']);
+        StepsGeolocationApi::respond(['ok' => true] + $result);
     }
 
     if ($resource === 'visits') {
         if ($method !== 'GET') StepsGeolocationApi::fail('method_not_allowed', 405);
         StepsGeolocationApi::requireScope($key, 'read:visits');
-        StepsGeolocationApi::respond(['ok' => true] + StepsGeolocationApi::visits($pdo, $owner, $params));
+        $result = StepsGeolocationApi::visits($pdo, $owner, $params);
+        StepsGeolocationSecurity::auditRead($pdo, $owner, 'visits', (int)($result['total'] ?? 0), ['api' => 'v1']);
+        StepsGeolocationApi::respond(['ok' => true] + $result);
     }
 
     if ($resource === 'family' && ($segments[1] ?? '') === 'permissions') {
@@ -151,6 +163,7 @@ try {
             $row['longitude'] = $row['longitude'] !== null ? (float)$row['longitude'] : null;
             $assets[] = $row;
         }
+        StepsGeolocationSecurity::auditRead($pdo, $owner, 'immich_assets', count($assets), ['api' => 'v1']);
         StepsGeolocationApi::respond(['ok' => true, 'assets' => $assets, 'limit' => $limit, 'offset' => $offset]);
     }
 

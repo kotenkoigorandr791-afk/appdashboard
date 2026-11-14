@@ -100,6 +100,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v15_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '015']);
         }
+        // 016: per-tenant privacy policy and redacted audit indexes.
+        $applied->execute([':version' => '016']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v16_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '016']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -282,6 +288,14 @@ function steps_geolocation_schema_v15_sql(): array
     return [
         "CREATE TABLE IF NOT EXISTS geo_api_keys (id UUID PRIMARY KEY, user_email TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', key_prefix TEXT NOT NULL, key_hash TEXT NOT NULL UNIQUE, scopes_json JSONB NOT NULL DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), rotated_at TIMESTAMPTZ, last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ, expires_at TIMESTAMPTZ)",
         "CREATE INDEX IF NOT EXISTS geo_api_keys_owner_idx ON geo_api_keys(user_email, revoked_at, created_at DESC)",
+    ];
+}
+function steps_geolocation_schema_v16_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_privacy_settings (user_email TEXT PRIMARY KEY, summary_precision_decimals INTEGER NOT NULL DEFAULT 2 CHECK (summary_precision_decimals BETWEEN 0 AND 4), retention_days INTEGER NOT NULL DEFAULT 0 CHECK (retention_days BETWEEN 0 AND 3650), audit_retention_days INTEGER NOT NULL DEFAULT 365 CHECK (audit_retention_days BETWEEN 30 AND 3650), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_audit_events_owner_time_idx ON geo_audit_events(user_email, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_audit_events_type_idx ON geo_audit_events(event_type, created_at DESC)",
     ];
 }
 function steps_geolocation_schema_sql(): array

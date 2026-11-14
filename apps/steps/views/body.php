@@ -2294,6 +2294,101 @@ $metricButtons = [
                             </div>
                             <p id="notifications-status" class="location-status" role="status" aria-live="polite"></p>
                         </section>
+                        <section class="location-section" id="geo-privacy-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($translations['geo_privacy_title'] ?? 'Privacy and data deletion'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['geo_privacy_hint'] ?? 'Control coordinate precision, automatic retention and deletion. Exports are private; no public location links exist. Account purge removes every Steps location row and artifact for this account.'); ?></p>
+                            <div class="location-import-form">
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['geo_privacy_precision'] ?? 'Summary precision'); ?></span>
+                                    <select id="geo-privacy-precision">
+                                        <option value="0">0 - country</option>
+                                        <option value="1">1 - region</option>
+                                        <option value="2" selected>2 - city</option>
+                                        <option value="3">3 - neighbourhood</option>
+                                        <option value="4">4 - street</option>
+                                    </select>
+                                </label>
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['geo_privacy_retention'] ?? 'Keep history, days'); ?></span><input type="number" id="geo-privacy-retention" min="0" max="3650" value="0" title="0 keeps history until you delete it"></label>
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['geo_privacy_audit'] ?? 'Keep audit, days'); ?></span><input type="number" id="geo-privacy-audit-days" min="30" max="3650" value="365"></label>
+                                <button type="button" id="geo-privacy-save" class="excel-btn"><i class="fas fa-check"></i> <?php echo htmlspecialchars($translations['geo_privacy_save'] ?? 'Save policy'); ?></button>
+                            </div>
+                            <p id="geo-privacy-counts" class="location-hint"></p>
+                            <div class="location-import-form">
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['geo_privacy_from'] ?? 'Delete from'); ?></span><input type="datetime-local" id="geo-privacy-from"></label>
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['geo_privacy_to'] ?? 'Delete to'); ?></span><input type="datetime-local" id="geo-privacy-to"></label>
+                                <button type="button" id="geo-privacy-delete" class="excel-btn"><i class="fas fa-trash"></i> <?php echo htmlspecialchars($translations['geo_privacy_delete'] ?? 'Delete range'); ?></button>
+                            </div>
+                            <div class="location-import-form">
+                                <input type="text" id="geo-privacy-confirm" maxlength="5" autocomplete="off" placeholder="<?php echo htmlspecialchars($translations['geo_privacy_confirm'] ?? 'Type PURGE to confirm'); ?>">
+                                <button type="button" id="geo-privacy-purge" class="excel-btn"><i class="fas fa-triangle-exclamation"></i> <?php echo htmlspecialchars($translations['geo_privacy_purge'] ?? 'Purge account location data'); ?></button>
+                            </div>
+                            <p id="geo-privacy-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="geo-privacy-audit" class="location-import-history"></div>
+                        </section>
+                        <script>
+                        (function () {
+                            const api = '/apps/steps/api/geolocation_privacy.php';
+                            const statusEl = document.getElementById('geo-privacy-status');
+                            if (!statusEl) return;
+                            const setStatus = (message, error) => { statusEl.textContent = message || ''; statusEl.style.color = error ? '#c0392b' : ''; };
+                            const num = (id) => document.getElementById(id).value;
+                            const render = (data) => {
+                                const policy = data.policy || {};
+                                document.getElementById('geo-privacy-precision').value = String(policy.summary_precision_decimals ?? 2);
+                                document.getElementById('geo-privacy-retention').value = String(policy.retention_days ?? 0);
+                                document.getElementById('geo-privacy-audit-days').value = String(policy.audit_retention_days ?? 365);
+                                const c = data.counts || {};
+                                document.getElementById('geo-privacy-counts').textContent = `Points: ${c.points || 0} · trips: ${c.trips || 0} · places: ${c.places || 0} · exports: ${c.exports || 0}`;
+                                const audit = document.getElementById('geo-privacy-audit');
+                                audit.innerHTML = '';
+                                for (const row of (data.audit || [])) {
+                                    const item = document.createElement('div');
+                                    item.className = 'location-hint';
+                                    item.textContent = `${row.event_type} · ${new Date(row.created_at).toLocaleString()}`;
+                                    audit.appendChild(item);
+                                }
+                            };
+                            const load = async () => {
+                                try {
+                                    const res = await fetch(api, { credentials: 'same-origin' });
+                                    const data = await res.json();
+                                    if (!res.ok || !data.ok) throw new Error(data.error || 'load_failed');
+                                    render(data);
+                                } catch (e) { setStatus(e.message, true); }
+                            };
+                            const send = async (body) => {
+                                const res = await fetch(api, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                                const data = await res.json();
+                                if (!res.ok || !data.ok) throw new Error(data.error || 'request_failed');
+                                return data;
+                            };
+                            document.getElementById('geo-privacy-save').addEventListener('click', async () => {
+                                try {
+                                    await send({ action: 'policy', summary_precision_decimals: Number(num('geo-privacy-precision')), retention_days: Number(num('geo-privacy-retention')), audit_retention_days: Number(num('geo-privacy-audit-days')) });
+                                    setStatus('<?php echo htmlspecialchars($translations['geo_privacy_saved'] ?? 'Privacy policy saved.'); ?>');
+                                    await load();
+                                } catch (e) { setStatus(e.message, true); }
+                            });
+                            document.getElementById('geo-privacy-delete').addEventListener('click', async () => {
+                                if (!confirm('<?php echo htmlspecialchars($translations['geo_privacy_delete_confirm'] ?? 'Delete location points and derived data in this range? This cannot be undone.'); ?>')) return;
+                                try {
+                                    const data = await send({ action: 'delete_range', from: num('geo-privacy-from'), to: num('geo-privacy-to') });
+                                    setStatus('Deleted: ' + JSON.stringify(data.deleted));
+                                    await load();
+                                } catch (e) { setStatus(e.message, true); }
+                            });
+                            document.getElementById('geo-privacy-purge').addEventListener('click', async () => {
+                                if (!confirm('<?php echo htmlspecialchars($translations['geo_privacy_purge_confirm'] ?? 'Purge every Steps location row, export and credential for this account? This cannot be undone.'); ?>')) return;
+                                try {
+                                    await send({ action: 'purge', confirmation: num('geo-privacy-confirm') });
+                                    setStatus('<?php echo htmlspecialchars($translations['geo_privacy_purged'] ?? 'Account location data purged.'); ?>');
+                                    await load();
+                                } catch (e) { setStatus(e.message, true); }
+                            });
+                            load();
+                        })();
+                        </script>
                         <section class="location-section" id="immich-section">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-images"></i> <?php echo htmlspecialchars($translations['immich_title'] ?? 'Immich photos'); ?></h3>
