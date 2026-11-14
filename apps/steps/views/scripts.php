@@ -3450,6 +3450,187 @@
                 const clean = event.target.closest('[data-import-cleanup]');
                 if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
             });
+            const familyApi = '/apps/steps/api/session_gateway.php?endpoint=family';
+            function familyText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            async function familyRequest(body) {
+                const res = await fetch(familyApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'family_update_failed');
+                await loadFamily();
+                return data;
+            }
+            function familyButton(label, action, attrs, className) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = className || 'excel-btn';
+                button.dataset.familyAction = action;
+                Object.entries(attrs || {}).forEach(([key, value]) => button.dataset[key] = value);
+                button.textContent = label;
+                return button;
+            }
+            function renderFamily(data) {
+                const groupsHost = document.getElementById('family-groups');
+                const pendingHost = document.getElementById('family-pending');
+                if (!groupsHost || !pendingHost) return;
+                groupsHost.innerHTML = '';
+                pendingHost.innerHTML = '';
+                const pending = data.pending_invitations || [];
+                if (pending.length) {
+                    const heading = document.createElement('p');
+                    heading.className = 'location-hint';
+                    heading.textContent = familyText('family_pending_invites', 'Invitations waiting for you') + ':';
+                    pendingHost.appendChild(heading);
+                    pending.forEach(invite => {
+                        const card = document.createElement('div');
+                        card.className = 'import-item';
+                        const line = document.createElement('div');
+                        line.textContent = (invite.group_name || '') + ' · ' + invite.inviter_email + ' · ' + String(invite.expires_at || '').slice(0, 10);
+                        card.appendChild(line);
+                        const hint = document.createElement('div');
+                        hint.className = 'import-item-meta';
+                        hint.textContent = familyText('family_pending_hint', 'Use the invitation token from the person who invited you.');
+                        card.appendChild(hint);
+                        pendingHost.appendChild(card);
+                    });
+                }
+                const groups = data.groups || [];
+                if (!groups.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = familyText('family_none', 'No family groups yet.');
+                    groupsHost.appendChild(empty);
+                    return;
+                }
+                groups.forEach(group => {
+                    const card = document.createElement('div');
+                    card.className = 'family-group';
+                    const head = document.createElement('div');
+                    head.className = 'import-item-head';
+                    const title = document.createElement('strong');
+                    title.textContent = group.name + ' · ' + group.member_count + '/' + group.max_members + ' · ' + group.role;
+                    head.appendChild(title);
+                    const actions = document.createElement('div');
+                    actions.className = 'import-item-actions';
+                    if (group.role === 'owner' || group.role === 'admin') {
+                        actions.appendChild(familyButton(familyText('family_rename', 'Rename'), 'rename', { groupId: group.id, groupName: group.name }));
+                    }
+                    if (group.role !== 'owner') {
+                        actions.appendChild(familyButton(familyText('family_leave', 'Leave group'), 'leave', { groupId: group.id }));
+                    }
+                    head.appendChild(actions);
+                    card.appendChild(head);
+                    (group.members || []).forEach(member => {
+                        const row = document.createElement('div');
+                        row.className = 'family-member';
+                        const label = document.createElement('span');
+                        label.textContent = member.user_email + (member.user_email === group.owner_email ? ' · ' + familyText('family_owner', 'owner') : ' · ' + member.role);
+                        row.appendChild(label);
+                        const rowActions = document.createElement('div');
+                        rowActions.className = 'import-item-actions';
+                        if (group.role === 'owner' && member.user_email !== group.owner_email) {
+                            const select = document.createElement('select');
+                            ['admin', 'member'].forEach(role => { const option = document.createElement('option'); option.value = role; option.textContent = role; option.selected = member.role === role; select.appendChild(option); });
+                            select.dataset.familyRoleSelect = member.user_email;
+                            select.dataset.groupId = group.id;
+                            rowActions.appendChild(select);
+                            rowActions.appendChild(familyButton(familyText('family_apply_role', 'Apply role'), 'role', { groupId: group.id, email: member.user_email }));
+                            rowActions.appendChild(familyButton(familyText('family_transfer', 'Make owner'), 'transfer', { groupId: group.id, email: member.user_email }));
+                        }
+                        if (group.role !== 'member' && member.user_email !== group.owner_email && (group.role === 'owner' || member.role !== 'admin')) {
+                            rowActions.appendChild(familyButton(familyText('family_remove', 'Remove'), 'remove', { groupId: group.id, email: member.user_email }));
+                        }
+                        row.appendChild(rowActions);
+                        card.appendChild(row);
+                    });
+                    if (group.role === 'owner' || group.role === 'admin') {
+                        const form = document.createElement('div');
+                        form.className = 'family-invite-form';
+                        const email = document.createElement('input');
+                        email.type = 'email'; email.placeholder = familyText('family_email', 'person@example.com'); email.dataset.familyInviteEmail = '1';
+                        email.dataset.groupId = group.id;
+                        const role = document.createElement('select');
+                        ['member', 'admin'].forEach(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; if (value === 'admin' && group.role !== 'owner') option.disabled = true; role.appendChild(option); });
+                        role.dataset.familyInviteRole = '1'; role.dataset.groupId = group.id;
+                        const invite = familyButton(familyText('family_invite', 'Invite'), 'invite', { groupId: group.id });
+                        form.appendChild(email); form.appendChild(role); form.appendChild(invite);
+                        card.appendChild(form);
+                        const invitations = group.invitations || [];
+                        invitations.forEach(invitation => {
+                            const inviteRow = document.createElement('div');
+                            inviteRow.className = 'family-member';
+                            const text = document.createElement('span');
+                            text.textContent = invitation.invitee_email + ' · ' + invitation.role + ' · ' + String(invitation.expires_at || '').slice(0, 10);
+                            inviteRow.appendChild(text);
+                            inviteRow.appendChild(familyButton(familyText('family_cancel_invite', 'Cancel invite'), 'cancel_invitation', { invitationId: invitation.id }));
+                            card.appendChild(inviteRow);
+                        });
+                    }
+                    groupsHost.appendChild(card);
+                });
+            }
+            async function loadFamily() {
+                const host = document.getElementById('family-groups');
+                if (!host) return;
+                try {
+                    const res = await fetch(familyApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'family_list_failed');
+                    renderFamily(data);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || 'family_list_failed') + '</p>';
+                }
+            }
+            document.getElementById('family-create')?.addEventListener('click', async () => {
+                const input = document.getElementById('family-new-name');
+                const status = document.getElementById('family-status');
+                try { await familyRequest({ action: 'create', name: input ? input.value : '' }); if (input) input.value = ''; if (status) status.textContent = familyText('family_created', 'Group created.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'family_create_failed'; }
+            });
+            document.getElementById('family-accept')?.addEventListener('click', async () => {
+                const input = document.getElementById('family-token');
+                const status = document.getElementById('family-status');
+                try { await familyRequest({ action: 'accept', token: input ? input.value : '' }); if (input) input.value = ''; if (status) status.textContent = familyText('family_joined', 'You joined the group.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'family_join_failed'; }
+            });
+            document.getElementById('family-groups')?.addEventListener('click', async (event) => {
+                const button = event.target.closest('[data-family-action]');
+                if (!button) return;
+                const action = button.dataset.familyAction;
+                const groupId = button.dataset.groupId || '';
+                const status = document.getElementById('family-status');
+                try {
+                    if (action === 'invite') {
+                        const group = button.closest('.family-group');
+                        const email = group?.querySelector('[data-family-invite-email]')?.value || '';
+                        const role = group?.querySelector('[data-family-invite-role]')?.value || 'member';
+                        const data = await familyRequest({ action: 'invite', group_id: groupId, email, role });
+                        if (status) status.textContent = familyText('family_invite_created', 'Invitation token (share privately):') + ' ' + (data.token || '');
+                    } else if (action === 'remove') {
+                        await familyRequest({ action: 'remove_member', group_id: groupId, email: button.dataset.email || '' });
+                        if (status) status.textContent = familyText('family_removed', 'Member removed.');
+                    } else if (action === 'leave') {
+                        await familyRequest({ action: 'leave', group_id: groupId });
+                        if (status) status.textContent = familyText('family_left', 'You left the group.');
+                    } else if (action === 'cancel_invitation') {
+                        await familyRequest({ action: 'cancel_invitation', invitation_id: button.dataset.invitationId || '' });
+                        if (status) status.textContent = familyText('family_invite_cancelled', 'Invitation cancelled.');
+                    } else if (action === 'role') {
+                        const select = button.closest('.family-member')?.querySelector('[data-family-role-select]');
+                        await familyRequest({ action: 'role', group_id: groupId, email: button.dataset.email || '', role: select ? select.value : 'member' });
+                        if (status) status.textContent = familyText('family_role_changed', 'Role updated.');
+                    } else if (action === 'transfer') {
+                        const message = familyText('family_confirm_transfer', 'Make this member the group owner?');
+                        if (!window.confirm(message)) return;
+                        await familyRequest({ action: 'transfer', group_id: groupId, email: button.dataset.email || '' });
+                        if (status) status.textContent = familyText('family_transferred', 'Ownership transferred.');
+                    } else if (action === 'rename') {
+                        const name = window.prompt(familyText('family_group_name', 'Group name'), button.dataset.groupName || '');
+                        if (name === null) return;
+                        await familyRequest({ action: 'rename', group_id: groupId, name });
+                        if (status) status.textContent = familyText('family_renamed', 'Group renamed.');
+                    }
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'family_update_failed'; }
+            });
             const locationExportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_exports';
             let locationExportsPoll = null;
             let locationExportOptionsReady = false;
@@ -3645,6 +3826,7 @@
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
                     if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); }
+                    if (id === 'family') loadFamily();
                 });
             });
 

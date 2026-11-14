@@ -58,6 +58,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v8_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '008']);
         }
+        // 009: hashed, expiring family invitations.
+        $applied->execute([':version' => '009']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v9_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '009']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -152,6 +158,17 @@ function steps_geolocation_schema_v8_sql(): array
         "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS download_count INTEGER NOT NULL DEFAULT 0",
         "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS last_downloaded_at TIMESTAMPTZ",
         "CREATE INDEX IF NOT EXISTS geo_artifacts_user_idx ON geo_artifacts(user_email, export_id)",
+    ];
+}
+function steps_geolocation_schema_v9_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_family_invitations (id UUID PRIMARY KEY, group_id UUID NOT NULL REFERENCES geo_family_groups(id), inviter_email TEXT NOT NULL, invitee_email TEXT NOT NULL, role TEXT NOT NULL DEFAULT 'member' CHECK (role IN ('admin','member')), token_hash TEXT NOT NULL UNIQUE, expires_at TIMESTAMPTZ NOT NULL, accepted_at TIMESTAMPTZ, accepted_by TEXT, cancelled_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_family_invitations_group_idx ON geo_family_invitations(group_id, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_family_invitations_invitee_idx ON geo_family_invitations(invitee_email, expires_at) WHERE accepted_at IS NULL AND cancelled_at IS NULL",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_family_invitations_pending_idx ON geo_family_invitations(group_id, invitee_email) WHERE accepted_at IS NULL AND cancelled_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_family_members_user_idx ON geo_family_members(user_email, status)",
+        "CREATE INDEX IF NOT EXISTS geo_family_groups_owner_idx ON geo_family_groups(owner_email)",
     ];
 }
 function steps_geolocation_schema_sql(): array

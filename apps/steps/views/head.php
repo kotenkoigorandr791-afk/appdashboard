@@ -879,6 +879,11 @@
         .export-artifact-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 11px; }
         .export-artifact-links a { color: var(--primary-color); text-decoration: none; }
         .export-artifact-links a:hover { text-decoration: underline; }
+        .family-group { display: flex; flex-direction: column; gap: 8px; padding: 12px; border: 1px solid rgba(127,127,127,.16); border-radius: 12px; background: rgba(127,127,127,.05); }
+        .family-member { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 4px 0; border-top: 1px solid rgba(127,127,127,.1); }
+        .family-invite-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+        .family-invite-form input { min-width: 180px; }
+        .family-token { font-family: monospace; font-size: 11px; overflow-wrap: anywhere; background: rgba(127,127,127,.12); padding: 6px; border-radius: 6px; }
         .import-error { font-size: 11px; color: #ef4444; }
         #settings-panel-chart .settings-chart-type-intro {
             text-align: left;

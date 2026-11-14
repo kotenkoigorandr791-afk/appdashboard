@@ -1446,6 +1446,9 @@ $metricButtons = [
                     <button type="button" class="settings-tab" data-settings-tab="location" role="tab" aria-selected="false">
                         <i class="fas fa-earth-europe"></i> <?php echo htmlspecialchars($translations['location_data_title'] ?? 'Location data'); ?>
                     </button>
+                    <button type="button" class="settings-tab" data-settings-tab="family" role="tab" aria-selected="false">
+                        <i class="fas fa-people-roof"></i> <?php echo htmlspecialchars($translations['family_title'] ?? 'Family'); ?>
+                    </button>
                     <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
                         <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
                     </button>
@@ -1619,6 +1622,27 @@ $metricButtons = [
                             </div>
                             <p id="location-export-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-export-history" class="location-import-history"></div>
+                        </section>
+                    </div>
+                </div>
+                <div id="settings-panel-family" class="settings-tab-panel" role="tabpanel">
+                    <div class="location-panel">
+                        <section class="location-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-people-roof"></i> <?php echo htmlspecialchars($translations['family_title'] ?? 'Family groups'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['family_hint'] ?? 'Family groups are private. Membership never shares your location; location access is a separate grant. Up to 15 people per group.'); ?></p>
+                            <div class="location-import-form">
+                                <input type="text" id="family-new-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['family_group_name'] ?? 'Group name'); ?>">
+                                <button type="button" id="family-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['family_create'] ?? 'Create group'); ?></button>
+                            </div>
+                            <div class="location-import-form">
+                                <input type="text" id="family-token" maxlength="200" autocomplete="off" placeholder="<?php echo htmlspecialchars($translations['family_invite_token'] ?? 'Invitation token'); ?>">
+                                <button type="button" id="family-accept" class="excel-btn"><i class="fas fa-right-to-bracket"></i> <?php echo htmlspecialchars($translations['family_accept'] ?? 'Join with token'); ?></button>
+                            </div>
+                            <p id="family-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="family-pending" class="location-import-history"></div>
+                            <div id="family-groups" class="location-import-history"></div>
                         </section>
                     </div>
                 </div>
