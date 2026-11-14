@@ -1,0 +1,7 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {"type": "Feature", "properties": {"time": "2025-05-03T10:00:00Z", "accuracy": 8}, "geometry": {"type": "Point", "coordinates": [30.5434, 50.4701]}},
+    {"type": "Feature", "properties": {"time": "2025-05-03T10:05:00Z", "accuracy": 12}, "geometry": {"type": "Point", "coordinates": [30.5444, 50.4711]}}
+  ]
+}

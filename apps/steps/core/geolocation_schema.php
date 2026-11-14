@@ -34,6 +34,24 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v4_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '004']);
         }
+        // 005: import provenance, per-file links and import state.
+        $applied->execute([':version' => '005']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v5_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '005']);
+        }
+        // 006: allow the same file to be imported again after removal/failure.
+        $applied->execute([':version' => '006']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v6_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '006']);
+        }
+        // 007: failed files must not block a retry with identical bytes.
+        $applied->execute([':version' => '007']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v7_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '007']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -67,6 +85,47 @@ function steps_geolocation_schema_v4_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_boundary_areas_geometry_idx ON geo_boundary_areas USING GIST(geometry)",
         "CREATE TABLE IF NOT EXISTS geo_statistics_daily (user_email TEXT NOT NULL, day DATE NOT NULL, timezone TEXT NOT NULL, processor_version TEXT NOT NULL, boundary_version TEXT NOT NULL DEFAULT '', point_count INTEGER NOT NULL DEFAULT 0, accepted_count INTEGER NOT NULL DEFAULT 0, flagged_count INTEGER NOT NULL DEFAULT 0, rejected_count INTEGER NOT NULL DEFAULT 0, distance_m DOUBLE PRECISION NOT NULL DEFAULT 0, active_seconds BIGINT NOT NULL DEFAULT 0, first_at TIMESTAMPTZ, last_at TIMESTAMPTZ, accuracy_avg DOUBLE PRECISION, accuracy_json JSONB NOT NULL DEFAULT '{}'::jsonb, sources_json JSONB NOT NULL DEFAULT '{}'::jsonb, country_code TEXT, country_name TEXT, city_name TEXT, updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, day, timezone))",
         "CREATE TABLE IF NOT EXISTS geo_statistics_cache (user_email TEXT NOT NULL, timezone TEXT NOT NULL, processor_version TEXT NOT NULL, boundary_version TEXT NOT NULL DEFAULT '', input_to TIMESTAMPTZ, payload_json JSONB NOT NULL DEFAULT '{}'::jsonb, computed_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, timezone))",
+    ];
+}
+function steps_geolocation_schema_v5_sql(): array
+{
+    return [
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS device_id UUID",
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS storage_dir TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS options_json JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS error_json JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ",
+        "ALTER TABLE geo_imports ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
+        "ALTER TABLE geo_imports DROP CONSTRAINT IF EXISTS geo_imports_state_check",
+        "ALTER TABLE geo_imports ADD CONSTRAINT geo_imports_state_check CHECK (state IN ('pending','processing','ready','failed','stale','deleted'))",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS source_format TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS size_bytes BIGINT NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS point_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS accepted_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS duplicate_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS rejected_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS error_json JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS processed_at TIMESTAMPTZ",
+        "ALTER TABLE geo_import_files ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
+        "CREATE TABLE IF NOT EXISTS geo_point_sources (id UUID PRIMARY KEY, user_email TEXT NOT NULL, point_id UUID NOT NULL REFERENCES geo_location_points(id) ON DELETE CASCADE, namespace TEXT NOT NULL, event_id TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (user_email, namespace, event_id))",
+        "CREATE INDEX IF NOT EXISTS geo_point_sources_point_idx ON geo_point_sources(point_id)",
+        "CREATE TABLE IF NOT EXISTS geo_import_points (import_file_id UUID NOT NULL REFERENCES geo_import_files(id) ON DELETE CASCADE, point_id UUID NOT NULL REFERENCES geo_location_points(id) ON DELETE CASCADE, user_email TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (import_file_id, point_id))",
+        "CREATE INDEX IF NOT EXISTS geo_import_points_point_idx ON geo_import_points(point_id)",
+    ];
+}
+function steps_geolocation_schema_v6_sql(): array
+{
+    return [
+        "ALTER TABLE geo_import_files DROP CONSTRAINT IF EXISTS geo_import_files_user_email_checksum_key",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_import_files_owner_checksum_active_idx ON geo_import_files(user_email, checksum) WHERE deleted_at IS NULL AND state <> 'failed'",
+    ];
+}
+function steps_geolocation_schema_v7_sql(): array
+{
+    return [
+        "DROP INDEX IF EXISTS geo_import_files_owner_checksum_active_idx",
+        "CREATE UNIQUE INDEX geo_import_files_owner_checksum_active_idx ON geo_import_files(user_email, checksum) WHERE deleted_at IS NULL AND state <> 'failed'",
     ];
 }
 function steps_geolocation_schema_sql(): array

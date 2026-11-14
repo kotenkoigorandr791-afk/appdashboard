@@ -859,6 +859,21 @@
         .location-detail-block p { margin: 0; font-size: 12px; }
         .location-hint { font-size: 11px; color: var(--muted-text); }
         .location-assumptions { margin: 0; padding-left: 18px; font-size: 11px; color: var(--muted-text); display: flex; flex-direction: column; gap: 3px; }
+        .location-import-form { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+        .location-import-form input[type=file] { flex: 1 1 220px; min-width: 180px; font-size: 12px; color: inherit; }
+        .location-import-option { display: flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted-text); }
+        .location-import-history { display: flex; flex-direction: column; gap: 8px; }
+        .import-item { padding: 10px 12px; border-radius: 12px; background: rgba(127,127,127,.07); border: 1px solid rgba(127,127,127,.16); display: flex; flex-direction: column; gap: 4px; }
+        .import-item-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+        .import-item-head strong { font-size: 12px; overflow-wrap: anywhere; }
+        .import-item-meta { font-size: 11px; color: var(--muted-text); }
+        .import-state { font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .06em; padding: 2px 7px; border-radius: 999px; background: rgba(127,127,127,.14); }
+        .import-state.is-ready { background: rgba(34,197,94,.16); color: #22c55e; }
+        .import-state.is-failed { background: rgba(239,68,68,.16); color: #ef4444; }
+        .import-state.is-processing { background: rgba(59,130,246,.16); color: #60a5fa; }
+        .import-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+        .import-item-actions button { font-size: 11px; padding: 4px 8px; }
+        .import-error { font-size: 11px; color: #ef4444; }
         #settings-panel-chart .settings-chart-type-intro {
             text-align: left;
             font-size: 14px;

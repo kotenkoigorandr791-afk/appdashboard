@@ -38,6 +38,13 @@ if (($from === null) !== ($to === null)) public_api_json(['ok' => false, 'error'
 if ($from !== null && strcmp($from, $to) > 0) public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 
 try {
+    // A queued refresh means the daily rows may predate the latest edit/import.
+    // Recompute synchronously for this read so the dashboard never shows stale totals.
+    $pendingStats = $pdo->prepare("SELECT 1 FROM geo_processor_runs WHERE user_email = :owner AND kind = 'statistics' AND state IN ('pending','processing') LIMIT 1");
+    $pendingStats->execute([':owner' => $owner]);
+    if ($pendingStats->fetchColumn()) {
+        try { StepsGeolocationStatistics::refresh($pdo, $owner, $timezone, $from, $to); } catch (Throwable $e) { error_log('statistics synchronous refresh: ' . $e->getMessage()); }
+    }
     if ($from === null) {
         $cached = $pdo->prepare('SELECT payload_json, computed_at FROM geo_statistics_cache WHERE user_email = :owner AND timezone = :tz AND processor_version = :version');
         $cached->execute([':owner' => $owner, ':tz' => $timezone, ':version' => StepsGeolocationStatistics::PROCESSOR_VERSION]);

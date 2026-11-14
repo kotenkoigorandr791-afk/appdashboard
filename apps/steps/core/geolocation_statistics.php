@@ -232,8 +232,9 @@ final class StepsGeolocationStatistics
         $countryDataset = self::boundaryDataset($pdo, 'country');
         $cityDataset = self::boundaryDataset($pdo, 'city');
         $boundaryVersion = $countryDataset['version'] ?? '';
+        $fullRefresh = $from === null || $to === null;
 
-        if ($from === null || $to === null) {
+        if ($fullRefresh) {
             $bounds = $pdo->prepare("SELECT MIN((source_at AT TIME ZONE :tz)::date) AS from_day, MAX((source_at AT TIME ZONE :tz)::date) AS to_day FROM geo_location_points WHERE user_email = :owner");
             $bounds->execute([':tz' => $timezone, ':owner' => $owner]);
             $boundsRow = $bounds->fetch(PDO::FETCH_ASSOC) ?: [];
@@ -241,6 +242,10 @@ final class StepsGeolocationStatistics
             $to = (string)($boundsRow['to_day'] ?? '');
         }
         if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$from) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', (string)$to) || strcmp($from, $to) > 0) {
+            if ($fullRefresh) {
+                $pdo->prepare('DELETE FROM geo_statistics_daily WHERE user_email = :owner AND timezone = :tz')
+                    ->execute([':owner' => $owner, ':tz' => $timezone]);
+            }
             $pdo->prepare('DELETE FROM geo_statistics_cache WHERE user_email = :owner AND timezone = :tz')->execute([':owner' => $owner, ':tz' => $timezone]);
             return 0;
         }
@@ -286,8 +291,13 @@ final class StepsGeolocationStatistics
         $daily = self::groupDaily($points, $timezone, $countries, $cities);
         $pdo->beginTransaction();
         try {
-            $pdo->prepare('DELETE FROM geo_statistics_daily WHERE user_email = :owner AND timezone = :tz AND day BETWEEN :from AND :to')
-                ->execute([':owner' => $owner, ':tz' => $timezone, ':from' => $from, ':to' => $to]);
+            if ($fullRefresh) {
+                $pdo->prepare('DELETE FROM geo_statistics_daily WHERE user_email = :owner AND timezone = :tz')
+                    ->execute([':owner' => $owner, ':tz' => $timezone]);
+            } else {
+                $pdo->prepare('DELETE FROM geo_statistics_daily WHERE user_email = :owner AND timezone = :tz AND day BETWEEN :from AND :to')
+                    ->execute([':owner' => $owner, ':tz' => $timezone, ':from' => $from, ':to' => $to]);
+            }
             foreach ($daily as $day) self::dailyInsert($pdo, $owner, $timezone, $day, $boundaryVersion);
             $pdo->commit();
         } catch (Throwable $e) {

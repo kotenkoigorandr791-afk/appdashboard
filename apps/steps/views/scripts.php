@@ -3303,6 +3303,151 @@
                 } finally { locationStatsBusy = false; }
             });
             document.getElementById('location-stats-tz')?.addEventListener('change', loadLocationStatistics);
+            const locationImportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_imports';
+            let locationImportsPoll = null;
+            let locationImportsMaxBytes = 0;
+            function importText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function importStateClass(state) {
+                if (state === 'ready') return 'is-ready';
+                if (state === 'failed') return 'is-failed';
+                if (state === 'processing' || state === 'pending') return 'is-processing';
+                return '';
+            }
+            function importStateLabel(state) {
+                const labels = {
+                    pending: importText('location_import_state_pending', 'queued'),
+                    processing: importText('location_import_state_processing', 'importing'),
+                    ready: importText('location_import_state_ready', 'ready'),
+                    failed: importText('location_import_state_failed', 'failed'),
+                    deleted: importText('location_import_state_deleted', 'deleted')
+                };
+                return labels[state] || state;
+            }
+            function renderImports(data) {
+                const host = document.getElementById('location-import-history');
+                if (!host) return;
+                const imports = data.imports || [];
+                locationImportsMaxBytes = Number(data.max_bytes || 0);
+                host.innerHTML = '';
+                if (!imports.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = importText('location_import_none', 'No imports yet.');
+                    host.appendChild(empty);
+                    return;
+                }
+                imports.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'import-item';
+                    const head = document.createElement('div');
+                    head.className = 'import-item-head';
+                    const name = document.createElement('strong');
+                    const firstFile = (item.files || [])[0];
+                    name.textContent = firstFile ? firstFile.filename : importText('location_import_file', 'Import');
+                    const badge = document.createElement('span');
+                    badge.className = 'import-state ' + importStateClass(item.state);
+                    badge.textContent = importStateLabel(item.state);
+                    head.appendChild(name); head.appendChild(badge);
+                    const meta = document.createElement('div');
+                    meta.className = 'import-item-meta';
+                    const progress = item.progress || {};
+                    const parts = [item.format || '', (progress.points || 0) + ' ' + importText('location_import_points', 'points')];
+                    if (item.files && item.files.length) {
+                        parts.push(item.files.map(f => f.state + ' · ' + (f.accepted_count || 0) + '+' + (f.duplicate_count || 0) + 'dup').join(', '));
+                    }
+                    if (progress.finished_at) parts.push(progress.finished_at);
+                    meta.textContent = parts.filter(Boolean).join(' · ');
+                    card.appendChild(head); card.appendChild(meta);
+                    const errors = (item.errors && Object.keys(item.errors).length) ? JSON.stringify(item.errors) : '';
+                    if (errors) { const error = document.createElement('div'); error.className = 'import-error'; error.textContent = errors; card.appendChild(error); }
+                    const actions = document.createElement('div');
+                    actions.className = 'import-item-actions';
+                    if (item.state !== 'deleted' && item.state !== 'processing') {
+                        const del = document.createElement('button');
+                        del.type = 'button'; del.className = 'excel-btn'; del.dataset.importDelete = item.id;
+                        del.innerHTML = '<i class="fas fa-trash-can"></i> ' + importText('location_import_remove', 'Remove imported data');
+                        actions.appendChild(del);
+                    }
+                    const sourceAvailable = (item.files || []).some(f => f.source_available);
+                    if (sourceAvailable && item.state !== 'deleted') {
+                        const clean = document.createElement('button');
+                        clean.type = 'button'; clean.className = 'excel-btn'; clean.dataset.importCleanup = item.id;
+                        clean.innerHTML = '<i class="fas fa-file-circle-xmark"></i> ' + importText('location_import_delete_file', 'Delete source files');
+                        actions.appendChild(clean);
+                    }
+                    card.appendChild(actions);
+                    host.appendChild(card);
+                });
+            }
+            async function loadImports() {
+                const host = document.getElementById('location-import-history');
+                if (!host) return;
+                if (locationImportsPoll) { clearTimeout(locationImportsPoll); locationImportsPoll = null; }
+                try {
+                    const res = await fetch(locationImportsApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'import_list_failed');
+                    renderImports(data);
+                    const active = (data.imports || []).some(item => item.state === 'pending' || item.state === 'processing');
+                    if (active) locationImportsPoll = setTimeout(loadImports, 4000);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || importText('map_error', 'Could not load data.')) + '</p>';
+                }
+            }
+            async function importAction(action, id) {
+                const status = document.getElementById('location-import-status');
+                if (status) status.textContent = importText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationImportsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'import_action_failed');
+                    if (status) status.textContent = action === 'delete' ? (data.deleted_points + ' ' + importText('location_import_removed_points', 'points removed')) : importText('location_import_file_deleted', 'Source files deleted.');
+                    await loadImports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            }
+            document.getElementById('location-import-upload')?.addEventListener('click', async () => {
+                const input = document.getElementById('location-import-file');
+                const status = document.getElementById('location-import-status');
+                if (!input || !input.files || !input.files[0]) {
+                    if (status) status.textContent = importText('location_import_choose_file', 'Choose a file first.');
+                    return;
+                }
+                const file = input.files[0];
+                if (locationImportsMaxBytes > 0 && file.size > locationImportsMaxBytes) {
+                    if (status) status.textContent = importText('location_import_too_large', 'This file is too large.');
+                    return;
+                }
+                const body = new FormData();
+                body.append('file', file);
+                if (document.getElementById('location-import-delete-source')?.checked) body.append('delete_source', '1');
+                if (status) status.textContent = importText('location_import_uploading', 'Uploading…');
+                try {
+                    const res = await fetch(locationImportsApi, { method: 'POST', credentials: 'same-origin', body });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'upload_failed');
+                    if (status) status.textContent = importText('location_import_queued', 'Queued for import.');
+                    input.value = '';
+                    await loadImports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            });
+            document.getElementById('location-import-history')?.addEventListener('click', async (event) => {
+                const del = event.target.closest('[data-import-delete]');
+                if (del) {
+                    const id = del.getAttribute('data-import-delete');
+                    const message = importText('location_import_confirm_remove', 'Remove this import? Only points that no other source owns are deleted.');
+                    let confirmed = false;
+                    if (typeof window.showAlert === 'function') { try { confirmed = await window.showAlert(message, true); } catch (e) { confirmed = false; } }
+                    else confirmed = window.confirm(message);
+                    if (confirmed) await importAction('delete', id);
+                    return;
+                }
+                const clean = event.target.closest('[data-import-cleanup]');
+                if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
+            });
             document.querySelectorAll('.settings-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     const id = tab.getAttribute('data-settings-tab');
@@ -3313,7 +3458,7 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
-                    if (id === 'location') loadLocationStatistics();
+                    if (id === 'location') { loadLocationStatistics(); loadImports(); }
                 });
             });
 

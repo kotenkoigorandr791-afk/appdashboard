@@ -1573,6 +1573,19 @@ $metricButtons = [
                             <div id="location-stats-boundary" class="location-hint"></div>
                             <ul id="location-stats-assumptions" class="location-assumptions"></ul>
                         </section>
+                        <section class="location-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['location_import_title'] ?? 'Import location history'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['location_import_hint'] ?? 'Google Timeline/Takeout, OwnTracks, GPX/TCX (including Strava), GeoJSON, EXIF GPS photos, Immich metadata and CSV. Files are parsed by the background worker and can be removed without affecting other sources.'); ?></p>
+                            <div class="location-import-form">
+                                <input type="file" id="location-import-file" accept=".gpx,.tcx,.json,.geojson,.ndjson,.jsonl,.csv,.jpg,.jpeg">
+                                <label class="location-import-option"><input type="checkbox" id="location-import-delete-source"> <span><?php echo htmlspecialchars($translations['location_import_delete_source'] ?? 'Delete the source file after a successful import'); ?></span></label>
+                                <button type="button" id="location-import-upload" class="excel-btn"><i class="fas fa-upload"></i> <?php echo htmlspecialchars($translations['location_import_upload'] ?? 'Upload & import'); ?></button>
+                            </div>
+                            <p id="location-import-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="location-import-history" class="location-import-history"></div>
+                        </section>
                     </div>
                 </div>
                 <div id="settings-panel-backups" class="settings-tab-panel" role="tabpanel">

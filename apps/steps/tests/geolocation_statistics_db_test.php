@@ -123,6 +123,14 @@ try {
     $queued->execute([':owner' => $owner]);
     geo_stats_db_assert((int)$queued->fetchColumn() >= 1, 'invalidation did not queue statistics');
 
+    // A full refresh removes stale days, e.g. after an import was deleted.
+    $pdo->prepare("INSERT INTO geo_statistics_daily(user_email, day, timezone, processor_version, point_count) VALUES(:owner, '1999-01-01', 'UTC', 'stale', 5)")
+        ->execute([':owner' => $owner]);
+    StepsGeolocationStatistics::refresh($pdo, $owner, 'UTC');
+    $stale = $pdo->prepare("SELECT COUNT(*) FROM geo_statistics_daily WHERE user_email = :owner AND day = '1999-01-01'");
+    $stale->execute([':owner' => $owner]);
+    geo_stats_db_assert((int)$stale->fetchColumn() === 0, 'full refresh left a stale daily row');
+
     // An account without boundary data gets an explicit assumption, not a guess.
     StepsGeolocationStatistics::refresh($pdo, $other, 'UTC');
     $otherSummary = StepsGeolocationStatistics::summary($pdo, $other, 'UTC');
