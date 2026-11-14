@@ -12,6 +12,7 @@ import { cloudTools } from "./cloud.js";
 import { smarthomeTools } from "./smarthome.js";
 import { recipesTools } from "./recipes.js";
 import { stepsTools } from "./steps.js";
+import { geolocationTools } from "./geolocation.js";
 import { immichTools } from "./immich.js";
 import { giteaTools } from "./gitea.js";
 import { kanboardTools } from "./kanboard.js";
@@ -35,6 +36,7 @@ export const ALL_TOOLS: ToolDef[] = [
   ...smarthomeTools,
   ...recipesTools,
   ...stepsTools,
+  ...geolocationTools,
   ...immichTools,
   ...giteaTools,
   ...kanboardTools,
