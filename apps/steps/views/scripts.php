@@ -4,13 +4,28 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');
-            if (shareButton && window.openShareModal) {
-                shareButton.addEventListener('click', function () {
+            var chooser = document.getElementById('share-chooser');
+            if (shareButton && chooser) {
+                shareButton.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    chooser.hidden = !chooser.hidden;
+                });
+                document.addEventListener('click', function (event) {
+                    if (!chooser.contains(event.target) && event.target !== shareButton) chooser.hidden = true;
+                });
+                document.getElementById('share-choose-steps')?.addEventListener('click', function () {
+                    chooser.hidden = true;
+                    if (!window.openShareModal) return;
                     window.openShareModal('steps', 'app', 'step_routine', {
                         title: <?php echo json_encode($translations['steps_counter_title'] ?? 'My steps', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
                         defaultPermissions: ['view', 'interact'],
                         apiUrl: '/apps/steps/api/share.php'
                     });
+                });
+                document.getElementById('share-choose-location')?.addEventListener('click', function () {
+                    chooser.hidden = true;
+                    openModal('share-location-modal');
+                    window.dispatchEvent(new CustomEvent('steps-share-location-open'));
                 });
             }
         });
@@ -1084,7 +1099,7 @@
             if (!trigger || !valueEl || !menu) return;
             const escapeHtml = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const render = () => {
-                const options = Array.from(native.options).filter(opt => opt.value !== '');
+                const options = Array.from(native.options).filter(opt => opt.value !== '' || native.dataset.allowEmpty);
                 const selected = options.find(opt => opt.selected) || options[0] || null;
                 valueEl.textContent = selected ? selected.textContent.trim() : '—';
                 trigger.disabled = native.disabled || !options.length;
@@ -3479,6 +3494,29 @@
                     host.appendChild(row);
                 });
             }
+            function renderPlaceChips(tags) {
+                const host = document.getElementById('place-chips');
+                if (!host) return;
+                const list = (Array.isArray(tags) && tags.length ? tags : ['home', 'work', 'gym', 'school', 'family', 'favorite']).map(t => typeof t === 'string' ? t : (t.tag || t.key || t.name || '')).filter(Boolean);
+                host.innerHTML = '';
+                list.forEach(tag => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'place-chip'; b.textContent = toolsText('place_tag_' + tag, tag);
+                    b.addEventListener('click', () => {
+                        const tagEl = document.getElementById('place-tag'), nameEl = document.getElementById('place-name');
+                        if (tagEl) tagEl.value = tag;
+                        if (nameEl && !nameEl.value) nameEl.value = b.textContent;
+                        host.querySelectorAll('.place-chip').forEach(x => x.classList.toggle('is-active', x === b));
+                    });
+                    host.appendChild(b);
+                });
+            }
+            window.addEventListener('steps-places-changed', () => loadLocationTools());
+            document.getElementById('place-pick')?.addEventListener('click', () => {
+                if (!window.stepsPickOnMap) return;
+                const lat = document.getElementById('place-lat'), lon = document.getElementById('place-lon'), rad = document.getElementById('place-radius');
+                window.stepsPickOnMap({ lat: Number(lat.value) || null, lon: Number(lon.value) || null, radius: Number(rad.value) || 120, onPick: (la, lo) => { lat.value = la.toFixed(6); lon.value = lo.toFixed(6); } });
+            });
             async function loadLocationTools() {
                 const status = document.getElementById('location-tools-status');
                 try {
@@ -3486,6 +3524,7 @@
                     const c = quality.counts || {};
                     const counts = document.getElementById('location-quality-counts');
                     if (counts) counts.textContent = ['accepted', 'flagged', 'rejected', 'pending'].map(k => k + ': ' + (c[k] || 0)).join(' · ');
+                    renderPlaceChips(places.builtin_tags || []);
                     renderToolItems('location-places-list', places.places || [], p => p.name + ' · ' + p.tag + ' · ' + Number(p.radius_m).toFixed(0) + ' m', async p => {
                         if (!window.confirm(toolsText('location_place_confirm', 'Delete this place?'))) return;
                         try { await toolsCall(placesApi, { action: 'delete', id: p.id }); await loadLocationTools(); } catch (e) { if (status) status.textContent = e.message; }
@@ -3872,6 +3911,7 @@
                     ]));
                 });
             }
+            window.addEventListener('steps-share-location-open', () => loadSharing());
             async function loadSharing() {
                 const host = document.getElementById('share-grants');
                 if (!host) return;
@@ -4197,9 +4237,53 @@
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
                     if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); loadLocationTools(); loadNotifications(); }
-                    if (id === 'family') { loadFamily(); loadSharing(); }
+                    if (id === 'family') { loadFamily(); }
+                    if (id === 'points') window.dispatchEvent(new CustomEvent('steps-points-tab-open'));
+                    if (id === 'render') window.dispatchEvent(new CustomEvent('steps-render-tab-open'));
+                    steps_syncSettingsUrl();
                 });
             });
+            function steps_syncSettingsUrl() {
+                try {
+                    const modal = document.getElementById('settings-modal');
+                    const url = new URL(window.location.href);
+                    const open = modal && modal.style.display !== 'none';
+                    const active = document.querySelector('.settings-tab.active');
+                    if (open) url.searchParams.set('settings', active ? active.getAttribute('data-settings-tab') : 'profile');
+                    else url.searchParams.delete('settings');
+                    history.replaceState(null, '', url);
+                } catch (e) {}
+            }
+            (function settingsDeepLink() {
+                const modal = document.getElementById('settings-modal');
+                if (!modal) return;
+                new MutationObserver(steps_syncSettingsUrl).observe(modal, { attributes: true, attributeFilter: ['style'] });
+                const wanted = (new URLSearchParams(window.location.search).get('settings') || '').replace(/[^a-z_]/g, '');
+                if (wanted) {
+                    openModal('settings-modal');
+                    const tab = document.querySelector('.settings-tab[data-settings-tab="' + wanted + '"]');
+                    if (tab) tab.click();
+                }
+                const upgrade = (select) => {
+                    if (select.closest('.custom-select') || select.multiple || select.dataset.nativeSelect) return;
+                    if (!select.id) select.id = 'sel-' + Math.random().toString(36).slice(2, 9);
+                    const root = document.createElement('div');
+                    root.className = 'custom-select';
+                    root.innerHTML = '<button type="button" class="custom-select-trigger" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value"></span><i class="fas fa-chevron-down custom-select-caret" aria-hidden="true"></i></button><div class="custom-select-menu" role="listbox"></div>';
+                    select.parentNode.insertBefore(root, select);
+                    root.insertBefore(select, root.firstChild);
+                    select.classList.add('custom-select-native');
+                    select.tabIndex = -1;
+                    select.setAttribute('aria-hidden', 'true');
+                    const label = select.getAttribute('aria-label') || (select.closest('label') && select.closest('label').querySelector('span') ? select.closest('label').querySelector('span').textContent : '');
+                    initCustomSelect(select.id, label);
+                };
+                const shareModal = document.getElementById('share-location-modal');
+                const upgradeAll = () => { modal.querySelectorAll('select').forEach(upgrade); if (shareModal) shareModal.querySelectorAll('select').forEach(upgrade); };
+                upgradeAll();
+                new MutationObserver(upgradeAll).observe(modal, { childList: true, subtree: true });
+                if (shareModal) new MutationObserver(upgradeAll).observe(shareModal, { childList: true, subtree: true });
+            })();
 
             // Chart navigation
             document.getElementById('chart-nav-left').addEventListener('click', () => {
@@ -4717,7 +4801,88 @@
         // App startup
         initApp();
 
-    </script>
+    (function () {
+    const valueDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    const loc = () => (typeof currentLocale !== 'undefined' && currentLocale) ? currentLocale : 'en-US';
+    const p2 = n => String(n).padStart(2, '0');
+    const ymd = (y, m, d) => y + '-' + p2(m + 1) + '-' + p2(d);
+    const parse = v => { const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(v || ''); return m ? { y: +m[1], m: +m[2] - 1, d: +m[3], h: +(m[4] || 0), i: +(m[5] || 0) } : null; };
+    const tx = (k, f) => (window.translations && translations[k]) || f;
+    function upgrade(input) {
+        if (input.dataset.dpDone || input.classList.contains('dp-native') || input.closest('.dp-field')) return;
+        input.dataset.dpDone = '1';
+        const dt = input.type === 'datetime-local';
+        const field = document.createElement('div'); field.className = 'dp-field'; field.dataset.dpNew = '1';
+        input.parentNode.insertBefore(field, input);
+        field.appendChild(input);
+        input.classList.add('dp-native'); input.tabIndex = -1; input.setAttribute('aria-hidden', 'true');
+        const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'dp-trigger'; trigger.setAttribute('aria-haspopup', 'dialog'); trigger.setAttribute('aria-expanded', 'false');
+        trigger.innerHTML = '<span class="dp-value"></span><i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i>';
+        const pop = document.createElement('div'); pop.className = 'dp-popover'; pop.setAttribute('role', 'dialog'); pop.hidden = true;
+        field.append(trigger, pop);
+        const valueEl = trigger.firstChild;
+        let cur = parse(input.value), view = new Date();
+        const sync = () => {
+            cur = parse(input.value);
+            if (!cur) { valueEl.textContent = '—'; return; }
+            const d = new Date(cur.y, cur.m, cur.d, cur.h, cur.i);
+            valueEl.textContent = dt ? d.toLocaleString(loc(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(loc(), { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+        Object.defineProperty(input, 'value', { configurable: true, get() { return valueDesc.get.call(this); }, set(v) { valueDesc.set.call(this, v); sync(); } });
+        const commit = (y, m, d, h, i) => {
+            const v = ymd(y, m, d) + (dt ? 'T' + p2(h) + ':' + p2(i) : '');
+            valueDesc.set.call(input, v); sync();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        const render = () => {
+            view = new Date(view.getFullYear(), view.getMonth(), 1);
+            const wk = (window.translations && Array.isArray(translations.days_of_week) && translations.days_of_week.length === 7) ? translations.days_of_week : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const y = view.getFullYear(), m = view.getMonth(), off = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+            const now = new Date(), today = ymd(now.getFullYear(), now.getMonth(), now.getDate()), sel = cur ? ymd(cur.y, cur.m, cur.d) : '';
+            let h = '<div class="dp-head"><button type="button" class="dp-nav" data-nav="-1"><i class="fas fa-chevron-left"></i></button><span class="dp-title">' + view.toLocaleDateString(loc(), { month: 'long', year: 'numeric' }) + '</span><button type="button" class="dp-nav" data-nav="1"><i class="fas fa-chevron-right"></i></button></div>';
+            h += '<div class="dp-weekdays">' + wk.map(d => '<span>' + d.slice(0, 2) + '</span>').join('') + '</div><div class="dp-grid">';
+            for (let k = 0; k < off; k++) h += '<span class="dp-empty"></span>';
+            for (let d = 1; d <= days; d++) { const s = ymd(y, m, d); h += '<button type="button" class="dp-day' + (s === sel ? ' is-selected' : '') + (s === today ? ' is-today' : '') + '" data-day="' + d + '">' + d + '</button>'; }
+            h += '</div>';
+            if (dt) h += '<div class="dp-time"><input type="number" min="0" max="23" class="dp-h" value="' + p2(cur ? cur.h : 0) + '"><span>:</span><input type="number" min="0" max="59" class="dp-i" value="' + p2(cur ? cur.i : 0) + '"></div>';
+            h += '<div class="dp-foot"><button type="button" class="dp-today" data-today>' + tx('map_today', 'Today') + '</button></div>';
+            pop.innerHTML = h;
+        };
+        const close = () => { pop.hidden = true; trigger.setAttribute('aria-expanded', 'false'); };
+        const open = () => {
+            document.querySelectorAll('.dp-popover').forEach(p => { p.hidden = true; });
+            view = cur ? new Date(cur.y, cur.m, 1) : new Date();
+            render(); pop.hidden = false; trigger.setAttribute('aria-expanded', 'true');
+            const r = trigger.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 16), hh = pop.offsetHeight || 340;
+            pop.style.width = w + 'px'; pop.style.left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8) + 'px';
+            let top = r.bottom + 8; if (top + hh > window.innerHeight - 8) top = Math.max(8, r.top - hh - 8);
+            pop.style.top = top + 'px'; pop.style.zIndex = '100002';
+        };
+        trigger.addEventListener('click', e => { e.stopPropagation(); pop.hidden ? open() : close(); });
+        pop.addEventListener('click', e => {
+            const nav = e.target.closest('[data-nav]');
+            if (nav) { view.setMonth(view.getMonth() + Number(nav.dataset.nav)); render(); return; }
+            const day = e.target.closest('[data-day]');
+            const base = cur || { h: 0, i: 0 };
+            if (day) { commit(view.getFullYear(), view.getMonth(), Number(day.dataset.day), base.h, base.i); if (dt) render(); else close(); return; }
+            if (e.target.closest('[data-today]')) { const n = new Date(); commit(n.getFullYear(), n.getMonth(), n.getDate(), dt ? n.getHours() : 0, dt ? n.getMinutes() : 0); if (dt) render(); else close(); }
+        });
+        pop.addEventListener('change', e => {
+            if (!e.target.matches('.dp-h,.dp-i')) return;
+            const b = cur || (() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() }; })();
+            const hh = Math.min(23, Math.max(0, Number(pop.querySelector('.dp-h').value) || 0)), ii = Math.min(59, Math.max(0, Number(pop.querySelector('.dp-i').value) || 0));
+            commit(b.y, b.m, b.d, hh, ii);
+        });
+        document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target) && !field.contains(e.target)) close(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) close(); });
+        input.addEventListener('change', sync);
+        sync();
+    }
+    const scan = root => (root.querySelectorAll ? root : document).querySelectorAll('input[type="date"],input[type="datetime-local"]').forEach(upgrade);
+    const start = () => { scan(document); new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { if (n.matches && n.matches('input[type="date"],input[type="datetime-local"]')) upgrade(n); else scan(n); } }))).observe(document.body, { childList: true, subtree: true }); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+})();</script>
 
 </body>
 </html>

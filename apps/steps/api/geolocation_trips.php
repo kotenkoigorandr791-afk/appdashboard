@@ -62,6 +62,26 @@ $body = public_api_body();
 $action = strtolower(trim((string)($body['action'] ?? '')));
 
 try {
+    if ($action === 'from_points') {
+        require_once dirname(__DIR__) . '/core/geolocation_map.php';
+        $from = gmdate('c', strtotime((string)($body['from'] ?? '')) ?: time() - 86400);
+        $to = gmdate('c', strtotime((string)($body['to'] ?? '')) ?: time());
+        $stmt = $pdo->prepare(StepsGeolocationMap::trackCte(false) . ' SELECT MIN(source_at) AS s, MAX(source_at) AS e, COUNT(*) AS n FROM grouped GROUP BY grp HAVING COUNT(*) >= 3 ORDER BY MIN(source_at) LIMIT 60');
+        $stmt->execute([':owner' => $owner, ':from' => $from, ':to' => $to]);
+        $cover = $pdo->prepare("SELECT COALESCE(SUM(GREATEST(0, EXTRACT(EPOCH FROM (LEAST(ended_at, :e::timestamptz) - GREATEST(started_at, :s::timestamptz))))), 0) FROM geo_trips WHERE user_email = :owner AND deleted_at IS NULL AND state <> 'archived' AND started_at <= :e2::timestamptz AND ended_at >= :s2::timestamptz");
+        $created = 0;
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $g) {
+            $span = max(1, strtotime($g['e']) - strtotime($g['s']));
+            $cover->execute([':e' => $g['e'], ':s' => $g['s'], ':e2' => $g['e'], ':s2' => $g['s'], ':owner' => $owner]);
+            if ((float)$cover->fetchColumn() >= $span * 0.5) continue;
+            try {
+                StepsGeolocationTrips::create($pdo, $owner, ['from' => $g['s'], 'to' => $g['e'], 'title' => '']);
+                $created++;
+            } catch (StepsGeolocationTripError $e) {
+            }
+        }
+        public_api_json(['ok' => true, 'created' => $created]);
+    }
     if ($action === 'reprocess') {
         public_api_json(['ok' => true, 'queued' => StepsGeolocationTrips::enqueue($pdo, $owner)]);
     }

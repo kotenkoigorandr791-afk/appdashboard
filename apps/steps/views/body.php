@@ -79,6 +79,10 @@ $metricButtons = [
             <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
             <div class="app-topbar-actions">
                 <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><i class="fas fa-share-nodes" style="font-size:22px" aria-hidden="true"></i></button>
+                <div id="share-chooser" class="share-chooser" hidden>
+                    <button type="button" id="share-choose-steps"><i class="fas fa-shoe-prints"></i> <?php echo htmlspecialchars($translations['share_steps'] ?? 'Share steps'); ?></button>
+                    <button type="button" id="share-choose-location"><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></button>
+                </div>
                 <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
                     <i class="fas fa-plus"></i>
                 </button>
@@ -168,11 +172,10 @@ $metricButtons = [
         </div>
         <div class="map-view" id="map-view" hidden>
                 <!-- Map: viewport-bounded layers, provider settings, non-map summary -->
-                <section id="ma-map" class="map-workspace" aria-labelledby="ma-map-title">
+                <section id="ma-map" class="map-workspace" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>">
                     <div class="map-stage">
                         <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>"></div>
                         <div class="map-hud">
-                            <h3 id="ma-map-title"><i class="fas fa-map-location-dot" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></h3>
                             <p id="ma-map-summary" role="status" aria-live="polite"></p>
                             <p id="ma-map-error" role="alert" style="display:none;"></p>
                         </div>
@@ -185,11 +188,19 @@ $metricButtons = [
                         <div class="map-sidebar-head">
                             <div class="map-sidebar-title">
                                 <span class="map-sidebar-kicker"><?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?></span>
-                                <strong><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></strong>
                             </div>
                             <button type="button" id="ma-sidebar-hide" class="map-day-btn" title="<?php echo htmlspecialchars($translations['map_hide_panel'] ?? 'Hide panel'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_hide_panel'] ?? 'Hide panel'); ?>">
                                 <i class="fas fa-angles-right" aria-hidden="true"></i>
                             </button>
+                        </div>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['points_area_title'] ?? 'Delete points'); ?></span>
+                            <div class="map-area-tools">
+                                <button type="button" id="ma-area-toggle" class="map-day-btn" title="<?php echo htmlspecialchars($translations['points_area'] ?? 'Select area to delete points'); ?>"><i class="fas fa-vector-square" aria-hidden="true"></i></button>
+                                <span id="ma-area-info" hidden></span>
+                                <button type="button" id="ma-area-delete" class="trip-btn trip-btn-primary" hidden><i class="fas fa-trash"></i></button>
+                                <button type="button" id="ma-area-cancel" class="trip-btn" hidden><i class="fas fa-xmark"></i></button>
+                            </div>
                         </div>
                         <div class="map-panel">
                             <div class="map-panel-head">
@@ -239,6 +250,7 @@ $metricButtons = [
                                     'visits' => $translations['map_layer_visits'] ?? 'Visits',
                                     'points' => $translations['map_layer_points'] ?? 'Points',
                                     'photos' => $translations['map_layer_photos'] ?? 'Photos',
+                                    'speed' => $translations['map_layer_speed'] ?? 'Speed',
                                     'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
                                     'explored' => $translations['map_layer_explored'] ?? 'Explored area',
                                 ];
@@ -249,6 +261,9 @@ $metricButtons = [
                                     <span class="map-switch-label"><?php echo htmlspecialchars($layerLabel); ?></span>
                                 </label>
                                 <?php endforeach; ?>
+                            </div>
+                            <div id="ma-speed-legend" class="speed-legend" hidden>
+                                <span style="background:#38bdf8"></span><em>&lt;3</em><span style="background:#22c55e"></span><em>3–6</em><span style="background:#eab308"></span><em>6–12</em><span style="background:#f97316"></span><em>12–25</em><span style="background:#ef4444"></span><em>25–50</em><span style="background:#a855f7"></span><em>50+ km/h</em>
                             </div>
                         </div>
                         <div class="map-panel">
@@ -306,7 +321,8 @@ $metricButtons = [
                     const tripsList=document.getElementById('ma-trips-list');
                     const tripEditor=document.getElementById('ma-trip-editor');
                     const tripMergeBtn=document.getElementById('ma-trip-merge');
-                    let tripsCache=[], editingTripId=null, tripsLoadSeq=0;
+                    let tripsCache=[], editingTripId=null, tripsLoadSeq=0, focusTripId=null;
+                    const selTrips=new Set();
                     const t={
                         loading: <?php echo json_encode($translations['map_loading'] ?? 'Loading map…'); ?>,
                         empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
@@ -314,9 +330,9 @@ $metricButtons = [
                         error: <?php echo json_encode($translations['map_error'] ?? 'Could not load map data.'); ?>,
                         summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}'); ?>
                     };
-                    const iso = (d) => d.toISOString().slice(0,10);
+                    const iso = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
                     if (!toInput.value) toInput.value = iso(new Date());
-                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 30 * 864e5));
+                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 864e5));
                     const fallbackProviders={
                         esri_dark:{name:'Esri Dark Gray Canvas',url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:16},
                         esri_imagery:{name:'Esri Satellite',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:19},
@@ -466,13 +482,22 @@ $metricButtons = [
                         const routeWidth=Math.max(1, appearance.routeWidth);
                         const heatStrength=Math.max(0.1, appearance.heat/100);
                         layerGroup.clearLayers();
+                        const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
                         lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
                             if(!feature.geometry||!feature.geometry.coordinates) return;
                             if(p.layer==='trip'){
+                                const isFocus=!!p.id&&focusTripId===p.id, isSel=!!p.id&&selTrips.has(p.id);
+                                if(speedOn&&!isFocus&&!isSel) return;
                                 const popup=popupHtml(p.title||p.boundary_reason||'Trip',['distance: '+Math.round(p.distance_m||0)+' m']);
-                                L.geoJSON(feature,{pane:'routesGlow',style:{color:'#38bdf8',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
-                                L.geoJSON(feature,{pane:'routes',style:{color:'#60a5fa',weight:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
+                                const hl=isFocus?'#f43f5e':(isSel?'#facc15':null);
+                                if(hl) L.geoJSON(feature,{pane:'routesGlow',style:{color:hl,weight:routeWidth*6,opacity:0.38,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                else L.geoJSON(feature,{pane:'routesGlow',style:{color:'#38bdf8',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                L.geoJSON(feature,{pane:'routes',style:{color:hl||'#60a5fa',weight:hl?routeWidth+2:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
+                            } else if(p.layer==='speed'){
+                                const sc=['#38bdf8','#22c55e','#eab308','#f97316','#ef4444','#a855f7'][p.bucket]||'#60a5fa';
+                                L.geoJSON(feature,{pane:'routesGlow',style:{color:sc,weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                L.geoJSON(feature,{pane:'routes',style:{color:sc,weight:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popupHtml(Math.round(p.kmh||0)+' km/h',[p.started_at||''])).addTo(layerGroup);
                             } else if(p.layer==='place'){
                                 if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{pane:'mapBackdrop',radius:p.radius_m,color:p.color||'#22c55e',weight:1,opacity:0.6,fillColor:p.color||'#22c55e',fillOpacity:0.10}).addTo(layerGroup);
                                 addPoint(feature,{radius:baseRadius+2,color:p.color||'#22c55e',fillColor:p.color||'#22c55e',fillOpacity:pointOpacity},p.name||'place',[p.tag]);
@@ -493,7 +518,7 @@ $metricButtons = [
                                 addPoint(feature,{radius:Math.max(2,baseRadius-2),color:flagged?'#ef4444':'#0ea5e9',fillColor:flagged?'#ef4444':'#0ea5e9',fillOpacity:pointOpacity},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
                             } else if(p.layer==='heatmap'){
                                 const intensity=Math.max(0,Math.min(1,(p.intensity||0)*heatStrength));
-                                if(feature.geometry.type==='LineString'){
+                                if(/LineString/.test(feature.geometry.type)){
                                     const color=intensity>0.72?'#ef4444':(intensity>0.42?'#f97316':(intensity>0.18?'#facc15':'#38bdf8'));
                                     L.geoJSON(feature,{pane:'routesGlow',style:{color:color,weight:Math.max(4,routeWidth*4),opacity:0.10+0.16*intensity,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                     L.geoJSON(feature,{pane:'routes',style:{color:color,weight:Math.max(1.5,routeWidth*0.85),opacity:0.52+0.44*intensity,lineCap:'round',lineJoin:'round'}}).bindPopup(popupHtml((p.weight||1)+'×',[tr('map_heat_repeats','Repeated route')])).addTo(layerGroup);
@@ -520,7 +545,7 @@ $metricButtons = [
                     function initDatePickers(){
                         const weekdays=(window.translations&&Array.isArray(translations.days_of_week)&&translations.days_of_week.length===7)?translations.days_of_week:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
                         const todayLabel=(window.translations&&translations.map_today)||'Today';
-                        section.querySelectorAll('.dp-field').forEach(field=>{
+                        document.querySelectorAll('.dp-field:not([data-dp-new])').forEach(field=>{
                             const native=field.querySelector('.dp-native'),
                                   trigger=field.querySelector('.dp-trigger'),
                                   valueEl=field.querySelector('.dp-value'),
@@ -549,7 +574,7 @@ $metricButtons = [
                             };
                             const close=()=>{ pop.hidden=true; trigger.setAttribute('aria-expanded','false'); };
                             const open=()=>{
-                                section.querySelectorAll('.dp-popover').forEach(p=>{p.hidden=true;});
+                                document.querySelectorAll('.dp-popover').forEach(p=>{p.hidden=true;});
                                 view=parseYMD(native.value)||new Date();
                                 render();
                                 pop.hidden=false;
@@ -656,18 +681,27 @@ $metricButtons = [
                         }
                         tripsCache.forEach(trip=>{
                             const item=document.createElement('div');
-                            item.className='trip-item'+(editingTripId===trip.id?' is-editing':'');
+                            item.className='trip-item'+(editingTripId===trip.id?' is-editing':'')+(focusTripId===trip.id?' is-focused':'');
+                            item.dataset.tripId=trip.id;
                             const pick=document.createElement('input');
                             pick.type='checkbox'; pick.className='trip-pick'; pick.value=trip.id;
                             pick.setAttribute('aria-label',tr('map_trip_select','Select trip'));
-                            pick.addEventListener('change',updateMergeButton);
+                            pick.checked=selTrips.has(trip.id);
+                            pick.addEventListener('change',()=>{ if(pick.checked) selTrips.add(trip.id); else selTrips.delete(trip.id); updateMergeButton(); render(lastFeatures); });
                             const open=document.createElement('button');
                             open.type='button'; open.className='trip-open';
                             const title=document.createElement('span'); title.className='trip-title';
                             title.textContent=trip.title||tr('map_trip_untitled','Untitled trip');
                             const meta=document.createElement('span'); meta.className='trip-meta'; meta.textContent=tripMeta(trip);
                             open.append(title,meta);
-                            open.addEventListener('click',()=>openTripEditor(trip));
+                            open.addEventListener('click',()=>{
+                                focusTripId=focusTripId===trip.id?null:trip.id;
+                                tripsList.querySelectorAll('.trip-item').forEach(el=>el.classList.toggle('is-focused',el.dataset.tripId===focusTripId));
+                                render(lastFeatures);
+                                const feat=lastFeatures.find(f=>f.properties&&f.properties.layer==='trip'&&f.properties.id===trip.id);
+                                if(focusTripId&&feat&&map&&window.L){ try{ map.fitBounds(window.L.geoJSON(feat).getBounds(),{padding:[60,60],maxZoom:16}); }catch(e){} }
+                                openTripEditor(trip);
+                            });
                             const actions=document.createElement('div'); actions.className='trip-actions';
                             const tripAction=(icon,label,handler)=>{
                                 const button=document.createElement('button');
@@ -687,9 +721,17 @@ $metricButtons = [
                         });
                         updateMergeButton();
                     }
+                    let tracksSyncKey='';
+                    async function syncTracks(force){
+                        const key=fromInput.value+'|'+toInput.value;
+                        if(!force&&key===tracksSyncKey) return;
+                        tracksSyncKey=key;
+                        await fetch(tripApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'from_points',from:fromInput.value+'T00:00:00Z',to:toInput.value+'T23:59:59Z'})}).catch(()=>{});
+                    }
                     async function loadTrips(){
                         const seq=++tripsLoadSeq;
                         try{
+                            await syncTracks(false);
                             const params=new URLSearchParams({
                                 from:fromInput.value+'T00:00:00Z',
                                 to:toInput.value+'T23:59:59Z',
@@ -763,10 +805,9 @@ $metricButtons = [
                     }
                     async function createTripFromRange(){
                         try{
-                            const data=await tripCommand({action:'create',from:fromInput.value+'T00:00:00Z',to:toInput.value+'T23:59:59Z',title:''});
+                            await syncTracks(true);
                             await loadTrips();
                             await fetchViewport();
-                            if(data.trip) openTripEditor(data.trip);
                         }catch(e){ reportTripError(e); }
                     }
                     async function mergeSelectedTrips(){
@@ -838,7 +879,7 @@ $metricButtons = [
                             const data=await res.json();
                             // An empty date range has no data extent, which the API reports as
                             // invalid_bbox; treat it as an empty map instead of an error.
-                            if(data&&data.error==='invalid_bbox'){
+                            if(data&&(data.error==='invalid_bbox'||data.error==='invalid_range')){
                                 render([]);
                                 summary.textContent=t.empty;
                                 return;
@@ -887,7 +928,204 @@ $metricButtons = [
                     }
                     refresh.addEventListener('click',fetchViewport);
                     if(resetBtn) resetBtn.addEventListener('click',resetAppearance);
-                    const SIDEBAR_KEY='stepsMapSidebarHidden';
+                    const pointsApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_points';
+                    async function pointsRequest(body){
+                        const res=await fetch(pointsApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+                        const data=await res.json();
+                        if(!res.ok||!data.ok) throw new Error((data&&data.error)||'points_failed');
+                        return data;
+                    }
+                    async function confirmDelete(message){
+                        if(typeof window.showAlert==='function'){ try{ return !!(await window.showAlert(message,true)); }catch(e){ return false; } }
+                        return window.confirm(message);
+                    }
+                    const areaBtn=document.getElementById('ma-area-toggle'), areaInfo=document.getElementById('ma-area-info'),
+                          areaDel=document.getElementById('ma-area-delete'), areaCancel=document.getElementById('ma-area-cancel');
+                    let areaMode=false, areaRect=null, areaStart=null, areaBox=null, areaBound=false;
+                    function areaRange(){ return {from:fromInput.value+'T00:00:00Z',to:toInput.value+'T23:59:59Z'}; }
+                    function areaClear(){
+                        if(areaRect&&map) map.removeLayer(areaRect);
+                        areaRect=null; areaStart=null; areaBox=null;
+                        [areaInfo,areaDel,areaCancel].forEach(el=>{ if(el) el.hidden=true; });
+                    }
+                    function setAreaMode(on){
+                        areaMode=on;
+                        areaBtn?.classList.toggle('active',on);
+                        if(!on) areaClear();
+                        if(!map) return;
+                        if(on) map.dragging.disable(); else map.dragging.enable();
+                        map.getContainer().style.cursor=on?'crosshair':'';
+                        map.getContainer().style.touchAction=on?'none':'';
+                        if(on&&!areaBound){
+                            areaBound=true;
+                            const el=map.getContainer();
+                            el.addEventListener('pointerdown',e=>{
+                                if(!areaMode||e.button>0) return;
+                                areaClear();
+                                areaStart=map.mouseEventToLatLng(e);
+                                areaRect=window.L.rectangle([areaStart,areaStart],{color:'#ef4444',weight:2,fillOpacity:0.12,interactive:false}).addTo(map);
+                                el.setPointerCapture(e.pointerId);
+                            });
+                            el.addEventListener('pointermove',e=>{
+                                if(!areaMode||!areaStart||!areaRect) return;
+                                areaRect.setBounds(window.L.latLngBounds(areaStart,map.mouseEventToLatLng(e)));
+                            });
+                            el.addEventListener('pointerup',async e=>{
+                                if(!areaMode||!areaStart||!areaRect) return;
+                                const end=map.mouseEventToLatLng(e);
+                                const b=window.L.latLngBounds(areaStart,end);
+                                areaStart=null;
+                                if(Math.abs(map.latLngToContainerPoint(b.getNorthEast()).x-map.latLngToContainerPoint(b.getSouthWest()).x)<8){ areaClear(); return; }
+                                areaBox=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
+                                areaRect.setBounds(b);
+                                try{
+                                    const data=await pointsRequest(Object.assign({action:'count',bbox:areaBox},areaRange()));
+                                    areaInfo.textContent=data.count+' '+tr('points_unit','points');
+                                    areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
+                                    areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
+                                    areaDel.disabled=data.count===0;
+                                }catch(err){ showError((err&&err.message)||t.error); }
+                            });
+                        }
+                    }
+                    areaBtn?.addEventListener('click',()=>setAreaMode(!areaMode));
+                    areaCancel?.addEventListener('click',areaClear);
+                    areaDel?.addEventListener('click',async()=>{
+                        if(!areaBox) return;
+                        if(!await confirmDelete(tr('points_confirm','Delete these points permanently?')+' ('+areaInfo.textContent+')')) return;
+                        try{
+                            await pointsRequest(Object.assign({action:'delete',bbox:areaBox},areaRange()));
+                            areaClear(); await fetchViewport(); loadTrips();
+                        }catch(err){ showError((err&&err.message)||t.error); }
+                    });
+                    const ptEl=id=>document.getElementById(id);
+                    let ptOffset=0; let PT_LIMIT=50; let ptRows=[], ptTotal=0;
+                    const ptIso=id=>{ const v=ptEl(id)?.value; return v?new Date(v).toISOString():''; };
+                    const ptFilter=()=>{
+                        const f={from:ptIso('pt-from'),to:ptIso('pt-to'),state:ptEl('pt-state')?.value||'',source:ptEl('pt-source')?.value||''};
+                        const latV=ptEl('pt-lat')?.value, lonV=ptEl('pt-lon')?.value, hasLat=latV!==''&&latV!=null&&isFinite(Number(latV)), hasLon=lonV!==''&&lonV!=null&&isFinite(Number(lonV));
+                        if(hasLat||hasLon){
+                            const r=Math.max(0.1,Number(ptEl('pt-radius')?.value)||5), lat=hasLat?Number(latV):0, lon=hasLon?Number(lonV):0;
+                            const dLat=r/111.32, dLon=r/(111.32*Math.max(0.05,Math.cos((hasLat?lat:0)*Math.PI/180)));
+                            const minLat=hasLat?Math.max(-90,lat-dLat):-90, maxLat=hasLat?Math.min(90,lat+dLat):90;
+                            const minLon=hasLon?Math.max(-180,lon-dLon):-180, maxLon=hasLon?Math.min(180,lon+dLon):180;
+                            f.bbox=[minLon,minLat,maxLon,maxLat].join(',');
+                        }
+                        return f;
+                    };
+                    function ptSelected(){ return Array.from(document.querySelectorAll('#pt-list input[data-pt-id]:checked')).map(i=>i.getAttribute('data-pt-id')); }
+                    function ptSync(){ const n=ptSelected().length; const b=ptEl('pt-delete'); if(b) b.disabled=n===0; }
+                    async function ptLoad(){
+                        const host=ptEl('pt-list'); if(!host) return;
+                        const q=new URLSearchParams(Object.assign({limit:PT_LIMIT,offset:ptOffset},ptFilter()));
+                        try{
+                            const res=await fetch(pointsApi+'&'+q.toString(),{credentials:'same-origin'});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||'points_failed');
+                            ptRows=data.points||[]; host.innerHTML='';
+                            ptEl('pt-total').textContent='('+data.total+')';
+                            ptEl('pt-all').checked=false;
+                            ptRows.forEach(r=>{
+                                const row=document.createElement('label'); row.className='points-row';
+                                const cb=document.createElement('input'); cb.type='checkbox'; cb.setAttribute('data-pt-id',r.id); cb.addEventListener('change',ptSync);
+                                const text=document.createElement('span'); text.textContent=String(r.source_at).slice(0,19)+' · '+Number(r.latitude).toFixed(5)+', '+Number(r.longitude).toFixed(5);
+                                const tag=document.createElement('em'); tag.textContent=r.quality_state+' · '+r.source_type+(r.accuracy_m?' · ±'+Math.round(r.accuracy_m)+' m':'');
+                                row.appendChild(cb); row.appendChild(text); row.appendChild(tag); host.appendChild(row);
+                            });
+                            if(!ptRows.length){ const e=document.createElement('p'); e.className='location-hint'; e.textContent=t.empty; host.appendChild(e); }
+                            ptTotal=Number(data.total)||0; ptPager();
+                            ptSync();
+                        }catch(e){ ptEl('pt-status').textContent=(e&&e.message)||'points_failed'; }
+                    }
+                    ptEl('pt-search')?.addEventListener('click',()=>{ ptOffset=0; ptLoad(); });
+                    window.stepsPickOnMap=async function(opts){
+                        opts=opts||{};
+                        let Lf; try{ Lf=await ensureLeaflet(); }catch(e){ return; }
+                        const ov=document.createElement('div'); ov.className='picker-overlay';
+                        ov.innerHTML='<div class="picker-box"><div class="picker-head"><strong></strong><button type="button" class="picker-x" aria-label="Close"><i class="fas fa-xmark"></i></button></div><div class="picker-map"></div><div class="picker-foot"><span class="picker-coords">—</span><button type="button" class="excel-btn picker-ok" disabled>OK</button><button type="button" class="excel-btn picker-cancel"></button></div></div>';
+                        ov.querySelector('strong').textContent=opts.title||tr('pick_title','Click the map to choose a location');
+                        ov.querySelector('.picker-ok').textContent=tr('pick_ok','Select');
+                        ov.querySelector('.picker-cancel').textContent=tr('cancel','Cancel');
+                        document.body.appendChild(ov);
+                        const has=opts.lat!=null&&opts.lon!=null;
+                        const m=Lf.map(ov.querySelector('.picker-map'),{worldCopyJump:true}).setView(has?[opts.lat,opts.lon]:[50.45,30.52],has?11:3);
+                        Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OpenStreetMap contributors'}).addTo(m);
+                        setTimeout(()=>m.invalidateSize(),50);
+                        let marker=null, circle=null, chosen=null;
+                        const ok=ov.querySelector('.picker-ok'), coords=ov.querySelector('.picker-coords');
+                        const choose=ll=>{
+                            chosen=ll; ok.disabled=false; coords.textContent=ll.lat.toFixed(6)+', '+ll.lng.toFixed(6);
+                            if(marker) marker.setLatLng(ll); else marker=Lf.marker(ll).addTo(m);
+                            if(opts.radius){ if(circle) circle.setLatLng(ll); else circle=Lf.circle(ll,{radius:opts.radius,color:'#60a5fa',weight:2,fillOpacity:0.15}).addTo(m); }
+                        };
+                        if(has) choose(Lf.latLng(opts.lat,opts.lon));
+                        m.on('click',e=>choose(e.latlng));
+                        const close=()=>{ m.remove(); ov.remove(); };
+                        ov.querySelector('.picker-x').addEventListener('click',close);
+                        ov.querySelector('.picker-cancel').addEventListener('click',close);
+                        ok.addEventListener('click',()=>{ if(chosen&&opts.onPick) opts.onPick(chosen.lat,chosen.lng); close(); });
+                        if(opts.showPlaces!==false){
+                            try{
+                                const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=places',{credentials:'same-origin'});
+                                const data=await res.json();
+                                (data.places||[]).forEach(pl=>{
+                                    const c=Lf.circle([pl.latitude,pl.longitude],{radius:pl.radius_m,color:pl.color||'#22c55e',weight:1,fillOpacity:0.18}).addTo(m);
+                                    c.bindTooltip(pl.name+' · '+pl.tag,{permanent:true,direction:'top',className:'picker-tip'});
+                                    const box=document.createElement('div'); box.textContent=pl.name+' · '+pl.tag+' · '+Math.round(pl.radius_m)+' m';
+                                    const del=document.createElement('button'); del.type='button'; del.className='excel-btn'; del.style.marginTop='6px'; del.textContent=tr('location_tools_remove','Remove');
+                                    del.addEventListener('click',async()=>{
+                                        if(!window.confirm(tr('location_place_confirm','Delete this place?'))) return;
+                                        await fetch('/apps/steps/api/session_gateway.php?endpoint=places',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:pl.id})}).catch(()=>{});
+                                        c.remove(); window.dispatchEvent(new Event('steps-places-changed'));
+                                    });
+                                    box.appendChild(document.createElement('br')); box.appendChild(del);
+                                    c.bindPopup(box);
+                                });
+                            }catch(e){}
+                        }
+                    };                    const ptPageCount=()=>Math.max(1,Math.ceil(ptTotal/PT_LIMIT));
+                    const ptGo=p=>{ p=Math.min(ptPageCount(),Math.max(1,p)); ptOffset=(p-1)*PT_LIMIT; ptLoad(); };
+                    function ptPager(){
+                        const cur=Math.floor(ptOffset/PT_LIMIT)+1, n=ptPageCount(), host=ptEl('pt-pages'); if(!host) return;
+                        host.innerHTML='';
+                        const set=new Set([1,n,cur-2,cur-1,cur,cur+1,cur+2]); let prev=0;
+                        Array.from(set).filter(p=>p>=1&&p<=n).sort((a,b)=>a-b).forEach(p=>{
+                            if(p-prev>1){ const gap=document.createElement('span'); gap.textContent='…'; gap.className='pager-gap'; host.appendChild(gap); }
+                            const b=document.createElement('button'); b.type='button'; b.className='pager-page'+(p===cur?' is-current':''); b.textContent=p; b.addEventListener('click',()=>ptGo(p)); host.appendChild(b); prev=p;
+                        });
+                        const jump=document.createElement('input'); jump.type='number'; jump.min=1; jump.max=n; jump.placeholder='#'; jump.className='pager-jump';
+                        jump.addEventListener('keydown',e=>{ if(e.key==='Enter'&&jump.value) ptGo(Number(jump.value)); });
+                        host.appendChild(jump);
+                        ptEl('pt-first').disabled=ptEl('pt-prev').disabled=cur<=1; ptEl('pt-next').disabled=ptEl('pt-last').disabled=cur>=n;
+                    }
+                    ptEl('pt-first')?.addEventListener('click',()=>ptGo(1));
+                    ptEl('pt-prev')?.addEventListener('click',()=>ptGo(Math.floor(ptOffset/PT_LIMIT)));
+                    ptEl('pt-next')?.addEventListener('click',()=>ptGo(Math.floor(ptOffset/PT_LIMIT)+2));
+                    ptEl('pt-last')?.addEventListener('click',()=>ptGo(ptPageCount()));
+                    ptEl('pt-size')?.addEventListener('change',e=>{ PT_LIMIT=Number(e.target.value)||50; ptOffset=0; ptLoad(); });
+                    ptEl('pt-pick')?.addEventListener('click',()=>window.stepsPickOnMap&&window.stepsPickOnMap({lat:Number(ptEl('pt-lat').value)||null,lon:Number(ptEl('pt-lon').value)||null,showPlaces:false,onPick:(la,lo)=>{ ptEl('pt-lat').value=la.toFixed(6); ptEl('pt-lon').value=lo.toFixed(6); ptOffset=0; ptLoad(); }}));
+                    ptEl('pt-all')?.addEventListener('change',e=>{ document.querySelectorAll('#pt-list input[data-pt-id]').forEach(i=>{ i.checked=e.target.checked; }); ptSync(); });
+                    async function ptDelete(body,count){
+                        if(!await confirmDelete(tr('points_confirm','Delete these points permanently?')+' ('+count+')')) return;
+                        try{
+                            const data=await pointsRequest(Object.assign({action:'delete'},body));
+                            ptEl('pt-status').textContent=data.deleted+' '+tr('points_deleted','deleted');
+                            ptOffset=0; await ptLoad(); fetchViewport(); loadTrips();
+                        }catch(e){ ptEl('pt-status').textContent=(e&&e.message)||'delete_failed'; }
+                    }
+                    ptEl('pt-delete')?.addEventListener('click',()=>{ const ids=ptSelected(); if(ids.length) ptDelete({ids},ids.length); });
+                    ptEl('pt-delete-range')?.addEventListener('click',async()=>{
+                        const f=ptFilter();
+                        if(!f.from||!f.to){ ptEl('pt-status').textContent=tr('points_need_range','Choose From and To first.'); return; }
+                        try{ const c=await pointsRequest(Object.assign({action:'count'},f)); ptDelete(f,c.count); }
+                        catch(e){ ptEl('pt-status').textContent=(e&&e.message)||'points_failed'; }
+                    });
+                    window.addEventListener('steps-points-tab-open',()=>{
+                        const local=(d,end)=>d+(end?'T23:59':'T00:00');
+                        if(ptEl('pt-from')&&!ptEl('pt-from').value) ptEl('pt-from').value=local(fromInput.value,false);
+                        if(ptEl('pt-to')&&!ptEl('pt-to').value) ptEl('pt-to').value=local(toInput.value,true);
+                        ptOffset=0; ptLoad();
+                    });                    const SIDEBAR_KEY='stepsMapSidebarHidden';
                     const hideBtn=document.getElementById('ma-sidebar-hide'), showBtn=document.getElementById('ma-sidebar-show');
                     function setSidebar(hidden){
                         section.classList.toggle('is-collapsed',hidden);
@@ -915,50 +1153,164 @@ $metricButtons = [
                         }catch(e){}
                     })();
                     const renderApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_renders';
-                    async function startRender(kind, file){
-                        const status=document.getElementById('ma-render-status');
-                        if(status) status.textContent=t.loading;
+                    const rd=id=>document.getElementById(id);
+                    let renderJob=null, renderPoll=null;
+                    function renderErrorText(code){
+                        const m={no_geometry:tr('render_err_geometry','No route in this period.'),invalid_range:tr('map_trip_err_range','Choose a valid date range.'),encoder_unavailable:tr('render_err_encoder','Video encoder is unavailable.'),render_busy:tr('render_err_busy','Another render is running.'),permission_changed:tr('render_err_permission','Access changed; start again.'),render_timeout:tr('render_err_timeout','Rendering took too long.')};
+                        return m[code]||code||'render_failed';
+                    }
+                    function syncRenderKind(){
+                        const video=rd('rd-kind')?.value==='video';
+                        document.querySelectorAll('#settings-panel-render [data-video-only]').forEach(el=>{ el.hidden=!video; });
+                    }
+                    function renderUi(job){
+                        const running=!!job&&(job.state==='pending'||job.state==='processing');
+                        if(rd('rd-bar')) rd('rd-bar').style.width=(job?Number(job.progress)||0:0)+'%';
+                        if(rd('rd-start')) rd('rd-start').disabled=running;
+                        if(rd('rd-cancel')) rd('rd-cancel').disabled=!running;
+                        if(rd('rd-status')) rd('rd-status').textContent=job?(job.state+(job.error_code?': '+renderErrorText(job.error_code):'')+(running?' '+(job.progress||0)+'%':'')):'';
+                    }
+                    function renderCard(job){
+                        const icons={video:'fa-film',poster:'fa-image'};
+                        const card=document.createElement('div'); card.className='render-card is-'+job.state;
+                        const head=document.createElement('div'); head.className='render-card-head';
+                        const ico=document.createElement('i'); ico.className='fas '+(icons[job.kind]||'fa-file'); head.appendChild(ico);
+                        const name=document.createElement('strong'); name.textContent=(job.title||String(job.range_from||'').slice(0,10)||job.kind)+' · '+String(job.file_format||job.kind).toUpperCase(); head.appendChild(name);
+                        const badge=document.createElement('span'); badge.className='render-badge'; badge.textContent=job.state; head.appendChild(badge);
+                        card.appendChild(head);
+                        const meta=document.createElement('div'); meta.className='render-card-meta';
+                        meta.textContent=String(job.created_at||'').slice(0,16)+(job.size_bytes?' · '+(Number(job.size_bytes)/1024).toFixed(0)+' KB':'')+(job.orientation?' · '+job.orientation:'')+(job.error_code?' · '+renderErrorText(job.error_code):'');
+                        card.appendChild(meta);
+                        if(job.state==='pending'||job.state==='processing'){
+                            const bar=document.createElement('div'); bar.className='render-progress'; const fill=document.createElement('span'); fill.style.width=(Number(job.progress)||0)+'%'; bar.appendChild(fill); card.appendChild(bar);
+                        }
+                        const actions=document.createElement('div'); actions.className='render-card-actions';
+                        if(job.state==='ready'){
+                            const prev=document.createElement('button'); prev.type='button'; prev.className='excel-btn'; prev.innerHTML='<i class="fas fa-eye"></i> '+tr('render_preview','Preview');
+                            prev.addEventListener('click',()=>showRenderPreview(job));
+                            const dl=document.createElement('a'); dl.className='excel-btn'; dl.innerHTML='<i class="fas fa-download"></i> '+tr('render_download','Download'); dl.href=renderApi+'&download='+encodeURIComponent(job.id);
+                            actions.appendChild(prev); actions.appendChild(dl);
+                        }
+                        if(job.state==='pending'||job.state==='processing'){
+                            const cancel=document.createElement('button'); cancel.type='button'; cancel.className='excel-btn'; cancel.innerHTML='<i class="fas fa-stop"></i> '+tr('render_cancel','Cancel');
+                            cancel.addEventListener('click',async()=>{ await fetch(renderApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'cancel',id:job.id})}).catch(()=>{}); loadRenderJobs(); });
+                            actions.appendChild(cancel);
+                        }
+                        card.appendChild(actions);
+                        return card;
+                    }
+                    function buildRenderPlayer(src){
+                        const box=document.createElement('div'); box.className='rplayer';
+                        const v=document.createElement('video'); v.className='rplayer-video'; v.preload='auto'; v.loop=true; v.muted=true; v.autoplay=true; v.playsInline=true; v.src=src;
+                        const big=document.createElement('button'); big.type='button'; big.className='rplayer-big'; big.innerHTML='<i class="fas fa-play"></i>';
+                        const bar=document.createElement('div'); bar.className='rplayer-bar';
+                        const mk=(cls,icon)=>{ const b=document.createElement('button'); b.type='button'; b.className='rplayer-btn '+cls; b.innerHTML='<i class="fas '+icon+'"></i>'; return b; };
+                        const play=mk('rplayer-play','fa-pause'), mute=mk('rplayer-mute','fa-volume-xmark'), full=mk('rplayer-full','fa-expand');
+                        const track=document.createElement('div'); track.className='rplayer-track';
+                        const buf=document.createElement('span'); buf.className='rplayer-buf'; const pos=document.createElement('span'); pos.className='rplayer-pos'; const knob=document.createElement('i'); knob.className='rplayer-knob';
+                        track.appendChild(buf); track.appendChild(pos); track.appendChild(knob);
+                        const time=document.createElement('span'); time.className='rplayer-time'; time.textContent='0:00 / 0:00';
+                        const speed=document.createElement('button'); speed.type='button'; speed.className='rplayer-btn rplayer-speed'; speed.textContent='1×';
+                        bar.append(play,track,time,speed,mute,full); box.append(v,big,bar);
+                        const fmt=s=>{ s=Math.max(0,Math.floor(s||0)); return Math.floor(s/60)+':'+String(s%60).padStart(2,'0'); };
+                        const sync=()=>{
+                            const d=v.duration||0; pos.style.width=d?(v.currentTime/d*100)+'%':'0'; knob.style.left=d?(v.currentTime/d*100)+'%':'0';
+                            let end=0; for(let i=0;i<v.buffered.length;i++){ if(v.buffered.start(i)<=v.currentTime+0.5) end=Math.max(end,v.buffered.end(i)); }
+                            buf.style.width=d?(end/d*100)+'%':'0'; time.textContent=fmt(v.currentTime)+' / '+fmt(d);
+                        };
+                        const state=()=>{ const p=!v.paused; play.innerHTML='<i class="fas '+(p?'fa-pause':'fa-play')+'"></i>'; big.hidden=p; box.classList.toggle('is-playing',p); };
+                        const toggle=()=>{ if(v.paused) v.play().catch(()=>{}); else v.pause(); };
+                        play.addEventListener('click',toggle); big.addEventListener('click',toggle); v.addEventListener('click',toggle);
+                        v.addEventListener('timeupdate',sync); v.addEventListener('progress',sync); v.addEventListener('loadedmetadata',sync); v.addEventListener('play',state); v.addEventListener('pause',state);
+                        v.addEventListener('waiting',()=>box.classList.add('is-loading')); v.addEventListener('canplay',()=>box.classList.remove('is-loading')); v.addEventListener('playing',()=>box.classList.remove('is-loading'));
+                        const seek=e=>{ const r=track.getBoundingClientRect(); if(v.duration) v.currentTime=Math.min(1,Math.max(0,(e.clientX-r.left)/r.width))*v.duration; };
+                        let drag=false;
+                        track.addEventListener('pointerdown',e=>{ drag=true; track.setPointerCapture(e.pointerId); seek(e); });
+                        track.addEventListener('pointermove',e=>{ if(drag) seek(e); });
+                        track.addEventListener('pointerup',()=>{ drag=false; });
+                        mute.addEventListener('click',()=>{ v.muted=!v.muted; mute.innerHTML='<i class="fas '+(v.muted?'fa-volume-xmark':'fa-volume-high')+'"></i>'; });
+                        const rates=[1,1.5,2,0.5]; let ri=0;
+                        speed.addEventListener('click',()=>{ ri=(ri+1)%rates.length; v.playbackRate=rates[ri]; speed.textContent=rates[ri]+'×'; });
+                        full.addEventListener('click',()=>{ if(document.fullscreenElement) document.exitFullscreen(); else (box.requestFullscreen||box.webkitRequestFullscreen||(()=>{})).call(box); });
+                        box.tabIndex=0;
+                        box.addEventListener('keydown',e=>{ if(e.key===' '){ e.preventDefault(); toggle(); } else if(e.key==='ArrowRight') v.currentTime+=2; else if(e.key==='ArrowLeft') v.currentTime-=2; });
+                        box.classList.add('is-loading'); state();
+                        return box;
+                    }
+                    function showRenderPreview(job){
+                        const host=rd('rd-preview'); if(!host) return;
+                        const src=renderApi+'&download='+encodeURIComponent(job.id)+'&inline=1';
+                        host.innerHTML=''; host.hidden=false;
+                        let el;
+                        if(job.file_format==='mp4'){ host.appendChild(buildRenderPlayer(src)); host.scrollIntoView({block:'nearest',behavior:'smooth'}); return; }
+                        else if(job.file_format==='pdf'){ el=document.createElement('iframe'); }
+                        else { el=document.createElement('img'); el.alt=''; }
+                        el.src=src; el.className='render-preview-media';
+                        host.appendChild(el);
+                        host.scrollIntoView({block:'nearest',behavior:'smooth'});
+                    }
+                    async function loadRenderJobs(){
+                        const host=rd('rd-jobs'); if(!host) return;
+                        try{
+                            const res=await fetch(renderApi,{credentials:'same-origin'});
+                            const data=await res.json();
+                            host.innerHTML='';
+                            (data.jobs||[]).forEach(job=>host.appendChild(renderCard(job)));
+                            const active=(data.jobs||[]).find(j=>j.state==='pending'||j.state==='processing');
+                            if(active&&!renderJob){ renderJob=active.id; pollRender(); }
+                        }catch(e){}
+                    }                    async function pollRender(){
+                        if(!renderJob) return;
+                        try{
+                            const res=await fetch(renderApi+'&id='+encodeURIComponent(renderJob),{credentials:'same-origin'});
+                            const data=await res.json();
+                            const job=data.job||{};
+                            renderUi(job); loadRenderJobs();
+                            if(job.state==='pending'||job.state==='processing'){ renderPoll=setTimeout(pollRender,1500); return; }
+                            renderJob=null; loadRenderJobs();
+                        }catch(e){ renderPoll=setTimeout(pollRender,3000); }
+                    }
+                    async function startRender(){
+                        const kindSel=rd('rd-kind')?.value||'video';
                         const body={
-                            action:'create', kind,
-                            file:file||'png',
-                            format:document.getElementById('ma-render-format')?.value||'portrait',
-                            theme:document.getElementById('ma-render-theme')?.value||'dark',
-                            from:fromInput.value+'T00:00:00Z',
-                            to:toInput.value+'T23:59:59Z',
-                            family_email:document.getElementById('ma-map-family')?.value||'',
-                            duration:12, fps:8, edge:640,
-                            attribution:'© OpenStreetMap contributors'
+                            action:'create', kind:kindSel==='video'?'video':'poster', file:kindSel==='pdf'?'pdf':'png',
+                            format:rd('rd-format').value, theme:rd('rd-theme').value, edge:Number(rd('rd-edge').value),
+                            duration:Number(rd('rd-duration').value), fps:Number(rd('rd-fps').value),
+                            title:rd('rd-title').value,
+                            from:rd('rd-from').value+'T00:00:00Z', to:rd('rd-to').value+'T23:59:59Z',
+                            family_email:rd('ma-map-family')?.value||'',
+                            provider:rd('rd-provider').value, camera:rd('rd-camera').value, route_color:rd('rd-route-color').value,
+                            tint:rd('rd-tint').value, tint_opacity:Number(rd('rd-tint-opacity').value)
                         };
                         try{
                             const res=await fetch(renderApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
                             const data=await res.json();
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||'render_failed');
-                            const id=data.job&&data.job.id;
-                            for(let i=0;i<40;i++){
-                                await new Promise(r=>setTimeout(r,1500));
-                                const poll=await fetch(renderApi+'&id='+encodeURIComponent(id),{credentials:'same-origin'});
-                                const jobData=await poll.json();
-                                const job=jobData.job||{};
-                                if(status) status.textContent=(job.state||'')+' '+(job.progress||0)+'%';
-                                if(job.state==='ready'){
-                                    window.location.href=renderApi+'&download='+encodeURIComponent(id);
-                                    return;
-                                }
-                                if(job.state==='failed'||job.state==='cancelled') throw new Error(job.error_code||job.state);
-                            }
-                        }catch(e){ if(status) status.textContent=(e&&e.message)||'render_failed'; }
+                            renderJob=data.job.id; renderUi(data.job); pollRender();
+                        }catch(e){ if(rd('rd-status')) rd('rd-status').textContent=renderErrorText(e&&e.message); }
                     }
-                    document.getElementById('ma-render-png')?.addEventListener('click',()=>startRender('poster','png'));
-                    document.getElementById('ma-render-pdf')?.addEventListener('click',()=>startRender('poster','pdf'));
-                    document.getElementById('ma-render-mp4')?.addEventListener('click',()=>startRender('video','mp4'));
-                    fromInput.addEventListener('change',onRangeChanged);
-                    toInput.addEventListener('change',onRangeChanged);
+                    rd('rd-kind')?.addEventListener('change',syncRenderKind);
+                    rd('rd-start')?.addEventListener('click',startRender);
+                    rd('rd-cancel')?.addEventListener('click',async()=>{
+                        if(!renderJob) return;
+                        await fetch(renderApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'cancel',id:renderJob})}).catch(()=>{});
+                    });
+                    window.addEventListener('steps-render-tab-open',()=>{
+                        if(rd('rd-from')&&!rd('rd-from').value){ rd('rd-from').value=fromInput.value; rd('rd-from').dispatchEvent(new Event('change',{bubbles:true})); }
+                        if(rd('rd-to')&&!rd('rd-to').value){ rd('rd-to').value=toInput.value; rd('rd-to').dispatchEvent(new Event('change',{bubbles:true})); }
+                        syncRenderKind(); loadRenderJobs();
+                    });
+                    syncRenderKind();
+                    fromInput.addEventListener('change',()=>{ if(toInput.value&&fromInput.value>toInput.value){ toInput.value=fromInput.value; toInput.dispatchEvent(new Event('input',{bubbles:true})); const v=toInput.closest('.dp-field')?.querySelector('.dp-value'); const d=parseYMD(toInput.value); if(v&&d) v.textContent=d.toLocaleDateString(dateLocale(),{day:'numeric',month:'short',year:'numeric'}); } onRangeChanged(); });
+                    toInput.addEventListener('change',()=>{ if(fromInput.value&&toInput.value<fromInput.value){ fromInput.value=toInput.value; const v=fromInput.closest('.dp-field')?.querySelector('.dp-value'); const d=parseYMD(fromInput.value); if(v&&d) v.textContent=d.toLocaleDateString(dateLocale(),{day:'numeric',month:'short',year:'numeric'}); } onRangeChanged(); });
                     document.getElementById('ma-map-day-prev')?.addEventListener('click',()=>shiftRange(-1));
                     document.getElementById('ma-map-day-next')?.addEventListener('click',()=>shiftRange(1));
                     initDatePickers();
                     initTripManager();
                     providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
-                    section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ saveSettings(); fetchViewport(); }));
+                    const syncSpeedLegend=()=>{ const l=document.getElementById('ma-speed-legend'); if(l) l.hidden=!selectedLayers().includes('speed'); };
+                    section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ syncSpeedLegend(); saveSettings(); fetchViewport(); }));
+                    setTimeout(syncSpeedLegend,300);
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
                     (async function(){
                         await loadSettings();
@@ -1525,6 +1877,40 @@ $metricButtons = [
             </div>
         </div>
 
+
+        <div id="share-location-modal" style="display:none;">
+            <div class="share-location-content">
+                <button class="modal-close" type="button"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                <div class="location-panel">
+                        <section class="location-section" id="family-sharing-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-shield-halved"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['location_share_hint'] ?? 'Share your location only with consent. You can pause or revoke access at any time.'); ?></p>
+                            <div class="location-import-form">
+                                <input type="email" id="share-viewer" maxlength="254" placeholder="<?php echo htmlspecialchars($translations['location_share_viewer'] ?? 'Person email'); ?>">
+                                <select id="share-level">
+                                    <option value="current"><?php echo htmlspecialchars($translations['share_level_current'] ?? 'Current location only'); ?></option>
+                                    <option value="recent" selected><?php echo htmlspecialchars($translations['share_level_recent'] ?? 'Current + recent history'); ?></option>
+                                    <option value="range"><?php echo htmlspecialchars($translations['share_level_range'] ?? 'Selected date range'); ?></option>
+                                    <option value="places"><?php echo htmlspecialchars($translations['share_level_places'] ?? 'Places and visits only'); ?></option>
+                                </select>
+                                <input type="number" id="share-precision" min="0" max="5000" step="10" value="0" title="<?php echo htmlspecialchars($translations['location_share_precision'] ?? 'Precision, m (0 = exact)'); ?>">
+                                <input type="date" id="share-until" title="<?php echo htmlspecialchars($translations['location_share_until'] ?? 'Until'); ?>">
+                            </div>
+                            <div class="location-import-form">
+                                <input type="datetime-local" id="share-from">
+                                <input type="datetime-local" id="share-to">
+                                <input type="text" id="share-reason" maxlength="160" placeholder="<?php echo htmlspecialchars($translations['location_share_reason'] ?? 'Reason (shown to you)'); ?>">
+                            </div>
+                            <label class="location-consent"><input type="checkbox" id="share-consent"> <?php echo htmlspecialchars($translations['location_share_consent'] ?? 'I agree to share my location with this person'); ?></label>
+                            <button type="button" id="share-create" class="excel-btn"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($translations['location_share_add'] ?? 'Share location'); ?></button>
+                            <p id="share-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="share-grants" class="location-import-history"></div>
+                        </section>
+                </div>
+            </div>
+        </div>
         <!-- Settings Modal -->
         <div id="settings-modal" style="display:none;">
             <div class="settings-content">
@@ -1539,6 +1925,12 @@ $metricButtons = [
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="map" role="tab" aria-selected="false">
                         <i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['map_settings_title'] ?? 'Map'); ?>
+                    </button>
+                    <button type="button" class="settings-tab" data-settings-tab="render" role="tab" aria-selected="false">
+                        <i class="fas fa-film"></i> <span><?php echo htmlspecialchars($translations['map_render_title'] ?? 'Poster and video'); ?></span>
+                    </button>
+                    <button type="button" class="settings-tab" data-settings-tab="points" role="tab" aria-selected="false">
+                        <i class="fas fa-location-crosshairs"></i> <span><?php echo htmlspecialchars($translations['points_title'] ?? 'Location points'); ?></span>
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="location" role="tab" aria-selected="false">
                         <i class="fas fa-earth-europe"></i> <?php echo htmlspecialchars($translations['location_data_title'] ?? 'Location data'); ?>
@@ -1654,40 +2046,105 @@ $metricButtons = [
                                 </button>
                             </div>
                         </section>
-
                         <section class="settings-map-section">
-                            <h3><i class="fas fa-film"></i> <?php echo htmlspecialchars($translations['map_render_title'] ?? 'Map, family, poster and video'); ?></h3>
-                            <label class="map-field">
+                            <h3><i class="fas fa-layer-group"></i> <?php echo htmlspecialchars($translations['map_source_title'] ?? 'Source and tiles'); ?></h3>
+                            <label class="settings-field">
                                 <span><?php echo htmlspecialchars($translations['family_title'] ?? 'Family'); ?></span>
-                                <select id="ma-map-family" class="map-select">
+                                <select id="ma-map-family" data-allow-empty="1">
                                     <option value=""><?php echo htmlspecialchars($translations['map_family_self'] ?? 'My routes'); ?></option>
                                 </select>
                             </label>
-                        <div class="map-panel">
-                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></span>
-                            <select id="ma-map-provider" class="map-select" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>"></select>
-                        </div>
-                        <div class="map-panel">
-                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_render_title'] ?? 'Poster and video'); ?></span>
-                            <div class="map-date-grid">
-                                <select id="ma-render-format" class="map-select">
-                                    <option value="portrait"><?php echo htmlspecialchars($translations['map_render_portrait'] ?? 'Portrait'); ?></option>
-                                    <option value="landscape"><?php echo htmlspecialchars($translations['map_render_landscape'] ?? 'Landscape'); ?></option>
-                                    <option value="square"><?php echo htmlspecialchars($translations['map_render_square'] ?? 'Square'); ?></option>
-                                </select>
-                                <select id="ma-render-theme" class="map-select">
-                                    <option value="dark">Dark</option>
-                                    <option value="light">Light</option>
-                                    <option value="paper">Paper</option>
-                                </select>
+                            <label class="settings-field">
+                                <span><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></span>
+                                <select id="ma-map-provider" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>"></select>
+                            </label>
+                        </section>
+                    </div>
+                </div>
+                <div id="settings-panel-render" class="settings-tab-panel" role="tabpanel">
+                    <div class="location-panel render-flow">
+                        <section class="location-section">
+                            <div class="location-section-head"><h3><span class="flow-step">1</span> <?php echo htmlspecialchars($translations['render_step_source'] ?? 'Route and period'); ?></h3></div>
+                            <div class="settings-grid-2">
+                                <div class="settings-field"><span><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></span><div class="dp-field"><input type="date" id="rd-from" class="dp-native" tabindex="-1" aria-hidden="true"><button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false"><span class="dp-value"></span><i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i></button><div class="dp-popover" role="dialog" hidden></div></div></div>
+                                <div class="settings-field"><span><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></span><div class="dp-field"><input type="date" id="rd-to" class="dp-native" tabindex="-1" aria-hidden="true"><button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false"><span class="dp-value"></span><i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i></button><div class="dp-popover" role="dialog" hidden></div></div></div>
                             </div>
-                            <div class="map-day-nav" style="margin-top:8px">
-                                <button type="button" id="ma-render-png" class="map-day-btn">PNG</button>
-                                <button type="button" id="ma-render-pdf" class="map-day-btn">PDF</button>
-                                <button type="button" id="ma-render-mp4" class="map-day-btn">MP4</button>
+                            <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_title'] ?? 'Title'); ?></span><input type="text" id="rd-title" maxlength="80"></label>
+                        </section>
+                        <section class="location-section">
+                            <div class="location-section-head"><h3><span class="flow-step">2</span> <?php echo htmlspecialchars($translations['render_step_look'] ?? 'Output'); ?></h3></div>
+                            <div class="settings-grid-2">
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_kind'] ?? 'Type'); ?></span>
+                                    <select id="rd-kind"><option value="video">MP4</option><option value="png">PNG</option><option value="pdf">PDF</option></select></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_format'] ?? 'Orientation'); ?></span>
+                                    <select id="rd-format"><option value="landscape"><?php echo htmlspecialchars($translations['map_render_landscape'] ?? 'Landscape'); ?></option><option value="portrait"><?php echo htmlspecialchars($translations['map_render_portrait'] ?? 'Portrait'); ?></option><option value="square"><?php echo htmlspecialchars($translations['map_render_square'] ?? 'Square'); ?></option></select></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_theme'] ?? 'Theme'); ?></span>
+                                    <select id="rd-theme"><option value="dark">Dark</option><option value="light">Light</option><option value="paper">Paper</option></select></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_provider'] ?? 'Base map'); ?></span>
+                                    <select id="rd-provider"><option value="esri_dark">Esri Dark</option><option value="esri_imagery">Esri Satellite</option><option value="esri_street">Esri Streets</option><option value="osm">OpenStreetMap</option><option value="opentopomap">OpenTopoMap</option><option value="none"><?php echo htmlspecialchars($translations['render_no_map'] ?? 'No map'); ?></option></select></label>
+                                <label class="settings-field" data-video-only><span><?php echo htmlspecialchars($translations['render_camera'] ?? 'Camera'); ?></span>
+                                    <select id="rd-camera"><option value="follow"><?php echo htmlspecialchars($translations['render_camera_follow'] ?? 'Follow route'); ?></option><option value="overview"><?php echo htmlspecialchars($translations['render_camera_overview'] ?? 'Overview'); ?></option></select></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_route_color'] ?? 'Route color'); ?></span><input type="color" id="rd-route-color" value="#60a5fa"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_tint'] ?? 'Map tint'); ?></span><input type="color" id="rd-tint" value="#000000"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_tint_strength'] ?? 'Tint strength'); ?></span><input type="range" id="rd-tint-opacity" min="0" max="80" value="0"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_resolution'] ?? 'Resolution'); ?></span>
+                                    <select id="rd-edge"><option value="480">480p</option><option value="640" selected>640p</option><option value="800">800p</option><option value="960">960p</option></select></label>
+                                <label class="settings-field" data-video-only><span><?php echo htmlspecialchars($translations['render_duration'] ?? 'Duration, s'); ?></span>
+                                    <select id="rd-duration"><option value="8">8</option><option value="12" selected>12</option><option value="20">20</option><option value="30">30</option><option value="45">45</option></select></label>
+                                <label class="settings-field" data-video-only><span><?php echo htmlspecialchars($translations['render_fps'] ?? 'Frame rate'); ?></span>
+                                    <select id="rd-fps"><option value="6">6</option><option value="8" selected>8</option><option value="12">12</option></select></label>
                             </div>
-                            <p id="ma-render-status" class="location-status" role="status"></p>
-                        </div>
+                        </section>
+                        <section class="location-section">
+                            <div class="location-section-head"><h3><span class="flow-step">3</span> <?php echo htmlspecialchars($translations['render_step_run'] ?? 'Render'); ?></h3></div>
+                            <div class="settings-actions-row">
+                                <button type="button" id="rd-start" class="excel-btn"><i class="fas fa-play"></i> <?php echo htmlspecialchars($translations['render_start'] ?? 'Start'); ?></button>
+                                <button type="button" id="rd-cancel" class="excel-btn" disabled><i class="fas fa-stop"></i> <?php echo htmlspecialchars($translations['render_cancel'] ?? 'Cancel'); ?></button>
+                            </div>
+                            <div class="render-progress" aria-hidden="true"><span id="rd-bar"></span></div>
+                            <p id="rd-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="rd-preview" class="render-preview" hidden></div>
+                            <div id="rd-jobs" class="render-cards"></div>
+                        </section>
+                    </div>
+                </div>
+                <div id="settings-panel-points" class="settings-tab-panel" role="tabpanel">
+                    <div class="location-panel">
+                        <section class="location-section">
+                            <div class="location-section-head"><h3><i class="fas fa-filter"></i> <?php echo htmlspecialchars($translations['points_filters'] ?? 'Filters'); ?></h3></div>
+                            <div class="settings-grid-2">
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></span><input type="datetime-local" id="pt-from"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></span><input type="datetime-local" id="pt-to"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['points_state'] ?? 'Quality'); ?></span>
+                                    <select id="pt-state"><option value="" selected><?php echo htmlspecialchars($translations['points_any'] ?? 'Any'); ?></option><option value="accepted">accepted</option><option value="flagged">flagged</option><option value="rejected">rejected</option><option value="pending">pending</option></select></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['points_source'] ?? 'Source'); ?></span>
+                                    <select id="pt-source"><option value="" selected><?php echo htmlspecialchars($translations['points_any'] ?? 'Any'); ?></option><option value="mobile">mobile</option><option value="import">import</option><option value="api">api</option></select></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['points_lat'] ?? 'Latitude'); ?></span><input type="number" id="pt-lat" step="0.000001" min="-90" max="90" placeholder="53.9"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['points_lon'] ?? 'Longitude'); ?></span><input type="number" id="pt-lon" step="0.000001" min="-180" max="180" placeholder="27.56"></label>
+                                <label class="settings-field"><span><?php echo htmlspecialchars($translations['points_radius'] ?? 'Radius, km'); ?></span><input type="number" id="pt-radius" step="0.1" min="0.1" max="20000" value="5"></label>
+                                <div class="settings-field"><span>&nbsp;</span><button type="button" id="pt-pick" class="excel-btn"><i class="fas fa-location-crosshairs"></i> <?php echo htmlspecialchars($translations['points_pick_map'] ?? 'Pick on map'); ?></button></div>
+                            </div>
+                            <div class="settings-actions-row">
+                                <button type="button" id="pt-search" class="excel-btn"><i class="fas fa-magnifying-glass"></i> <?php echo htmlspecialchars($translations['points_search'] ?? 'Show'); ?></button>
+                                <button type="button" id="pt-delete-range" class="excel-btn"><i class="fas fa-trash"></i> <?php echo htmlspecialchars($translations['points_delete_range'] ?? 'Delete all in range'); ?></button>
+                            </div>
+                        </section>
+                        <section class="location-section">
+                            <div class="location-section-head"><h3><i class="fas fa-list-check"></i> <?php echo htmlspecialchars($translations['points_list'] ?? 'Points'); ?> <small id="pt-total"></small></h3></div>
+                            <div class="settings-actions-row">
+                                <label class="location-consent"><input type="checkbox" id="pt-all"> <?php echo htmlspecialchars($translations['points_select_page'] ?? 'Select page'); ?></label>
+                                <button type="button" id="pt-delete" class="excel-btn" disabled><i class="fas fa-trash"></i> <?php echo htmlspecialchars($translations['points_delete_selected'] ?? 'Delete selected'); ?></button>
+                            </div>
+                            <div class="pager" id="pt-pager">
+                                <button type="button" id="pt-first" class="excel-btn" aria-label="First"><i class="fas fa-angles-left"></i></button>
+                                <button type="button" id="pt-prev" class="excel-btn" aria-label="Previous"><i class="fas fa-chevron-left"></i></button>
+                                <span class="pager-pages" id="pt-pages"></span>
+                                <button type="button" id="pt-next" class="excel-btn" aria-label="Next"><i class="fas fa-chevron-right"></i></button>
+                                <button type="button" id="pt-last" class="excel-btn" aria-label="Last"><i class="fas fa-angles-right"></i></button>
+                                <select id="pt-size" aria-label="Page size"><option value="25">25</option><option value="50" selected>50</option><option value="100">100</option><option value="200">200</option></select>
+                            </div>
+                            <p id="pt-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="pt-list" class="points-list"></div>
                         </section>
                     </div>
                 </div>
@@ -1764,6 +2221,7 @@ $metricButtons = [
                             <div class="location-tools-grid">
                                 <div class="location-tool-card">
                                     <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>
+                                    <div class="place-chips" id="place-chips"></div>
                                     <div class="location-tool-row">
                                         <input type="text" id="place-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['location_place_name'] ?? 'Name'); ?>">
                                         <input type="text" id="place-tag" maxlength="32" placeholder="home">
@@ -1773,6 +2231,7 @@ $metricButtons = [
                                         <input type="number" id="place-lon" step="0.000001" placeholder="lon">
                                         <input type="number" id="place-radius" min="25" max="5000" step="5" value="120" placeholder="m">
                                     </div>
+                                    <button type="button" id="place-pick" class="excel-btn"><i class="fas fa-location-crosshairs"></i> <?php echo htmlspecialchars($translations['location_place_pick'] ?? 'Set on map'); ?></button>
                                     <button type="button" id="place-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['location_place_add'] ?? 'Add place'); ?></button>
                                     <div id="location-places-list" class="location-import-history"></div>
                                 </div>
@@ -1865,32 +2324,6 @@ $metricButtons = [
                             <p id="family-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="family-pending" class="location-import-history"></div>
                             <div id="family-groups" class="location-import-history"></div>
-                        </section>
-                        <section class="location-section" id="family-sharing-section">
-                            <div class="location-section-head">
-                                <h3><i class="fas fa-shield-halved"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></h3>
-                            </div>
-                            <p class="location-hint"><?php echo htmlspecialchars($translations['location_share_hint'] ?? 'Share your location only with consent. You can pause or revoke access at any time.'); ?></p>
-                            <div class="location-import-form">
-                                <input type="email" id="share-viewer" maxlength="254" placeholder="<?php echo htmlspecialchars($translations['location_share_viewer'] ?? 'Person email'); ?>">
-                                <select id="share-level">
-                                    <option value="current"><?php echo htmlspecialchars($translations['share_level_current'] ?? 'Current location only'); ?></option>
-                                    <option value="recent" selected><?php echo htmlspecialchars($translations['share_level_recent'] ?? 'Current + recent history'); ?></option>
-                                    <option value="range"><?php echo htmlspecialchars($translations['share_level_range'] ?? 'Selected date range'); ?></option>
-                                    <option value="places"><?php echo htmlspecialchars($translations['share_level_places'] ?? 'Places and visits only'); ?></option>
-                                </select>
-                                <input type="number" id="share-precision" min="0" max="5000" step="10" value="0" title="<?php echo htmlspecialchars($translations['location_share_precision'] ?? 'Precision, m (0 = exact)'); ?>">
-                                <input type="date" id="share-until" title="<?php echo htmlspecialchars($translations['location_share_until'] ?? 'Until'); ?>">
-                            </div>
-                            <div class="location-import-form">
-                                <input type="datetime-local" id="share-from">
-                                <input type="datetime-local" id="share-to">
-                                <input type="text" id="share-reason" maxlength="160" placeholder="<?php echo htmlspecialchars($translations['location_share_reason'] ?? 'Reason (shown to you)'); ?>">
-                            </div>
-                            <label class="location-consent"><input type="checkbox" id="share-consent"> <?php echo htmlspecialchars($translations['location_share_consent'] ?? 'I agree to share my location with this person'); ?></label>
-                            <button type="button" id="share-create" class="excel-btn"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($translations['location_share_add'] ?? 'Share location'); ?></button>
-                            <p id="share-status" class="location-status" role="status" aria-live="polite"></p>
-                            <div id="share-grants" class="location-import-history"></div>
                         </section>
                     </div>
                 </div>

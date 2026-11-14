@@ -74,7 +74,7 @@ final class StepsGeolocationMap
 
     public static function layers(string $raw): array
     {
-        $allowed = array_merge(self::DEFAULT_LAYERS, ['points', 'heatmap', 'explored', 'photos']);
+        $allowed = array_merge(self::DEFAULT_LAYERS, ['points', 'heatmap', 'explored', 'photos', 'speed']);
         $requested = array_filter(array_map('trim', explode(',', strtolower($raw))));
         $layers = array_values(array_intersect($requested, $allowed));
         return $layers === [] ? self::DEFAULT_LAYERS : $layers;
@@ -463,23 +463,27 @@ final class StepsGeolocationMap
             unset($routeParams[':device']);
             $routeStmt->execute($routeParams);
             $tripRows = $routeStmt->fetchAll(PDO::FETCH_ASSOC);
-            // Imported continuous tracks may not produce enough trips yet;
-            // consecutive accepted points preserve the actual travelled road.
-            $pointSql = "WITH pts AS (
-                    SELECT position, source_at, lag(position) OVER (ORDER BY source_at, id) AS prev
-                      FROM geo_location_points
-                     WHERE $where AND quality_state = 'accepted'
-                ), segs AS (
-                    SELECT ST_SnapToGrid(ST_MakeLine(prev, position), $lineCell) AS line
-                      FROM pts WHERE prev IS NOT NULL
+            $segParams = [':owner' => $owner, ':from' => $from, ':to' => $to, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
+            if ($device !== '') $segParams[':device'] = $device;
+            $pointSql = self::trackCte($device !== '') . ", segs AS (
+                    SELECT grp, source_at, position,
+                           lag(position) OVER (PARTITION BY grp ORDER BY source_at) AS prev_pos
+                      FROM grouped
+                ), lines AS (
+                    SELECT grp, ST_MakeLine(prev_pos, position) AS line,
+                           ST_SnapToGrid(ST_LineInterpolatePoint(ST_MakeLine(prev_pos, position), 0.5), $lineCell) AS cell
+                      FROM segs
+                     WHERE prev_pos IS NOT NULL AND position <> prev_pos
+                ), visible AS (
+                    SELECT * FROM lines WHERE line && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+                ), wt AS (
+                    SELECT cell, COUNT(DISTINCT grp)::int AS weight FROM visible GROUP BY cell
                 )
-                SELECT COUNT(*)::int AS weight, ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson
-                  FROM segs
-                 WHERE NOT ST_IsEmpty(line) AND ST_NPoints(line) >= 2
-                   AND ST_Length(line::geography) BETWEEN 1 AND 2000
-              GROUP BY line ORDER BY weight DESC LIMIT $limit";
+                SELECT wt.weight, ST_AsGeoJSON(ST_LineMerge(ST_Collect(v.line))) AS geojson
+                  FROM visible v JOIN wt ON wt.cell = v.cell
+              GROUP BY v.grp, wt.weight ORDER BY wt.weight DESC LIMIT 3000";
             $pointStmt = $pdo->prepare($pointSql);
-            $pointStmt->execute($params);
+            $pointStmt->execute($segParams);
             $rows = $pointStmt->fetchAll(PDO::FETCH_ASSOC);
             if ($rows === []) $rows = $tripRows;
             $max = 1;
@@ -503,6 +507,46 @@ final class StepsGeolocationMap
             $meta['heatmap_mode'] = $rows === [] ? 'empty' : 'route';
         }
 
+        if (in_array('speed', $layers, true)) {
+            $segParams = [':owner' => $owner, ':from' => $from, ':to' => $to, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
+            if ($device !== '') $segParams[':device'] = $device;
+            $speedSql = self::trackCte($device !== '') . ", segs AS (
+                    SELECT grp, source_at, position,
+                           lag(position) OVER w AS prev_pos,
+                           lag(source_at) OVER w AS prev_at
+                      FROM grouped WINDOW w AS (PARTITION BY grp ORDER BY source_at)
+                ), spd AS (
+                    SELECT grp, source_at, prev_pos, position,
+                           ST_Distance(position::geography, prev_pos::geography) / GREATEST(EXTRACT(EPOCH FROM (source_at - prev_at)), 1) AS v
+                      FROM segs WHERE prev_pos IS NOT NULL AND position <> prev_pos
+                ), sm AS (
+                    SELECT *, AVG(v) OVER (PARTITION BY grp ORDER BY source_at ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) * 3.6 AS kmh FROM spd
+                ), bk AS (
+                    SELECT *, CASE WHEN kmh < 3 THEN 0 WHEN kmh < 6 THEN 1 WHEN kmh < 12 THEN 2 WHEN kmh < 25 THEN 3 WHEN kmh < 50 THEN 4 ELSE 5 END AS b FROM sm
+                ), prevb AS (
+                    SELECT *, lag(b) OVER (PARTITION BY grp ORDER BY source_at) AS pb FROM bk
+                ), runs AS (
+                    SELECT *, SUM(CASE WHEN pb IS DISTINCT FROM b THEN 1 ELSE 0 END) OVER (PARTITION BY grp ORDER BY source_at) AS run FROM prevb
+                )
+                SELECT b, AVG(kmh) AS kmh, MIN(source_at) AS started_at,
+                       ST_AsGeoJSON(ST_LineMerge(ST_Collect(ST_MakeLine(prev_pos, position)))) AS geojson
+                  FROM runs
+                 WHERE ST_MakeLine(prev_pos, position) && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+              GROUP BY grp, run, b ORDER BY MIN(source_at) LIMIT 3000";
+            $speedStmt = $pdo->prepare($speedSql);
+            $speedStmt->execute($segParams);
+            $rows = $speedStmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as $row) {
+                $geometry = json_decode((string)($row['geojson'] ?? ''), true);
+                if (!is_array($geometry)) continue;
+                $features[] = [
+                    'type' => 'Feature',
+                    'geometry' => $geometry,
+                    'properties' => ['layer' => 'speed', 'bucket' => (int)$row['b'], 'kmh' => round((float)$row['kmh'], 1), 'started_at' => $row['started_at']],
+                ];
+            }
+            $meta['counts']['speed'] = count($rows);
+        }
         if (in_array('explored', $layers, true)) {
             $stmt = $pdo->prepare(
                 "SELECT round(ST_Y(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lat,
@@ -529,6 +573,30 @@ final class StepsGeolocationMap
         return ['type' => 'FeatureCollection', 'features' => $features, 'meta' => $meta];
     }
 
+    public static function trackCte(bool $withDevice): string
+    {
+        return "WITH ordered AS (
+                    SELECT source_at, position,
+                           lag(source_at) OVER (ORDER BY source_at, id) AS prev_at,
+                           lag(position) OVER (ORDER BY source_at, id) AS prev_pos
+                      FROM geo_location_points
+                     WHERE user_email = :owner
+                       AND quality_state = 'accepted'
+                       AND source_at BETWEEN :from AND :to"
+            . ($withDevice ? ' AND device_id = :device' : '') . "
+                ), flagged AS (
+                    SELECT source_at, position,
+                           CASE WHEN prev_at IS NULL
+                                  OR source_at - prev_at > interval '30 minutes'
+                                  OR ST_Distance(position::geography, prev_pos::geography) > 2000
+                                  OR ST_Distance(position::geography, prev_pos::geography)
+                                     / GREATEST(EXTRACT(EPOCH FROM (source_at - prev_at)), 1) > 40
+                                THEN 1 ELSE 0 END AS brk
+                      FROM ordered
+                ), grouped AS (
+                    SELECT source_at, position, SUM(brk) OVER (ORDER BY source_at) AS grp FROM flagged
+                )";
+    }
     /**
      * Continuous tracks from accepted points, split on long gaps.
      * This is what an imported archive looks like when trip rows were never built.
@@ -541,27 +609,36 @@ final class StepsGeolocationMap
         $tolerance = max(0.00001, min(0.05, $tolerance));
         $sql = "WITH ordered AS (
                     SELECT source_at, position,
-                           lag(source_at) OVER (ORDER BY source_at, id) AS prev_at
+                           lag(source_at) OVER (ORDER BY source_at, id) AS prev_at,
+                           lag(position) OVER (ORDER BY source_at, id) AS prev_pos
                       FROM geo_location_points
                      WHERE user_email = :owner
                        AND quality_state = 'accepted'
-                       AND source_at BETWEEN :from AND :to
-                       AND position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)"
+                       AND source_at BETWEEN :from AND :to"
             . ($device !== '' ? ' AND device_id = :device' : '') . "
-                ), grouped AS (
+                ), flagged AS (
                     SELECT source_at, position,
-                           SUM(CASE WHEN prev_at IS NULL OR source_at - prev_at > interval '45 minutes' THEN 1 ELSE 0 END)
-                               OVER (ORDER BY source_at) AS grp
+                           CASE WHEN prev_at IS NULL
+                                  OR source_at - prev_at > interval '30 minutes'
+                                  OR ST_Distance(position::geography, prev_pos::geography) > 2000
+                                  OR ST_Distance(position::geography, prev_pos::geography)
+                                     / GREATEST(EXTRACT(EPOCH FROM (source_at - prev_at)), 1) > 40
+                                THEN 1 ELSE 0 END AS brk
                       FROM ordered
+                ), grouped AS (
+                    SELECT source_at, position, SUM(brk) OVER (ORDER BY source_at) AS grp FROM flagged
+                ), lines AS (
+                    SELECT MIN(source_at) AS started_at, MAX(source_at) AS ended_at, COUNT(*) AS n,
+                           ST_MakeLine(position ORDER BY source_at) AS line
+                      FROM grouped GROUP BY grp HAVING COUNT(*) >= 2
                 )
-                SELECT MIN(source_at) AS started_at, MAX(source_at) AS ended_at, COUNT(*) AS n,
-                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_MakeLine(position ORDER BY source_at), $tolerance)) AS geojson,
-                       COALESCE(ST_Length(ST_MakeLine(position ORDER BY source_at)::geography), 0) AS distance_m
-                  FROM grouped
-              GROUP BY grp
-                HAVING COUNT(*) >= 2
-              ORDER BY MIN(source_at)
-                 LIMIT 80";
+                SELECT started_at, ended_at, n,
+                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson,
+                       COALESCE(ST_Length(line::geography), 0) AS distance_m
+                  FROM lines
+                 WHERE line && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+              ORDER BY started_at
+                 LIMIT 150";
         $params = [
             ':owner' => $owner,
             ':from' => $from,

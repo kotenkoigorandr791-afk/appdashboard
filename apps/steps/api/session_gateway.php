@@ -35,6 +35,7 @@ $allowed = [
     'family_permissions',
     'notifications',
     'geolocation_renders',
+    'geolocation_points',
 ];
 if (!preg_match('/^[a-z0-9_]+$/', $endpoint) || !in_array($endpoint, $allowed, true)) {
     public_api_json(['ok' => false, 'error' => 'unknown_endpoint'], 404);

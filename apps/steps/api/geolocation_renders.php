@@ -16,18 +16,51 @@ if ($method === 'GET' && !empty($_GET['download'])) {
     if (!StepsGeolocationDomain::isUuid($id)) public_api_json(['ok' => false, 'error' => 'invalid_id'], 400);
     $artifact = StepsGeolocationRender::artifactFor($pdo, $owner, $id);
     if (!$artifact || !is_file((string)$artifact['storage_path'])) public_api_json(['ok' => false, 'error' => 'artifact_expired'], 404);
-    $pdo->prepare('UPDATE geo_artifacts SET download_count = download_count + 1, last_downloaded_at = now() WHERE id = :id AND user_email = :owner')
+    if (empty($_SERVER['HTTP_RANGE']) || str_starts_with((string)$_SERVER['HTTP_RANGE'], 'bytes=0-')) $pdo->prepare('UPDATE geo_artifacts SET download_count = download_count + 1, last_downloaded_at = now() WHERE id = :id AND user_email = :owner')
         ->execute([':id' => $artifact['id'], ':owner' => $owner]);
     header('Content-Type: ' . ($artifact['content_type'] ?: 'application/octet-stream'));
-    header('Content-Disposition: attachment; filename="' . basename((string)$artifact['filename']) . '"');
-    header('Content-Length: ' . filesize((string)$artifact['storage_path']));
+    header('Content-Disposition: ' . (empty($_GET['inline']) ? 'attachment' : 'inline') . '; filename="' . basename((string)$artifact['filename']) . '"');
     header('X-Content-Type-Options: nosniff');
-    readfile((string)$artifact['storage_path']);
+    header('Accept-Ranges: bytes');
+    $path = (string)$artifact['storage_path'];
+    $size = filesize($path);
+    $start = 0;
+    $end = $size - 1;
+    if (preg_match('/^bytes=(\d*)-(\d*)$/', (string)($_SERVER['HTTP_RANGE'] ?? ''), $m) && ($m[1] !== '' || $m[2] !== '')) {
+        if ($m[1] === '') {
+            $start = max(0, $size - (int)$m[2]);
+        } else {
+            $start = (int)$m[1];
+            if ($m[2] !== '') $end = min($end, (int)$m[2]);
+        }
+        if ($start > $end || $start >= $size) {
+            http_response_code(416);
+            header('Content-Range: bytes */' . $size);
+            exit;
+        }
+        http_response_code(206);
+        header(sprintf('Content-Range: bytes %d-%d/%d', $start, $end, $size));
+    }
+    header('Content-Length: ' . ($end - $start + 1));
+    $fh = fopen($path, 'rb');
+    fseek($fh, $start);
+    $left = $end - $start + 1;
+    while ($left > 0 && !feof($fh) && !connection_aborted()) {
+        $chunk = fread($fh, min(65536, $left));
+        if ($chunk === false || $chunk === '') break;
+        echo $chunk;
+        $left -= strlen($chunk);
+        flush();
+    }
+    fclose($fh);
     exit;
 }
 
 if ($method === 'GET') {
     $id = trim((string)($_GET['id'] ?? ''));
+    $stuck = $pdo->prepare("SELECT 1 FROM geo_render_jobs WHERE user_email = :o AND state = 'pending' AND created_at < now() - interval '5 seconds' LIMIT 1");
+    $stuck->execute([':o' => $owner]);
+    if ($stuck->fetchColumn()) StepsGeolocationRender::kick();
     public_api_json([
         'ok' => true,
         'encoder' => StepsGeolocationRender::encoderStatus(),
