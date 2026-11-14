@@ -468,5 +468,10 @@
     "location_import_too_large": "Soubor je příliš velký.",
     "location_import_uploading": "Nahrávání…",
     "location_import_queued": "Zařazeno do fronty importu.",
-    "location_import_confirm_remove": "Odstranit tento import? Odstraněny budou pouze body, které nepatří jiným zdrojům."
+    "location_import_confirm_remove": "Odstranit tento import? Odstraněny budou pouze body, které nepatří jiným zdrojům.",
+    "location_stats_movement": "Vzorce pohybu",
+    "location_stats_trips": "Cesty",
+    "location_stats_avg_distance": "Průměrná vzdálenost cesty",
+    "location_stats_avg_duration": "Průměrná doba cesty",
+    "location_stats_comparison": "Předchozí období"
 }

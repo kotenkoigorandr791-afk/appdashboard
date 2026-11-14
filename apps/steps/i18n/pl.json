@@ -468,5 +468,10 @@
     "location_import_too_large": "Plik jest zbyt duży.",
     "location_import_uploading": "Przesyłanie…",
     "location_import_queued": "Dodano do kolejki importu.",
-    "location_import_confirm_remove": "Usunąć ten import? Usunięte zostaną tylko punkty nienależące do innych źródeł."
+    "location_import_confirm_remove": "Usunąć ten import? Usunięte zostaną tylko punkty nienależące do innych źródeł.",
+    "location_stats_movement": "Wzorce przemieszczania",
+    "location_stats_trips": "Podróże",
+    "location_stats_avg_distance": "Średni dystans podróży",
+    "location_stats_avg_duration": "Średni czas podróży",
+    "location_stats_comparison": "Poprzedni okres"
 }

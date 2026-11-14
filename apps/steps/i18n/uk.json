@@ -468,5 +468,10 @@
     "location_import_too_large": "Файл завеликий.",
     "location_import_uploading": "Завантаження…",
     "location_import_queued": "Поставлено в чергу імпорту.",
-    "location_import_confirm_remove": "Видалити цей імпорт? Буде видалено лише точки, які не належать іншим джерелам."
+    "location_import_confirm_remove": "Видалити цей імпорт? Буде видалено лише точки, які не належать іншим джерелам.",
+    "location_stats_movement": "Характер переміщень",
+    "location_stats_trips": "Поїздки",
+    "location_stats_avg_distance": "Середня довжина поїздки",
+    "location_stats_avg_duration": "Середня тривалість",
+    "location_stats_comparison": "Попередній період"
 }

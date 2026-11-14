@@ -468,5 +468,10 @@
     "location_import_too_large": "Файл слишком большой.",
     "location_import_uploading": "Загрузка…",
     "location_import_queued": "Поставлено в очередь импорта.",
-    "location_import_confirm_remove": "Удалить этот импорт? Будут удалены только точки, не принадлежащие другим источникам."
+    "location_import_confirm_remove": "Удалить этот импорт? Будут удалены только точки, не принадлежащие другим источникам.",
+    "location_stats_movement": "Характер перемещений",
+    "location_stats_trips": "Поездки",
+    "location_stats_avg_distance": "Средняя длина поездки",
+    "location_stats_avg_duration": "Средняя длительность",
+    "location_stats_comparison": "Предыдущий период"
 }

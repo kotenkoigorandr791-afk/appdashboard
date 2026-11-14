@@ -468,5 +468,10 @@
     "location_import_too_large": "Файл занадта вялікі.",
     "location_import_uploading": "Загрузка…",
     "location_import_queued": "Пастаўлена ў чаргу імпарту.",
-    "location_import_confirm_remove": "Выдаліць гэты імпарт? Будуць выдалены толькі кропкі, якія не належаць іншым крыніцам."
+    "location_import_confirm_remove": "Выдаліць гэты імпарт? Будуць выдалены толькі кропкі, якія не належаць іншым крыніцам.",
+    "location_stats_movement": "Характар перамяшчэнняў",
+    "location_stats_trips": "Паездкі",
+    "location_stats_avg_distance": "Сярэдняя даўжыня паездкі",
+    "location_stats_avg_duration": "Сярэдняя працягласць",
+    "location_stats_comparison": "Папярэдні перыяд"
 }

@@ -468,5 +468,10 @@
     "location_import_too_large": "This file is too large.",
     "location_import_uploading": "Uploading…",
     "location_import_queued": "Queued for import.",
-    "location_import_confirm_remove": "Remove this import? Only points that no other source owns are deleted."
+    "location_import_confirm_remove": "Remove this import? Only points that no other source owns are deleted.",
+    "location_stats_movement": "Movement patterns",
+    "location_stats_trips": "Trips",
+    "location_stats_avg_distance": "Average trip distance",
+    "location_stats_avg_duration": "Average trip duration",
+    "location_stats_comparison": "Previous period"
 }
