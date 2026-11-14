@@ -24,6 +24,8 @@ $allowed = [
     'geolocation_quality',
     'geolocation_statistics',
     'geolocation_imports',
+    'geolocation_exports',
+    'geolocation_export_download',
     'places',
     'geofences',
     'devices',

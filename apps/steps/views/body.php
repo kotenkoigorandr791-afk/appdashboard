@@ -1586,6 +1586,40 @@ $metricButtons = [
                             <p id="location-import-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-import-history" class="location-import-history"></div>
                         </section>
+                        <section class="location-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-file-export"></i> <?php echo htmlspecialchars($translations['location_export_title'] ?? 'Export and backup'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['location_export_hint'] ?? 'Exports run in the background and stay downloadable until they expire. GeoJSON and GPX can be imported back; a full backup includes account metadata but not Immich binaries or credentials.'); ?></p>
+                            <div class="location-import-form location-export-form">
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_export_format'] ?? 'Format'); ?></span>
+                                    <select id="location-export-format">
+                                        <option value="geojson">GeoJSON</option>
+                                        <option value="gpx">GPX</option>
+                                        <option value="json">JSON</option>
+                                        <option value="backup"><?php echo htmlspecialchars($translations['location_export_backup'] ?? 'Full account backup'); ?></option>
+                                    </select>
+                                </label>
+                                <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_export_scope'] ?? 'Scope'); ?></span>
+                                    <select id="location-export-scope">
+                                        <option value="all"><?php echo htmlspecialchars($translations['location_export_scope_all'] ?? 'All history'); ?></option>
+                                        <option value="date"><?php echo htmlspecialchars($translations['location_export_scope_date'] ?? 'Date range'); ?></option>
+                                        <option value="device"><?php echo htmlspecialchars($translations['location_export_scope_device'] ?? 'Device'); ?></option>
+                                        <option value="trip"><?php echo htmlspecialchars($translations['location_export_scope_trip'] ?? 'Trip'); ?></option>
+                                        <option value="place"><?php echo htmlspecialchars($translations['location_export_scope_place'] ?? 'Place'); ?></option>
+                                    </select>
+                                </label>
+                                <label class="location-export-field" data-export-scope="date" hidden><span><?php echo htmlspecialchars($translations['location_export_from'] ?? 'From'); ?></span><input type="date" id="location-export-from"></label>
+                                <label class="location-export-field" data-export-scope="date" hidden><span><?php echo htmlspecialchars($translations['location_export_to'] ?? 'To'); ?></span><input type="date" id="location-export-to"></label>
+                                <label class="location-export-field" data-export-scope="device" hidden><span><?php echo htmlspecialchars($translations['location_export_device'] ?? 'Device'); ?></span><select id="location-export-device"></select></label>
+                                <label class="location-export-field" data-export-scope="trip" hidden><span><?php echo htmlspecialchars($translations['location_export_trip'] ?? 'Trip'); ?></span><select id="location-export-trip"></select></label>
+                                <label class="location-export-field" data-export-scope="place" hidden><span><?php echo htmlspecialchars($translations['location_export_place'] ?? 'Place'); ?></span><select id="location-export-place"></select></label>
+                                <label class="location-import-option" id="location-export-derived-wrap"><input type="checkbox" id="location-export-derived"> <span><?php echo htmlspecialchars($translations['location_export_derived'] ?? 'Include derived trips, places and visits (JSON)'); ?></span></label>
+                                <button type="button" id="location-export-create" class="excel-btn"><i class="fas fa-file-export"></i> <?php echo htmlspecialchars($translations['location_export_create'] ?? 'Create export'); ?></button>
+                            </div>
+                            <p id="location-export-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="location-export-history" class="location-import-history"></div>
+                        </section>
                     </div>
                 </div>
                 <div id="settings-panel-backups" class="settings-tab-panel" role="tabpanel">

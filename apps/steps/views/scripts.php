@@ -3450,6 +3450,190 @@
                 const clean = event.target.closest('[data-import-cleanup]');
                 if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
             });
+            const locationExportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_exports';
+            let locationExportsPoll = null;
+            let locationExportOptionsReady = false;
+            function exportText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function exportFormatLabel(format) {
+                return ({ json: 'JSON', geojson: 'GeoJSON', gpx: 'GPX', backup: exportText('location_export_backup', 'Full account backup') })[format] || format;
+            }
+            function exportScopeLabel(scope) {
+                const type = (scope && scope.type) || 'all';
+                if (type === 'date') return exportText('location_export_scope_date', 'Date range') + ': ' + (scope.from || '') + ' – ' + (scope.to || '');
+                if (type === 'device') return exportText('location_export_scope_device', 'Device');
+                if (type === 'trip') return exportText('location_export_scope_trip', 'Trip');
+                if (type === 'place') return exportText('location_export_scope_place', 'Place');
+                return exportText('location_export_scope_all', 'All history');
+            }
+            function exportSize(bytes) {
+                const value = Number(bytes || 0);
+                if (value < 1024) return value + ' B';
+                if (value < 1024 * 1024) return (value / 1024).toFixed(1) + ' KB';
+                return (value / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            function updateExportScope() {
+                const type = document.getElementById('location-export-scope')?.value || 'all';
+                document.querySelectorAll('[data-export-scope]').forEach(field => {
+                    field.hidden = field.getAttribute('data-export-scope') !== type;
+                });
+                const format = document.getElementById('location-export-format')?.value || 'geojson';
+                const derived = document.getElementById('location-export-derived-wrap');
+                if (derived) derived.style.display = format === 'json' ? '' : 'none';
+                const scope = document.getElementById('location-export-scope');
+                if (scope) scope.disabled = format === 'backup';
+            }
+            function fillExportOptions(data) {
+                if (locationExportOptionsReady) return;
+                const options = data.options || {};
+                const fill = (id, rows, label) => {
+                    const select = document.getElementById(id);
+                    if (!select) return;
+                    select.innerHTML = '';
+                    if (!rows || !rows.length) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = exportText('location_export_none_option', 'None available');
+                        select.appendChild(option);
+                        return;
+                    }
+                    rows.forEach(row => {
+                        const option = document.createElement('option');
+                        option.value = row.id;
+                        option.textContent = label(row);
+                        select.appendChild(option);
+                    });
+                };
+                fill('location-export-device', options.devices, row => (row.name || row.id) + (row.platform ? ' · ' + row.platform : ''));
+                fill('location-export-trip', options.trips, row => (row.title || exportText('location_export_trip', 'Trip')) + (row.started_at ? ' · ' + String(row.started_at).slice(0, 10) : ''));
+                fill('location-export-place', options.places, row => row.name || row.id);
+                locationExportOptionsReady = true;
+            }
+            function renderExports(data) {
+                const host = document.getElementById('location-export-history');
+                if (!host) return;
+                fillExportOptions(data);
+                const exports = data.exports || [];
+                host.innerHTML = '';
+                if (!exports.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = exportText('location_export_none', 'No exports yet.');
+                    host.appendChild(empty);
+                    return;
+                }
+                exports.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'import-item';
+                    const head = document.createElement('div');
+                    head.className = 'import-item-head';
+                    const title = document.createElement('strong');
+                    title.textContent = exportFormatLabel(item.format) + ' · ' + exportScopeLabel(item.scope || {});
+                    const badge = document.createElement('span');
+                    badge.className = 'import-state ' + importStateClass(item.state);
+                    badge.textContent = importStateLabel(item.state);
+                    head.appendChild(title); head.appendChild(badge);
+                    const meta = document.createElement('div');
+                    meta.className = 'import-item-meta';
+                    const artifacts = item.artifacts || [];
+                    const available = artifacts.filter(a => a.available);
+                    const bits = [String(item.created_at || '').slice(0, 19).replace('T', ' ')];
+                    if (available.length) {
+                        bits.push(available.map(a => exportSize(a.size_bytes)).join(', '));
+                        bits.push(exportText('location_export_expires', 'Expires') + ' ' + String(available[0].expires_at || '').slice(0, 10));
+                    }
+                    if (item.state === 'failed' && item.errors && item.errors.error) bits.push(String(item.errors.error));
+                    meta.textContent = bits.filter(Boolean).join(' · ');
+                    card.appendChild(head); card.appendChild(meta);
+                    if (available.length) {
+                        const links = document.createElement('div');
+                        links.className = 'export-artifact-links';
+                        available.forEach(artifact => {
+                            const link = document.createElement('a');
+                            link.href = '/apps/steps/api/session_gateway.php?endpoint=geolocation_export_download&id=' + encodeURIComponent(artifact.id);
+                            link.innerHTML = '<i class="fas fa-download"></i> ' + exportText('location_export_download', 'Download') + ' (' + exportSize(artifact.size_bytes) + ')';
+                            links.appendChild(link);
+                        });
+                        card.appendChild(links);
+                    }
+                    if (item.state !== 'deleted') {
+                        const actions = document.createElement('div');
+                        actions.className = 'import-item-actions';
+                        const del = document.createElement('button');
+                        del.type = 'button'; del.className = 'excel-btn'; del.dataset.exportDelete = item.id;
+                        del.innerHTML = '<i class="fas fa-trash-can"></i> ' + exportText('location_export_remove', 'Delete export');
+                        actions.appendChild(del);
+                        card.appendChild(actions);
+                    }
+                    host.appendChild(card);
+                });
+            }
+            async function loadExports() {
+                const host = document.getElementById('location-export-history');
+                if (!host) return;
+                if (locationExportsPoll) { clearTimeout(locationExportsPoll); locationExportsPoll = null; }
+                try {
+                    const res = await fetch(locationExportsApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'export_list_failed');
+                    renderExports(data);
+                    const active = (data.exports || []).some(item => item.state === 'pending' || item.state === 'processing');
+                    if (active) locationExportsPoll = setTimeout(loadExports, 4000);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || importText('map_error', 'Could not load data.')) + '</p>';
+                }
+            }
+            async function createExport() {
+                const status = document.getElementById('location-export-status');
+                const format = document.getElementById('location-export-format')?.value || 'geojson';
+                const type = format === 'backup' ? 'all' : (document.getElementById('location-export-scope')?.value || 'all');
+                const scope = { type, include_derived: !!document.getElementById('location-export-derived')?.checked };
+                if (type === 'date') {
+                    scope.from = document.getElementById('location-export-from')?.value || '';
+                    scope.to = document.getElementById('location-export-to')?.value || '';
+                    if (!scope.from || !scope.to) { if (status) status.textContent = exportText('location_export_choose_range', 'Choose both dates.'); return; }
+                } else if (type === 'device') {
+                    scope.device_id = document.getElementById('location-export-device')?.value || '';
+                } else if (type === 'trip') {
+                    scope.trip_id = document.getElementById('location-export-trip')?.value || '';
+                } else if (type === 'place') {
+                    scope.place_id = document.getElementById('location-export-place')?.value || '';
+                }
+                if (status) status.textContent = exportText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationExportsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', format, scope }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'export_failed');
+                    if (status) status.textContent = exportText('location_export_queued', 'Export queued. It will be ready shortly.');
+                    await loadExports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            }
+            async function deleteExport(id) {
+                const message = exportText('location_export_confirm_remove', 'Delete this export and its file?');
+                let confirmed = false;
+                if (typeof window.showAlert === 'function') { try { confirmed = await window.showAlert(message, true); } catch (e) { confirmed = false; } }
+                else confirmed = window.confirm(message);
+                if (!confirmed) return;
+                const status = document.getElementById('location-export-status');
+                try {
+                    const res = await fetch(locationExportsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'export_delete_failed');
+                    if (status) status.textContent = exportText('location_export_deleted', 'Export deleted.');
+                    await loadExports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            }
+            document.getElementById('location-export-format')?.addEventListener('change', updateExportScope);
+            document.getElementById('location-export-scope')?.addEventListener('change', updateExportScope);
+            document.getElementById('location-export-create')?.addEventListener('click', createExport);
+            document.getElementById('location-export-history')?.addEventListener('click', (event) => {
+                const del = event.target.closest('[data-export-delete]');
+                if (del) deleteExport(del.getAttribute('data-export-delete'));
+            });
+            updateExportScope();
             document.querySelectorAll('.settings-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     const id = tab.getAttribute('data-settings-tab');
@@ -3460,7 +3644,7 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
-                    if (id === 'location') { loadLocationStatistics(); loadImports(); }
+                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); }
                 });
             });
 

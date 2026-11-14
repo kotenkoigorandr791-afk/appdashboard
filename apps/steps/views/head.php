@@ -873,6 +873,12 @@
         .import-state.is-processing { background: rgba(59,130,246,.16); color: #60a5fa; }
         .import-item-actions { display: flex; gap: 6px; flex-wrap: wrap; }
         .import-item-actions button { font-size: 11px; padding: 4px 8px; }
+        .location-export-field { display: inline-flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--muted-text); }
+        .location-export-field select, .location-export-field input { min-width: 130px; font-size: 12px; padding: 5px 7px; }
+        .location-export-field[hidden] { display: none; }
+        .export-artifact-links { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 11px; }
+        .export-artifact-links a { color: var(--primary-color); text-decoration: none; }
+        .export-artifact-links a:hover { text-decoration: underline; }
         .import-error { font-size: 11px; color: #ef4444; }
         #settings-panel-chart .settings-chart-type-intro {
             text-align: left;

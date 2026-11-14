@@ -52,6 +52,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v7_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '007']);
         }
+        // 008: durable export jobs and downloadable artifacts.
+        $applied->execute([':version' => '008']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v8_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '008']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -126,6 +132,26 @@ function steps_geolocation_schema_v7_sql(): array
     return [
         "DROP INDEX IF EXISTS geo_import_files_owner_checksum_active_idx",
         "CREATE UNIQUE INDEX geo_import_files_owner_checksum_active_idx ON geo_import_files(user_email, checksum) WHERE deleted_at IS NULL AND state <> 'failed'",
+    ];
+}
+function steps_geolocation_schema_v8_sql(): array
+{
+    return [
+        "ALTER TABLE geo_exports ADD COLUMN IF NOT EXISTS options_json JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_exports ADD COLUMN IF NOT EXISTS error_json JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_exports ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ",
+        "ALTER TABLE geo_exports ADD COLUMN IF NOT EXISTS completed_at TIMESTAMPTZ",
+        "ALTER TABLE geo_exports ADD COLUMN IF NOT EXISTS expires_at TIMESTAMPTZ",
+        "ALTER TABLE geo_exports DROP CONSTRAINT IF EXISTS geo_exports_state_check",
+        "ALTER TABLE geo_exports ADD CONSTRAINT geo_exports_state_check CHECK (state IN ('pending','processing','ready','failed','stale','deleted'))",
+        "CREATE INDEX IF NOT EXISTS geo_exports_user_state_idx ON geo_exports(user_email, state, created_at DESC)",
+        "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS size_bytes BIGINT NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS format TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS filename TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS content_type TEXT NOT NULL DEFAULT 'application/octet-stream'",
+        "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS download_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_artifacts ADD COLUMN IF NOT EXISTS last_downloaded_at TIMESTAMPTZ",
+        "CREATE INDEX IF NOT EXISTS geo_artifacts_user_idx ON geo_artifacts(user_email, export_id)",
     ];
 }
 function steps_geolocation_schema_sql(): array
