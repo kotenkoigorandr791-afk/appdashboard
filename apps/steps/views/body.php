@@ -1938,6 +1938,12 @@ $metricButtons = [
                     <button type="button" class="settings-tab" data-settings-tab="family" role="tab" aria-selected="false">
                         <i class="fas fa-people-roof"></i> <?php echo htmlspecialchars($translations['family_title'] ?? 'Family'); ?>
                     </button>
+                    <button type="button" class="settings-tab" data-settings-tab="achievements" role="tab" aria-selected="false">
+                        <i class="fas fa-trophy"></i> <?php echo htmlspecialchars($translations['achievement_title'] ?? 'Achievements'); ?>
+                    </button>
+                    <button type="button" class="settings-tab" data-settings-tab="api" role="tab" aria-selected="false">
+                        <i class="fas fa-code"></i> <?php echo htmlspecialchars($translations['api_keys_title'] ?? 'API keys'); ?>
+                    </button>
                     <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
                         <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
                     </button>
@@ -2327,6 +2333,232 @@ $metricButtons = [
                         </section>
                     </div>
                 </div>
+                <div id="settings-panel-achievements" class="settings-tab-panel" role="tabpanel">
+                    <div class="location-panel">
+                        <section class="location-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-trophy"></i> <?php echo htmlspecialchars($translations['achievement_title'] ?? 'Achievements'); ?></h3>
+                                <div class="location-actions">
+                                    <button type="button" id="achievements-recompute" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['achievement_recompute'] ?? 'Recompute'); ?></button>
+                                </div>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['achievement_hint'] ?? 'Private milestones based only on your confirmed history. There is no leaderboard and nothing is shared publicly.'); ?></p>
+                            <label class="location-import-option"><input type="checkbox" id="achievements-enabled" checked> <span><?php echo htmlspecialchars($translations['achievement_enable'] ?? 'Enable achievements'); ?></span></label>
+                            <p id="achievements-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="achievements-list" class="location-import-history"></div>
+                            <p id="achievements-disabled" class="location-hint" hidden><?php echo htmlspecialchars($translations['achievement_disabled_notice'] ?? 'Achievements are disabled. Existing results stay stored but are hidden, and no new evaluations run until you enable them again.'); ?></p>
+                        </section>
+                    </div>
+                </div>
+                <div id="settings-panel-api" class="settings-tab-panel" role="tabpanel">
+                    <div class="location-panel">
+                        <section class="location-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-code"></i> <?php echo htmlspecialchars($translations['api_keys_title'] ?? 'API keys'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['api_keys_hint'] ?? 'Scoped keys for the versioned REST API. The secret is shown once; rotate or revoke a key at any time.'); ?></p>
+                            <div class="location-import-form">
+                                <input type="text" id="api-key-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['api_keys_name'] ?? 'Key name'); ?>">
+                                <button type="button" id="api-key-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['api_keys_create'] ?? 'Create key'); ?></button>
+                            </div>
+                            <div id="api-key-scopes" class="place-chips"></div>
+                            <p id="api-key-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="api-key-new" class="location-hint" hidden></div>
+                            <div id="api-key-list" class="location-import-history"></div>
+                        </section>
+                    </div>
+                </div>
+                <script>
+                (function () {
+                    var gateway = '/apps/steps/api/session_gateway.php?endpoint=';
+                    function byId(id) { return document.getElementById(id); }
+                    function tr(key, fallback) {
+                        try { if (typeof translations !== 'undefined' && translations && translations[key]) return translations[key]; } catch (e) {}
+                        return fallback;
+                    }
+                    function status(id, message, bad) {
+                        var node = byId(id);
+                        if (!node) return;
+                        node.textContent = message || '';
+                        node.classList.toggle('is-error', !!bad);
+                    }
+                    function getJson(endpoint) {
+                        return fetch(gateway + endpoint, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }).then(function (r) { return r.json(); });
+                    }
+                    function postJson(endpoint, payload) {
+                        return fetch(gateway + endpoint, {
+                            method: 'POST', credentials: 'same-origin',
+                            headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+                            body: JSON.stringify(payload)
+                        }).then(function (r) { return r.json(); });
+                    }
+
+                    function achievementRow(item) {
+                        var row = document.createElement('div');
+                        row.className = 'location-tool-row';
+                        var label = document.createElement('span');
+                        var family = tr(item.title_key, item.family);
+                        label.textContent = family + ' · ' + (item.unit === 'm' ? Math.round(item.target / 1000) + ' km' : item.target + (item.unit === 'days' ? ' ' + tr('achievement_days', 'days') : ''));
+                        var value = document.createElement('span');
+                        var shown = item.unit === 'm' ? (Math.round(item.progress / 100) / 10) + ' km' : Math.round(item.progress);
+                        value.textContent = shown + ' (' + item.percent + '%)' + (item.earned ? ' ✓ ' + tr('achievement_earned', 'Earned') : '');
+                        row.appendChild(label);
+                        row.appendChild(value);
+                        return row;
+                    }
+
+                    function renderAchievements(data, showList) {
+                        var enabled = byId('achievements-enabled');
+                        var hint = byId('achievements-disabled');
+                        var list = byId('achievements-list');
+                        if (!enabled || !list || !hint) return;
+                        enabled.checked = !!data.enabled;
+                        hint.hidden = !!data.enabled;
+                        list.innerHTML = '';
+                        if (!data.enabled || !showList) return;
+                        if (data.processing) status('achievements-status', tr('achievement_recomputing', 'Recomputing in the background…'));
+                        (data.collections || []).forEach(function (collection) {
+                            if (!collection.achievement_ids || !collection.achievement_ids.length) return;
+                            var heading = document.createElement('h4');
+                            heading.textContent = tr(collection.title_key, collection.id) + ' · ' + collection.earned + '/' + collection.total;
+                            list.appendChild(heading);
+                            (data.achievements || []).forEach(function (item) {
+                                if (collection.achievement_ids.indexOf(item.id) === -1) return;
+                                list.appendChild(achievementRow(item));
+                            });
+                        });
+                    }
+
+                    function loadAchievements(force) {
+                        status('achievements-status', tr('achievement_loading', 'Loading…'));
+                        getJson('geolocation_achievements').then(function (data) {
+                            if (!data.ok) { status('achievements-status', data.error || 'failed', true); return; }
+                            renderAchievements(data, true);
+                            status('achievements-status', data.enabled ? (data.earned_count + '/' + data.total_count) : tr('achievement_disabled_notice', 'Disabled'));
+                        }).catch(function () { status('achievements-status', 'failed', true); });
+                    }
+
+                    document.addEventListener('change', function (event) {
+                        if (!event.target || event.target.id !== 'achievements-enabled') return;
+                        postJson('geolocation_achievements', { action: 'preference', enabled: !!event.target.checked }).then(function (data) {
+                            if (!data.ok) { status('achievements-status', data.error || 'failed', true); return; }
+                            renderAchievements(data, true);
+                            status('achievements-status', data.enabled ? (data.earned_count + '/' + data.total_count) : tr('achievement_disabled_notice', 'Disabled'));
+                        });
+                    });
+                    document.addEventListener('click', function (event) {
+                        var target = event.target && event.target.closest ? event.target : null;
+                        if (!target) return;
+                        if (target.closest('#achievements-recompute')) {
+                            status('achievements-status', tr('achievement_loading', 'Loading…'));
+                            postJson('geolocation_achievements', { action: 'recompute' }).then(function (data) {
+                                if (!data.ok) { status('achievements-status', data.error || 'failed', true); return; }
+                                renderAchievements(data, true);
+                                status('achievements-status', data.earned_count + '/' + data.total_count);
+                            });
+                        }
+                        var tab = target.closest('.settings-tab[data-settings-tab]');
+                        if (tab) {
+                            var id = tab.getAttribute('data-settings-tab');
+                            if (id === 'achievements') loadAchievements();
+                            if (id === 'api') loadApiKeys();
+                        }
+                    });
+
+                    var scopesRendered = false;
+                    function renderApiKeys(data) {
+                        var list = byId('api-key-list');
+                        if (!list) return;
+                        list.innerHTML = '';
+                        if (!data.keys || !data.keys.length) {
+                            var empty = document.createElement('p');
+                            empty.textContent = tr('api_keys_no_keys', 'No API keys yet.');
+                            list.appendChild(empty);
+                            return;
+                        }
+                        data.keys.forEach(function (key) {
+                            var row = document.createElement('div');
+                            row.className = 'location-tool-row';
+                            var label = document.createElement('span');
+                            label.textContent = key.name + ' · ' + key.prefix + '… · ' + (key.active ? tr('api_keys_status', 'Active') : tr('api_keys_revoked', 'Revoked')) + ' · ' + tr('api_keys_last_used', 'Last used') + ': ' + (key.last_used_at || tr('api_keys_never', 'Never'));
+                            row.appendChild(label);
+                            if (key.active) {
+                                var rotate = document.createElement('button');
+                                rotate.type = 'button';
+                                rotate.className = 'excel-btn';
+                                rotate.textContent = tr('api_keys_rotate', 'Rotate');
+                                rotate.addEventListener('click', function () {
+                                    postJson('api_keys', { action: 'rotate', id: key.id }).then(function (result) {
+                                        if (!result.ok) { status('api-key-status', result.error || 'failed', true); return; }
+                                        showSecret(result.key.secret);
+                                        renderApiKeys(result);
+                                    });
+                                });
+                                var revoke = document.createElement('button');
+                                revoke.type = 'button';
+                                revoke.className = 'excel-btn';
+                                revoke.textContent = tr('api_keys_revoke', 'Revoke');
+                                revoke.addEventListener('click', function () {
+                                    postJson('api_keys', { action: 'revoke', id: key.id }).then(function (result) {
+                                        if (!result.ok) { status('api-key-status', result.error || 'failed', true); return; }
+                                        renderApiKeys(result);
+                                    });
+                                });
+                                row.appendChild(rotate);
+                                row.appendChild(revoke);
+                            }
+                            list.appendChild(row);
+                        });
+                    }
+                    function showSecret(secret) {
+                        var box = byId('api-key-new');
+                        if (!box) return;
+                        box.hidden = false;
+                        box.textContent = tr('api_keys_created_once', 'Copy it now — it will not be shown again:') + ' ' + secret;
+                    }
+                    function loadApiKeys() {
+                        getJson('api_keys').then(function (data) {
+                            if (!data.ok) { status('api-key-status', data.error || 'failed', true); return; }
+                            var container = byId('api-key-scopes');
+                            if (container && !scopesRendered) {
+                                (data.scopes || []).forEach(function (scope) {
+                                    var label = document.createElement('label');
+                                    label.className = 'notif-event';
+                                    var box = document.createElement('input');
+                                    box.type = 'checkbox';
+                                    box.value = scope;
+                                    box.checked = (data.default_scopes || []).indexOf(scope) !== -1;
+                                    box.setAttribute('data-api-scope', scope);
+                                    label.appendChild(box);
+                                    label.appendChild(document.createTextNode(' ' + scope));
+                                    container.appendChild(label);
+                                });
+                                scopesRendered = true;
+                            }
+                            renderApiKeys(data);
+                            status('api-key-status', '');
+                        }).catch(function () { status('api-key-status', 'failed', true); });
+                    }
+                    document.addEventListener('click', function (event) {
+                        var button = event.target && event.target.closest ? event.target.closest('#api-key-create') : null;
+                        if (!button) return;
+                        var nameInput = byId('api-key-name');
+                        var scopes = [];
+                        document.querySelectorAll('[data-api-scope]').forEach(function (box) { if (box.checked) scopes.push(box.value); });
+                        postJson('api_keys', { action: 'create', name: nameInput ? nameInput.value : '', scopes: scopes }).then(function (data) {
+                            if (!data.ok) { status('api-key-status', (data.details && data.details.reason) || data.error || 'failed', true); return; }
+                            showSecret(data.key.secret);
+                            renderApiKeys(data);
+                            status('api-key-status', tr('api_keys_created', 'Key created'));
+                            if (nameInput) nameInput.value = '';
+                        });
+                    });
+                    document.addEventListener('DOMContentLoaded', function () {
+                        var panel = byId('settings-panel-achievements');
+                        if (panel && panel.classList.contains('active')) loadAchievements();
+                    });
+                })();
+                </script>
                 <div id="settings-panel-backups" class="settings-tab-panel" role="tabpanel">
                     <div class="excel-actions settings-backup-actions">
                         <button class="excel-btn create-backup" id="create-backup" type="button" style="background: #17a2b8;">

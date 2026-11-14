@@ -2,6 +2,7 @@
 require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
+require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -91,6 +92,7 @@ try {
     $pdo->prepare('INSERT INTO geo_audit_events(id, user_email, actor_email, event_type, context_json) VALUES(:id, :o, :o, :e, :c)')
         ->execute([':id' => geo_points_uuid(), ':o' => $owner, ':e' => 'points.deleted', ':c' => json_encode(['count' => $deleted])]);
     $pdo->commit();
+    StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'delete');
     public_api_json(['ok' => true, 'deleted' => $deleted]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();

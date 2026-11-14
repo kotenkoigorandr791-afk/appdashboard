@@ -607,5 +607,19 @@ final class StepsGeolocationStatistics
         } catch (Throwable $e) {
             error_log('geolocation statistics invalidation: ' . $e->getMessage());
         }
+        // Imports, edits and deletions all end here, so achievements are queued
+        // from the same canonical invalidation point. The evaluator skips owners
+        // who disabled the module, and never deletes canonical history.
+        try {
+            if (!class_exists('StepsGeolocationAchievements')) {
+                $achievementsFile = __DIR__ . '/geolocation_achievements.php';
+                if (is_file($achievementsFile)) require_once $achievementsFile;
+            }
+            if (class_exists('StepsGeolocationAchievements')) {
+                StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'scheduled');
+            }
+        } catch (Throwable $e) {
+            error_log('achievements invalidation: ' . $e->getMessage());
+        }
     }
 }

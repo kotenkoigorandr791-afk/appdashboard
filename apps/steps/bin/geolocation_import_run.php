@@ -13,6 +13,7 @@
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_imports.php';
+require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
 
 /** @return array{imports:int,points:int,failed:int} */
 function steps_import_pass(PDO $pdo, string $user, string $importId, int $limit): array
@@ -32,6 +33,7 @@ function steps_import_pass(PDO $pdo, string $user, string $importId, int $limit)
             $result['points'] += (int)$counts['points'];
             if ((int)$counts['failed'] > 0) $result['failed']++;
             fwrite(STDOUT, "import: {$row['id']} {$counts['points']} point(s), {$counts['accepted']} accepted, {$counts['duplicate']} duplicate, {$counts['failed']} failed file(s)\n");
+            StepsGeolocationAchievements::enqueueIfEnabled($pdo, (string)$row['user_email'], 'import');
         } catch (Throwable $e) {
             $result['failed']++;
             error_log('geolocation import failed: ' . $e->getMessage());

@@ -1,6 +1,6 @@
 <?php
 /**
- * Import a versioned country/city boundary dataset (GeoJSON).
+ * Import a versioned country/region/city boundary dataset (GeoJSON).
  *
  *   php apps/steps/bin/geolocation_boundaries_import.php \
  *       --file=/path/ne_10m_admin_0_countries.geojson \
@@ -27,7 +27,7 @@ $codeProperty = (string)($options['code-property'] ?? 'ISO_A2');
 $nameProperty = (string)($options['name-property'] ?? 'NAME');
 $parentProperty = (string)($options['parent-property'] ?? '');
 if ($file === '' || !is_file($file)) { fwrite(STDERR, "boundaries: file not found\n"); exit(2); }
-if (!in_array($kind, ['country', 'city'], true)) { fwrite(STDERR, "boundaries: kind must be country or city\n"); exit(2); }
+if (!in_array($kind, ['country', 'region', 'city'], true)) { fwrite(STDERR, "boundaries: kind must be country, region or city\n"); exit(2); }
 if ($version === '' || !preg_match('/^[A-Za-z0-9._:-]{1,80}$/', $version)) { fwrite(STDERR, "boundaries: invalid version\n"); exit(2); }
 
 $raw = file_get_contents($file);

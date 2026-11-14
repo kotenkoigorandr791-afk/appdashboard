@@ -88,6 +88,18 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v13_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '013']);
         }
+        // 014: private achievements, tenant preference and region boundaries.
+        $applied->execute([':version' => '014']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v14_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '014']);
+        }
+        // 015: hashed, scoped tenant API keys.
+        $applied->execute([':version' => '015']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v15_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '015']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -253,6 +265,23 @@ function steps_geolocation_schema_v13_sql(): array
         "CREATE TABLE IF NOT EXISTS geo_render_jobs (id UUID PRIMARY KEY, user_email TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('poster','video')), state TEXT NOT NULL CHECK (state IN ('pending','processing','ready','failed','cancelled')), processor_version TEXT NOT NULL, config_json JSONB NOT NULL DEFAULT '{}'::jsonb, snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb, progress INTEGER NOT NULL DEFAULT 0, error_code TEXT NOT NULL DEFAULT '', artifact_id UUID, cancel_requested BOOLEAN NOT NULL DEFAULT false, expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
         "CREATE INDEX IF NOT EXISTS geo_render_jobs_owner_idx ON geo_render_jobs(user_email, created_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_render_jobs_queue_idx ON geo_render_jobs(state, created_at)",
+    ];
+}
+function steps_geolocation_schema_v14_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_achievement_settings (user_email TEXT PRIMARY KEY, enabled BOOLEAN NOT NULL DEFAULT true, timezone TEXT NOT NULL DEFAULT 'UTC', updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE TABLE IF NOT EXISTS geo_achievements (user_email TEXT NOT NULL, rule_version TEXT NOT NULL, achievement_id TEXT NOT NULL, family TEXT NOT NULL, collection TEXT NOT NULL DEFAULT '', target DOUBLE PRECISION NOT NULL, progress DOUBLE PRECISION NOT NULL DEFAULT 0, earned BOOLEAN NOT NULL DEFAULT false, first_earned_at TIMESTAMPTZ, input_watermark TEXT NOT NULL DEFAULT '', reason TEXT NOT NULL DEFAULT '', details_json JSONB NOT NULL DEFAULT '{}'::jsonb, recalculated_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, rule_version, achievement_id))",
+        "CREATE INDEX IF NOT EXISTS geo_achievements_owner_idx ON geo_achievements(user_email, earned, recalculated_at DESC)",
+        "ALTER TABLE geo_boundary_datasets DROP CONSTRAINT IF EXISTS geo_boundary_datasets_kind_check",
+        "ALTER TABLE geo_boundary_datasets ADD CONSTRAINT geo_boundary_datasets_kind_check CHECK (kind IN ('country','region','city'))",
+    ];
+}
+function steps_geolocation_schema_v15_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_api_keys (id UUID PRIMARY KEY, user_email TEXT NOT NULL, name TEXT NOT NULL DEFAULT '', key_prefix TEXT NOT NULL, key_hash TEXT NOT NULL UNIQUE, scopes_json JSONB NOT NULL DEFAULT '[]'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), rotated_at TIMESTAMPTZ, last_used_at TIMESTAMPTZ, revoked_at TIMESTAMPTZ, expires_at TIMESTAMPTZ)",
+        "CREATE INDEX IF NOT EXISTS geo_api_keys_owner_idx ON geo_api_keys(user_email, revoked_at, created_at DESC)",
     ];
 }
 function steps_geolocation_schema_sql(): array

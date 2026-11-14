@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_quality.php';
 require_once dirname(__DIR__) . '/core/geolocation_ingestion.php';
+require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -46,6 +47,7 @@ if ($action === 'delete') {
     $stmt = $pdo->prepare("DELETE FROM geo_location_points WHERE user_email = ? AND id IN ($placeholders)");
     $stmt->execute(array_merge([$owner], $ids));
     try { StepsGeolocationQuality::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation quality enqueue: ' . $e->getMessage()); }
+    StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'delete');
     public_api_json(['ok' => true, 'deleted' => $stmt->rowCount()]);
 }
 $points = $action === 'batch' ? ($body['points'] ?? []) : [$body];
@@ -55,5 +57,6 @@ foreach ($points as $point) $results[] = is_array($point) ? geo_api_point($pdo, 
 // Only a durable marker: the existing app worker path performs the quality pass.
 if (in_array('accepted', array_column($results, 'status'), true)) {
     try { StepsGeolocationQuality::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation quality enqueue: ' . $e->getMessage()); }
+    StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'edit');
 }
 public_api_json(['ok' => true, 'results' => $results]);
