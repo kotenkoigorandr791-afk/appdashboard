@@ -1443,6 +1443,9 @@ $metricButtons = [
                     <button type="button" class="settings-tab" data-settings-tab="map" role="tab" aria-selected="false">
                         <i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['map_settings_title'] ?? 'Map'); ?>
                     </button>
+                    <button type="button" class="settings-tab" data-settings-tab="location" role="tab" aria-selected="false">
+                        <i class="fas fa-earth-europe"></i> <?php echo htmlspecialchars($translations['location_data_title'] ?? 'Location data'); ?>
+                    </button>
                     <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
                         <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
                     </button>
@@ -1550,6 +1553,25 @@ $metricButtons = [
                                     <i class="fas fa-arrow-rotate-left" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>
                                 </button>
                             </div>
+                        </section>
+                    </div>
+                </div>
+                <div id="settings-panel-location" class="settings-tab-panel" role="tabpanel">
+                    <div class="location-panel">
+                        <section class="location-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-chart-simple"></i> <?php echo htmlspecialchars($translations['location_stats_title'] ?? 'Movement statistics'); ?></h3>
+                                <div class="location-actions">
+                                    <label class="location-tz"><span><?php echo htmlspecialchars($translations['timeline_timezone'] ?? 'Timezone'); ?></span><input type="text" id="location-stats-tz" value="UTC" placeholder="Europe/Kyiv"></label>
+                                    <button type="button" id="location-stats-refresh" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['location_stats_refresh'] ?? 'Recompute'); ?></button>
+                                </div>
+                            </div>
+                            <p id="location-stats-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="location-stats-cards" class="location-cards"></div>
+                            <div id="location-stats-warnings" class="location-warnings"></div>
+                            <div id="location-stats-details" class="location-details"></div>
+                            <div id="location-stats-boundary" class="location-hint"></div>
+                            <ul id="location-stats-assumptions" class="location-assumptions"></ul>
                         </section>
                     </div>
                 </div>

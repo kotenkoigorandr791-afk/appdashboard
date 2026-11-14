@@ -10,6 +10,7 @@
  */
 require_once __DIR__ . '/geolocation_quality.php';
 require_once __DIR__ . '/geolocation_domain.php';
+require_once __DIR__ . '/geolocation_statistics.php';
 
 final class StepsGeolocationTripError extends RuntimeException
 {
@@ -248,6 +249,8 @@ final class StepsGeolocationTrips
             ':to' => $to,
             ':details' => json_encode(['reason' => $reason, 'from' => $from, 'to' => $to], JSON_UNESCAPED_SLASHES),
         ]);
+        // Trip edits change movement summaries; keep the statistics cache honest.
+        try { StepsGeolocationStatistics::invalidate($pdo, $owner, $from, $to); } catch (Throwable $e) { error_log('statistics invalidation: ' . $e->getMessage()); }
         return $stmt->rowCount() > 0;
     }
 

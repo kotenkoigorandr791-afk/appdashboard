@@ -28,6 +28,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v3_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '003']);
         }
+        // 004: location statistics summaries and versioned boundary data.
+        $applied->execute([':version' => '004']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v4_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '004']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -51,6 +57,16 @@ function steps_geolocation_schema_v3_sql(): array
         "CREATE TABLE IF NOT EXISTS geo_trip_photos (trip_id UUID NOT NULL REFERENCES geo_trips(id) ON DELETE CASCADE, asset_id UUID NOT NULL REFERENCES geo_immich_assets(id) ON DELETE CASCADE, user_email TEXT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (trip_id, asset_id))",
         "CREATE INDEX IF NOT EXISTS geo_trip_places_user_idx ON geo_trip_places(user_email, place_id)",
         "CREATE INDEX IF NOT EXISTS geo_trip_photos_user_idx ON geo_trip_photos(user_email, asset_id)",
+    ];
+}
+function steps_geolocation_schema_v4_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_boundary_datasets (version TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('country','city')), source TEXT NOT NULL DEFAULT '', feature_count INTEGER NOT NULL DEFAULT 0, imported_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (version, kind))",
+        "CREATE TABLE IF NOT EXISTS geo_boundary_areas (dataset_version TEXT NOT NULL, kind TEXT NOT NULL, code TEXT NOT NULL, name TEXT NOT NULL, parent_code TEXT NOT NULL DEFAULT '', geometry geometry(Geometry,4326) NOT NULL, PRIMARY KEY (dataset_version, kind, code), FOREIGN KEY (dataset_version, kind) REFERENCES geo_boundary_datasets(version, kind) ON DELETE CASCADE)",
+        "CREATE INDEX IF NOT EXISTS geo_boundary_areas_geometry_idx ON geo_boundary_areas USING GIST(geometry)",
+        "CREATE TABLE IF NOT EXISTS geo_statistics_daily (user_email TEXT NOT NULL, day DATE NOT NULL, timezone TEXT NOT NULL, processor_version TEXT NOT NULL, boundary_version TEXT NOT NULL DEFAULT '', point_count INTEGER NOT NULL DEFAULT 0, accepted_count INTEGER NOT NULL DEFAULT 0, flagged_count INTEGER NOT NULL DEFAULT 0, rejected_count INTEGER NOT NULL DEFAULT 0, distance_m DOUBLE PRECISION NOT NULL DEFAULT 0, active_seconds BIGINT NOT NULL DEFAULT 0, first_at TIMESTAMPTZ, last_at TIMESTAMPTZ, accuracy_avg DOUBLE PRECISION, accuracy_json JSONB NOT NULL DEFAULT '{}'::jsonb, sources_json JSONB NOT NULL DEFAULT '{}'::jsonb, country_code TEXT, country_name TEXT, city_name TEXT, updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, day, timezone))",
+        "CREATE TABLE IF NOT EXISTS geo_statistics_cache (user_email TEXT NOT NULL, timezone TEXT NOT NULL, processor_version TEXT NOT NULL, boundary_version TEXT NOT NULL DEFAULT '', input_to TIMESTAMPTZ, payload_json JSONB NOT NULL DEFAULT '{}'::jsonb, computed_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, timezone))",
     ];
 }
 function steps_geolocation_schema_sql(): array

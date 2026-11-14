@@ -10,6 +10,7 @@
  */
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_stops.php';
+require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
 
 /** @return array{processed:int,stops:int,visits:int,failed:int} */
 function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds): array
@@ -131,6 +132,7 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             $finish->execute([':from' => $inputFrom, ':to' => $inputTo, ':details' => json_encode($details, JSON_UNESCAPED_SLASHES), ':id' => $runId]);
             $pdo->commit();
             $processed += count($rows);
+            StepsGeolocationStatistics::invalidate($pdo, $owner, $inputFrom, $inputTo);
             fwrite(STDOUT, "stops: {$owner} {$details['stops']} stop(s), {$visitsMade} visit(s)\n");
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();

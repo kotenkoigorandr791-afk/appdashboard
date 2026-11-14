@@ -3210,6 +3210,99 @@
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
                 });
             });
+            const locationStatsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_statistics';
+            let locationStatsBusy = false;
+            function locationStatText(key, fallback) {
+                return (window.translations && translations[key]) || fallback;
+            }
+            function locationStatNumber(value, digits) {
+                const number = Number(value || 0);
+                return number.toLocaleString(currentLocale || 'en-US', { maximumFractionDigits: digits || 0 });
+            }
+            function locationStatDuration(seconds) {
+                const h = Math.floor(Number(seconds || 0) / 3600), m = Math.round((Number(seconds || 0) % 3600) / 60);
+                return h > 0 ? h + ' h ' + m + ' min' : m + ' min';
+            }
+            function renderLocationStatistics(data) {
+                const status = document.getElementById('location-stats-status');
+                const cards = document.getElementById('location-stats-cards');
+                const warnings = document.getElementById('location-stats-warnings');
+                const details = document.getElementById('location-stats-details');
+                const boundary = document.getElementById('location-stats-boundary');
+                const assumptions = document.getElementById('location-stats-assumptions');
+                if (!status || !cards || !details) return;
+                const m = data.metrics || {};
+                const coverage = data.coverage || {};
+                status.textContent = (data.range ? data.range.from + ' → ' + data.range.to + ' · ' : '') + (data.timezone || 'UTC') + (data.cached ? ' · ' + locationStatText('location_stats_cached', 'cached') : '');
+                const card = (label, value) => '<div class="location-card"><span>' + label + '</span><strong>' + value + '</strong></div>';
+                cards.innerHTML = [
+                    card(locationStatText('location_stats_points', 'Points'), locationStatNumber(m.point_count)),
+                    card(locationStatText('location_stats_distance', 'Distance'), locationStatNumber((m.route_distance_m || 0) / 1000, 1) + ' km'),
+                    card(locationStatText('location_stats_active_days', 'Active days'), locationStatNumber(m.active_days)),
+                    card(locationStatText('location_stats_countries', 'Countries'), locationStatNumber((m.countries || []).length)),
+                    card(locationStatText('location_stats_cities', 'Cities'), locationStatNumber((m.cities || []).length)),
+                    card(locationStatText('location_stats_visits', 'Visits'), locationStatNumber(m.visits)),
+                    card(locationStatText('location_stats_dwell', 'Dwell time'), locationStatDuration(m.dwell_seconds)),
+                    card(locationStatText('location_stats_places', 'Places'), locationStatNumber(m.places))
+                ].join('');
+                const residency = data.residency || {};
+                const warningList = residency.warnings || [];
+                warnings.innerHTML = warningList.length ? warningList.map(w => '<div class="location-warning"><i class="fas fa-triangle-exclamation"></i> ' + (w.country_name || w.country_code) + ': ' + w.days + ' / ' + w.window_days + ' ' + locationStatText('location_stats_days', 'days') + ' (' + w.window_from + ' → ' + w.window_to + ')</div>').join('') : '';
+                const top = (data.most_visited_places || []).map(p => '<li><span>' + p.name + '</span><span>' + p.visits + ' × · ' + locationStatDuration(p.dwell_seconds) + '</span></li>').join('');
+                const countries = (m.countries || []).map(c => c.name || c.code).join(', ');
+                const accuracy = data.accuracy || {};
+                const sourceRows = Object.entries((data.source_health || {}).sources || {}).map(([source, count]) => '<li><span>' + source + '</span><span>' + locationStatNumber(count) + '</span></li>').join('');
+                const months = (data.monthly || []).slice(-6).map(row => '<li><span>' + row.period + '</span><span>' + locationStatNumber((row.metrics.route_distance_m || 0) / 1000, 1) + ' km · ' + locationStatNumber(row.metrics.active_days) + ' d</span></li>').join('');
+                details.innerHTML = '<div class="location-detail-block"><h4>' + locationStatText('location_stats_top_places', 'Most visited places') + '</h4><ul>' + (top || '<li>' + locationStatText('location_stats_none', 'No data yet.') + '</li>') + '</ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_recent_months', 'Recent months') + '</h4><ul>' + (months || '<li>' + locationStatText('location_stats_none', 'No data yet.') + '</li>') + '</ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_coverage', 'Coverage & gaps') + '</h4><ul><li><span>' + locationStatText('location_stats_days_with_data', 'Days with data') + '</span><span>' + locationStatNumber(coverage.days_with_data) + ' / ' + locationStatNumber(coverage.days_total) + '</span></li><li><span>' + locationStatText('location_stats_missing_days', 'Missing days') + '</span><span>' + locationStatNumber(coverage.missing_days) + '</span></li><li><span>' + locationStatText('location_stats_gaps', 'Data gaps (latest)') + '</span><span>' + ((coverage.gaps || []).slice(0, 6).join(', ') || '—') + '</span></li></ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_accuracy', 'Accuracy') + '</h4><ul><li><span>' + locationStatText('location_stats_accuracy_avg', 'Average accuracy') + '</span><span>' + (accuracy.avg_m === null || accuracy.avg_m === undefined ? '—' : locationStatNumber(accuracy.avg_m, 1) + ' m') + '</span></li><li><span>' + locationStatText('location_stats_accuracy_missing', 'Missing accuracy') + '</span><span>' + locationStatNumber(accuracy.missing) + '</span></li><li><span>' + locationStatText('location_stats_sources', 'Sources') + '</span></li>' + (sourceRows || '') + '</ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_countries', 'Countries') + '</h4><p>' + (countries || locationStatText('location_stats_boundary_missing', 'No boundary dataset imported yet.')) + '</p></div>';
+                const countryDataset = (data.boundary || {}).country_dataset;
+                boundary.textContent = countryDataset ? locationStatText('location_stats_boundary_version', 'Boundary dataset') + ': ' + countryDataset.version + ' (' + countryDataset.feature_count + ')' : ((data.boundary || {}).assumption || '');
+                assumptions.innerHTML = (data.assumptions || []).map(text => '<li>' + text + '</li>').join('');
+            }
+            async function loadLocationStatistics() {
+                const panel = document.getElementById('settings-panel-location');
+                if (!panel) return;
+                const tzInput = document.getElementById('location-stats-tz');
+                if (tzInput && !tzInput.dataset.initialized) {
+                    tzInput.dataset.initialized = '1';
+                    try { const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (browserTz) tzInput.value = browserTz; } catch (e) {}
+                }
+                const status = document.getElementById('location-stats-status');
+                const tz = (tzInput && tzInput.value.trim()) || 'UTC';
+                if (status) status.textContent = locationStatText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationStatsApi + '&tz=' + encodeURIComponent(tz), { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'statistics_failed');
+                    renderLocationStatistics(data);
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || locationStatText('map_error', 'Could not load data.');
+                }
+            }
+            document.getElementById('location-stats-refresh')?.addEventListener('click', async () => {
+                if (locationStatsBusy) return;
+                locationStatsBusy = true;
+                const tzInput = document.getElementById('location-stats-tz');
+                if (tzInput && !tzInput.dataset.initialized) {
+                    tzInput.dataset.initialized = '1';
+                    try { const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (browserTz) tzInput.value = browserTz; } catch (e) {}
+                }
+                const status = document.getElementById('location-stats-status');
+                const tz = (tzInput && tzInput.value.trim()) || 'UTC';
+                if (status) status.textContent = locationStatText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationStatsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'recompute', tz }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'statistics_failed');
+                    await loadLocationStatistics();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || locationStatText('map_error', 'Could not load data.');
+                } finally { locationStatsBusy = false; }
+            });
+            document.getElementById('location-stats-tz')?.addEventListener('change', loadLocationStatistics);
             document.querySelectorAll('.settings-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     const id = tab.getAttribute('data-settings-tab');
@@ -3220,6 +3313,7 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
+                    if (id === 'location') loadLocationStatistics();
                 });
             });
 

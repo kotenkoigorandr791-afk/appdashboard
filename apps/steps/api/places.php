@@ -4,6 +4,7 @@ require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_places.php';
 require_once dirname(__DIR__) . '/core/geolocation_stops.php';
+require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -73,6 +74,7 @@ try {
         $stmt->execute([':owner' => $owner, ':id' => $id]);
         geo_places_audit($pdo, $owner, 'place.deleted', ['place_id' => $id, 'tag' => $place['tag']]);
         try { StepsGeolocationStops::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('place recalculation enqueue: ' . $e->getMessage()); }
+        StepsGeolocationStatistics::invalidate($pdo, $owner);
         public_api_json(['ok' => true, 'deleted' => true]);
     }
 
@@ -114,6 +116,7 @@ try {
         ]);
         geo_places_audit($pdo, $owner, 'place.created', ['place_id' => $newId, 'tag' => $place['tag']]);
         try { StepsGeolocationStops::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('place recalculation enqueue: ' . $e->getMessage()); }
+        StepsGeolocationStatistics::invalidate($pdo, $owner);
         public_api_json(['ok' => true, 'place' => geo_places_find($pdo, $owner, $newId)]);
     }
 
@@ -139,6 +142,7 @@ try {
     ]);
     geo_places_audit($pdo, $owner, 'place.updated', ['place_id' => $id, 'tag' => $place['tag']]);
     try { StepsGeolocationStops::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('place recalculation enqueue: ' . $e->getMessage()); }
+    StepsGeolocationStatistics::invalidate($pdo, $owner);
     public_api_json(['ok' => true, 'place' => geo_places_find($pdo, $owner, $id)]);
 } catch (Throwable $e) {
     error_log('geolocation places api: ' . $e->getMessage());
