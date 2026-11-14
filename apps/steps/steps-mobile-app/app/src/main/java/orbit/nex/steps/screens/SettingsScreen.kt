@@ -850,6 +850,23 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            context.startActivity(Intent(context, orbit.nex.steps.PointsActivity::class.java))
+                        },
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.points_title), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.points_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        }
+                    }
+                }
 
                 // ── Personalization ──────────────────────────────────────────
                 // Theme, accent, language and orientation live on their own

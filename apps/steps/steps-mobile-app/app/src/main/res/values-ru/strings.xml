@@ -700,6 +700,8 @@
     <string name="map_layer_points">Точки</string>
     <string name="map_layer_heatmap">Тепловая карта</string>
     <string name="map_no_data">Нет перемещений за этот день</string>
+    <string name="points_title">Точки</string>
+    <string name="points_desc">Просмотр, выбор и удаление синхронизированных точек</string>
     <string name="map_sync_ok">Синхронизировано %1$s</string>
     <string name="map_sync_pending">%1$d ждут отправки</string>
     <string name="map_sync_never">Ещё не синхронизировано</string>

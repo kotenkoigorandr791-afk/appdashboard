@@ -276,7 +276,10 @@ class MainActivity : AppCompatActivity() {
                 }
         }) { padding ->
             AppBackground {
-                Column(Modifier.fillMaxSize().padding(padding)) {
+                Column(
+                    if (selected == NavigationScreen.Tracking) Modifier.fillMaxSize()
+                    else Modifier.fillMaxSize().padding(padding)
+                ) {
                     if (!online) {
                         OfflineBanner(onRetry = { NetworkState.retry(this@MainActivity) })
                     }

@@ -711,6 +711,8 @@
     <string name="map_layer_points">Points</string>
     <string name="map_layer_heatmap">Heatmap</string>
     <string name="map_no_data">No movements recorded on this day</string>
+    <string name="points_title">Points</string>
+    <string name="points_desc">View, select and remove synchronized location points</string>
     <string name="map_sync_ok">Synced %1$s</string>
     <string name="map_sync_pending">%1$d waiting to upload</string>
     <string name="map_sync_never">Not synced yet</string>

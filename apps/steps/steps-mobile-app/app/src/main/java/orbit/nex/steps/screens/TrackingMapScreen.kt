@@ -327,7 +327,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
         // Floating header: what is recording and which day is shown.
         Row(
-            Modifier.align(Alignment.TopCenter).padding(top = 10.dp),
+            Modifier.align(Alignment.TopCenter).padding(top = 126.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -408,7 +408,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             error = data.error ?: lastError,
             lastUploadAt = lastUploadAt,
             pending = pendingUploads,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
         )
     }
 

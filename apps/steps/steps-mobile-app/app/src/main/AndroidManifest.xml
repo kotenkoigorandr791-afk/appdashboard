@@ -131,6 +131,11 @@
             android:exported="false"
             android:label="@string/tracking_settings_title"
             android:theme="@style/Theme.NexSteps" />
+        <activity
+            android:name=".PointsActivity"
+            android:exported="false"
+            android:label="@string/points_title"
+            android:theme="@style/Theme.NexSteps" />
 
         <!-- Theme, accent, language and orientation -->
         <activity

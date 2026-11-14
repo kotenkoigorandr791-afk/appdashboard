@@ -28,6 +28,8 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -83,6 +85,7 @@ import kotlin.math.roundToInt
 data class StatMetric(val type: HealthDataType, val value: String)
 data class StatsState(val byDay: Map<LocalDate, List<StatMetric>> = emptyMap(), val steps: Map<LocalDate, Long> = emptyMap(), val error: String? = null)
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun StatisticsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
@@ -93,6 +96,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     var localMonthSteps by remember { mutableStateOf<Map<LocalDate, Long>>(emptyMap()) }
     var androidSteps by remember { mutableStateOf<Long?>(null) }
     var androidStepsError by remember { mutableStateOf<String?>(null) }
+    var selectedStatsDate by remember { mutableStateOf<LocalDate?>(null) }
     var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
     val connected = config != null
@@ -212,13 +216,13 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                     IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
                 }
-                StepsChart(monthSteps, chartMonth, goalSteps)
+                StepsChart(monthSteps, chartMonth, goalSteps) { selectedStatsDate = it }
             }
         }
         Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(stringResource(R.string.stats_heatmap_title), style = MaterialTheme.typography.titleMedium)
-                StepsHeatmap(monthSteps, chartMonth, goalSteps)
+                StepsHeatmap(monthSteps, chartMonth, goalSteps) { selectedStatsDate = it }
             }
         }
         if (!connected && localMonthSteps.isNotEmpty()) {
@@ -237,9 +241,23 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
             }
         }
     }
+    selectedStatsDate?.let { date ->
+        ModalBottomSheet(onDismissRequest = { selectedStatsDate = null }) {
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(formatTooltipDate(date), style = MaterialTheme.typography.titleLarge)
+                Text("${NumberFormat.getIntegerInstance(Locale.getDefault()).format(monthSteps[date] ?: 0L)} ${stringResource(R.string.stats_steps)}", style = MaterialTheme.typography.headlineSmall)
+                state.byDay[date].orEmpty().forEach { metric ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(metric.type.nameResId))
+                        Text(metric.value)
+                    }
+                }
+            }
+        }
+    }
 }
 @Composable
-private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0) {
+private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0, onDayClick: (LocalDate) -> Unit) {
     val barTop = MaterialTheme.colorScheme.primary
     val barBottom = MaterialTheme.colorScheme.tertiary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -268,6 +286,7 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
         if (count > 0L) {
             tapX = offset.x
             tooltip = BarTooltip(date, count)
+            onDayClick(date)
         }
     }
     LaunchedEffect(tooltip) {
@@ -408,7 +427,7 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
     }
 }
 @Composable
-private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int) {
+private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int, onDayClick: (LocalDate) -> Unit) {
     // Gold marks the days the daily step goal was reached.
     val goalGold = Color(0xFFD4A017)
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
@@ -443,7 +462,7 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: In
                                         Modifier.border(1.5.dp, goalGold, RoundedCornerShape(4.dp))
                                     } else Modifier
                                 )
-                                .clickable { picked = if (picked == date) null else date },
+                                .clickable { picked = if (picked == date) null else date; onDayClick(date) },
                             contentAlignment = Alignment.Center,
                         ) {
                             // Day of month so the grid reads as a calendar.
