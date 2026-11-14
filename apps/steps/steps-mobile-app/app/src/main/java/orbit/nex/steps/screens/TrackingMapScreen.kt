@@ -2,6 +2,7 @@ package orbit.nex.steps.screens
 
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
+import android.location.LocationManager
 import android.graphics.Paint
 import android.graphics.Point
 import android.graphics.RadialGradient
@@ -31,6 +32,7 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Satellite
 import androidx.compose.material3.Checkbox
@@ -220,6 +222,10 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val resolvedStyle = mapStyle
+    val mapBackground = when (resolvedStyle) {
+        MapStyle.SATELLITE -> Color(0xFF083744)
+        MapStyle.NORMAL -> if (darkTheme) Color(0xFF5C2F1E) else Color(0xFFAED2E6)
+    }
 
     // Server state is polled so the switch and sync box track the service.
     LaunchedEffect(Unit) {
@@ -280,6 +286,12 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         mapView.overlayManager.tilesOverlay.setColorFilter(
             if (resolvedStyle == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
         )
+        mapView.setBackgroundColor(
+            when (resolvedStyle) {
+                MapStyle.SATELLITE -> AndroidColor.rgb(8, 55, 68)
+                MapStyle.NORMAL -> if (darkTheme) AndroidColor.rgb(92, 47, 30) else AndroidColor.rgb(174, 210, 230)
+            }
+        )
         mapView.invalidate()
     }
 
@@ -297,10 +309,20 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
     fun fitToData() {
         val bbox = data.bbox
-        if (!data.isEmpty && bbox != null) fitBoundingBox(mapView, bbox)
+        if (!data.isEmpty && bbox != null) {
+            fitBoundingBox(mapView, bbox)
+            return
+        }
+        val manager = context.getSystemService(LocationManager::class.java)
+        val location = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+            .firstNotNullOfOrNull { provider -> runCatching { manager?.getLastKnownLocation(provider) }.getOrNull() }
+        if (location != null) {
+            mapView.controller.setZoom(13.5)
+            mapView.controller.animateTo(GeoPoint(location.latitude, location.longitude))
+        }
     }
 
-    Box(modifier.fillMaxSize()) {
+    Box(modifier.fillMaxSize().background(mapBackground)) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
         // Floating header: what is recording and which day is shown.
@@ -404,14 +426,17 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                             },
                             shape = SegmentedButtonDefaults.itemShape(index, MapStyle.entries.size),
                         ) {
-                            Icon(
-                                imageVector = when (style) {
-                                    MapStyle.NORMAL -> Icons.Filled.Layers
-                                    MapStyle.SATELLITE -> Icons.Filled.Satellite
-                                },
-                                contentDescription = stringResource(style.titleRes),
-                                modifier = Modifier.size(22.dp),
-                            )
+                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = when (style) {
+                                        MapStyle.NORMAL -> Icons.Filled.Map
+                                        MapStyle.SATELLITE -> Icons.Filled.Satellite
+                                    },
+                                    contentDescription = null,
+                                    modifier = Modifier.size(20.dp),
+                                )
+                                Text(stringResource(style.titleRes), maxLines = 1)
+                            }
                         }
                     }
                 }
