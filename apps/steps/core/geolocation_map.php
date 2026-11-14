@@ -436,27 +436,62 @@ final class StepsGeolocationMap
 
         if (in_array('heatmap', $layers, true)) {
             $heatCell = self::heatCellForZoom($zoom);
-            $stmt = $pdo->prepare(
-                "SELECT round(ST_Y(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lat,
-                        round(ST_X(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lon,
-                        COUNT(*) AS weight
-                   FROM geo_location_points
-                  WHERE $where AND quality_state = 'accepted'
-               GROUP BY ST_SnapToGrid(position, $heatCell)
-               ORDER BY weight DESC LIMIT $limit"
-            );
-            $stmt->execute($params);
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $lineCell = max(0.00002, min(0.0005, $tolerance / 5));
+            $routeSql = "WITH routes AS (
+                    SELECT 1::int AS weight,
+                           ST_SnapToGrid(ST_SimplifyPreserveTopology(geometry, $tolerance), $lineCell) AS line,
+                           started_at, ended_at
+                      FROM geo_trips
+                     WHERE user_email = :owner AND deleted_at IS NULL AND geometry IS NOT NULL
+                       AND geometry && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+                       AND started_at <= :to AND ended_at >= :from)
+                SELECT COUNT(*)::int AS weight, ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson
+                  FROM routes WHERE NOT ST_IsEmpty(line) AND ST_NPoints(line) >= 2
+              GROUP BY line ORDER BY weight DESC LIMIT $limit";
+            $routeStmt = $pdo->prepare($routeSql);
+            $routeParams = $params;
+            unset($routeParams[':device']);
+            $routeStmt->execute($routeParams);
+            $rows = $routeStmt->fetchAll(PDO::FETCH_ASSOC);
+            $routeMode = count($rows) >= 3;
+            if (!$routeMode) {
+                $pointSql = "WITH pts AS (
+                        SELECT position, source_at, lag(position) OVER (ORDER BY source_at, id) AS prev
+                          FROM geo_location_points
+                         WHERE $where AND quality_state = 'accepted'
+                    ), segs AS (
+                        SELECT ST_SnapToGrid(ST_MakeLine(prev, position), $lineCell) AS line
+                          FROM pts WHERE prev IS NOT NULL
+                    )
+                    SELECT COUNT(*)::int AS weight, ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson
+                      FROM segs
+                     WHERE NOT ST_IsEmpty(line) AND ST_NPoints(line) >= 2
+                       AND ST_Length(line::geography) BETWEEN 1 AND 2000
+                  GROUP BY line ORDER BY weight DESC LIMIT $limit";
+                $pointStmt = $pdo->prepare($pointSql);
+                $pointStmt->execute($params);
+                $rows = $pointStmt->fetchAll(PDO::FETCH_ASSOC);
+                $routeMode = true;
+            }
             $max = 1;
             foreach ($rows as $row) $max = max($max, (int)$row['weight']);
             foreach ($rows as $row) {
+                $geometry = json_decode((string)($row['geojson'] ?? ''), true);
+                if (!is_array($geometry)) continue;
+                $weight = (int)$row['weight'];
                 $features[] = [
                     'type' => 'Feature',
-                    'geometry' => ['type' => 'Point', 'coordinates' => [(float)$row['lon'], (float)$row['lat']]],
-                    'properties' => ['layer' => 'heatmap', 'weight' => (int)$row['weight'], 'intensity' => round((int)$row['weight'] / $max, 3)],
+                    'geometry' => $geometry,
+                    'properties' => [
+                        'layer' => 'heatmap',
+                        'route' => true,
+                        'weight' => $weight,
+                        'intensity' => round($weight / $max, 3),
+                    ],
                 ];
             }
             $meta['counts']['heatmap'] = count($rows);
+            $meta['heatmap_mode'] = $rows === [] ? 'empty' : 'route';
         }
 
         if (in_array('explored', $layers, true)) {

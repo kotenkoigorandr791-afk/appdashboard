@@ -11,6 +11,14 @@ $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 header('Content-Type: application/json; charset=utf-8');
+$geoEndpoint = strtolower((string)$sub);
+if (in_array($geoEndpoint, ['geolocation', 'geolocation_map'], true)) {
+    $geoFile = APP_ROOT . '/apps/steps/api/' . $geoEndpoint . '.php';
+    if (is_file($geoFile)) {
+        require $geoFile;
+        exit;
+    }
+}
 // Release metadata and APK are public: a fresh install must be able to update
 // itself before pairing. They expose only the published build, never user data.
 if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], true)) {

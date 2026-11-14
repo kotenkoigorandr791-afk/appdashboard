@@ -487,8 +487,15 @@ $metricButtons = [
                                 const flagged=p.quality_state==='flagged';
                                 addPoint(feature,{radius:Math.max(2,baseRadius-2),color:flagged?'#ef4444':'#0ea5e9',fillColor:flagged?'#ef4444':'#0ea5e9',fillOpacity:pointOpacity},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
                             } else if(p.layer==='heatmap'){
-                                const intensity=(p.intensity||0)*heatStrength;
-                                addPoint(feature,{pane:'mapBackdrop',radius:Math.max(8,baseRadius*2.4),stroke:false,fillColor: p.quality_state==='flagged'?'#ef4444':'#f97316',fillOpacity:Math.min(0.85,0.10+0.7*intensity)},String(p.weight||0),[]);
+                                const intensity=Math.max(0,Math.min(1,(p.intensity||0)*heatStrength));
+                                if(feature.geometry.type==='LineString'){
+                                    const color=intensity>0.72?'#ef4444':(intensity>0.42?'#f97316':(intensity>0.18?'#facc15':'#38bdf8'));
+                                    L.geoJSON(feature,{pane:'routesGlow',style:{color:color,weight:Math.max(4,routeWidth*4),opacity:0.10+0.16*intensity,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                    L.geoJSON(feature,{pane:'routes',style:{color:color,weight:Math.max(1.5,routeWidth*0.85),opacity:0.52+0.44*intensity,lineCap:'round',lineJoin:'round'}}).bindPopup(popupHtml((p.weight||1)+'×',[tr('map_heat_repeats','Repeated route')])).addTo(layerGroup);
+                                } else {
+                                    const pointIntensity=(p.intensity||0)*heatStrength;
+                                    addPoint(feature,{pane:'mapBackdrop',radius:Math.max(8,baseRadius*2.4),stroke:false,fillColor: p.quality_state==='flagged'?'#ef4444':'#f97316',fillOpacity:Math.min(0.85,0.10+0.7*pointIntensity)},String(p.weight||0),[]);
+                                }
                             } else if(p.layer==='explored'){
                                 addPoint(feature,{pane:'mapBackdrop',radius:Math.max(6,baseRadius*1.8),stroke:false,fillColor:'#10b981',fillOpacity:Math.min(0.6,0.12+0.35*heatStrength)},String(p.visits||0),[]);
                             }
