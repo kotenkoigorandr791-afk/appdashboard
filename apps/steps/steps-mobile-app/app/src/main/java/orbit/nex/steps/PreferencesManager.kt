@@ -86,6 +86,10 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCATION_PERMISSION_LOST = "location_permission_lost"
         private const val KEY_LOCATION_UPLOAD_OK_AT = "location_upload_ok_at"
         private const val KEY_LOCATION_UPLOAD_ERROR = "location_upload_error"
+        private const val KEY_MAP_BASEMAP = "map_basemap"
+        private const val KEY_MAP_LAYERS = "map_layers"
+        const val MAP_BASEMAP_AUTO = "auto"
+        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "visits")
         private const val DEFAULT_LOCATION_INTERVAL_MINUTES = 15
         private const val KEY_LAST_SYNC_OK_AT = "last_sync_ok_at"
         private const val KEY_LAST_AUTH_ERROR_AT = "last_auth_error_at"
@@ -879,4 +883,28 @@ class PreferencesManager(context: Context) {
             .putBoolean(KEY_WEEKLY_FEEDBACK_PROMPT_DISMISSED, false)
             .apply()
     }
+
+    // -------------------------------------------------------------------------
+    // Map presentation
+    // -------------------------------------------------------------------------
+
+    /** Basemap key: "auto" follows the app theme, otherwise a fixed style. */
+    fun getMapBasemap(): String =
+        prefs.getString(KEY_MAP_BASEMAP, MAP_BASEMAP_AUTO)?.takeIf { it.isNotBlank() } ?: MAP_BASEMAP_AUTO
+
+    fun setMapBasemap(value: String) {
+        prefs.edit().putString(KEY_MAP_BASEMAP, value).apply()
+    }
+
+    /** Enabled GeoJSON layers, stored as a comma separated key list. */
+    fun getMapLayers(): Set<String> {
+        val raw = prefs.getString(KEY_MAP_LAYERS, null) ?: return DEFAULT_MAP_LAYERS
+        val parsed = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        return parsed.ifEmpty { DEFAULT_MAP_LAYERS }
+    }
+
+    fun setMapLayers(layers: Set<String>) {
+        prefs.edit().putString(KEY_MAP_LAYERS, layers.joinToString(",")).apply()
+    }
+
 }

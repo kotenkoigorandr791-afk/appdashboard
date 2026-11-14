@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocationOff
@@ -24,11 +25,15 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -55,15 +60,16 @@ import orbit.nex.steps.location.TrackingState
 private val INTERVAL_OPTIONS = listOf(1, 5, 10, 15, 30, 60)
 
 /**
- * Location tracking tab: status, explicit start/pause/resume/stop, permission
- * recovery, sampling settings and the privacy explanation.
+ * Location tracking settings, opened from the settings tab and from the map.
  *
- * The screen never starts tracking on its own. Every state change comes from a
- * button tap, and the same state is mirrored in the ongoing notification.
+ * Holds the recording controls, permission recovery, sampling settings and the
+ * privacy explanation, so the Tracking tab itself is only the map. The screen
+ * never starts tracking on its own: every state change comes from a button tap
+ * and is mirrored in the ongoing notification.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun LocationTrackingScreen(modifier: Modifier = Modifier) {
+fun LocationSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
@@ -116,10 +122,29 @@ fun LocationTrackingScreen(modifier: Modifier = Modifier) {
         refresh()
     }
 
-    LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 10.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.tracking_settings_title)) },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.settings_back_cd),
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            )
+        },
+    ) { padding ->
+        orbit.nex.steps.components.AppBackground {
+            LazyColumn(
+                Modifier.fillMaxSize().padding(padding).padding(horizontal = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
         item { Spacer(Modifier.size(6.dp)) }
 
         // ── Status ────────────────────────────────────────────────────────────
@@ -402,6 +427,8 @@ fun LocationTrackingScreen(modifier: Modifier = Modifier) {
             }
         }
         item { Spacer(Modifier.size(12.dp)) }
+            }
+        }
     }
 }
 

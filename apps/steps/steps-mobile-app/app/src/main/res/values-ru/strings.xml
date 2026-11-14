@@ -675,4 +675,33 @@
     <string name="tracking_action_pause">Пауза</string>
     <string name="tracking_action_stop">Стоп</string>
     <string name="tracking_diagnostics">%1$d ожидают · %2$d отклонено · %3$d с ошибкой</string>
+    <string name="tracking_settings_title">Настройки трекинга</string>
+    <string name="tracking_settings_desc">Запись, точность, разрешения и приватность</string>
+
+    <!-- Карта перемещений -->
+    <string name="map_tracking">трекинг</string>
+    <string name="map_today">Сегодня</string>
+    <string name="map_yesterday">Вчера</string>
+    <string name="map_previous_day">Предыдущий день</string>
+    <string name="map_next_day">Следующий день</string>
+    <string name="map_layers">Слои</string>
+    <string name="map_locate">Показать весь трек</string>
+    <string name="map_style_title">Стиль карты</string>
+    <string name="map_style_auto">Как в теме</string>
+    <string name="map_style_standard">Карта</string>
+    <string name="map_style_light">Светлая</string>
+    <string name="map_style_dark">Тёмная</string>
+    <string name="map_style_satellite">Спутник</string>
+    <string name="map_layers_title">Слои</string>
+    <string name="map_layer_trips">Треки</string>
+    <string name="map_layer_stops">Остановки</string>
+    <string name="map_layer_places">Места</string>
+    <string name="map_layer_visits">Визиты</string>
+    <string name="map_layer_points">Точки</string>
+    <string name="map_layer_heatmap">Тепловая карта</string>
+    <string name="map_no_data">Нет перемещений за этот день</string>
+    <string name="map_sync_ok">Синхронизировано %1$s</string>
+    <string name="map_sync_pending">%1$d ждут отправки</string>
+    <string name="map_sync_never">Ещё не синхронизировано</string>
+    <string name="map_sync_error">Ошибка синхронизации: %1$s</string>
 </resources>

@@ -686,4 +686,33 @@
     <string name="tracking_action_pause">Pause</string>
     <string name="tracking_action_stop">Stop</string>
     <string name="tracking_diagnostics">%1$d pending · %2$d rejected · %3$d failed</string>
+    <string name="tracking_settings_title">Location tracking</string>
+    <string name="tracking_settings_desc">Recording, accuracy, permissions and privacy</string>
+
+    <!-- Movement map -->
+    <string name="map_tracking">tracking</string>
+    <string name="map_today">Today</string>
+    <string name="map_yesterday">Yesterday</string>
+    <string name="map_previous_day">Previous day</string>
+    <string name="map_next_day">Next day</string>
+    <string name="map_layers">Layers</string>
+    <string name="map_locate">Fit recorded track</string>
+    <string name="map_style_title">Map style</string>
+    <string name="map_style_auto">Match theme</string>
+    <string name="map_style_standard">Map</string>
+    <string name="map_style_light">Light</string>
+    <string name="map_style_dark">Dark</string>
+    <string name="map_style_satellite">Satellite</string>
+    <string name="map_layers_title">Layers</string>
+    <string name="map_layer_trips">Trips</string>
+    <string name="map_layer_stops">Stops</string>
+    <string name="map_layer_places">Places</string>
+    <string name="map_layer_visits">Visits</string>
+    <string name="map_layer_points">Points</string>
+    <string name="map_layer_heatmap">Heatmap</string>
+    <string name="map_no_data">No movements recorded on this day</string>
+    <string name="map_sync_ok">Synced %1$s</string>
+    <string name="map_sync_pending">%1$d waiting to upload</string>
+    <string name="map_sync_never">Not synced yet</string>
+    <string name="map_sync_error">Sync error: %1$s</string>
 </resources>
