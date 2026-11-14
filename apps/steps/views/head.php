@@ -883,6 +883,11 @@
         .family-member { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 4px 0; border-top: 1px solid rgba(127,127,127,.1); }
         .family-invite-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .family-invite-form input { min-width: 180px; }
+        .immich-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
+        .immich-card { display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(127,127,127,.16); border-radius: 10px; overflow: hidden; padding-bottom: 6px; background: rgba(127,127,127,.05); }
+        .immich-card img { width: 100%; height: 105px; object-fit: cover; background: rgba(127,127,127,.12); }
+        .immich-card span { font-size: 10px; padding: 0 6px; color: var(--muted-text); }
+        .map-photo-marker { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #f59e0b; color: #111; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
         .family-token { font-family: monospace; font-size: 11px; overflow-wrap: anywhere; background: rgba(127,127,127,.12); padding: 6px; border-radius: 6px; }
         .import-error { font-size: 11px; color: #ef4444; }
         #settings-panel-chart .settings-chart-type-intro {

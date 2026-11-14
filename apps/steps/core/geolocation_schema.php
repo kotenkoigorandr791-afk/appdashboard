@@ -64,6 +64,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v9_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '009']);
         }
+        // 010: Immich connection metadata and bounded asset matching.
+        $applied->execute([':version' => '010']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v10_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '010']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -169,6 +175,26 @@ function steps_geolocation_schema_v9_sql(): array
         "CREATE UNIQUE INDEX IF NOT EXISTS geo_family_invitations_pending_idx ON geo_family_invitations(group_id, invitee_email) WHERE accepted_at IS NULL AND cancelled_at IS NULL",
         "CREATE INDEX IF NOT EXISTS geo_family_members_user_idx ON geo_family_members(user_email, status)",
         "CREATE INDEX IF NOT EXISTS geo_family_groups_owner_idx ON geo_family_groups(owner_email)",
+    ];
+}
+function steps_geolocation_schema_v10_sql(): array
+{
+    return [
+        "ALTER TABLE geo_immich_connections ADD COLUMN IF NOT EXISTS options_json JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_immich_connections ADD COLUMN IF NOT EXISTS last_tested_at TIMESTAMPTZ",
+        "ALTER TABLE geo_immich_connections ADD COLUMN IF NOT EXISTS last_sync_at TIMESTAMPTZ",
+        "ALTER TABLE geo_immich_connections ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_immich_connections ADD COLUMN IF NOT EXISTS disconnected_at TIMESTAMPTZ",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS state TEXT NOT NULL DEFAULT 'matched' CHECK (state IN ('matched','unmatched','unavailable','private','deleted','changed'))",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS original_filename TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS match_distance_m DOUBLE PRECISION",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS match_time_delta_s INTEGER",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS match_point_id UUID",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS last_seen_at TIMESTAMPTZ",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
+        "CREATE INDEX IF NOT EXISTS geo_immich_assets_time_idx ON geo_immich_assets(user_email, captured_at DESC) WHERE deleted_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_immich_assets_state_idx ON geo_immich_assets(user_email, state) WHERE deleted_at IS NULL",
     ];
 }
 function steps_geolocation_schema_sql(): array

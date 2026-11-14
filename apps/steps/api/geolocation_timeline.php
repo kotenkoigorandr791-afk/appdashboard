@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_timeline.php';
+require_once dirname(__DIR__) . '/core/geolocation_immich.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -47,9 +48,11 @@ try {
     public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 }
 
+$photos = StepsGeolocationImmich::timelinePhotos($pdo, $owner, $result['range']['from'], $result['range']['to']);
 public_api_json([
     'ok' => true,
     'entries' => $result['entries'],
+    'photos' => $photos,
     'next_cursor' => $result['next_cursor'],
     'range' => $result['range'],
     'processing' => $result['processing'],

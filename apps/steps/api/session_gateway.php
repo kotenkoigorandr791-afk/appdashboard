@@ -27,6 +27,8 @@ $allowed = [
     'geolocation_exports',
     'geolocation_export_download',
     'family',
+    'immich',
+    'immich_thumbnail',
     'places',
     'geofences',
     'devices',

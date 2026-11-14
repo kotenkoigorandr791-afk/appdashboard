@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_map.php';
+require_once dirname(__DIR__) . '/core/geolocation_immich.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -61,9 +62,23 @@ $result = StepsGeolocationMap::features($pdo, $target, $bbox, [
     'cursor_id' => (string)($_GET['cursor_id'] ?? ''),
 ]);
 
+// Immich references are owner-only. Family viewers never receive photo URLs.
+$photos = [];
+if (in_array('photos', $layers, true) && $target === $viewer) {
+    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, (int)($_GET['zoom'] ?? 12), 100);
+    foreach ($photos as $photo) {
+        $result['features'][] = [
+            'type' => 'Feature',
+            'geometry' => ['type' => 'Point', 'coordinates' => [(float)$photo['lon'], (float)$photo['lat']]],
+            'properties' => ['layer' => 'photo_cluster', 'count' => (int)$photo['total'], 'asset_id' => (string)$photo['asset_id'], 'thumbnail' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . urlencode((string)$photo['asset_id'])],
+        ];
+    }
+}
+
 public_api_json([
     'ok' => true,
     'geojson' => ['type' => $result['type'], 'features' => $result['features']],
+    'photos' => $photos,
     'meta' => $result['meta'],
     'bbox' => $bbox,
     'range' => ['from' => $fromIso, 'to' => $toIso],

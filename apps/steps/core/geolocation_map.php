@@ -74,7 +74,7 @@ final class StepsGeolocationMap
 
     public static function layers(string $raw): array
     {
-        $allowed = array_merge(self::DEFAULT_LAYERS, ['points', 'heatmap', 'explored']);
+        $allowed = array_merge(self::DEFAULT_LAYERS, ['points', 'heatmap', 'explored', 'photos']);
         $requested = array_filter(array_map('trim', explode(',', strtolower($raw))));
         $layers = array_values(array_intersect($requested, $allowed));
         return $layers === [] ? self::DEFAULT_LAYERS : $layers;

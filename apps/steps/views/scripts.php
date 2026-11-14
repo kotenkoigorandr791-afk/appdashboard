@@ -3450,6 +3450,112 @@
                 const clean = event.target.closest('[data-import-cleanup]');
                 if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
             });
+            const immichApi = '/apps/steps/api/session_gateway.php?endpoint=immich';
+            let immichGalleryPoll = null;
+            function immichText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function immichThumb(assetId) { return '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' + encodeURIComponent(assetId); }
+            function renderImmich(data) {
+                const host = document.getElementById('immich-gallery');
+                const status = document.getElementById('immich-status');
+                if (!host) return;
+                host.innerHTML = '';
+                const connection = data.connection;
+                if (!connection || !connection.connected) {
+                    if (status) status.textContent = immichText('immich_not_connected', 'Immich is not connected.');
+                    return;
+                }
+                if (status) status.textContent = immichText('immich_connected', 'Connected. Last sync:') + ' ' + String(connection.last_sync_at || '—').slice(0, 19).replace('T', ' ');
+                const gallery = data.gallery || {};
+                const assets = gallery.assets || [];
+                if (!assets.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = immichText('immich_none', 'No matched photos yet. Run a metadata sync.');
+                    host.appendChild(empty);
+                    return;
+                }
+                const summary = document.createElement('p');
+                summary.className = 'location-hint';
+                const placeText = Object.keys(gallery.places || {}).slice(0, 4).map(name => name + ' (' + gallery.places[name] + ')').join(', ');
+                summary.textContent = (placeText ? immichText('immich_places', 'Places') + ': ' + placeText : '') + (Object.keys(gallery.trips || {}).length ? ' · ' + immichText('immich_trips', 'Trips') + ': ' + Object.keys(gallery.trips).slice(0, 4).join(', ') : '');
+                host.appendChild(summary);
+                const grid = document.createElement('div');
+                grid.className = 'immich-gallery';
+                assets.forEach(asset => {
+                    const card = document.createElement('div');
+                    card.className = 'immich-card';
+                    const img = document.createElement('img');
+                    img.loading = 'lazy'; img.alt = asset.original_filename || ''; img.src = immichThumb(asset.id);
+                    card.appendChild(img);
+                    const caption = document.createElement('span');
+                    caption.textContent = [String(asset.captured_at || '').slice(0, 16).replace('T', ' '), asset.place_name, asset.trip_title].filter(Boolean).join(' · ');
+                    card.appendChild(caption);
+                    const candidate = (asset.match_json || {}).point_id;
+                    if (asset.state === 'unmatched' && candidate) {
+                        const write = document.createElement('button');
+                        write.type = 'button'; write.className = 'excel-btn'; write.dataset.immichWriteGps = asset.id; write.dataset.pointId = candidate;
+                        write.textContent = immichText('immich_write_gps', 'Write GPS');
+                        card.appendChild(write);
+                    }
+                    grid.appendChild(card);
+                });
+                host.appendChild(grid);
+            }
+            async function loadImmich() {
+                const host = document.getElementById('immich-gallery');
+                if (!host) return;
+                if (immichGalleryPoll) { clearTimeout(immichGalleryPoll); immichGalleryPoll = null; }
+                try {
+                    const res = await fetch(immichApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'immich_failed');
+                    renderImmich(data);
+                    if (data.connection && data.connection.connected && (data.connection.last_sync_at === null)) immichGalleryPoll = setTimeout(loadImmich, 5000);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || 'immich_failed') + '</p>';
+                }
+            }
+            async function immichAction(action, extra) {
+                const status = document.getElementById('immich-status');
+                if (status) status.textContent = immichText('map_loading', 'Loading…');
+                const res = await fetch(immichApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action }, extra || {})) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'immich_failed');
+                await loadImmich();
+                return data;
+            }
+            document.getElementById('immich-connect')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                try {
+                    await immichAction('connect', { server_url: document.getElementById('immich-server')?.value || '', api_key: document.getElementById('immich-api-key')?.value || '' });
+                    const key = document.getElementById('immich-api-key'); if (key) key.value = '';
+                    if (status) status.textContent = immichText('immich_saved', 'Immich connection saved.');
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-test')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                try { const data = await immichAction('test', { server_url: document.getElementById('immich-server')?.value || '', api_key: document.getElementById('immich-api-key')?.value || '' }); if (status) status.textContent = immichText('immich_test_ok', 'Connection works:') + ' ' + (data.server || 'Immich'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-sync')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                try { await immichAction('sync', {}); if (status) status.textContent = immichText('immich_sync_queued', 'Metadata sync queued. Photos will appear shortly.'); immichGalleryPoll = setTimeout(loadImmich, 5000); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-disconnect')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                if (!window.confirm(immichText('immich_confirm_disconnect', 'Disconnect Immich and delete local photo metadata? Immich itself is not changed.'))) return;
+                try { await immichAction('disconnect', {}); if (status) status.textContent = immichText('immich_disconnected', 'Immich disconnected.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-gallery')?.addEventListener('click', async (event) => {
+                const button = event.target.closest('[data-immich-write-gps]');
+                if (!button) return;
+                if (!window.confirm(immichText('immich_confirm_write', 'Write this location to Immich? This changes the photo metadata in Immich.'))) return;
+                const status = document.getElementById('immich-status');
+                try { await immichAction('write_gps', { asset_id: button.dataset.immichWriteGps, point_id: button.dataset.pointId, confirm: true }); if (status) status.textContent = immichText('immich_gps_written', 'GPS metadata written to Immich.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
             const familyApi = '/apps/steps/api/session_gateway.php?endpoint=family';
             function familyText(key, fallback) { return (window.translations && translations[key]) || fallback; }
             async function familyRequest(body) {
@@ -3825,7 +3931,7 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
-                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); }
+                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); }
                     if (id === 'family') loadFamily();
                 });
             });

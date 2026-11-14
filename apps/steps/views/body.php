@@ -236,6 +236,7 @@ $metricButtons = [
                                     'places' => $translations['map_layer_places'] ?? 'Places',
                                     'visits' => $translations['map_layer_visits'] ?? 'Visits',
                                     'points' => $translations['map_layer_points'] ?? 'Points',
+                                    'photos' => $translations['map_layer_photos'] ?? 'Photos',
                                     'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
                                     'explored' => $translations['map_layer_explored'] ?? 'Explored area',
                                 ];
@@ -474,6 +475,12 @@ $metricButtons = [
                                 addPoint(feature,{radius:baseRadius-1,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:pointOpacity},p.name||'Stop',[p.started_at||'']);
                             } else if(p.layer==='point_cluster'){
                                 addCluster(feature, p.count||1);
+                            } else if(p.layer==='photo_cluster'){
+                                const [plon,plat]=feature.geometry.coordinates;
+                                const photoPopup=popupHtml((p.count||1)+' photo(s)',[]);
+                                if(p.thumbnail){ const img=document.createElement('img'); img.src=p.thumbnail; img.alt=''; img.loading='lazy'; img.style.cssText='max-width:180px;max-height:140px;border-radius:8px;margin-top:6px;display:block'; photoPopup.appendChild(img); }
+                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span><i class="fas fa-camera"></i></span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
+                                photoMarker.bindPopup(photoPopup);
                             } else if(p.layer==='visit'){
                                 addPoint(feature,{radius:baseRadius-0.5,color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:pointOpacity},p.place_name||'visit',[p.arrived_at||'']);
                             } else if(p.layer==='point'){
@@ -1132,6 +1139,19 @@ $metricButtons = [
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
                             document.getElementById('ma-tl-tz-note').textContent=t.tzNote.replace('{tz}',data.timezone||'UTC');
                             (data.entries||[]).forEach(entry=>list.appendChild(renderEntry(entry)));
+                            if(reset && data.photos && data.photos.length){
+                                const photoItem=document.createElement('li');
+                                photoItem.style.cssText='display:flex;gap:6px;overflow-x:auto;padding:9px 0;border-top:1px solid rgba(127,127,127,.18);';
+                                data.photos.forEach(photo=>{
+                                    const img=document.createElement('img');
+                                    img.loading='lazy'; img.alt='';
+                                    img.src='/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id='+encodeURIComponent(photo.id);
+                                    img.style.cssText='width:54px;height:54px;object-fit:cover;border-radius:8px;flex:0 0 auto';
+                                    img.title=photo.captured_at||'';
+                                    photoItem.appendChild(img);
+                                });
+                                list.appendChild(photoItem);
+                            }
                             cursor=data.next_cursor||null;
                             moreBtn.style.display=cursor?'':'none';
                             statusEl.textContent=data.entries&&data.entries.length?(''+data.entries.length):(reset?t.empty:'');
@@ -1622,6 +1642,22 @@ $metricButtons = [
                             </div>
                             <p id="location-export-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-export-history" class="location-import-history"></div>
+                        </section>
+                        <section class="location-section" id="immich-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-images"></i> <?php echo htmlspecialchars($translations['immich_title'] ?? 'Immich photos'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['immich_hint'] ?? 'Connect a self-hosted Immich server to show photo clusters and galleries. Steps stores only asset references and never copies your photos. Family members cannot see them.'); ?></p>
+                            <div class="location-import-form">
+                                <input type="url" id="immich-server" placeholder="https://immich.example.com" autocomplete="off">
+                                <input type="password" id="immich-api-key" placeholder="<?php echo htmlspecialchars($translations['immich_api_key'] ?? 'API key'); ?>" autocomplete="new-password">
+                                <button type="button" id="immich-connect" class="excel-btn"><i class="fas fa-link"></i> <?php echo htmlspecialchars($translations['immich_connect'] ?? 'Connect'); ?></button>
+                                <button type="button" id="immich-test" class="excel-btn"><i class="fas fa-plug-circle-check"></i> <?php echo htmlspecialchars($translations['immich_test'] ?? 'Test'); ?></button>
+                                <button type="button" id="immich-sync" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['immich_sync'] ?? 'Sync metadata'); ?></button>
+                                <button type="button" id="immich-disconnect" class="excel-btn"><?php echo htmlspecialchars($translations['immich_disconnect'] ?? 'Disconnect'); ?></button>
+                            </div>
+                            <p id="immich-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="immich-gallery" class="location-import-history"></div>
                         </section>
                     </div>
                 </div>
