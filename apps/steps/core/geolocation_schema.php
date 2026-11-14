@@ -70,6 +70,18 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v10_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '010']);
         }
+        // 011: explicit family consent, scoped grants and revocation generations.
+        $applied->execute([':version' => '011']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v11_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '011']);
+        }
+        // 012: durable notification outbox and signed webhook delivery state.
+        $applied->execute([':version' => '012']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v12_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '012']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -195,6 +207,38 @@ function steps_geolocation_schema_v10_sql(): array
         "ALTER TABLE geo_immich_assets ADD COLUMN IF NOT EXISTS deleted_at TIMESTAMPTZ",
         "CREATE INDEX IF NOT EXISTS geo_immich_assets_time_idx ON geo_immich_assets(user_email, captured_at DESC) WHERE deleted_at IS NULL",
         "CREATE INDEX IF NOT EXISTS geo_immich_assets_state_idx ON geo_immich_assets(user_email, state) WHERE deleted_at IS NULL",
+    ];
+}
+function steps_geolocation_schema_v11_sql(): array
+{
+    return [
+        "ALTER TABLE geo_location_grants ADD COLUMN IF NOT EXISTS consent_at TIMESTAMPTZ",
+        "ALTER TABLE geo_location_grants ADD COLUMN IF NOT EXISTS paused_at TIMESTAMPTZ",
+        "ALTER TABLE geo_location_grants ADD COLUMN IF NOT EXISTS precision_m DOUBLE PRECISION NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_location_grants ADD COLUMN IF NOT EXISTS reason TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_location_grants ADD COLUMN IF NOT EXISTS generation INTEGER NOT NULL DEFAULT 1",
+        "ALTER TABLE geo_location_grants ADD COLUMN IF NOT EXISTS last_used_at TIMESTAMPTZ",
+        "CREATE INDEX IF NOT EXISTS geo_location_grants_active_pair_idx ON geo_location_grants(owner_email, viewer_email) WHERE revoked_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_location_grants_viewer_idx ON geo_location_grants(viewer_email) WHERE revoked_at IS NULL",
+        // Grantees must be members of the granting group; direct grants stay valid.
+        "CREATE INDEX IF NOT EXISTS geo_location_grants_group_idx ON geo_location_grants(family_group_id) WHERE family_group_id IS NOT NULL",
+    ];
+}
+function steps_geolocation_schema_v12_sql(): array
+{
+    return [
+        "ALTER TABLE geo_webhooks ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_webhooks ADD COLUMN IF NOT EXISTS last_delivery_at TIMESTAMPTZ",
+        "ALTER TABLE geo_webhooks ADD COLUMN IF NOT EXISTS failure_count INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_webhook_deliveries ADD COLUMN IF NOT EXISTS idempotency_key TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_webhook_deliveries ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_webhook_deliveries ADD COLUMN IF NOT EXISTS delivered_at TIMESTAMPTZ",
+        "ALTER TABLE geo_webhook_deliveries ADD COLUMN IF NOT EXISTS lease_until TIMESTAMPTZ",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_webhook_deliveries_idem_idx ON geo_webhook_deliveries(webhook_id, idempotency_key) WHERE idempotency_key <> ''",
+        "CREATE TABLE IF NOT EXISTS geo_notification_outbox (id UUID PRIMARY KEY, user_email TEXT NOT NULL, event_type TEXT NOT NULL, severity TEXT NOT NULL DEFAULT 'info', title TEXT NOT NULL, message TEXT NOT NULL DEFAULT '', context_json JSONB NOT NULL DEFAULT '{}'::jsonb, dedupe_key TEXT NOT NULL DEFAULT '', state TEXT NOT NULL DEFAULT 'pending' CHECK (state IN ('pending','processing','ready','failed','stale')), attempts INTEGER NOT NULL DEFAULT 0, next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(), lease_until TIMESTAMPTZ, delivered_at TIMESTAMPTZ, last_error TEXT NOT NULL DEFAULT '', created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_notification_outbox_dedupe_idx ON geo_notification_outbox(user_email, dedupe_key) WHERE dedupe_key <> ''",
+        "CREATE INDEX IF NOT EXISTS geo_notification_outbox_queue_idx ON geo_notification_outbox(state, next_attempt_at)",
+        "CREATE INDEX IF NOT EXISTS geo_webhook_deliveries_queue_idx ON geo_webhook_deliveries(state, next_attempt_at)",
     ];
 }
 function steps_geolocation_schema_sql(): array

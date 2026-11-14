@@ -143,21 +143,11 @@ final class StepsGeolocationMap
      */
     public static function authorize(PDO $pdo, string $viewer, ?string $target, ?string $from = null, ?string $to = null): array
     {
-        $target = $target !== null ? strtolower(trim($target)) : '';
-        if ($target === '' || $target === $viewer) return ['owner' => $viewer, 'error' => null];
-        $stmt = $pdo->prepare(
-            "SELECT 1 FROM geo_location_grants
-              WHERE owner_email = :target AND viewer_email = :viewer AND revoked_at IS NULL
-                AND access_level IN ('current','recent','range','places')
-                AND (starts_at IS NULL OR starts_at <= now())
-                AND (ends_at IS NULL OR ends_at > now())
-                AND (range_from IS NULL OR range_from <= :from)
-                AND (range_to IS NULL OR range_to >= :to)
-              LIMIT 1"
-        );
-        $stmt->execute([':target' => $target, ':viewer' => $viewer, ':from' => $from, ':to' => $to]);
-        if (!$stmt->fetchColumn()) return ['owner' => null, 'error' => 'family_access_denied'];
-        return ['owner' => $target, 'error' => null];
+        require_once __DIR__ . '/geolocation_permissions.php';
+        // Single authorization path for every family read: consent grants,
+        // scoped windows, precision, pause/revocation and fail-closed denial.
+        $scope = StepsGeolocationPermissions::authorize($pdo, $viewer, $target, $from, $to);
+        return ['owner' => $scope['owner'], 'error' => $scope['error'], 'scope' => $scope];
     }
 
     public static function preferences(PDO $pdo, string $owner): array
@@ -452,27 +442,26 @@ final class StepsGeolocationMap
             $routeParams = $params;
             unset($routeParams[':device']);
             $routeStmt->execute($routeParams);
-            $rows = $routeStmt->fetchAll(PDO::FETCH_ASSOC);
-            $routeMode = count($rows) >= 3;
-            if (!$routeMode) {
-                $pointSql = "WITH pts AS (
-                        SELECT position, source_at, lag(position) OVER (ORDER BY source_at, id) AS prev
-                          FROM geo_location_points
-                         WHERE $where AND quality_state = 'accepted'
-                    ), segs AS (
-                        SELECT ST_SnapToGrid(ST_MakeLine(prev, position), $lineCell) AS line
-                          FROM pts WHERE prev IS NOT NULL
-                    )
-                    SELECT COUNT(*)::int AS weight, ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson
-                      FROM segs
-                     WHERE NOT ST_IsEmpty(line) AND ST_NPoints(line) >= 2
-                       AND ST_Length(line::geography) BETWEEN 1 AND 2000
-                  GROUP BY line ORDER BY weight DESC LIMIT $limit";
-                $pointStmt = $pdo->prepare($pointSql);
-                $pointStmt->execute($params);
-                $rows = $pointStmt->fetchAll(PDO::FETCH_ASSOC);
-                $routeMode = true;
-            }
+            $tripRows = $routeStmt->fetchAll(PDO::FETCH_ASSOC);
+            // Imported continuous tracks may not produce enough trips yet;
+            // consecutive accepted points preserve the actual travelled road.
+            $pointSql = "WITH pts AS (
+                    SELECT position, source_at, lag(position) OVER (ORDER BY source_at, id) AS prev
+                      FROM geo_location_points
+                     WHERE $where AND quality_state = 'accepted'
+                ), segs AS (
+                    SELECT ST_SnapToGrid(ST_MakeLine(prev, position), $lineCell) AS line
+                      FROM pts WHERE prev IS NOT NULL
+                )
+                SELECT COUNT(*)::int AS weight, ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson
+                  FROM segs
+                 WHERE NOT ST_IsEmpty(line) AND ST_NPoints(line) >= 2
+                   AND ST_Length(line::geography) BETWEEN 1 AND 2000
+              GROUP BY line ORDER BY weight DESC LIMIT $limit";
+            $pointStmt = $pdo->prepare($pointSql);
+            $pointStmt->execute($params);
+            $rows = $pointStmt->fetchAll(PDO::FETCH_ASSOC);
+            if ($rows === []) $rows = $tripRows;
             $max = 1;
             foreach ($rows as $row) $max = max($max, (int)$row['weight']);
             foreach ($rows as $row) {

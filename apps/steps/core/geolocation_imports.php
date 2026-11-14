@@ -229,6 +229,12 @@ final class StepsGeolocationImports
         } catch (Throwable $e) {
             error_log('import downstream enqueue: ' . $e->getMessage());
         }
+        try {
+            require_once __DIR__ . '/geolocation_notifications.php';
+            StepsGeolocationNotifications::importComplete($pdo, $owner, $importId, (int)$totals['accepted'], (int)$totals['duplicate'], (int)$totals['rejected']);
+        } catch (Throwable $e) {
+            error_log('import notification: ' . $e->getMessage());
+        }
         return $totals;
     }
 

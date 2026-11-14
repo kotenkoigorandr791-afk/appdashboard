@@ -883,6 +883,18 @@
         .family-member { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px; font-size: 12px; padding: 4px 0; border-top: 1px solid rgba(127,127,127,.1); }
         .family-invite-form { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
         .family-invite-form input { min-width: 180px; }
+        .location-tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
+        .location-tool-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid rgba(127,127,127,.16); border-radius: 12px; background: rgba(127,127,127,.05); }
+        .location-tool-card h4 { margin: 0; font-size: 13px; }
+        .location-tool-row { display: flex; gap: 6px; flex-wrap: wrap; }
+        .location-tool-row input { min-width: 0; flex: 1 1 90px; font-size: 12px; padding: 5px 7px; }
+        .location-tool-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; padding: 4px 0; border-top: 1px solid rgba(127,127,127,.1); }
+        .location-tool-item > span { min-width: 0; overflow-wrap: anywhere; }
+        .location-consent { display: flex; align-items: center; gap: 8px; font-size: 12px; margin: 2px 0; }
+        .notif-events { display: flex; flex-wrap: wrap; gap: 6px 14px; margin: 2px 0; }
+        .notif-event { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+        .notif-time { display: flex; align-items: center; gap: 6px; font-size: 12px; }
+        .notif-time input { font-size: 12px; padding: 4px 6px; }
         .immich-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 8px; }
         .immich-card { display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(127,127,127,.16); border-radius: 10px; overflow: hidden; padding-bottom: 6px; background: rgba(127,127,127,.05); }
         .immich-card img { width: 100%; height: 105px; object-fit: cover; background: rgba(127,127,127,.12); }

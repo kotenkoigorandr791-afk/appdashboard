@@ -3,6 +3,7 @@ require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_map.php';
+require_once dirname(__DIR__) . '/core/geolocation_permissions.php';
 require_once dirname(__DIR__) . '/core/geolocation_immich.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
@@ -47,8 +48,21 @@ if ($authorized['error'] !== null) {
     public_api_json(['ok' => false, 'error' => $authorized['error']], 403);
 }
 $target = $authorized['owner'];
+// Family reads are clamped to the granted scope and never widened by the client.
+$scope = is_array($authorized['scope'] ?? null) ? $authorized['scope'] : null;
+if ($scope !== null && $scope['scope_from'] !== null && $scope['scope_to'] !== null) {
+    $fromIso = gmdate('c', max(strtotime($fromIso), strtotime((string)$scope['scope_from'])));
+    $toIso = gmdate('c', min(strtotime($toIso), strtotime((string)$scope['scope_to'])));
+    if (strtotime($fromIso) >= strtotime($toIso)) {
+        public_api_json(['ok' => false, 'error' => 'outside_granted_range'], 403);
+    }
+}
 
 $layers = StepsGeolocationMap::layers((string)($_GET['layers'] ?? ''));
+if ($scope !== null && !empty($scope['places_only'])) {
+    $layers = array_values(array_intersect($layers, ['places', 'visits', 'stops']));
+    if ($layers === []) $layers = ['places', 'visits'];
+}
 $result = StepsGeolocationMap::features($pdo, $target, $bbox, [
     'zoom' => (int)($_GET['zoom'] ?? 12),
     'from' => $fromIso,
@@ -61,6 +75,10 @@ $result = StepsGeolocationMap::features($pdo, $target, $bbox, [
     'cursor_at' => (string)($_GET['cursor_at'] ?? ''),
     'cursor_id' => (string)($_GET['cursor_id'] ?? ''),
 ]);
+
+if ($scope !== null && (float)$scope['precision_m'] > 0) {
+    $result = StepsGeolocationPermissions::applyPrecision($result, (float)$scope['precision_m']);
+}
 
 // Immich references are owner-only. Family viewers never receive photo URLs.
 $photos = [];
@@ -84,5 +102,11 @@ public_api_json([
     'range' => ['from' => $fromIso, 'to' => $toIso],
     'owner_email' => $target,
     'family' => $target !== $viewer,
+    'scope' => $scope !== null ? [
+        'access_level' => $scope['access_level'],
+        'precision_m' => $scope['precision_m'],
+        'generation' => $scope['generation'],
+        'places_only' => $scope['places_only'],
+    ] : null,
     'providers' => StepsGeolocationMap::providers(),
 ]);

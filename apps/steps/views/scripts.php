@@ -3450,6 +3450,71 @@
                 const clean = event.target.closest('[data-import-cleanup]');
                 if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
             });
+            const placesApi = '/apps/steps/api/session_gateway.php?endpoint=places';
+            const geofencesApi = '/apps/steps/api/session_gateway.php?endpoint=geofences';
+            const qualityApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_quality';
+            function toolsText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            async function toolsCall(url, body) {
+                const res = await fetch(url, body === null ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'location_tools_failed');
+                return data;
+            }
+            function renderToolItems(hostId, items, label, onDelete) {
+                const host = document.getElementById(hostId);
+                if (!host) return;
+                host.innerHTML = '';
+                if (!items.length) { host.textContent = toolsText('location_tools_empty', 'Nothing here yet.'); return; }
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'location-tool-item';
+                    const text = document.createElement('span');
+                    text.textContent = label(item);
+                    row.appendChild(text);
+                    const button = document.createElement('button');
+                    button.type = 'button'; button.className = 'excel-btn';
+                    button.textContent = toolsText('location_tools_remove', 'Remove');
+                    button.addEventListener('click', () => onDelete(item));
+                    row.appendChild(button);
+                    host.appendChild(row);
+                });
+            }
+            async function loadLocationTools() {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    const [quality, places, zones] = await Promise.all([toolsCall(qualityApi, null), toolsCall(placesApi, null), toolsCall(geofencesApi, null)]);
+                    const c = quality.counts || {};
+                    const counts = document.getElementById('location-quality-counts');
+                    if (counts) counts.textContent = ['accepted', 'flagged', 'rejected', 'pending'].map(k => k + ': ' + (c[k] || 0)).join(' · ');
+                    renderToolItems('location-places-list', places.places || [], p => p.name + ' · ' + p.tag + ' · ' + Number(p.radius_m).toFixed(0) + ' m', async p => {
+                        if (!window.confirm(toolsText('location_place_confirm', 'Delete this place?'))) return;
+                        try { await toolsCall(placesApi, { action: 'delete', id: p.id }); await loadLocationTools(); } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                    renderToolItems('location-geofences-list', (zones.geofences || []).filter(z => z.is_active), z => z.name + ' · ' + Number(z.radius_m).toFixed(0) + ' m', async z => {
+                        if (!window.confirm(toolsText('location_geofence_confirm', 'Disable this geofence?'))) return;
+                        try { await toolsCall(geofencesApi, { action: 'delete', id: z.id }); await loadLocationTools(); } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'location_tools_failed'; }
+            }
+            document.getElementById('location-quality-reprocess')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try { await toolsCall(qualityApi, { action: 'reprocess' }); if (status) status.textContent = toolsText('location_quality_queued', 'Quality recheck queued.'); }
+                catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('place-create')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    await toolsCall(placesApi, { action: 'create', name: document.getElementById('place-name')?.value || '', tag: document.getElementById('place-tag')?.value || 'favorite', latitude: Number(document.getElementById('place-lat')?.value), longitude: Number(document.getElementById('place-lon')?.value), radius_m: Number(document.getElementById('place-radius')?.value || 120) });
+                    if (status) status.textContent = toolsText('location_place_saved', 'Place saved.'); await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('geofence-create')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    await toolsCall(geofencesApi, { action: 'create', name: document.getElementById('geofence-name')?.value || '', latitude: Number(document.getElementById('geofence-lat')?.value), longitude: Number(document.getElementById('geofence-lon')?.value), radius_m: Number(document.getElementById('geofence-radius')?.value || 200), notify: true });
+                    if (status) status.textContent = toolsText('location_geofence_saved', 'Geofence saved.'); await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
             const immichApi = '/apps/steps/api/session_gateway.php?endpoint=immich';
             let immichGalleryPoll = null;
             function immichText(key, fallback) { return (window.translations && translations[key]) || fallback; }
@@ -3737,6 +3802,206 @@
                     }
                 } catch (e) { if (status) status.textContent = (e && e.message) || 'family_update_failed'; }
             });
+            const notificationsApi = '/apps/steps/api/session_gateway.php?endpoint=notifications';
+            const permissionsApi = '/apps/steps/api/session_gateway.php?endpoint=family_permissions';
+            function shareText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            async function shareRequest(api, body) {
+                const res = await fetch(api, body === null ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'request_failed');
+                return data;
+            }
+            function shareItem(text, actions) {
+                const row = document.createElement('div');
+                row.className = 'location-tool-item';
+                const label = document.createElement('span');
+                label.textContent = text;
+                row.appendChild(label);
+                const host = document.createElement('div');
+                host.className = 'import-item-actions';
+                (actions || []).forEach(action => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'excel-btn';
+                    button.textContent = action.label;
+                    button.addEventListener('click', action.onClick);
+                    host.appendChild(button);
+                });
+                row.appendChild(host);
+                return row;
+            }
+            function shareStatus(error) {
+                const el = document.getElementById('share-status');
+                if (el) el.textContent = error ? ((error && error.message) || String(error)) : '';
+            }
+            function renderSharing(data) {
+                const host = document.getElementById('share-grants');
+                if (!host) return;
+                host.innerHTML = '';
+                const active = (data.grants || []).filter(grant => grant.revoked_at === null);
+                if (!active.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = shareText('location_share_none', 'You are not sharing your location with anyone.');
+                    host.appendChild(empty);
+                    return;
+                }
+                active.forEach(grant => {
+                    const until = grant.ends_at ? String(grant.ends_at).slice(0, 10) : shareText('location_share_no_expiry', 'no expiry');
+                    const parts = [grant.viewer_email, grant.access_level, until];
+                    if (Number(grant.precision_m) > 0) parts.push(Number(grant.precision_m) + ' m');
+                    if (grant.family_group_name) parts.push(grant.family_group_name);
+                    if (grant.reason) parts.push(grant.reason);
+                    if (grant.paused_at) parts.push(shareText('location_share_paused', 'paused'));
+                    host.appendChild(shareItem(parts.join(' · '), [
+                        {
+                            label: grant.paused_at ? shareText('location_share_resume', 'Resume') : shareText('location_share_pause', 'Pause'),
+                            onClick: async () => {
+                                try { await shareRequest(permissionsApi, { action: grant.paused_at ? 'resume' : 'pause', id: grant.id }); await loadSharing(); }
+                                catch (e) { shareStatus(e); }
+                            }
+                        },
+                        {
+                            label: shareText('location_share_revoke', 'Revoke'),
+                            onClick: async () => {
+                                if (!window.confirm(shareText('location_share_confirm', 'Revoke this access? It stops immediately.'))) return;
+                                try { await shareRequest(permissionsApi, { action: 'revoke', id: grant.id }); await loadSharing(); }
+                                catch (e) { shareStatus(e); }
+                            }
+                        }
+                    ]));
+                });
+            }
+            async function loadSharing() {
+                const host = document.getElementById('share-grants');
+                if (!host) return;
+                try { renderSharing(await shareRequest(permissionsApi, null)); }
+                catch (e) { host.innerHTML = '<p class="import-error">' + ((e && e.message) || 'family_permissions_failed') + '</p>'; }
+            }
+            document.getElementById('share-create')?.addEventListener('click', async () => {
+                const status = document.getElementById('share-status');
+                const iso = id => { const value = document.getElementById(id)?.value || ''; return value ? new Date(value).toISOString() : ''; };
+                try {
+                    const until = document.getElementById('share-until')?.value || '';
+                    await shareRequest(permissionsApi, {
+                        action: 'grant',
+                        viewer_email: document.getElementById('share-viewer')?.value || '',
+                        access_level: document.getElementById('share-level')?.value || 'recent',
+                        ends_at: until ? new Date(until + 'T23:59:59').toISOString() : '',
+                        precision_m: Number(document.getElementById('share-precision')?.value || 0),
+                        reason: document.getElementById('share-reason')?.value || '',
+                        range_from: iso('share-from'),
+                        range_to: iso('share-to'),
+                        consent: !!document.getElementById('share-consent')?.checked
+                    });
+                    if (status) status.textContent = shareText('location_share_created', 'Location sharing saved.');
+                    await loadSharing();
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'family_permissions_failed'; }
+            });
+            function notifStatus(error) {
+                const el = document.getElementById('notifications-status');
+                if (el) el.textContent = error ? ((error && error.message) || String(error)) : '';
+            }
+            async function loadNotifications() {
+                const eventsHost = document.getElementById('notif-events');
+                const hooksHost = document.getElementById('notifications-webhooks');
+                if (!eventsHost || !hooksHost) return;
+                try {
+                    const data = await shareRequest(notificationsApi, null);
+                    const prefs = data.preferences || {};
+                    const events = prefs.events || {};
+                    eventsHost.innerHTML = '';
+                    Object.keys(data.events || {}).forEach(key => {
+                        const label = document.createElement('label');
+                        label.className = 'notif-event';
+                        const box = document.createElement('input');
+                        box.type = 'checkbox';
+                        box.dataset.notifEvent = key;
+                        box.checked = events[key] !== false;
+                        label.appendChild(box);
+                        label.appendChild(document.createTextNode(' ' + (data.events[key] || key)));
+                        eventsHost.appendChild(label);
+                    });
+                    const inApp = document.getElementById('notif-in-app'); if (inApp) inApp.checked = prefs.in_app !== false;
+                    const webhook = document.getElementById('notif-webhook'); if (webhook) webhook.checked = prefs.webhook !== false;
+                    const quiet = prefs.quiet_hours || {};
+                    const quietBox = document.getElementById('notif-quiet'); if (quietBox) quietBox.checked = !!quiet.enabled;
+                    const quietStart = document.getElementById('notif-quiet-start'); if (quietStart) quietStart.value = quiet.start || '22:00';
+                    const quietEnd = document.getElementById('notif-quiet-end'); if (quietEnd) quietEnd.value = quiet.end || '07:00';
+                    hooksHost.innerHTML = '';
+                    const hooks = data.webhooks || [];
+                    if (!hooks.length) {
+                        const empty = document.createElement('p');
+                        empty.className = 'location-hint';
+                        empty.textContent = shareText('notifications_none', 'No webhooks yet.');
+                        hooksHost.appendChild(empty);
+                    }
+                    hooks.forEach(hook => {
+                        const eventsLabel = (hook.event_types || []).length ? hook.event_types.join(', ') : shareText('notifications_all_events', 'all events');
+                        hooksHost.appendChild(shareItem((hook.description || hook.url_host || 'webhook') + ' · ' + eventsLabel + (hook.is_active ? '' : ' · off'), [
+                            {
+                                label: shareText('notifications_delete', 'Delete'),
+                                onClick: async () => {
+                                    if (!window.confirm(shareText('notifications_confirm_delete', 'Delete this webhook?'))) return;
+                                    try { await shareRequest(notificationsApi, { action: 'delete_webhook', id: hook.id }); await loadNotifications(); }
+                                    catch (e) { notifStatus(e); }
+                                }
+                            }
+                        ]));
+                    });
+                    const deliveriesHost = document.getElementById('notification-deliveries');
+                    if (deliveriesHost) {
+                        deliveriesHost.innerHTML = '';
+                        (data.deliveries || []).slice(0, 8).forEach(delivery => {
+                            const text = delivery.event_type + ' · ' + delivery.state + ' · ' + (delivery.response_code || '-') + ' · ' + String(delivery.created_at || '').slice(0, 16) + (delivery.last_error ? ' · ' + delivery.last_error : '');
+                            deliveriesHost.appendChild(shareItem(text, []));
+                        });
+                    }
+                } catch (e) { notifStatus(e); }
+            }
+            document.getElementById('notifications-save')?.addEventListener('click', async () => {
+                const events = {};
+                document.querySelectorAll('[data-notif-event]').forEach(box => events[box.dataset.notifEvent] = box.checked);
+                try {
+                    await shareRequest(notificationsApi, {
+                        action: 'save_preferences',
+                        in_app: !!document.getElementById('notif-in-app')?.checked,
+                        webhook: !!document.getElementById('notif-webhook')?.checked,
+                        events,
+                        quiet_hours: {
+                            enabled: !!document.getElementById('notif-quiet')?.checked,
+                            start: document.getElementById('notif-quiet-start')?.value || '22:00',
+                            end: document.getElementById('notif-quiet-end')?.value || '07:00'
+                        }
+                    });
+                    const status = document.getElementById('notifications-status');
+                    if (status) status.textContent = shareText('notifications_saved', 'Preferences saved.');
+                    await loadNotifications();
+                } catch (e) { notifStatus(e); }
+            });
+            document.getElementById('notifications-webhook-create')?.addEventListener('click', async () => {
+                try {
+                    const types = (document.getElementById('notifications-webhook-events')?.value || '').split(',').map(part => part.trim()).filter(Boolean);
+                    const data = await shareRequest(notificationsApi, {
+                        action: 'create_webhook',
+                        url: document.getElementById('notifications-webhook-url')?.value || '',
+                        secret: document.getElementById('notifications-webhook-secret')?.value || '',
+                        description: document.getElementById('notifications-webhook-description')?.value || '',
+                        event_types: types
+                    });
+                    const status = document.getElementById('notifications-status');
+                    if (status) status.textContent = shareText('notifications_secret_once', 'Signing secret (store it now):') + ' ' + (data.secret || '');
+                    const secret = document.getElementById('notifications-webhook-secret'); if (secret) secret.value = '';
+                    await loadNotifications();
+                } catch (e) { notifStatus(e); }
+            });
+            document.getElementById('notifications-webhook-test')?.addEventListener('click', async () => {
+                try {
+                    await shareRequest(notificationsApi, { action: 'test_webhook' });
+                    const status = document.getElementById('notifications-status');
+                    if (status) status.textContent = shareText('notifications_test_queued', 'Test event queued.');
+                } catch (e) { notifStatus(e); }
+            });
             const locationExportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_exports';
             let locationExportsPoll = null;
             let locationExportOptionsReady = false;
@@ -3931,8 +4196,8 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
-                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); }
-                    if (id === 'family') loadFamily();
+                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); loadLocationTools(); loadNotifications(); }
+                    if (id === 'family') { loadFamily(); loadSharing(); }
                 });
             });
 

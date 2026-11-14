@@ -12,6 +12,7 @@
  */
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_geofences.php';
+require_once dirname(__DIR__) . '/core/geolocation_notifications.php';
 
 /** @return array{processed:int,events:int,failed:int} */
 function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresholds): array
@@ -75,13 +76,15 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
             foreach ($zones->fetchAll(PDO::FETCH_ASSOC) as $zone) {
                 if ((int)$zone['radius_m'] <= 0) continue;
                 $zone['radius_m'] = (float)$zone['radius_m'];
+                $zoneNotifications = json_decode((string)($zone['notification_json'] ?? '{}'), true) ?: [];
                 $lastEvent->execute([':owner' => $owner, ':zone' => $zone['id']]);
                 $previous = $lastEvent->fetchColumn() ?: null;
                 $state = $previous === 'enter' ? 'inside' : ($previous === 'exit' ? 'outside' : null);
                 $evaluation = StepsGeolocationGeofences::evaluate($zone, $rows, $state, $thresholds);
                 foreach ($evaluation['events'] as $event) {
+                    $eventId = StepsGeolocationGeofences::uuid();
                     $insert->execute([
-                        ':id' => StepsGeolocationGeofences::uuid(),
+                        ':id' => $eventId,
                         ':owner' => $owner,
                         ':zone' => $zone['id'],
                         ':point' => $event['point_id'] !== '' ? $event['point_id'] : null,
@@ -90,6 +93,19 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
                         ':confidence' => $event['confidence'],
                     ]);
                     $eventsMade++;
+                    if (($zoneNotifications['notify'] ?? true) !== false) {
+                        $verb = $event['type'] === 'enter' ? 'Entered ' : 'Left ';
+                        StepsGeolocationNotifications::enqueue(
+                            $pdo,
+                            $owner,
+                            'geofence_' . $event['type'],
+                            'Geofence: ' . $zone['name'],
+                            $verb . $zone['name'],
+                            ['geofence_id' => (string)$zone['id'], 'event_id' => $eventId, 'occurred_at' => $event['occurred_at']],
+                            'info',
+                            'geofence:' . $zone['id'] . ':' . $eventId
+                        );
+                    }
                 }
             }
 

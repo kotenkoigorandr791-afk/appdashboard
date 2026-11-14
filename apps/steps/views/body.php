@@ -397,7 +397,10 @@ $metricButtons = [
                         const p=providers[key]||providers.osm;
                         if(!map||!p) return;
                         if(map._tileLayer) map.removeLayer(map._tileLayer);
-                        map._tileLayer=window.L.tileLayer(p.url,{attribution:p.attribution,maxZoom:p.max_zoom||19,className:'map-tiles'}).addTo(map);
+                        // Tiles go through the app's disk cache, so repeated pans and
+                        // revisits do not re-download the same images from upstream.
+                        const tileUrl='/apps/steps/api/map_tiles.php?provider='+encodeURIComponent(key)+'&z={z}&x={x}&y={y}';
+                        map._tileLayer=window.L.tileLayer(tileUrl,{attribution:p.attribution,maxZoom:p.max_zoom||19,keepBuffer:4,updateWhenIdle:false,crossOrigin:true,className:'map-tiles'}).addTo(map);
                         canvas.dataset.provider=key;
                     }
                     function makeMap(L){
@@ -1650,6 +1653,80 @@ $metricButtons = [
                             <p id="location-export-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-export-history" class="location-import-history"></div>
                         </section>
+                        <section class="location-section" id="location-tools-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-sliders"></i> <?php echo htmlspecialchars($translations['location_tools_title'] ?? 'Location management'); ?></h3>
+                                <button type="button" id="location-quality-reprocess" class="excel-btn"><i class="fas fa-shield-halved"></i> <?php echo htmlspecialchars($translations['location_quality_reprocess'] ?? 'Recheck quality'); ?></button>
+                            </div>
+                            <p id="location-quality-counts" class="location-hint"></p>
+                            <div class="location-tools-grid">
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>
+                                    <div class="location-tool-row">
+                                        <input type="text" id="place-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['location_place_name'] ?? 'Name'); ?>">
+                                        <input type="text" id="place-tag" maxlength="32" placeholder="home">
+                                    </div>
+                                    <div class="location-tool-row">
+                                        <input type="number" id="place-lat" step="0.000001" placeholder="lat">
+                                        <input type="number" id="place-lon" step="0.000001" placeholder="lon">
+                                        <input type="number" id="place-radius" min="25" max="5000" step="5" value="120" placeholder="m">
+                                    </div>
+                                    <button type="button" id="place-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['location_place_add'] ?? 'Add place'); ?></button>
+                                    <div id="location-places-list" class="location-import-history"></div>
+                                </div>
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_geofences_title'] ?? 'Geofences'); ?></h4>
+                                    <div class="location-tool-row">
+                                        <input type="text" id="geofence-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['location_geofence_name'] ?? 'Name'); ?>">
+                                    </div>
+                                    <div class="location-tool-row">
+                                        <input type="number" id="geofence-lat" step="0.000001" placeholder="lat">
+                                        <input type="number" id="geofence-lon" step="0.000001" placeholder="lon">
+                                        <input type="number" id="geofence-radius" min="25" max="5000" step="5" value="200" placeholder="m">
+                                    </div>
+                                    <button type="button" id="geofence-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['location_geofence_add'] ?? 'Add geofence'); ?></button>
+                                    <div id="location-geofences-list" class="location-import-history"></div>
+                                </div>
+                            </div>
+                            <p id="location-tools-status" class="location-status" role="status" aria-live="polite"></p>
+                        </section>
+                        <section class="location-section" id="notifications-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-bell"></i> <?php echo htmlspecialchars($translations['notifications_title'] ?? 'Notifications and webhooks'); ?></h3>
+                                <button type="button" id="notifications-webhook-test" class="excel-btn"><i class="fas fa-paper-plane"></i> <?php echo htmlspecialchars($translations['notifications_test'] ?? 'Send test event'); ?></button>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['notifications_hint'] ?? 'Get in-app and optional signed webhook notifications for location events.'); ?></p>
+                            <div class="location-tools-grid">
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['notifications_events'] ?? 'Events'); ?></h4>
+                                    <label class="notif-event"><input type="checkbox" id="notif-in-app"> <?php echo htmlspecialchars($translations['notifications_in_app'] ?? 'In-app notifications'); ?></label>
+                                    <label class="notif-event"><input type="checkbox" id="notif-webhook"> <?php echo htmlspecialchars($translations['notifications_webhook'] ?? 'Send webhooks'); ?></label>
+                                    <div id="notif-events" class="notif-events"></div>
+                                    <label class="notif-event"><input type="checkbox" id="notif-quiet"> <?php echo htmlspecialchars($translations['notifications_quiet'] ?? 'Quiet hours'); ?></label>
+                                    <div class="location-tool-row">
+                                        <label class="notif-time"><?php echo htmlspecialchars($translations['notifications_quiet_start'] ?? 'From'); ?> <input type="time" id="notif-quiet-start" value="22:00"></label>
+                                        <label class="notif-time"><?php echo htmlspecialchars($translations['notifications_quiet_end'] ?? 'To'); ?> <input type="time" id="notif-quiet-end" value="07:00"></label>
+                                    </div>
+                                    <button type="button" id="notifications-save" class="excel-btn"><i class="fas fa-check"></i> <?php echo htmlspecialchars($translations['notifications_save'] ?? 'Save preferences'); ?></button>
+                                </div>
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['notifications_webhooks'] ?? 'Webhooks'); ?></h4>
+                                    <div class="location-tool-row">
+                                        <input type="url" id="notifications-webhook-url" placeholder="https://example.com/steps">
+                                        <input type="text" id="notifications-webhook-description" maxlength="120" placeholder="<?php echo htmlspecialchars($translations['notifications_webhook_name'] ?? 'Name'); ?>">
+                                    </div>
+                                    <div class="location-tool-row">
+                                        <input type="text" id="notifications-webhook-events" placeholder="geofence_enter,import_complete">
+                                        <input type="password" id="notifications-webhook-secret" placeholder="<?php echo htmlspecialchars($translations['notifications_secret'] ?? 'Signing secret (empty = generate)'); ?>" autocomplete="new-password">
+                                    </div>
+                                    <button type="button" id="notifications-webhook-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['notifications_add'] ?? 'Add webhook'); ?></button>
+                                    <div id="notifications-webhooks" class="location-import-history"></div>
+                                    <h4><?php echo htmlspecialchars($translations['notifications_deliveries'] ?? 'Recent deliveries'); ?></h4>
+                                    <div id="notification-deliveries" class="location-import-history"></div>
+                                </div>
+                            </div>
+                            <p id="notifications-status" class="location-status" role="status" aria-live="polite"></p>
+                        </section>
                         <section class="location-section" id="immich-section">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-images"></i> <?php echo htmlspecialchars($translations['immich_title'] ?? 'Immich photos'); ?></h3>
@@ -1686,6 +1763,32 @@ $metricButtons = [
                             <p id="family-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="family-pending" class="location-import-history"></div>
                             <div id="family-groups" class="location-import-history"></div>
+                        </section>
+                        <section class="location-section" id="family-sharing-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-shield-halved"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></h3>
+                            </div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['location_share_hint'] ?? 'Share your location only with consent. You can pause or revoke access at any time.'); ?></p>
+                            <div class="location-import-form">
+                                <input type="email" id="share-viewer" maxlength="254" placeholder="<?php echo htmlspecialchars($translations['location_share_viewer'] ?? 'Person email'); ?>">
+                                <select id="share-level">
+                                    <option value="current"><?php echo htmlspecialchars($translations['share_level_current'] ?? 'Current location only'); ?></option>
+                                    <option value="recent" selected><?php echo htmlspecialchars($translations['share_level_recent'] ?? 'Current + recent history'); ?></option>
+                                    <option value="range"><?php echo htmlspecialchars($translations['share_level_range'] ?? 'Selected date range'); ?></option>
+                                    <option value="places"><?php echo htmlspecialchars($translations['share_level_places'] ?? 'Places and visits only'); ?></option>
+                                </select>
+                                <input type="number" id="share-precision" min="0" max="5000" step="10" value="0" title="<?php echo htmlspecialchars($translations['location_share_precision'] ?? 'Precision, m (0 = exact)'); ?>">
+                                <input type="date" id="share-until" title="<?php echo htmlspecialchars($translations['location_share_until'] ?? 'Until'); ?>">
+                            </div>
+                            <div class="location-import-form">
+                                <input type="datetime-local" id="share-from">
+                                <input type="datetime-local" id="share-to">
+                                <input type="text" id="share-reason" maxlength="160" placeholder="<?php echo htmlspecialchars($translations['location_share_reason'] ?? 'Reason (shown to you)'); ?>">
+                            </div>
+                            <label class="location-consent"><input type="checkbox" id="share-consent"> <?php echo htmlspecialchars($translations['location_share_consent'] ?? 'I agree to share my location with this person'); ?></label>
+                            <button type="button" id="share-create" class="excel-btn"><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($translations['location_share_add'] ?? 'Share location'); ?></button>
+                            <p id="share-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="share-grants" class="location-import-history"></div>
                         </section>
                     </div>
                 </div>

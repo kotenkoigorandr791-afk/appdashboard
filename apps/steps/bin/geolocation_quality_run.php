@@ -40,7 +40,7 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
             $run->execute([':id' => $runId, ':owner' => $owner, ':version' => StepsGeolocationQuality::PROCESSOR_VERSION]);
 
             $points = $pdo->prepare(
-                "SELECT id, device_id, source_at, accuracy_m, ST_Y(position) AS latitude, ST_X(position) AS longitude
+                "SELECT id, device_id, source_type, source_at, accuracy_m, ST_Y(position) AS latitude, ST_X(position) AS longitude
                    FROM geo_location_points
                   WHERE user_email = :owner AND quality_state = 'pending'
                ORDER BY received_at ASC

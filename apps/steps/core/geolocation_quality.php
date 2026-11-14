@@ -72,8 +72,11 @@ final class StepsGeolocationQuality
         if ($timestamp < time() - (int)($t['max_age_days'] * 86400)) $flags[] = 'timestamp_too_old';
 
         $accuracy = $point['accuracy_m'] ?? null;
+        $sourceType = (string)($point['source_type'] ?? '');
         if ($accuracy === null || !is_numeric($accuracy)) {
-            $flags[] = 'accuracy_missing';
+            // GPX/TCX exports commonly omit horizontal accuracy. Imported history
+            // is still usable; mobile samples without accuracy stay flagged.
+            if ($sourceType !== 'import') $flags[] = 'accuracy_missing';
         } elseif ((float)$accuracy > $t['max_accuracy_m']) {
             $flags[] = 'low_accuracy';
         }
