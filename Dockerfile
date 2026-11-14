@@ -52,6 +52,7 @@ RUN install -d /usr/share/postgresql-common/pgdg \
     && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
     && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list
 
+# ffmpeg is the route-video encoder: libx264, High profile, yuv420p, +faststart. No separate video container.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap nginx libnginx-mod-http-modsecurity libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
     libpq5 libzip4 libpng16-16 libjpeg62-turbo libfreetype6 \

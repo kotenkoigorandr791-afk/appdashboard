@@ -249,6 +249,26 @@ final class StepsGeolocationMap
                 ];
             }
             $meta['counts']['trips'] = count($tripRows);
+            $tracks = self::trackFeatures($pdo, $owner, $bbox, $from, $to, $tolerance, $device);
+            $storedVertices = 0;
+            foreach ($features as $feature) {
+                $coords = $feature['geometry']['coordinates'] ?? [];
+                $storedVertices += is_array($coords) ? count($coords) : 0;
+            }
+            $trackVertices = 0;
+            foreach ($tracks as $feature) {
+                $coords = $feature['geometry']['coordinates'] ?? [];
+                $trackVertices += is_array($coords) ? count($coords) : 0;
+            }
+            // Imported archives often have no trip rows, or only a short live trip.
+            // The travelled line is the accepted points in time order.
+            if ($trackVertices > $storedVertices) {
+                $features = $tracks;
+                $meta['counts']['trips'] = count($tracks);
+                $meta['trips_source'] = 'points';
+            } else {
+                $meta['trips_source'] = 'trips';
+            }
         }
 
         if (in_array('stops', $layers, true)) {
@@ -507,5 +527,72 @@ final class StepsGeolocationMap
 
         $meta['layers'] = $layers;
         return ['type' => 'FeatureCollection', 'features' => $features, 'meta' => $meta];
+    }
+
+    /**
+     * Continuous tracks from accepted points, split on long gaps.
+     * This is what an imported archive looks like when trip rows were never built.
+     *
+     * @param array{minLon:float,minLat:float,maxLon:float,maxLat:float} $bbox
+     * @return list<array<string,mixed>>
+     */
+    public static function trackFeatures(PDO $pdo, string $owner, array $bbox, string $from, string $to, float $tolerance, string $device = ''): array
+    {
+        $tolerance = max(0.00001, min(0.05, $tolerance));
+        $sql = "WITH ordered AS (
+                    SELECT source_at, position,
+                           lag(source_at) OVER (ORDER BY source_at, id) AS prev_at
+                      FROM geo_location_points
+                     WHERE user_email = :owner
+                       AND quality_state = 'accepted'
+                       AND source_at BETWEEN :from AND :to
+                       AND position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)"
+            . ($device !== '' ? ' AND device_id = :device' : '') . "
+                ), grouped AS (
+                    SELECT source_at, position,
+                           SUM(CASE WHEN prev_at IS NULL OR source_at - prev_at > interval '45 minutes' THEN 1 ELSE 0 END)
+                               OVER (ORDER BY source_at) AS grp
+                      FROM ordered
+                )
+                SELECT MIN(source_at) AS started_at, MAX(source_at) AS ended_at, COUNT(*) AS n,
+                       ST_AsGeoJSON(ST_SimplifyPreserveTopology(ST_MakeLine(position ORDER BY source_at), $tolerance)) AS geojson,
+                       COALESCE(ST_Length(ST_MakeLine(position ORDER BY source_at)::geography), 0) AS distance_m
+                  FROM grouped
+              GROUP BY grp
+                HAVING COUNT(*) >= 2
+              ORDER BY MIN(source_at)
+                 LIMIT 80";
+        $params = [
+            ':owner' => $owner,
+            ':from' => $from,
+            ':to' => $to,
+            ':minLon' => $bbox['minLon'],
+            ':minLat' => $bbox['minLat'],
+            ':maxLon' => $bbox['maxLon'],
+            ':maxLat' => $bbox['maxLat'],
+        ];
+        if ($device !== '') $params[':device'] = $device;
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute($params);
+        $features = [];
+        foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $geometry = json_decode((string)$row['geojson'], true);
+            if (!is_array($geometry) || ($geometry['type'] ?? '') !== 'LineString') continue;
+            if (count($geometry['coordinates'] ?? []) < 2) continue;
+            $features[] = [
+                'type' => 'Feature',
+                'geometry' => $geometry,
+                'properties' => [
+                    'layer' => 'trip',
+                    'id' => '',
+                    'title' => '',
+                    'started_at' => $row['started_at'],
+                    'ended_at' => $row['ended_at'],
+                    'distance_m' => (float)$row['distance_m'],
+                    'boundary_reason' => 'imported_track',
+                ],
+            ];
+        }
+        return $features;
     }
 }

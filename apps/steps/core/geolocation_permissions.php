@@ -71,6 +71,24 @@ final class StepsGeolocationPermissions
         return $rows;
     }
 
+    /** Locations other people have granted to this viewer. */
+    public static function incoming(PDO $pdo, string $viewer): array
+    {
+        $stmt = $pdo->prepare(
+            "SELECT DISTINCT ON (g.owner_email) g.owner_email, g.access_level, g.precision_m, fg.name AS family_group_name
+               FROM geo_location_grants g
+               LEFT JOIN geo_family_groups fg ON fg.id = g.family_group_id
+              WHERE g.viewer_email = :viewer
+                AND g.revoked_at IS NULL
+                AND g.paused_at IS NULL
+                AND g.access_level <> 'none'
+                AND (g.ends_at IS NULL OR g.ends_at > now())
+           ORDER BY g.owner_email, g.updated_at DESC"
+        );
+        $stmt->execute([':viewer' => $viewer]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
+    }
+
     /**
      * @param array{viewer_email?:string,access_level?:string,family_group_id?:string,starts_at?:string,ends_at?:string,range_from?:string,range_to?:string,precision_m?:mixed,reason?:string,consent?:mixed} $input
      * @return array<string,mixed>

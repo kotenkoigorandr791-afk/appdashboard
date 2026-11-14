@@ -177,6 +177,9 @@ $metricButtons = [
                             <p id="ma-map-error" role="alert" style="display:none;"></p>
                         </div>
                         <div class="map-vignette" aria-hidden="true"></div>
+                        <button type="button" id="ma-sidebar-show" class="map-sidebar-show" title="<?php echo htmlspecialchars($translations['map_show_panel'] ?? 'Show panel'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_show_panel'] ?? 'Show panel'); ?>" hidden>
+                            <i class="fas fa-sliders" aria-hidden="true"></i>
+                        </button>
                     </div>
                     <aside class="map-sidebar" aria-label="<?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?>">
                         <div class="map-sidebar-head">
@@ -184,6 +187,9 @@ $metricButtons = [
                                 <span class="map-sidebar-kicker"><?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?></span>
                                 <strong><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></strong>
                             </div>
+                            <button type="button" id="ma-sidebar-hide" class="map-day-btn" title="<?php echo htmlspecialchars($translations['map_hide_panel'] ?? 'Hide panel'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_hide_panel'] ?? 'Hide panel'); ?>">
+                                <i class="fas fa-angles-right" aria-hidden="true"></i>
+                            </button>
                         </div>
                         <div class="map-panel">
                             <div class="map-panel-head">
@@ -221,10 +227,6 @@ $metricButtons = [
                                     </div>
                                 </div>
                             </div>
-                        </div>
-                        <div class="map-panel">
-                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></span>
-                            <select id="ma-map-provider" class="map-select" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>"></select>
                         </div>
                         <div class="map-panel">
                             <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_layers'] ?? 'Layers'); ?></span>
@@ -830,6 +832,8 @@ $metricButtons = [
                             params.set('to',toInput.value+'T23:59:59Z');
                             params.set('zoom',String(map?Math.round(map.getZoom()):12));
                             params.set('layers',selectedLayers().join(','));
+                            const family=document.getElementById('ma-map-family');
+                            if(family&&family.value) params.set('family_email',family.value);
                             const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin'});
                             const data=await res.json();
                             // An empty date range has no data extent, which the API reports as
@@ -883,7 +887,70 @@ $metricButtons = [
                     }
                     refresh.addEventListener('click',fetchViewport);
                     if(resetBtn) resetBtn.addEventListener('click',resetAppearance);
+                    const SIDEBAR_KEY='stepsMapSidebarHidden';
+                    const hideBtn=document.getElementById('ma-sidebar-hide'), showBtn=document.getElementById('ma-sidebar-show');
+                    function setSidebar(hidden){
+                        section.classList.toggle('is-collapsed',hidden);
+                        if(showBtn) showBtn.hidden=!hidden;
+                        try{ localStorage.setItem(SIDEBAR_KEY,hidden?'1':'0'); }catch(e){}
+                        setTimeout(()=>{ if(map) map.invalidateSize({pan:false}); },260);
+                    }
+                    hideBtn?.addEventListener('click',()=>setSidebar(true));
+                    showBtn?.addEventListener('click',()=>setSidebar(false));
+                    try{ if(localStorage.getItem(SIDEBAR_KEY)==='1') setSidebar(true); }catch(e){}
                     const onRangeChanged=()=>{ didFit=false; fetchViewport(); loadTrips(); };
+                    document.getElementById('ma-map-family')?.addEventListener('change',onRangeChanged);
+                    (async function loadFamilyTargets(){
+                        const select=document.getElementById('ma-map-family');
+                        if(!select) return;
+                        try{
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=family_permissions',{credentials:'same-origin'});
+                            const data=await res.json();
+                            (data.incoming||[]).forEach(row=>{
+                                const opt=document.createElement('option');
+                                opt.value=row.owner_email;
+                                opt.textContent=(row.family_group_name?row.family_group_name+' · ':'')+row.owner_email;
+                                select.appendChild(opt);
+                            });
+                        }catch(e){}
+                    })();
+                    const renderApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_renders';
+                    async function startRender(kind, file){
+                        const status=document.getElementById('ma-render-status');
+                        if(status) status.textContent=t.loading;
+                        const body={
+                            action:'create', kind,
+                            file:file||'png',
+                            format:document.getElementById('ma-render-format')?.value||'portrait',
+                            theme:document.getElementById('ma-render-theme')?.value||'dark',
+                            from:fromInput.value+'T00:00:00Z',
+                            to:toInput.value+'T23:59:59Z',
+                            family_email:document.getElementById('ma-map-family')?.value||'',
+                            duration:12, fps:8, edge:640,
+                            attribution:'© OpenStreetMap contributors'
+                        };
+                        try{
+                            const res=await fetch(renderApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok) throw new Error((data&&data.error)||'render_failed');
+                            const id=data.job&&data.job.id;
+                            for(let i=0;i<40;i++){
+                                await new Promise(r=>setTimeout(r,1500));
+                                const poll=await fetch(renderApi+'&id='+encodeURIComponent(id),{credentials:'same-origin'});
+                                const jobData=await poll.json();
+                                const job=jobData.job||{};
+                                if(status) status.textContent=(job.state||'')+' '+(job.progress||0)+'%';
+                                if(job.state==='ready'){
+                                    window.location.href=renderApi+'&download='+encodeURIComponent(id);
+                                    return;
+                                }
+                                if(job.state==='failed'||job.state==='cancelled') throw new Error(job.error_code||job.state);
+                            }
+                        }catch(e){ if(status) status.textContent=(e&&e.message)||'render_failed'; }
+                    }
+                    document.getElementById('ma-render-png')?.addEventListener('click',()=>startRender('poster','png'));
+                    document.getElementById('ma-render-pdf')?.addEventListener('click',()=>startRender('poster','pdf'));
+                    document.getElementById('ma-render-mp4')?.addEventListener('click',()=>startRender('video','mp4'));
                     fromInput.addEventListener('change',onRangeChanged);
                     toInput.addEventListener('change',onRangeChanged);
                     document.getElementById('ma-map-day-prev')?.addEventListener('click',()=>shiftRange(-1));
@@ -1586,6 +1653,41 @@ $metricButtons = [
                                     <i class="fas fa-arrow-rotate-left" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_reset'] ?? 'Reset'); ?>
                                 </button>
                             </div>
+                        </section>
+
+                        <section class="settings-map-section">
+                            <h3><i class="fas fa-film"></i> <?php echo htmlspecialchars($translations['map_render_title'] ?? 'Map, family, poster and video'); ?></h3>
+                            <label class="map-field">
+                                <span><?php echo htmlspecialchars($translations['family_title'] ?? 'Family'); ?></span>
+                                <select id="ma-map-family" class="map-select">
+                                    <option value=""><?php echo htmlspecialchars($translations['map_family_self'] ?? 'My routes'); ?></option>
+                                </select>
+                            </label>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></span>
+                            <select id="ma-map-provider" class="map-select" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>"></select>
+                        </div>
+                        <div class="map-panel">
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_render_title'] ?? 'Poster and video'); ?></span>
+                            <div class="map-date-grid">
+                                <select id="ma-render-format" class="map-select">
+                                    <option value="portrait"><?php echo htmlspecialchars($translations['map_render_portrait'] ?? 'Portrait'); ?></option>
+                                    <option value="landscape"><?php echo htmlspecialchars($translations['map_render_landscape'] ?? 'Landscape'); ?></option>
+                                    <option value="square"><?php echo htmlspecialchars($translations['map_render_square'] ?? 'Square'); ?></option>
+                                </select>
+                                <select id="ma-render-theme" class="map-select">
+                                    <option value="dark">Dark</option>
+                                    <option value="light">Light</option>
+                                    <option value="paper">Paper</option>
+                                </select>
+                            </div>
+                            <div class="map-day-nav" style="margin-top:8px">
+                                <button type="button" id="ma-render-png" class="map-day-btn">PNG</button>
+                                <button type="button" id="ma-render-pdf" class="map-day-btn">PDF</button>
+                                <button type="button" id="ma-render-mp4" class="map-day-btn">MP4</button>
+                            </div>
+                            <p id="ma-render-status" class="location-status" role="status"></p>
+                        </div>
                         </section>
                     </div>
                 </div>

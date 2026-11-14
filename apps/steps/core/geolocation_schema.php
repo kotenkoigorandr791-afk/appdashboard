@@ -82,6 +82,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v12_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '012']);
         }
+        // 013: poster and route-video jobs, snapshots and owned artifacts.
+        $applied->execute([':version' => '013']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v13_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '013']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -239,6 +245,14 @@ function steps_geolocation_schema_v12_sql(): array
         "CREATE UNIQUE INDEX IF NOT EXISTS geo_notification_outbox_dedupe_idx ON geo_notification_outbox(user_email, dedupe_key) WHERE dedupe_key <> ''",
         "CREATE INDEX IF NOT EXISTS geo_notification_outbox_queue_idx ON geo_notification_outbox(state, next_attempt_at)",
         "CREATE INDEX IF NOT EXISTS geo_webhook_deliveries_queue_idx ON geo_webhook_deliveries(state, next_attempt_at)",
+    ];
+}
+function steps_geolocation_schema_v13_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_render_jobs (id UUID PRIMARY KEY, user_email TEXT NOT NULL, kind TEXT NOT NULL CHECK (kind IN ('poster','video')), state TEXT NOT NULL CHECK (state IN ('pending','processing','ready','failed','cancelled')), processor_version TEXT NOT NULL, config_json JSONB NOT NULL DEFAULT '{}'::jsonb, snapshot_json JSONB NOT NULL DEFAULT '{}'::jsonb, progress INTEGER NOT NULL DEFAULT 0, error_code TEXT NOT NULL DEFAULT '', artifact_id UUID, cancel_requested BOOLEAN NOT NULL DEFAULT false, expires_at TIMESTAMPTZ, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_render_jobs_owner_idx ON geo_render_jobs(user_email, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_render_jobs_queue_idx ON geo_render_jobs(state, created_at)",
     ];
 }
 function steps_geolocation_schema_sql(): array

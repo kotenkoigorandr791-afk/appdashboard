@@ -16,6 +16,7 @@ try {
         public_api_json([
             'ok' => true,
             'grants' => StepsGeolocationPermissions::grants($pdo, $owner),
+            'incoming' => StepsGeolocationPermissions::incoming($pdo, $owner),
             'levels' => StepsGeolocationPermissions::LEVELS,
             'current_window_minutes' => (int)(StepsGeolocationPermissions::CURRENT_WINDOW_S / 60),
             'recent_window_days' => (int)(StepsGeolocationPermissions::RECENT_WINDOW_S / 86400),

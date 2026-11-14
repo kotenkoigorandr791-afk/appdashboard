@@ -791,6 +791,7 @@
         .settings-tab-bar {
             display: flex;
             flex-shrink: 0;
+            overflow-x: auto;
             gap: 4px;
             padding: 5px;
             margin-bottom: 14px;
@@ -800,7 +801,7 @@
             box-shadow: inset 0 1px 0 rgba(255,255,255,0.06);
         }
         .settings-tab {
-            flex: 1;
+            flex: 0 0 auto;
             margin: 0;
             padding: 11px 14px;
             border: none;
@@ -3829,13 +3830,28 @@ height: 48px;
     border: 2px solid rgba(255,255,255,0.75);
     box-shadow: 0 0 0 6px rgba(14,165,233,0.18), 0 10px 24px rgba(0,0,0,0.45);
 }
+.map-workspace { transition: grid-template-columns 0.25s ease; }
+.map-workspace.is-collapsed { grid-template-columns: minmax(0, 1fr) 0; gap: 0; }
+.map-workspace.is-collapsed .map-sidebar { display: none; }
+.map-sidebar-show {
+    position: absolute; top: 12px; right: 12px; z-index: 1000;
+    width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(11,17,23,0.78); color: #dbeafe; cursor: pointer; font-size: 16px;
+}
+.map-sidebar-show[hidden] { display: none; }
+.map-sidebar-show:hover { background: rgba(56,189,248,0.28); }
 @media (max-width: 1024px) {
     .map-workspace { grid-template-columns: minmax(0, 1fr) 286px; height: min(76vh, 720px); }
+    .map-workspace.is-collapsed { grid-template-columns: minmax(0, 1fr) 0; }
 }
 @media (max-width: 820px) {
     .map-workspace { grid-template-columns: 1fr; height: auto; min-height: 0; }
+    .map-workspace.is-collapsed { grid-template-columns: 1fr; }
     .map-stage { min-height: 58vh; }
+    .map-workspace.is-collapsed .map-stage { min-height: 76vh; }
     .map-sidebar { order: 2; }
+    .map-sidebar-head #ma-sidebar-hide i { transform: rotate(90deg); }
+    .map-sidebar-show { width: 44px; height: 44px; }
 }
 
 /* --- Custom year/month dropdowns --- */
