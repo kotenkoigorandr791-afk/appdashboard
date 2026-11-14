@@ -28,6 +28,8 @@ def main() -> int:
     dawarich_upstream = (os.environ.get("DAWARICH_INTERNAL_URL") or "http://dawarich:3000").rstrip("/")
     sentry_upstream = (os.environ.get("SENTRY_INTERNAL_URL") or "http://glitchtip-web:8000").rstrip("/")
     app_upstream = (os.environ.get("APP_UPSTREAM") or "127.0.0.1:8080").strip()
+    app_upstreams = [u.strip() for u in (os.environ.get("APP_UPSTREAMS") or app_upstream).split(",") if u.strip()]
+    app_upstream_servers = "\n".join(f"    server {u} max_fails=3 fail_timeout=10s;" for u in app_upstreams)
     gitea_proxy_host = (os.environ.get("GITEA_PROXY_HOST") or f"git.{base}").strip()
     immich_proxy_host = (os.environ.get("IMMICH_PROXY_HOST") or f"photo.{base}").strip()
     dawarich_proxy_host = (os.environ.get("DAWARICH_PROXY_HOST") or f"dawarich.{base}").strip()
@@ -44,6 +46,7 @@ def main() -> int:
         "__IMMICH_UPSTREAM__": immich_upstream,
         "__DAWARICH_UPSTREAM__": dawarich_upstream,
         "__SENTRY_UPSTREAM__": sentry_upstream,
+        "__APP_UPSTREAM_SERVERS__": app_upstream_servers,
         "__APP_UPSTREAM__": app_upstream,
         "__GITEA_PROXY_HOST__": gitea_proxy_host,
         "__IMMICH_PROXY_HOST__": immich_proxy_host,

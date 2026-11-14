@@ -12,6 +12,7 @@ require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_security.php';
 require_once dirname(__DIR__) . '/core/geolocation_mcp.php';
+require_once dirname(__DIR__) . '/core/geolocation_features.php';
 
 public_api_bootstrap();
 $requestId = trim((string)($_SERVER['HTTP_X_REQUEST_ID'] ?? ''));
@@ -26,6 +27,8 @@ try {
     public_api_check_app('steps');
     public_api_rate_limit('steps_mcp_read', 120, 60);
     $owner = StepsGeolocationDomain::normalizeOwner((string)$auth['email']);
+    $pdo = app_main_db()->getPdo();
+    StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'mcp');
     $body = public_api_body();
     if ($body === []) $body = is_array($_POST) ? $_POST : [];
     $tool = trim((string)($body['tool'] ?? $_GET['tool'] ?? ''));
@@ -35,7 +38,6 @@ try {
         $args = $body;
         unset($args['tool'], $args['arguments']);
     }
-    $pdo = app_main_db()->getPdo();
     $result = StepsGeolocationMcp::run($pdo, $owner, $tool, $args, $requestId);
     public_api_json(['ok' => true, 'request_id' => $requestId] + $result);
 } catch (StepsGeolocationMcpError $e) {

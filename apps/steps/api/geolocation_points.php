@@ -3,6 +3,8 @@ require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
+require_once dirname(__DIR__) . '/core/geolocation_features.php';
+require_once dirname(__DIR__) . '/core/geolocation_observability.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -10,6 +12,7 @@ $owner = StepsGeolocationDomain::normalizeOwner($owner);
 public_api_rate_limit('geolocation_points', 120, 60);
 $pdo = app_main_db()->getPdo();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+if ($method === 'POST') StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'capture');
 
 function geo_points_uuid(): string
 {
@@ -92,6 +95,7 @@ try {
     $pdo->prepare('INSERT INTO geo_audit_events(id, user_email, actor_email, event_type, context_json) VALUES(:id, :o, :o, :e, :c)')
         ->execute([':id' => geo_points_uuid(), ':o' => $owner, ':e' => 'points.deleted', ':c' => json_encode(['count' => $deleted])]);
     $pdo->commit();
+    StepsGeolocationObservability::invalidateOwner($owner);
     StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'delete');
     public_api_json(['ok' => true, 'deleted' => $deleted]);
 } catch (Throwable $e) {

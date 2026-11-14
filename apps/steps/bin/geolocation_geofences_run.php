@@ -21,7 +21,7 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
     if ($user !== '') {
         $owners[] = $user;
     } else {
-        $stmt = $pdo->query('SELECT user_email FROM geo_geofences WHERE is_active GROUP BY user_email LIMIT 5');
+        $stmt = $pdo->query('SELECT DISTINCT user_email FROM geo_geofences WHERE is_active ORDER BY user_email LIMIT 5');
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $owners[] = (string)$row['user_email'];
     }
 
@@ -30,10 +30,21 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
     $failed = 0;
 
     foreach ($owners as $owner) {
+        // Only evaluate new points. Polling the whole history created duplicate
+        // enter/exit rows and tens of thousands of notifications.
+        $latestStmt = $pdo->prepare("SELECT MAX(source_at) FROM geo_location_points WHERE user_email = :owner AND quality_state = 'accepted'");
+        $latestStmt->execute([':owner' => $owner]);
+        $latestPoint = $latestStmt->fetchColumn() ?: null;
+        if ($latestPoint === null) continue;
+        $wmPre = $pdo->prepare("SELECT details_json->>'input_to' FROM geo_processor_runs WHERE user_email = :owner AND kind = 'geofences' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
+        $wmPre->execute([':owner' => $owner]);
+        $watermarkPre = $wmPre->fetchColumn() ?: null;
+        if ($watermarkPre !== null && strtotime((string)$latestPoint) <= strtotime((string)$watermarkPre)) continue;
+
         $runId = StepsGeolocationGeofences::uuid();
         try {
             $pdo->beginTransaction();
-            $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version) VALUES(:id, :owner, 'geofences', 'processing', :version)")
+            $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, lease_until, heartbeat_at, worker_id, attempts, started_at) VALUES(:id, :owner, 'geofences', 'processing', :version, now() + interval '1 hour', now(), 'legacy-worker', 1, now())")
                 ->execute([':id' => $runId, ':owner' => $owner, ':version' => StepsGeolocationGeofences::EVALUATOR_VERSION]);
 
             $wm = $pdo->prepare("SELECT details_json->>'input_to' FROM geo_processor_runs WHERE user_email = :owner AND kind = 'geofences' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
@@ -70,7 +81,7 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
             $lastEvent = $pdo->prepare('SELECT event_type FROM geo_geofence_events WHERE user_email = :owner AND geofence_id = :zone ORDER BY occurred_at DESC LIMIT 1');
             $insert = $pdo->prepare(
                 "INSERT INTO geo_geofence_events(id, user_email, geofence_id, point_id, event_type, occurred_at, confidence)
-                 VALUES(:id, :owner, :zone, :point, :type, :occurred, :confidence)"
+                 VALUES(:id, :owner, :zone, :point, :type, :occurred, :confidence) ON CONFLICT DO NOTHING"
             );
 
             foreach ($zones->fetchAll(PDO::FETCH_ASSOC) as $zone) {
@@ -92,6 +103,7 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
                         ':occurred' => $event['occurred_at'],
                         ':confidence' => $event['confidence'],
                     ]);
+                    if ($insert->rowCount() === 0) continue;
                     $eventsMade++;
                     if (($zoneNotifications['notify'] ?? true) !== false) {
                         $verb = $event['type'] === 'enter' ? 'Entered ' : 'Left ';
@@ -103,7 +115,7 @@ function steps_geofences_pass(PDO $pdo, string $user, int $limit, array $thresho
                             $verb . $zone['name'],
                             ['geofence_id' => (string)$zone['id'], 'event_id' => $eventId, 'occurred_at' => $event['occurred_at']],
                             'info',
-                            'geofence:' . $zone['id'] . ':' . $eventId
+                            'geofence:' . $zone['id'] . ':' . $event['type'] . ':' . (string)$event['occurred_at']
                         );
                     }
                 }
@@ -154,4 +166,5 @@ do {
         exit($result['failed'] > 0 ? 1 : 0);
     }
     if ($result['processed'] === 0) sleep(15);
+    else usleep(100000);
 } while (true);

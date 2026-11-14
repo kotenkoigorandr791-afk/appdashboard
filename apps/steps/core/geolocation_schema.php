@@ -106,6 +106,18 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v16_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '016']);
         }
+        // 017: durable leased jobs, feature flags and high-volume indexes.
+        $applied->execute([':version' => '017']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v17_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '017']);
+        }
+        // 018: read-path covering indexes for API lists and worker owner picks.
+        $applied->execute([':version' => '018']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v18_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '018']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -296,6 +308,54 @@ function steps_geolocation_schema_v16_sql(): array
         "CREATE TABLE IF NOT EXISTS geo_privacy_settings (user_email TEXT PRIMARY KEY, summary_precision_decimals INTEGER NOT NULL DEFAULT 2 CHECK (summary_precision_decimals BETWEEN 0 AND 4), retention_days INTEGER NOT NULL DEFAULT 0 CHECK (retention_days BETWEEN 0 AND 3650), audit_retention_days INTEGER NOT NULL DEFAULT 365 CHECK (audit_retention_days BETWEEN 30 AND 3650), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
         "CREATE INDEX IF NOT EXISTS geo_audit_events_owner_time_idx ON geo_audit_events(user_email, created_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_audit_events_type_idx ON geo_audit_events(event_type, created_at DESC)",
+    ];
+}
+function steps_geolocation_schema_v17_sql(): array
+{
+    return [
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS priority SMALLINT NOT NULL DEFAULT 50",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS attempts INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS max_attempts INTEGER NOT NULL DEFAULT 5",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now()",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS lease_until TIMESTAMPTZ",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS heartbeat_at TIMESTAMPTZ",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS cancel_requested BOOLEAN NOT NULL DEFAULT false",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS worker_id TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS correlation_id TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS last_error TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS started_at TIMESTAMPTZ",
+        "ALTER TABLE geo_processor_runs ADD COLUMN IF NOT EXISTS finished_at TIMESTAMPTZ",
+        "ALTER TABLE geo_processor_runs DROP CONSTRAINT IF EXISTS geo_processor_runs_state_check",
+        "ALTER TABLE geo_processor_runs ADD CONSTRAINT geo_processor_runs_state_check CHECK (state IN ('pending','processing','ready','failed','stale','cancelled'))",
+        "CREATE INDEX IF NOT EXISTS geo_processor_runs_queue_idx ON geo_processor_runs(priority, next_attempt_at, created_at) WHERE state = 'pending'",
+        "CREATE INDEX IF NOT EXISTS geo_processor_runs_lease_idx ON geo_processor_runs(lease_until) WHERE state = 'processing'",
+        "CREATE INDEX IF NOT EXISTS geo_processor_runs_owner_kind_idx ON geo_processor_runs(user_email, kind, state, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_processor_runs_kind_state_idx ON geo_processor_runs(kind, state, created_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_processor_runs_created_idx ON geo_processor_runs(created_at)",
+        "CREATE TABLE IF NOT EXISTS geo_feature_flags (user_email TEXT NOT NULL, flag TEXT NOT NULL, enabled BOOLEAN NOT NULL DEFAULT true, updated_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, flag))",
+        "CREATE INDEX IF NOT EXISTS geo_geofence_events_lookup_idx ON geo_geofence_events(user_email, geofence_id, occurred_at DESC)",
+        // Remove exact duplicate events produced by the pre-lease polling loop
+        // in one linear pass (a self-join is quadratic on large backlogs),
+        // then make exact duplicates impossible at the database level.
+        "DELETE FROM geo_geofence_events WHERE id IN (SELECT id FROM (SELECT id, row_number() OVER (PARTITION BY user_email, geofence_id, event_type, occurred_at ORDER BY id) AS rn FROM geo_geofence_events) d WHERE rn > 1)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_geofence_events_dedupe_idx ON geo_geofence_events(user_email, geofence_id, event_type, occurred_at)",
+        "ANALYZE geo_processor_runs",
+        "ANALYZE geo_geofence_events",
+        "ANALYZE geo_location_points",
+    ];
+}
+function steps_geolocation_schema_v18_sql(): array
+{
+    return [
+        // API list pages order by source_at/id and select these columns; a
+        // covering index removes heap fetches for the 50-row page.
+        "CREATE INDEX IF NOT EXISTS geo_location_points_api_list_idx ON geo_location_points (user_email, source_at DESC, id DESC) INCLUDE (device_id, source_type, received_at, quality_state, accuracy_m, position)",
+        // Worker owner selection and quality filters can stop after a few
+        // distinct owners instead of grouping the whole points table.
+        "CREATE INDEX IF NOT EXISTS geo_location_points_quality_owner_idx ON geo_location_points (quality_state, user_email)",
+        "CREATE INDEX IF NOT EXISTS geo_geofences_active_owner_idx ON geo_geofences (user_email) WHERE is_active",
+        "ANALYZE geo_location_points",
+        "ANALYZE geo_geofences",
     ];
 }
 function steps_geolocation_schema_sql(): array

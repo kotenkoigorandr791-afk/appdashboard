@@ -5,12 +5,15 @@ require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_map.php';
 require_once dirname(__DIR__) . '/core/geolocation_permissions.php';
 require_once dirname(__DIR__) . '/core/geolocation_immich.php';
+require_once dirname(__DIR__) . '/core/geolocation_features.php';
+require_once dirname(__DIR__) . '/core/geolocation_observability.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
 $viewer = StepsGeolocationDomain::normalizeOwner($owner);
 public_api_rate_limit('geolocation_map', 300, 60);
 $pdo = app_main_db()->getPdo();
+StepsGeolocationFeatures::requireEnabled($pdo, $viewer, 'map');
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 if (!empty($_GET['settings']) || ($method === 'POST' && ($_GET['settings'] ?? '') !== '')) {
@@ -39,6 +42,9 @@ if ($bbox === null) public_api_json(['ok' => false, 'error' => 'invalid_bbox'], 
 if (strtotime($from) === false || strtotime($to) === false || strtotime($from) >= strtotime($to)) {
     public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 }
+if (strtotime($to) - strtotime($from) > 3660 * 86400) {
+    public_api_json(['ok' => false, 'error' => 'range_too_large'], 400);
+}
 $fromIso = gmdate('c', strtotime($from));
 $toIso = gmdate('c', strtotime($to));
 
@@ -63,7 +69,7 @@ if ($scope !== null && !empty($scope['places_only'])) {
     $layers = array_values(array_intersect($layers, ['places', 'visits', 'stops']));
     if ($layers === []) $layers = ['places', 'visits'];
 }
-$result = StepsGeolocationMap::features($pdo, $target, $bbox, [
+$mapOpts = [
     'zoom' => (int)($_GET['zoom'] ?? 12),
     'from' => $fromIso,
     'to' => $toIso,
@@ -74,7 +80,21 @@ $result = StepsGeolocationMap::features($pdo, $target, $bbox, [
     'place_id' => (string)($_GET['place_id'] ?? ''),
     'cursor_at' => (string)($_GET['cursor_at'] ?? ''),
     'cursor_id' => (string)($_GET['cursor_id'] ?? ''),
+];
+$cacheKey = StepsGeolocationObservability::cacheKey('map', $target, [
+    'bbox' => $bbox, 'opts' => $mapOpts, 'viewer' => $viewer,
+    'precision' => $scope['precision_m'] ?? 0, 'generation' => $scope['generation'] ?? 0,
+    'places_only' => $scope['places_only'] ?? false, 'filters' => $_GET['layers'] ?? '',
 ]);
+$queryStarted = microtime(true);
+$result = StepsGeolocationObservability::cacheGet($cacheKey);
+$cacheHit = is_array($result) && isset($result['features']) && isset($result['meta']);
+if (!$cacheHit) {
+    $result = StepsGeolocationMap::features($pdo, $target, $bbox, $mapOpts);
+    StepsGeolocationObservability::cacheSet($cacheKey, $result, 20);
+}
+StepsGeolocationObservability::increment('geo_map_requests_total', 1, ['cache' => $cacheHit ? 'hit' : 'miss']);
+StepsGeolocationObservability::timing('geo_map_query_ms', (microtime(true) - $queryStarted) * 1000, ['cache' => $cacheHit ? 'hit' : 'miss']);
 
 if ($scope !== null && (float)$scope['precision_m'] > 0) {
     $result = StepsGeolocationPermissions::applyPrecision($result, (float)$scope['precision_m']);

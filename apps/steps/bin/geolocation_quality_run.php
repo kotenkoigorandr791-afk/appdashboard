@@ -15,6 +15,7 @@ require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_quality.php';
 require_once dirname(__DIR__) . '/core/geolocation_trips.php';
 require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
+require_once dirname(__DIR__) . '/core/geolocation_observability.php';
 
 /**
  * @return array{processed:int,failed:int}
@@ -25,18 +26,18 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
     if ($user !== '') {
         $owners[] = $user;
     } else {
-        $stmt = $pdo->prepare("SELECT user_email, COUNT(*) AS c FROM geo_location_points WHERE quality_state = 'pending' GROUP BY user_email ORDER BY c DESC LIMIT 5");
-        $stmt->execute();
+        $stmt = $pdo->query("SELECT user_email FROM geo_processor_runs WHERE kind = 'quality' AND state = 'pending' GROUP BY user_email ORDER BY MIN(created_at) LIMIT 5");
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $owners[] = (string)$row['user_email'];
     }
 
     $processed = 0;
     $failed = 0;
     foreach ($owners as $owner) {
+        $closePending = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = COALESCE(details_json, '{}'::jsonb) || CAST(:details AS jsonb), updated_at = now() WHERE user_email = :owner AND kind = 'quality' AND state = 'pending'");
         $runId = StepsGeolocationQuality::uuid();
         try {
             $pdo->beginTransaction();
-            $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, details_json) VALUES(:id, :owner, 'quality', 'processing', :version, '{}'::jsonb)");
+            $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, details_json, lease_until, heartbeat_at, worker_id, attempts, started_at) VALUES(:id, :owner, 'quality', 'processing', :version, '{}'::jsonb, now() + interval '1 hour', now(), 'legacy-worker', 1, now())");
             $run->execute([':id' => $runId, ':owner' => $owner, ':version' => StepsGeolocationQuality::PROCESSOR_VERSION]);
 
             $points = $pdo->prepare(
@@ -89,6 +90,8 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
             $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = :details, updated_at = now() WHERE id = :id");
             $finish->execute([':details' => json_encode($summary, JSON_UNESCAPED_SLASHES), ':id' => $runId]);
             $pdo->commit();
+            $closePending->execute([':owner' => $owner, ':details' => json_encode(['processed' => count($rows), 'skipped' => $rows === [] ? 'no_pending_points' : 'processed'], JSON_UNESCAPED_SLASHES)]);
+            if ($counts['accepted'] + $counts['flagged'] + $counts['rejected'] > 0) StepsGeolocationObservability::invalidateOwner($owner);
             $processed += count($rows);
             if ($counts['accepted'] > 0) {
                 try { StepsGeolocationTrips::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation trips enqueue: ' . $e->getMessage()); }

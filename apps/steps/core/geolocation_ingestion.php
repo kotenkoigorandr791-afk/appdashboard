@@ -9,6 +9,7 @@
  * a removal delete only points that no other import still owns.
  */
 require_once __DIR__ . '/geolocation_domain.php';
+require_once __DIR__ . '/geolocation_observability.php';
 
 final class StepsGeolocationIngestion
 {
@@ -137,6 +138,12 @@ final class StepsGeolocationIngestion
                 $touch->execute([':owner' => $owner, ':device' => $device]);
             }
             $pdo->commit();
+            if ($id) {
+                StepsGeolocationObservability::increment('geo_ingest_points_total', 1, ['result' => 'accepted']);
+                StepsGeolocationObservability::invalidateOwner($owner);
+            } else {
+                StepsGeolocationObservability::increment('geo_ingest_points_total', 1, ['result' => 'duplicate']);
+            }
             return $id ? ['status' => 'accepted', 'id' => (string)$id, 'client_event_id' => $event] : ['status' => 'duplicate', 'client_event_id' => $event];
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();

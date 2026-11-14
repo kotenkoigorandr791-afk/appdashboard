@@ -60,7 +60,9 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
     if ($user !== '') {
         $owners[] = $user;
     } else {
-        $stmt = $pdo->query("SELECT user_email FROM geo_location_points WHERE quality_state = 'accepted' GROUP BY user_email LIMIT 5");
+        // Pending runs are the work queue; scanning every accepted point just
+        // to discover owners was a full-table aggregate on every worker tick.
+        $stmt = $pdo->query("SELECT user_email FROM geo_processor_runs WHERE kind = 'trips' AND state = 'pending' GROUP BY user_email ORDER BY MIN(created_at) LIMIT 5");
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $owners[] = (string)$row['user_email'];
     }
 
@@ -71,10 +73,28 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
     $failed = 0;
 
     foreach ($owners as $owner) {
+        // Do not create a run when no new accepted points exist. The old polling
+        // loop re-read the same overlap window forever and produced tens of
+        // thousands of empty runs per day.
+        $latestStmt = $pdo->prepare("SELECT MAX(source_at) FROM geo_location_points WHERE user_email = :owner AND quality_state = 'accepted'");
+        $latestStmt->execute([':owner' => $owner]);
+        $latestPoint = $latestStmt->fetchColumn() ?: null;
+        $closePending = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = COALESCE(details_json, '{}'::jsonb) || CAST(:details AS jsonb), updated_at = now() WHERE user_email = :owner AND kind = 'trips' AND state = 'pending'");
+        $closeNoop = static function () use ($closePending, $owner): void {
+            $closePending->execute([':owner' => $owner, ':details' => json_encode(['processed' => 0, 'skipped' => 'no_new_points'], JSON_UNESCAPED_SLASHES)]);
+        };
+        if ($latestPoint === null) { $closeNoop(); continue; }
+        $wmPre = $pdo->prepare("SELECT details_json->>'input_to' FROM geo_processor_runs WHERE user_email = :owner AND kind = 'trips' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
+        $wmPre->execute([':owner' => $owner]);
+        $watermarkPre = $wmPre->fetchColumn() ?: null;
+        $pendingPre = $pdo->prepare("SELECT COUNT(*) FROM geo_processor_runs WHERE user_email = :owner AND kind = 'trips' AND state = 'pending' AND input_from IS NOT NULL AND input_to IS NOT NULL");
+        $pendingPre->execute([':owner' => $owner]);
+        if ($watermarkPre !== null && strtotime((string)$latestPoint) <= strtotime((string)$watermarkPre) && (int)$pendingPre->fetchColumn() === 0) { $closeNoop(); continue; }
+
         $runId = StepsGeolocationTrips::uuid();
         try {
             $pdo->beginTransaction();
-            $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version) VALUES(:id, :owner, 'trips', 'processing', :version)");
+            $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, lease_until, heartbeat_at, worker_id, attempts, started_at) VALUES(:id, :owner, 'trips', 'processing', :version, now() + interval '1 hour', now(), 'legacy-worker', 1, now())");
             $run->execute([':id' => $runId, ':owner' => $owner, ':version' => $version]);
 
             $wm = $pdo->prepare("SELECT details_json->>'input_to' AS watermark FROM geo_processor_runs WHERE user_email = :owner AND kind = 'trips' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
@@ -121,6 +141,7 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
                 $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = :details, updated_at = now() WHERE id = :id");
                 $finish->execute([':details' => json_encode(['processed' => 0, 'trips' => 0, 'thresholds' => $thresholds]), ':id' => $runId]);
                 $markPending($pdo, $pendingIds, 'ready', ['processed' => 0, 'covered_by' => $runId]);
+                $closeNoop();
                 $pdo->commit();
                 continue;
             }
@@ -161,6 +182,7 @@ function steps_trips_pass(PDO $pdo, string $user, int $limit, array $thresholds)
                 ':id' => $runId,
             ]);
             $markPending($pdo, $pendingIds, 'ready', ['processed' => count($merged), 'covered_by' => $runId]);
+            $closeNoop();
             $pdo->commit();
             $processed += count($merged);
             $dropped += $result['dropped'];
@@ -205,4 +227,5 @@ do {
         exit($result['failed'] > 0 ? 1 : 0);
     }
     if ($result['processed'] === 0) sleep(15);
+    else usleep(100000);
 } while (true);

@@ -19,7 +19,7 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
     if ($user !== '') {
         $owners[] = $user;
     } else {
-        $stmt = $pdo->query("SELECT user_email FROM geo_location_points WHERE quality_state = 'accepted' GROUP BY user_email LIMIT 5");
+        $stmt = $pdo->query("SELECT user_email FROM geo_processor_runs WHERE kind = 'stops' AND state = 'pending' GROUP BY user_email ORDER BY MIN(created_at) LIMIT 5");
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $owners[] = (string)$row['user_email'];
     }
 
@@ -30,10 +30,24 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
     $version = StepsGeolocationStops::PROCESSOR_VERSION;
 
     foreach ($owners as $owner) {
+        // Avoid recreating the same derived rows every polling cycle.
+        $latestStmt = $pdo->prepare("SELECT MAX(source_at) FROM geo_location_points WHERE user_email = :owner AND quality_state = 'accepted'");
+        $latestStmt->execute([':owner' => $owner]);
+        $latestPoint = $latestStmt->fetchColumn() ?: null;
+        $closePending = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = COALESCE(details_json, '{}'::jsonb) || CAST(:details AS jsonb), updated_at = now() WHERE user_email = :owner AND kind = 'stops' AND state = 'pending'");
+        $closeNoop = static function () use ($closePending, $owner): void {
+            $closePending->execute([':owner' => $owner, ':details' => json_encode(['processed' => 0, 'skipped' => 'no_new_points'], JSON_UNESCAPED_SLASHES)]);
+        };
+        if ($latestPoint === null) { $closeNoop(); continue; }
+        $wmPre = $pdo->prepare("SELECT details_json->>'input_to' FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
+        $wmPre->execute([':owner' => $owner]);
+        $watermarkPre = $wmPre->fetchColumn() ?: null;
+        if ($watermarkPre !== null && strtotime((string)$latestPoint) <= strtotime((string)$watermarkPre)) { $closeNoop(); continue; }
+
         $runId = StepsGeolocationStops::uuid();
         try {
             $pdo->beginTransaction();
-            $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version) VALUES(:id, :owner, 'stops', 'processing', :version)");
+            $run = $pdo->prepare("INSERT INTO geo_processor_runs(id, user_email, kind, state, processor_version, lease_until, heartbeat_at, worker_id, attempts, started_at) VALUES(:id, :owner, 'stops', 'processing', :version, now() + interval '1 hour', now(), 'legacy-worker', 1, now())");
             $run->execute([':id' => $runId, ':owner' => $owner, ':version' => $version]);
 
             $wm = $pdo->prepare("SELECT details_json->>'input_to' AS watermark FROM geo_processor_runs WHERE user_email = :owner AND kind = 'stops' AND state = 'ready' ORDER BY created_at DESC LIMIT 1");
@@ -55,6 +69,7 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             if ($rows === []) {
                 $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', details_json = :details, updated_at = now() WHERE id = :id");
                 $finish->execute([':details' => json_encode(['processed' => 0, 'stops' => 0, 'visits' => 0, 'thresholds' => $thresholds]), ':id' => $runId]);
+                $closeNoop();
                 $pdo->commit();
                 continue;
             }
@@ -128,6 +143,7 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             }
 
             $details = ['processed' => count($rows), 'stops' => count($result['stops']), 'visits' => $visitsMade, 'input_from' => $inputFrom, 'input_to' => $inputTo, 'thresholds' => $thresholds];
+            $closeNoop();
             $finish = $pdo->prepare("UPDATE geo_processor_runs SET state = 'ready', input_from = :from, input_to = :to, details_json = :details, updated_at = now() WHERE id = :id");
             $finish->execute([':from' => $inputFrom, ':to' => $inputTo, ':details' => json_encode($details, JSON_UNESCAPED_SLASHES), ':id' => $runId]);
             $pdo->commit();
@@ -166,4 +182,5 @@ do {
         exit($result['failed'] > 0 ? 1 : 0);
     }
     if ($result['processed'] === 0) sleep(15);
+    else usleep(100000);
 } while (true);

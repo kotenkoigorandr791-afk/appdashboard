@@ -4,6 +4,8 @@ require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_imports.php';
 require_once dirname(__DIR__) . '/core/geolocation_security.php';
+require_once dirname(__DIR__) . '/core/geolocation_features.php';
+require_once dirname(__DIR__) . '/core/geolocation_jobs.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -21,6 +23,12 @@ if ($method === 'GET') {
     ]);
 }
 if ($method !== 'POST') public_api_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
+StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'capture');
+try {
+    StepsGeolocationJobs::assertCapacity($pdo, $owner, 'import', 3);
+} catch (StepsGeolocationJobsError $e) {
+    public_api_json(['ok' => false, 'error' => $e->errorCode], $e->status);
+}
 
 try {
     StepsGeolocationSecurity::assertUploadSize();

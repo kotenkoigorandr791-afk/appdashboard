@@ -8,6 +8,7 @@
  */
 require_once __DIR__ . '/geolocation_security.php';
 require_once __DIR__ . '/geolocation_domain.php';
+require_once __DIR__ . '/geolocation_observability.php';
 
 final class StepsGeolocationPrivacyError extends RuntimeException
 {
@@ -124,6 +125,7 @@ final class StepsGeolocationPrivacy
         ]);
         self::invalidate($pdo, $owner, $at, gmdate('c', strtotime($at) + 86400));
         StepsGeolocationSecurity::audit($pdo, $owner, $owner, 'privacy.point_corrected', ['point_id' => $id]);
+        StepsGeolocationObservability::invalidateOwner($owner);
         return ['point_id' => $id, 'corrected' => true, 'source_at' => $at];
     }
 
@@ -160,6 +162,7 @@ final class StepsGeolocationPrivacy
             self::invalidate($pdo, $owner, $fromAt, $toAt, false);
             StepsGeolocationSecurity::audit($pdo, $owner, $owner, 'privacy.range_deleted', $counts + ['from' => $fromAt, 'to' => $toAt]);
             $pdo->commit();
+            StepsGeolocationObservability::invalidateOwner($owner);
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             throw $e;
@@ -264,6 +267,7 @@ final class StepsGeolocationPrivacy
         }
         self::removeUserDir(class_exists('StepsGeolocationImports') ? StepsGeolocationImports::userDir($owner) : '');
         self::removeUserDir(class_exists('StepsGeolocationExports') ? StepsGeolocationExports::userDir($owner) : '');
+        StepsGeolocationObservability::invalidateOwner($owner);
         return $counts;
     }
 

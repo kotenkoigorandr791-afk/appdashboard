@@ -13,12 +13,14 @@ require_once dirname(__DIR__, 3) . '/lib/public_api.php';
 require_once dirname(__DIR__) . '/auth_common.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
+require_once dirname(__DIR__) . '/core/geolocation_features.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
 $owner = StepsGeolocationDomain::normalizeOwner($owner);
 public_api_rate_limit('geolocation_achievements', 120, 60);
 $pdo = app_main_db()->getPdo();
+StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'achievements');
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 if ($method === 'GET') {

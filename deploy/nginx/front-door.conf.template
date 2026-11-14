@@ -7,7 +7,8 @@ map $http_x_forwarded_proto $pass_proto {
     "" $scheme;
 }
 upstream appdashboard_backend {
-    server __APP_UPSTREAM__;
+    least_conn;
+__APP_UPSTREAM_SERVERS__
     keepalive 32;
 }
 server {
