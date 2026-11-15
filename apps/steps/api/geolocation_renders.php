@@ -83,6 +83,12 @@ try {
         StepsGeolocationRender::cancel($pdo, $owner, $id);
         public_api_json(['ok' => true, 'cancelled' => $id]);
     }
+    if ($action === 'delete') {
+        $id = trim((string)($body['id'] ?? ''));
+        if (!StepsGeolocationDomain::isUuid($id)) public_api_json(['ok' => false, 'error' => 'invalid_id'], 400);
+        StepsGeolocationRender::delete($pdo, $owner, $id);
+        public_api_json(['ok' => true, 'deleted' => $id]);
+    }
     if ($action !== 'create') public_api_json(['ok' => false, 'error' => 'invalid_action'], 400);
     $kind = strtolower(trim((string)($body['kind'] ?? 'poster')));
     $job = StepsGeolocationRender::create($pdo, $owner, $kind, $body);

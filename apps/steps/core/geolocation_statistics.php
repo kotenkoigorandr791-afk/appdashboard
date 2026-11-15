@@ -43,6 +43,106 @@ final class StepsGeolocationStatistics
     }
 
     /**
+     * Version and file of the country boundaries shipped inside the image.
+     * Statistics never call a live geocoder: naming a country only works from
+     * an explicitly versioned dataset, so we bundle one and import it lazily.
+     */
+    public const BUNDLED_COUNTRY_BOUNDARIES = [
+        'version' => 'natural-earth-5.1.2',
+        'file' => 'ne_110m_admin_0_countries.geojson',
+        'code_property' => 'ISO_A2',
+        'name_property' => 'NAME',
+    ];
+
+    /**
+     * Import the bundled country boundaries once, if no dataset exists yet.
+     * Safe to call on every refresh: after the first run it is a single
+     * indexed lookup. Failures are logged and never break statistics.
+     */
+    public static function ensureBundledBoundaries(PDO $pdo): ?array
+    {
+        $existing = self::boundaryDataset($pdo, 'country');
+        if ($existing !== null) return $existing;
+
+        $file = self::BUNDLED_COUNTRY_BOUNDARIES['file'];
+        $path = dirname(__DIR__) . '/resources/boundaries/' . $file;
+        if (!is_file($path)) {
+            error_log('boundaries: bundled dataset missing at ' . $path);
+            return null;
+        }
+
+        // A render/refresh may already be inside a transaction; importing then
+        // would break the caller's unit of work, so defer to the next refresh.
+        if ($pdo->inTransaction()) return null;
+
+        $version = self::BUNDLED_COUNTRY_BOUNDARIES['version'];
+        $kind = 'country';
+        try {
+            $raw = @file_get_contents($path);
+            $data = is_string($raw) ? json_decode($raw, true) : null;
+            $features = is_array($data) && ($data['type'] ?? '') === 'FeatureCollection' ? ($data['features'] ?? []) : [];
+            if (!is_array($features) || $features === []) {
+                error_log('boundaries: bundled dataset has no features');
+                return null;
+            }
+
+            $pdo->beginTransaction();
+            $pdo->prepare(
+                "INSERT INTO geo_boundary_datasets(version, kind, source, feature_count, imported_at)
+                 VALUES(:version, :kind, :source, :count, now())
+                 ON CONFLICT (version, kind) DO UPDATE SET source = EXCLUDED.source, imported_at = now()"
+            )->execute([':version' => $version, ':kind' => $kind, ':source' => $file, ':count' => count($features)]);
+
+            $pdo->prepare('DELETE FROM geo_boundary_areas WHERE dataset_version = :version AND kind = :kind')
+                ->execute([':version' => $version, ':kind' => $kind]);
+
+            $insert = $pdo->prepare(
+                "INSERT INTO geo_boundary_areas(dataset_version, kind, code, name, parent_code, geometry)
+                 VALUES(:version, :kind, :code, :name, '', ST_SetSRID(ST_GeomFromGeoJSON(:geometry), 4326))
+                 ON CONFLICT (dataset_version, kind, code) DO UPDATE SET name = EXCLUDED.name, geometry = EXCLUDED.geometry"
+            );
+            $imported = 0;
+            $codeProperty = self::BUNDLED_COUNTRY_BOUNDARIES['code_property'];
+            $nameProperty = self::BUNDLED_COUNTRY_BOUNDARIES['name_property'];
+            foreach ($features as $feature) {
+                $props = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
+                $code = trim((string)($props[$codeProperty] ?? $props['code'] ?? $props['id'] ?? ''));
+                $name = trim((string)($props[$nameProperty] ?? $props['name'] ?? ''));
+                $geometry = $feature['geometry'] ?? null;
+                if ($code === '' || $name === '' || !is_array($geometry)) continue;
+                if (strlen($code) > 40) $code = substr($code, 0, 40);
+                try {
+                    $insert->execute([
+                        ':version' => $version, ':kind' => $kind, ':code' => $code,
+                        ':name' => $name, ':geometry' => json_encode($geometry),
+                    ]);
+                    $imported++;
+                } catch (Throwable $e) {
+                    error_log('boundaries: feature skipped: ' . $e->getMessage());
+                }
+            }
+            $pdo->prepare('UPDATE geo_boundary_datasets SET feature_count = :count WHERE version = :version AND kind = :kind')
+                ->execute([':count' => $imported, ':version' => $version, ':kind' => $kind]);
+            $pdo->commit();
+            error_log('boundaries: imported ' . $imported . ' bundled country feature(s) as ' . $version);
+            // The new dataset changes every owner's country results.
+            try {
+                $pdo->exec('DELETE FROM geo_statistics_cache');
+                $owners = $pdo->query('SELECT DISTINCT user_email FROM geo_location_points')->fetchAll(PDO::FETCH_COLUMN);
+                foreach ($owners as $owner) self::enqueue($pdo, (string)$owner);
+            } catch (Throwable $e) {
+                error_log('boundaries: refresh scheduling failed: ' . $e->getMessage());
+            }
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            error_log('boundaries: bundled import failed: ' . $e->getMessage());
+            return null;
+        }
+
+        return self::boundaryDataset($pdo, 'country');
+    }
+
+    /**
      * @param list<array{source_at:string,latitude:float,longitude:float,quality_state?:string,accuracy_m?:mixed}> $points
      * @param list<array{code:string,name:string,count:int}> $countries
      * @return array<string,array<string,mixed>>
@@ -230,7 +330,7 @@ final class StepsGeolocationStatistics
     public static function refresh(PDO $pdo, string $owner, string $timezone = 'UTC', ?string $from = null, ?string $to = null): int
     {
         $timezone = self::timezone($timezone);
-        $countryDataset = self::boundaryDataset($pdo, 'country');
+        $countryDataset = self::ensureBundledBoundaries($pdo);
         $cityDataset = self::boundaryDataset($pdo, 'city');
         $boundaryVersion = $countryDataset['version'] ?? '';
         $fullRefresh = $from === null || $to === null;

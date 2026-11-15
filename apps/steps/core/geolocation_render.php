@@ -212,7 +212,9 @@ final class StepsGeolocationRender
         $snapshot = self::snapshot($pdo, $viewer, $input);
         if ($config['title'] !== '') $snapshot['title'] = $config['title'];
         $id = self::uuid();
-        $expires = gmdate('c', time() + 72 * 3600);
+        // Rendered videos/posters live for one hour only; the UI offers an
+        // explicit delete button before that.
+        $expires = gmdate('c', time() + 3600);
         $pdo->prepare(
             "INSERT INTO geo_render_jobs(id, user_email, kind, state, processor_version, config_json, snapshot_json, expires_at)
              VALUES(:id, :owner, :kind, 'pending', :version, :config, :snapshot, :expires)"
@@ -238,7 +240,7 @@ final class StepsGeolocationRender
 
     public static function list(PDO $pdo, string $owner): array
     {
-        $stmt = $pdo->prepare('SELECT j.id, j.kind, j.state, j.progress, j.error_code, j.artifact_id, j.created_at, j.expires_at, a.format AS file_format, a.size_bytes, j.config_json->>\'title\' AS title, j.config_json->>\'format\' AS orientation, j.snapshot_json->>\'from\' AS range_from, j.snapshot_json->>\'to\' AS range_to FROM geo_render_jobs j LEFT JOIN geo_artifacts a ON a.id = j.artifact_id WHERE j.user_email = :owner ORDER BY j.created_at DESC LIMIT 20');
+        $stmt = $pdo->prepare("SELECT j.id, j.kind, j.state, j.progress, j.error_code, j.artifact_id, j.created_at, j.expires_at, a.format AS file_format, a.size_bytes, a.expires_at AS artifact_expires_at, j.config_json->>'title' AS title, j.config_json->>'format' AS orientation, j.snapshot_json->>'from' AS range_from, j.snapshot_json->>'to' AS range_to FROM geo_render_jobs j LEFT JOIN geo_artifacts a ON a.id = j.artifact_id WHERE j.user_email = :owner AND (j.artifact_id IS NULL OR a.deleted_at IS NULL) AND (j.artifact_id IS NULL OR a.expires_at IS NULL OR a.expires_at > now()) ORDER BY j.created_at DESC LIMIT 20");
         $stmt->execute([':owner' => $owner]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC) ?: [];
     }
@@ -248,6 +250,33 @@ final class StepsGeolocationRender
         $stmt = $pdo->prepare("UPDATE geo_render_jobs SET cancel_requested = true, updated_at = now() WHERE id = :id AND user_email = :owner AND state IN ('pending','processing')");
         $stmt->execute([':id' => $id, ':owner' => $owner]);
         if ($stmt->rowCount() === 0) throw new StepsGeolocationRenderError('render_not_found', 404);
+    }
+
+    /** Manually delete a finished render and its artifact file. */
+    public static function delete(PDO $pdo, string $owner, string $id): void
+    {
+        $job = self::find($pdo, $owner, $id);
+        if (!$job) throw new StepsGeolocationRenderError('render_not_found', 404);
+        if (in_array((string)$job['state'], ['pending', 'processing'], true)) {
+            throw new StepsGeolocationRenderError('render_running', 409);
+        }
+        $pdo->beginTransaction();
+        try {
+            if (!empty($job['artifact_id'])) {
+                $artifact = $pdo->prepare('SELECT storage_path FROM geo_artifacts WHERE id = :id AND user_email = :owner');
+                $artifact->execute([':id' => $job['artifact_id'], ':owner' => $owner]);
+                $path = (string)($artifact->fetchColumn() ?: '');
+                if ($path !== '' && is_file($path)) @unlink($path);
+                $pdo->prepare('UPDATE geo_artifacts SET deleted_at = now() WHERE id = :id AND user_email = :owner')
+                    ->execute([':id' => $job['artifact_id'], ':owner' => $owner]);
+            }
+            $pdo->prepare('DELETE FROM geo_render_jobs WHERE id = :id AND user_email = :owner')
+                ->execute([':id' => $id, ':owner' => $owner]);
+            $pdo->commit();
+        } catch (Throwable $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            throw $e;
+        }
     }
 
     public static function claim(PDO $pdo): ?array
@@ -795,7 +824,7 @@ final class StepsGeolocationRender
         $types = ['png' => 'image/png', 'pdf' => 'application/pdf', 'mp4' => 'video/mp4'];
         $pdo->prepare(
             "INSERT INTO geo_artifacts(id, user_email, kind, storage_path, checksum, expires_at, size_bytes, format, filename, content_type)
-             VALUES(:id, :owner, :kind, :path, :checksum, now() + interval '72 hours', :size, :format, :filename, :type)"
+             VALUES(:id, :owner, :kind, :path, :checksum, now() + interval '1 hour', :size, :format, :filename, :type)"
         )->execute([
             ':id' => $id,
             ':owner' => $owner,

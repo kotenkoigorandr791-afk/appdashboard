@@ -653,6 +653,7 @@ private fun EarnedAchievementCard(
     seen: Boolean,
     onSeen: () -> Unit,
 ) {
+    val tone = achievementTone(card)
     var visible by remember(card.id) { mutableStateOf(false) }
     LaunchedEffect(card.id, seen) {
         if (reduceMotion || seen) {
@@ -669,17 +670,17 @@ private fun EarnedAchievementCard(
     ) {
         Surface(
             shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.primary.copy(alpha = 0.09f),
+            color = tone.copy(alpha = 0.09f),
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
                 Surface(
                     shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.primary.copy(alpha = 0.14f),
+                    color = tone.copy(alpha = 0.14f),
                     modifier = Modifier.size(36.dp),
                 ) {
                     Box(contentAlignment = Alignment.Center) {
-                        Icon(achievementIcon(card.icon), contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
+                        Icon(achievementIcon(card), contentDescription = null, tint = tone, modifier = Modifier.size(20.dp))
                     }
                 }
                 Text(
@@ -702,7 +703,7 @@ private fun EarnedAchievementCard(
                     Text(
                         StatisticsRepository.dateLabel(card.earnedAt),
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = tone,
                     )
                 }
             }
@@ -710,13 +711,31 @@ private fun EarnedAchievementCard(
     }
 }
 
-private fun achievementIcon(name: String): ImageVector = when (name) {
-    "public" -> Icons.Filled.Public
-    "map" -> Icons.Filled.Map
-    "location_city" -> Icons.Filled.LocationCity
-    "place" -> Icons.Filled.Place
-    "route" -> Icons.Filled.Route
-    else -> Icons.Filled.CalendarMonth
+private fun achievementIcon(card: AchievementCard): ImageVector = when {
+    card.id.startsWith("coverage_days_") && card.target >= 365 -> Icons.Filled.CalendarMonth
+    card.id.startsWith("coverage_days_") && card.target >= 30 -> Icons.Filled.CalendarViewWeek
+    card.id.startsWith("coverage_days_") -> Icons.Filled.Today
+    card.id.startsWith("coverage_cells_") && card.target >= 50 -> Icons.Filled.Map
+    card.id.startsWith("coverage_cells_") -> Icons.Filled.GridView
+    card.id.startsWith("distance_") && card.target >= 1_000_000 -> Icons.Filled.Insights
+    card.id.startsWith("distance_") && card.target >= 500_000 -> Icons.Filled.Route
+    card.id.startsWith("distance_") -> Icons.Filled.DirectionsWalk
+    card.id.startsWith("places_") && card.target >= 10 -> Icons.Filled.Map
+    card.id.startsWith("places_") -> Icons.Filled.Place
+    card.id.startsWith("cities_") -> Icons.Filled.LocationCity
+    card.id.startsWith("regions_") -> Icons.Filled.Map
+    card.id.startsWith("countries_") -> Icons.Filled.Public
+    else -> Icons.Filled.EmojiEvents
+}
+
+private fun achievementTone(card: AchievementCard): Color = when {
+    card.id.startsWith("coverage_") -> Color(0xFF16A34A)
+    card.id.startsWith("distance_") -> Color(0xFF2563EB)
+    card.id.startsWith("places_") -> Color(0xFFD97706)
+    card.id.startsWith("cities_") -> Color(0xFF7C3AED)
+    card.id.startsWith("regions_") -> Color(0xFF0891B2)
+    card.id.startsWith("countries_") -> Color(0xFFDB2777)
+    else -> Color(0xFF7C3AED)
 }
 
 private fun achievementTitleRes(key: String): Int = when (key) {

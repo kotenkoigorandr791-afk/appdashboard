@@ -323,8 +323,8 @@
         }
 
         // Function to show alert
-        const ALERT_ICON_WARNING = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
-        const ALERT_ICON_INFO = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+        const ALERT_ICON_WARNING = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>';
+        const ALERT_ICON_INFO = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>';
 
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
@@ -805,70 +805,11 @@
                 if (Date.now() >= getPanelNotifSnoozeUntil('goal')) el.style.display = 'block';
             }, Math.floor(Math.random() * 60000));
         }
-        function updateStatsNotification() {
-            const steps = stepsData.map(entry => entry.steps),
-                  maxSteps = Math.max(...steps),
-                  maxDistance = (maxSteps * userSettings.stride_length) / 100000;
-            const monthData = stepsData.filter(entry =>
-                localDateFromYMD(entry.date).getMonth() === currentDate.getMonth() &&
-                localDateFromYMD(entry.date).getFullYear() === currentDate.getFullYear()
-            );
-            const avgSteps = monthData.length ? monthData.reduce((sum, entry) => sum + entry.steps, 0) / monthData.length : 0;
-            const el = document.getElementById('stats-notification');
-            document.getElementById('stats-content').innerHTML = `
-                <div class="notification-item">
-                    <span>${translations.max_steps}</span>
-                    <span class="notification-value">${formatNumber(maxSteps)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.max_distance}</span>
-                    <span class="notification-value">${maxDistance.toFixed(2)} ${translations.distance_km}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.avg_steps}</span>
-                    <span class="notification-value">${formatNumber(Math.round(avgSteps))}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.avg_distance}</span>
-                    <span class="notification-value">${(avgSteps * userSettings.stride_length / 100000).toFixed(2)} ${translations.distance_km}</span>
-                </div>`;
-            if (!el) return;
-            if (Date.now() < getPanelNotifSnoozeUntil('stats')) {
-                cancelStatsNotifTimer();
-                statsNotifRevealDone = false;
-                el.style.display = 'none';
-                return;
-            }
-            ensureStatsNotifScheduled();
-            if (statsNotifRevealDone) el.style.display = 'block';
-        }
-        function updateGoalNotification() {
-            const monthStart = new Date();
-            monthStart.setDate(1);
-            const currentMonth = monthStart.getMonth();
-            const currentYear = monthStart.getFullYear();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const goalPerDay = userSettings.goal_steps;
-            const el = document.getElementById('goal-notification');
-            document.getElementById('goal-content').innerHTML = `
-                <div class="notification-item">
-                    <span>${translations.goal_daily_hint || 'пройти нужно каждый день по'}</span>
-                    <span class="notification-value">${formatNumber(goalPerDay)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.goal_days_hint || 'ходить нужно'}</span>
-                    <span class="notification-value">${daysInMonth} ${translations.days || 'дней'}</span>
-                </div>`;
-            if (!el) return;
-            if (Date.now() < getPanelNotifSnoozeUntil('goal')) {
-                cancelGoalNotifTimer();
-                goalNotifRevealDone = false;
-                el.style.display = 'none';
-                return;
-            }
-            ensureGoalNotifScheduled();
-            if (goalNotifRevealDone) el.style.display = 'block';
-        }
+        // Informational pop-ups were removed on purpose: notifications are now
+        // reserved for real errors and things the user must act on. The stats and
+        // goal summaries live in the Statistics experience instead.
+        function updateStatsNotification() {}
+        function updateGoalNotification() {}
 
         function destroyStatisticsCharts() {
             if (yearlyDistributionChart) { yearlyDistributionChart.destroy(); yearlyDistributionChart = null; }
@@ -1123,20 +1064,120 @@
             if (!host) return;
             host.textContent = '';
             const sources = health.sources || {};
-            Object.keys(sources).forEach(source => {
-                host.appendChild(statsBadge(source + ' · ' + formatNumber(sources[source])));
-            });
-            (health.devices || []).forEach(device => {
-                host.appendChild(statsBadge((device.name || device.platform || 'Device') + ' · ' + (device.status || '')));
-            });
-            if (!host.children.length) host.appendChild(statsBadge(translations.stats_no_sources || 'No paired sources yet.'));
+            const devices = health.devices || [];
+            const sourceNames = Object.keys(sources);
+            if (!sourceNames.length && !devices.length) {
+                const empty = document.createElement('p');
+                empty.className = 'stats-source-empty';
+                empty.textContent = translations.stats_no_sources || 'No paired sources yet.';
+                host.appendChild(empty);
+                return;
+            }
+            // Tables read far better than loose chips: one row per source/device,
+            // tabular numbers in the count column, explicit column headers.
+            const cell = (item, className) => {
+                const td = document.createElement('td');
+                if (className) td.className = className;
+                if (item && item.nodeType === 1) td.appendChild(item);
+                else td.textContent = item;
+                return td;
+            };
+            const buildTable = (caption, headers, rows) => {
+                const table = document.createElement('table');
+                table.className = 'stats-source-table';
+                const cap = document.createElement('caption');
+                cap.textContent = caption;
+                table.appendChild(cap);
+                const thead = document.createElement('thead');
+                const headRow = document.createElement('tr');
+                headers.forEach(label => {
+                    const th = document.createElement('th');
+                    th.scope = 'col';
+                    th.textContent = label;
+                    headRow.appendChild(th);
+                });
+                thead.appendChild(headRow);
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                rows.forEach(cells => {
+                    const tr = document.createElement('tr');
+                    cells.forEach(item => tr.appendChild(cell(item.text !== undefined ? item.text : item.node, item.className)));
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                return table;
+            };
+            if (sourceNames.length) {
+                host.appendChild(buildTable(
+                    translations.stats_sources_caption || 'Sources',
+                    [translations.stats_source_name || 'Source', translations.stats_source_points || 'Points'],
+                    sourceNames.map(source => ([
+                        { text: source, className: 'stats-source-name' },
+                        { text: formatNumber(sources[source]), className: 'stats-source-count' }
+                    ]))
+                ));
+            }
+            if (devices.length) {
+                const statusLabels = {
+                    active: translations.device_active || 'Active',
+                    paused: translations.device_paused || 'Paused',
+                    revoked: translations.device_revoked || 'Revoked'
+                };
+                host.appendChild(buildTable(
+                    translations.stats_devices_caption || 'Connected devices',
+                    [
+                        translations.device_name || 'Device',
+                        translations.stats_device_points || 'Points',
+                        translations.stats_device_last_seen || 'Last seen'
+                    ],
+                    devices.map(device => {
+                        const status = String(device.status || '').toLowerCase();
+                        const name = device.name || device.platform || 'Device';
+                        const label = statusLabels[status] || device.status || '—';
+                        const nameCell = document.createElement('div');
+                        nameCell.textContent = name;
+                        if (device.platform && device.platform !== name) {
+                            const meta = document.createElement('span');
+                            meta.className = 'render-card-meta';
+                            meta.style.display = 'block';
+                            meta.textContent = device.platform;
+                            nameCell.appendChild(meta);
+                        }
+                        const statusChip = document.createElement('span');
+                        statusChip.className = 'stats-source-status' +
+                            (status === 'paused' ? ' is-paused' : '') +
+                            (status === 'revoked' ? ' is-revoked' : '');
+                        statusChip.textContent = label;
+                        nameCell.appendChild(statusChip);
+                        return [
+                            { node: nameCell, className: 'stats-source-name' },
+                            { text: formatNumber(device.points), className: 'stats-source-count' },
+                            { text: device.last_seen_at ? statsDate(device.last_seen_at) : '—' }
+                        ];
+                    })
+                ));
+            }
         }
 
-        function achievementIcon(name) {
-            return ({
-                public: 'fa-earth-americas', map: 'fa-map', location_city: 'fa-city',
-                place: 'fa-location-dot', route: 'fa-route', calendar: 'fa-calendar-days'
-            })[name] || 'fa-medal';
+        function achievementVisual(item) {
+            const id = String(item.id || '');
+            const target = Number(item.target) || 0;
+            if (id.startsWith('coverage_days_')) {
+                return { tone: 'coverage', icon: target >= 365 ? 'fa-calendar-check' : target >= 30 ? 'fa-calendar-week' : 'fa-calendar-day' };
+            }
+            if (id.startsWith('coverage_cells_')) {
+                return { tone: 'coverage', icon: target >= 200 ? 'fa-map-location-dot' : target >= 50 ? 'fa-map' : 'fa-table-cells-large' };
+            }
+            if (id.startsWith('distance_')) {
+                return { tone: 'distance', icon: target >= 1000000 ? 'fa-compass' : target >= 500000 ? 'fa-route' : 'fa-person-walking' };
+            }
+            if (id.startsWith('places_')) {
+                return { tone: 'places', icon: target >= 25 ? 'fa-map-location-dot' : target >= 10 ? 'fa-map-pin' : 'fa-location-dot' };
+            }
+            if (id.startsWith('cities_')) return { tone: 'cities', icon: target >= 25 ? 'fa-city' : 'fa-building' };
+            if (id.startsWith('regions_')) return { tone: 'regions', icon: target >= 5 ? 'fa-map' : 'fa-map-location-dot' };
+            if (id.startsWith('countries_')) return { tone: 'countries', icon: target >= 10 ? 'fa-earth-americas' : 'fa-flag' };
+            return { tone: 'default', icon: 'fa-medal' };
         }
 
         function achievementTier(item) {
@@ -1161,11 +1202,12 @@
             }
             earned.forEach((item, index) => {
                 const card = document.createElement('article');
-                card.className = 'stats-achievement';
+                const visual = achievementVisual(item);
+                card.className = 'stats-achievement stats-achievement--' + visual.tone;
                 card.style.animationDelay = Math.min(index * 35, 260) + 'ms';
                 const icon = document.createElement('div');
                 icon.className = 'stats-achievement-icon';
-                icon.innerHTML = '<i class="fas ' + achievementIcon(item.icon) + '" aria-hidden="true"></i>';
+                icon.innerHTML = '<i class="fa-solid ' + visual.icon + '" aria-hidden="true"></i>';
                 const title = document.createElement('h4');
                 title.textContent = translations[item.title_key] || trFallbackKey(item.title_key);
                 const description = document.createElement('p');
@@ -5451,12 +5493,15 @@
                 close.type = 'button';
                 close.className = 'modal-close';
                 close.setAttribute('aria-label', closeLabel);
-                close.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i>';
                 close.addEventListener('click', function () {
                     if (typeof closeModal === 'function') closeModal(id);
                     else modal.style.display = 'none';
                 });
             }
+            close.type = 'button';
+            close.classList.add('app-close-button');
+            close.setAttribute('aria-label', close.getAttribute('aria-label') || closeLabel);
+            close.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
             topbar.appendChild(close);
 
             content.insertBefore(topbar, content.firstChild);

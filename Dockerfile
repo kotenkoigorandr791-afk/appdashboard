@@ -103,6 +103,9 @@ COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY --from=app-builder /var/www/AppDashboard/ /var/www/AppDashboard/
 RUN test -f /var/www/AppDashboard/apps/smart_home/core/perf.php
+# Country boundaries ship with the image so statistics can name countries
+# without a live geocoder; fail the build if the dataset is missing.
+RUN test -s /var/www/AppDashboard/apps/steps/resources/boundaries/ne_110m_admin_0_countries.geojson
 RUN mkdir -p /var/www/AppDashboard/apps/lopaka
 WORKDIR /var/www/AppDashboard
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/

@@ -92,6 +92,16 @@ final class StepsGeolocationIngestion
                     ':owner' => $owner,
                     ':device' => $device,
                 ]);
+                if ($source === 'mobile') {
+                    $pdo->prepare(
+                        "UPDATE geo_devices
+                            SET status = 'revoked', updated_at = now()
+                          WHERE user_email = :owner
+                            AND source_type = 'mobile'
+                            AND id <> :device
+                            AND status IN ('active', 'paused')"
+                    )->execute([':owner' => $owner, ':device' => $device]);
+                }
             } else {
                 $deviceStmt = $pdo->prepare("INSERT INTO geo_devices(id, user_email, name, platform, source_type, app_version, last_seen_at, last_upload_at) VALUES(:id, :owner, :name, :platform, :source, :app_version, now(), now()) ON CONFLICT (user_email, id) DO NOTHING");
                 $deviceStmt->execute([
@@ -102,6 +112,20 @@ final class StepsGeolocationIngestion
                     ':source' => $source,
                     ':app_version' => $appVersion,
                 ]);
+                // One account, one connected mobile device. Registering a new
+                // phone retires the previous pairing instead of leaving stale
+                // devices able to keep uploading in parallel.
+                if ($source === 'mobile') {
+                    $retire = $pdo->prepare(
+                        "UPDATE geo_devices
+                            SET status = 'revoked', updated_at = now()
+                          WHERE user_email = :owner
+                            AND source_type = 'mobile'
+                            AND id <> :device
+                            AND status IN ('active', 'paused')"
+                    );
+                    $retire->execute([':owner' => $owner, ':device' => $device]);
+                }
             }
             if ($namespace !== '' && $sourceEventId !== '') {
                 $again = $pdo->prepare('SELECT point_id FROM geo_point_sources WHERE user_email = :owner AND namespace = :namespace AND event_id = :event LIMIT 1');

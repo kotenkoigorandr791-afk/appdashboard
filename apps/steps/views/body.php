@@ -91,7 +91,7 @@ $metricButtons = [
                 <button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button>
                 <?php if (!empty($stepsData)): ?>
                 <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
-                    <i class="fas fa-chart-pie lucide-view-pie" style="font-size:24px" aria-hidden="true"></i>
+                    <i class="fa-solid fa-chart-pie app-icon" aria-hidden="true"></i>
                 </button>
                 <?php endif; ?>
                 <button id="settings-button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
@@ -1273,9 +1273,6 @@ $metricButtons = [
                             if(p-prev>1){ const gap=document.createElement('span'); gap.textContent='…'; gap.className='pager-gap'; host.appendChild(gap); }
                             const b=document.createElement('button'); b.type='button'; b.className='pager-page'+(p===cur?' is-current':''); b.textContent=p; b.addEventListener('click',()=>ptGo(p)); host.appendChild(b); prev=p;
                         });
-                        const jump=document.createElement('input'); jump.type='number'; jump.min=1; jump.max=n; jump.placeholder='#'; jump.className='pager-jump';
-                        jump.addEventListener('keydown',e=>{ if(e.key==='Enter'&&jump.value) ptGo(Number(jump.value)); });
-                        host.appendChild(jump);
                         ptEl('pt-first').disabled=ptEl('pt-prev').disabled=cur<=1; ptEl('pt-next').disabled=ptEl('pt-last').disabled=cur>=n;
                     }
                     ptEl('pt-first')?.addEventListener('click',()=>ptGo(1));
@@ -1340,6 +1337,29 @@ $metricButtons = [
                     const renderApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_renders';
                     const rd=id=>document.getElementById(id);
                     let renderJob=null, renderPoll=null;
+                    function showRenderStep(step){
+                        const n=Math.min(3,Math.max(1,Number(step)||1));
+                        document.querySelectorAll('#settings-panel-render [data-render-step-panel]').forEach(panel=>{
+                            panel.classList.toggle('is-active', Number(panel.getAttribute('data-render-step-panel'))===n);
+                        });
+                        document.querySelectorAll('#settings-panel-render .render-step').forEach(btn=>{
+                            const active=Number(btn.getAttribute('data-render-step'))===n;
+                            btn.classList.toggle('is-active', active);
+                            if(active) btn.setAttribute('aria-current','step'); else btn.removeAttribute('aria-current');
+                        });
+                    }
+                    // The render panel markup lives further down the page, so the
+                    // stepper is wired once the document is parsed.
+                    function initRenderStepper(){
+                        document.querySelectorAll('#settings-panel-render .render-step, #settings-panel-render [data-render-goto]').forEach(btn=>{
+                            if(btn.dataset.renderBound==='1') return;
+                            btn.dataset.renderBound='1';
+                            btn.addEventListener('click',()=>showRenderStep(btn.getAttribute('data-render-step')||btn.getAttribute('data-render-goto')));
+                        });
+                        showRenderStep(1);
+                    }
+                    if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',initRenderStepper);
+                    else initRenderStepper();
                     function renderErrorText(code){
                         const m={no_geometry:tr('render_err_geometry','No route in this period.'),invalid_range:tr('map_trip_err_range','Choose a valid date range.'),encoder_unavailable:tr('render_err_encoder','Video encoder is unavailable.'),render_busy:tr('render_err_busy','Another render is running.'),permission_changed:tr('render_err_permission','Access changed; start again.'),render_timeout:tr('render_err_timeout','Rendering took too long.')};
                         return m[code]||code||'render_failed';
@@ -1380,6 +1400,21 @@ $metricButtons = [
                             const cancel=document.createElement('button'); cancel.type='button'; cancel.className='excel-btn'; cancel.innerHTML='<i class="fas fa-stop"></i> '+tr('render_cancel','Cancel');
                             cancel.addEventListener('click',async()=>{ await fetch(renderApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'cancel',id:job.id})}).catch(()=>{}); loadRenderJobs(); });
                             actions.appendChild(cancel);
+                        }
+                        if(job.state!=='pending'&&job.state!=='processing'){
+                            const del=document.createElement('button'); del.type='button'; del.className='excel-btn render-delete';
+                            del.innerHTML='<i class="fas fa-trash"></i> '+tr('render_delete','Delete');
+                            del.addEventListener('click',async()=>{
+                                if(!window.confirm(tr('render_delete_confirm','Delete this render permanently?'))) return;
+                                try{
+                                    const r=await fetch(renderApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id:job.id})});
+                                    const data=await r.json().catch(()=>null);
+                                    if(!r.ok||!data||!data.ok) throw new Error((data&&data.error)||'render_delete_failed');
+                                    if(rd('rd-preview')){ rd('rd-preview').innerHTML=''; rd('rd-preview').hidden=true; }
+                                    loadRenderJobs();
+                                }catch(e){ if(rd('rd-status')) rd('rd-status').textContent=String(e&&e.message?e.message:e); }
+                            });
+                            actions.appendChild(del);
                         }
                         card.appendChild(actions);
                         return card;
@@ -1526,24 +1561,6 @@ $metricButtons = [
         </div>
 
         <div id="notifications" aria-live="polite" aria-atomic="true">
-            <div id="stats-notification" class="notification" style="display:none;">
-                <div class="notification-header">
-                    <div class="notification-title">
-                        <i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['max_steps']); ?>
-                    </div>
-                    <button class="close-notification"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                </div>
-                <div class="notification-content" id="stats-content"></div>
-            </div>
-            <div id="goal-notification" class="notification" style="display:none;">
-                <div class="notification-header">
-                    <div class="notification-title">
-                        <i class="fas fa-trophy"></i> <?php echo htmlspecialchars($translations['weekly_goal']); ?>
-                    </div>
-                    <button class="close-notification"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                </div>
-                <div class="notification-content" id="goal-content"></div>
-            </div>
             <div id="video-recognition-notification" class="notification video-related-notif" style="display:none;">
                 <div class="notification-header">
                     <div class="notification-title" id="video-recognition-notif-title">
@@ -1568,11 +1585,11 @@ $metricButtons = [
                     <div id="stats-freshness" class="stats-freshness" role="status" aria-live="polite"></div>
                 </header>
                 <div class="stats-tabbar" role="tablist" aria-label="<?php echo htmlspecialchars($translations['stats_sections'] ?? 'Statistics sections'); ?>">
-                    <button type="button" class="stats-tab is-active" role="tab" aria-selected="true" data-stats-tab="overview"><i class="fas fa-chart-simple" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_overview'] ?? 'Overview'); ?></span></button>
-                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="activity"><i class="fas fa-shoe-prints" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_activity'] ?? 'Steps & Health'); ?></span></button>
-                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="movement"><i class="fas fa-route" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_movement'] ?? 'Movement'); ?></span></button>
-                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="achievements"><i class="fas fa-trophy" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_achievements'] ?? 'Achievements'); ?></span></button>
-                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="quality"><i class="fas fa-shield-heart" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_quality'] ?? 'Data Quality'); ?></span></button>
+                    <button type="button" class="stats-tab stats-tab--overview is-active" role="tab" aria-selected="true" data-stats-tab="overview"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_overview'] ?? 'Overview'); ?></span></button>
+                    <button type="button" class="stats-tab stats-tab--activity" role="tab" aria-selected="false" data-stats-tab="activity"><i class="fa-solid fa-shoe-prints" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_activity'] ?? 'Steps & Health'); ?></span></button>
+                    <button type="button" class="stats-tab stats-tab--movement" role="tab" aria-selected="false" data-stats-tab="movement"><i class="fa-solid fa-route" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_movement'] ?? 'Movement'); ?></span></button>
+                    <button type="button" class="stats-tab stats-tab--achievements" role="tab" aria-selected="false" data-stats-tab="achievements"><i class="fa-solid fa-trophy" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_achievements'] ?? 'Achievements'); ?></span></button>
+                    <button type="button" class="stats-tab stats-tab--quality" role="tab" aria-selected="false" data-stats-tab="quality"><i class="fa-solid fa-shield-heart" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_quality'] ?? 'Data Quality'); ?></span></button>
                 </div>
                 <div class="stats-panels">
                     <section class="stats-panel is-active" role="tabpanel" data-stats-panel="overview">
@@ -1598,11 +1615,11 @@ $metricButtons = [
                     <section class="stats-panel" role="tabpanel" data-stats-panel="activity" hidden>
                         <div class="stats-grid">
                             <section class="stats-card">
-                                <h3><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
+                                <h3 class="stats-card-title stats-card-title--steps"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
                                 <div class="stats-chart-wrap"><canvas id="stats-years-chart"></canvas></div>
                             </section>
                             <section class="stats-card">
-                                <h3 id="stats-monthly-title"><?php echo htmlspecialchars($translations['statistics_monthly_intensity'] ?? 'Monthly Step Intensity'); ?></h3>
+                                <h3 id="stats-monthly-title" class="stats-card-title stats-card-title--calendar"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo htmlspecialchars($translations['statistics_monthly_intensity'] ?? 'Monthly Step Intensity'); ?></h3>
                                 <div class="stats-chart-wrap"><canvas id="stats-months-chart"></canvas></div>
                             </section>
                         </div>
@@ -2125,7 +2142,7 @@ $metricButtons = [
                 </div>
                 <div class="manual-pair-footer">
                     <button type="button" id="manual-pair-regenerate" class="manual-pair-regen-btn">
-                        <i class="fas fa-rotate-left lucide-refresh-ccw" style="font-size:15px" aria-hidden="true"></i>
+                        <i class="fa-solid fa-rotate-left app-icon app-icon--sm" aria-hidden="true"></i>
                         <?php echo htmlspecialchars($translations['manual_pair_regenerate'] ?? 'Regenerate'); ?>
                     </button>
                 </div>
@@ -2195,9 +2212,6 @@ $metricButtons = [
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="achievements" role="tab" aria-selected="false">
                         <i class="fas fa-trophy"></i> <?php echo htmlspecialchars($translations['achievement_title'] ?? 'Achievements'); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="api" role="tab" aria-selected="false">
-                        <i class="fas fa-code"></i> <?php echo htmlspecialchars($translations['api_keys_title'] ?? 'API keys'); ?>
                     </button>
                     <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
                         <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
@@ -2333,15 +2347,32 @@ $metricButtons = [
                 </div>
                 <div id="settings-panel-render" class="settings-tab-panel" role="tabpanel">
                     <div class="location-panel render-flow">
-                        <section class="location-section">
+                        <nav class="render-stepper" aria-label="<?php echo htmlspecialchars($translations['render_flow_label'] ?? 'Render steps'); ?>">
+                            <button type="button" class="render-step is-active" data-render-step="1" aria-current="step">
+                                <span class="render-step-index">1</span>
+                                <span class="render-step-label"><?php echo htmlspecialchars($translations['render_step_source'] ?? 'Route and period'); ?></span>
+                            </button>
+                            <button type="button" class="render-step" data-render-step="2">
+                                <span class="render-step-index">2</span>
+                                <span class="render-step-label"><?php echo htmlspecialchars($translations['render_step_look'] ?? 'Output'); ?></span>
+                            </button>
+                            <button type="button" class="render-step" data-render-step="3">
+                                <span class="render-step-index">3</span>
+                                <span class="render-step-label"><?php echo htmlspecialchars($translations['render_step_run'] ?? 'Render'); ?></span>
+                            </button>
+                        </nav>
+                        <section class="location-section render-step-panel is-active" data-render-step-panel="1">
                             <div class="location-section-head"><h3><span class="flow-step">1</span> <?php echo htmlspecialchars($translations['render_step_source'] ?? 'Route and period'); ?></h3></div>
                             <div class="settings-grid-2">
                                 <div class="settings-field"><span><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></span><div class="dp-field"><input type="date" id="rd-from" class="dp-native" tabindex="-1" aria-hidden="true"><button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false"><span class="dp-value"></span><i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i></button><div class="dp-popover" role="dialog" hidden></div></div></div>
                                 <div class="settings-field"><span><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></span><div class="dp-field"><input type="date" id="rd-to" class="dp-native" tabindex="-1" aria-hidden="true"><button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false"><span class="dp-value"></span><i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i></button><div class="dp-popover" role="dialog" hidden></div></div></div>
                             </div>
                             <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_title'] ?? 'Title'); ?></span><input type="text" id="rd-title" maxlength="80"></label>
+                            <div class="render-step-nav">
+                                <button type="button" class="excel-btn render-next" data-render-goto="2"><?php echo htmlspecialchars($translations['render_next'] ?? 'Next'); ?> <i class="fas fa-arrow-right"></i></button>
+                            </div>
                         </section>
-                        <section class="location-section">
+                        <section class="location-section render-step-panel" data-render-step-panel="2">
                             <div class="location-section-head"><h3><span class="flow-step">2</span> <?php echo htmlspecialchars($translations['render_step_look'] ?? 'Output'); ?></h3></div>
                             <div class="settings-grid-2">
                                 <label class="settings-field"><span><?php echo htmlspecialchars($translations['render_kind'] ?? 'Type'); ?></span>
@@ -2364,8 +2395,12 @@ $metricButtons = [
                                 <label class="settings-field" data-video-only><span><?php echo htmlspecialchars($translations['render_fps'] ?? 'Frame rate'); ?></span>
                                     <select id="rd-fps"><option value="6">6</option><option value="8" selected>8</option><option value="12">12</option></select></label>
                             </div>
+                            <div class="render-step-nav">
+                                <button type="button" class="excel-btn render-back" data-render-goto="1"><i class="fas fa-arrow-left"></i> <?php echo htmlspecialchars($translations['render_back'] ?? 'Back'); ?></button>
+                                <button type="button" class="excel-btn render-next" data-render-goto="3"><?php echo htmlspecialchars($translations['render_next'] ?? 'Next'); ?> <i class="fas fa-arrow-right"></i></button>
+                            </div>
                         </section>
-                        <section class="location-section">
+                        <section class="location-section render-step-panel" data-render-step-panel="3">
                             <div class="location-section-head"><h3><span class="flow-step">3</span> <?php echo htmlspecialchars($translations['render_step_run'] ?? 'Render'); ?></h3></div>
                             <div class="settings-actions-row">
                                 <button type="button" id="rd-start" class="excel-btn"><i class="fas fa-play"></i> <?php echo htmlspecialchars($translations['render_start'] ?? 'Start'); ?></button>
@@ -2373,6 +2408,7 @@ $metricButtons = [
                             </div>
                             <div class="render-progress" aria-hidden="true"><span id="rd-bar"></span></div>
                             <p id="rd-status" class="location-status" role="status" aria-live="polite"></p>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['render_retention_hint'] ?? 'Rendered files are kept for 1 hour. Use Delete to remove one right away.'); ?></p>
                             <div id="rd-preview" class="render-preview" hidden></div>
                             <div id="rd-jobs" class="render-cards"></div>
                         </section>
@@ -2797,24 +2833,6 @@ $metricButtons = [
                             <p id="achievements-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="achievements-list" class="location-import-history"></div>
                             <p id="achievements-disabled" class="location-hint" hidden><?php echo htmlspecialchars($translations['achievement_disabled_notice'] ?? 'Achievements are disabled. Existing results stay stored but are hidden, and no new evaluations run until you enable them again.'); ?></p>
-                        </section>
-                    </div>
-                </div>
-                <div id="settings-panel-api" class="settings-tab-panel" role="tabpanel">
-                    <div class="location-panel">
-                        <section class="location-section">
-                            <div class="location-section-head">
-                                <h3><i class="fas fa-code"></i> <?php echo htmlspecialchars($translations['api_keys_title'] ?? 'API keys'); ?></h3>
-                            </div>
-                            <p class="location-hint"><?php echo htmlspecialchars($translations['api_keys_hint'] ?? 'Scoped keys for the versioned REST API. The secret is shown once; rotate or revoke a key at any time.'); ?></p>
-                            <div class="location-import-form">
-                                <input type="text" id="api-key-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['api_keys_name'] ?? 'Key name'); ?>">
-                                <button type="button" id="api-key-create" class="excel-btn"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['api_keys_create'] ?? 'Create key'); ?></button>
-                            </div>
-                            <div id="api-key-scopes" class="place-chips"></div>
-                            <p id="api-key-status" class="location-status" role="status" aria-live="polite"></p>
-                            <div id="api-key-new" class="location-hint" hidden></div>
-                            <div id="api-key-list" class="location-import-history"></div>
                         </section>
                     </div>
                 </div>
