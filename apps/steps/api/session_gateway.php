@@ -22,6 +22,7 @@ $allowed = [
     'geolocation_stops',
     'geolocation_trips',
     'geolocation_quality',
+    'geolocation_matching',
     'geolocation_statistics',
     'geolocation_imports',
     'geolocation_exports',

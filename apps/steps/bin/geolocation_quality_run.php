@@ -16,6 +16,7 @@ require_once dirname(__DIR__) . '/core/geolocation_quality.php';
 require_once dirname(__DIR__) . '/core/geolocation_trips.php';
 require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
 require_once dirname(__DIR__) . '/core/geolocation_observability.php';
+require_once dirname(__DIR__) . '/core/geolocation_matching.php';
 
 /**
  * @return array{processed:int,failed:int}
@@ -59,7 +60,8 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
             );
             $update = $pdo->prepare(
                 'UPDATE geo_location_points
-                    SET quality_state = :state, quality_reason = :reason, correction_json = :correction
+                    SET quality_state = :state, quality_reason = :reason, correction_json = :correction,
+                        quality_score = :score, quality_severity = :severity, quality_version = :version, quality_details = :details
                   WHERE id = :id AND user_email = :owner'
             );
 
@@ -81,6 +83,10 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
                         'flags' => $decision['flags'],
                         'processor_version' => StepsGeolocationQuality::PROCESSOR_VERSION,
                     ], JSON_UNESCAPED_SLASHES),
+                    ':score' => $decision['score'],
+                    ':severity' => $decision['severity'],
+                    ':version' => StepsGeolocationQuality::PROCESSOR_VERSION,
+                    ':details' => json_encode(['reasons' => $decision['reasons'], 'severity' => $decision['severity']], JSON_UNESCAPED_SLASHES),
                     ':id' => $row['id'],
                     ':owner' => $owner,
                 ]);
@@ -95,6 +101,7 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
             $processed += count($rows);
             if ($counts['accepted'] > 0) {
                 try { StepsGeolocationTrips::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation trips enqueue: ' . $e->getMessage()); }
+                try { StepsGeolocationMatching::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation matching enqueue: ' . $e->getMessage()); }
             }
             $statsFrom = $rows !== [] ? (string)$rows[0]['source_at'] : null;
             $statsTo = $rows !== [] ? (string)$rows[count($rows) - 1]['source_at'] : null;

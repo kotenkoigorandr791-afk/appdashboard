@@ -3523,7 +3523,17 @@
                     const [quality, places, zones] = await Promise.all([toolsCall(qualityApi, null), toolsCall(placesApi, null), toolsCall(geofencesApi, null)]);
                     const c = quality.counts || {};
                     const counts = document.getElementById('location-quality-counts');
-                    if (counts) counts.textContent = ['accepted', 'flagged', 'rejected', 'pending'].map(k => k + ': ' + (c[k] || 0)).join(' · ');
+                    if (counts) counts.textContent = ['accepted', 'flagged', 'suspect', 'rejected', 'excluded_by_user', 'private_redacted', 'not_enough_evidence', 'pending'].map(k => k + ': ' + (c[k] || 0)).join(' · ');
+                    const settings = quality.settings || {};
+                    const geometry = document.getElementById('location-geometry-mode');
+                    const matchMode = document.getElementById('location-match-mode');
+                    if (geometry && settings.geometry_mode) geometry.value = settings.geometry_mode;
+                    if (matchMode && settings.mode) matchMode.value = settings.mode;
+                    const matchSummary = quality.matching || {};
+                    const summaryEl = document.getElementById('location-geometry-summary');
+                    if (summaryEl) summaryEl.textContent = toolsText('location_match_summary', 'Matched segments') + ': ' + (matchSummary.matched || 0) + ' · ' + toolsText('location_match_abstained', 'raw fallback') + ': ' + (matchSummary.abstained || 0) + ' · ' + toolsText('location_match_high', 'high confidence') + ': ' + (matchSummary.high || 0);
+                    renderQualityIssues(quality.issues || []);
+                    renderCorrections(quality.corrections || []);
                     renderPlaceChips(places.builtin_tags || []);
                     renderToolItems('location-places-list', places.places || [], p => p.name + ' · ' + p.tag + ' · ' + Number(p.radius_m).toFixed(0) + ' m', async p => {
                         if (!window.confirm(toolsText('location_place_confirm', 'Delete this place?'))) return;
@@ -3535,10 +3545,93 @@
                     });
                 } catch (e) { if (status) status.textContent = (e && e.message) || 'location_tools_failed'; }
             }
+            function renderQualityIssues(items) {
+                const host = document.getElementById('location-quality-issues');
+                if (!host) return;
+                host.innerHTML = '';
+                if (!items.length) { host.textContent = toolsText('location_quality_none', 'No quality issues in this range.'); return; }
+                items.slice(0, 30).forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'location-tool-item';
+                    const text = document.createElement('span');
+                    const when = item.source_at ? new Date(item.source_at).toLocaleString() : '';
+                    const reasons = Array.isArray(item.reasons) && item.reasons.length ? ' · ' + item.reasons.join(', ') : '';
+                    text.textContent = when + ' · ' + item.quality_state + reasons + (item.accuracy_m !== null && item.accuracy_m !== undefined ? ' · ' + Number(item.accuracy_m).toFixed(0) + ' m' : '');
+                    row.appendChild(text);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'excel-btn';
+                    button.textContent = toolsText('location_quality_exclude', 'Exclude');
+                    button.addEventListener('click', async () => {
+                        const status = document.getElementById('location-tools-status');
+                        try {
+                            await toolsCall(qualityApi, { action: 'correct', scope_type: 'points', point_ids: [item.id], effects: ['exclude_display', 'exclude_analytics'], reason: 'quality_issue', note: '' });
+                            if (status) status.textContent = toolsText('location_correction_saved', 'Correction saved.');
+                            await loadLocationTools();
+                        } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                    row.appendChild(button);
+                    host.appendChild(row);
+                });
+            }
+            function renderCorrections(items) {
+                const host = document.getElementById('location-corrections-list');
+                if (!host) return;
+                host.innerHTML = '';
+                const active = items.filter(item => item.state === 'active');
+                if (!active.length) { host.textContent = toolsText('location_corrections_none', 'No active corrections.'); return; }
+                active.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'location-tool-item';
+                    const text = document.createElement('span');
+                    text.textContent = item.scope_type + ' · ' + (item.point_count || 0) + ' ' + toolsText('location_points_short', 'points') + ' · ' + (item.effects_json || []).join(', ');
+                    row.appendChild(text);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'excel-btn';
+                    button.textContent = toolsText('location_correction_undo', 'Undo');
+                    button.addEventListener('click', async () => {
+                        const status = document.getElementById('location-tools-status');
+                        try {
+                            await toolsCall(qualityApi, { action: 'undo', id: item.id });
+                            if (status) status.textContent = toolsText('location_correction_undone', 'Correction undone.');
+                            await loadLocationTools();
+                        } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                    row.appendChild(button);
+                    host.appendChild(row);
+                });
+            }
             document.getElementById('location-quality-reprocess')?.addEventListener('click', async () => {
                 const status = document.getElementById('location-tools-status');
                 try { await toolsCall(qualityApi, { action: 'reprocess' }); if (status) status.textContent = toolsText('location_quality_queued', 'Quality recheck queued.'); }
                 catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('location-match-save')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    const data = await toolsCall(qualityApi, { action: 'settings', mode: document.getElementById('location-match-mode')?.value || 'conservative', geometry_mode: document.getElementById('location-geometry-mode')?.value || 'raw' });
+                    if (status) status.textContent = toolsText('location_match_saved', 'Display settings saved.');
+                    await loadLocationTools();
+                    return data;
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('location-match-run')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try { await toolsCall(qualityApi, { action: 'match' }); if (status) status.textContent = toolsText('location_match_queued', 'Geometry recomputation queued.'); }
+                catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('location-correction-apply')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                const from = document.getElementById('location-correction-from')?.value || '';
+                const to = document.getElementById('location-correction-to')?.value || '';
+                const effects = Array.from(document.querySelectorAll('#location-correction-effects input:checked')).map(el => el.value);
+                if (!from || !to || !effects.length) { if (status) status.textContent = toolsText('location_correction_invalid', 'Choose a date range and at least one effect.'); return; }
+                try {
+                    await toolsCall(qualityApi, { action: 'correct', scope_type: 'range', from: from + 'T00:00:00Z', to: to + 'T23:59:59Z', effects, reason: document.getElementById('location-correction-reason')?.value || 'user_correction', note: document.getElementById('location-correction-note')?.value || '' });
+                    if (status) status.textContent = toolsText('location_correction_saved', 'Correction saved.');
+                    await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
             });
             document.getElementById('place-create')?.addEventListener('click', async () => {
                 const status = document.getElementById('location-tools-status');
@@ -4882,6 +4975,72 @@
     const scan = root => (root.querySelectorAll ? root : document).querySelectorAll('input[type="date"],input[type="datetime-local"]').forEach(upgrade);
     const start = () => { scan(document); new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { if (n.matches && n.matches('input[type="date"],input[type="datetime-local"]')) upgrade(n); else scan(n); } }))).observe(document.body, { childList: true, subtree: true }); };
     if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+    // Give every standard modal the same header: title on the left, close on the right.
+    // Keeping this in one place prevents new modals from drifting from the shared design.
+    function setupModalTopbars() {
+        const ids = [
+            'stats-modal', 'info-modal', 'mobile-app-modal', 'manual-pair-modal',
+            'share-location-modal', 'settings-modal', 'day-steps-modal', 'add-steps-modal',
+            'video-crop-modal', 'alert-modal', 'video-confirm-modal', 'video-confirm-gaps-modal'
+        ];
+        const closeLabel = <?php echo json_encode($translations['close'] ?? 'Close', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+        ids.forEach(function (id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            const content = modal.firstElementChild;
+            if (!content || content.querySelector(':scope > .modal-topbar')) return;
+
+            const title = content.querySelector('h1, h2, h3, .day-steps-title, .alert-title');
+            let close = null;
+            for (const child of Array.from(content.children)) {
+                if (child.classList && child.classList.contains('modal-close')) {
+                    close = child;
+                    break;
+                }
+            }
+
+            const topbar = document.createElement('div');
+            topbar.className = 'modal-topbar';
+
+            const titleShell = title ? title.closest('.info-header') : null;
+            if (title) {
+                title.classList.add('modal-topbar-title');
+                topbar.appendChild(title);
+                if (titleShell && content.contains(titleShell)) titleShell.remove();
+            } else {
+                const fallback = document.createElement('div');
+                fallback.className = 'modal-topbar-title';
+                fallback.textContent = content.getAttribute('data-modal-title') || '';
+                topbar.appendChild(fallback);
+            }
+
+            if (!close) {
+                close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'modal-close';
+                close.setAttribute('aria-label', closeLabel);
+                close.innerHTML = '<i class="fas fa-xmark" aria-hidden="true"></i>';
+                close.addEventListener('click', function () {
+                    if (typeof closeModal === 'function') closeModal(id);
+                    else modal.style.display = 'none';
+                });
+            }
+            topbar.appendChild(close);
+
+            content.insertBefore(topbar, content.firstChild);
+            const body = document.createElement('div');
+            body.className = 'modal-body';
+            while (topbar.nextSibling) body.appendChild(topbar.nextSibling);
+            content.appendChild(body);
+            content.classList.add('has-modal-topbar');
+        });
+    }
+    setupModalTopbars();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupModalTopbars);
+    }
 })();</script>
 
 </body>

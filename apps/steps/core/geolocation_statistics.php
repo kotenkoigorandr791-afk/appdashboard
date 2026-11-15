@@ -58,14 +58,15 @@ final class StepsGeolocationStatistics
             $day = (new DateTimeImmutable('@' . $at))->setTimezone($tz)->format('Y-m-d');
             if (!isset($days[$day])) {
                 $days[$day] = [
-                    'day' => $day, 'point_count' => 0, 'accepted_count' => 0, 'flagged_count' => 0, 'rejected_count' => 0,
+                    'day' => $day, 'point_count' => 0, 'accepted_count' => 0, 'flagged_count' => 0, 'rejected_count' => 0, 'excluded_count' => 0, 'private_redacted_count' => 0,
                     'distance_m' => 0.0, 'active_seconds' => 0, 'first_at' => null, 'last_at' => null,
                     'accuracy_sum' => 0.0, 'accuracy_count' => 0, 'accuracy' => array_fill(0, count(self::ACCURACY_BUCKETS) + 2, 0),
                     'sources' => [],
                 ];
             }
-            $state = (string)($point['quality_state'] ?? 'accepted');
-            if (!in_array($state, ['accepted', 'flagged', 'rejected'], true)) $state = 'accepted';
+            $rawState = (string)($point['quality_state'] ?? 'accepted');
+            $excluded = in_array($rawState, StepsGeolocationQuality::EXCLUDED_STATES, true) || $rawState === StepsGeolocationQuality::STATE_NOT_ENOUGH_EVIDENCE;
+            $state = in_array($rawState, ['accepted', 'flagged', 'rejected'], true) ? $rawState : ($excluded ? 'excluded' : 'accepted');
             $days[$day]['point_count']++;
             $days[$day][$state . '_count']++;
             $source = (string)($point['source_type'] ?? 'unknown');
@@ -86,7 +87,7 @@ final class StepsGeolocationStatistics
             if ($days[$day]['first_at'] === null || strcmp($atIso, (string)$days[$day]['first_at']) < 0) $days[$day]['first_at'] = $atIso;
             if ($days[$day]['last_at'] === null || strcmp($atIso, (string)$days[$day]['last_at']) > 0) $days[$day]['last_at'] = $atIso;
 
-            if ($previous !== null && $state !== 'rejected' && ($previous['quality_state'] ?? 'accepted') !== 'rejected') {
+            if ($previous !== null && !$excluded && !in_array((string)($previous['quality_state'] ?? 'accepted'), StepsGeolocationQuality::EXCLUDED_STATES, true)) {
                 $prevAt = strtotime((string)$previous['source_at']);
                 if ($prevAt !== false) {
                     $gap = $at - $prevAt;
@@ -267,7 +268,7 @@ final class StepsGeolocationStatistics
                 "SELECT (p.source_at AT TIME ZONE :tz)::date::text AS day, a.code, a.name, COUNT(*) AS count
                    FROM geo_location_points p
                    JOIN geo_boundary_areas a ON a.dataset_version = :version AND a.kind = 'country' AND ST_Covers(a.geometry, p.position)
-                  WHERE p.user_email = :owner AND p.quality_state <> 'rejected'
+                  WHERE p.user_email = :owner AND p.quality_state NOT IN ('rejected','excluded_by_user','private_redacted')
                     AND (p.source_at AT TIME ZONE :tz)::date BETWEEN :from AND :to
                GROUP BY day, a.code, a.name"
             );
@@ -280,7 +281,7 @@ final class StepsGeolocationStatistics
                 "SELECT (p.source_at AT TIME ZONE :tz)::date::text AS day, a.name, a.code, COUNT(*) AS count
                    FROM geo_location_points p
                    JOIN geo_boundary_areas a ON a.dataset_version = :version AND a.kind = 'city' AND ST_Covers(a.geometry, p.position)
-                  WHERE p.user_email = :owner AND p.quality_state <> 'rejected'
+                  WHERE p.user_email = :owner AND p.quality_state NOT IN ('rejected','excluded_by_user','private_redacted')
                     AND (p.source_at AT TIME ZONE :tz)::date BETWEEN :from AND :to
                GROUP BY day, a.name, a.code"
             );

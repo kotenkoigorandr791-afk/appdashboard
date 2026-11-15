@@ -91,7 +91,7 @@ final class StepsGeolocationTrips
         $t = $thresholds ?? self::thresholds();
         $usable = [];
         foreach ($points as $point) {
-            if (($point['quality_state'] ?? 'accepted') === 'rejected') continue;
+            if (in_array((string)($point['quality_state'] ?? 'accepted'), StepsGeolocationQuality::EXCLUDED_STATES, true)) continue;
             $at = strtotime((string)($point['source_at'] ?? ''));
             if ($at === false) continue;
             $accuracy = $point['accuracy_m'] ?? null;

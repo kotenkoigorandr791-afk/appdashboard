@@ -717,4 +717,47 @@
     <string name="map_sync_pending">%1$d waiting to upload</string>
     <string name="map_sync_never">Not synced yet</string>
     <string name="map_sync_error">Sync error: %1$s</string>
+
+    <!-- Location library -->
+    <string name="nav_library">Location</string>
+    <string name="library_title">Location library</string>
+    <string name="library_subtitle">Places, trips, visits, achievements and devices</string>
+    <string name="library_refresh">Refresh location data</string>
+    <string name="library_tab_places">Places</string>
+    <string name="library_tab_trips">Trips</string>
+    <string name="library_tab_visits">Visits</string>
+    <string name="library_tab_achievements">Achievements</string>
+    <string name="library_tab_geofences">Geofences</string>
+    <string name="library_tab_devices">Devices</string>
+    <string name="library_tab_quality">Quality</string>
+    <string name="library_exclude">Exclude</string>
+    <string name="library_undo">Undo</string>
+    <string name="library_confirm_exclude">Exclude these points from derived views? Raw data is kept.</string>
+    <string name="library_confirm_undo">Undo this correction?</string>
+    <string name="library_empty">Nothing here yet</string>
+    <string name="library_disabled">Achievements are turned off in the web settings</string>
+    <string name="library_error">Could not load location data: %1$s</string>
+    <string name="library_error_generic">Could not update this item</string>
+    <string name="library_no_connection">Connect to your server to browse location data</string>
+    <string name="library_updated">Updated</string>
+    <string name="library_delete">Delete</string>
+    <string name="library_archive">Archive</string>
+    <string name="library_confirm">Confirm</string>
+    <string name="library_reject">Reject</string>
+    <string name="library_pause">Pause</string>
+    <string name="library_resume">Resume</string>
+    <string name="library_revoke">Revoke</string>
+    <string name="library_disable">Disable</string>
+    <string name="library_confirm_title">Are you sure?</string>
+    <string name="library_confirm_delete_place">Delete this place? Visits keep their history, but the place will no longer be matched.</string>
+    <string name="library_confirm_archive_trip">Archive this trip? It disappears from the trip list but its points stay.</string>
+    <string name="library_confirm_visit">Update this visit? The correction is recorded in the audit trail.</string>
+    <string name="library_confirm_device">Change this device\'s tracking state?</string>
+    <string name="library_confirm_revoke">Revoke this device? It stops uploading immediately and must be paired again.</string>
+    <string name="library_confirm_disable_geofence">Disable this geofence? Entry and exit notifications stop.</string>
+    <string name="library_cancel">Cancel</string>
+    <string name="library_status_active">Active</string>
+    <string name="library_status_paused">Paused</string>
+    <string name="library_status_revoked">Revoked</string>
+    <string name="library_status_archived">Archived</string>
 </resources>

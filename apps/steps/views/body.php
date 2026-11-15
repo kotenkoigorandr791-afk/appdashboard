@@ -245,6 +245,7 @@ $metricButtons = [
                                 <?php
                                 $mapLayers = [
                                     'trips' => $translations['map_layer_trips'] ?? 'Trips',
+                                    'improved' => $translations['map_layer_improved'] ?? 'Improved (derived)',
                                     'stops' => $translations['map_layer_stops'] ?? 'Stops',
                                     'places' => $translations['map_layer_places'] ?? 'Places',
                                     'visits' => $translations['map_layer_visits'] ?? 'Visits',
@@ -254,7 +255,7 @@ $metricButtons = [
                                     'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
                                     'explored' => $translations['map_layer_explored'] ?? 'Explored area',
                                 ];
-                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits'], true); ?>
+                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits', 'improved'], true); ?>
                                 <label class="map-switch">
                                     <input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>>
                                     <span class="map-switch-track" aria-hidden="true"><span class="map-switch-thumb"></span></span>
@@ -494,6 +495,9 @@ $metricButtons = [
                                 if(hl) L.geoJSON(feature,{pane:'routesGlow',style:{color:hl,weight:routeWidth*6,opacity:0.38,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 else L.geoJSON(feature,{pane:'routesGlow',style:{color:'#38bdf8',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 L.geoJSON(feature,{pane:'routes',style:{color:hl||'#60a5fa',weight:hl?routeWidth+2:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
+                            } else if(p.layer==='matched'){
+                                L.geoJSON(feature,{pane:'routesGlow',style:{color:'#a78bfa',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                L.geoJSON(feature,{pane:'routes',style:{color:'#a78bfa',weight:routeWidth,opacity:0.85,dashArray:'6 5',lineCap:'round',lineJoin:'round'}}).bindPopup(popupHtml(tr('map_matched_title','Improved display')+' · '+Math.round((p.confidence||0)*100)+'%',[p.explanation||''])).addTo(layerGroup);
                             } else if(p.layer==='speed'){
                                 const sc=['#38bdf8','#22c55e','#eab308','#f97316','#ef4444','#a855f7'][p.bucket]||'#60a5fa';
                                 L.geoJSON(feature,{pane:'routesGlow',style:{color:sc,weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
@@ -2224,6 +2228,55 @@ $metricButtons = [
                                 <button type="button" id="location-quality-reprocess" class="excel-btn"><i class="fas fa-shield-halved"></i> <?php echo htmlspecialchars($translations['location_quality_reprocess'] ?? 'Recheck quality'); ?></button>
                             </div>
                             <p id="location-quality-counts" class="location-hint"></p>
+                            <div class="location-quality-workspace">
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_geometry_title'] ?? 'Displayed geometry'); ?></h4>
+                                    <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_geometry_mode'] ?? 'Geometry'); ?></span>
+                                        <select id="location-geometry-mode">
+                                            <option value="raw"><?php echo htmlspecialchars($translations['location_geometry_raw'] ?? 'Raw GPS'); ?></option>
+                                            <option value="improved"><?php echo htmlspecialchars($translations['location_geometry_improved'] ?? 'Improved'); ?></option>
+                                            <option value="compare"><?php echo htmlspecialchars($translations['location_geometry_compare'] ?? 'Compare raw and improved'); ?></option>
+                                        </select>
+                                    </label>
+                                    <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_match_mode'] ?? 'Matching'); ?></span>
+                                        <select id="location-match-mode">
+                                            <option value="disabled"><?php echo htmlspecialchars($translations['location_match_disabled'] ?? 'Disabled'); ?></option>
+                                            <option value="conservative"><?php echo htmlspecialchars($translations['location_match_conservative'] ?? 'Conservative automatic'); ?></option>
+                                            <option value="review_required"><?php echo htmlspecialchars($translations['location_match_review'] ?? 'Review required'); ?></option>
+                                        </select>
+                                    </label>
+                                    <div class="location-actions">
+                                        <button type="button" id="location-match-save" class="excel-btn"><i class="fas fa-floppy-disk"></i> <?php echo htmlspecialchars($translations['location_match_save'] ?? 'Save'); ?></button>
+                                        <button type="button" id="location-match-run" class="excel-btn"><i class="fas fa-wand-magic-sparkles"></i> <?php echo htmlspecialchars($translations['location_match_run'] ?? 'Recompute geometry'); ?></button>
+                                    </div>
+                                    <p id="location-geometry-summary" class="location-hint"></p>
+                                </div>
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_quality_issues'] ?? 'Quality issues'); ?></h4>
+                                    <p class="location-hint"><?php echo htmlspecialchars($translations['location_quality_issues_hint'] ?? 'Raw points stay available. Exclusions affect derived views only and can be undone.'); ?></p>
+                                    <div id="location-quality-issues" class="location-import-history"></div>
+                                </div>
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_correction_title'] ?? 'Apply correction'); ?></h4>
+                                    <div class="location-tool-row">
+                                        <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_correction_from'] ?? 'From'); ?></span><input type="date" id="location-correction-from"></label>
+                                        <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_correction_to'] ?? 'To'); ?></span><input type="date" id="location-correction-to"></label>
+                                    </div>
+                                    <div class="location-tool-row" id="location-correction-effects">
+                                        <label><input type="checkbox" value="exclude_display"> <?php echo htmlspecialchars($translations['location_effect_display'] ?? 'Hide from display'); ?></label>
+                                        <label><input type="checkbox" value="exclude_analytics"> <?php echo htmlspecialchars($translations['location_effect_analytics'] ?? 'Exclude from analytics'); ?></label>
+                                        <label><input type="checkbox" value="exclude_export"> <?php echo htmlspecialchars($translations['location_effect_export'] ?? 'Exclude from export'); ?></label>
+                                        <label><input type="checkbox" value="exclude_family"> <?php echo htmlspecialchars($translations['location_effect_family'] ?? 'Hide from family'); ?></label>
+                                        <label><input type="checkbox" value="do_not_match"> <?php echo htmlspecialchars($translations['location_effect_no_match'] ?? 'Do not match'); ?></label>
+                                    </div>
+                                    <div class="location-tool-row">
+                                        <input type="text" id="location-correction-reason" maxlength="200" placeholder="<?php echo htmlspecialchars($translations['location_correction_reason'] ?? 'Reason'); ?>">
+                                        <input type="text" id="location-correction-note" maxlength="500" placeholder="<?php echo htmlspecialchars($translations['location_correction_note'] ?? 'Private note (optional)'); ?>">
+                                    </div>
+                                    <button type="button" id="location-correction-apply" class="excel-btn"><i class="fas fa-check"></i> <?php echo htmlspecialchars($translations['location_correction_apply'] ?? 'Apply correction'); ?></button>
+                                    <div id="location-corrections-list" class="location-import-history"></div>
+                                </div>
+                            </div>
                             <div class="location-tools-grid">
                                 <div class="location-tool-card">
                                     <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>

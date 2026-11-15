@@ -706,4 +706,47 @@
     <string name="map_sync_pending">%1$d ждут отправки</string>
     <string name="map_sync_never">Ещё не синхронизировано</string>
     <string name="map_sync_error">Ошибка синхронизации: %1$s</string>
+
+    <!-- Location library -->
+    <string name="nav_library">Локации</string>
+    <string name="library_title">Библиотека локаций</string>
+    <string name="library_subtitle">Места, поездки, визиты, достижения и устройства</string>
+    <string name="library_refresh">Обновить данные о локациях</string>
+    <string name="library_tab_places">Места</string>
+    <string name="library_tab_trips">Поездки</string>
+    <string name="library_tab_visits">Визиты</string>
+    <string name="library_tab_achievements">Достижения</string>
+    <string name="library_tab_geofences">Геозоны</string>
+    <string name="library_tab_devices">Устройства</string>
+    <string name="library_tab_quality">Качество</string>
+    <string name="library_exclude">Исключить</string>
+    <string name="library_undo">Отменить</string>
+    <string name="library_confirm_exclude">Исключить эти точки из производных представлений? Исходные данные сохраняются.</string>
+    <string name="library_confirm_undo">Отменить эту коррекцию?</string>
+    <string name="library_empty">Здесь пока пусто</string>
+    <string name="library_disabled">Достижения отключены в веб-настройках</string>
+    <string name="library_error">Не удалось загрузить данные о локациях: %1$s</string>
+    <string name="library_error_generic">Не удалось обновить элемент</string>
+    <string name="library_no_connection">Подключитесь к серверу, чтобы просматривать локации</string>
+    <string name="library_updated">Обновлено</string>
+    <string name="library_delete">Удалить</string>
+    <string name="library_archive">В архив</string>
+    <string name="library_confirm">Подтвердить</string>
+    <string name="library_reject">Отклонить</string>
+    <string name="library_pause">Приостановить</string>
+    <string name="library_resume">Возобновить</string>
+    <string name="library_revoke">Отозвать</string>
+    <string name="library_disable">Отключить</string>
+    <string name="library_confirm_title">Вы уверены?</string>
+    <string name="library_confirm_delete_place">Удалить это место? История визитов сохранится, но место перестанет сопоставляться.</string>
+    <string name="library_confirm_archive_trip">Отправить поездку в архив? Она исчезнет из списка, но её точки останутся.</string>
+    <string name="library_confirm_visit">Изменить этот визит? Исправление будет записано в журнал аудита.</string>
+    <string name="library_confirm_device">Изменить состояние отслеживания устройства?</string>
+    <string name="library_confirm_revoke">Отозвать устройство? Загрузка прекратится сразу, потребуется повторное сопряжение.</string>
+    <string name="library_confirm_disable_geofence">Отключить геозону? Уведомления о входе и выходе перестанут приходить.</string>
+    <string name="library_cancel">Отмена</string>
+    <string name="library_status_active">Активно</string>
+    <string name="library_status_paused">Пауза</string>
+    <string name="library_status_revoked">Отозвано</string>
+    <string name="library_status_archived">В архиве</string>
 </resources>

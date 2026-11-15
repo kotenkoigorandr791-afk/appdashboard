@@ -118,6 +118,13 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v18_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '018']);
         }
+        // 019: explainable quality evidence, reversible corrections and
+        // versioned derived matched geometry. Raw points stay canonical.
+        $applied->execute([':version' => '019']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v19_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '019']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -356,6 +363,28 @@ function steps_geolocation_schema_v18_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_geofences_active_owner_idx ON geo_geofences (user_email) WHERE is_active",
         "ANALYZE geo_location_points",
         "ANALYZE geo_geofences",
+    ];
+}
+function steps_geolocation_schema_v19_sql(): array
+{
+    return [
+        "ALTER TABLE geo_location_points ADD COLUMN IF NOT EXISTS quality_score DOUBLE PRECISION",
+        "ALTER TABLE geo_location_points ADD COLUMN IF NOT EXISTS quality_severity TEXT NOT NULL DEFAULT 'ok'",
+        "ALTER TABLE geo_location_points ADD COLUMN IF NOT EXISTS quality_version TEXT NOT NULL DEFAULT 'quality-1'",
+        "ALTER TABLE geo_location_points ADD COLUMN IF NOT EXISTS quality_details JSONB NOT NULL DEFAULT '{}'::jsonb",
+        "ALTER TABLE geo_location_points DROP CONSTRAINT IF EXISTS geo_location_points_quality_state_check",
+        "ALTER TABLE geo_location_points ADD CONSTRAINT geo_location_points_quality_state_check CHECK (quality_state IN ('pending','accepted','suspect','flagged','rejected','excluded_by_user','private_redacted','not_enough_evidence'))",
+        "CREATE TABLE IF NOT EXISTS geo_quality_corrections (id UUID PRIMARY KEY, user_email TEXT NOT NULL, scope_type TEXT NOT NULL CHECK (scope_type IN ('points','range','trip','import')), scope_json JSONB NOT NULL DEFAULT '{}'::jsonb, effects_json JSONB NOT NULL DEFAULT '[]'::jsonb, reason TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', previous_states_json JSONB NOT NULL DEFAULT '{}'::jsonb, state TEXT NOT NULL DEFAULT 'active' CHECK (state IN ('active','revoked')), created_at TIMESTAMPTZ NOT NULL DEFAULT now(), revoked_at TIMESTAMPTZ)",
+        "CREATE INDEX IF NOT EXISTS geo_quality_corrections_owner_idx ON geo_quality_corrections(user_email, state, created_at DESC)",
+        "CREATE TABLE IF NOT EXISTS geo_match_settings (user_email TEXT PRIMARY KEY, mode TEXT NOT NULL DEFAULT 'conservative' CHECK (mode IN ('disabled','conservative','review_required')), geometry_mode TEXT NOT NULL DEFAULT 'raw' CHECK (geometry_mode IN ('raw','improved','compare')), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE TABLE IF NOT EXISTS geo_match_networks (id UUID PRIMARY KEY, region_code TEXT NOT NULL DEFAULT '', kind TEXT NOT NULL CHECK (kind IN ('road','path','cycleway','rail','waterway','ferry','offroad')), name TEXT NOT NULL DEFAULT '', access TEXT NOT NULL DEFAULT 'public' CHECK (access IN ('public','permissive','private','restricted')), source TEXT NOT NULL DEFAULT '', version TEXT NOT NULL, geometry geometry(LineString,4326) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_match_networks_geometry_idx ON geo_match_networks USING GIST(geometry)",
+        "CREATE INDEX IF NOT EXISTS geo_match_networks_region_idx ON geo_match_networks(region_code, kind, version)",
+        "CREATE TABLE IF NOT EXISTS geo_matched_segments (id UUID PRIMARY KEY, user_email TEXT NOT NULL, trip_id UUID, point_ids UUID[] NOT NULL, started_at TIMESTAMPTZ NOT NULL, ended_at TIMESTAMPTZ NOT NULL, raw_geometry geometry(LineString,4326) NOT NULL, matched_geometry geometry(LineString,4326), mode TEXT NOT NULL DEFAULT 'none' CHECK (mode IN ('road','path','cycleway','rail','waterway','ferry','offroad','none')), confidence DOUBLE PRECISION NOT NULL DEFAULT 0, confidence_band TEXT NOT NULL DEFAULT 'none' CHECK (confidence_band IN ('high','medium','low','none')), reasons_json JSONB NOT NULL DEFAULT '[]'::jsonb, explanation TEXT NOT NULL DEFAULT '', network_version TEXT NOT NULL DEFAULT '', matcher_version TEXT NOT NULL, config_json JSONB NOT NULL DEFAULT '{}'::jsonb, state TEXT NOT NULL DEFAULT 'abstained' CHECK (state IN ('matched','abstained','stale')), created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_matched_segments_trip_version_idx ON geo_matched_segments(user_email, trip_id, matcher_version, started_at) WHERE trip_id IS NOT NULL",
+        "CREATE INDEX IF NOT EXISTS geo_matched_segments_owner_time_idx ON geo_matched_segments(user_email, started_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_matched_segments_geometry_idx ON geo_matched_segments USING GIST(matched_geometry)",
+        "ANALYZE geo_location_points",
     ];
 }
 function steps_geolocation_schema_sql(): array

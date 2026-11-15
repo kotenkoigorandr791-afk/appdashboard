@@ -74,7 +74,7 @@ final class StepsGeolocationMap
 
     public static function layers(string $raw): array
     {
-        $allowed = array_merge(self::DEFAULT_LAYERS, ['points', 'heatmap', 'explored', 'photos', 'speed']);
+        $allowed = array_merge(self::DEFAULT_LAYERS, ['points', 'heatmap', 'explored', 'photos', 'speed', 'improved']);
         $requested = array_filter(array_map('trim', explode(',', strtolower($raw))));
         $layers = array_values(array_intersect($requested, $allowed));
         return $layers === [] ? self::DEFAULT_LAYERS : $layers;
@@ -271,6 +271,38 @@ final class StepsGeolocationMap
             }
         }
 
+        if (in_array('improved', $layers, true)) {
+            $stmt = $pdo->prepare(
+                "SELECT id, trip_id, mode, confidence, confidence_band, explanation,
+                        ST_AsGeoJSON(ST_SimplifyPreserveTopology(matched_geometry, $tolerance)) AS geojson
+                   FROM geo_matched_segments
+                  WHERE user_email = :owner AND state = 'matched' AND matched_geometry IS NOT NULL
+                    AND matched_geometry && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+                    AND started_at <= :to AND ended_at >= :from
+               ORDER BY started_at DESC LIMIT 200"
+            );
+            $stmt->execute([':owner' => $owner, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat'], ':from' => $from, ':to' => $to]);
+            $matchedRows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($matchedRows as $row) {
+                $geometry = json_decode((string)$row['geojson'], true);
+                if (!is_array($geometry)) continue;
+                $features[] = [
+                    'type' => 'Feature',
+                    'geometry' => $geometry,
+                    'properties' => [
+                        'layer' => 'matched',
+                        'id' => (string)$row['id'],
+                        'trip_id' => (string)($row['trip_id'] ?? ''),
+                        'mode' => (string)$row['mode'],
+                        'confidence' => (float)$row['confidence'],
+                        'confidence_band' => (string)$row['confidence_band'],
+                        'explanation' => (string)$row['explanation'],
+                    ],
+                ];
+            }
+            $meta['counts']['improved'] = count($matchedRows);
+        }
+
         if (in_array('stops', $layers, true)) {
             $aggregate = $zoom < self::RAW_ZOOM;
             if ($aggregate) {
@@ -407,7 +439,7 @@ final class StepsGeolocationMap
                                round(ST_Y(position)::numeric, $precision) AS lat,
                                round(ST_X(position)::numeric, $precision) AS lon
                           FROM geo_location_points
-                         WHERE $where AND quality_state <> 'rejected'"
+                         WHERE $where AND quality_state NOT IN ('rejected','excluded_by_user','private_redacted')"
                     . ($cursorAt !== '' && $cursorId !== '' ? ' AND (source_at, id) > (:cursor_at, :cursor_id)' : '')
                     . " ORDER BY source_at ASC, id ASC LIMIT " . ($limit + 1);
                 $pointParams = $params;

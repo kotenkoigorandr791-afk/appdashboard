@@ -12,7 +12,14 @@ $sub = $parts[1] ?? '';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 header('Content-Type: application/json; charset=utf-8');
 $geoEndpoint = strtolower((string)$sub);
-if (in_array($geoEndpoint, ['geolocation', 'geolocation_map'], true)) {
+// Mobile geo screens share the same bearer-token surface as the map. Keep this
+// an explicit allowlist: every forwarded endpoint authenticates through
+// public_api_bootstrap() and scopes all queries by the resolved owner.
+$geoEndpoints = [
+    'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
+    'geolocation_achievements', 'geolocation_quality', 'geolocation_matching', 'places', 'geofences', 'devices',
+];
+if (in_array($geoEndpoint, $geoEndpoints, true)) {
     $geoFile = APP_ROOT . '/apps/steps/api/' . $geoEndpoint . '.php';
     if (is_file($geoFile)) {
         require $geoFile;

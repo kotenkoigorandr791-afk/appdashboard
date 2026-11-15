@@ -67,6 +67,7 @@ import orbit.nex.steps.screens.ConnectionGateScreen
 import orbit.nex.steps.screens.TrackingMapScreen
 import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
+import orbit.nex.steps.screens.LocationLibraryScreen
 import orbit.nex.steps.screens.WhatsNewSheet
 import orbit.nex.steps.components.AppBackground
 import orbit.nex.steps.components.AppTopBar
@@ -293,6 +294,7 @@ class MainActivity : AppCompatActivity() {
                             NavigationScreen.Home -> ConfigurationScreen(Modifier)
                             NavigationScreen.Tracking -> TrackingMapScreen(Modifier)
                             NavigationScreen.Statistics -> StatisticsScreen(Modifier)
+                            NavigationScreen.Library -> LocationLibraryScreen(Modifier)
                             NavigationScreen.About -> AboutScreen(Modifier)
                         }
                     }

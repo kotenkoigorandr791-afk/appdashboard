@@ -145,11 +145,16 @@ final class StepsGeolocationPrivacy
                 'visits' => 'DELETE FROM geo_visits WHERE user_email = :owner AND arrived_at < :to AND COALESCE(departed_at, arrived_at) >= :from',
                 'stops' => 'DELETE FROM geo_stops WHERE user_email = :owner AND started_at < :to AND COALESCE(ended_at, started_at) >= :from',
                 'geofence_events' => 'DELETE FROM geo_geofence_events WHERE user_email = :owner AND occurred_at >= :from AND occurred_at < :to',
+                'matched_segments' => 'DELETE FROM geo_matched_segments WHERE user_email = :owner AND started_at < :to AND ended_at >= :from',
+                'quality_corrections' => 'DELETE FROM geo_quality_corrections WHERE user_email = :owner',
                 'points' => 'DELETE FROM geo_location_points WHERE user_email = :owner AND source_at >= :from AND source_at < :to',
             ];
             foreach ($statements as $label => $sql) {
                 $stmt = $pdo->prepare($sql);
-                $stmt->execute([':owner' => $owner, ':from' => $fromAt, ':to' => $toAt]);
+                $params = [':owner' => $owner];
+                if (str_contains($sql, ':from')) $params[':from'] = $fromAt;
+                if (str_contains($sql, ':to')) $params[':to'] = $toAt;
+                $stmt->execute($params);
                 $counts[$label] = $stmt->rowCount();
             }
             if (self::tableExists($pdo, 'geo_statistics_daily')) {
@@ -207,7 +212,8 @@ final class StepsGeolocationPrivacy
 
         $tables = [
             'geo_webhook_deliveries', 'geo_notification_outbox', 'geo_trip_photos', 'geo_trip_places',
-            'geo_visits', 'geo_geofence_events', 'geo_geofences', 'geo_stops', 'geo_trips',
+            'geo_visits', 'geo_geofence_events', 'geo_geofences', 'geo_stops', 'geo_matched_segments',
+            'geo_quality_corrections', 'geo_match_settings', 'geo_trips',
             'geo_places', 'geo_immich_assets', 'geo_immich_connections', 'geo_point_sources',
             'geo_import_points', 'geo_import_files', 'geo_imports', 'geo_location_points',
             'geo_devices', 'geo_render_jobs', 'geo_artifacts', 'geo_exports',

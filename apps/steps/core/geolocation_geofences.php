@@ -50,7 +50,7 @@ final class StepsGeolocationGeofences
         $lastInsideAt = null;
 
         foreach ($points as $point) {
-            if (($point['quality_state'] ?? 'accepted') === 'rejected') continue;
+            if (in_array((string)($point['quality_state'] ?? 'accepted'), StepsGeolocationQuality::EXCLUDED_STATES, true)) continue;
             $accuracy = $point['accuracy_m'] ?? null;
             if ($accuracy !== null && is_numeric($accuracy) && (float)$accuracy > $t['max_accuracy_m']) continue;
             $at = strtotime((string)($point['source_at'] ?? ''));

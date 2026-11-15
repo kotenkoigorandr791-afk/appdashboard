@@ -4558,6 +4558,150 @@ iframe.render-preview-media { height: 60vh; }
     .points-row { flex-wrap: wrap; }
     .points-row em { flex-basis: 100%; }
 }
+
+/* --- Unified modal top bars and fullscreen settings --- */
+.modal-content.has-modal-topbar {
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+}
+.modal-topbar {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-height: 58px;
+    padding: 10px 16px;
+    padding-top: max(10px, env(safe-area-inset-top));
+    border-bottom: 1px solid var(--border-color);
+    background: color-mix(in srgb, var(--surface-solid) 94%, var(--modal-bg));
+    position: relative;
+    z-index: 4;
+    box-sizing: border-box;
+}
+.modal-topbar-title {
+    flex: 1 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0 !important;
+    padding: 0 !important;
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--text-color);
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.modal-topbar-title i,
+.modal-topbar-title svg {
+    flex: 0 0 auto;
+    color: var(--primary-color);
+}
+.modal-topbar .modal-close {
+    position: static !important;
+    inset: auto !important;
+    flex: 0 0 auto;
+    margin: 0 0 0 auto !important;
+    z-index: 5;
+}
+.modal-body {
+    flex: 1 1 auto;
+    min-width: 0;
+    min-height: 0;
+    padding: 20px 22px;
+    overflow: auto;
+    overflow-x: hidden;
+    box-sizing: border-box;
+}
+.modal-body > :first-child { margin-top: 0; }
+.modal-body > :last-child { margin-bottom: 0; }
+
+/* Settings must occupy the whole viewport, not a centered card. */
+#settings-modal {
+    padding: 0 !important;
+    align-items: stretch !important;
+    justify-content: stretch !important;
+}
+#settings-modal .settings-content,
+#settings-modal .settings-content.has-modal-topbar {
+    width: 100dvw !important;
+    max-width: 100dvw !important;
+    height: 100dvh !important;
+    max-height: 100dvh !important;
+    margin: 0 !important;
+    border-radius: 0 !important;
+    aspect-ratio: auto !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+#settings-modal .settings-content > .modal-body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 232px;
+    grid-template-rows: minmax(0, 1fr);
+    column-gap: 24px;
+    padding: 18px 28px 24px;
+    overflow: hidden;
+}
+#settings-modal .settings-tab-panel {
+    grid-column: 1;
+    grid-row: 1;
+    min-height: 0;
+    padding: 0 6px 24px 0;
+    overflow-y: auto;
+}
+#settings-modal .settings-tab-bar {
+    grid-column: 2;
+    grid-row: 1;
+    align-self: start;
+    max-height: 100%;
+    overflow-y: auto;
+}
+#settings-modal .modal-topbar { padding-left: 28px; padding-right: 28px; }
+
+/* The info modal has its own scroll area below the shared top bar. */
+#info-modal .info-content { padding: 0 !important; }
+#info-modal .modal-body {
+    display: flex;
+    flex-direction: column;
+    padding: 0;
+    overflow: hidden;
+}
+#info-modal .info-scroll {
+    flex: 1 1 auto;
+    max-height: none;
+    overflow-y: auto;
+}
+
+#alert-modal .modal-body { padding-top: 18px; }
+#alert-modal .alert-header { padding-top: 0 !important; }
+#video-crop-modal .modal-body { padding: 16px 18px 18px; }
+
+@media (max-width: 820px) {
+    #settings-modal .settings-content > .modal-body {
+        grid-template-columns: minmax(0, 1fr) 56px;
+        column-gap: 10px;
+        padding: 14px 12px 18px;
+    }
+    #settings-modal .settings-tab-bar { padding: 5px; }
+    #settings-modal .modal-topbar { padding-left: 14px; padding-right: 12px; }
+}
+@media (max-width: 640px) {
+    .modal-topbar {
+        min-height: 54px;
+        padding: 8px 12px;
+        padding-top: max(8px, env(safe-area-inset-top));
+    }
+    .modal-topbar-title { font-size: 16px; }
+    .modal-body { padding: 16px; }
+    #settings-modal .settings-content > .modal-body { padding: 12px; }
+}
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>
