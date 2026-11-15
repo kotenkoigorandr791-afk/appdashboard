@@ -1,6 +1,8 @@
 <body>
     <?php
 $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
+$bgBase = $theme === 'dark' ? 'background_dark' : 'background_light';
+$bgSrcset = $bgBase . '-960.jpg 960w, ' . $bgBase . '-1920.jpg 1920w, ' . $bgFull . ' 5001w';
 $stepmonitorRoot = dirname(__DIR__, 3);
 $stepmonitorApk = $stepmonitorRoot . '/downloads/stepmonitor.apk';
 $stepmonitorMetaFile = $stepmonitorRoot . '/downloads/stepmonitor.json';
@@ -73,7 +75,7 @@ $metricButtons = [
 ];
 ?>
     <div id="bg-layer" aria-hidden="true"></div>
-    <script>(function(){var s=<?php echo json_encode($bgFull, JSON_HEX_TAG); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+s+')';el.classList.add('ready')};im.decoding='async';im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
+    <script>(function(){var s=<?php echo json_encode($bgFull, JSON_HEX_TAG); ?>,ss=<?php echo json_encode($bgSrcset, JSON_HEX_TAG); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+(im.currentSrc||s)+')';el.classList.add('ready')};im.decoding='async';im.sizes='100vw';im.srcset=ss;im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
     <div class="app-steps">
         <div class="app-topbar">
             <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
@@ -343,6 +345,15 @@ $metricButtons = [
                     // CARTO now watermarks keyless tiles, so the web UI only offers keyless providers.
                     const keylessProviders=['esri_dark','esri_imagery','esri_street','osm','opentopomap'];
                     let map=null, layerGroup=null, providers=Object.assign({},fallbackProviders), provider='esri_dark', busy=false, lastFeatures=[], didFit=false;
+                    let mapStarted=false, mapBootPromise=null, mapConfig={prefetch:true, overlays:true};
+                    let leafletPromise=null, viewportSeq=0, viewportAbort=null, lastMove=null, prefetchTimer=null;
+                    const PREFETCH_KEY='stepsMapPrefetchMode';
+                    const prefetchModes=['off','wifi','balanced','aggressive'];
+                    let prefetchMode=(function(){ try{ const v=localStorage.getItem(PREFETCH_KEY); return prefetchModes.includes(v)?v:'balanced'; }catch(e){ return 'balanced'; } })();
+                    const chunkCache=new Map();
+                    const prefetchQueue=[];
+                    let prefetchActive=0, prefetchAbort=null, prefetchRequests=0, prefetchBytes=0, prefetchWindowStart=Date.now();
+                    window.stepsMapPerf={visible:0,prefetch:0,prefetchHits:0,cancelled:0,stale:0,bytes:0,prefetchBytes:0,errors:0};
                     const APPEARANCE_KEY='stepsMapAppearance';
                     const sliderDefs=[
                         {id:'ma-map-point-size', key:'pointSize', def:5, out:v=>v+' px'},
@@ -386,7 +397,8 @@ $metricButtons = [
                     const showError = (m) => { errorEl.textContent = m || ''; errorEl.style.display = m ? '' : 'none'; };
                     function ensureLeaflet(){
                         if (window.L) return Promise.resolve(window.L);
-                        return new Promise((resolve, reject) => {
+                        if (leafletPromise) return leafletPromise;
+                        leafletPromise=new Promise((resolve, reject) => {
                             if (!document.getElementById('ma-leaflet-css')) {
                                 const css=document.createElement('link');
                                 css.id='ma-leaflet-css'; css.rel='stylesheet';
@@ -396,9 +408,10 @@ $metricButtons = [
                             const script=document.createElement('script');
                             script.src='https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js';
                             script.onload=()=>resolve(window.L);
-                            script.onerror=()=>reject(new Error('leaflet_unavailable'));
+                            script.onerror=()=>{ leafletPromise=null; reject(new Error('leaflet_unavailable')); };
                             document.head.appendChild(script);
                         });
+                        return leafletPromise;
                     }
                     function renderProviders(){
                         const keys=Object.keys(providers).filter(key=>keylessProviders.includes(key));
@@ -434,12 +447,25 @@ $metricButtons = [
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
                         try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
-                        map.on('moveend',()=>{ if(map.getZoom()>=2) fetchViewport(); });
+                        map.on('movestart',()=>{
+                            // A new gesture makes all queued prediction stale immediately.
+                            cancelPrefetch();
+                            const c=map.getCenter();
+                            lastMove={lat:c.lat,lon:c.lng,t:performance.now()};
+                        });
+                        map.on('moveend',()=>{
+                            if(!map) return;
+                            const c=map.getCenter(), now=performance.now();
+                            const dt=lastMove?Math.max(1,now-lastMove.t):0;
+                            const dx=lastMove?(c.lng-lastMove.lon):0, dy=lastMove?(c.lat-lastMove.lat):0;
+                            lastMove={lat:c.lat,lon:c.lng,t:now};
+                            if(map.getZoom()>=2) fetchViewport({dir:{x:dx,y:dy,dt}});
+                        });
                         window.addEventListener('steps-map-shown',()=>{
                             if(!map) return;
                             didFit=false;
                             requestAnimationFrame(()=>map.invalidateSize({pan:false}));
-                            setTimeout(()=>{ map.invalidateSize({pan:false}); fetchViewport(); loadTrips(); },80);
+                            setTimeout(()=>{ map.invalidateSize({pan:false}); fetchViewport({dir:null}); loadTrips(); },80);
                         });
                         window.addEventListener('steps-map-focus',(event)=>{
                             const bbox=event.detail&&event.detail.bbox;
@@ -542,7 +568,6 @@ $metricButtons = [
                         if(!isFinite(span)||span<=0||span>85||(b.getNorth()-b.getSouth())>85) return '';
                         return [b.getWest(),b.getSouth(),b.getEast(),b.getNorth()].map(v=>v.toFixed(5)).join(',');
                     }
-                    let fetchPending=false;
                     function dateLocale(){ return (typeof currentLocale!=='undefined' && currentLocale) ? currentLocale : 'en-US'; }
                     function parseYMD(value){ const m=/^(\d{4})-(\d{2})-(\d{2})$/.exec(String(value||'')); return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):null; }
                     function toYMD(date){ return date.getFullYear()+'-'+String(date.getMonth()+1).padStart(2,'0')+'-'+String(date.getDate()).padStart(2,'0'); }
@@ -864,56 +889,200 @@ $metricButtons = [
                         document.getElementById('ma-trip-save')?.addEventListener('click',saveTrip);
                         document.getElementById('ma-trip-recalc')?.addEventListener('click',recalculateTrip);
                         updateMergeButton();
-                        loadTrips();
                     }
-                    async function fetchViewport(){
-                        if(busy){ fetchPending=true; return; }
+                    function chunkKey(params){
+                        return ['v1',fromInput.value,toInput.value,params.get('zoom')||'',params.get('layers')||'',
+                            params.get('family_email')||'',params.get('bbox')||''].join('|');
+                    }
+                    function cacheChunk(key,data,bytes){
+                        if(chunkCache.size>=24){
+                            const oldest=chunkCache.keys().next().value;
+                            if(oldest) chunkCache.delete(oldest);
+                        }
+                        chunkCache.set(key,{data,at:Date.now(),bytes:bytes||0});
+                    }
+                    function applyViewportData(data){
+                        providers=data.providers||providers;
+                        if(!provider) provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
+                        if(!providerSel.options.length) renderProviders();
+                        render(data.geojson.features);
+                        const c=data.meta.counts||{};
+                        summary.textContent=t.summary.replace('{trips}',c.trips||0).replace('{stops}',(c.stops||0)+(c.point_clusters||0)).replace('{places}',c.places||0).replace('{visits}',c.visits||0).replace('{points}',c.points||(c.point_clusters||0));
+                        if(!data.geojson.features.length) summary.textContent=t.empty;
+                    }
+                    function clearPrefetchQueue(abortRequests){
+                        while(prefetchQueue.length) prefetchQueue.shift();
+                        if(prefetchTimer){ clearTimeout(prefetchTimer); prefetchTimer=null; }
+                        if(abortRequests) cancelPrefetch();
+                    }
+                    function cancelPrefetch(){
+                        clearPrefetchQueue(false);
+                        if(prefetchAbort){
+                            try{ prefetchAbort.abort(); }catch(e){}
+                            prefetchAbort=null;
+                            prefetchActive=0;
+                            window.stepsMapPerf.cancelled+=1;
+                        }
+                    }
+                    function prefetchAllowed(){
+                        if(!mapConfig.prefetch||!mapStarted||!map||busy||document.hidden||navigator.onLine===false) return false;
+                        if(prefetchMode==='off') return false;
+                        const c=navigator.connection;
+                        if(c&&c.saveData) return false;
+                        if(c&&/^(slow-2g|2g|3g)$/.test(String(c.effectiveType||''))) return false;
+                        if(prefetchMode==='wifi'&&(!c||c.type!=='wifi')) return false;
+                        const now=Date.now();
+                        if(now-prefetchWindowStart>60000){ prefetchWindowStart=now; prefetchRequests=0; prefetchBytes=0; }
+                        const maxReq=prefetchMode==='aggressive'?12:5;
+                        const maxBytes=prefetchMode==='aggressive'?2097152:786432;
+                        return prefetchRequests<maxReq&&prefetchBytes<maxBytes;
+                    }
+                    function shiftedBounds(dx,dy){
+                        if(!map) return null;
+                        const b=map.getBounds(), west=b.getWest(), east=b.getEast(), south=b.getSouth(), north=b.getNorth();
+                        const w=east-west, h=north-south;
+                        const nx=Math.max(-179.9,Math.min(179.9,west+dx*w)), ny=Math.max(-89.9,Math.min(89.9,south+dy*h));
+                        return [nx,ny,Math.max(-179.9,Math.min(179.9,nx+w)),Math.max(-89.9,Math.min(89.9,ny+h))].map(v=>v.toFixed(5)).join(',');
+                    }
+                    function enqueuePrefetch(dir,ctx){
+                        if(!prefetchAllowed()||prefetchQueue.length>=2) return;
+                        if(!dir||Math.abs(dir.x)+Math.abs(dir.y)<0.00001) return;
+                        const ax=Math.abs(dir.x), ay=Math.abs(dir.y);
+                        const sx=ax>0.00001?Math.sign(dir.x):0, sy=ay>0.00001?Math.sign(dir.y):0;
+                        // Slow pans get one immediate neighbouring viewport. Fast pans
+                        // get only the leading edge, never a fan-out over crossed chunks.
+                        const look=0.6;
+                        const targets=[shiftedBounds(sx*look,sy*look)];
+                        if(prefetchMode==='aggressive'){
+                            targets.push(shiftedBounds(sx*look*2,sy*look*2));
+                            if(ax>0.00001&&ay>0.00001) targets.push(shiftedBounds(sx*look,sy*look*2));
+                        }
+                        targets.filter(Boolean).forEach(bbox=>{
+                            const p=ctx.params(); p.set('bbox',bbox);
+                            const key=chunkKey(p);
+                            if(chunkCache.has(key)) return;
+                            if(!prefetchQueue.some(q=>q.key===key)) prefetchQueue.push({key,params:p});
+                        });
+                        pumpPrefetch();
+                    }
+                    function pumpPrefetch(){
+                        if(prefetchActive||!prefetchQueue.length||!prefetchAllowed()) return;
+                        const item=prefetchQueue.shift();
+                        const controller=new AbortController();
+                        prefetchAbort=controller;
+                        prefetchActive=1; prefetchRequests+=1; window.stepsMapPerf.prefetch+=1;
+                        const timeout=setTimeout(()=>controller.abort(),10000);
+                        const started=performance.now();
+                        const prefetchParams=new URLSearchParams(item.params); prefetchParams.set('prefetch','1');
+                        fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+prefetchParams.toString(),{
+                            credentials:'same-origin',signal:controller.signal,priority:'low',headers:{'X-Steps-Prefetch':'1'}
+                        }).then(res=>res.ok?res.json():Promise.reject(new Error('prefetch_http'))).then(data=>{
+                            if(data&&data.ok){
+                                const bytes=JSON.stringify(data).length;
+                                prefetchBytes+=bytes; window.stepsMapPerf.prefetchBytes+=bytes;
+                                cacheChunk(item.key,data,bytes);
+                                const entry=chunkCache.get(item.key);
+                                if(entry&&data.meta&&data.meta.chunk&&data.meta.chunk.ttl) entry.ttl=data.meta.chunk.ttl*1000;
+                            }
+                        }).catch((e)=>{
+                            if(!(e&&e.name==='AbortError')) window.stepsMapPerf.errors+=1;
+                        }).finally(()=>{
+                            clearTimeout(timeout);
+                            if(prefetchAbort===controller){
+                                prefetchAbort=null; prefetchActive=0;
+                                if(performance.now()-started<12000) pumpPrefetch();
+                            }
+                        });
+                    }
+                    function schedulePrefetch(dir,ctx){
+                        clearTimeout(prefetchTimer);
+                        prefetchTimer=setTimeout(()=>{ prefetchTimer=null; enqueuePrefetch(dir,ctx); },dir?450:900);
+                    }
+                    async function fetchViewport(opts){
+                        if(!mapStarted||!map||!mapHost||mapHost.hidden) return;
+                        cancelPrefetch();
+                        const seq=++viewportSeq;
+                        if(viewportAbort) viewportAbort.abort();
+                        viewportAbort=new AbortController();
                         busy=true;
                         summary.textContent=t.loading; showError('');
-                        try{
+                        const makeParams=()=>{
                             const params=new URLSearchParams();
-                            const bbox=didFit?bboxQuery():''; if(bbox) params.set('bbox',bbox);
+                            const bbox=bboxQuery();
+                            if(bbox) params.set('bbox',bbox);
                             params.set('from',fromInput.value+'T00:00:00Z');
                             params.set('to',toInput.value+'T23:59:59Z');
                             params.set('zoom',String(map?Math.round(map.getZoom()):12));
                             params.set('layers',selectedLayers().join(','));
                             const family=document.getElementById('ma-map-family');
                             if(family&&family.value) params.set('family_email',family.value);
-                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin'});
+                            return params;
+                        };
+                        const params=makeParams();
+                        const key=chunkKey(params), cached=chunkCache.get(key);
+                        try{
+                            if(cached&&Date.now()-cached.at<(cached.ttl||20000)){
+                                window.stepsMapPerf.prefetchHits+=1;
+                                applyViewportData(cached.data);
+                                schedulePrefetch(opts&&opts.dir,{params:makeParams});
+                                return;
+                            }
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin',signal:viewportAbort.signal,headers:{'X-Steps-Prefetch':'0'}});
                             const data=await res.json();
-                            // An empty date range has no data extent, which the API reports as
-                            // invalid_bbox; treat it as an empty map instead of an error.
+                            if(seq!==viewportSeq) return;
                             if(data&&(data.error==='invalid_bbox'||data.error==='invalid_range')){
                                 render([]);
                                 summary.textContent=t.empty;
                                 return;
                             }
                             if(!res.ok||!data.ok) throw new Error((data&&data.error)||t.error);
-                            providers=data.providers||providers;
-                            if(!provider) provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
-                            if(!providerSel.options.length) renderProviders();
-                            render(data.geojson.features);
-                            const c=data.meta.counts||{};
-                            summary.textContent=t.summary.replace('{trips}',c.trips||0).replace('{stops}',(c.stops||0)+(c.point_clusters||0)).replace('{places}',c.places||0).replace('{visits}',c.visits||0).replace('{points}',c.points||(c.point_clusters||0));
-                            const mapReady=map && mapHost && !mapHost.hidden && canvas.clientWidth>60 && canvas.clientHeight>60;
-                            if(mapReady && !didFit){
-                                // data.bbox is the requested viewport on later calls, so fit to the
-                                // rendered features instead of echoing the current view back.
-                                const bounds=layerGroup.getBounds&&layerGroup.getBounds();
-                                if(bounds&&bounds.isValid()){
-                                    didFit=true;
-                                    map.fitBounds(bounds,{padding:[40,40],animate:false,maxZoom:15});
-                                } else if(data.bbox){
-                                    didFit=true;
-                                    map.fitBounds([[data.bbox.minLat,data.bbox.minLon],[data.bbox.maxLat,data.bbox.maxLon]],{padding:[28,28],animate:false,maxZoom:15});
-                                }
-                            }
-                            if(data.geojson.features.length===0) summary.textContent=t.empty;
-                        }catch(e){ showError((e&&e.message)||t.error); summary.textContent=''; }
-                        finally{
-                            busy=false;
-                            if(fetchPending){ fetchPending=false; fetchViewport(); }
+                            const bytes=JSON.stringify(data).length;
+                            window.stepsMapPerf.visible+=1; window.stepsMapPerf.bytes+=bytes;
+                            cacheChunk(key,data,bytes);
+                            applyViewportData(data);
+                            didFit=true;
+                            try{ localStorage.setItem('stepsMapView:'+String(currentUser||'u'),JSON.stringify(map.getCenter())+'|'+map.getZoom()); }catch(e){}
+                            schedulePrefetch(opts&&opts.dir,{params:makeParams});
+                        }catch(e){
+                            if(e&&e.name==='AbortError'){ window.stepsMapPerf.cancelled+=1; return; }
+                            if(seq!==viewportSeq) return;
+                            window.stepsMapPerf.errors+=1;
+                            showError((e&&e.message)||t.error); summary.textContent='';
+                        }finally{
+                            if(seq===viewportSeq) busy=false;
                         }
+                    }
+                    async function loadMapExtent(){
+                        const params=new URLSearchParams({extent:'1',from:fromInput.value+'T00:00:00Z',to:toInput.value+'T23:59:59Z'});
+                        const family=document.getElementById('ma-map-family');
+                        if(family&&family.value) params.set('family_email',family.value);
+                        try{
+                            const data=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin'}).then(r=>r.json());
+                            if(data&&data.ok&&data.bbox&&map) map.fitBounds([[data.bbox.minLat,data.bbox.minLon],[data.bbox.maxLat,data.bbox.maxLon]],{padding:[28,28],animate:false,maxZoom:15});
+                        }catch(e){}
+                    }
+                    async function startMapWorkspace(){
+                        if(mapStarted) return mapBootPromise;
+                        mapStarted=true;
+                        mapBootPromise=(async()=>{
+                            loadFamilyTargets();
+                            try{
+                                const [, L]=await Promise.all([loadSettings(), ensureLeaflet()]);
+                                makeMap(L);
+                                const saved=localStorage.getItem('stepsMapView:'+String(currentUser||'u'));
+                                if(saved){ const m=/^\{"lat":([-0-9.]+),"lng":([-0-9.]+)\}\|([0-9.]+)$/.exec(saved); if(m) map.setView([Number(m[1]),Number(m[2])],Number(m[3]),{animate:false}); }
+                                else await loadMapExtent();
+                            }catch(e){
+                                mapStarted=false;
+                                mapBootPromise=null;
+                                canvas.style.display='none';
+                                showError(t.unavailable);
+                                return;
+                            }
+                            await fetchViewport({dir:null});
+                            loadTrips();
+                        })();
+                        return mapBootPromise;
                     }
                     async function loadSettings(){
                         try{
@@ -923,6 +1092,13 @@ $metricButtons = [
                                 providers=data.providers||{};
                                 provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
                                 if(!keylessProviders.includes(provider)) provider=providers.esri_dark?'esri_dark':'osm';
+                                if(data.config){
+                                    mapConfig.prefetch=data.config.prefetch_enabled!==false;
+                                    mapConfig.overlays=data.config.overlays_enabled!==false;
+                                    if(!mapConfig.prefetch) prefetchMode='off';
+                                }
+                                const pf=document.getElementById('ma-map-prefetch');
+                                if(pf){ pf.value=prefetchMode; pf.disabled=!mapConfig.prefetch; }
                                 renderProviders();
                             }
                         }catch(e){ /* defaults stay usable */ }
@@ -1140,9 +1316,14 @@ $metricButtons = [
                     hideBtn?.addEventListener('click',()=>setSidebar(true));
                     showBtn?.addEventListener('click',()=>setSidebar(false));
                     try{ if(localStorage.getItem(SIDEBAR_KEY)==='1') setSidebar(true); }catch(e){}
-                    const onRangeChanged=()=>{ didFit=false; fetchViewport(); loadTrips(); };
+                    const onRangeChanged=()=>{
+                        didFit=false;
+                        clearPrefetchQueue(true);
+                        chunkCache.clear();
+                        if(mapStarted){ fetchViewport(); loadTrips(); }
+                    };
                     document.getElementById('ma-map-family')?.addEventListener('change',onRangeChanged);
-                    (async function loadFamilyTargets(){
+                    async function loadFamilyTargets(){
                         const select=document.getElementById('ma-map-family');
                         if(!select) return;
                         try{
@@ -1155,7 +1336,7 @@ $metricButtons = [
                                 select.appendChild(opt);
                             });
                         }catch(e){}
-                    })();
+                    }
                     const renderApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_renders';
                     const rd=id=>document.getElementById(id);
                     let renderJob=null, renderPoll=null;
@@ -1311,23 +1492,28 @@ $metricButtons = [
                     document.getElementById('ma-map-day-next')?.addEventListener('click',()=>shiftRange(1));
                     initDatePickers();
                     initTripManager();
+                    const prefetchSel=document.getElementById('ma-map-prefetch');
+                    if(prefetchSel){
+                        prefetchSel.value=prefetchMode;
+                        prefetchSel.addEventListener('change',()=>{
+                            prefetchMode=prefetchModes.includes(prefetchSel.value)?prefetchSel.value:'balanced';
+                            try{ localStorage.setItem(PREFETCH_KEY,prefetchMode); }catch(e){}
+                            cancelPrefetch(); chunkCache.clear();
+                        });
+                    }
                     providerSel.addEventListener('change',()=>{ provider=providerSel.value; selectProvider(provider); saveSettings(); });
                     const syncSpeedLegend=()=>{ const l=document.getElementById('ma-speed-legend'); if(l) l.hidden=!selectedLayers().includes('speed'); };
                     section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ syncSpeedLegend(); saveSettings(); fetchViewport(); }));
                     setTimeout(syncSpeedLegend,300);
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
-                    (async function(){
-                        await loadSettings();
-                        try{
-                            const L=await ensureLeaflet();
-                            makeMap(L);
-                        }
-                        catch(e){
-                            canvas.style.display='none';
-                            showError(t.unavailable);
-                        }
-                        await fetchViewport();
-                    })();
+                    window.addEventListener('steps-map-shown',()=>{ startMapWorkspace(); });
+                    document.addEventListener('visibilitychange',()=>{ if(document.hidden) cancelPrefetch(); });
+                    window.addEventListener('offline',()=>cancelPrefetch());
+                    // Network hints are advisory only: no transport classification is stored.
+                    if(navigator.connection&&navigator.connection.addEventListener){
+                        navigator.connection.addEventListener('change',()=>{ if(!prefetchAllowed()) cancelPrefetch(); });
+                    }
+                    if(mapStarted) startMapWorkspace();
                     }
                     if(document.readyState==='loading'){
                         document.addEventListener('DOMContentLoaded',boot,{once:true});
@@ -2067,6 +2253,15 @@ $metricButtons = [
                             <label class="settings-field">
                                 <span><?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?></span>
                                 <select id="ma-map-provider" aria-label="<?php echo htmlspecialchars($translations['map_provider'] ?? 'Tiles'); ?>"></select>
+                            </label>
+                            <label class="settings-field">
+                                <span><?php echo htmlspecialchars($translations['map_prefetch'] ?? 'Nearby map prefetch'); ?></span>
+                                <select id="ma-map-prefetch" aria-label="<?php echo htmlspecialchars($translations['map_prefetch'] ?? 'Nearby map prefetch'); ?>">
+                                    <option value="off"><?php echo htmlspecialchars($translations['map_prefetch_off'] ?? 'Off'); ?></option>
+                                    <option value="wifi"><?php echo htmlspecialchars($translations['map_prefetch_wifi'] ?? 'Wi-Fi only'); ?></option>
+                                    <option value="balanced" selected><?php echo htmlspecialchars($translations['map_prefetch_balanced'] ?? 'Balanced'); ?></option>
+                                    <option value="aggressive"><?php echo htmlspecialchars($translations['map_prefetch_aggressive'] ?? 'Aggressive'); ?></option>
+                                </select>
                             </label>
                         </section>
                     </div>

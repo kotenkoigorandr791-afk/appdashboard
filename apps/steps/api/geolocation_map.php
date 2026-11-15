@@ -15,6 +15,15 @@ public_api_rate_limit('geolocation_map', 300, 60);
 $pdo = app_main_db()->getPdo();
 StepsGeolocationFeatures::requireEnabled($pdo, $viewer, 'map');
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
+$flagOff = static function (string $name): bool {
+    $v = strtolower(trim((string)getenv($name)));
+    return in_array($v, ['1', 'true', 'on', 'yes'], true);
+};
+$mapConfig = [
+    'prefetch_enabled' => !$flagOff('GEO_MAP_PREFETCH_DISABLED'),
+    'overlays_enabled' => !$flagOff('GEO_MAP_OVERLAYS_DISABLED'),
+    'bounded_chunks' => true,
+];
 
 if (!empty($_GET['settings']) || ($method === 'POST' && ($_GET['settings'] ?? '') !== '')) {
     if ($method === 'POST') {
@@ -24,21 +33,22 @@ if (!empty($_GET['settings']) || ($method === 'POST' && ($_GET['settings'] ?? ''
         }
         $layers = isset($body['layers']) && is_array($body['layers']) ? $body['layers'] : null;
         $saved = StepsGeolocationMap::savePreferences($pdo, $viewer, $body['provider'] ?? null, $layers);
-        public_api_json(['ok' => true, 'settings' => $saved, 'providers' => StepsGeolocationMap::providers()]);
+        public_api_json(['ok' => true, 'settings' => $saved, 'providers' => StepsGeolocationMap::providers(), 'config' => $mapConfig]);
     }
-    public_api_json(['ok' => true, 'settings' => StepsGeolocationMap::preferences($pdo, $viewer), 'providers' => StepsGeolocationMap::providers()]);
+    public_api_json(['ok' => true, 'settings' => StepsGeolocationMap::preferences($pdo, $viewer), 'providers' => StepsGeolocationMap::providers(), 'config' => $mapConfig]);
 }
 
 if ($method !== 'GET') public_api_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
 
 $from = (string)($_GET['from'] ?? gmdate('c', time() - 30 * 86400));
 $to = (string)($_GET['to'] ?? gmdate('c'));
+$wantsExtent = ($_GET['extent'] ?? '') === '1';
 $bbox = StepsGeolocationMap::parseBbox((string)($_GET['bbox'] ?? ''));
-if ($bbox === null && trim((string)($_GET['bbox'] ?? '')) === '') {
+if ($bbox === null && !$wantsExtent && trim((string)($_GET['bbox'] ?? '')) === '') {
     // No viewport yet: start from the owner's own data extent.
     $bbox = StepsGeolocationMap::dataBbox($pdo, $viewer, $from, $to);
 }
-if ($bbox === null) public_api_json(['ok' => false, 'error' => 'invalid_bbox'], 400);
+if ($bbox === null && !$wantsExtent) public_api_json(['ok' => false, 'error' => 'invalid_bbox'], 400);
 if (strtotime($from) === false || strtotime($to) === false || strtotime($from) >= strtotime($to)) {
     public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 }
@@ -62,6 +72,19 @@ if ($scope !== null && $scope['scope_from'] !== null && $scope['scope_to'] !== n
     if (strtotime($fromIso) >= strtotime($toIso)) {
         public_api_json(['ok' => false, 'error' => 'outside_granted_range'], 403);
     }
+}
+
+// Cheap extent lookup, used once when the map has no saved viewport.
+// It returns only a padded bounding box, never points.
+if ($wantsExtent) {
+    $extent = StepsGeolocationMap::dataBbox($pdo, $target, $fromIso, $toIso);
+    public_api_json([
+        'ok' => true,
+        'bbox' => $extent,
+        'range' => ['from' => $fromIso, 'to' => $toIso],
+        'meta' => ['counts' => [], 'bounded' => true],
+        'config' => $mapConfig,
+    ]);
 }
 
 $layers = StepsGeolocationMap::layers((string)($_GET['layers'] ?? ''));
@@ -113,11 +136,30 @@ if (in_array('photos', $layers, true) && $target === $viewer) {
     }
 }
 
+$chunkMeta = [
+    'bbox' => $bbox,
+    'zoom' => (int)($mapOpts['zoom'] ?? 12),
+    'layers' => $layers,
+    'range' => ['from' => $fromIso, 'to' => $toIso],
+    'precision_m' => $scope !== null ? (float)$scope['precision_m'] : 0,
+    'generation' => $scope['generation'] ?? 0,
+    'ttl' => 20,
+];
+$etag = '"' . substr(hash('sha256', $cacheKey . '|' . json_encode($chunkMeta)), 0, 32) . '"';
+$result['meta']['chunk'] = $chunkMeta + ['etag' => $etag];
+header('ETag: ' . $etag);
+header('Vary: Cookie, Authorization');
+header('X-Steps-Map-Chunk: bounded');
+if (trim((string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? '')) === $etag) {
+    http_response_code(304);
+    exit;
+}
 public_api_json([
     'ok' => true,
     'geojson' => ['type' => $result['type'], 'features' => $result['features']],
     'photos' => $photos,
     'meta' => $result['meta'],
+    'config' => $mapConfig,
     'bbox' => $bbox,
     'range' => ['from' => $fromIso, 'to' => $toIso],
     'owner_email' => $target,

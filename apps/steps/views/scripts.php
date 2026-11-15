@@ -70,7 +70,6 @@
             window.addEventListener('blur', clearPressed);
         })();
 
-        Chart.register(ChartZoom);
 
         // Helper functions
         const formatNumber = num => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -399,7 +398,9 @@
             document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-type') === currentChartType));
             renderChartPreviews();
         }
-        function renderChartPreviews() {
+        async function renderChartPreviews() {
+            try { await window.ensureStepsCharts(); } catch (e) { return; }
+            if (!window.Chart) return;
             const canvasBar = document.getElementById('settings-chart-preview-bar');
             const canvasLine = document.getElementById('settings-chart-preview-line');
             if (!canvasBar || !canvasLine) return;
@@ -645,7 +646,9 @@
             return gradient;
         }
 
-        function renderChart(view, selectedDate, dataType, chartType, lang = currentLocale) {
+        async function renderChart(view, selectedDate, dataType, chartType, lang = currentLocale) {
+            try { await window.ensureStepsCharts(); } catch (e) { return; }
+            if (!window.Chart) return;
             if (chart) { chart.destroy(); chart = null; }
 
             const chartData = prepareChartData(view, selectedDate, dataType, lang);
@@ -871,7 +874,9 @@
             if (yearlyDistributionChart) { yearlyDistributionChart.destroy(); yearlyDistributionChart = null; }
             if (monthlyIntensityChart) { monthlyIntensityChart.destroy(); monthlyIntensityChart = null; }
         }
-        function renderStatisticsModal(lang = currentLocale) {
+        async function renderStatisticsModal(lang = currentLocale) {
+            try { await window.ensureStepsCharts(); } catch (e) { return; }
+            if (!window.Chart) return;
             destroyStatisticsCharts();
             const empty = document.getElementById('stats-empty');
             const grid = document.querySelector('#stats-modal .stats-grid');
@@ -3155,7 +3160,9 @@
 
         // App initialization
         function initApp() {
-            renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+            const paintChart = () => renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+            if ('requestIdleCallback' in window) requestIdleCallback(paintChart, {timeout: 1500});
+            else setTimeout(paintChart, 300);
             updateCalendar(currentLocale);
             initCustomSelect('year-selector', translations.year || 'Year');
             initCustomSelect('month-selector', translations.month || 'Month');

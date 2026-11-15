@@ -6,6 +6,8 @@
     <title><?php echo htmlspecialchars($translations['steps_counter_title']); ?></title>
     <?php
     $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
+    $bgBase = $theme === 'dark' ? 'background_dark' : 'background_light';
+    $bgSrcset = $bgBase . '-960.jpg 960w, ' . $bgBase . '-1920.jpg 1920w, ' . $bgFull . ' 5001w';
     $nameConfig = json_decode((string) @file_get_contents(__DIR__ . '/../name.json'), true);
     $menuButton = is_array($nameConfig['menu_button'] ?? null) ? $nameConfig['menu_button'] : [];
     $menuButtonLeft = (int) ($menuButton['left'] ?? 16);
@@ -13,13 +15,42 @@
     $menuButtonWidth = (int) ($menuButton['width'] ?? 40);
     $menuButtonHeight = (int) ($menuButton['height'] ?? 40);
     ?>
-    <link rel="preload" as="image" href="<?php echo htmlspecialchars($bgFull); ?>" fetchpriority="high">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+    <link rel="preload" as="image" href="<?php echo htmlspecialchars($bgFull); ?>" imagesrcset="<?php echo htmlspecialchars($bgSrcset); ?>" imagesizes="100vw" fetchpriority="low">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.5.12/cropper.min.js"></script>
+    <script>
+    // Chart.js is interaction-only. It is loaded on demand by scripts.php
+    // instead of blocking the initial render. Cropper had no call sites.
+    window.STEPS_CHART_ASSETS = [
+        'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+        'https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js',
+        'https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js'
+    ];
+    (function(){
+        var promise = null;
+        function loadScript(src) {
+            return new Promise(function(resolve, reject){
+                var s = document.createElement('script');
+                s.src = src; s.async = true;
+                s.onload = resolve; s.onerror = function(){ reject(new Error('asset_failed:' + src)); };
+                document.head.appendChild(s);
+            });
+        }
+        window.ensureStepsCharts = function(){
+            if (window.Chart && window.ChartZoom && window.ChartAnnotation) return Promise.resolve(window.Chart);
+            if (promise) return promise;
+            promise = window.STEPS_CHART_ASSETS.reduce(function(chain, src){
+                return chain.then(function(){ return loadScript(src); });
+            }, Promise.resolve()).then(function(){
+                if (window.Chart) {
+                    if (window.ChartZoom) window.Chart.register(window.ChartZoom);
+                    if (window.ChartAnnotation) window.Chart.register(window.ChartAnnotation);
+                }
+                return window.Chart;
+            }).catch(function(err){ promise = null; throw err; });
+            return promise;
+        };
+    })();
+    </script>
     <style>
         :root {
             color-scheme: <?php echo $theme === 'dark' ? 'dark' : 'light'; ?>;
