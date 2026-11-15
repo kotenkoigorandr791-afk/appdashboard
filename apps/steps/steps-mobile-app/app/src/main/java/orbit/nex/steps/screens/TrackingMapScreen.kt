@@ -87,11 +87,13 @@ import orbit.nex.steps.location.GeoMapRepository
 import orbit.nex.steps.location.GeoPointFeature
 import orbit.nex.steps.location.LocationPermissionState
 import orbit.nex.steps.location.LocationPermissions
+import orbit.nex.steps.location.LocationEventStore
 import orbit.nex.steps.location.LocationTrackingManager
 import orbit.nex.steps.location.TrackingState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import org.json.JSONObject
 
 private enum class MapStyle(val key: String, val titleRes: Int) {
     NORMAL("normal", R.string.map_style_standard),
@@ -213,7 +215,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     var lastUploadAt by remember { mutableStateOf(prefs.getLocationUploadOkAt()) }
     var lastError by remember { mutableStateOf(prefs.getLocationUploadError()) }
 
-    var selectedDay by remember { mutableStateOf(LocalDate.now()) }
+    var selectedDay by remember { mutableStateOf(prefs.getMapDay()?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()) }
     var data by remember { mutableStateOf(GeoMapData()) }
     var loading by remember { mutableStateOf(false) }
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
@@ -221,6 +223,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     var showLayers by remember { mutableStateOf(false) }
     var showPanels by remember { mutableStateOf(false) }
     var fittedDay by remember { mutableStateOf<LocalDate?>(null) }
+    var restoringCamera by remember { mutableStateOf(prefs.getMapCamera() != null) }
 
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val resolvedStyle = mapStyle
@@ -245,9 +248,9 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
 
     LaunchedEffect(selectedDay, config) {
-        val activeConfig = config ?: return@LaunchedEffect
         loading = true
-        data = repository.loadDay(activeConfig, selectedDay)
+        val remote = config?.let { repository.loadDay(it, selectedDay) } ?: GeoMapData()
+        data = remote.withLocalEvents(LocationEventStore(context).eventsForDay(selectedDay))
         loading = false
     }
 
@@ -259,12 +262,13 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     }
 
     val mapView = remember {
+        val camera = prefs.getMapCamera()
         MapView(context).apply {
             setMultiTouchControls(true)
             setHorizontalMapRepetitionEnabled(false)
             setVerticalMapRepetitionEnabled(false)
-            controller.setZoom(2.0)
-            controller.setCenter(GeoPoint(20.0, 0.0))
+            controller.setZoom(camera?.third ?: 13.0)
+            controller.setCenter(GeoPoint(camera?.first ?: 20.0, camera?.second ?: 0.0))
         }
     }
     val roadsOverlay = remember {
@@ -273,6 +277,9 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     DisposableEffect(Unit) {
         mapView.onResume()
         onDispose {
+            val center = mapView.mapCenter
+            prefs.setMapCamera(center.latitude, center.longitude, mapView.zoomLevelDouble)
+            prefs.setMapDay(selectedDay.toString())
             mapView.onPause()
             mapView.onDetach()
         }
@@ -303,7 +310,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         mapView.overlays.remove(roadsOverlay)
         if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
         val box = data.bbox
-        if (!data.isEmpty && box != null && fittedDay != selectedDay) {
+        if (!restoringCamera && !data.isEmpty && box != null && fittedDay != selectedDay) {
             fittedDay = selectedDay
             fitBoundingBox(mapView, box)
         }
@@ -354,11 +361,13 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 onPrevious = {
                     selectedDay = selectedDay.minusDays(1)
                     fittedDay = null
+                    restoringCamera = false
                 },
                 onNext = {
                     if (selectedDay.isBefore(LocalDate.now())) {
                         selectedDay = selectedDay.plusDays(1)
                         fittedDay = null
+                        restoringCamera = false
                     }
                 },
             )
@@ -415,7 +424,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             error = data.error ?: lastError,
             lastUploadAt = lastUploadAt,
             pending = pendingUploads,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
+            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
         )
     }
 
@@ -639,6 +648,7 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
     val placeColor = AndroidColor.rgb(120, 80, 220)
     val visitColor = AndroidColor.rgb(40, 170, 110)
     val pointColor = AndroidColor.argb(150, 90, 90, 100)
+    val pendingPointColor = AndroidColor.argb(210, 230, 130, 20)
 
     if (GeoLayer.TRIPS.key in layers) {
         data.trips.forEach { trip ->
@@ -671,11 +681,11 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
     // Raw points and aggregated clusters are decoration: dense days would be
     // unreadable as markers, so only clustered positions are drawn.
     if (GeoLayer.POINTS.key in layers) {
-        data.points.filter { it.layer == "point_cluster" || it.layer == "point" }.forEach { feature ->
+        data.points.filter { it.layer == "point_cluster" || it.layer == "point" || it.layer == "local_point" }.forEach { feature ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            marker.icon = dot(pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
+            marker.icon = dot(if (feature.pending) pendingPointColor else pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
             mapView.overlays.add(marker)
         }
     }
@@ -686,6 +696,21 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
         }
     }
     mapView.invalidate()
+}
+
+private fun GeoMapData.withLocalEvents(events: List<orbit.nex.steps.location.StoredLocationEvent>): GeoMapData {
+    val local = events.mapNotNull { event ->
+        runCatching { JSONObject(event.payload) }.getOrNull()?.let { payload ->
+            val lat = payload.optDouble("latitude", Double.NaN)
+            val lon = payload.optDouble("longitude", Double.NaN)
+            if (lat.isNaN() || lon.isNaN() || lat !in -90.0..90.0 || lon !in -180.0..180.0) null else GeoPointFeature("local_point", lat, lon, null, 1, 0.5f, pending = true)
+        }
+    }
+    if (local.isEmpty()) return this
+    val coordinates = points + local
+    val localBox = GeoBoundingBox(coordinates.maxOf { it.lat }, coordinates.minOf { it.lat }, coordinates.maxOf { it.lon }, coordinates.minOf { it.lon })
+    val merged = bbox?.let { GeoBoundingBox(maxOf(it.north, localBox.north), minOf(it.south, localBox.south), maxOf(it.east, localBox.east), minOf(it.west, localBox.west)) } ?: localBox
+    return copy(points = coordinates, bbox = merged)
 }
 
 private fun fitBoundingBox(mapView: MapView, bbox: GeoBoundingBox) {

@@ -88,6 +88,10 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCATION_UPLOAD_ERROR = "location_upload_error"
         private const val KEY_MAP_BASEMAP = "map_basemap"
         private const val KEY_MAP_LAYERS = "map_layers"
+        private const val KEY_MAP_CENTER_LAT = "map_center_lat"
+        private const val KEY_MAP_CENTER_LON = "map_center_lon"
+        private const val KEY_MAP_ZOOM = "map_zoom"
+        private const val KEY_MAP_DAY = "map_day"
         private const val KEY_SEEN_ACHIEVEMENTS = "seen_achievement_ids"
         const val MAP_BASEMAP_AUTO = "auto"
         val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "visits")
@@ -906,6 +910,21 @@ class PreferencesManager(context: Context) {
 
     fun setMapLayers(layers: Set<String>) {
         prefs.edit().putString(KEY_MAP_LAYERS, layers.joinToString(",")).apply()
+    }
+
+    fun getMapCamera(): Triple<Double, Double, Double>? {
+        if (!prefs.contains(KEY_MAP_CENTER_LAT) || !prefs.contains(KEY_MAP_CENTER_LON) || !prefs.contains(KEY_MAP_ZOOM)) return null
+        return Triple(Double.fromBits(prefs.getLong(KEY_MAP_CENTER_LAT, 0L)), Double.fromBits(prefs.getLong(KEY_MAP_CENTER_LON, 0L)), Double.fromBits(prefs.getLong(KEY_MAP_ZOOM, 0L)))
+    }
+
+    fun setMapCamera(latitude: Double, longitude: Double, zoom: Double) {
+        prefs.edit().putLong(KEY_MAP_CENTER_LAT, latitude.toBits()).putLong(KEY_MAP_CENTER_LON, longitude.toBits()).putLong(KEY_MAP_ZOOM, zoom.toBits()).apply()
+    }
+
+    fun getMapDay(): String? = prefs.getString(KEY_MAP_DAY, null)
+
+    fun setMapDay(day: String) {
+        prefs.edit().putString(KEY_MAP_DAY, day).apply()
     }
 
     /** Earned achievement ids already presented with the one-time reveal. */

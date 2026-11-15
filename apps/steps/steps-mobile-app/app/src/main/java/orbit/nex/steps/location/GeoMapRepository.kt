@@ -33,6 +33,7 @@ data class GeoPointFeature(
     val label: String?,
     val count: Int,
     val intensity: Float,
+    val pending: Boolean = false,
 )
 
 /** Data extent of the response, used to frame the map after loading a day. */

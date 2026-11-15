@@ -383,9 +383,10 @@ class MainActivity : AppCompatActivity() {
                     "${base.scheme}://${base.authority}/${rawUrl.trimStart('/')}"
                 }
                 loggedUrl = url
-                val body = JSONObject().put("action", action).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val body = JSONObject().put("action", action).put("id", obj.optString("id")).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
                 val builder = Request.Builder().url(url).post(body)
                 config?.headers?.forEach { (key, value) -> builder.addHeader(key, value) }
+                builder.header("X-Device-Id", preferencesManager.getDeviceId())
                 OkHttpClient().newCall(builder.build()).execute().use { response ->
                     if (response.isSuccessful) {
                         addConflictLog(url, timestamp, response.code, true, getString(R.string.conflict_resolve_success, action, response.code))

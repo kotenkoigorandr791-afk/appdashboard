@@ -402,10 +402,12 @@ class SyncManager(private val context: Context) {
             }
             val body = JSONObject()
                 .put("action", action)
+                .put("id", obj.optString("id"))
                 .toString()
                 .toRequestBody("application/json; charset=utf-8".toMediaType())
             val builder = Request.Builder().url(url).post(body)
             config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+            builder.header("X-Device-Id", preferencesManager.getDeviceId())
             OkHttpClient().newCall(builder.build()).execute().use { response ->
                 val success = response.isSuccessful
                 preferencesManager.addWebhookLog(

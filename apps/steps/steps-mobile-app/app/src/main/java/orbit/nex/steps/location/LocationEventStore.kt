@@ -5,6 +5,8 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlin.math.min
 
 /** A stored measurement and the state it currently holds. */
@@ -174,6 +176,18 @@ class LocationEventStore(context: Context) {
         ).use { cursor ->
             while (cursor.moveToNext()) out[cursor.getString(0)] = cursor.getInt(1)
         }
+        return out
+    }
+
+    fun eventsForDay(day: LocalDate): List<StoredLocationEvent> {
+        val zone = ZoneId.systemDefault()
+        val from = day.atStartOfDay(zone).toInstant().toEpochMilli()
+        val to = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val out = mutableListOf<StoredLocationEvent>()
+        helper.readableDatabase.rawQuery(
+            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, $COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS FROM $TABLE WHERE $COLUMN_CREATED_AT >= ? AND $COLUMN_CREATED_AT < ? ORDER BY $COLUMN_DEVICE_SEQUENCE ASC, $COLUMN_ID ASC",
+            arrayOf(from.toString(), to.toString()),
+        ).use { cursor -> while (cursor.moveToNext()) out += cursor.toEvent() }
         return out
     }
 

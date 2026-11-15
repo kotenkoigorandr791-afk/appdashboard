@@ -62,8 +62,6 @@ import orbit.nex.steps.location.LocationPermissionState
 import orbit.nex.steps.location.LocationTrackingManager
 import orbit.nex.steps.location.TrackingState
 
-private val INTERVAL_OPTIONS = listOf(1, 5, 10, 15, 30, 60)
-
 /**
  * Location tracking settings, opened from the settings tab and from the map.
  *
@@ -94,7 +92,6 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     var lastError by remember { mutableStateOf<String?>(prefs.getLocationUploadError()) }
     var permissionLost by remember { mutableStateOf(prefs.isLocationPermissionLost()) }
     var accuracy by remember { mutableStateOf(prefs.getLocationAccuracy()) }
-    var interval by remember { mutableIntStateOf(prefs.getLocationIntervalMinutes()) }
     var actionMessage by remember { mutableStateOf<String?>(null) }
 
     fun refresh() {
@@ -108,7 +105,6 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
         lastError = prefs.getLocationUploadError()
         permissionLost = prefs.isLocationPermissionLost()
         accuracy = prefs.getLocationAccuracy()
-        interval = prefs.getLocationIntervalMinutes()
     }
 
     LaunchedEffect(matchingConfig?.url) {
@@ -393,34 +389,6 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                                 shape = SegmentedButtonDefaults.itemShape(index, LocationAccuracy.entries.size),
                             ) {
                                 Text(stringResource(accuracyRes(option)), maxLines = 1)
-                            }
-                        }
-                    }
-                    HorizontalDivider()
-                    Text(
-                        stringResource(R.string.tracking_interval_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    // A plain wrapped row of interval chips keeps every option visible.
-                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                        INTERVAL_OPTIONS.chunked(3).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                                row.forEach { minutes ->
-                                    if (minutes == interval) {
-                                        Button(
-                                            onClick = {},
-                                            modifier = Modifier.weight(1f),
-                                        ) { Text(stringResource(R.string.tracking_interval_value, minutes)) }
-                                    } else {
-                                        OutlinedButton(
-                                            onClick = {
-                                                interval = minutes
-                                                prefs.setLocationIntervalMinutes(minutes)
-                                            },
-                                            modifier = Modifier.weight(1f),
-                                        ) { Text(stringResource(R.string.tracking_interval_value, minutes)) }
-                                    }
-                                }
                             }
                         }
                     }

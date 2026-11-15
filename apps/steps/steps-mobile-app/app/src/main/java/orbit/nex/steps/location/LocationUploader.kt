@@ -74,6 +74,11 @@ class LocationUploader(
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
+                    if (response.code == 409) {
+                        events.forEach { store.settle(it.eventId, LocationEventStore.STATE_DUPLICATE) }
+                        prefs.setLocationUploadSuccess()
+                        return@use UploadReport(duplicate = events.size, pending = store.pendingCount())
+                    }
                     if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
                     val retryable = response.code == 408 || response.code == 429 || response.code >= 500
                     val error = "HTTP ${response.code}"
