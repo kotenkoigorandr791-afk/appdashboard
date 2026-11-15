@@ -20,6 +20,11 @@ stay in one place:
 | `places` | GET, POST | Personal places |
 | `geofences` | GET, POST | Geofences and entry/exit events |
 | `devices` | GET, POST | Location devices, pause/resume/revoke |
+| `geolocation_quality` | GET, POST | Quality issues, corrections, match settings |
+| `geolocation_matching` | GET, POST | Raw/improved geometry and derived segments |
+| `geolocation_search` | GET | Unified authorized private search |
+| `geolocation_saved_views` | GET, POST | Private saved-view CRUD/apply/templates |
+| `geolocation_analytics` | GET, POST | Coverage-aware analytics summaries |
 
 All routes reject missing or invalid tokens before the endpoint runs. No
 endpoint in this list is public, and no stored secret is returned by the
@@ -28,9 +33,11 @@ location-library screen.
 ## Android location library
 
 `LocationLibraryScreen` is available from the bottom navigation as **Location**.
-It has wrapped tabs for Places, Trips, Visits, Achievements, Geofences and
-Devices. Each tab has explicit loading, empty, disabled and error states, a
-manual refresh, and no coordinates or tokens in the UI.
+It has wrapped tabs for Places, Trips, Visits, Achievements, Geofences,
+Devices, Quality, Search and Saved views. Each tab has explicit loading, empty,
+disabled and error states, a manual refresh, and no coordinates or tokens in
+the UI. Search is debounced and cancellable; saved-view apply switches to the
+Search tab with the saved query.
 
 Supported actions:
 

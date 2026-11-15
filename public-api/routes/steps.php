@@ -17,7 +17,9 @@ $geoEndpoint = strtolower((string)$sub);
 // public_api_bootstrap() and scopes all queries by the resolved owner.
 $geoEndpoints = [
     'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
-    'geolocation_achievements', 'geolocation_quality', 'geolocation_matching', 'places', 'geofences', 'devices',
+    'geolocation_achievements', 'geolocation_quality', 'geolocation_matching',
+    'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics',
+    'places', 'geofences', 'devices',
 ];
 if (in_array($geoEndpoint, $geoEndpoints, true)) {
     $geoFile = APP_ROOT . '/apps/steps/api/' . $geoEndpoint . '.php';

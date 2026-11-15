@@ -25,6 +25,9 @@ enum class LibraryTab(val endpoint: String) {
     GEOFENCES("geofences"),
     DEVICES("devices"),
     QUALITY("geolocation_quality"),
+    SEARCH("geolocation_search"),
+    SAVED("geolocation_saved_views"),
+    ANALYTICS("geolocation_analytics"),
 }
 
 enum class LibraryAction {
@@ -38,6 +41,9 @@ enum class LibraryAction {
     DISABLE,
     EXCLUDE,
     UNDO,
+    PIN_VIEW,
+    DELETE_VIEW,
+    APPLY_VIEW,
 }
 
 data class LibraryEntry(
@@ -48,6 +54,7 @@ data class LibraryEntry(
     val status: String = "",
     val active: Boolean? = null,
     val actions: List<LibraryAction> = emptyList(),
+    val query: String = "",
 )
 
 data class LibrarySnapshot(
@@ -68,9 +75,12 @@ class LocationLibraryRepository(
     private val prefs: PreferencesManager,
     private val client: OkHttpClient = OkHttpClient(),
 ) {
-    suspend fun load(config: WebhookConfig, tab: LibraryTab): LibrarySnapshot = withContext(Dispatchers.IO) {
+    suspend fun load(config: WebhookConfig, tab: LibraryTab, query: String = ""): LibrarySnapshot = withContext(Dispatchers.IO) {
         runCatching {
-            val root = get(config, tab.endpoint)
+            val endpoint = if (tab == LibraryTab.SEARCH) {
+                "geolocation_search?q=" + Uri.encode(query) + "&limit=30"
+            } else tab.endpoint
+            val root = get(config, endpoint)
             when (tab) {
                 LibraryTab.PLACES -> places(root)
                 LibraryTab.TRIPS -> trips(root)
@@ -79,6 +89,9 @@ class LocationLibraryRepository(
                 LibraryTab.GEOFENCES -> geofences(root)
                 LibraryTab.DEVICES -> devices(root)
                 LibraryTab.QUALITY -> quality(root)
+                LibraryTab.SEARCH -> search(root)
+                LibraryTab.SAVED -> savedViews(root)
+                LibraryTab.ANALYTICS -> analytics(root)
             }
         }.getOrElse { failure ->
             LibrarySnapshot(error = failure.message ?: "network")
@@ -123,6 +136,13 @@ class LocationLibraryRepository(
                     LibraryAction.UNDO -> "geolocation_quality" to JSONObject()
                         .put("action", "undo")
                         .put("id", entry.id)
+                    LibraryAction.PIN_VIEW -> "geolocation_saved_views" to JSONObject()
+                        .put("action", "pin")
+                        .put("id", entry.id)
+                    LibraryAction.DELETE_VIEW -> "geolocation_saved_views" to JSONObject()
+                        .put("action", "delete")
+                        .put("id", entry.id)
+                    LibraryAction.APPLY_VIEW -> "geolocation_saved_views" to JSONObject().put("action", "apply").put("id", entry.id)
                 }
                 post(config, endpoint, body)
                 Unit
@@ -315,6 +335,70 @@ class LocationLibraryRepository(
         val summary = listOf("accepted", "flagged", "excluded_by_user")
             .joinToString(" · ") { "$it: ${counts?.optInt(it, 0) ?: 0}" }
         return LibrarySnapshot(entries = entries, summary = summary)
+    }
+
+    private fun search(root: JSONObject): LibrarySnapshot {
+        val entries = mutableListOf<LibraryEntry>()
+        val rows = root.optJSONArray("results") ?: JSONArray()
+        for (i in 0 until rows.length()) {
+            val row = rows.optJSONObject(i) ?: continue
+            entries += LibraryEntry(
+                id = row.optString("id"),
+                title = row.optString("title").ifBlank { row.optString("type") },
+                subtitle = listOf(row.optString("type"), row.optString("summary"))
+                    .filter { it.isNotBlank() }.joinToString(" · "),
+                meta = formatTimestamp(row.optString("started_at")),
+                status = row.optString("status"),
+                active = true,
+            )
+        }
+        val range = root.optJSONObject("range")
+        return LibrarySnapshot(entries = entries, summary = range?.optString("label").orEmpty())
+    }
+
+    private fun savedViews(root: JSONObject): LibrarySnapshot {
+        val entries = mutableListOf<LibraryEntry>()
+        val rows = root.optJSONArray("views") ?: JSONArray()
+        for (i in 0 until rows.length()) {
+            val row = rows.optJSONObject(i) ?: continue
+            val queryObject = row.optJSONObject("query")
+            entries += LibraryEntry(
+                id = row.optString("id"),
+                title = row.optString("name").ifBlank { "—" },
+                subtitle = listOf(row.optString("context"), row.optString("date_period"))
+                    .filter { it.isNotBlank() }.joinToString(" · "),
+                meta = formatTimestamp(row.optString("updated_at")),
+                status = when {
+                    row.optBoolean("is_default") -> "default"
+                    row.optBoolean("is_pinned") -> "pinned"
+                    else -> "private"
+                },
+                active = true,
+                actions = listOf(LibraryAction.APPLY_VIEW, LibraryAction.PIN_VIEW, LibraryAction.DELETE_VIEW),
+                query = queryObject?.optString("q").orEmpty(),
+            )
+        }
+        return LibrarySnapshot(entries = entries)
+    }
+
+    private fun analytics(root: JSONObject): LibrarySnapshot {
+        val metrics = root.optJSONObject("metrics") ?: JSONObject()
+        val coverage = root.optJSONObject("coverage") ?: JSONObject()
+        val entries = mutableListOf<LibraryEntry>()
+        listOf(
+            "distance_m" to "Distance",
+            "trip_count" to "Trips",
+            "active_days" to "Active days",
+            "unique_places" to "Places",
+            "new_places" to "New places",
+            "geofence_events" to "Geofence events",
+        ).forEach { (key, label) ->
+            entries += LibraryEntry(id = key, title = label, subtitle = metrics.optString(key, "0"), active = true)
+        }
+        return LibrarySnapshot(
+            entries = entries,
+            summary = "Coverage ${coverage.optDouble("quality_percent", 0.0)}% · ${coverage.optString("confidence", "low")}",
+        )
     }
 
     private fun devices(root: JSONObject): LibrarySnapshot {

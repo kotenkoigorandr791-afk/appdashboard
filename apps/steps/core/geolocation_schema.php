@@ -125,6 +125,13 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v19_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '019']);
         }
+        // 020: private saved views, indexed search metadata and versioned
+        // analytics caches. A saved view stores a definition, never results.
+        $applied->execute([':version' => '020']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v20_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '020']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -385,6 +392,29 @@ function steps_geolocation_schema_v19_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_owner_time_idx ON geo_matched_segments(user_email, started_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_geometry_idx ON geo_matched_segments USING GIST(matched_geometry)",
         "ANALYZE geo_location_points",
+    ];
+}
+function steps_geolocation_schema_v20_sql(): array
+{
+    return [
+        "CREATE EXTENSION IF NOT EXISTS pg_trgm",
+        "CREATE TABLE IF NOT EXISTS geo_saved_views (id UUID PRIMARY KEY, user_email TEXT NOT NULL, name TEXT NOT NULL, description TEXT NOT NULL DEFAULT '', icon TEXT NOT NULL DEFAULT '', color TEXT NOT NULL DEFAULT '', context TEXT NOT NULL DEFAULT 'dashboard' CHECK (context IN ('dashboard','map','timeline','trips','places','quality','jobs','analytics')), query_json JSONB NOT NULL DEFAULT '{}'::jsonb, date_period TEXT NOT NULL DEFAULT 'last_30_days', date_from DATE, date_to DATE, timezone TEXT NOT NULL DEFAULT 'UTC', is_pinned BOOLEAN NOT NULL DEFAULT false, is_default BOOLEAN NOT NULL DEFAULT false, sort_order INTEGER NOT NULL DEFAULT 0, template_key TEXT NOT NULL DEFAULT '', version INTEGER NOT NULL DEFAULT 1, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_saved_views_owner_idx ON geo_saved_views(user_email, is_pinned DESC, sort_order ASC, updated_at DESC)",
+        "CREATE UNIQUE INDEX IF NOT EXISTS geo_saved_views_owner_default_idx ON geo_saved_views(user_email) WHERE is_default",
+        "CREATE TABLE IF NOT EXISTS geo_analytics_cache (user_email TEXT NOT NULL, range_key TEXT NOT NULL, timezone TEXT NOT NULL, formula_version TEXT NOT NULL, payload_json JSONB NOT NULL DEFAULT '{}'::jsonb, coverage_percent DOUBLE PRECISION NOT NULL DEFAULT 0, computed_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL, PRIMARY KEY (user_email, range_key, timezone, formula_version))",
+        "CREATE INDEX IF NOT EXISTS geo_analytics_cache_owner_idx ON geo_analytics_cache(user_email, computed_at DESC)",
+        // Metadata-only trigram indexes keep unified search bounded. Raw points
+        // are never indexed by free text and are never scanned without a date.
+        "CREATE INDEX IF NOT EXISTS geo_trips_title_trgm_idx ON geo_trips USING GIN (lower(title) gin_trgm_ops) WHERE deleted_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_trips_notes_trgm_idx ON geo_trips USING GIN (lower(notes) gin_trgm_ops) WHERE deleted_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_places_name_trgm_idx ON geo_places USING GIN (lower(name) gin_trgm_ops) WHERE deleted_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_places_tag_idx ON geo_places(user_email, tag) WHERE deleted_at IS NULL",
+        "CREATE INDEX IF NOT EXISTS geo_geofences_name_trgm_idx ON geo_geofences USING GIN (lower(name) gin_trgm_ops)",
+        "CREATE INDEX IF NOT EXISTS geo_import_files_name_trgm_idx ON geo_import_files USING GIN (lower(filename) gin_trgm_ops)",
+        "CREATE INDEX IF NOT EXISTS geo_devices_name_trgm_idx ON geo_devices USING GIN (lower(name) gin_trgm_ops)",
+        "ANALYZE geo_trips",
+        "ANALYZE geo_places",
+        "ANALYZE geo_geofences",
     ];
 }
 function steps_geolocation_schema_sql(): array

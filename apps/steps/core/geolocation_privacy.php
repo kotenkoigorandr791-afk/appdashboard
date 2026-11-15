@@ -212,7 +212,7 @@ final class StepsGeolocationPrivacy
 
         $tables = [
             'geo_webhook_deliveries', 'geo_notification_outbox', 'geo_trip_photos', 'geo_trip_places',
-            'geo_visits', 'geo_geofence_events', 'geo_geofences', 'geo_stops', 'geo_matched_segments',
+            'geo_saved_views', 'geo_analytics_cache', 'geo_visits', 'geo_geofence_events', 'geo_geofences', 'geo_stops', 'geo_matched_segments',
             'geo_quality_corrections', 'geo_match_settings', 'geo_trips',
             'geo_places', 'geo_immich_assets', 'geo_immich_connections', 'geo_point_sources',
             'geo_import_points', 'geo_import_files', 'geo_imports', 'geo_location_points',

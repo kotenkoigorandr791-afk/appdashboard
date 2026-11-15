@@ -3647,6 +3647,123 @@
                     if (status) status.textContent = toolsText('location_geofence_saved', 'Geofence saved.'); await loadLocationTools();
                 } catch (e) { if (status) status.textContent = e.message; }
             });
+            const searchApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_search';
+            const savedViewsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_saved_views';
+            const analyticsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_analytics';
+            let locationSearchRange = null;
+            let locationSearchTimer = null;
+            function locationSearchText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function locationSearchResultRow(item) {
+                const row = document.createElement('div');
+                row.className = 'location-tool-item';
+                const text = document.createElement('span');
+                const when = item.started_at ? new Date(item.started_at).toLocaleString() : '';
+                text.textContent = item.type + ' · ' + item.title + (item.summary ? ' · ' + item.summary : '') + (when ? ' · ' + when : '');
+                row.appendChild(text);
+                return row;
+            }
+            async function runLocationSearch() {
+                const status = document.getElementById('location-search-range');
+                const resultsHost = document.getElementById('location-search-results');
+                const suggestionsHost = document.getElementById('location-search-suggestions');
+                const q = document.getElementById('location-search-q')?.value || '';
+                const type = document.getElementById('location-search-type')?.value || '';
+                const params = new URLSearchParams({ q, limit: '30' });
+                if (type) params.set('types', type);
+                if (locationSearchRange) { params.set('from', locationSearchRange.from); params.set('to', locationSearchRange.to); }
+                try {
+                    const data = await toolsCall(searchApi + '&' + params.toString(), null);
+                    if (status) status.textContent = (data.range && data.range.label ? data.range.label : '') + ' · ' + (data.range && data.range.timezone ? data.range.timezone : '');
+                    if (suggestionsHost) suggestionsHost.textContent = (data.suggestions || []).join(' · ');
+                    if (resultsHost) {
+                        resultsHost.innerHTML = '';
+                        if (!(data.results || []).length) resultsHost.textContent = locationSearchText('location_search_empty', 'No authorized matches.');
+                        else (data.results || []).forEach(item => resultsHost.appendChild(locationSearchResultRow(item)));
+                    }
+                } catch (e) {
+                    if (status) status.textContent = e.message;
+                }
+            }
+            async function loadSavedViews() {
+                const host = document.getElementById('location-saved-views');
+                if (!host) return;
+                try {
+                    const data = await toolsCall(savedViewsApi, null);
+                    host.innerHTML = '';
+                    if (!(data.views || []).length) { host.textContent = locationSearchText('location_views_empty', 'No saved views yet.'); return; }
+                    (data.views || []).forEach(view => {
+                        const row = document.createElement('div');
+                        row.className = 'location-tool-item';
+                        const text = document.createElement('span');
+                        text.textContent = (view.is_pinned ? '★ ' : '') + view.name + ' · ' + view.context + ' · ' + view.date_period;
+                        row.appendChild(text);
+                        const apply = document.createElement('button');
+                        apply.type = 'button'; apply.className = 'excel-btn'; apply.textContent = locationSearchText('location_view_apply', 'Apply');
+                        apply.addEventListener('click', async () => {
+                            try {
+                                const applied = await toolsCall(savedViewsApi + '&id=' + encodeURIComponent(view.id) + '&apply=1&tz=' + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'), null);
+                                locationSearchRange = { from: applied.range.from, to: applied.range.to };
+                                const q = document.getElementById('location-search-q');
+                                if (q) q.value = (applied.view.query && applied.view.query.q) || '';
+                                await runLocationSearch();
+                            } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; }
+                        });
+                        row.appendChild(apply);
+                        const pin = document.createElement('button');
+                        pin.type = 'button'; pin.className = 'excel-btn'; pin.textContent = view.is_pinned ? locationSearchText('location_view_unpin', 'Unpin') : locationSearchText('location_view_pin', 'Pin');
+                        pin.addEventListener('click', async () => { try { await toolsCall(savedViewsApi, { action: 'pin', id: view.id }); await loadSavedViews(); } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; } });
+                        row.appendChild(pin);
+                        const del = document.createElement('button');
+                        del.type = 'button'; del.className = 'excel-btn'; del.textContent = locationSearchText('location_view_delete', 'Delete');
+                        del.addEventListener('click', async () => {
+                            if (!window.confirm(locationSearchText('location_view_confirm_delete', 'Delete this saved view?'))) return;
+                            try { await toolsCall(savedViewsApi, { action: 'delete', id: view.id }); await loadSavedViews(); } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; }
+                        });
+                        row.appendChild(del);
+                        host.appendChild(row);
+                    });
+                } catch (e) { host.textContent = e.message; }
+            }
+            async function loadAnalytics(refresh = false) {
+                const status = document.getElementById('location-analytics-status');
+                const cards = document.getElementById('location-analytics-cards');
+                const coverage = document.getElementById('location-analytics-coverage');
+                const places = document.getElementById('location-analytics-places');
+                const compare = document.getElementById('location-analytics-compare')?.checked ? '&compare=1' : '';
+                try {
+                    const data = await toolsCall(analyticsApi + '?from=' + encodeURIComponent(locationSearchRange?.from || '') + '&to=' + encodeURIComponent(locationSearchRange?.to || '') + '&tz=' + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC') + compare + (refresh ? '&refresh=1' : ''), null);
+                    if (status) status.textContent = (data.range?.label || '') + ' · ' + (data.cached ? 'cached' : 'fresh') + ' · ' + (data.formula_version || '');
+                    const metrics = data.metrics || {};
+                    if (cards) {
+                        cards.innerHTML = '';
+                        [['distance_m', 'Distance', 'm'], ['trip_count', 'Trips', ''], ['active_days', 'Active days', ''], ['unique_places', 'Places', ''], ['new_places', 'New places', ''], ['geofence_events', 'Geofence events', '']].forEach(([key, label, unit]) => {
+                            const card = document.createElement('div'); card.className = 'location-card';
+                            card.textContent = label + ': ' + (metrics[key] ?? 0) + (unit ? ' ' + unit : '');
+                            cards.appendChild(card);
+                        });
+                    }
+                    if (coverage) {
+                        const c = data.coverage || {}; const q = data.quality || {};
+                        coverage.textContent = locationSearchText('location_analytics_coverage', 'Coverage') + ': ' + (c.quality_percent ?? 0) + '% · ' + (c.confidence || 'low') + ' · ' + (locationSearchText('location_analytics_gap', 'largest gap') + ': ' + Math.round((c.largest_gap_s || 0) / 60) + ' min') + ' · ' + (q.accepted || 0) + ' accepted / ' + (q.rejected || 0) + ' rejected';
+                    }
+                    if (places) {
+                        places.innerHTML = '';
+                        (data.places || []).slice(0, 5).forEach(p => { const row = document.createElement('div'); row.className = 'location-tool-item'; row.textContent = p.name + ' · ' + p.visits + ' visits'; places.appendChild(row); });
+                    }
+                    if (Array.isArray(data.warnings) && data.warnings.length && coverage) coverage.textContent += ' · ' + data.warnings.join(' · ');
+                } catch (e) { if (status) status.textContent = e.message; }
+            }
+            document.getElementById('location-search-run')?.addEventListener('click', runLocationSearch);
+            document.getElementById('location-search-q')?.addEventListener('input', () => { clearTimeout(locationSearchTimer); locationSearchTimer = setTimeout(runLocationSearch, 350); });
+            document.getElementById('location-view-save')?.addEventListener('click', async () => {
+                const name = document.getElementById('location-view-name')?.value || '';
+                if (!name.trim()) return;
+                try {
+                    await toolsCall(savedViewsApi, { action: 'create', name, context: document.getElementById('location-view-context')?.value || 'dashboard', date_period: document.getElementById('location-view-period')?.value || 'last_30_days', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', query: { q: document.getElementById('location-search-q')?.value || '', types: document.getElementById('location-search-type')?.value ? [document.getElementById('location-search-type').value] : [] } });
+                    await loadSavedViews();
+                } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; }
+            });
+            document.getElementById('location-analytics-run')?.addEventListener('click', () => loadAnalytics(true));
             const immichApi = '/apps/steps/api/session_gateway.php?endpoint=immich';
             let immichGalleryPoll = null;
             function immichText(key, fallback) { return (window.translations && translations[key]) || fallback; }
@@ -4329,7 +4446,7 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
-                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); loadLocationTools(); loadNotifications(); }
+                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); loadLocationTools(); loadSavedViews(); loadAnalytics(); loadNotifications(); }
                     if (id === 'family') { loadFamily(); }
                     if (id === 'points') window.dispatchEvent(new CustomEvent('steps-points-tab-open'));
                     if (id === 'render') window.dispatchEvent(new CustomEvent('steps-render-tab-open'));

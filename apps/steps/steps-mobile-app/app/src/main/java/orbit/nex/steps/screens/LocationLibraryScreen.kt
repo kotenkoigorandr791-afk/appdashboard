@@ -28,6 +28,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -54,6 +55,7 @@ import orbit.nex.steps.location.LibraryEntry
 import orbit.nex.steps.location.LibrarySnapshot
 import orbit.nex.steps.location.LibraryTab
 import orbit.nex.steps.location.LocationLibraryRepository
+import kotlinx.coroutines.delay
 
 private data class PendingLibraryAction(val entry: LibraryEntry, val action: LibraryAction)
 
@@ -81,13 +83,15 @@ fun LocationLibraryScreen(modifier: Modifier = Modifier) {
     var actionBusy by remember { mutableStateOf(false) }
     var actionError by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
     val updatedLabel = stringResource(R.string.library_updated)
 
-    LaunchedEffect(tab, refreshKey, config?.url) {
+    LaunchedEffect(tab, refreshKey, config?.url, searchQuery) {
         val activeConfig = config ?: return@LaunchedEffect
+        if (tab == LibraryTab.SEARCH) delay(350)
         loading = true
         actionError = null
-        snapshot = repository.load(activeConfig, tab)
+        snapshot = repository.load(activeConfig, tab, if (tab == LibraryTab.SEARCH) searchQuery else "")
         loading = false
     }
 
@@ -124,6 +128,16 @@ fun LocationLibraryScreen(modifier: Modifier = Modifier) {
                     label = { Text(stringResource(candidate.titleRes())) },
                 )
             }
+        }
+
+        if (tab == LibraryTab.SEARCH) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                singleLine = true,
+                label = { Text(stringResource(R.string.library_search_label)) },
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+            )
         }
 
         Spacer(Modifier.height(8.dp))
@@ -184,6 +198,12 @@ fun LocationLibraryScreen(modifier: Modifier = Modifier) {
                     enabled = !actionBusy,
                     onClick = {
                         val activeConfig = config ?: return@TextButton
+                        if (request.action == LibraryAction.APPLY_VIEW) {
+                            searchQuery = request.entry.query
+                            tabName = LibraryTab.SEARCH.name
+                            pending = null
+                            return@TextButton
+                        }
                         actionBusy = true
                         actionError = null
                         scope.launch {
@@ -300,6 +320,9 @@ private fun LibraryTab.titleRes(): Int = when (this) {
     LibraryTab.GEOFENCES -> R.string.library_tab_geofences
     LibraryTab.DEVICES -> R.string.library_tab_devices
     LibraryTab.QUALITY -> R.string.library_tab_quality
+    LibraryTab.SEARCH -> R.string.library_tab_search
+    LibraryTab.SAVED -> R.string.library_tab_saved
+    LibraryTab.ANALYTICS -> R.string.library_tab_analytics
 }
 
 private fun LibraryAction.labelRes(): Int = when (this) {
@@ -313,6 +336,9 @@ private fun LibraryAction.labelRes(): Int = when (this) {
     LibraryAction.DISABLE -> R.string.library_disable
     LibraryAction.EXCLUDE -> R.string.library_exclude
     LibraryAction.UNDO -> R.string.library_undo
+    LibraryAction.PIN_VIEW -> R.string.library_pin_view
+    LibraryAction.DELETE_VIEW -> R.string.library_delete_view
+    LibraryAction.APPLY_VIEW -> R.string.library_apply_view
 }
 
 @Composable
@@ -325,4 +351,7 @@ private fun confirmText(action: LibraryAction): String = when (action) {
     LibraryAction.DISABLE -> stringResource(R.string.library_confirm_disable_geofence)
     LibraryAction.EXCLUDE -> stringResource(R.string.library_confirm_exclude)
     LibraryAction.UNDO -> stringResource(R.string.library_confirm_undo)
+    LibraryAction.PIN_VIEW -> stringResource(R.string.library_confirm_pin_view)
+    LibraryAction.DELETE_VIEW -> stringResource(R.string.library_confirm_delete_view)
+    LibraryAction.APPLY_VIEW -> stringResource(R.string.library_confirm_apply_view)
 }

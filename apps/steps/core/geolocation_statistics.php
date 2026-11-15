@@ -533,7 +533,7 @@ final class StepsGeolocationStatistics
         ];
     }
 
-    private static function aggregate(array $daily): array
+    public static function aggregate(array $daily): array
     {
         $metrics = [
             'point_count' => 0, 'accepted_points' => 0, 'flagged_points' => 0, 'rejected_points' => 0,
@@ -607,6 +607,15 @@ final class StepsGeolocationStatistics
             self::enqueue($pdo, $owner, $from, $to);
         } catch (Throwable $e) {
             error_log('geolocation statistics invalidation: ' . $e->getMessage());
+        }
+        try {
+            if (!class_exists('StepsGeolocationAnalytics')) {
+                $analyticsFile = __DIR__ . '/geolocation_analytics.php';
+                if (is_file($analyticsFile)) require_once $analyticsFile;
+            }
+            if (class_exists('StepsGeolocationAnalytics')) StepsGeolocationAnalytics::invalidate($pdo, $owner);
+        } catch (Throwable $e) {
+            error_log('analytics invalidation: ' . $e->getMessage());
         }
         // Imports, edits and deletions all end here, so achievements are queued
         // from the same canonical invalidation point. The evaluator skips owners

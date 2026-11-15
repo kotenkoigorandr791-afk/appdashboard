@@ -718,6 +718,16 @@
     <string name="library_tab_achievements">Достижения</string>
     <string name="library_tab_geofences">Геозоны</string>
     <string name="library_tab_devices">Устройства</string>
+    <string name="library_tab_search">Поиск</string>
+    <string name="library_tab_saved">Сохранённые</string>
+    <string name="library_tab_analytics">Аналитика</string>
+    <string name="library_search_label">Поиск по поездкам, местам, визитам, задачам…</string>
+    <string name="library_pin_view">Закрепить</string>
+    <string name="library_delete_view">Удалить</string>
+    <string name="library_apply_view">Применить</string>
+    <string name="library_confirm_pin_view">Закрепить или открепить это представление?</string>
+    <string name="library_confirm_delete_view">Удалить это сохранённое представление?</string>
+    <string name="library_confirm_apply_view">Применить это представление?</string>
     <string name="library_tab_quality">Качество</string>
     <string name="library_exclude">Исключить</string>
     <string name="library_undo">Отменить</string>

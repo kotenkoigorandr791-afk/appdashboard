@@ -2222,6 +2222,48 @@ $metricButtons = [
                             <p id="location-export-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-export-history" class="location-import-history"></div>
                         </section>
+                        <section class="location-section" id="location-explore-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-magnifying-glass"></i> <?php echo htmlspecialchars($translations['location_search_title'] ?? 'Search and saved views'); ?></h3>
+                            </div>
+                            <div class="location-import-form">
+                                <input type="search" id="location-search-q" maxlength="120" placeholder="<?php echo htmlspecialchars($translations['location_search_placeholder'] ?? 'Search trips, places, visits, jobs, dates…'); ?>" autocomplete="off">
+                                <select id="location-search-type" aria-label="Search type">
+                                    <option value=""><?php echo htmlspecialchars($translations['location_search_all'] ?? 'All authorized types'); ?></option>
+                                    <option value="trip">Trips</option><option value="place">Places</option><option value="visit">Visits</option>
+                                    <option value="geofence">Geofences</option><option value="device">Devices</option><option value="import">Imports</option>
+                                    <option value="export">Exports</option><option value="achievement">Achievements</option><option value="quality">Quality</option><option value="job">Jobs</option>
+                                </select>
+                                <button type="button" id="location-search-run" class="excel-btn"><i class="fas fa-magnifying-glass"></i> <?php echo htmlspecialchars($translations['location_search_run'] ?? 'Search'); ?></button>
+                            </div>
+                            <p id="location-search-range" class="location-hint" role="status" aria-live="polite"></p>
+                            <div id="location-search-suggestions" class="location-hint"></div>
+                            <div id="location-search-results" class="location-import-history"></div>
+                            <div class="location-tool-card">
+                                <h4><?php echo htmlspecialchars($translations['location_saved_views'] ?? 'Saved views'); ?></h4>
+                                <div class="location-tool-row">
+                                    <input type="text" id="location-view-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['location_view_name'] ?? 'View name'); ?>">
+                                    <select id="location-view-context"><option value="dashboard">Dashboard</option><option value="map">Map</option><option value="timeline">Timeline</option><option value="trips">Trips</option><option value="places">Places</option><option value="quality">Quality</option><option value="jobs">Jobs</option><option value="analytics">Analytics</option></select>
+                                    <select id="location-view-period"><option value="today">Today</option><option value="last_7_days">Last 7 days</option><option value="last_30_days" selected>Last 30 days</option><option value="last_90_days">Last 90 days</option><option value="this_month">This month</option><option value="last_month">Last month</option></select>
+                                    <button type="button" id="location-view-save" class="excel-btn"><i class="fas fa-bookmark"></i> <?php echo htmlspecialchars($translations['location_view_save'] ?? 'Save view'); ?></button>
+                                </div>
+                                <div id="location-saved-views" class="location-import-history"></div>
+                            </div>
+                        </section>
+                        <section class="location-section" id="location-analytics-section">
+                            <div class="location-section-head">
+                                <h3><i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['location_analytics_title'] ?? 'Private mobility analytics'); ?></h3>
+                                <div class="location-actions">
+                                    <label class="location-consent"><input type="checkbox" id="location-analytics-compare" checked> <?php echo htmlspecialchars($translations['location_analytics_compare'] ?? 'Compare previous period'); ?></label>
+                                    <button type="button" id="location-analytics-run" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['location_analytics_refresh'] ?? 'Refresh'); ?></button>
+                                </div>
+                            </div>
+                            <p id="location-analytics-status" class="location-hint" role="status" aria-live="polite"></p>
+                            <div id="location-analytics-cards" class="location-cards"></div>
+                            <div id="location-analytics-coverage" class="location-warnings"></div>
+                            <div id="location-analytics-places" class="location-details"></div>
+                            <p class="location-hint"><?php echo htmlspecialchars($translations['location_analytics_hint'] ?? 'Metrics are bounded aggregates. Coverage and confidence are shown; no transport mode is inferred.'); ?></p>
+                        </section>
                         <section class="location-section" id="location-tools-section">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-sliders"></i> <?php echo htmlspecialchars($translations['location_tools_title'] ?? 'Location management'); ?></h3>

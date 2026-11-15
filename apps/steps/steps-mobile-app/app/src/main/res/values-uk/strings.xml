@@ -620,6 +620,16 @@
     <string name="library_tab_achievements">Досягнення</string>
     <string name="library_tab_geofences">Геозони</string>
     <string name="library_tab_devices">Пристрої</string>
+    <string name="library_tab_search">Пошук</string>
+    <string name="library_tab_saved">Збережені</string>
+    <string name="library_tab_analytics">Аналітика</string>
+    <string name="library_search_label">Пошук по поїздках, місцях, візитах, завданнях…</string>
+    <string name="library_pin_view">Закріпити</string>
+    <string name="library_delete_view">Видалити</string>
+    <string name="library_apply_view">Застосувати</string>
+    <string name="library_confirm_pin_view">Закріпити або відкріпити це подання?</string>
+    <string name="library_confirm_delete_view">Видалити це збережене подання?</string>
+    <string name="library_confirm_apply_view">Застосувати це подання?</string>
     <string name="library_tab_quality">Якість</string>
     <string name="library_exclude">Виключити</string>
     <string name="library_undo">Скасувати</string>
