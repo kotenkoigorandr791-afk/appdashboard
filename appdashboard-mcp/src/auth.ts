@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { AsyncLocalStorage } from "node:async_hooks";
 import { existsSync, mkdirSync, readFileSync, writeFileSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
@@ -22,6 +22,40 @@ const CREDENTIALS_DIR = join(homedir(), ".config", "appdashboard-mcp");
 const CREDENTIALS_PATH = join(CREDENTIALS_DIR, "credentials.json");
 const POLL_INTERVAL_MS = 3000;
 const BROWSER_AUTH_TIMEOUT_MS = 5 * 60 * 1000;
+const AUTH_HTTP_TIMEOUT_MS = Math.max(1000, Number(process.env.MCP_AUTH_TIMEOUT_MS ?? 15_000));
+const AUTH_CACHE_TTL_MS = Math.max(0, Number(process.env.MCP_AUTH_CACHE_TTL_MS ?? 30_000));
+const AUTH_FAILURE_TTL_MS = Math.max(250, Number(process.env.MCP_AUTH_FAILURE_TTL_MS ?? 2_000));
+
+type Me = { email: string; name?: string; role: Role };
+type RoleCacheEntry = Me & { expiresAt: number };
+
+// Authorization results are isolated by host+token. The token itself is never
+// used as a map key (hashed instead) and HTTP callers never read the shared
+// on-disk role that belongs to the STDIO credentials file.
+const roleCache = new Map<string, RoleCacheEntry>();
+const roleFailures = new Map<string, number>();
+const roleInFlight = new Map<string, Promise<Me | null>>();
+
+function authCacheKey(token: string): string {
+  return createHash("sha256").update(`${getHost()}\n${token}`).digest("hex");
+}
+
+export function invalidateAuthCache(token?: string): void {
+  if (!token) {
+    roleCache.clear();
+    roleFailures.clear();
+    roleInFlight.clear();
+    return;
+  }
+  roleCache.delete(authCacheKey(token));
+  roleFailures.delete(authCacheKey(token));
+  roleInFlight.delete(authCacheKey(token));
+}
+
+/** Test-only hook: drops cached identities without touching credentials. */
+export function resetAuthCacheForTests(): void {
+  invalidateAuthCache();
+}
 
 let memoryCreds: Credentials | null = null;
 let browserPollPromise: Promise<Credentials | null> | null = null;
@@ -57,6 +91,7 @@ export function loadCredentials(): Credentials | null {
 }
 
 export function saveCredentials(creds: Credentials): void {
+  const previous = loadCredentials();
   mkdirSync(CREDENTIALS_DIR, { recursive: true });
   const next: Credentials = {
     host: creds.host.replace(/\/+$/, ""),
@@ -66,6 +101,7 @@ export function saveCredentials(creds: Credentials): void {
     cached_at: creds.cached_at || Math.floor(Date.now() / 1000),
   };
   if (creds.expires_at) next.expires_at = creds.expires_at;
+  if (previous?.token && previous.token !== next.token) invalidateAuthCache(previous.token);
   writeFileSync(CREDENTIALS_PATH, JSON.stringify(next, null, 2), { mode: 0o600 });
   memoryCreds = next;
 }
@@ -89,6 +125,7 @@ export function clearToken(): void {
 }
 
 export function clearCredentialsFile(): void {
+  invalidateAuthCache();
   memoryCreds = null;
   try {
     if (existsSync(CREDENTIALS_PATH)) unlinkSync(CREDENTIALS_PATH);
@@ -122,13 +159,33 @@ export function getToken(): string {
 }
 
 export function getCachedRole(): Role {
+  const context = authStorage.getStore();
+  if (context?.token) {
+    return roleCache.get(authCacheKey(context.token))?.role ?? 0;
+  }
   return normalizeRole(loadCredentials()?.role);
 }
 
+export function getCachedRoleForToken(token: string): Role | null {
+  if (!token) return null;
+  return roleCache.get(authCacheKey(token))?.role ?? null;
+}
+
 export function setCachedRole(role: Role): void {
+  const normalized = normalizeRole(role);
+  const context = authStorage.getStore();
+  if (context) {
+    if (!context.token) return;
+    const key = authCacheKey(context.token);
+    const existing = roleCache.get(key);
+    if (existing && existing.role !== normalized) {
+      roleCache.set(key, { ...existing, role: normalized, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+    }
+    return;
+  }
   const creds = loadCredentials();
-  if (!creds) return;
-  saveCredentials({ ...creds, role: normalizeRole(role) });
+  if (!creds || creds.role === normalized) return;
+  saveCredentials({ ...creds, role: normalized });
 }
 
 export function saveTokenCredentials(host: string, token: string, role?: Role, expiresAt?: number): Credentials {
@@ -145,7 +202,7 @@ export function saveTokenCredentials(host: string, token: string, role?: Role, e
 }
 
 async function fetchJson(url: string, init: RequestInit): Promise<{ status: number; data: any }> {
-  const res = await fetch(url, init);
+  const res = await fetch(url, { ...init, signal: init.signal ?? AbortSignal.timeout(AUTH_HTTP_TIMEOUT_MS) });
   let data: any = null;
   const text = await res.text();
   try {
@@ -193,33 +250,59 @@ export async function refreshToken(): Promise<Credentials> {
   return next;
 }
 
-export async function fetchMe(): Promise<{ email: string; name?: string; role: Role } | null> {
+export async function fetchMe(): Promise<Me | null> {
   const context = authStorage.getStore();
   const base = getHost();
   const token = context?.token || getToken();
   const deviceId = context ? context.deviceId : ensureDeviceId();
   if (!token || !base) return null;
-  const headers: Record<string, string> = {
-    Authorization: `Bearer ${token}`,
-    "Content-Type": "application/json",
-  };
-  if (deviceId) headers["X-Device-Id"] = deviceId;
-  const { status, data } = await fetchJson(`${base}/public-api/auth/me`, {
-    method: "GET",
-    headers,
-  });
-  if (status === 401 && !context) {
-    try {
-      await refreshToken();
-      return fetchMe();
-    } catch {
+  const key = authCacheKey(token);
+  const now = Date.now();
+  const cached = roleCache.get(key);
+  if (cached && cached.expiresAt > now) {
+    return { email: cached.email, name: cached.name, role: cached.role };
+  }
+  const failedUntil = roleFailures.get(key) ?? 0;
+  if (failedUntil > now) return null;
+  const pending = roleInFlight.get(key);
+  if (pending) return pending;
+
+  const promise = (async (): Promise<Me | null> => {
+    const headers: Record<string, string> = {
+      Authorization: `Bearer ${token}`,
+      "Content-Type": "application/json",
+    };
+    if (deviceId) headers["X-Device-Id"] = deviceId;
+    const { status, data } = await fetchJson(`${base}/public-api/auth/me`, {
+      method: "GET",
+      headers,
+    });
+    if (status === 401 && !context) {
+      try {
+        await refreshToken();
+        return fetchMe();
+      } catch {
+        return null;
+      }
+    }
+    if (status >= 400 || !data?.ok || !data?.user) {
+      roleFailures.set(key, Date.now() + AUTH_FAILURE_TTL_MS);
       return null;
     }
-  }
-  if (status >= 400 || !data?.ok || !data?.user) return null;
-  const role = normalizeRole(data.user.role);
-  setCachedRole(role);
-  return { email: String(data.user.email || ""), name: data.user.name, role };
+    const role = normalizeRole(data.user.role);
+    const me: Me = { email: String(data.user.email || ""), name: data.user.name, role };
+    roleCache.set(key, { ...me, expiresAt: Date.now() + AUTH_CACHE_TTL_MS });
+    roleFailures.delete(key);
+    if (!context) {
+      const creds = loadCredentials();
+      if (creds && creds.role !== role) saveCredentials({ ...creds, role });
+    }
+    return me;
+  })().finally(() => {
+    if (roleInFlight.get(key) === promise) roleInFlight.delete(key);
+  });
+  roleInFlight.set(key, promise);
+  return promise;
 }
 
 export async function startBrowserAuth(host?: string): Promise<{ auth_url: string; request_id: string; poll_token: string; expires_at?: number }> {

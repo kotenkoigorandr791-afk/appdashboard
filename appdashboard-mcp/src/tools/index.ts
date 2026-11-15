@@ -1,4 +1,4 @@
-import { getToken, fetchMe, getCachedRole } from "../auth.js";
+import { getToken, fetchMe, getCachedRole, getCachedRoleForToken, getStore } from "../auth.js";
 import { filterToolsByRole, insufficientRoleError, TOOL_MIN_ROLE, type Role } from "../roles.js";
 import { errorResult, textResult } from "../api.js";
 import { authTools } from "./auth.js";
@@ -45,11 +45,23 @@ export const ALL_TOOLS: ToolDef[] = [
 ];
 const byName = new Map(ALL_TOOLS.map((t) => [t.name, t]));
 
+// Role visibility is static for the lifetime of the process; compute each list
+// once instead of filtering all 146 tools on every tools/list and tools_call.
+const VISIBLE_BY_ROLE: Record<Role, ToolDef[]> = {
+  0: filterToolsByRole(ALL_TOOLS, 0),
+  1: filterToolsByRole(ALL_TOOLS, 1),
+  2: filterToolsByRole(ALL_TOOLS, 2),
+};
+
 export async function resolveRole(): Promise<Role | null> {
-  if (!getToken()) return null;
+  const token = getToken();
+  if (!token) return null;
   const me = await fetchMe();
   if (me) return me.role;
-  return getToken() ? getCachedRole() : null;
+  // HTTP requests must never fall back to the shared on-disk role. Use only
+  // this token's cached identity, or fail closed.
+  if (getStore()) return getCachedRoleForToken(token);
+  return getCachedRole();
 }
 
 const CATALOG_MODE_ENV = "MCP_GROUPED_TOOLS";
@@ -59,17 +71,26 @@ function groupedModeEnabled(): boolean {
   return raw === "" || raw === "1" || raw === "true" || raw === "yes" || raw === "on";
 }
 
+const catalogVisible = async (): Promise<ToolDef[]> => {
+  const role = await resolveRole();
+  return role === null ? [] : VISIBLE_BY_ROLE[role];
+};
+
+// Catalog handlers are static; create the seven catalog tools once. `callTool`
+// is a hoisted function declaration, so the invoke closure is valid here.
+const CATALOG_TOOLS = buildCatalogTools(catalogVisible, callTool);
+const CATALOG_BY_NAME = new Map(CATALOG_TOOLS.map((t) => [t.name, t]));
+
 export async function listToolsForCurrentUser() {
   const role = await resolveRole();
   if (role === null) {
     return [];
   }
-  const visible = filterToolsByRole(ALL_TOOLS, role);
-  const catalog = buildCatalogTools(() => Promise.resolve(visible));
+  const visible = VISIBLE_BY_ROLE[role];
   if (!groupedModeEnabled()) {
-    return [...catalog, ...visible].map(toMcpTool);
+    return [...CATALOG_TOOLS, ...visible].map(toMcpTool);
   }
-  return catalog.map(toMcpTool);
+  return CATALOG_TOOLS.map(toMcpTool);
 }
 
 function toMcpTool(t: ToolDef) {
@@ -85,8 +106,7 @@ export async function callTool(name: string, args: Record<string, unknown>) {
   if (role === null) {
     return textResult({ error: "not_authenticated", message: "Run setup with --token or set APPDASHBOARD_TOKEN." });
   }
-  const catalog = buildCatalogTools(async () => filterToolsByRole(ALL_TOOLS, role), callTool);
-  const catalogTool = catalog.find((t) => t.name === name);
+  const catalogTool = CATALOG_BY_NAME.get(name);
   if (catalogTool) {
     try {
       return await catalogTool.handler(args || {});
