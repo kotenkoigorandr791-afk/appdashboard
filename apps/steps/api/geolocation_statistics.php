@@ -38,13 +38,14 @@ if (($from === null) !== ($to === null)) public_api_json(['ok' => false, 'error'
 if ($from !== null && strcmp($from, $to) > 0) public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 
 try {
-    // A queued refresh means the daily rows may predate the latest edit/import.
-    // Recompute synchronously for this read so the dashboard never shows stale totals.
+    // Reads never recompute. A queued refresh is surfaced as `processing` while
+    // the last cached payload stays readable, so opening Statistics is bounded
+    // work even right after a large import. The durable worker owns refreshes.
     $pendingStats = $pdo->prepare("SELECT 1 FROM geo_processor_runs WHERE user_email = :owner AND kind = 'statistics' AND state IN ('pending','processing') LIMIT 1");
     $pendingStats->execute([':owner' => $owner]);
-    if ($pendingStats->fetchColumn()) {
-        try { StepsGeolocationStatistics::refresh($pdo, $owner, $timezone, $from, $to); } catch (Throwable $e) { error_log('statistics synchronous refresh: ' . $e->getMessage()); }
-    }
+    $processing = (bool)$pendingStats->fetchColumn();
+    if ($processing) StepsGeolocationStatistics::enqueue($pdo, $owner, $from, $to);
+
     if ($from === null) {
         $cached = $pdo->prepare('SELECT payload_json, computed_at FROM geo_statistics_cache WHERE user_email = :owner AND timezone = :tz AND processor_version = :version');
         $cached->execute([':owner' => $owner, ':tz' => $timezone, ':version' => StepsGeolocationStatistics::PROCESSOR_VERSION]);
@@ -53,6 +54,8 @@ try {
             $payload = json_decode((string)$row['payload_json'], true);
             if (is_array($payload)) {
                 $payload['cached'] = true;
+                $payload['processing'] = $processing;
+                $payload['stale'] = $processing;
                 $payload['computed_at'] = $row['computed_at'];
                 public_api_json(['ok' => true] + $payload);
             }
@@ -62,7 +65,7 @@ try {
     if ($from === null) {
         $latest = $pdo->prepare('SELECT MAX(source_at) FROM geo_location_points WHERE user_email = :owner');
         $latest->execute([':owner' => $owner]);
-        $payload = $summary + ['cached' => false, 'computed_at' => gmdate('c')];
+        $payload = $summary + ['cached' => false, 'processing' => $processing, 'stale' => $processing, 'computed_at' => gmdate('c')];
         $upsert = $pdo->prepare(
             "INSERT INTO geo_statistics_cache(user_email, timezone, processor_version, boundary_version, input_to, payload_json, computed_at)
              VALUES(:owner, :tz, :version, :boundary, :input_to, :payload, now())
@@ -76,7 +79,7 @@ try {
         ]);
         public_api_json(['ok' => true] + $payload);
     }
-    public_api_json(['ok' => true] + $summary + ['cached' => false]);
+    public_api_json(['ok' => true] + $summary + ['cached' => false, 'processing' => $processing, 'stale' => $processing]);
 } catch (InvalidArgumentException $e) {
     public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 } catch (Throwable $e) {

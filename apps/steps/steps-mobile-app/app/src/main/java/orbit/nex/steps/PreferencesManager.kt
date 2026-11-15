@@ -88,6 +88,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCATION_UPLOAD_ERROR = "location_upload_error"
         private const val KEY_MAP_BASEMAP = "map_basemap"
         private const val KEY_MAP_LAYERS = "map_layers"
+        private const val KEY_SEEN_ACHIEVEMENTS = "seen_achievement_ids"
         const val MAP_BASEMAP_AUTO = "auto"
         val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "visits")
         private const val DEFAULT_LOCATION_INTERVAL_MINUTES = 15
@@ -905,6 +906,15 @@ class PreferencesManager(context: Context) {
 
     fun setMapLayers(layers: Set<String>) {
         prefs.edit().putString(KEY_MAP_LAYERS, layers.joinToString(",")).apply()
+    }
+
+    /** Earned achievement ids already presented with the one-time reveal. */
+    fun getSeenAchievements(): Set<String> =
+        prefs.getStringSet(KEY_SEEN_ACHIEVEMENTS, emptySet()) ?: emptySet()
+
+    fun markAchievementsSeen(ids: Set<String>) {
+        if (ids.isEmpty()) return
+        prefs.edit().putStringSet(KEY_SEEN_ACHIEVEMENTS, getSeenAchievements() + ids).apply()
     }
 
 }

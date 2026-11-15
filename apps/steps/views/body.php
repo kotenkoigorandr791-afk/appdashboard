@@ -1559,24 +1559,89 @@ $metricButtons = [
         </div>
 
         <div id="stats-modal" style="display:none;">
-            <div class="stats-content">
-                <button class="modal-close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                <h2><i class="fas fa-chart-pie"></i> <?php echo htmlspecialchars($translations['statistics_title'] ?? 'Statistics'); ?></h2>
-                <div class="stats-grid">
-                    <section class="stats-card">
-                        <h3><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
-                        <div class="stats-chart-wrap">
-                            <canvas id="stats-years-chart"></canvas>
+            <div class="stats-content stats-experience">
+                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                <header class="stats-hero">
+                    <span class="stats-eyebrow"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_private_eyebrow'] ?? 'Private to your account'); ?></span>
+                    <h2><?php echo htmlspecialchars($translations['stats_experience_title'] ?? 'Activity & Movement'); ?></h2>
+                    <p><?php echo htmlspecialchars($translations['stats_experience_subtitle'] ?? 'Your steps, journeys and milestones, brought together in one calm view.'); ?></p>
+                    <div id="stats-freshness" class="stats-freshness" role="status" aria-live="polite"></div>
+                </header>
+                <div class="stats-tabbar" role="tablist" aria-label="<?php echo htmlspecialchars($translations['stats_sections'] ?? 'Statistics sections'); ?>">
+                    <button type="button" class="stats-tab is-active" role="tab" aria-selected="true" data-stats-tab="overview"><i class="fas fa-chart-simple" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_overview'] ?? 'Overview'); ?></span></button>
+                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="activity"><i class="fas fa-shoe-prints" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_activity'] ?? 'Steps & Health'); ?></span></button>
+                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="movement"><i class="fas fa-route" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_movement'] ?? 'Movement'); ?></span></button>
+                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="achievements"><i class="fas fa-trophy" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_achievements'] ?? 'Achievements'); ?></span></button>
+                    <button type="button" class="stats-tab" role="tab" aria-selected="false" data-stats-tab="quality"><i class="fas fa-shield-heart" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_quality'] ?? 'Data Quality'); ?></span></button>
+                </div>
+                <div class="stats-panels">
+                    <section class="stats-panel is-active" role="tabpanel" data-stats-panel="overview">
+                        <div class="stats-metric-grid">
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_active_days'] ?? 'Active days'); ?></span><strong id="stats-overview-days">—</strong><small><?php echo htmlspecialchars($translations['stats_active_days_hint'] ?? 'days with recorded movement'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_distance'] ?? 'Distance'); ?></span><strong id="stats-overview-distance">—</strong><small><?php echo htmlspecialchars($translations['stats_distance_hint'] ?? 'across your confirmed tracks'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_places'] ?? 'Places'); ?></span><strong id="stats-overview-places">—</strong><small><?php echo htmlspecialchars($translations['stats_places_hint'] ?? 'places you spent time in'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_earned'] ?? 'Earned'); ?></span><strong id="stats-overview-earned">—</strong><small><?php echo htmlspecialchars($translations['stats_earned_hint'] ?? 'milestones, visible only to you'); ?></small></article>
+                        </div>
+                        <div class="stats-overview-split">
+                            <article class="stats-card stats-spotlight">
+                                <span class="stats-card-kicker"><?php echo htmlspecialchars($translations['stats_this_year'] ?? 'This year'); ?></span>
+                                <h3><?php echo htmlspecialchars($translations['stats_steps_this_year'] ?? 'Steps in motion'); ?></h3>
+                                <strong id="stats-overview-steps">—</strong>
+                                <p id="stats-overview-average"></p>
+                            </article>
+                            <article class="stats-card">
+                                <h3><i class="fas fa-compass" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_reach'] ?? 'Your reach'); ?></h3>
+                                <div id="stats-overview-reach" class="stats-reach"></div>
+                            </article>
                         </div>
                     </section>
-                    <section class="stats-card">
-                        <h3 id="stats-monthly-title"><?php echo htmlspecialchars($translations['statistics_monthly_intensity'] ?? 'Monthly Step Intensity'); ?></h3>
-                        <div class="stats-chart-wrap">
-                            <canvas id="stats-months-chart"></canvas>
+                    <section class="stats-panel" role="tabpanel" data-stats-panel="activity" hidden>
+                        <div class="stats-grid">
+                            <section class="stats-card">
+                                <h3><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
+                                <div class="stats-chart-wrap"><canvas id="stats-years-chart"></canvas></div>
+                            </section>
+                            <section class="stats-card">
+                                <h3 id="stats-monthly-title"><?php echo htmlspecialchars($translations['statistics_monthly_intensity'] ?? 'Monthly Step Intensity'); ?></h3>
+                                <div class="stats-chart-wrap"><canvas id="stats-months-chart"></canvas></div>
+                            </section>
                         </div>
+                        <p id="stats-empty" style="display:none;"><?php echo htmlspecialchars($translations['statistics_no_data'] ?? 'No step data'); ?></p>
+                    </section>
+                    <section class="stats-panel" role="tabpanel" data-stats-panel="movement" hidden>
+                        <div class="stats-metric-grid">
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_route_distance'] ?? 'Route distance'); ?></span><strong id="stats-movement-distance">—</strong><small><?php echo htmlspecialchars($translations['stats_confirmed_only'] ?? 'confirmed history only'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_trips'] ?? 'Trips'); ?></span><strong id="stats-movement-trips">—</strong><small><?php echo htmlspecialchars($translations['stats_avg_trip'] ?? 'average journey'); ?><span id="stats-movement-trip-avg"></span></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_active_time'] ?? 'Active time'); ?></span><strong id="stats-movement-time">—</strong><small><?php echo htmlspecialchars($translations['stats_active_time_hint'] ?? 'recorded movement time'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_top_place'] ?? 'Most visited'); ?></span><strong id="stats-movement-place">—</strong><small id="stats-movement-place-meta"></small></article>
+                        </div>
+                        <article class="stats-card">
+                            <h3><i class="fas fa-calendar-week" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_week_rhythm'] ?? 'Weekly rhythm'); ?></h3>
+                            <div id="stats-week-rhythm" class="stats-week-rhythm"></div>
+                        </article>
+                    </section>
+                    <section class="stats-panel" role="tabpanel" data-stats-panel="achievements" hidden>
+                        <div class="stats-achievement-head">
+                            <div><span class="stats-card-kicker"><?php echo htmlspecialchars($translations['stats_earned_only'] ?? 'Earned only'); ?></span><h3><?php echo htmlspecialchars($translations['stats_milestones'] ?? 'Milestones you unlocked'); ?></h3></div>
+                            <strong id="stats-achievement-count" class="stats-achievement-count">—</strong>
+                        </div>
+                        <div id="stats-achievement-grid" class="stats-achievement-grid"></div>
+                        <p id="stats-achievement-empty" class="stats-empty-state" hidden><?php echo htmlspecialchars($translations['stats_no_achievements'] ?? 'Your first milestone is still ahead. Keep moving — unlocked achievements will appear here.'); ?></p>
+                    </section>
+                    <section class="stats-panel" role="tabpanel" data-stats-panel="quality" hidden>
+                        <div class="stats-metric-grid">
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_coverage'] ?? 'Coverage'); ?></span><strong id="stats-quality-coverage">—</strong><small><?php echo htmlspecialchars($translations['stats_coverage_hint'] ?? 'days with data in range'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_accuracy'] ?? 'Accuracy'); ?></span><strong id="stats-quality-accuracy">—</strong><small><?php echo htmlspecialchars($translations['stats_accuracy_hint'] ?? 'average reported radius'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_latest_point'] ?? 'Latest point'); ?></span><strong id="stats-quality-latest">—</strong><small><?php echo htmlspecialchars($translations['stats_latest_point_hint'] ?? 'last accepted sample'); ?></small></article>
+                            <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_devices'] ?? 'Devices'); ?></span><strong id="stats-quality-devices">—</strong><small><?php echo htmlspecialchars($translations['stats_devices_hint'] ?? 'paired sources'); ?></small></article>
+                        </div>
+                        <article class="stats-card">
+                            <h3><i class="fas fa-circle-nodes" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_sources'] ?? 'Sources'); ?></h3>
+                            <div id="stats-quality-sources" class="stats-sources"></div>
+                            <p class="stats-note"><?php echo htmlspecialchars($translations['stats_quality_note'] ?? 'Quality is computed from your own samples. Nothing here is shared, sold or used to infer transport.'); ?></p>
+                        </article>
                     </section>
                 </div>
-                <p id="stats-empty" style="display:none;"><?php echo htmlspecialchars($translations['statistics_no_data'] ?? 'No step data'); ?></p>
             </div>
         </div>
         <!-- Info Modal -->
@@ -2104,7 +2169,7 @@ $metricButtons = [
         <!-- Settings Modal -->
         <div id="settings-modal" style="display:none;">
             <div class="settings-content">
-                <button class="modal-close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                <button id="close-settings" class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
                 <h2><i class="fas fa-cog"></i> <?php echo htmlspecialchars($translations['settings_title']); ?></h2>
                 <div class="settings-tab-bar" role="tablist">
                     <button type="button" class="settings-tab active" data-settings-tab="profile" role="tab" aria-selected="true">
@@ -2800,18 +2865,11 @@ $metricButtons = [
                         enabled.checked = !!data.enabled;
                         hint.hidden = !!data.enabled;
                         list.innerHTML = '';
+                        // Settings only owns the preference and a bounded recompute.
+                        // Earned cards and progress live in the Statistics experience,
+                        // so this panel never renders a locked/progress checklist.
                         if (!data.enabled || !showList) return;
                         if (data.processing) status('achievements-status', tr('achievement_recomputing', 'Recomputing in the background…'));
-                        (data.collections || []).forEach(function (collection) {
-                            if (!collection.achievement_ids || !collection.achievement_ids.length) return;
-                            var heading = document.createElement('h4');
-                            heading.textContent = tr(collection.title_key, collection.id) + ' · ' + collection.earned + '/' + collection.total;
-                            list.appendChild(heading);
-                            (data.achievements || []).forEach(function (item) {
-                                if (collection.achievement_ids.indexOf(item.id) === -1) return;
-                                list.appendChild(achievementRow(item));
-                            });
-                        });
                     }
 
                     function loadAchievements(force) {

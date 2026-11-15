@@ -67,7 +67,6 @@ import orbit.nex.steps.screens.ConnectionGateScreen
 import orbit.nex.steps.screens.TrackingMapScreen
 import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
-import orbit.nex.steps.screens.LocationLibraryScreen
 import orbit.nex.steps.screens.WhatsNewSheet
 import orbit.nex.steps.components.AppBackground
 import orbit.nex.steps.components.AppTopBar
@@ -137,7 +136,12 @@ class MainActivity : AppCompatActivity() {
     private fun MainScreen() {
         val navigationSaver = Saver<NavigationScreen, String>(
             save = { it.route },
-            restore = { route -> bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home }
+            restore = { route ->
+                // Older builds stored the removed Library tab. Restore it as the
+                // map, where those entities now live, instead of dropping the tab.
+                if (route == "library") NavigationScreen.Tracking
+                else bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home
+            }
         )
         var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
         val online by NetworkState.online.collectAsState()
@@ -294,7 +298,6 @@ class MainActivity : AppCompatActivity() {
                             NavigationScreen.Home -> ConfigurationScreen(Modifier)
                             NavigationScreen.Tracking -> TrackingMapScreen(Modifier)
                             NavigationScreen.Statistics -> StatisticsScreen(Modifier)
-                            NavigationScreen.Library -> LocationLibraryScreen(Modifier)
                             NavigationScreen.About -> AboutScreen(Modifier)
                         }
                     }

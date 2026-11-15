@@ -136,6 +136,11 @@
             android:exported="false"
             android:label="@string/points_title"
             android:theme="@style/Theme.NexSteps" />
+        <activity
+            android:name=".PointSelectionActivity"
+            android:exported="false"
+            android:label="@string/points_select_title"
+            android:theme="@style/Theme.NexSteps" />
 
         <!-- Theme, accent, language and orientation -->
         <activity

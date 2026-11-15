@@ -98,6 +98,7 @@ docs/APP_DEBUG_URLS.md
 APP_DEBUG_URLS.md
 debug_panel.php
 **/.codex/
+/.agents/
 **/AGENTS.md
 **/agents.md
 **/CLAUDE.md

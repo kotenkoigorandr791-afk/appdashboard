@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Satellite
+import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -218,6 +219,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
     var layers by remember { mutableStateOf(prefs.getMapLayers()) }
     var showLayers by remember { mutableStateOf(false) }
+    var showPanels by remember { mutableStateOf(false) }
     var fittedDay by remember { mutableStateOf<LocalDate?>(null) }
 
     val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
@@ -369,6 +371,11 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             MapControlButton(
+                icon = Icons.Filled.TravelExplore,
+                contentDescription = stringResource(R.string.map_panels_open),
+                onClick = { showPanels = true },
+            )
+            MapControlButton(
                 icon = Icons.Filled.Layers,
                 contentDescription = stringResource(R.string.map_layers),
                 onClick = { showLayers = true },
@@ -410,6 +417,10 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             pending = pendingUploads,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 104.dp),
         )
+    }
+
+    if (showPanels) {
+        LocationPanelsSheet(onDismiss = { showPanels = false })
     }
 
     if (showLayers) {

@@ -532,7 +532,7 @@
                     if (vn) vn.style.display = 'none';
                 }
                 if (modalId === 'stats-modal') {
-                    setTimeout(renderStatisticsModal, 0);
+                    setTimeout(openStatisticsExperience, 0);
                 }
                 modal.addEventListener('click', function(e) {
                     if (e.target === modal) {
@@ -874,7 +874,7 @@
             if (yearlyDistributionChart) { yearlyDistributionChart.destroy(); yearlyDistributionChart = null; }
             if (monthlyIntensityChart) { monthlyIntensityChart.destroy(); monthlyIntensityChart = null; }
         }
-        async function renderStatisticsModal(lang = currentLocale) {
+        async function renderStatisticsCharts(lang = currentLocale) {
             try { await window.ensureStepsCharts(); } catch (e) { return; }
             if (!window.Chart) return;
             destroyStatisticsCharts();
@@ -982,6 +982,312 @@
                 }
             });
         }
+
+        const statsExperience = { summary: null, achievements: null, active: 'overview', summaryLoading: false, achievementsLoading: false, error: '' };
+
+        function statsText(id, value) {
+            const node = document.getElementById(id);
+            if (node) node.textContent = value == null || value === '' ? '—' : String(value);
+        }
+
+        function statsDistance(meters) {
+            const value = Number(meters) || 0;
+            if (value <= 0) return '0 km';
+            return value < 1000 ? Math.round(value) + ' m' : (value / 1000).toFixed(value >= 100000 ? 0 : 1) + ' km';
+        }
+
+        function statsDuration(seconds) {
+            const value = Math.max(0, Math.round(Number(seconds) || 0));
+            const hours = Math.floor(value / 3600);
+            const minutes = Math.round((value % 3600) / 60);
+            return hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm';
+        }
+
+        function statsDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(currentLocale, { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function statsBadge(text, kind) {
+            const node = document.createElement('span');
+            if (kind) node.className = kind;
+            node.textContent = text;
+            return node;
+        }
+
+        function renderStatsFreshness() {
+            const host = document.getElementById('stats-freshness');
+            if (!host) return;
+            host.textContent = '';
+            const summary = statsExperience.summary;
+            if (statsExperience.error) host.appendChild(statsBadge(statsExperience.error, 'is-waiting'));
+            if (summary) {
+                if (summary.processing) host.appendChild(statsBadge(translations.stats_processing || 'Updating in the background…', 'is-waiting'));
+                else host.appendChild(statsBadge(translations.stats_up_to_date || 'Up to date', 'is-live'));
+                if (summary.computed_at) host.appendChild(statsBadge(statsDate(summary.computed_at)));
+                if (summary.cached) host.appendChild(statsBadge(translations.stats_cached || 'Instant cached view'));
+            } else if (statsExperience.summaryLoading) {
+                host.appendChild(statsBadge(translations.stats_loading || 'Loading your activity…', 'is-waiting'));
+            }
+            const achievements = statsExperience.achievements;
+            if (achievements && achievements.enabled === false) host.appendChild(statsBadge(translations.achievement_disabled_notice || 'Achievements are disabled'));
+        }
+
+        function renderStatsOverview() {
+            const year = new Date().getFullYear();
+            let steps = 0;
+            let days = 0;
+            stepsData.forEach(entry => {
+                const date = localDateFromYMD(entry.date);
+                if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+                    steps += Number(entry.steps) || 0;
+                    if ((Number(entry.steps) || 0) > 0) days++;
+                }
+            });
+            statsText('stats-overview-steps', formatNumber(steps));
+            statsText('stats-overview-average', days ? (translations.stats_daily_average || 'Daily average') + ': ' + formatNumber(Math.round(steps / days)) : '');
+            const summary = statsExperience.summary;
+            const metrics = summary && summary.metrics ? summary.metrics : {};
+            statsText('stats-overview-days', metrics.active_days != null ? formatNumber(metrics.active_days) : (days || 0));
+            statsText('stats-overview-distance', metrics.route_distance_m != null ? statsDistance(metrics.route_distance_m) : '—');
+            const places = summary && summary.most_visited_places ? summary.most_visited_places : [];
+            statsText('stats-overview-places', places.length ? formatNumber(places.length) : (metrics.cities ? metrics.cities.length : '—'));
+            const achievements = statsExperience.achievements;
+            statsText('stats-overview-earned', achievements && achievements.enabled !== false ? formatNumber(achievements.earned_count || 0) : '—');
+
+            const reach = document.getElementById('stats-overview-reach');
+            if (reach) {
+                reach.textContent = '';
+                const countries = metrics.countries || [];
+                const cities = metrics.cities || [];
+                countries.slice(0, 6).forEach(country => reach.appendChild(statsBadge((country.name || country.code || '') + ' · ' + (translations.stats_country || 'country'))));
+                cities.slice(0, 6).forEach(city => reach.appendChild(statsBadge(String(city))));
+                if (!countries.length && !cities.length) {
+                    reach.appendChild(statsBadge(translations.stats_reach_empty || 'Movement will appear here as your history grows.'));
+                }
+            }
+        }
+
+        function renderStatsMovement() {
+            const summary = statsExperience.summary;
+            if (!summary) return;
+            const metrics = summary.metrics || {};
+            const movement = summary.movement_patterns || {};
+            const places = summary.most_visited_places || [];
+            statsText('stats-movement-distance', statsDistance(metrics.route_distance_m));
+            statsText('stats-movement-trips', formatNumber(movement.trips || 0));
+            statsText('stats-movement-trip-avg', movement.avg_distance_m ? ' · ' + statsDistance(movement.avg_distance_m) : '');
+            statsText('stats-movement-time', statsDuration(metrics.active_seconds));
+            const top = places[0];
+            statsText('stats-movement-place', top ? (top.name || top.label || '—') : '—');
+            statsText('stats-movement-place-meta', top ? (translations.stats_visits || 'visits') + ': ' + formatNumber(top.visits || top.count || 0) : '');
+            const host = document.getElementById('stats-week-rhythm');
+            if (!host) return;
+            host.textContent = '';
+            const weekdays = (translations.days_of_week && translations.days_of_week.length === 7) ? translations.days_of_week : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            const rows = movement.by_weekday || [];
+            const max = rows.reduce((value, row) => Math.max(value, Number(row.trips) || 0), 0);
+            for (let index = 0; index < 7; index++) {
+                const row = rows[index] || {};
+                const trips = Number(row.trips) || 0;
+                const day = document.createElement('div');
+                day.className = 'stats-rhythm-day';
+                const value = document.createElement('strong');
+                value.textContent = formatNumber(trips);
+                const bar = document.createElement('div');
+                bar.className = 'stats-rhythm-bar';
+                bar.style.height = (max ? Math.max(5, Math.round(trips / max * 96)) : 5) + 'px';
+                bar.title = weekdays[index] + ': ' + trips;
+                const label = document.createElement('small');
+                label.textContent = weekdays[index];
+                day.appendChild(value);
+                day.appendChild(bar);
+                day.appendChild(label);
+                host.appendChild(day);
+            }
+        }
+
+        function renderStatsQuality() {
+            const summary = statsExperience.summary;
+            if (!summary) return;
+            const coverage = summary.coverage || {};
+            const accuracy = summary.accuracy || {};
+            const health = summary.source_health || {};
+            const percent = Math.round((Number(coverage.coverage_ratio) || 0) * 100);
+            statsText('stats-quality-coverage', percent + '%');
+            statsText('stats-quality-accuracy', accuracy.avg_m != null ? '±' + Math.round(accuracy.avg_m) + ' m' : '—');
+            statsText('stats-quality-latest', health.latest_point_at ? statsDate(health.latest_point_at) : '—');
+            statsText('stats-quality-devices', formatNumber((health.devices || []).length));
+            const host = document.getElementById('stats-quality-sources');
+            if (!host) return;
+            host.textContent = '';
+            const sources = health.sources || {};
+            Object.keys(sources).forEach(source => {
+                host.appendChild(statsBadge(source + ' · ' + formatNumber(sources[source])));
+            });
+            (health.devices || []).forEach(device => {
+                host.appendChild(statsBadge((device.name || device.platform || 'Device') + ' · ' + (device.status || '')));
+            });
+            if (!host.children.length) host.appendChild(statsBadge(translations.stats_no_sources || 'No paired sources yet.'));
+        }
+
+        function achievementIcon(name) {
+            return ({
+                public: 'fa-earth-americas', map: 'fa-map', location_city: 'fa-city',
+                place: 'fa-location-dot', route: 'fa-route', calendar: 'fa-calendar-days'
+            })[name] || 'fa-medal';
+        }
+
+        function achievementTier(item) {
+            const target = Number(item.target) || 0;
+            if (item.unit === 'm') return (target / 1000) + ' km';
+            if (item.unit === 'days') return target + ' ' + (translations.achievement_days || 'days');
+            return formatNumber(target);
+        }
+
+        function renderStatsAchievements() {
+            const data = statsExperience.achievements;
+            const host = document.getElementById('stats-achievement-grid');
+            const empty = document.getElementById('stats-achievement-empty');
+            if (!host) return;
+            host.textContent = '';
+            const earned = data && data.enabled !== false ? (data.earned_achievements || []) : [];
+            if (data) statsText('stats-achievement-count', formatNumber(data.earned_count || earned.length));
+            if (empty) empty.hidden = earned.length > 0;
+            if (!data && statsExperience.achievementsLoading) {
+                if (empty) { empty.hidden = false; empty.textContent = translations.stats_loading || 'Loading…'; }
+                return;
+            }
+            earned.forEach((item, index) => {
+                const card = document.createElement('article');
+                card.className = 'stats-achievement';
+                card.style.animationDelay = Math.min(index * 35, 260) + 'ms';
+                const icon = document.createElement('div');
+                icon.className = 'stats-achievement-icon';
+                icon.innerHTML = '<i class="fas ' + achievementIcon(item.icon) + '" aria-hidden="true"></i>';
+                const title = document.createElement('h4');
+                title.textContent = translations[item.title_key] || trFallbackKey(item.title_key);
+                const description = document.createElement('p');
+                description.textContent = translations[item.description_key] || trFallbackKey(item.description_key);
+                const footer = document.createElement('footer');
+                const tier = document.createElement('span');
+                tier.textContent = achievementTier(item);
+                const badge = document.createElement('span');
+                badge.className = 'stats-achievement-badge';
+                badge.textContent = (translations.achievement_earned || 'Earned') + (item.earned_at ? ' · ' + statsDate(item.earned_at) : '');
+                footer.appendChild(tier);
+                footer.appendChild(badge);
+                card.appendChild(icon);
+                card.appendChild(title);
+                card.appendChild(description);
+                card.appendChild(footer);
+                host.appendChild(card);
+            });
+            if (!earned.length && data && empty) empty.textContent = translations.stats_no_achievements || 'Your first milestone is still ahead.';
+        }
+
+        function trFallbackKey(key) {
+            return String(key || '').replace(/^achievement_(desc_|family_|collection_)?/, '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+        }
+
+        function activateStatsTab(name, focus) {
+            const valid = ['overview', 'activity', 'movement', 'achievements', 'quality'];
+            if (!valid.includes(name)) name = 'overview';
+            statsExperience.active = name;
+            document.querySelectorAll('#stats-modal .stats-tab').forEach(button => {
+                const on = button.getAttribute('data-stats-tab') === name;
+                button.classList.toggle('is-active', on);
+                button.setAttribute('aria-selected', on ? 'true' : 'false');
+                button.tabIndex = on ? 0 : -1;
+                if (on && focus) button.focus({ preventScroll: true });
+            });
+            document.querySelectorAll('#stats-modal .stats-panel').forEach(panel => {
+                const on = panel.getAttribute('data-stats-panel') === name;
+                panel.hidden = !on;
+                panel.classList.toggle('is-active', on);
+            });
+            if (name === 'activity') setTimeout(() => renderStatisticsCharts(), 20);
+            if (name === 'overview') renderStatsOverview();
+            if (name === 'movement') renderStatsMovement();
+            if (name === 'achievements') renderStatsAchievements();
+            if (name === 'quality') renderStatsQuality();
+            if (name === 'movement' || name === 'quality') loadStatsSummary(false);
+            if (name === 'achievements') loadStatsAchievements(false);
+        }
+
+        function statsGateway(endpoint) {
+            return '/apps/steps/api/session_gateway.php?endpoint=' + endpoint;
+        }
+
+        async function loadStatsSummary(force) {
+            if (statsExperience.summaryLoading) return;
+            if (statsExperience.summary && !force) return;
+            statsExperience.summaryLoading = true;
+            renderStatsFreshness();
+            try {
+                const response = await fetch(statsGateway('geolocation_statistics'), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                const data = await response.json();
+                if (!data.ok) throw new Error(data.error || 'statistics_failed');
+                statsExperience.summary = data;
+                statsExperience.error = '';
+            } catch (error) {
+                statsExperience.error = translations.stats_unavailable || 'Activity data is temporarily unavailable.';
+            } finally {
+                statsExperience.summaryLoading = false;
+                renderStatsFreshness();
+                renderStatsOverview();
+                renderStatsMovement();
+                renderStatsQuality();
+            }
+        }
+
+        async function loadStatsAchievements(force) {
+            if (statsExperience.achievementsLoading) return;
+            if (statsExperience.achievements && !force) return;
+            statsExperience.achievementsLoading = true;
+            renderStatsAchievements();
+            try {
+                const response = await fetch(statsGateway('geolocation_achievements'), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                const data = await response.json();
+                if (!data.ok) throw new Error(data.error || 'achievements_failed');
+                statsExperience.achievements = data;
+            } catch (error) {
+                statsExperience.achievements = { enabled: true, earned_achievements: [], earned_count: 0 };
+                statsExperience.error = translations.stats_achievements_unavailable || 'Achievements are temporarily unavailable.';
+            } finally {
+                statsExperience.achievementsLoading = false;
+                renderStatsFreshness();
+                renderStatsOverview();
+                renderStatsAchievements();
+            }
+        }
+
+        function openStatisticsExperience() {
+            statsExperience.summary = null;
+            statsExperience.achievements = null;
+            statsExperience.error = '';
+            statsExperience.summaryLoading = false;
+            statsExperience.achievementsLoading = false;
+            activateStatsTab('overview');
+            loadStatsSummary(true);
+        }
+
+        document.addEventListener('click', event => {
+            const button = event.target && event.target.closest ? event.target.closest('#stats-modal .stats-tab') : null;
+            if (!button) return;
+            activateStatsTab(button.getAttribute('data-stats-tab'), true);
+        });
+        document.addEventListener('keydown', event => {
+            if (!event.target || !event.target.closest || !event.target.closest('#stats-modal .stats-tabbar')) return;
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+            const tabs = Array.from(document.querySelectorAll('#stats-modal .stats-tab'));
+            const current = tabs.indexOf(document.activeElement);
+            if (current < 0) return;
+            event.preventDefault();
+            const next = tabs[(current + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+            activateStatsTab(next.getAttribute('data-stats-tab'), true);
+        });
 
         // Functions for calendar
         function updateCalendar(lang = currentLocale) {

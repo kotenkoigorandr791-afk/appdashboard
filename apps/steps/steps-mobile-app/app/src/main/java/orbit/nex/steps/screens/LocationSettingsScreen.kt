@@ -2,6 +2,7 @@ package orbit.nex.steps.screens
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -20,6 +21,7 @@ import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.NotificationsOff
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -48,8 +50,11 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
+import orbit.nex.steps.location.MatchingState
+import orbit.nex.steps.location.PointManagementRepository
 import orbit.nex.steps.location.LocationAccuracy
 import orbit.nex.steps.location.LocationEventStore
 import orbit.nex.steps.location.LocationPermissions
@@ -73,7 +78,13 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
+    val pointRepository = remember { PointManagementRepository(prefs) }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val matchingConfig = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
 
+    var matching by remember { mutableStateOf(MatchingState()) }
+    var matchingBusy by remember { mutableStateOf(false) }
+    var matchingMessage by remember { mutableStateOf<String?>(null) }
     var state by remember { mutableStateOf(manager.state()) }
     var permissionState by remember { mutableStateOf(LocationPermissions.state(context)) }
     var notificationsEnabled by remember { mutableStateOf(LocationPermissions.areNotificationsEnabled(context)) }
@@ -98,6 +109,11 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
         permissionLost = prefs.isLocationPermissionLost()
         accuracy = prefs.getLocationAccuracy()
         interval = prefs.getLocationIntervalMinutes()
+    }
+
+    LaunchedEffect(matchingConfig?.url) {
+        val active = matchingConfig ?: return@LaunchedEffect
+        matching = pointRepository.matching(active)
     }
 
     // Poll so the screen reflects service, permission and upload changes live.
@@ -412,6 +428,75 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
             }
         }
 
+        // ── Snap to road / map matching ───────────────────────────────────────
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(stringResource(R.string.matching_title), style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        stringResource(R.string.matching_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val modes = listOf("disabled" to R.string.matching_mode_disabled, "conservative" to R.string.matching_mode_conservative, "review_required" to R.string.matching_mode_review)
+                    modes.forEach { (value, label) ->
+                        Row(
+                            Modifier.fillMaxWidth().clickable {
+                                val active = matchingConfig ?: return@clickable
+                                matchingBusy = true
+                                scope.launch {
+                                    pointRepository.setMatchingMode(active, value)
+                                        .onSuccess { matching = pointRepository.matching(active); matchingMessage = context.getString(R.string.matching_saved) }
+                                        .onFailure { matchingMessage = it.message }
+                                    matchingBusy = false
+                                }
+                            }.padding(vertical = 7.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            androidx.compose.material3.RadioButton(selected = matching.mode == value, onClick = null)
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(label), style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+                                Text(
+                                    stringResource(matchingDescriptionRes(value)),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.matching_summary, matching.matched, matching.abstained, matching.stale),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        enabled = !matchingBusy && matchingConfig != null,
+                        onClick = {
+                            val active = matchingConfig ?: return@Button
+                            matchingBusy = true
+                            matchingMessage = context.getString(R.string.matching_queued)
+                            scope.launch {
+                                pointRepository.runMatching(active)
+                                    .onFailure { matchingMessage = it.message }
+                                delay(4_000)
+                                matching = pointRepository.matching(active)
+                                matchingBusy = false
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        if (matchingBusy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp)
+                        else Text(stringResource(R.string.matching_run))
+                    }
+                    matchingMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary) }
+                }
+            }
+        }
+
         // ── Privacy copy ──────────────────────────────────────────────────────
         item {
             Card(
@@ -458,6 +543,12 @@ private fun statusRes(state: TrackingState): Int = when (state) {
     TrackingState.PERMISSION_MISSING -> R.string.tracking_status_permission
     TrackingState.NOT_CONNECTED -> R.string.tracking_status_no_connection
     TrackingState.OFF -> R.string.tracking_status_off
+}
+
+private fun matchingDescriptionRes(mode: String): Int = when (mode) {
+    "disabled" -> R.string.matching_desc_disabled
+    "review_required" -> R.string.matching_desc_review
+    else -> R.string.matching_desc_conservative
 }
 
 private fun accuracyRes(accuracy: LocationAccuracy): Int = when (accuracy) {

@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,18 +20,22 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -60,15 +65,27 @@ import kotlinx.coroutines.delay
 private data class PendingLibraryAction(val entry: LibraryEntry, val action: LibraryAction)
 
 /**
- * All location entities that previously existed only on the web.
- *
- * The screen is intentionally a thin, permission-aware view over the existing
- * mobile token endpoints: it does not compute trips, visits or achievements
- * locally and it never shows raw coordinates.
+ * Map-first location panels. This used to be a fifth bottom-nav destination;
+ * it is now a sheet opened from the map, so Places, Trips, Visits, Geofences,
+ * Devices, Quality, Search and Saved views stay close to the geography they
+ * describe. The sheet is a thin view over existing owner endpoints and never
+ * shows raw coordinates.
  */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+fun LocationPanelsSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        LocationPanelsContent(
+            onDismiss = onDismiss,
+            modifier = modifier.fillMaxWidth().fillMaxHeight(0.92f),
+        )
+    }
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-fun LocationLibraryScreen(modifier: Modifier = Modifier) {
+private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val repository = remember { LocationLibraryRepository(prefs) }
@@ -101,15 +118,18 @@ fun LocationLibraryScreen(modifier: Modifier = Modifier) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.library_title), style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.map_panels_title), style = MaterialTheme.typography.titleLarge)
                 Text(
-                    stringResource(R.string.library_subtitle),
+                    stringResource(R.string.map_panels_subtitle),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
             IconButton(onClick = { refreshKey++ }, enabled = !loading) {
                 Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.library_refresh))
+            }
+            IconButton(onClick = onDismiss) {
+                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
             }
         }
 
@@ -148,9 +168,7 @@ fun LocationLibraryScreen(modifier: Modifier = Modifier) {
                 CircularProgressIndicator()
             }
             snapshot.error != null -> LibraryMessage(stringResource(R.string.library_error, snapshot.error.orEmpty()), isError = true)
-            snapshot.entries.isEmpty() -> LibraryMessage(
-                if (!snapshot.enabled) stringResource(R.string.library_disabled) else stringResource(R.string.library_empty)
-            )
+            snapshot.entries.isEmpty() -> LibraryMessage(stringResource(R.string.library_empty))
             else -> LazyColumn(
                 Modifier.fillMaxSize().padding(horizontal = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -316,7 +334,6 @@ private fun LibraryTab.titleRes(): Int = when (this) {
     LibraryTab.PLACES -> R.string.library_tab_places
     LibraryTab.TRIPS -> R.string.library_tab_trips
     LibraryTab.VISITS -> R.string.library_tab_visits
-    LibraryTab.ACHIEVEMENTS -> R.string.library_tab_achievements
     LibraryTab.GEOFENCES -> R.string.library_tab_geofences
     LibraryTab.DEVICES -> R.string.library_tab_devices
     LibraryTab.QUALITY -> R.string.library_tab_quality

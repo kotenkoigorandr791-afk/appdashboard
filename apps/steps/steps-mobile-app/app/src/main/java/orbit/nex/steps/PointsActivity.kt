@@ -1,53 +1,77 @@
 package orbit.nex.steps
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Restore
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Delete
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONArray
-import org.json.JSONObject
+import orbit.nex.steps.components.AppEmptyState
+import orbit.nex.steps.components.AppSectionCard
+import orbit.nex.steps.components.AppStatusPill
+import orbit.nex.steps.location.ManagedPoint
+import orbit.nex.steps.location.PointManagementRepository
+import orbit.nex.steps.location.QualityCorrection
 import orbit.nex.steps.ui.theme.HCWebhookTheme
-
-private data class ManagedPoint(val id: String, val latitude: Double, val longitude: Double, val at: String)
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 class PointsActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -60,53 +84,325 @@ class PointsActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PointsScreen(onBack: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
-    var query by remember { mutableStateOf("") }
+    val repository = remember { PointManagementRepository(prefs) }
+    val scope = rememberCoroutineScope()
+    val config = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
+    var from by remember { mutableStateOf("") }
+    var to by remember { mutableStateOf("") }
+    var stateFilter by remember { mutableStateOf("") }
+    var page by remember { mutableIntStateOf(0) }
+    var total by remember { mutableIntStateOf(0) }
     var points by remember { mutableStateOf(emptyList<ManagedPoint>()) }
     var selected by remember { mutableStateOf(emptySet<String>()) }
-    var loading by remember { mutableStateOf(true) }
+    var loading by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var pendingDelete by remember { mutableStateOf(false) }
+    var corrections by remember { mutableStateOf(emptyList<QualityCorrection>()) }
+    var undoPending by remember { mutableStateOf<QualityCorrection?>(null) }
+    var showHistory by remember { mutableStateOf(false) }
+    var loadJob by remember { mutableStateOf<Job?>(null) }
+    var notice by remember { mutableStateOf<String?>(null) }
+    val pageCount = ((total + 99) / 100).coerceAtLeast(1)
+
     suspend fun load() {
+        val active = config ?: run {
+            error = context.getString(R.string.points_no_connection)
+            points = emptyList()
+            return
+        }
         loading = true
-        points = pointsRequest(prefs, query)
+        error = null
+        val result = repository.loadPage(active, page, from.ifBlank { null }, to.ifBlank { null }, stateFilter.ifBlank { null }, null)
+        points = result.points
+        total = result.total
+        error = result.error
         selected = emptySet()
         loading = false
     }
-    LaunchedEffect(query) { load() }
-    Scaffold(topBar = { TopAppBar(title = { Text(stringResource(R.string.points_title)) }, navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, null) } }) }) { padding ->
-        Column(Modifier.fillMaxSize().padding(padding).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            OutlinedTextField(query, { query = it }, Modifier.fillMaxWidth(), label = { Text("Координаты") }, singleLine = true)
-            if (selected.isNotEmpty()) Button(onClick = {
-                val ids = selected
-                MainScope().launch(Dispatchers.IO) { deletePoints(prefs, ids); withContext(Dispatchers.Main) { load() } }
-            }) { Icon(Icons.Filled.Delete, null); Text("Удалить (${selected.size})") }
-            if (loading) Text("Загрузка…")
-            LazyColumn(Modifier.fillMaxSize()) {
-                items(points, key = { it.id }) { point ->
+
+    suspend fun loadHistory() {
+        val active = config ?: return
+        corrections = repository.corrections(active)
+    }
+
+    LaunchedEffect(from, to, stateFilter, page, config?.url) {
+        loadJob?.cancel()
+        loadJob = scope.launch { load() }
+    }
+    LaunchedEffect(config?.url) { loadHistory() }
+
+    Scaffold(topBar = {
+        TopAppBar(
+            title = { Text(stringResource(R.string.points_management_title)) },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd))
+                }
+            },
+        )
+    }) { padding ->
+        orbit.nex.steps.components.AppBackground {
+            LazyColumn(
+                Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                item {
+                    AppSectionCard(title = stringResource(R.string.points_filter_title), icon = Icons.Filled.Search) {
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedTextField(
+                                from,
+                                { from = it; page = 0 },
+                                label = { Text(stringResource(R.string.points_filter_from)) },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                to,
+                                { to = it; page = 0 },
+                                label = { Text(stringResource(R.string.points_filter_to)) },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Row(
+                            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            listOf("" to R.string.points_filter_all, "pending" to R.string.points_state_pending,
+                                "accepted" to R.string.points_state_accepted, "flagged" to R.string.points_state_flagged,
+                                "rejected" to R.string.points_state_rejected).forEach { (value, label) ->
+                                FilterChip(
+                                    selected = stateFilter == value,
+                                    onClick = { stateFilter = value; page = 0 },
+                                    label = { Text(stringResource(label)) },
+                                )
+                            }
+                        }
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(
+                            onClick = {
+                                context.startActivity(Intent(context, PointSelectionActivity::class.java))
+                            },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(Icons.Filled.Map, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(stringResource(R.string.points_select_on_map), modifier = Modifier.padding(start = 6.dp))
+                        }
+                        if (selected.isNotEmpty()) {
+                            Button(onClick = { pendingDelete = true }, modifier = Modifier.weight(1f)) {
+                                Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text(stringResource(R.string.points_delete_count, selected.size), modifier = Modifier.padding(start = 6.dp))
+                            }
+                        }
+                    }
+                }
+                val undoable = corrections.firstOrNull { it.state == "active" }
+                if (undoable != null) {
+                    item {
+                        OutlinedButton(onClick = { undoPending = undoable }, modifier = Modifier.fillMaxWidth()) {
+                            Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text(
+                                stringResource(R.string.points_undo_last, undoable.pointCount),
+                                modifier = Modifier.padding(start = 8.dp),
+                            )
+                        }
+                    }
+                }
+                item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(point.id in selected, { checked -> selected = if (checked) selected + point.id else selected - point.id })
-                        Column { Text("${point.latitude}, ${point.longitude}"); Text(point.at, style = MaterialTheme.typography.bodySmall) }
+                        Text(
+                            stringResource(R.string.points_page_status, page + 1, pageCount, total),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.weight(1f),
+                        )
+                        IconButton(enabled = page > 0 && !loading, onClick = { page-- }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.points_previous_page))
+                        }
+                        IconButton(enabled = page + 1 < pageCount && !loading, onClick = { page++ }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.points_next_page))
+                        }
+                    }
+                }
+                if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
+                notice?.let { text -> item { AppStatusPill(text, highlighted = true) } }
+                error?.let { text -> item { AppEmptyState(text, isError = true) } }
+                if (!loading && error == null && points.isEmpty()) {
+                    item { AppEmptyState(stringResource(R.string.points_empty)) }
+                }
+                items(points, key = { it.id }) { point ->
+                    PointRow(
+                        point = point,
+                        checked = point.id in selected,
+                        onChecked = { checked ->
+                            selected = if (checked) selected + point.id else selected - point.id
+                        },
+                        onMap = {
+                            context.startActivity(
+                                Intent(context, PointSelectionActivity::class.java)
+                                    .putExtra("focus_lat", point.lat)
+                                    .putExtra("focus_lon", point.lon)
+                            )
+                        },
+                    )
+                }
+                item {
+                    OutlinedButton(
+                        onClick = { showHistory = !showHistory },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(stringResource(R.string.points_correction_history), modifier = Modifier.weight(1f))
+                        Icon(
+                            if (showHistory) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
+                            contentDescription = null,
+                        )
+                    }
+                }
+                if (showHistory) {
+                    if (corrections.isEmpty()) {
+                        item { AppEmptyState(stringResource(R.string.points_no_corrections)) }
+                    } else {
+                        items(corrections.take(50), key = { it.id }) { correction ->
+                            CorrectionRow(correction) { undoPending = correction }
+                        }
+                        if (corrections.size >= 50) {
+                            item {
+                                Text(
+                                    stringResource(R.string.points_correction_cap),
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
     }
-}
 
-private suspend fun pointsRequest(prefs: PreferencesManager, query: String): List<ManagedPoint> = withContext(Dispatchers.IO) {
-    val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return@withContext emptyList()
-    val url = config.url.trimEnd('/') + "/geolocation?action=points&limit=500&q=" + java.net.URLEncoder.encode(query, "UTF-8")
-    val request = Request.Builder().url(url).apply { config.headers.forEach { (k, v) -> addHeader(k, v) }; addHeader("X-Device-Id", prefs.getDeviceId()) }.build()
-    OkHttpClient().newCall(request).execute().use { response ->
-        if (!response.isSuccessful) return@withContext emptyList()
-        val rows = JSONObject(response.body?.string().orEmpty()).optJSONArray("points") ?: JSONArray()
-        List(rows.length()) { i -> rows.getJSONObject(i).let { ManagedPoint(it.getString("id"), it.getDouble("latitude"), it.getDouble("longitude"), it.optString("source_at")) } }
+    if (pendingDelete) {
+        AlertDialog(
+            onDismissRequest = { pendingDelete = false },
+            title = { Text(stringResource(R.string.points_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.points_delete_confirm_text, selected.size)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    pendingDelete = false
+                    val ids = selected
+                    scope.launch {
+                        val active = config ?: return@launch
+                        repository.deleteIds(active, ids).onSuccess {
+                            notice = context.getString(R.string.points_deleted, ids.size)
+                            selected = emptySet()
+                            page = 0
+                            load()
+                        }.onFailure { error = it.message }
+                    }
+                }) { Text(stringResource(R.string.points_delete_forever)) }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = false }) { Text(stringResource(R.string.library_cancel)) } },
+        )
+    }
+
+    undoPending?.let { correction ->
+        AlertDialog(
+            onDismissRequest = { undoPending = null },
+            title = { Text(stringResource(R.string.points_undo_confirm_title)) },
+            text = { Text(stringResource(R.string.points_undo_confirm_text, correction.pointCount)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    val active = config
+                    undoPending = null
+                    if (active != null) {
+                        scope.launch {
+                            repository.undoCorrection(active, correction.id)
+                                .onSuccess {
+                                    notice = context.getString(R.string.points_undo_done)
+                                    loadHistory()
+                                    load()
+                                }
+                                .onFailure { error = it.message }
+                        }
+                    }
+                }) { Text(stringResource(R.string.library_undo)) }
+            },
+            dismissButton = { TextButton(onClick = { undoPending = null }) { Text(stringResource(R.string.library_cancel)) } },
+        )
     }
 }
 
-private fun deletePoints(prefs: PreferencesManager, ids: Set<String>) {
-    val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return
-    val body = JSONObject().put("ids", JSONArray(ids.toList())).toString().toRequestBody("application/json".toMediaType())
-    val request = Request.Builder().url(config.url.trimEnd('/') + "/geolocation?action=delete").post(body).apply { config.headers.forEach { (k, v) -> addHeader(k, v) }; addHeader("X-Device-Id", prefs.getDeviceId()) }.build()
-    OkHttpClient().newCall(request).execute().close()
+@Composable
+private fun PointRow(point: ManagedPoint, checked: Boolean, onChecked: (Boolean) -> Unit, onMap: () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier.fillMaxWidth().clickable { onChecked(!checked) },
+    ) {
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Checkbox(checked, onCheckedChange = onChecked)
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    formatPointTime(point.sourceAt),
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+                    AppStatusPill(point.qualityState)
+                    point.accuracyM?.let { AppStatusPill("±${it.toInt()} m") }
+                    point.source.takeIf { it.isNotBlank() }?.let { AppStatusPill(it) }
+                }
+            }
+            IconButton(onClick = onMap) {
+                Icon(Icons.Filled.Map, contentDescription = stringResource(R.string.points_open_map))
+            }
+        }
+    }
+}
+
+@Composable
+private fun CorrectionRow(correction: QualityCorrection, onUndo: () -> Unit) {
+    val active = correction.state == "active"
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (active) 1f else 0.55f),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.points_correction_points, correction.pointCount),
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f),
+                )
+                AppStatusPill(correction.state, highlighted = active)
+            }
+            Text(
+                correction.effects.joinToString(" · ").ifBlank { correction.scopeType },
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                formatPointTime(correction.revokedAt ?: correction.createdAt),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            if (active) {
+                TextButton(onClick = onUndo) { Text(stringResource(R.string.library_undo)) }
+            }
+        }
+    }
+}
+
+private fun formatPointTime(value: String): String {
+    if (value.isBlank()) return "—"
+    return runCatching {
+        OffsetDateTime.parse(value).atZoneSameInstant(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm", Locale.getDefault()))
+    }.getOrElse { value.take(16).replace('T', ' ') }
 }

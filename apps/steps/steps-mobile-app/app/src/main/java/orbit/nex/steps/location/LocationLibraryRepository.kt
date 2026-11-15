@@ -21,7 +21,6 @@ enum class LibraryTab(val endpoint: String) {
     PLACES("places"),
     TRIPS("geolocation_trips?limit=100"),
     VISITS("geolocation_stops?limit=100"),
-    ACHIEVEMENTS("geolocation_achievements"),
     GEOFENCES("geofences"),
     DEVICES("devices"),
     QUALITY("geolocation_quality"),
@@ -85,7 +84,6 @@ class LocationLibraryRepository(
                 LibraryTab.PLACES -> places(root)
                 LibraryTab.TRIPS -> trips(root)
                 LibraryTab.VISITS -> visits(root)
-                LibraryTab.ACHIEVEMENTS -> achievements(root)
                 LibraryTab.GEOFENCES -> geofences(root)
                 LibraryTab.DEVICES -> devices(root)
                 LibraryTab.QUALITY -> quality(root)
@@ -246,38 +244,6 @@ class LocationLibraryRepository(
             )
         }
         return LibrarySnapshot(entries = entries)
-    }
-
-    private fun achievements(root: JSONObject): LibrarySnapshot {
-        val entries = mutableListOf<LibraryEntry>()
-        val rows = root.optJSONArray("achievements") ?: JSONArray()
-        val enabled = root.optBoolean("enabled", true)
-        for (i in 0 until rows.length()) {
-            val row = rows.optJSONObject(i) ?: continue
-            val progress = row.optDouble("progress", 0.0)
-            val target = row.optDouble("target", 0.0)
-            val earned = row.optBoolean("earned", false)
-            entries += LibraryEntry(
-                id = row.optString("id"),
-                title = humanize(row.optString("title_key")),
-                subtitle = buildString {
-                    append(formatAmount(progress))
-                    if (target > 0) append(" / ").append(formatAmount(target))
-                    val unit = row.optString("unit")
-                    if (unit.isNotBlank()) append(' ').append(unit)
-                },
-                meta = row.optString("family").replaceFirstChar { it.uppercase() },
-                status = if (earned) "100%" else row.optString("percent") + "%",
-                active = earned,
-            )
-        }
-        val earned = root.optInt("earned_count", 0)
-        val total = root.optInt("total_count", entries.size)
-        return LibrarySnapshot(
-            entries = entries,
-            enabled = enabled,
-            summary = if (enabled) "$earned / $total" else "",
-        )
     }
 
     private fun geofences(root: JSONObject): LibrarySnapshot {
@@ -453,12 +419,4 @@ class LocationLibraryRepository(
         }.getOrElse { value.take(16).replace('T', ' ') }
     }
 
-    private fun formatAmount(value: Double): String =
-        if (value % 1.0 == 0.0) value.toLong().toString() else String.format(Locale.getDefault(), "%.1f", value)
-
-    private fun humanize(key: String): String =
-        key.removePrefix("achievement_")
-            .split('_')
-            .filter { it.isNotBlank() }
-            .joinToString(" ") { part -> part.replaceFirstChar { it.uppercase() } }
 }

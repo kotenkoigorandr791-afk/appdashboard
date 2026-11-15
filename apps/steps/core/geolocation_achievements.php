@@ -70,6 +70,24 @@ final class StepsGeolocationAchievements
         return $out;
     }
 
+    /**
+     * Presentation metadata for earned cards. Icons are semantic names, not
+     * images, so the web and Android clients can render their own icon sets.
+     *
+     * @return array{icon:string,description_key:string}
+     */
+    private static function presentation(string $family): array
+    {
+        return match ($family) {
+            'countries' => ['icon' => 'public', 'description_key' => 'achievement_desc_countries'],
+            'regions' => ['icon' => 'map', 'description_key' => 'achievement_desc_regions'],
+            'cities' => ['icon' => 'location_city', 'description_key' => 'achievement_desc_cities'],
+            'places' => ['icon' => 'place', 'description_key' => 'achievement_desc_places'],
+            'distance' => ['icon' => 'route', 'description_key' => 'achievement_desc_distance'],
+            default => ['icon' => 'calendar', 'description_key' => 'achievement_desc_coverage'],
+        };
+    }
+
     public static function uuid(): string
     {
         $b = bin2hex(random_bytes(16));
@@ -405,6 +423,7 @@ final class StepsGeolocationAchievements
                 'enabled' => false,
                 'frozen' => true,
                 'achievements' => [],
+                'earned_achievements' => [],
                 'collections' => [],
                 'earned_count' => 0,
                 'total_count' => 0,
@@ -442,16 +461,22 @@ final class StepsGeolocationAchievements
             if ($earned) $earnedCount++;
             $watermark = $row['input_watermark'] !== '' ? (string)$row['input_watermark'] : $watermark;
             $recalculatedAt = $row['recalculated_at'] !== null ? (string)$row['recalculated_at'] : $recalculatedAt;
+            $presentation = self::presentation($definition['family']);
             $stored[] = [
                 'id' => $definition['id'],
                 'family' => $definition['family'],
                 'collection' => $definition['collection'],
+                'category' => $definition['collection'],
                 'title_key' => $definition['title_key'],
+                'description_key' => $presentation['description_key'],
+                'icon' => $presentation['icon'],
+                'tier' => $target,
                 'target' => $target,
                 'unit' => $definition['unit'],
                 'progress' => $progress,
                 'percent' => $target > 0 ? round(min(1, $progress / $target) * 100, 1) : 0.0,
                 'earned' => $earned,
+                'earned_at' => $earned ? ($row['first_earned_at'] ?? null) : null,
                 'first_earned_at' => $row['first_earned_at'],
                 'reason' => (string)$row['reason'],
             ];
@@ -481,10 +506,16 @@ final class StepsGeolocationAchievements
             ];
         }
 
+        $earnedAchievements = array_values(array_filter($stored, static fn(array $item): bool => $item['earned'] === true));
+        usort($earnedAchievements, static function (array $a, array $b): int {
+            return strcmp((string)($b['earned_at'] ?? ''), (string)($a['earned_at'] ?? ''));
+        });
+
         return $base + [
             'enabled' => true,
             'frozen' => false,
             'achievements' => $stored,
+            'earned_achievements' => $earnedAchievements,
             'collections' => $collections,
             'earned_count' => $earnedCount,
             'total_count' => count($stored),
