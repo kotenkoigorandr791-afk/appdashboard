@@ -62,7 +62,7 @@ test.describe('authenticated application shell', () => {
     expect(noneVisible).toBe(0);
   });
 
-  test('opens settings, select menus, wallpaper picker, shortcuts and QR modal', async ({ page }) => {
+  test('opens settings, select menus, wallpaper picker and shortcuts', async ({ page }) => {
     await openSidebar(page);
     await clickById(page, 'settings-button');
     await expect(page.locator('#settings-modal')).toBeVisible();
@@ -80,10 +80,6 @@ test.describe('authenticated application shell', () => {
     await expect(page.locator('#shortcuts-modal')).not.toBeVisible();
     await clickById(page, 'settings-button');
     await expect(page.locator('#settings-modal')).toBeVisible();
-    await clickById(page, 'qr-button');
-    await expect(page.locator('#qr-modal')).toBeVisible();
-    await expect(page.locator('#current-domain-url')).not.toBeEmpty();
-    await page.locator('#close-qr').dispatchEvent('click');
     await clickById(page, 'close-settings');
     await expect(page.locator('#settings-modal')).not.toBeVisible();
   });

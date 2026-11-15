@@ -186,7 +186,7 @@
 
   function showAppLoading(app) {
     hideAppLoading();
-    var title = i18n.shell_application || 'ServerKherson';
+    var title = i18n.shell_application || 'NexOrbit';
     var sub = i18n.opening_app || 'Opening…';
     if (app && (app.name || app.folder)) {
       sub = (i18n.opening_app_named || 'Opening {name}…').replace('{name}', app.name || app.folder);

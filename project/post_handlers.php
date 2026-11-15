@@ -1625,7 +1625,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_stats_subtitle']??'Visit statistics and disk usage per user.'); ?></div>
             <!-- Live chart preview -->
             <div class="ap-card" style="padding:14px 20px 16px 20px;">
-                <div class="ap-card-title" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <div class="ap-card-title" style="margin-bottom:10px;flex-wrap:nowrap;gap:8px;min-width:0;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-2h2v7h-2v-7zm4 4h2v3h-2v-3z"/></svg>
                     <?php echo my_htmlspecialchars($translations['stats_graph']??'Chart Preview'); ?>
                     <!-- Range controls -->

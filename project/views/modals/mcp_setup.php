@@ -70,10 +70,10 @@ try{
 .mcp-setup-row label{display:block;font-size:12px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;opacity:.7;margin-bottom:6px;}
 .mcp-setup-cmd{display:flex;gap:8px;align-items:stretch;}
 .mcp-setup-cmd code,.mcp-setup-cmd pre{flex:1;margin:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:rgba(0,0,0,.16);font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;white-space:pre-wrap;word-break:break-all;max-height:90px;overflow:auto;}
-.mcp-setup-copy{flex:0 0 auto;border:none;border-radius:10px;padding:0 14px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:600;font-size:13px;display:inline-flex;align-items:center;justify-content:center;gap:7px;min-width:104px;transition:transform .16s ease,filter .16s ease,background .16s ease;}
-.mcp-setup-copy:hover{filter:brightness(1.08);transform:translateY(-1px);}
-.mcp-setup-copy.copied{background:#16a34a;animation:mcp-copy-pop .28s ease;}
-.mcp-copy-icon{width:15px;height:15px;display:inline-block;}
+.mcp-setup-copy{flex:0 0 auto;width:34px;height:34px;border:none;border-radius:9px;padding:0;cursor:pointer;background:color-mix(in srgb,var(--text-color,#fff) 10%,transparent);color:var(--text-color,#fff);display:inline-flex;align-items:center;justify-content:center;transition:background .16s ease,color .16s ease,transform .16s ease;}
+.mcp-setup-copy:hover{background:color-mix(in srgb,var(--text-color,#fff) 18%,transparent);transform:translateY(-1px);}
+.mcp-setup-copy.copied{background:color-mix(in srgb,#22c55e 28%,transparent);color:#22c55e;animation:mcp-copy-pop .28s ease;}
+.mcp-copy-icon{width:16px;height:16px;display:block;}
 @keyframes mcp-copy-pop{50%{transform:scale(1.05);}}
 .mcp-setup-foot{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-top:8px;font-size:13px;}
 .mcp-setup-foot a{color:var(--primary-color,#2563eb);}
@@ -84,9 +84,10 @@ try{
 .mcp-token-controls{display:flex;gap:8px;align-items:center;margin-bottom:10px;}
 .mcp-token-controls input{flex:1;min-width:0;padding:10px 12px;border-radius:10px;border:1px solid var(--border-color);background:var(--input-bg,var(--modal-bg));color:var(--text-color);}
 .mcp-token-controls button{border:none;border-radius:10px;padding:10px 14px;cursor:pointer;background:var(--primary-color,#2563eb);color:#fff;font-weight:600;}
-.mcp-token-output{display:none;margin-top:10px;padding:10px;border-radius:10px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);background:color-mix(in srgb,#22c55e 16%,transparent);}
-.mcp-token-output strong{display:block;margin-bottom:8px;font-size:13px;}
-.mcp-token-output code{display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.mcp-token-output{display:none;margin-top:10px;padding:10px;border-radius:10px;border:1px solid color-mix(in srgb,#22c55e 45%,transparent);background:color-mix(in srgb,#22c55e 16%,transparent);grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"title title" "code copy";align-items:center;gap:6px 8px;}
+.mcp-token-output strong{grid-area:title;display:block;margin-bottom:2px;font-size:13px;}
+.mcp-token-output code{grid-area:code;display:block;word-break:break-all;font:12px/1.4 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;}
+.mcp-token-output .mcp-setup-copy{grid-area:copy;align-self:start;}
 .mcp-setup-tabs{display:flex;gap:8px;margin:0 0 14px;border-bottom:1px solid var(--border-color);padding-bottom:10px;}
 .mcp-setup-tab{border:1px solid var(--border-color);background:var(--group-block-bg,rgba(127,127,127,.08));color:var(--text-color);border-radius:999px;padding:8px 12px;cursor:pointer;font-size:13px;font-weight:600;}
 .mcp-setup-tab.active{background:var(--primary-color,#2563eb);border-color:var(--primary-color,#2563eb);color:#fff;}
@@ -103,7 +104,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
 .mcp-agent-option:hover,.mcp-agent-option.active{background:color-mix(in srgb,var(--primary-color,#2563eb) 14%,transparent);}
 .mcp-installer-output{display:none;}
 .mcp-remove-hint{font-size:12px;opacity:.72;margin:-4px 0 8px;}
-@media(max-width:640px){.mcp-token-controls,.mcp-setup-cmd{flex-direction:column;align-items:stretch;}.mcp-setup-copy{height:40px;}}
+@media(max-width:640px){.mcp-token-controls,.mcp-setup-cmd{flex-direction:column;align-items:stretch;}.mcp-setup-copy{width:40px;height:40px;}}
 </style>
 <div id="mcp-setup-modal" role="dialog" aria-modal="true" aria-labelledby="mcp-setup-title"<?php echo $mcpModalInitialOpen?' style="display:flex;"':''; ?> data-initial-tab="<?php echo my_htmlspecialchars($mcpInitialTab); ?>">
     <div id="mcp-setup-content">
@@ -169,7 +170,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
                     <button type="button" class="mcp-setup-copy" id="mcp-copy-token"></button>
                 </div>
                 <?php if($mcpGeneratedToken!==''): ?>
-                <div class="mcp-token-output" style="display:block;">
+                <div class="mcp-token-output" style="display:grid;">
                     <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
                     <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
                     <button type="button" class="mcp-setup-copy" id="mcp-copy-generated-token"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button>
@@ -249,12 +250,20 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
     }
     function copyButtonContent(label, copied){
         const icon=copied?'<svg class="mcp-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M20 6L9 17l-5-5"/></svg>':'<svg class="mcp-copy-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="11" height="11" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
-        return icon+'<span>'+label+'</span>';
+        return icon;
     }
     function setCopied(btn){
         btn.classList.add('copied');
-        btn.innerHTML=copyButtonContent(copiedLabel,true);
-        setTimeout(function(){btn.classList.remove('copied');btn.innerHTML=copyButtonContent(copyLabel,false);},1600);
+        btn.innerHTML=copyButtonContent('',true);
+        btn.setAttribute('aria-label',copiedLabel);
+        btn.title=copiedLabel;
+        setTimeout(function(){btn.classList.remove('copied');btn.innerHTML=copyButtonContent('',false);btn.setAttribute('aria-label',copyLabel);btn.title=copyLabel;},1600);
+    }
+    function decorateCopyButton(btn,label){
+        if(!btn)return;
+        btn.innerHTML=copyButtonContent('',false);
+        btn.setAttribute('aria-label',label);
+        btn.title=label;
     }
     function renderAgentMenu(order){
         if(!agentMenu)return;
@@ -283,9 +292,6 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
         if(agentPicker)agentPicker.classList.remove('open');
         if(agentCurrent)agentCurrent.setAttribute('aria-expanded','false');
         if(agentMenu)agentMenu.querySelectorAll('.mcp-agent-option').forEach(function(btn){btn.classList.toggle('active',btn.dataset.agent===agent);});
-        showMcpTab('tokens');
-        const tokenPane=modal?modal.querySelector('.mcp-token-panel.mcp-setup-pane'):null;
-        if(tokenPane&&typeof tokenPane.scrollIntoView==='function')tokenPane.scrollIntoView({behavior:'smooth',block:'start'});
     }
     function showMcpTab(name){
         tabs.forEach(function(tab){tab.classList.toggle('active',tab.getAttribute('data-mcp-tab')===name);});
@@ -381,7 +387,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
         }
     });
     if(commandCopy){
-        commandCopy.innerHTML=copyButtonContent(copyLabel,false);
+        decorateCopyButton(commandCopy,copyLabel);
         commandCopy.addEventListener('click',async function(){
             const text=generatedCommand ? generatedCommand.textContent.trim() : '';
             try{
@@ -400,7 +406,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
         });
     }
     if(removeCopy){
-        removeCopy.innerHTML=copyButtonContent(copyLabel,false);
+        decorateCopyButton(removeCopy,copyLabel);
         removeCopy.addEventListener('click',async function(){
             const text=removeCommand ? removeCommand.textContent.trim() : '';
             try{
@@ -425,11 +431,12 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
             setCopied(endpointCopy);
         }catch(e){setCopied(endpointCopy);}
     });
-    if(endpointCopy)endpointCopy.innerHTML=copyButtonContent(copyLabel,false);
+    decorateCopyButton(endpointCopy,copyLabel);
     const copyTokenBtn=document.getElementById('mcp-copy-token');
     const copyGeneratedTokenBtn=document.getElementById('mcp-copy-generated-token');
+    decorateCopyButton(copyGeneratedTokenBtn,copyLabel);
     if(copyTokenBtn){
-        copyTokenBtn.innerHTML=copyButtonContent(copyLabel,false);
+        decorateCopyButton(copyTokenBtn,copyLabel);
         copyTokenBtn.addEventListener('click',async function(){
             const text=tokenValue?tokenValue.textContent.trim():'';
             try{await navigator.clipboard.writeText(text);}catch(e){}
@@ -459,7 +466,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
             const data=await res.json();
             if(!data.success||!data.token) throw new Error(data.error||tokenFailed);
             tokenValue.textContent=data.token;
-            tokenOut.style.display='block';
+            tokenOut.style.display='grid';
             try{await navigator.clipboard.writeText(data.token);}catch(e){}
         }catch(e){
             tokenErr.textContent=String(e&&e.message?e.message:e);

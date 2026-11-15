@@ -19,7 +19,8 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
     <meta name="color-scheme" content="<?php echo $bootThemeDark ? 'dark' : (in_array($bootThemePref, ['auto', 'device'], true) ? 'light dark' : 'light'); ?>">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <script>(function(){var pref=<?php echo json_encode($bootThemePref, JSON_HEX_TAG); ?>;var resolved=<?php echo json_encode($bootThemeResolved, JSON_HEX_TAG); ?>;if(pref==='auto'||pref==='device'){try{resolved=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){}try{document.cookie='browser_theme='+encodeURIComponent(resolved)+'; path=/; max-age=86400; SameSite=Lax';}catch(e){}}else{resolved=(pref==='dark')?'dark':'light';}var dark=resolved==='dark';window.__AP_BOOT_THEME__=resolved;var root=document.documentElement;root.setAttribute('data-theme',resolved);root.style.colorScheme=resolved;root.classList.toggle('boot-theme-dark',dark);root.classList.toggle('boot-theme-light',!dark);})();</script>
-    <link rel="icon" href="/project/views/icon.png" type="image/png">
+    <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+    <link rel="icon" href="/project/views/icon.png?v=3" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;(function(){function tok(){var m=document.querySelector('meta[name="csrf-token"]');var v=(m&&m.getAttribute('content'))||window.__AP_CSRF__||'';return String(v||'');}function remember(t){if(!t)return;window.__AP_CSRF__=String(t);var m=document.querySelector('meta[name="csrf-token"]');if(m)m.setAttribute('content',String(t));}window.__AP_REMEMBER_CSRF__=remember;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){var t=tok();if(t){n.headers=new Headers(n.headers||{});n.headers.set('X-CSRF-TOKEN',t);if(typeof FormData!=='undefined'&&n.body instanceof FormData){if(n.body.has('_csrf'))n.body.set('_csrf',t);else n.body.append('_csrf',t);}}}return f.call(this,i,n).then(function(r){try{var ct=r.headers.get('content-type')||'';if(ct.indexOf('application/json')!==-1){r.clone().json().then(function(d){if(d&&d.csrf)remember(d.csrf);}).catch(function(){});}}catch(e){}return r;});};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;var t=tok();if(!t)return;var existing=form.querySelector('input[name="_csrf"]');if(existing){existing.value=t;return;}var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
     <?php app_cookie_consent_browser_script(); ?>
@@ -27,8 +28,6 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
     <?php require __DIR__ . '/../mobile_chrome.php'; ?>
     <?php require_once __DIR__ . '/../browser-icons.php'; ?>
 <?php if($path==='/main' && !$showLogin): ?>
-    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js" defer></script>
-    <script src="/project/assets/qr-code-loader.js?v=1" defer></script>
 <?php endif; ?>
     <style>
         :root{--bg-color:<?php echo $bootThemeDark?'#0f1419':'#f0f4f8';?>;--text-color:<?php echo $bootThemeDark?'#f4f7fb':'#1a2332';?>;--primary-color:<?php echo my_htmlspecialchars($config['color']);?>;--sidebar-bg:<?php echo $bootThemeDark?'rgba(16,22,30,0.58)':'rgba(240,244,248,0.20)';?>;--group-block-bg:<?php echo $bootThemeDark?'rgba(255,255,255,0.10)':'rgba(255,255,255,0.20)';?>;--app-item-bg:<?php echo $bootThemeDark?'rgba(255,255,255,0.12)':'rgba(255,255,255,0.20)';?>;--icon-bg-color:<?php echo $bootThemeDark?'rgba(18,24,32,0.8)':'rgba(255,255,255,0.20)';?>;--tooltip-bg:<?php echo $bootThemeDark?'rgba(18,22,28,0.82)':'rgba(255,255,255,0.88)';?>;--modal-bg:<?php echo $bootThemeDark?'rgba(18,24,32,0.62)':'rgba(255,255,255,0.68)';?>;--border-color:<?php echo $bootThemeDark?'rgba(255,255,255,0.14)':'rgba(15,30,50,0.14)';?>;--icon-bg-color:<?php echo $bootThemeDark?'rgba(18,24,32,0.8)':'rgba(255,255,255,0.8)';?>;--link-color:<?php echo $bootThemeDark?'#e8eef5':'#1a2332';?>;--link-hover-color:var(--primary-color);--table-header-bg:<?php echo $bootThemeDark?'rgba(255,255,255,0.08)':'rgba(255,255,255,0.78)';?>;--table-row-hover:<?php echo $bootThemeDark?'rgba(255,255,255,0.10)':'rgba(0,0,0,0.05)';?>;--scrollbar-track:<?php echo $bootThemeDark?'rgba(255,255,255,0.04)':'rgba(0,0,0,0.04)';?>;--scrollbar-thumb:<?php echo $bootThemeDark?'rgba(255,255,255,0.22)':'rgba(0,0,0,0.2)';?>;--scrollbar-thumb-hover:<?php echo $bootThemeDark?'rgba(255,255,255,0.35)':'rgba(0,0,0,0.35)';?>;--glass-blur:56px;--glass-sat:180%;--glass-shadow:<?php echo $bootThemeDark?'0 18px 50px rgba(0,0,0,0.45)':'0 18px 50px rgba(30,50,80,0.14)';?>;--casa-radius:20px;--casa-tile-radius:22px;--app-icon-grad-start:<?php echo $bootThemeDark?'color-mix(in srgb,var(--primary-color) 72%,white)':'color-mix(in srgb,var(--primary-color) 84%,black)';?>;--app-icon-grad-end:<?php echo $bootThemeDark?'color-mix(in srgb,var(--primary-color) 88%,black)':'color-mix(in srgb,var(--primary-color) 65%,black)';?>;--shell-menu-button-left:<?php echo (int)($selectedAppMenuButton['left']??20); ?>px;--shell-menu-button-top:<?php echo (int)($selectedAppMenuButton['top']??13); ?>px;--shell-menu-button-width:<?php echo (int)($selectedAppMenuButton['width']??40); ?>px;--shell-menu-button-height:<?php echo (int)($selectedAppMenuButton['height']??40); ?>px;--shell-menu-button-mobile-left:<?php echo (int)($selectedAppMenuButtonMobile['left']??($selectedAppMenuButton['left']??20)); ?>px;--shell-menu-button-mobile-top:<?php echo (int)($selectedAppMenuButtonMobile['top']??($selectedAppMenuButton['top']??13)); ?>px;--shell-menu-button-mobile-width:<?php echo (int)($selectedAppMenuButtonMobile['width']??($selectedAppMenuButton['width']??40)); ?>px;--shell-menu-button-mobile-height:<?php echo (int)($selectedAppMenuButtonMobile['height']??($selectedAppMenuButton['height']??40)); ?>px;}
@@ -1049,8 +1048,6 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         .sidebar-button{background:none;border:none;cursor:pointer;color:var(--text-color);width:32px;height:32px;padding:0;display:flex;align-items:center;justify-content:center;position:relative;flex-shrink:0;}
         .sidebar-button svg{width:20px;height:20px;}
         #settings-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
-        #qr-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
-        #qr-content{background:var(--modal-bg);padding:0;border-radius:var(--casa-radius);color:var(--text-color);width:90%;max-width:400px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;position:relative;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #email-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
         #email-form{background:var(--modal-bg);padding:0;border-radius:var(--casa-radius);color:var(--text-color);position:relative;min-width:350px;max-width:500px;max-height:90vh;overflow:hidden;display:flex;flex-direction:column;margin:2% auto;z-index:10001;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #users-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(6,10,16,0.28);justify-content:center;align-items:center;z-index:10000;backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);}
@@ -1222,16 +1219,14 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         .app-desc-text{display:block;overflow:visible;word-break:break-word;text-align:center;}
         .tooltip{backdrop-filter:blur(16px) saturate(160%);-webkit-backdrop-filter:blur(16px) saturate(160%);border:1px solid var(--border-color);border-radius:10px;box-shadow:var(--glass-shadow);}
         .modal-scroll-body{overflow:auto;flex:1;min-height:0;-webkit-overflow-scrolling:touch;}
-        #shared-files-content,#sessions-content,#profile-content,#qr-content,#email-form,#users-content,#stats-content,#tg-bot-content,#edit-stats-content,#shortcuts-content{overflow:hidden;}
+        #shared-files-content,#sessions-content,#profile-content,#email-form,#users-content,#stats-content,#tg-bot-content,#edit-stats-content,#shortcuts-content{overflow:hidden;}
         #shared-files-content{border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);}
         #sessions-content{border-radius:var(--casa-radius);backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));border:1px solid var(--border-color);box-shadow:var(--glass-shadow);padding:0;display:flex;flex-direction:column;}
         #sessions-content .modal-scroll-body{padding:20px;}
         .modal-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;border-bottom:1px solid var(--border-color);}
         .modal-header-left h2{margin:0;font-size:18px;font-weight:600;}
-        #profile-content,#qr-content,#email-form,#users-content{padding:0;display:flex;flex-direction:column;}
+        #profile-content,#email-form,#users-content{padding:0;display:flex;flex-direction:column;}
         #profile-content .modal-scroll-body{padding:30px;}
-        #qr-content .modal-scroll-body{padding:30px;}
-        #qr-content .modal-scroll-body:first-child{padding-top:10px;}
         #email-form .modal-scroll-body{padding:40px 20px 20px;}
         #users-content .modal-scroll-body{padding:40px 20px 20px;}
         #tg-bot-modal,#delete-user-modal,#reset-user-password-modal,#edit-stats-modal,#profile-modal{backdrop-filter:blur(24px) saturate(160%);-webkit-backdrop-filter:blur(24px) saturate(160%);background:rgba(6,10,16,0.28);}
@@ -1362,7 +1357,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         #app-grid::-webkit-scrollbar-track{background:var(--group-block-bg);border-radius:4px;}
         #app-grid::-webkit-scrollbar-thumb{background:var(--primary-color);border-radius:4px;}
         #app-grid::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--primary-color)80%,black);}
-        .app-tile-link{text-decoration:none;color:inherit;display:block;width:100%;max-width:148px;}
+        .app-tile-link{text-decoration:none;color:inherit;display:block;width:100%;max-width:200px;}
         .app-tile-link:hover{opacity:1;}
         .app-tile{background:transparent;border-radius:0;padding:6px;overflow:visible;transition:transform 0.2s ease;border:none;display:flex;flex-direction:column;align-items:center;gap:10px;}
         @media (hover: hover) and (pointer: fine){.app-tile-link:hover .app-tile{transform:translateY(-6px);}}
@@ -1501,11 +1496,8 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         #shared-files-list-container::-webkit-scrollbar-thumb{background:var(--scrollbar-thumb);border-radius:3px;}
         #shared-files-list-container::-webkit-scrollbar-thumb:hover{background:var(--scrollbar-thumb-hover);}
         #shared-files-list-container{scrollbar-width:thin;scrollbar-color:var(--scrollbar-thumb) var(--scrollbar-track);}
-        .qr-container{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;}
         .domain-info{margin-top:20px;text-align:center;background:var(--group-block-bg);padding:15px;border-radius:10px;width:100%;max-width:350px;}
         .domain-url{font-family:monospace;font-size:14px;word-break:break-all;margin:10px 0;padding:10px;background:var(--modal-bg);border-radius:5px;border:1px solid var(--border-color);}
-        .copy-link-btn{margin-top:15px;background:var(--primary-color);color:white;border:none;padding:10px 20px;border-radius:25px;cursor:pointer;display:flex;align-items:center;gap:8px;font-weight:600;transition:all 0.3s ease;}
-        .copy-link-btn:hover{opacity:0.9;transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,0.2);}
         @keyframes shimmer{0%{transform:translateX(-100%) translateY(-100%) rotate(45deg);}100%{transform:translateX(100%) translateY(100%) rotate(45deg);}}
         .policy-links{display:flex;justify-content:center;align-items:center;gap:15px;margin-top:20px;padding-top:20px;padding-bottom:20px;border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);text-align:center;width:100%;}
         .policy-link{color:var(--primary-color);text-decoration:none;font-size:14px;transition:opacity 0.3s;}
@@ -1520,43 +1512,27 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         .ios-icon .session-brand-icon,.macos-icon .session-brand-icon{filter:invert(1);}
         <?php endif;?>
         <?php if($config['theme']==='dark'):?>
-            #qr-content,#sessions-content,#shared-files-content,#users-content,#email-form,#settings-form,#stats-content,#app-access-content,#profile-content,#edit-stats-content{scrollbar-width:thin;scrollbar-color:#555 #222;}
-            #qr-content::-webkit-scrollbar,#sessions-content::-webkit-scrollbar,#shared-files-content::-webkit-scrollbar,#users-content::-webkit-scrollbar,#email-form::-webkit-scrollbar,#settings-form::-webkit-scrollbar,#stats-content::-webkit-scrollbar,#app-access-content::-webkit-scrollbar,#profile-content::-webkit-scrollbar,#edit-stats-content::-webkit-scrollbar{width:10px;}
-            #qr-content::-webkit-scrollbar-track,#sessions-content::-webkit-scrollbar-track,#shared-files-content::-webkit-scrollbar-track,#users-content::-webkit-scrollbar-track,#email-form::-webkit-scrollbar-track,#settings-form::-webkit-scrollbar-track,#stats-content::-webkit-scrollbar-track,#app-access-content::-webkit-scrollbar-track,#profile-content::-webkit-scrollbar-track,#edit-stats-content::-webkit-scrollbar-track{background:#222;border-radius:5px;}
-            #qr-content::-webkit-scrollbar-thumb,#sessions-content::-webkit-scrollbar-thumb,#shared-files-content::-webkit-scrollbar-thumb,#users-content::-webkit-scrollbar-thumb,#email-form::-webkit-scrollbar-thumb,#settings-form::-webkit-scrollbar-thumb,#stats-content::-webkit-scrollbar-thumb,#app-access-content::-webkit-scrollbar-thumb,#profile-content::-webkit-scrollbar-thumb,#edit-stats-content::-webkit-scrollbar-thumb{background:#555;border-radius:5px;border:2px solid #222;}
-            #qr-content::-webkit-scrollbar-thumb:hover,#sessions-content::-webkit-scrollbar-thumb:hover,#shared-files-content::-webkit-scrollbar-thumb:hover,#users-content::-webkit-scrollbar-thumb:hover,#email-form::-webkit-scrollbar-thumb:hover,#settings-form::-webkit-scrollbar-thumb:hover,#stats-content::-webkit-scrollbar-thumb:hover,#app-access-content::-webkit-scrollbar-thumb:hover,#profile-content::-webkit-scrollbar-thumb:hover,#edit-stats-content::-webkit-scrollbar-thumb:hover{background:#666;}
+            #sessions-content,#shared-files-content,#users-content,#email-form,#settings-form,#stats-content,#app-access-content,#profile-content,#edit-stats-content{scrollbar-width:thin;scrollbar-color:#555 #222;}
+            #sessions-content::-webkit-scrollbar,#shared-files-content::-webkit-scrollbar,#users-content::-webkit-scrollbar,#email-form::-webkit-scrollbar,#settings-form::-webkit-scrollbar,#stats-content::-webkit-scrollbar,#app-access-content::-webkit-scrollbar,#profile-content::-webkit-scrollbar,#edit-stats-content::-webkit-scrollbar{width:10px;}
+            #sessions-content::-webkit-scrollbar-track,#shared-files-content::-webkit-scrollbar-track,#users-content::-webkit-scrollbar-track,#email-form::-webkit-scrollbar-track,#settings-form::-webkit-scrollbar-track,#stats-content::-webkit-scrollbar-track,#app-access-content::-webkit-scrollbar-track,#profile-content::-webkit-scrollbar-track,#edit-stats-content::-webkit-scrollbar-track{background:#222;border-radius:5px;}
+            #sessions-content::-webkit-scrollbar-thumb,#shared-files-content::-webkit-scrollbar-thumb,#users-content::-webkit-scrollbar-thumb,#email-form::-webkit-scrollbar-thumb,#settings-form::-webkit-scrollbar-thumb,#stats-content::-webkit-scrollbar-thumb,#app-access-content::-webkit-scrollbar-thumb,#profile-content::-webkit-scrollbar-thumb,#edit-stats-content::-webkit-scrollbar-thumb{background:#555;border-radius:5px;border:2px solid #222;}
+            #sessions-content::-webkit-scrollbar-thumb:hover,#shared-files-content::-webkit-scrollbar-thumb:hover,#users-content::-webkit-scrollbar-thumb:hover,#email-form::-webkit-scrollbar-thumb:hover,#settings-form::-webkit-scrollbar-thumb:hover,#stats-content::-webkit-scrollbar-thumb:hover,#app-access-content::-webkit-scrollbar-thumb:hover,#profile-content::-webkit-scrollbar-thumb:hover,#edit-stats-content::-webkit-scrollbar-thumb:hover{background:#666;}
         <?php endif;?>
         <?php if($config['theme']==='light'):?>
-            #sessions-content,#shared-files-content,#users-content,#email-form,#settings-form,#stats-content,#qr-content,#app-access-content,#profile-content,#edit-stats-content{scrollbar-width:thin;scrollbar-color:#ccc #f0f0f0;}
-            #sessions-content::-webkit-scrollbar,#shared-files-content::-webkit-scrollbar,#users-content::-webkit-scrollbar,#email-form::-webkit-scrollbar,#settings-form::-webkit-scrollbar,#stats-content::-webkit-scrollbar,#qr-content::-webkit-scrollbar,#app-access-content::-webkit-scrollbar,#profile-content::-webkit-scrollbar,#edit-stats-content::-webkit-scrollbar{width:10px;}
-            #sessions-content::-webkit-scrollbar-track,#shared-files-content::-webkit-scrollbar-track,#users-content::-webkit-scrollbar-track,#email-form::-webkit-scrollbar-track,#settings-form::-webkit-scrollbar-track,#stats-content::-webkit-scrollbar-track,#qr-content::-webkit-scrollbar-track,#app-access-content::-webkit-scrollbar-track,#profile-content::-webkit-scrollbar-track,#edit-stats-content::-webkit-scrollbar-track{background:#f0f0f0;border-radius:5px;}
-            #sessions-content::-webkit-scrollbar-thumb,#shared-files-content::-webkit-scrollbar-thumb,#users-content::-webkit-scrollbar-thumb,#email-form::-webkit-scrollbar-thumb,#settings-form::-webkit-scrollbar-thumb,#stats-content::-webkit-scrollbar-thumb,#qr-content::-webkit-scrollbar-thumb,#app-access-content::-webkit-scrollbar-thumb,#profile-content::-webkit-scrollbar-thumb,#edit-stats-content::-webkit-scrollbar-thumb{background:#ccc;border-radius:5px;border:2px solid #f0f0f0;}
-            #sessions-content::-webkit-scrollbar-thumb:hover,#shared-files-content::-webkit-scrollbar-thumb:hover,#users-content::-webkit-scrollbar-thumb:hover,#email-form::-webkit-scrollbar-thumb:hover,#settings-form::-webkit-scrollbar-thumb:hover,#stats-content::-webkit-scrollbar-thumb:hover,#qr-content::-webkit-scrollbar-thumb:hover,#app-access-content::-webkit-scrollbar-thumb:hover,#profile-content::-webkit-scrollbar-thumb:hover,#edit-stats-content::-webkit-scrollbar-thumb:hover{background:#aaa;}
+            #sessions-content,#shared-files-content,#users-content,#email-form,#settings-form,#stats-content,#app-access-content,#profile-content,#edit-stats-content{scrollbar-width:thin;scrollbar-color:#ccc #f0f0f0;}
+            #sessions-content::-webkit-scrollbar,#shared-files-content::-webkit-scrollbar,#users-content::-webkit-scrollbar,#email-form::-webkit-scrollbar,#settings-form::-webkit-scrollbar,#stats-content::-webkit-scrollbar,#app-access-content::-webkit-scrollbar,#profile-content::-webkit-scrollbar,#edit-stats-content::-webkit-scrollbar{width:10px;}
+            #sessions-content::-webkit-scrollbar-track,#shared-files-content::-webkit-scrollbar-track,#users-content::-webkit-scrollbar-track,#email-form::-webkit-scrollbar-track,#settings-form::-webkit-scrollbar-track,#stats-content::-webkit-scrollbar-track,#app-access-content::-webkit-scrollbar-track,#profile-content::-webkit-scrollbar-track,#edit-stats-content::-webkit-scrollbar-track{background:#f0f0f0;border-radius:5px;}
+            #sessions-content::-webkit-scrollbar-thumb,#shared-files-content::-webkit-scrollbar-thumb,#users-content::-webkit-scrollbar-thumb,#email-form::-webkit-scrollbar-thumb,#settings-form::-webkit-scrollbar-thumb,#stats-content::-webkit-scrollbar-thumb,#app-access-content::-webkit-scrollbar-thumb,#profile-content::-webkit-scrollbar-thumb,#edit-stats-content::-webkit-scrollbar-thumb{background:#ccc;border-radius:5px;border:2px solid #f0f0f0;}
+            #sessions-content::-webkit-scrollbar-thumb:hover,#shared-files-content::-webkit-scrollbar-thumb:hover,#users-content::-webkit-scrollbar-thumb:hover,#email-form::-webkit-scrollbar-thumb:hover,#settings-form::-webkit-scrollbar-thumb:hover,#stats-content::-webkit-scrollbar-thumb:hover,#app-access-content::-webkit-scrollbar-thumb:hover,#profile-content::-webkit-scrollbar-thumb:hover,#edit-stats-content::-webkit-scrollbar-thumb:hover{background:#aaa;}
         <?php endif;?>
-        .qr-wrapper{position:relative;padding:16px;border-radius:var(--qr-radius);background:<?php echo $config['theme']==='dark'?'#111':'#f0f0f0';?>;overflow:hidden;margin:20px auto;width:300px;height:300px;display:flex;align-items:center;justify-content:center;}
-        #qr-modal .modal-scroll-body{overflow:hidden !important;}
-        #qr-modal #qr-content{overflow:hidden !important;}
-        #qr-modal *{scrollbar-width:none !important;}
-        #qr-modal *::-webkit-scrollbar{width:0 !important;height:0 !important;}
-        #qr-code.qr-preview{display:grid;place-items:center;padding:20px;border-radius:22px;background:#fff;max-width:360px;margin:0 auto;}
-        #qr-code.qr-preview svg,
-        #qr-code.qr-preview canvas{max-width:100%;height:auto;border-radius:12px!important;}
         .url{margin-top:18px;padding:12px 14px;border-radius:12px;background:#ffffff0d;color:#cbd5e1;font:13px ui-monospace,SFMono-Regular,monospace;word-break:break-all;}
-        body,#auth-form,#settings-form,#email-form,#users-content,#stats-content,#qr-content,#sessions-content,#shared-files-content,#app-access-content,#profile-content,#edit-stats-content{color:var(--text-color)!important;}
+        body,#auth-form,#settings-form,#email-form,#users-content,#stats-content,#sessions-content,#shared-files-content,#app-access-content,#profile-content,#edit-stats-content{color:var(--text-color)!important;}
         a,button,input,select,textarea{color:var(--text-color)!important;}
         .modal-content,.auth-content,.profile-section{color:var(--text-color)!important;}
         .users-table,.sessions-table,.trusted-devices-table{color:var(--text-color)!important;}
         .users-table th,.users-table td,.sessions-table th,.sessions-table td,.trusted-devices-table th,.trusted-devices-table td{color:var(--text-color)!important;border-color:var(--border-color)!important;}
         #sidebar,#app-list,#app-list a{color:var(--text-color)!important;}
         .form-row label{color:var(--text-color)!important;}
-        .qr-wrapper::before{content:"";position:absolute;inset:-50%;background:conic-gradient(from 0deg,var(--primary-color),color-mix(in srgb,var(--primary-color)80%,white),color-mix(in srgb,var(--primary-color)60%,white),var(--primary-color),color-mix(in srgb,var(--primary-color)80%,black),color-mix(in srgb,var(--primary-color)60%,black),var(--primary-color));animation:spin 6s linear infinite;z-index:0;border-radius:var(--qr-radius);}
-        .qr-wrapper::after{content:"";position:absolute;inset:var(--qr-border-size);border-radius:calc(var(--qr-radius) - var(--qr-border-size));background:var(--modal-bg);z-index:1;}
-        #qr-code{position:relative;z-index:2;padding:16px;border-radius:16px;background:#ffffff;display:flex;align-items:center;justify-content:center;box-shadow:none;width:256px;height:256px;overflow:hidden;}
-        #qr-code canvas{border-radius:12px!important;}
-        <?php if($config['theme']==='light'):?>
-            .qr-wrapper{background:#f5f5f5;}
-            .qr-wrapper::after{background:#ffffff;box-shadow:inset 0 0 20px rgba(0,0,0,0.1);}
-        <?php endif;?>
         @keyframes pulse{0%{transform:scale(1);opacity:1;}50%{transform:scale(1.04);opacity:0.9;}100%{transform:scale(1);opacity:1;}}
         @keyframes spin{to{transform:rotate(360deg);}}
         .edit-stats-buttons{display:flex;gap:10px;margin-top:15px;justify-content:flex-end;}
@@ -1642,8 +1618,8 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         input[type="color"]{width:100%;height:34px;padding:2px;border:1px solid var(--border-color);border-radius:4px;background-color:var(--modal-bg);cursor:pointer;transition:border-color 0.3s,box-shadow 0.3s;}
         input[type="color"]:hover{border-color:var(--primary-color);}
         input[type="color"]:focus{outline:none;border-color:var(--primary-color);box-shadow:0 0 5px var(--primary-color);}
-.app-icon-wrap{width:187px;height:187px;border-radius:var(--casa-tile-radius);background:transparent;padding:18px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;order:1;border:1px solid var(--border-color);transition:transform .2s ease;overflow:hidden;position:relative;}
-@media (hover: hover) and (pointer: fine){.app-tile-link:hover .app-icon-wrap{transform:scale(1.08) translateY(-5px);filter:brightness(1.1) saturate(1.08) drop-shadow(0 10px 20px rgba(0,0,0,0.32));overflow:hidden;}}
+.app-icon-wrap{width:187px;height:187px;border-radius:var(--casa-tile-radius);background:color-mix(in srgb,var(--app-item-bg) 55%,transparent);backdrop-filter:blur(14px) saturate(140%);-webkit-backdrop-filter:blur(14px) saturate(140%);padding:18px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;order:1;border:1px solid var(--border-color);transition:transform .2s ease,background .2s ease;overflow:hidden;position:relative;}
+@media (hover: hover) and (pointer: fine){.app-tile-link:hover .app-icon-wrap{transform:scale(1.08) translateY(-5px);background:color-mix(in srgb,var(--app-item-bg) 70%,transparent);filter:brightness(1.1) saturate(1.08) drop-shadow(0 10px 20px rgba(0,0,0,0.32));overflow:hidden;}}
 .app-icon{width:100%;height:100%;object-fit:contain;display:block;overflow:hidden;}        .app-icon-wrap object.app-icon,.app-icon-wrap img.app-icon{width:100%;height:100%;pointer-events:none;display:block;overflow:hidden;}
 .app-icon-wrap span.app-icon-svg{overflow:hidden;}
         .sidebar-app-icon-wrap object.sidebar-app-icon,.sidebar-app-icon-wrap img.sidebar-app-icon{width:18px;height:18px;pointer-events:none;display:block;}
@@ -2980,7 +2956,7 @@ $_bodyClasses[] = !empty($bootThemeDark) ? 'dark-theme' : 'light-theme';
 <div id="top-bar"<?php echo !empty($shellAppOpen) ? ' hidden' : ''; ?>>
     <button id="menu-button" type="button" aria-label="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>" title="<?php echo my_htmlspecialchars($translations['nav_menu_title'] ?? 'Menu'); ?>"><span class="menu-button-glyph" aria-hidden="true"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5h16"/><path d="M4 12h16"/><path d="M4 19h16"/></svg></span></button>
     <a id="home-root-button" class="shell-home-link" href="/" aria-label="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>" title="<?php echo my_htmlspecialchars($translations['home_tooltip']); ?>"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg></a>
-    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'ServerKherson'); ?></div>
+    <div id="top-bar-title"><?php echo my_htmlspecialchars($translations['shell_application'] ?? 'NexOrbit'); ?></div>
     <div class="weather-widget weather-widget-instance" id="weatherWidget">
         <span class="weather-icon"></span>
         <span class="weather-temp">--°C</span>
@@ -4072,25 +4048,6 @@ endif; // showOtpPage
         </div>
     </div>
 </div>
-<div id="qr-modal">
-    <div id="qr-content">
-        <div class="std-topbar">
-            <h2 class="std-topbar-title"><?php echo my_htmlspecialchars($translations['qr_code_title']); ?></h2>
-            <button id="close-qr" type="button" class="std-topbar-close">&times;</button>
-        </div>
-        <div class="modal-scroll-body">
-        <div class="qr-container">
-            <p><?php echo my_htmlspecialchars($translations['qr_code'] ?? 'QR Code'); ?></p>
-            <div id="qr-code" class="qr-preview"></div>
-            <button class="copy-link-btn" id="copy-domain-btn" type="button">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
-                <?php echo my_htmlspecialchars($translations['copy_link']); ?>
-            </button>
-            <div style="display:none" id="current-domain-url"><?php echo my_htmlspecialchars($currentDomain); ?></div>
-        </div>
-        </div><!-- /.modal-scroll-body -->
-    </div>
-</div>
 <?php if($path!=='/login'&&$path!=='/register'):?>
     <div id="sidebar">
         <div class="weather-widget weather-widget-instance" id="sidebarWeatherWidget">
@@ -4228,12 +4185,6 @@ endif; // showOtpPage
             </div>
             <?php endif; ?>
             <div class="settings-button-wrapper">
-                <button id="qr-button" type="button" class="sidebar-button">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M1 1h8v8H1zM3 3v4h4V3zM1 15h8v8H1zM3 17v4h4v-4zM15 1h8v8h-8zM17 3v4h4V3zM15 15h8v8h-8zM17 17v4h4v-4z"/></svg>
-                </button>
-                <span class="tooltip" id="qr-tooltip"><?php echo my_htmlspecialchars($translations['qr_code']); ?></span>
-            </div>
-            <div class="settings-button-wrapper">
                 <button id="shared-files-button" type="button" class="sidebar-button">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z"/></svg>
                 </button>
@@ -4348,7 +4299,6 @@ if ($versionLabel !== '') {
                 <tr><td><code>A</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_admin_panel'] ?? 'Open Admin Panel'); ?><?php if(!$isAdmin): ?> <span style="opacity:.6;">(<?php echo my_htmlspecialchars($translations['admin_only'] ?? 'admin only'); ?>)</span><?php endif; ?></td></tr>
                 <tr><td><code>S</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_sessions'] ?? 'Open Session Management'); ?></td></tr>
                 <tr><td><code>F</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_shared_files'] ?? 'Open Shared Files'); ?></td></tr>
-                <tr><td><code>Q</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_qr'] ?? 'Open QR Code'); ?></td></tr>
                 <tr><td><code>N</code></td><td><?php echo my_htmlspecialchars($translations['news_portal_title'] ?? 'News Portal'); ?></td></tr>
                 <tr><td><code>P</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_profile'] ?? 'Open Profile'); ?></td></tr>
                 <?php if(isset($_SESSION['user'])): ?><tr><td><code>M</code></td><td><?php echo my_htmlspecialchars($translations['mcp_setup_title'] ?? 'MCP for AI agents'); ?></td></tr><?php endif; ?>
@@ -4386,7 +4336,7 @@ window.__SHELL_COLOR=<?php echo json_encode($config['color'] ?? ''); ?>;
 window.__SHELL_USER_DATA=<?php echo json_encode($userDataForApps ? base64_encode(json_encode($userDataForApps)) : ''); ?>;
 window.__SHELL_CURRENT_APP=<?php echo json_encode($selectedApp); ?>;
 window.__SHELL_I18N=<?php echo json_encode([
-    'shell_application' => $translations['shell_application'] ?? 'ServerKherson',
+    'shell_application' => $translations['shell_application'] ?? 'NexOrbit',
     'opening_app' => $translations['opening_app'] ?? 'Opening…',
     'opening_app_named' => $translations['opening_app_named'] ?? 'Opening {name}…',
 ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
@@ -4825,10 +4775,6 @@ var T=<?php echo json_encode([
     'support_chat_storage_sent'=>$translations['support_chat_storage_sent']??'Storage request updated',
     'support_chat_storage_error'=>$translations['support_chat_storage_error']??'Failed to update storage request',
     'delete_this_command'=>$translations['delete_this_command']??'Delete this command?',
-    'qr_library_not_loaded'=>$translations['qr_library_not_loaded']??'QR Code library not loaded',
-    'qr_refresh_page'=>$translations['qr_refresh_page']??'Please refresh the page',
-    'qr_generation_failed'=>$translations['qr_generation_failed']??'Failed to generate QR code',
-    'qr_generation_failed_detail'=>$translations['qr_generation_failed_detail']??'QR code generation failed',
     'browser_no_audio_recording'=>$translations['browser_no_audio_recording']??'Your browser does not support audio recording',
     'unknown_error'=>$translations['unknown_error']??'Unknown error',
     'failed_to_load_file'=>$translations['failed_to_load_file']??'Failed to load file:',
@@ -5195,12 +5141,6 @@ var T=<?php echo json_encode([
             syncOAuthRememberLinks();
         })();
         const showForgotLink=document.getElementById('show-forgot');
-        const qrButton=document.getElementById('qr-button');
-        const qrModal=document.getElementById('qr-modal');
-        const closeQr=document.getElementById('close-qr');
-        const qrCodeElement=document.getElementById('qr-code');
-        const currentDomainUrl=document.getElementById('current-domain-url');
-        const copyDomainBtn=document.getElementById('copy-domain-btn');
         const emailButton=document.getElementById('email-button');
         const emailModal=document.getElementById('email-modal');
         const closeEmail=document.getElementById('close-email');
@@ -6257,29 +6197,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         }
 
         if(settingsButton){settingsButton.addEventListener('click',(e)=>{e.preventDefault();closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
-        if(qrButton&&qrCodeElement){qrButton.addEventListener('click',async ()=>{closeAllModals();if(qrModal){qrModal.style.display='flex';const domain=currentDomainUrl.textContent.trim();
-            try{
-                if(typeof window.apRenderQrInto==='function'){
-                    await window.apRenderQrInto(qrCodeElement, domain, 256);
-                }else if(typeof window.apEnsureQrCodeStyling==='function'){
-                    const QRCodeStylingCtor=await window.apEnsureQrCodeStyling();
-                    qrCodeElement.innerHTML='';
-                    const host=document.createElement('div');
-                    host.style.width='100%';host.style.display='grid';host.style.placeItems='center';
-                    qrCodeElement.appendChild(host);
-                    new QRCodeStylingCtor(window.apQrStyleOptions(domain,256)).append(host);
-                }else{
-                    throw new Error('QR loader missing');
-                }
-            }catch(error){
-                console.error('QR Code error:',error);
-                if(!qrCodeElement.querySelector('img,svg,canvas')){
-                    qrCodeElement.innerHTML='<div style="text-align: center; padding: 20px;"><p style="color: red;">'+T.qr_generation_failed_detail+'</p><p style="font-size: 12px;">'+error.message+'</p></div>';
-                }
-            }
-        }});}
-        if(copyDomainBtn){copyDomainBtn.addEventListener('click',function(){const domain=currentDomainUrl.textContent;navigator.clipboard.writeText(domain).then(()=>{const originalText=copyDomainBtn.innerHTML;copyDomainBtn.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg> Copied!';copyDomainBtn.style.background='#00C851';setTimeout(()=>{copyDomainBtn.innerHTML=originalText;copyDomainBtn.style.background='';},2000);}).catch(err=>{console.error('Failed to copy: ',err);});});}
-        function closeAllModals(){hideSettingsTooltips();const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,deleteUserModal,document.getElementById('reset-user-password-modal'),document.getElementById('cookie-settings-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal'),document.getElementById('mcp-setup-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
+        function closeAllModals(){hideSettingsTooltips();const modals=[settingsModal,emailModal,usersModal,profileModal,sessionsModal,sharedFilesModal,deleteUserModal,document.getElementById('reset-user-password-modal'),document.getElementById('cookie-settings-modal'),tgBotModal,shortcutsModal,document.getElementById('wallpaper-modal'),document.getElementById('npo-prompt-modal'),document.getElementById('mcp-setup-modal')];modals.forEach(modal=>{if(modal){modal.style.display='none';}});const np=document.getElementById('news-portal-overlay');if(np&&np.classList.contains('active')){np.classList.remove('active');if(window.location.hash==='#news-workflow')history.pushState(null,'',window.location.pathname+window.location.search);}else if(np){np.classList.remove('active');}closePolicyModal();}
 
         // ===== Telegram Bot Modal =====
         const tgBotModal = document.getElementById('tg-bot-modal');
@@ -6896,7 +6814,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
 
             // Function to update z-index based on modal state
             function updateNotificationZIndex() {
-                const anyModalOpen = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"], #auth-modal[style*="display: flex"], #auth-modal[style*="display:flex"], #profile-modal[style*="display: flex"], #profile-modal[style*="display:flex"], #settings-modal[style*="display: flex"], #settings-modal[style*="display:flex"], #email-modal[style*="display: flex"], #email-modal[style*="display:flex"], #users-modal[style*="display: flex"], #users-modal[style*="display:flex"], #sessions-modal[style*="display: flex"], #sessions-modal[style*="display:flex"], #qr-modal[style*="display: flex"], #qr-modal[style*="display:flex"], #shared-files-modal[style*="display: flex"], #shared-files-modal[style*="display:flex"], #news-portal-overlay.active');
+                const anyModalOpen = document.querySelector('.modal[style*="display: flex"], .modal[style*="display:block"], #auth-modal[style*="display: flex"], #auth-modal[style*="display:flex"], #profile-modal[style*="display: flex"], #profile-modal[style*="display:flex"], #settings-modal[style*="display: flex"], #settings-modal[style*="display:flex"], #email-modal[style*="display: flex"], #email-modal[style*="display:flex"], #users-modal[style*="display: flex"], #users-modal[style*="display:flex"], #sessions-modal[style*="display: flex"], #sessions-modal[style*="display:flex"], #shared-files-modal[style*="display: flex"], #shared-files-modal[style*="display:flex"], #news-portal-overlay.active');
                 notification.style.zIndex = anyModalOpen ? '9999' : '15000';
             }
 
@@ -6909,7 +6827,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             });
 
             // Watch all modals for display changes
-            const modalIds = ['auth-modal', 'profile-modal', 'settings-modal', 'email-modal', 'users-modal', 'sessions-modal', 'qr-modal', 'shared-files-modal'];
+            const modalIds = ['auth-modal', 'profile-modal', 'settings-modal', 'email-modal', 'users-modal', 'sessions-modal', 'shared-files-modal'];
             modalIds.forEach(id => {
                 const modal = document.getElementById(id);
                 if (modal) {
@@ -7129,7 +7047,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         if(emailButton){emailButton.addEventListener('click',()=>{closeAllModals();if(emailModal){emailModal.style.display='flex';}});if(closeEmail){closeEmail.addEventListener('click',()=>{if(emailModal){emailModal.style.display='none';}});}if(emailModal){emailModal.addEventListener('click',(e)=>{if(e.target===emailModal){emailModal.style.display='none';}});}}
         if(usersButton){usersButton.addEventListener('click',()=>{closeAllModals();if(usersModal){usersModal.style.display='flex';}});if(closeUsers){closeUsers.addEventListener('click',()=>{if(usersModal){usersModal.style.display='none';}});}if(usersModal){usersModal.addEventListener('click',(e)=>{if(e.target===usersModal){usersModal.style.display='none';}});}}
         if(sessionsButton){sessionsButton.addEventListener('click',()=>{closeAllModals();if(sessionsModal){sessionsModal.style.display='flex';apLoadSessionsFragment();}});if(closeSessions){closeSessions.addEventListener('click',()=>{if(sessionsModal){sessionsModal.style.display='none';}});}if(sessionsModal){sessionsModal.addEventListener('click',(e)=>{if(e.target===sessionsModal){sessionsModal.style.display='none';}});}}
-        const modalButtons=[qrButton,emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
+        const modalButtons=[emailButton,usersButton,sessionsButton].filter(btn=>btn);modalButtons.forEach(button=>{if(button){button.addEventListener('click',(e)=>{e.preventDefault();e.stopPropagation();});}});
         if(menuButton){menuButton.addEventListener('click',()=>{ if(sidebar && sidebar.classList.contains('open')) closeSidebarMenu(); else openSidebarMenu(); });}
         if(settingsButton){settingsButton.addEventListener('click',()=>{closeAllModals();if(settingsModal){settingsModal.style.display='flex';}});}
         if(closeSettings){closeSettings.addEventListener('click',()=>{if(settingsModal)settingsModal.style.display='none';});}
@@ -7349,7 +7267,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             return tag === 'input' || tag === 'textarea' || tag === 'select' || !!target.isContentEditable;
         }
         function isAnyBlockingModalOpen(){
-            const modals = [settingsModal, qrModal, emailModal, usersModal, profileModal, sessionsModal, sharedFilesModal, authModal, shortcutsModal, document.getElementById('mcp-setup-modal')];
+            const modals = [settingsModal, emailModal, usersModal, profileModal, sessionsModal, sharedFilesModal, authModal, shortcutsModal, document.getElementById('mcp-setup-modal')];
             const np = document.getElementById('news-portal-overlay');
             return modals.some(modal => modal && modal.style.display === 'flex') || (np && np.classList.contains('active'));
         }
@@ -7363,7 +7281,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             const escapableModalIds = [
                 'settings-modal',
                 'shortcuts-modal',
-                'qr-modal',
                 'email-modal',
                 'users-modal',
                 'profile-modal',
@@ -7469,11 +7386,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 document.getElementById('shared-files-button').click();
                 return;
             }
-            if(code === 'KeyQ' && qrButton){
-                e.preventDefault();
-                qrButton.click();
-                return;
-            }
             if(code === 'KeyN' && typeof window.openNewsPortal === 'function'){
                 e.preventDefault();
                 window.openNewsPortal();
@@ -7503,7 +7415,6 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                 if(index >= 0) setSelectedAppTile(index);
             });
         }
-        if(closeQr){closeQr.addEventListener('click',()=>{qrModal.style.display='none';});}
         if(searchBar){
             searchBar.addEventListener('input',(e)=>{
                 const query=e.target.value.toLowerCase();
@@ -7593,7 +7504,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         document.addEventListener('click',(e)=>{
             if(!sidebar || !menuButton) return;
             if(!sidebar.contains(e.target) && !menuButton.contains(e.target) && sidebar.classList.contains('open')){
-                const modals=[settingsModal,qrModal,emailModal,usersModal,profileModal,sessionsModal,authModal];
+                const modals=[settingsModal,emailModal,usersModal,profileModal,sessionsModal,authModal];
                 let isModalClick=false;
                 modals.forEach(modal=>{if(modal&&modal.contains(e.target)){isModalClick=true;}});
                 if(e.target.closest && e.target.closest('.notification, .temp-notification, #toast, #toast-container, #otp-gen-modal')){isModalClick=true;}

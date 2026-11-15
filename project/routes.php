@@ -112,8 +112,9 @@ if ($path === '/oauth/approve') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Authorize Application</title>
-        <link rel="icon" type="image/png" href="/icon.png">
-        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/png" href="/icon.png?v=3">
+        <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
             :root{
                 color-scheme: light dark;
@@ -246,8 +247,9 @@ if ($path === '/client-auth') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Desktop Authorization</title>
-        <link rel="icon" type="image/png" href="/icon.png">
-        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/png" href="/icon.png?v=3">
+        <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
             :root{
                 color-scheme: light dark;
@@ -313,7 +315,7 @@ if ($path === '/client-auth') {
     </head>
     <body>
         <div class="card">
-            <div class="pill">ServerKherson Desktop</div>
+            <div class="pill">NexOrbit Desktop</div>
             <?php if (!$validRequest): ?>
                 <h1>Authorization request is invalid or expired</h1>
                 <p>Return to the desktop app and start authorization again.</p>

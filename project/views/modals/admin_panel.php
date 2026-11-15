@@ -748,7 +748,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
         font-size: 9px;
     }
 }
-#ap-stats-range-controls { flex-wrap: wrap; }
+#ap-stats-range-controls { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 2px; }
 #ap-stats-range-controls > * { white-space: nowrap; flex-shrink: 0; }
 #ap-stats-range-controls input[type="date"] { flex-shrink: 1; }
 @media (min-width: 1200px) {
