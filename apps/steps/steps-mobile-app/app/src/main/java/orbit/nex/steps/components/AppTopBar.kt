@@ -3,6 +3,7 @@ package orbit.nex.steps.components
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
+<<<<<<< HEAD
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -10,6 +11,11 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+=======
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
+>>>>>>> mobile-spends
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -23,17 +29,26 @@ import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
+<<<<<<< HEAD
 import androidx.compose.material3.HorizontalDivider
+=======
+>>>>>>> mobile-spends
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+<<<<<<< HEAD
 import androidx.compose.material3.TextButton
+=======
+>>>>>>> mobile-spends
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+<<<<<<< HEAD
 import androidx.compose.runtime.mutableStateOf
+=======
+>>>>>>> mobile-spends
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -46,30 +61,44 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+<<<<<<< HEAD
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+=======
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+>>>>>>> mobile-spends
 import coil.compose.AsyncImage
 import orbit.nex.steps.BuildConfig
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
+<<<<<<< HEAD
 import orbit.nex.steps.screens.ServerProfile
 import orbit.nex.steps.screens.profileFromJson
+=======
+>>>>>>> mobile-spends
 import kotlinx.coroutines.delay
 
 private val CONTENT_EDGE_PADDING = 10.dp
 
 /**
+<<<<<<< HEAD
  * App-level top bar with the profile avatar and name on the left and, on
  * secondary screens, the live sync countdown on the right. Tapping the avatar
  * or the name opens a read-only account dialog.
+=======
+ * App-level top bar with the profile avatar on the left and, on secondary
+ * screens, the live sync countdown on the right.
+>>>>>>> mobile-spends
  *
  * Uses a slightly darker surface in light theme and a slightly lighter one in
  * dark theme than the page background, and aligns its content edge insets with
  * the main content padding so everything lines up vertically.
  */
 @Composable
+<<<<<<< HEAD
 fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
@@ -79,6 +108,12 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
     // profile refreshed in Settings shows up here without a restart.
     val profile = profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()
     val profileName = profile.name
+=======
+fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val prefs = remember { PreferencesManager(context) }
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+>>>>>>> mobile-spends
     LaunchedEffect(Unit) {
         while (true) {
             delay(1_000)
@@ -118,16 +153,25 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
             if (avatarModel != null) {
                 AsyncImage(
                     model = avatarModel,
+<<<<<<< HEAD
                     contentDescription = stringResource(R.string.account_title),
+=======
+                    contentDescription = stringResource(R.string.nav_about),
+>>>>>>> mobile-spends
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
+<<<<<<< HEAD
                         .clickable(onClick = { showAccount = true })
+=======
+                        .clickable(onClick = onProfileClick)
+>>>>>>> mobile-spends
                 )
             } else {
                 Icon(
                     if (isConnected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
+<<<<<<< HEAD
                     contentDescription = stringResource(R.string.account_title),
                     modifier = Modifier
                         .size(34.dp)
@@ -145,6 +189,16 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.clickable { showAccount = true }
             )
+=======
+                    contentDescription = stringResource(R.string.nav_about),
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .clickable(onClick = onProfileClick),
+                    tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+>>>>>>> mobile-spends
             Spacer(Modifier.weight(1f))
             if (showTimer && info != null) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(24.dp)) {
@@ -185,6 +239,7 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
             }
         }
     }
+<<<<<<< HEAD
 
     if (showAccount) {
         AccountDialog(
@@ -320,4 +375,6 @@ private fun AccountField(
             }
         }
     }
+=======
+>>>>>>> mobile-spends
 }

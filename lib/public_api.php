@@ -47,10 +47,14 @@ function public_api_cors(): void {
 }
 function public_api_bootstrap(): void {
     $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
+<<<<<<< HEAD
     // Steps API keys use X-API-Key, not Authorization. Do not create a PHP
     // session for them: a fresh Redis session per read was pure overhead.
     $apiKey = trim((string)($_SERVER['HTTP_X_API_KEY'] ?? ''));
     if ($auth === '' && $apiKey === '' && PHP_SESSION_NONE === session_status() && !headers_sent()) {
+=======
+    if ($auth === '' && PHP_SESSION_NONE === session_status() && !headers_sent()) {
+>>>>>>> mobile-spends
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => public_api_is_https(), 'httponly' => true, 'samesite' => 'Strict']);

@@ -125,6 +125,7 @@
             android:label="@string/settings_title"
             android:theme="@style/Theme.NexSteps" />
 
+<<<<<<< HEAD
         <!-- Location recording settings, opened from settings and from the map -->
         <activity
             android:name=".LocationSettingsActivity"
@@ -142,6 +143,8 @@
             android:label="@string/points_select_title"
             android:theme="@style/Theme.NexSteps" />
 
+=======
+>>>>>>> mobile-spends
         <!-- Theme, accent, language and orientation -->
         <activity
             android:name=".PersonalizationActivity"

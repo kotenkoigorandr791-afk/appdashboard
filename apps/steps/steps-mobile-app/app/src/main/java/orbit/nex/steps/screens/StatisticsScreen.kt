@@ -1,4 +1,5 @@
 package orbit.nex.steps.screens
+<<<<<<< HEAD
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.tween
@@ -13,6 +14,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+=======
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
+>>>>>>> mobile-spends
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +31,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+<<<<<<< HEAD
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -60,6 +69,22 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
+=======
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+>>>>>>> mobile-spends
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -69,7 +94,10 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+<<<<<<< HEAD
 import androidx.compose.runtime.saveable.rememberSaveable
+=======
+>>>>>>> mobile-spends
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -83,14 +111,20 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+<<<<<<< HEAD
 import androidx.compose.ui.graphics.vector.ImageVector
+=======
+>>>>>>> mobile-spends
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+<<<<<<< HEAD
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+=======
+>>>>>>> mobile-spends
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -99,6 +133,7 @@ import orbit.nex.steps.HealthDataType
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.WebhookConfig
+<<<<<<< HEAD
 import orbit.nex.steps.components.AppEmptyState
 import orbit.nex.steps.components.AppHeroSurface
 import orbit.nex.steps.components.AppSectionCard
@@ -108,6 +143,9 @@ import orbit.nex.steps.location.EarnedAchievements
 import orbit.nex.steps.location.ServerStatistics
 import orbit.nex.steps.location.StatisticsRepository
 import orbit.nex.steps.location.WeekdayMovement
+=======
+import orbit.nex.steps.ui.theme.AppCornerRadius
+>>>>>>> mobile-spends
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -125,6 +163,7 @@ import java.util.Locale
 import kotlin.math.roundToInt
 data class StatMetric(val type: HealthDataType, val value: String)
 data class StatsState(val byDay: Map<LocalDate, List<StatMetric>> = emptyMap(), val steps: Map<LocalDate, Long> = emptyMap(), val error: String? = null)
+<<<<<<< HEAD
 private enum class StatsTab(val titleRes: Int, val icon: ImageVector) {
     OVERVIEW(R.string.stats_tab_overview, Icons.Filled.Insights),
     ACTIVITY(R.string.stats_tab_activity, Icons.Filled.DirectionsWalk),
@@ -135,10 +174,14 @@ private enum class StatsTab(val titleRes: Int, val icon: ImageVector) {
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+=======
+@Composable
+>>>>>>> mobile-spends
 fun StatisticsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
+<<<<<<< HEAD
     val repository = remember { StatisticsRepository(prefs) }
     val reduceMotion = remember {
         android.provider.Settings.Global.getFloat(
@@ -149,12 +192,15 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     }
     var selectedTab by rememberSaveable { mutableStateOf(StatsTab.OVERVIEW.name) }
     val tab = StatsTab.entries.firstOrNull { it.name == selectedTab } ?: StatsTab.OVERVIEW
+=======
+>>>>>>> mobile-spends
     var monthOffset by remember { mutableIntStateOf(0) }
     var goalSteps by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf(StatsState()) }
     var localMonthSteps by remember { mutableStateOf<Map<LocalDate, Long>>(emptyMap()) }
     var androidSteps by remember { mutableStateOf<Long?>(null) }
     var androidStepsError by remember { mutableStateOf<String?>(null) }
+<<<<<<< HEAD
     var selectedStatsDate by remember { mutableStateOf<LocalDate?>(null) }
     var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
     var serverStats by remember { mutableStateOf(ServerStatistics()) }
@@ -162,11 +208,17 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     var seenAchievements by remember { mutableStateOf(prefs.getSeenAchievements()) }
     var serverLoading by remember { mutableStateOf(false) }
     var achievementsLoading by remember { mutableStateOf(false) }
+=======
+    var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
+>>>>>>> mobile-spends
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
     val connected = config != null
     val selectedDate = LocalDate.now()
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
+<<<<<<< HEAD
 
+=======
+>>>>>>> mobile-spends
     suspend fun load(force: Boolean = false) {
         state = config?.let { fetchYearStats(it, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force, context) } ?: StatsState()
     }
@@ -199,6 +251,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                 androidStepsError = it.message
             }
     }
+<<<<<<< HEAD
     suspend fun loadServer(force: Boolean = false) {
         val active = config ?: return
         if (serverLoading || (!force && serverStats.hasData)) return
@@ -214,30 +267,49 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         achievementsLoading = false
     }
 
+=======
+>>>>>>> mobile-spends
     LaunchedEffect(Unit) {
         while (true) {
             val newUrl = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url
             if (newUrl != currentConfigUrl) {
                 currentConfigUrl = newUrl
                 state = StatsState()
+<<<<<<< HEAD
                 serverStats = ServerStatistics()
                 achievements = EarnedAchievements()
+=======
+>>>>>>> mobile-spends
                 load()
             }
             delay(2_000)
         }
     }
+<<<<<<< HEAD
     LaunchedEffect(currentConfigUrl) { load() }
     LaunchedEffect(currentConfigUrl) {
         goalSteps = config?.let { fetchStepGoal(it, prefs) } ?: 0
     }
     LaunchedEffect(chartMonth, currentConfigUrl) { loadLocalMonth() }
+=======
+    LaunchedEffect(currentConfigUrl) {
+        load()
+    }
+    // The goal lives in the server-side settings, same value the web chart draws.
+    LaunchedEffect(currentConfigUrl) {
+        goalSteps = config?.let { fetchStepGoal(it, prefs) } ?: 0
+    }
+    LaunchedEffect(chartMonth, currentConfigUrl) {
+        loadLocalMonth()
+    }
+>>>>>>> mobile-spends
     LaunchedEffect(selectedDate, currentConfigUrl) {
         while (true) {
             loadAndroidSteps()
             delay(ANDROID_CACHE_MAX_AGE_MS)
         }
     }
+<<<<<<< HEAD
     LaunchedEffect(tab, currentConfigUrl) {
         when (tab) {
             StatsTab.MOVEMENT, StatsTab.QUALITY -> loadServer()
@@ -580,11 +652,90 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                         Text(stringResource(metric.type.nameResId))
                         Text(metric.value)
                     }
+=======
+    val monthSteps = if (connected) state.steps else localMonthSteps
+    val daySteps = if (connected) state.steps[selectedDate] ?: 0L else androidSteps ?: 0L
+    val dayStepsError = if (connected) null else androidStepsError
+    Column(
+        modifier.fillMaxSize().padding(horizontal = 10.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // Gap under the top bar that scrolls away with the content.
+        Spacer(Modifier.height(12.dp))
+        // Today's summary: gradient card with just the label and the count.
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(AppCornerRadius))
+                .background(
+                    Brush.linearGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.30f),
+                        )
+                    )
+                )
+        ) {
+            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                // Label and value on one line, e.g. "Today  8 000 steps".
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        stringResource(R.string.stats_today),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps),
+                        style = MaterialTheme.typography.headlineMedium,
+                    )
+                    Text(
+                        stringResource(R.string.stats_steps),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    IconButton(onClick = { if (monthOffset > -11) monthOffset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
+                    Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+                }
+                StepsChart(monthSteps, chartMonth, goalSteps)
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(stringResource(R.string.stats_heatmap_title), style = MaterialTheme.typography.titleMedium)
+                StepsHeatmap(monthSteps, chartMonth)
+            }
+        }
+        if (!connected && localMonthSteps.isNotEmpty()) {
+            Text(stringResource(R.string.stats_local_data), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        Button(onClick = { scope.launch { load(true); loadAndroidSteps(true); loadLocalMonth() } }, modifier = Modifier.fillMaxWidth()) {
+            Text(stringResource(R.string.dashboard_refresh))
+        }
+        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+        if (connected) state.byDay[selectedDate].orEmpty().forEach { metric ->
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                    Text(metric.value, style = MaterialTheme.typography.headlineSmall)
+>>>>>>> mobile-spends
                 }
             }
         }
     }
 }
+<<<<<<< HEAD
 
 @Composable
 private fun OverviewMetric(label: String, value: String, hint: String, modifier: Modifier = Modifier) {
@@ -775,6 +926,10 @@ private fun formatDuration(seconds: Long): String {
 
 @Composable
 private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0, onDayClick: (LocalDate) -> Unit) {
+=======
+@Composable
+private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0) {
+>>>>>>> mobile-spends
     val barTop = MaterialTheme.colorScheme.primary
     val barBottom = MaterialTheme.colorScheme.tertiary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -803,7 +958,10 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
         if (count > 0L) {
             tapX = offset.x
             tooltip = BarTooltip(date, count)
+<<<<<<< HEAD
             onDayClick(date)
+=======
+>>>>>>> mobile-spends
         }
     }
     LaunchedEffect(tooltip) {
@@ -944,9 +1102,13 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
     }
 }
 @Composable
+<<<<<<< HEAD
 private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int, onDayClick: (LocalDate) -> Unit) {
     // Gold marks the days the daily step goal was reached.
     val goalGold = Color(0xFFD4A017)
+=======
+private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
+>>>>>>> mobile-spends
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
@@ -967,29 +1129,43 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: In
                         val count = steps[date] ?: 0L
                         val intensity = (count.toFloat() / max.toFloat()).coerceIn(0f, 1f)
                         val color = if (count <= 0L) empty else lerp(base, warm, intensity).copy(alpha = 0.35f + 0.65f * intensity)
+<<<<<<< HEAD
                         val goalReached = goal > 0 && count >= goal
+=======
+>>>>>>> mobile-spends
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(color)
+<<<<<<< HEAD
                                 .then(
                                     if (goalReached) {
                                         Modifier.border(1.5.dp, goalGold, RoundedCornerShape(4.dp))
                                     } else Modifier
                                 )
                                 .clickable { picked = if (picked == date) null else date; onDayClick(date) },
+=======
+                                .clickable { picked = if (picked == date) null else date },
+>>>>>>> mobile-spends
                             contentAlignment = Alignment.Center,
                         ) {
                             // Day of month so the grid reads as a calendar.
                             Text(
                                 date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.labelSmall,
+<<<<<<< HEAD
                                 color = when {
                                     goalReached -> goalGold
                                     intensity > 0.55f -> MaterialTheme.colorScheme.onPrimary
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
+=======
+                                color = if (intensity > 0.55f) {
+                                    MaterialTheme.colorScheme.onPrimary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+>>>>>>> mobile-spends
                                 },
                             )
                         }

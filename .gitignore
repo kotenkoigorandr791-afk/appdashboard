@@ -236,6 +236,7 @@ pnpm-debug.log*
 # Shared local Android toolchain (JDK/Gradle/SDK/emulator, download cache)
 /tools/
 
+<<<<<<< HEAD
 .tgrep/
 .tgrep-*/
 
@@ -245,3 +246,5 @@ pnpm-debug.log*
 .bench-device
 
 
+=======
+>>>>>>> mobile-spends

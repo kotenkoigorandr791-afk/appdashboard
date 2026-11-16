@@ -1847,6 +1847,14 @@ function openPanel(id){
             }
         }
     }
+    if(id==='ap-storage'&&window.StoragePanel){
+        if(!apPanelInited['ap-storage']){
+            apPanelInited['ap-storage']=true;
+            try{window.StoragePanel.init(dynRoot.querySelector('#ap-storage'));}catch(e){console.error('[AdminPanel] StoragePanel.init:',e);}
+        }else if(typeof window.StoragePanel.refresh==='function'){
+            try{window.StoragePanel.refresh();}catch(e){}
+        }
+    }
     if(id==='ap-performance'&&window.PerformancePanel){
         if(!apPanelInited['ap-performance']){
             apPanelInited['ap-performance']=true;

@@ -7,7 +7,11 @@ plugins {
 
 val appVersionMajor = 1
 val appVersionMinor = 10
+<<<<<<< HEAD
 val appVersionPatch = 7
+=======
+val appVersionPatch = 4
+>>>>>>> mobile-spends
 val appVersionCode = (appVersionMajor * 10000) + (appVersionMinor * 100) + appVersionPatch
 val appVersionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
 

@@ -15,22 +15,13 @@ import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
 import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
-import androidx.compose.animation.animateColorAsState
-import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.NavigationBar
@@ -40,7 +31,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,13 +54,11 @@ import androidx.lifecycle.lifecycleScope
 import orbit.nex.steps.screens.AboutScreen
 import orbit.nex.steps.screens.ConfigurationScreen
 import orbit.nex.steps.screens.ConnectionGateScreen
-import orbit.nex.steps.screens.TrackingMapScreen
 import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
 import orbit.nex.steps.screens.WhatsNewSheet
 import orbit.nex.steps.components.AppBackground
 import orbit.nex.steps.components.AppTopBar
-import orbit.nex.steps.components.OfflineBanner
 import orbit.nex.steps.ui.theme.HCWebhookTheme
 import orbit.nex.steps.updates.AppUpdateManager
 import kotlinx.coroutines.Dispatchers
@@ -136,37 +124,9 @@ class MainActivity : AppCompatActivity() {
     private fun MainScreen() {
         val navigationSaver = Saver<NavigationScreen, String>(
             save = { it.route },
-            restore = { route ->
-                // Older builds stored the removed Library tab. Restore it as the
-                // map, where those entities now live, instead of dropping the tab.
-                if (route == "library") NavigationScreen.Tracking
-                else bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home
-            }
+            restore = { route -> bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home }
         )
         var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
-        val online by NetworkState.online.collectAsState()
-        // The bar turns red while offline, flashes green for a moment after the
-        // connection is back, then settles into its normal colour.
-        var wasOffline by remember { mutableStateOf(!online) }
-        var flashOnline by remember { mutableStateOf(false) }
-        LaunchedEffect(online) {
-            if (!online) {
-                wasOffline = true
-                flashOnline = false
-            } else if (wasOffline) {
-                wasOffline = false
-                flashOnline = true
-                delay(2_800)
-                flashOnline = false
-            }
-        }
-        // Short fade + rise on every screen change so switching tabs feels smooth
-        // without slowing navigation down.
-        val screenAlpha = remember { Animatable(1f) }
-        LaunchedEffect(selected) {
-            screenAlpha.snapTo(0.35f)
-            screenAlpha.animateTo(1f, tween(durationMillis = 190, easing = FastOutSlowInEasing))
-        }
         // The app is usable only after a device token is paired: without it every
         // tab would show empty or stale data, so the gate replaces the whole shell.
         var connected by remember { mutableStateOf(preferencesManager.getWebhookConfigs().any { it.isEnabled }) }
@@ -181,9 +141,6 @@ class MainActivity : AppCompatActivity() {
         }
         LaunchedEffect(Unit) {
             AppUpdateManager.start(applicationContext)
-            // A force-stop or OEM cleanup can end the service; opening the app is
-            // the earliest reliable moment to restore a user-enabled session.
-            orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(this@MainActivity)
         }
         if (showWhatsNew) {
             WhatsNewSheet(
@@ -251,56 +208,29 @@ class MainActivity : AppCompatActivity() {
         Scaffold(
             topBar = {
                 AppTopBar(
-                    showTimer = selected != NavigationScreen.Home
+                    showTimer = selected != NavigationScreen.Home,
+                    onProfileClick = { selected = NavigationScreen.About }
                 )
             },
             bottomBar = {
-                val barShape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp)
-                val barBase = MaterialTheme.colorScheme.surfaceContainer
-                val barBottom = when {
-                    !online -> Color(0xFF7F1D1D)
-                    flashOnline -> Color(0xFF15803D)
-                    else -> barBase
+            NavigationBar(
+                modifier = Modifier.clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
+            ) {
+                bottomNavItems.forEach { screen ->
+                    NavigationBarItem(
+                        selected = selected == screen,
+                        onClick = { selected = screen },
+                        icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
+                        label = { NavLabel(screen.titleResId) }
+                    )
                 }
-                val animatedBottom by animateColorAsState(barBottom, tween(700), label = "navConnection")
-                Box(
-                    Modifier.fillMaxWidth()
-                        .clip(barShape)
-                        .background(Brush.verticalGradient(listOf(barBase, animatedBottom)))
-                ) {
-                    NavigationBar(containerColor = Color.Transparent, tonalElevation = 0.dp) {
-                        bottomNavItems.forEach { screen ->
-                            NavigationBarItem(
-                                selected = selected == screen,
-                                onClick = { selected = screen },
-                                icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
-                                label = { NavLabel(screen.titleResId) }
-                            )
-                        }
-                    }
-                }
+            }
         }) { padding ->
             AppBackground {
-                Column(
-                    if (selected == NavigationScreen.Tracking) Modifier.fillMaxSize()
-                    else Modifier.fillMaxSize().padding(padding)
-                ) {
-                    if (!online) {
-                        OfflineBanner(onRetry = { NetworkState.retry(this@MainActivity) })
-                    }
-                    Box(
-                        Modifier.weight(1f).graphicsLayer {
-                            alpha = screenAlpha.value
-                            translationY = (1f - screenAlpha.value) * 14.dp.toPx()
-                        }
-                    ) {
-                        when (selected) {
-                            NavigationScreen.Home -> ConfigurationScreen(Modifier)
-                            NavigationScreen.Tracking -> TrackingMapScreen(Modifier)
-                            NavigationScreen.Statistics -> StatisticsScreen(Modifier)
-                            NavigationScreen.About -> AboutScreen(Modifier)
-                        }
-                    }
+                when (selected) {
+                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
+                    NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
+                    NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
                 }
             }
         }
@@ -383,10 +313,9 @@ class MainActivity : AppCompatActivity() {
                     "${base.scheme}://${base.authority}/${rawUrl.trimStart('/')}"
                 }
                 loggedUrl = url
-                val body = JSONObject().put("action", action).put("id", obj.optString("id")).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+                val body = JSONObject().put("action", action).toString().toRequestBody("application/json; charset=utf-8".toMediaType())
                 val builder = Request.Builder().url(url).post(body)
                 config?.headers?.forEach { (key, value) -> builder.addHeader(key, value) }
-                builder.header("X-Device-Id", preferencesManager.getDeviceId())
                 OkHttpClient().newCall(builder.build()).execute().use { response ->
                     if (response.isSuccessful) {
                         addConflictLog(url, timestamp, response.code, true, getString(R.string.conflict_resolve_success, action, response.code))

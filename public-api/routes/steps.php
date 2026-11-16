@@ -11,6 +11,7 @@ $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 header('Content-Type: application/json; charset=utf-8');
+<<<<<<< HEAD
 $geoEndpoint = strtolower((string)$sub);
 // Mobile geo screens share the same bearer-token surface as the map. Keep this
 // an explicit allowlist: every forwarded endpoint authenticates through
@@ -28,6 +29,8 @@ if (in_array($geoEndpoint, $geoEndpoints, true)) {
         exit;
     }
 }
+=======
+>>>>>>> mobile-spends
 // Release metadata and APK are public: a fresh install must be able to update
 // itself before pairing. They expose only the published build, never user data.
 if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], true)) {
