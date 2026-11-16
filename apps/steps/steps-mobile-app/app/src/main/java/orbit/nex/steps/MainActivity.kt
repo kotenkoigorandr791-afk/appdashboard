@@ -54,6 +54,7 @@ import androidx.lifecycle.lifecycleScope
 import orbit.nex.steps.screens.AboutScreen
 import orbit.nex.steps.screens.ConfigurationScreen
 import orbit.nex.steps.screens.ConnectionGateScreen
+import orbit.nex.steps.screens.TrackingMapScreen
 import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
 import orbit.nex.steps.screens.WhatsNewSheet
@@ -226,6 +227,7 @@ class MainActivity : AppCompatActivity() {
             AppBackground {
                 when (selected) {
                     NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
+                    NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
                     NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
                     NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
                 }
