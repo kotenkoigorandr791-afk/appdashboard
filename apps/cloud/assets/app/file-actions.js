@@ -365,7 +365,13 @@ let inlineRenameState = null;
 function cancelInlineTreeRename() {
   if (!inlineRenameState) return;
   const { node, label, input, originalName } = inlineRenameState;
-  if (input && input.parentNode) input.remove();
+  try {
+    if (input && input.parentNode && input.parentNode.contains(input)) {
+      input.remove();
+    }
+  } catch (e) {
+    // Element already removed or moved
+  }
   if (label) {
     label.textContent = originalName;
     label.classList.remove('hidden');
@@ -952,7 +958,7 @@ function buildFileContextMenuOptions(path, type, opts = {}) {
             ]
         });
     }
-    if (path) options.push({ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type) });
+    if (path) options.push({ label: t(window.i18n, 'properties'), icon: 'properties', action: () => showProperties(path, type, opts.root || getCurrentCloudRoot()) });
     if (opts.tabId != null) {
         if (tabsState.tabs.length <= 1) {
             options.push({ label: t(window.i18n, 'close'), icon: 'close', action: () => closeTab(opts.tabId) });
@@ -1014,7 +1020,7 @@ function showContextMenu(e, path, type, name, root) {
     menu.style.zIndex = '1000';
     menu.style.visibility = 'hidden';
     menu.style.opacity = '0';
-    const basePath = path || '';
+    const basePath = path || (type !== 'file' && typeof getTreeBrowsePath === 'function' ? getTreeBrowsePath() : '');
     const hasMultipleSelection = selectionState.selectedItems.size > 1;
     const options = [];
     if (isTrashRoot()) {
@@ -1431,9 +1437,17 @@ function selectFolderForExtract(folderPath) {
     pathDisplay.textContent = folderPath || '/';
     window.selectedExtractFolder = folderPath;
 }
+const activeFolderArchiveJobs = new Set();
+
 async function archiveFolder(folderPath) {
   if (!folderPath) {
     flashStatus(t(i18n, 'selectFolderToArchive'));
+    return;
+  }
+  const root = getCurrentCloudRoot();
+  const jobKey = `${root}:${folderPath}`;
+  if (activeFolderArchiveJobs.has(jobKey)) {
+    flashStatus(t(i18n, 'archiveAlreadyInProgress') || 'An archive for this folder is already being created.');
     return;
   }
   const timestamp = formatTimestampForFilename();
@@ -1441,6 +1455,12 @@ async function archiveFolder(folderPath) {
     ? await window.showArchiveOptionsModal(`${folderPath.split('/').pop()}_${timestamp}.zip`)
     : { archiveName: '', format: 'zip', password: '' };
   if (!options) return;
+  // The options modal is asynchronous; prevent a second request after it closes.
+  if (activeFolderArchiveJobs.has(jobKey)) {
+    flashStatus(t(i18n, 'archiveAlreadyInProgress') || 'An archive for this folder is already being created.');
+    return;
+  }
+  activeFolderArchiveJobs.add(jobKey);
   try {
     const result = await api('archive_folder', { 
       folder_path: folderPath,
@@ -1459,13 +1479,15 @@ async function archiveFolder(folderPath) {
       const archivePath = archiveDir ? archiveDir + '/' + archiveName : archiveName;
       const now = Math.floor(Date.now() / 1000);
       const newItem = { name: archiveName, path: archivePath, type: 'file', size: completed.size || 0, mtime: now };
-      await insertTreeItem(newItem, getCurrentCloudRoot());
+      await insertTreeItem(newItem, root);
       showArchiveResultDialog(completed, folderPath);
     } else {
       flashStatus(t(i18n, 'archiveError') + ': ' + completed.error);
     }
   } catch (err) {
     flashStatus(t(i18n, 'archiveError') + ': ' + err.message);
+  } finally {
+    activeFolderArchiveJobs.delete(jobKey);
   }
 }
 function showArchiveResultDialog(result, originalFolderPath) {
@@ -1554,7 +1576,9 @@ async function shareItem(path, type, root) {
         const normalizedPath = getShareActionPath(path, root);
         shareState.currentPath = normalizedPath;
         if (typeof renderShareModalForPath === 'function') {
-            await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never');
+            // Keep the file's root (group/hidden folder): without it the modal
+            // fell back to the active tab root and the API reported "file not found".
+            await renderShareModalForPath(normalizedPath, displayName, shareState.currentExpiresOption || 'never', root || getCurrentCloudRoot());
         } else {
             const result = await api('share_file', { path: normalizedPath, root: root || getCurrentCloudRoot(), expires_option: shareState.currentExpiresOption || 'never' }, 'POST');
             if (!result.key) flashStatus(t(i18n, 'shareError'));
@@ -1844,10 +1868,10 @@ function shouldHideEditMenuOption(path) {
   return opensDirectInEditor(path);
 }
 function shouldRenameOnTreeDblClick(path) {
-  if (!path) return false;
-  if (typeof isEditableImage === 'function' && isEditableImage(path)) return false;
-  if (typeof isEditableAudio === 'function' && isEditableAudio(path)) return false;
-  return true;
+  // The caller invokes this only for nodes whose type is "file"; directories
+  // have their own double-click behavior. Therefore every valid file, including
+  // photos, audio, documents, and files without an extension, is renamed.
+  return typeof path === 'string' && path.trim() !== '';
 }
 function openFileFromTree(path, root = null) {
   if (!path) return;
@@ -2258,9 +2282,20 @@ function initDeleteModal() {
     cancelBtn.addEventListener('click', closeDeleteModal);
     closeBtn.addEventListener('click', closeDeleteModal);
     confirmBtn.addEventListener('click', confirmDelete);
-    permanentCheckbox?.addEventListener('change', () => {
-        deleteState.permanent = !!permanentCheckbox.checked;
-    });
+    const syncPermanentState = () => {
+        const permanent = !!permanentCheckbox?.checked;
+        deleteState.permanent = permanent;
+        const triangle = document.getElementById('checkbox-triangle');
+        if (triangle) triangle.style.display = permanent ? 'block' : 'none';
+        modal.querySelector('.dm-modal')?.classList.toggle('is-permanent', permanent);
+        const badge = document.getElementById('delete-irreversible-badge');
+        if (badge) badge.hidden = !permanent;
+        if (confirmBtn) {
+            confirmBtn.textContent = permanent ? t(i18n, 'deletePermanently') : t(i18n, 'btnDelete');
+        }
+    };
+    permanentCheckbox?.addEventListener('change', syncPermanentState);
+    modal._syncPermanentState = syncPermanentState;
     modal.addEventListener('click', (e) => {
         if (e.target === modal) {
             closeDeleteModal();
@@ -2297,6 +2332,7 @@ function showDeleteModal(path, type, name, root = null) {
     if (warningText) {
         warningText.textContent = inTrash ? t(i18n, 'trashPermanentDeleteWarning') : t(i18n, 'trashMoveWarning');
     }
+    if (typeof modal._syncPermanentState === 'function') modal._syncPermanentState();
     modal.classList.remove('hidden');
     setTimeout(() => {
         document.getElementById('btn-cancel-delete').focus();

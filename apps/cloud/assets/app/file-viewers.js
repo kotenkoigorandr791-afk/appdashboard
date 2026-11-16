@@ -106,7 +106,9 @@ async function openFile(path, editMode = false, restoredContent = null, rootOver
             overflow: hidden;
         `;
         if ((fileExt === 'tex' || fileExt === 'latex') && editMode) {
-            openLatexEditor(path);
+            // Pass the resolved root: without it the LaTeX editor page used the
+            // current folder root and resolved group/hidden-root files as missing.
+            openLatexEditor(path, rootKey);
             return;
         }
         else if (resp.mime.startsWith('image/') || 

@@ -53,6 +53,8 @@ $__performancePhp = [
     '/project/performance/index.php' => APP_ROOT . '/project/performance/index.php',
     '/project/performance/server_monitor.php' => APP_ROOT . '/project/performance/server_monitor.php',
     '/project/performance/monitor_stats.php' => APP_ROOT . '/project/performance/monitor_stats.php',
+    '/project/storage/index.php' => APP_ROOT . '/project/storage/index.php',
+    '/project/backup/index.php' => APP_ROOT . '/project/backup/index.php',
 ];
 if (isset($__performancePhp[$__pathLower])) {
     $_SERVER['SCRIPT_NAME'] = $__pathLower;
@@ -76,6 +78,8 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             $__jsVersion = is_file(APP_ROOT . '/project/home/home.js') ? (string)filemtime(APP_ROOT . '/project/home/home.js') : '1';
             $__homeHtml = str_replace('href="/home/home.css"', 'href="/home/home.css?v=' . $__cssVersion . '"', $__homeHtml);
             $__homeHtml = str_replace('src="/home/home.js"', 'src="/home/home.js?v=' . $__jsVersion . '"', $__homeHtml);
+            $__appVersion = htmlspecialchars(getenv('APP_VERSION') ?: '1.0.7', ENT_QUOTES, 'UTF-8');
+            $__homeHtml = str_replace('id="navVersion">v1.0.7<', 'id="navVersion">v' . $__appVersion . '<', $__homeHtml);
             $__homeHtml = str_replace(
                 '<script src="/home/home.js"',
                 '<script>window.__skUserLoggedIn = ' . ($__skHomeLoggedIn ? 'true' : 'false') . ';</script>' . "\n    " . '<script src="/home/home.js"',

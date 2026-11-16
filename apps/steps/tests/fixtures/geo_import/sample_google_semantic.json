@@ -1,0 +1,7 @@
+{
+  "timelineObjects": [
+    {"placeVisit": {"location": {"latitudeE7": 505001000, "longitudeE7": 305734000, "placeId": "qa-place-1"}, "duration": {"startTimestamp": "2025-05-06T12:00:00Z", "endTimestamp": "2025-05-06T13:00:00Z"}}},
+    {"activitySegment": {"activityType": "IN_PASSENGER_VEHICLE", "startLocation": {"latitudeE7": 505001000, "longitudeE7": 305734000}, "endLocation": {"latitudeE7": 505101000, "longitudeE7": 305834000}, "duration": {"startTimestamp": "2025-05-06T13:00:00Z", "endTimestamp": "2025-05-06T13:30:00Z"}}},
+    {"placeVisit": {"location": {"latitudeE7": 505101000, "longitudeE7": 305834000, "placeId": "qa-place-2"}, "duration": {"startTimestamp": "2025-05-06T13:30:00Z", "endTimestamp": "2025-05-06T14:00:00Z"}}}
+  ]
+}

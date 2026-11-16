@@ -424,7 +424,7 @@ $docConfig = [
             'goback' => [
                 'url' => 'javascript:window.parent.postMessage({type: "closeOnlyOfficeEditor"}, "*")'
             ],
-            'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-dark',
+            'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-night',
             'accentColor' => $color,
             'autosave' => true,
             'plugins' => true,
@@ -435,7 +435,7 @@ $docConfig = [
                 'showReviewChanges' => false
             ],
             'theme' => [
-                'id' => $theme,
+                'id' => $theme === 'light' ? 'theme-light' : 'theme-night',
                 'name' => $theme === 'light' ? 'Light' : 'Dark'
             ]
         ]
@@ -464,8 +464,11 @@ $textColor = ($theme === 'light') ? '#333333' : '#f0f0f0';
     (function () {
         var orig = HTMLIFrameElement.prototype.setAttribute;
         HTMLIFrameElement.prototype.setAttribute = function (name, value) {
-            if (String(name).toLowerCase() === 'allow' && String(value).indexOf('unload') === -1) {
-                value = String(value).replace(/;\s*$/, '') + '; unload';
+            if (String(name).toLowerCase() === 'allow') {
+                var permissions = String(value).replace(/;\s*$/, '');
+                if (!/(^|;\s*)unload(?:\s|;|$)/.test(permissions)) permissions += '; unload';
+                if (!/(^|;\s*)fullscreen(?:\s|;|$)/.test(permissions)) permissions += '; fullscreen';
+                value = permissions;
             }
             return orig.call(this, name, value);
         };

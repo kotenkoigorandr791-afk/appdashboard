@@ -9,22 +9,11 @@
         "width": 36,
         "height": 36
     },
-    "menu_button_style": {
-        "background": "var(--glass-panel)",
-        "border": "1px solid color-mix(in srgb,var(--border-color) 70%,transparent)",
-        "border-radius": "10px",
-        "box-shadow": "none",
-        "backdrop-filter": "blur(10px)",
-        "-webkit-backdrop-filter": "blur(10px)"
-    },
     "menu_button_mobile": {
         "left": 8,
         "top": 6,
         "width": 36,
         "height": 36
-    },
-    "menu_button_mobile_style": {
-        "border-radius": "10px 0 0 10px"
     },
     "pl": "Chmura",
     "cs": "Cloudové úložiště"

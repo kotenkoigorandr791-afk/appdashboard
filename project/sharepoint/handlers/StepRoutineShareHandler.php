@@ -80,7 +80,10 @@ final class StepRoutineShareHandler extends BaseAppHandler
         $db = app_main_db();
         steps_store_ensure($db);
         steps_user($ownerEmail);
-        steps_user_bootstrap($db, steps_user(), $root . '/apps/steps/users/' . emailToFolderName($ownerEmail));
+        $stepsUsersDir = defined('STEPS_USERS_DIR')
+            ? rtrim(STEPS_USERS_DIR, '/')
+            : (function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') : $root . '/apps/steps/users');
+        steps_user_bootstrap($db, steps_user(), $stepsUsersDir . '/' . emailToFolderName($ownerEmail));
         return $db;
     }
 

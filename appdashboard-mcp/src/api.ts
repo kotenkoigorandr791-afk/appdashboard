@@ -1,5 +1,8 @@
 import { authStorage, clearToken, getHost, getToken, ensureDeviceId, refreshToken } from "./auth.js";
 
+const API_TIMEOUT_MS = Math.max(1000, Number(process.env.MCP_API_TIMEOUT_MS ?? 60_000));
+const UPLOAD_TIMEOUT_MS = Math.max(1000, Number(process.env.MCP_UPLOAD_TIMEOUT_MS ?? 120_000));
+
 export class ApiError extends Error {
   status: number;
   data: unknown;
@@ -64,6 +67,7 @@ async function apiCall(
     method,
     headers,
     body: body === undefined ? undefined : JSON.stringify(body),
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
   });
   const data = await parseBody(res);
   if (res.status === 401 && !retried && token && canRefresh) {
@@ -132,7 +136,12 @@ async function apiFormCall(
   const { headers, token, canRefresh } = getAuthHeaders("application/x-www-form-urlencoded");
   const body = new URLSearchParams();
   appendFormFields(body, fields);
-  const res = await fetch(buildUrl(path, query), { method: "POST", headers, body });
+  const res = await fetch(buildUrl(path, query), {
+    method: "POST",
+    headers,
+    body,
+    signal: AbortSignal.timeout(API_TIMEOUT_MS),
+  });
   const data = await parseBody(res);
   if (res.status === 401 && !retried && token && canRefresh) {
     try {
@@ -171,7 +180,7 @@ async function apiUploadCall(
   query?: Record<string, string | number | boolean | undefined | null>,
   retried = false,
 ): Promise<any> {
-  const { readFileSync } = await import("node:fs");
+  const { readFile } = await import("node:fs/promises");
   const { basename } = await import("node:path");
   const { headers, token, canRefresh } = getAuthHeaders();
   const form = new FormData();
@@ -184,10 +193,15 @@ async function apiUploadCall(
     form.append(k, String(v));
   }
   for (const f of files) {
-    const content = readFileSync(f.filePath);
+    const content = await readFile(f.filePath);
     form.append(f.field, new Blob([content]), basename(f.filePath));
   }
-  const res = await fetch(buildUrl(path, query), { method: "POST", headers, body: form });
+  const res = await fetch(buildUrl(path, query), {
+    method: "POST",
+    headers,
+    body: form,
+    signal: AbortSignal.timeout(UPLOAD_TIMEOUT_MS),
+  });
   const data = await parseBody(res);
   if (res.status === 401 && !retried && token && canRefresh) {
     try {
@@ -374,8 +388,10 @@ export function shellAction(action: string, params: Record<string, unknown> = {}
 }
 
 export function textResult(data: unknown) {
+  // Compact JSON: MCP text content is parsed by clients, and pretty-printing
+  // roughly doubles bytes and serialization CPU for large list responses.
   return {
-    content: [{ type: "text" as const, text: typeof data === "string" ? data : JSON.stringify(data, null, 2) }],
+    content: [{ type: "text" as const, text: typeof data === "string" ? data : JSON.stringify(data) }],
   };
 }
 
@@ -392,12 +408,12 @@ export function errorResult(err: unknown) {
   if (err instanceof ApiError) {
     return {
       isError: true as const,
-      content: [{ type: "text" as const, text: JSON.stringify(err.data ?? { error: err.message, status: err.status }, null, 2) }],
+      content: [{ type: "text" as const, text: JSON.stringify(err.data ?? { error: err.message, status: err.status }) }],
     };
   }
   const message = err instanceof Error ? err.message : String(err);
   return {
     isError: true as const,
-    content: [{ type: "text" as const, text: JSON.stringify({ error: message }, null, 2) }],
+    content: [{ type: "text" as const, text: JSON.stringify({ error: message }) }],
   };
 }

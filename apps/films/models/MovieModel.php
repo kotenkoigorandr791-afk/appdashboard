@@ -32,7 +32,12 @@ function loadComments($movieId) {
 
 function saveComments($movieId, $comments) {
     $commentFile = COMMENTS_DIR . $movieId . '.json';
-    return file_put_contents($commentFile, json_encode($comments, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    $written = file_put_contents($commentFile, json_encode($comments, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
+    if ($written !== false) {
+        if (!function_exists('films_index_record')) require_once __DIR__ . '/../core/file_index.php';
+        films_index_record($commentFile);
+    }
+    return $written;
 }
 
 function calculateOverallRating($baseRating, $userRatings) {

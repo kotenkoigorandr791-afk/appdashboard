@@ -778,7 +778,9 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 $mcpPlatform=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':$tokenName;
                 $tokenApp=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':appClientAuthTokenAppId($_POST['token_app']??'');
                 if($tokenApp==='steps'&&!empty($_POST['force_new'])){
-                    $revokeSteps=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = 'steps' AND revoked = 0");
+                    // Re-pairing drops the previous pairing completely, including the
+                    // device it was bound to, so the old phone stops being authorised.
+                    $revokeSteps=$tokenDb->prepare("DELETE FROM client_auth_tokens WHERE email = :e AND app_id = 'steps' AND revoked = 0");
                     $revokeSteps->bindValue(':e',$email,PDO::PARAM_STR);
                     $revokeSteps->execute();
                 }
@@ -818,10 +820,12 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             try{
                 $tokenDb=getDB();
                 ensureClientAuthTokensSchema($tokenDb);
+                // Revoking also clears the stored plaintext token and the device id,
+                // so the unpaired phone is forgotten instead of lingering in the DB.
                 if($tokenHash===''){
-                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = :a AND revoked = 0");
+                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE email = :e AND app_id = :a AND revoked = 0");
                 }else{
-                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE token_hash = :h AND email = :e AND app_id = :a");
+                    $stmt=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE token_hash = :h AND email = :e AND app_id = :a");
                     $stmt->bindValue(':h',$tokenHash,PDO::PARAM_STR);
                 }
                 $stmt->bindValue(':e',$email,PDO::PARAM_STR);
@@ -1317,7 +1321,11 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <button class="ap-nav-btn" data-panel="ap-stats"><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-2h2v7h-2v-7zm4 4h2v3h-2v-3z"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['stats_graph']??'Statistics'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-ssh" data-cap="ssh"<?php echo $_apCapSsh?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M3 5h18v14H3V5zm2 2v10h14V7H5zm2.4 4.2l3 2.2-3 2.2v-1.7l1.2-.9-1.2-.9v-1.9zm5.6 3.1h4v1.6h-4v-1.6z"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['ssh_terminal']??'SSH Terminal'); ?></span></button>
+        <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-backup" data-cap="integrations"<?php echo $_apCapIntegrations?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 20H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.69.9l.81 1.2a2 2 0 0 0 1.67.9H20a2 2 0 0 1 2 2v.5"/><path d="M12 10v4h4"/><path d="m12 14 1.535-1.605a5 5 0 0 1 8 1.5"/><path d="M22 22v-4h-4"/><path d="m22 18-1.535 1.605a5 5 0 0 1-8-1.5"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['backup']??'Backup'); ?></span></button>
+        <button class="ap-nav-btn" data-panel="ap-storage" data-cap="integrations"<?php echo $_apCapIntegrations?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 7.5h.01"/><path d="M7 17.5h.01"/><path d="M11 7.5h6"/><path d="M11 17.5h6"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['storage_manager_title']??'Storage'); ?></span></button>
+        <div class="ap-sidebar-divider"></div>
+        <button class="ap-nav-btn" data-panel="ap-storage" data-cap="integrations"<?php echo $_apCapIntegrations?'':' style="display:none"'; ?>><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/><path d="M7 7.5h.01"/><path d="M7 17.5h.01"/><path d="M11 7.5h6"/><path d="M11 17.5h6"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['storage_manager_title']??'Storage'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
         <button class="ap-nav-btn" data-panel="ap-docs"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 2v8l3-3 3 3V2"/><path d="M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H19a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H6.5a1 1 0 0 1 0-5H20"/></svg><span class="ap-tooltip"><?php echo my_htmlspecialchars($translations['view_documentation']??'Documentation'); ?></span></button>
         <div class="ap-sidebar-divider"></div>
@@ -1375,7 +1383,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         <button type="button" class="ap-sort-btn active" data-sort="name"><?php echo my_htmlspecialchars($translations['name']??'Name'); ?></button>
                         <button type="button" class="ap-sort-btn" data-sort="role"><?php echo my_htmlspecialchars($translations['user_role']??'Role'); ?></button>
                         <button type="button" class="ap-sort-btn" data-sort="created"><?php echo my_htmlspecialchars($translations['ap_col_date']??'Created'); ?></button>
-                        <button type="button" class="ap-sort-dir" id="ap-users-sort-dir" data-dir="asc" title="ASC">↑</button>
+                        <button type="button" class="ap-sort-dir" id="ap-users-sort-dir" data-dir="asc" title="<?php echo my_htmlspecialchars($translations['ap_sort_asc']??'Ascending'); ?>">↑</button>
                     </div>
                     <button type="button" id="ap-refresh-users-btn" class="ap-btn ap-btn-secondary" style="padding:5px 12px;font-size:12px;"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0020 12c0-4.42-3.58-8-8-8zm0 14c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8L5.24 7.74A7.93 7.93 0 004 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3z"/></svg> <?php echo my_htmlspecialchars($translations['refresh']??'Refresh'); ?></button>
                     <div class="ap-status" id="ap-roles-status" style="margin:0;padding:5px 12px;font-size:12px;"></div>
@@ -1452,6 +1460,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg>
                     <span><?php echo my_htmlspecialchars($translations['ai_assistant_settings']??'AI Assistant'); ?></span>
                 </button>
+                <button type="button" class="ap-settings-tab" data-settings-section="storage" role="tab" aria-selected="false">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>
+                    <span><?php echo my_htmlspecialchars($translations['storage_manager_title']??'Disks'); ?></span>
+                </button>
             </div>
 
             <!-- Email Settings -->
@@ -1509,11 +1521,21 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 <div class="ap-status" id="ap-onlyoffice-status"></div>
             </div>
 
+            <div class="ap-card ap-settings-card" data-settings-card="storage">
+                <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/></svg>Disk usage</div>
+                <div id="ap-settings-storage-summary" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px;"></div>
+                <div id="ap-settings-storage" style="display:flex;flex-direction:column;gap:8px;"><div class="ap-hint">Loading…</div></div>
+                <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap;">
+                    <button type="button" id="ap-settings-open-storage" class="ap-btn ap-btn-primary">Open Storage Manager</button>
+                    <button type="button" id="ap-settings-refresh-storage" class="ap-btn ap-btn-secondary">Refresh disk usage</button>
+                </div>
+                <div class="ap-hint" style="margin-top:8px;">Physical disks are bind-mounted under <code>/disks</code> and merged into <code>/storage</code>. Use the Storage Manager for health checks and safe disk removal.</div>
+            </div>
             <div class="ap-card ap-settings-card" data-settings-card="ai" style="overflow-x:auto;">
                 <div class="ap-card-title"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 8V4H8"/><rect width="16" height="12" x="4" y="8" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></svg><?php echo my_htmlspecialchars($translations['changeApiKey']??'Change API Key'); ?></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['search_engine_url']??'Search Engine URL (SearXNG)'); ?></label><input type="text" id="ap-search-engine-url" value="<?php echo my_htmlspecialchars(getConfig('search_engine_url', '')); ?>" placeholder="https://search.example.com" autocomplete="off" style="font-family:monospace;font-size:12px;"><div class="ap-hint"><?php echo my_htmlspecialchars($translations['search_engine_url_hint']??'SearXNG instance URL. Used for AI web search and recipe image search. JSON format must be enabled on the instance.'); ?></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['apiEndpoint']??'API Endpoint'); ?></label><input type="text" id="ap-ai-endpoint" value="<?php echo my_htmlspecialchars($_apAiCfg['api_endpoint']??''); ?>" placeholder="https://ai.example.com/v1/chat/completions" autocomplete="off" style="font-family:monospace;font-size:12px;"></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['currentApiKey']??'Current API Key'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-ai-current-key" value="<?php echo my_htmlspecialchars($_apAiCfg['api_key']??''); ?>" readonly autocomplete="off" style="font-family:monospace;font-size:12px;"><button type="button" class="ap-pwd-eye" data-target="ap-ai-current-key"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
+                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['currentApiKey']??'Current API Key'); ?></label><div class="ap-pwd-wrap"><input type="password" id="ap-ai-current-key" value="<?php echo my_htmlspecialchars($_apAiCfg['api_key']??''); ?>" data-original="<?php echo my_htmlspecialchars($_apAiCfg['api_key']??''); ?>" autocomplete="off" style="font-family:monospace;font-size:12px;"><button type="button" class="ap-pwd-eye" data-target="ap-ai-current-key"><svg class="ap-eye-open" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0"/><circle cx="12" cy="12" r="3"/></svg><svg class="ap-eye-off" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.733 5.076a10.744 10.744 0 0 1 11.205 6.575 1 1 0 0 1 0 .696 10.747 10.747 0 0 1-1.444 2.49"/><path d="M14.084 14.158a3 3 0 0 1-4.242-4.242"/><path d="M17.479 17.499a10.75 10.75 0 0 1-15.417-5.151 1 1 0 0 1 0-.696 10.75 10.75 0 0 1 4.446-5.143"/><path d="m2 2 20 20"/></svg></button></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_models_label']??'Models (one per line)'); ?></label><textarea id="ap-ai-models" rows="4" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"><?php echo my_htmlspecialchars(implode("\n", $_apAiCfg['models'] ?? [])); ?></textarea></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_default_model_label']??'Default model'); ?></label><?php
                     $_apAiModels = array_values(array_filter(array_map('strval', $_apAiCfg['models'] ?? [])));
@@ -1521,7 +1543,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     if ($_apAiDefault !== '' && !in_array($_apAiDefault, $_apAiModels, true)) {
                         array_unshift($_apAiModels, $_apAiDefault);
                     }
-                ?><select id="ap-ai-default-model" style="font-family:monospace;font-size:12px;width:100%;"><?php
+                ?><div class="ap-model-select"><svg class="ap-model-select-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg><select id="ap-ai-default-model"><?php
                     if (!$_apAiModels) {
                         echo '<option value="">'.my_htmlspecialchars($translations['ai_models_label']??'Add models above').'</option>';
                     }
@@ -1529,7 +1551,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $sel = ($_m === $_apAiDefault) ? ' selected' : '';
                         echo '<option value="'.my_htmlspecialchars($_m).'"'.$sel.'>'.my_htmlspecialchars($_m).'</option>';
                     }
-                ?></select></div>
+                ?></select></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_models_label']??'Speech models (one per line)'); ?></label><textarea id="ap-ai-speech-models" rows="3" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"><?php echo my_htmlspecialchars(implode("\n", $_apAiCfg['speech_models'] ?? [])); ?></textarea><div class="ap-hint"><?php echo my_htmlspecialchars($translations['ai_speech_models_hint']??'Models used for speech recognition (transcription) and voice playback through the AI hub.'); ?></div></div>
                 <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['ai_speech_model_label']??'Speech recognition model'); ?></label><?php
                     $_apSpeechModels = array_values(array_filter(array_map('strval', $_apAiCfg['speech_models'] ?? [])));
@@ -1537,7 +1559,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     if ($_apSpeechModel !== '' && !in_array($_apSpeechModel, $_apSpeechModels, true)) {
                         array_unshift($_apSpeechModels, $_apSpeechModel);
                     }
-                ?><select id="ap-ai-speech-model" style="font-family:monospace;font-size:12px;width:100%;"><?php
+                ?><div class="ap-model-select"><svg class="ap-model-select-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="11" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v2M8 21h8"/></svg><select id="ap-ai-speech-model"><?php
                     if (!$_apSpeechModels) {
                         echo '<option value="">'.my_htmlspecialchars($translations['ai_speech_models_label']??'Add speech models above').'</option>';
                     }
@@ -1545,10 +1567,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                         $sel = ($_m === $_apSpeechModel) ? ' selected' : '';
                         echo '<option value="'.my_htmlspecialchars($_m).'"'.$sel.'>'.my_htmlspecialchars($_m).'</option>';
                     }
-                ?></select></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['newApiKey']??'New API Key'); ?></label><textarea id="ap-ai-new-key" rows="2" placeholder="sk-..." autocomplete="off" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea></div>
-                <div class="ap-field"><label><?php echo my_htmlspecialchars($translations['confirmNewApiKey']??'Confirm New API Key'); ?></label><textarea id="ap-ai-confirm-key" rows="2" placeholder="sk-..." autocomplete="off" style="width:100%;font-family:monospace;font-size:12px;resize:vertical;"></textarea></div>
-                <div id="ap-ai-key-match" class="ap-hint" style="display:none;"></div>
+                ?></select></div></div>
                 <div class="ap-hint" style="color:#ffc107;border:1px solid rgba(255,193,7,.35);background:rgba(255,193,7,.08);padding:10px;border-radius:6px;"><?php echo my_htmlspecialchars($translations['apiKeyChangeWarning']??'Changing the API key will affect all AI assistant functionality. Make sure you have the correct key.'); ?></div>
                 <div class="ap-btn-row"><button type="button" id="ap-save-ai-config" class="ap-btn ap-btn-primary"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z"/></svg><?php echo my_htmlspecialchars($translations['save']??'Save'); ?></button><button type="button" id="ap-test-ai-models" class="ap-btn"><?php echo my_htmlspecialchars($translations['ai_test_models']??'Test models'); ?></button></div>
                 <div class="ap-status" id="ap-ai-config-status"></div>
@@ -1607,7 +1626,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             <div class="ap-page-subtitle"><?php echo my_htmlspecialchars($translations['ap_stats_subtitle']??'Visit statistics and disk usage per user.'); ?></div>
             <!-- Live chart preview -->
             <div class="ap-card" style="padding:14px 20px 16px 20px;">
-                <div class="ap-card-title" style="margin-bottom:10px;flex-wrap:wrap;gap:8px;">
+                <div class="ap-card-title" style="margin-bottom:10px;flex-wrap:nowrap;gap:8px;min-width:0;">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" style="flex-shrink:0;"><path d="M3 3v18h18V3H3zm16 16H5V5h14v14zM7 12h2v5H7v-5zm4-2h2v7h-2v-7zm4 4h2v3h-2v-3z"/></svg>
                     <?php echo my_htmlspecialchars($translations['stats_graph']??'Chart Preview'); ?>
                     <!-- Range controls -->
@@ -1761,6 +1780,10 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         <div class="ap-panel" id="ap-backup">
             <?php echo $apBreadcrumb($translations['backup']??'Backup'); ?>
             <?php require __DIR__ . '/views/modals/backup_manager.php'; ?>
+        </div>
+        <div class="ap-panel" id="ap-storage">
+            <?php echo $apBreadcrumb($translations['storage_manager_title']??'Storage'); ?>
+            <?php require __DIR__ . '/views/modals/storage_manager.php'; ?>
         </div>
         <div class="ap-panel" id="ap-docs" style="flex:1; min-height:0; overflow:hidden; margin:0; padding:0;">
             <?php echo $apBreadcrumb($translations['view_documentation']??$translations['documentation']??'Documentation'); ?>
@@ -1994,10 +2017,10 @@ if($emailToReset){
             $deleted = false;
             $userRow = getUserByEmail($emailToDelete);
             if($userRow){
-                if($deleteFiles){
-                    $cfg = loadUserFoldersConfig();
-                    deleteUserFolders($emailToDelete, (string)($userRow['name'] ?? ''), $cfg['apps'] ?? []);
-                }
+                require_once APP_ROOT . '/lib/UserDataPurger.php';
+                // Full purge: files, index rows, application tables and per-user
+                // schemas. The user row itself is removed below.
+                $purgeReport = UserDataPurger::purge($emailToDelete, ['delete_files' => $deleteFiles]);
                 deleteUser($emailToDelete);
                 if(function_exists('removeUserFromActiveSessions')){
                     removeUserFromActiveSessions($emailToDelete);
@@ -2166,6 +2189,8 @@ if($emailToReset){
         $currentUserEmail=$_SESSION['user']['email']??'';
         if($emailToDelete&&$emailToDelete!==$currentUserEmail&&$emailToDelete!=='root@root'){
             if(getUserByEmail($emailToDelete)){
+                require_once APP_ROOT . '/lib/UserDataPurger.php';
+                UserDataPurger::purge($emailToDelete, ['delete_files' => true]);
                 deleteUser($emailToDelete);
                 removeUserFromActiveSessions($emailToDelete);
                 $userManagementSuccess=$translations['user_deleted'];

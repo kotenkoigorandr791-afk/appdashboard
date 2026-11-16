@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../core/file_index.php';
 function steps_safe_backup_name($name): ?string {
     $n = basename((string)$name);
     return preg_match('/^(Steps_backup|Before_restore|Before_external_import)_[0-9_-]+\.csv$/', $n) ? $n : null;
@@ -199,12 +200,36 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ((string)($_POST['version'] ?? '') === $version) {
             exit(json_encode(['status' => 'success', 'changed' => false, 'version' => $version]));
         }
+        // This endpoint returns the whole history (hundreds of KB) and is polled
+        // by every open tab, so the serialized payload is cached per data version.
+        // The version covers row count, max date and total steps, which means the
+        // cache is keyed by the actual data state and can never serve stale rows.
+        $cacheDir = rtrim($userDir, '/') . '/volume';
+        checkDirectory($cacheDir);
+        $cacheFile = $cacheDir . '/steps_updates_cache.json';
+        $cached = null;
+        if (is_file($cacheFile)) {
+            $cachedRaw = @file_get_contents($cacheFile);
+            if ($cachedRaw !== false) $cached = json_decode($cachedRaw, true);
+        }
+        if (is_array($cached) && (string)($cached['version'] ?? '') === $version && isset($cached['body'])) {
+            echo (string)$cached['body'];
+            exit;
+        }
         $today = (new DateTime())->format('Y-m-d');
         [$earliestInDB, $latestInDB] = getStepsDateBounds($userDb);
         $from = $earliestInDB ?? $today;
         $to = ($latestInDB && strcmp($latestInDB, $today) > 0) ? $latestInDB : $today;
         $rows = steps_fill_range(loadStepsRange($userDb, $from, $to), $from, $to);
-        exit(json_encode(['status' => 'success', 'changed' => true, 'version' => $version, 'steps' => $rows]));
+        $body = json_encode(['status' => 'success', 'changed' => true, 'version' => $version, 'steps' => $rows]);
+        $tmp = $cacheFile . '.tmp' . getmypid();
+        if (@file_put_contents($tmp, json_encode(['version' => $version, 'body' => $body])) !== false) {
+            @rename($tmp, $cacheFile);
+        } else {
+            @unlink($tmp);
+        }
+        echo $body;
+        exit;
     }
 
     // Create backup
@@ -218,10 +243,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $ts   = date('Y-m-d_H-i-s');
         $name = "Steps_backup_$ts.csv";
         if (file_put_contents("$backupDir/$name", $csvContent) !== false) {
-            $files = glob("$backupDir/Steps_backup_*.csv");
+            steps_record_backup($userDir, $name);
+            $files = steps_list_backups($userDir);
             if (count($files) > 10) {
-                usort($files, fn($a, $b) => filemtime($a) - filemtime($b));
-                for ($i = 0; $i < count($files) - 10; $i++) @unlink($files[$i]);
+                foreach (array_slice($files, 10) as $stale) {
+                    @unlink($stale['path']);
+                    steps_forget_backup($userDir, $stale['name']);
+                }
             }
             exit(json_encode(['status' => 'success', 'message' => $translations['backup_created'] ?? 'Backup created', 'backup_file' => $name]));
         }
@@ -230,13 +258,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Backups list
     if (isset($_POST['get_backups_list'])) {
-        $backupDir = "$userDir/backups";
-        $backups   = [];
-        if (is_dir($backupDir)) {
-            foreach (glob("$backupDir/Steps_backup_*.csv") ?: [] as $f) {
-                $backups[] = ['name' => basename($f), 'size' => filesize($f), 'date' => date('Y-m-d H:i:s', filemtime($f))];
-            }
-            usort($backups, fn($a, $b) => strtotime($b['date']) - strtotime($a['date']));
+        $backups = [];
+        foreach (steps_list_backups($userDir) as $f) {
+            $backups[] = ['name' => $f['name'], 'size' => $f['size'], 'date' => date('Y-m-d H:i:s', $f['mtime'])];
         }
         exit(json_encode(['status' => 'success', 'backups' => $backups]));
     }
@@ -245,12 +269,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (isset($_POST['restore_backup'])) {
         $bname     = steps_safe_backup_name($_POST['backup_file'] ?? '');
         $backupDir = "$userDir/backups";
-        if ($bname === null || !is_file("$backupDir/$bname"))
+        $backupPath = $bname === null ? null : steps_backup_path($userDir, $bname);
+        if ($backupPath === null)
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
         // Auto-backup before restore
         $autoCSV = exportStepsToCSV($userDb);
-        if ($autoCSV) file_put_contents("$backupDir/Before_restore_" . date('Y-m-d_H-i-s') . ".csv", $autoCSV);
-        $content = file_get_contents("$backupDir/$bname");
+        if ($autoCSV) {
+            $autoName = 'Before_restore_' . date('Y-m-d_H-i-s') . '.csv';
+            if (file_put_contents("$backupDir/$autoName", $autoCSV) !== false) steps_record_backup($userDir, $autoName);
+        }
+        $content = file_get_contents($backupPath);
         if ($content === false)
             exit(json_encode(['status' => 'error', 'message' => $translations['failed_restore_backup'] ?? 'Failed to restore']));
         try {
@@ -263,11 +291,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     // Delete backup
     if (isset($_POST['delete_backup'])) {
-        $bname     = steps_safe_backup_name($_POST['backup_file'] ?? '');
-        $backupDir = "$userDir/backups";
-        if ($bname === null || !is_file("$backupDir/$bname"))
+        $bname      = steps_safe_backup_name($_POST['backup_file'] ?? '');
+        $backupPath = $bname === null ? null : steps_backup_path($userDir, $bname);
+        if ($backupPath === null)
             exit(json_encode(['status' => 'error', 'message' => $translations['backup_file_not_found'] ?? 'Backup not found']));
-        exit(json_encode(unlink("$backupDir/$bname")
+        $ok = unlink($backupPath);
+        if ($ok) steps_forget_backup($userDir, (string)$bname);
+        exit(json_encode($ok
             ? ['status' => 'success', 'message' => $translations['backup_deleted'] ?? 'Deleted']
             : ['status' => 'error',   'message' => $translations['failed_delete_backup'] ?? 'Failed to delete']));
     }

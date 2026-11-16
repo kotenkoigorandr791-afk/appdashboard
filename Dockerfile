@@ -47,14 +47,24 @@ COPY --from=ext-builder /usr/local/lib/php/extensions/ /usr/local/lib/php/extens
 COPY --from=ext-builder /usr/local/etc/php/conf.d/ /usr/local/etc/php/conf.d/
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
+# pg_dump must be at least the PostgreSQL server major version (compose uses 16).
+RUN install -d /usr/share/postgresql-common/pgdg \
+    && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+    && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list
+
+<<<<<<< HEAD
+# ffmpeg is the route-video encoder: libx264, High profile, yuv420p, +faststart. No separate video container.
+=======
+>>>>>>> mobile-spends
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap nginx libnginx-mod-http-modsecurity libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
     libpq5 libzip4 libpng16-16 libjpeg62-turbo libfreetype6 \
     libxml2 libonig5 libicu72 libcurl4 \
     ffmpeg tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-bel tesseract-ocr-ukr \
     smartmontools util-linux openssh-client \
+    mergerfs fuse3 attr \
     python3 python3-pip python3-venv python3-psycopg2 docker.io \
-    postgresql-client imagemagick poppler-utils libreoffice pandoc \
+    postgresql-client-16 imagemagick poppler-utils libreoffice pandoc \
     fonts-liberation fonts-dejavu-core \
     libnss3 libatk-bridge2.0-0 libgtk-3-0 libx11-xcb1 libxcomposite1 libxdamage1 libxrandr2 libgbm1 libasound2 \
     && curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
@@ -72,6 +82,10 @@ ENV npm_config_cache=/opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm
 
 RUN echo 'www-data ALL=(ALL) NOPASSWD: /usr/sbin/smartctl' > /etc/sudoers.d/www-data-smartctl \
     && chmod 440 /etc/sudoers.d/www-data-smartctl
+# MergerFS runs inside the container; allow non-root access to the FUSE mount.
+RUN mkdir -p /disks /storage \
+    && touch /etc/fuse.conf \
+    && grep -q '^user_allow_other' /etc/fuse.conf || echo 'user_allow_other' >> /etc/fuse.conf
 RUN mkdir -p /run/php /var/log/supervisor /opt/AppDashboard/data /opt/ApplicationData/cloud_video_tmp/.hyperframes-home /opt/ApplicationData/cloud_video_tmp/.hyperframes-cache/npm /var/www/.hyperframes \
     && chown -R www-data:www-data /run/php /opt/AppDashboard /opt/ApplicationData /var/www/.hyperframes \
     && su -s /bin/sh www-data -c 'hyperframes telemetry disable || true'
@@ -91,6 +105,13 @@ COPY deploy/waf/appdashboard-crs-exclusions.conf /etc/nginx/modsecurity/appdashb
 COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY --from=app-builder /var/www/AppDashboard/ /var/www/AppDashboard/
+RUN test -f /var/www/AppDashboard/apps/smart_home/core/perf.php
+<<<<<<< HEAD
+# Country boundaries ship with the image so statistics can name countries
+# without a live geocoder; fail the build if the dataset is missing.
+RUN test -s /var/www/AppDashboard/apps/steps/resources/boundaries/ne_110m_admin_0_countries.geojson
+=======
+>>>>>>> mobile-spends
 RUN mkdir -p /var/www/AppDashboard/apps/lopaka
 WORKDIR /var/www/AppDashboard
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/
@@ -119,7 +140,12 @@ RUN ln -sf /etc/nginx/sites-available/appdashboard.conf /etc/nginx/sites-enabled
     && sed -i 's|^;listen.owner = www-data|listen.owner = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.group = www-data|listen.group = www-data|' /usr/local/etc/php-fpm.d/www.conf \
     && sed -i 's|^;listen.mode = 0660|listen.mode = 0660|' /usr/local/etc/php-fpm.d/www.conf \
+    && sed -i 's|^pm.max_children = .*|pm.max_children = 32|; s|^pm.start_servers = .*|pm.start_servers = 8|; s|^pm.min_spare_servers = .*|pm.min_spare_servers = 8|; s|^pm.max_spare_servers = .*|pm.max_spare_servers = 24|' /usr/local/etc/php-fpm.d/www.conf \
     && chmod +x /usr/local/bin/docker-entrypoint.sh
+# Stack-frame slow log: any request blocked >2s is dumped with its PHP backtrace,
+# which is how session_start() / DB-connect hot spots were found under load.
+RUN printf 'slowlog = /var/log/php-fpm/slow.log\nrequest_slowlog_timeout = 2s\n' > /usr/local/etc/php-fpm.d/zz-slowlog.conf \
+    && mkdir -p /var/log/php-fpm && chmod 0775 /var/log/php-fpm
 EXPOSE 80
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
 CMD ["supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]

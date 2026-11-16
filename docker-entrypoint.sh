@@ -57,6 +57,9 @@ if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   grep -q '^pm.max_requests' /usr/local/etc/php-fpm.d/www.conf || printf '\npm.max_requests = %s\n' "${PHP_FPM_MAX_REQUESTS:-500}" >> /usr/local/etc/php-fpm.d/www.conf
   sed -i 's/^;\?listen.backlog = .*/listen.backlog = 4096/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   grep -q '^listen.backlog' /usr/local/etc/php-fpm.d/www.conf || printf 'listen.backlog = 4096\n' >> /usr/local/etc/php-fpm.d/www.conf
+  # The pool and its seeded APPDATA_BASE_DIR/UPLOADS_BASE_DIR must reach PHP-FPM.
+  sed -i 's/^;\?clear_env\s*=.*/clear_env = no/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  grep -q '^clear_env' /usr/local/etc/php-fpm.d/www.conf || printf 'clear_env = no\n' >> /usr/local/etc/php-fpm.d/www.conf
   if grep -q '^;request_terminate_timeout' /usr/local/etc/php-fpm.d/www.conf; then
     sed -i 's/^;request_terminate_timeout = .*/request_terminate_timeout = '"${PHP_FPM_REQUEST_TERMINATE_TIMEOUT:-30}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   elif grep -q '^request_terminate_timeout' /usr/local/etc/php-fpm.d/www.conf; then
@@ -74,7 +77,10 @@ fi
   printf 'max_execution_time=%s\n' "${PHP_MAX_EXECUTION_TIME:-30}"
   printf 'default_socket_timeout=%s\n' "${PHP_DEFAULT_SOCKET_TIMEOUT:-15}"
 } > /usr/local/etc/php/conf.d/appdashboard-timeouts.ini
-mkdir -p "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
+# $APPDATA_DATA_DIR/storage holds storage/индекс state (locks). It must exist
+# before supervisord starts php-fpm and the file-index worker (both as www-data),
+# otherwise root-owned copies created by one-off CLI runs break them.
+mkdir -p "$APPDATA_DATA_DIR" "$APPDATA_DATA_DIR/storage" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
 if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
   mv "$APP_ROOT/bot/bot.log" "/tmp/appdashboard-bot-log-migrated-$(date +%s)" 2>/dev/null || true
@@ -88,8 +94,12 @@ if [ -d "$APP_ROOT/uploads" ] && [ ! -L "$APP_ROOT/uploads" ]; then
   cp -a "$APP_ROOT/uploads/." "$UPLOADS_BASE_DIR/" 2>/dev/null || true
   rm -rf "$APP_ROOT/uploads"
 fi
-[ -e "$APP_ROOT/data" ] || [ -L "$APP_ROOT/data" ] || ln -s "$APPDATA_DATA_DIR" "$APP_ROOT/data"
-[ -e "$APP_ROOT/uploads" ] || [ -L "$APP_ROOT/uploads" ] || ln -s "$UPLOADS_BASE_DIR" "$APP_ROOT/uploads"
+# The code tree carries no symlinks: data lives only on the volumes
+# ($APPDATA_DATA_DIR / $UPLOADS_BASE_DIR) and is resolved through
+# storage_helper.php. Remove legacy links left by older images.
+for _legacy_link in "$APP_ROOT/data" "$APP_ROOT/uploads"; do
+  if [ -L "$_legacy_link" ]; then rm -f "$_legacy_link"; fi
+done
 chown -R www-data:www-data "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot 2>/dev/null || true
 chmod -R 0775 "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
 find "$APPDATA_DATA_DIR/.ssh" -type d -exec chmod 0700 {} \; 2>/dev/null || true
@@ -293,6 +303,101 @@ foreach ($seed as $k => $v) {
 fi
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php ]; then
   /usr/local/bin/php /var/www/AppDashboard/deploy/scripts/ensure-oauth-integrations.php >/var/log/supervisor/oauth-integrations.log 2>&1 || true
+fi
+# --- Dynamic storage (MergerFS inside this container) -------------------------
+STORAGE_ROOT="${STORAGE_ROOT:-/storage}"
+STORAGE_DISKS_ROOT="${STORAGE_DISKS_ROOT:-/disks}"
+STORAGE_INIT_LOG=/var/log/supervisor/storage-init.log
+export STORAGE_ROOT STORAGE_DISKS_ROOT
+mkdir -p "$STORAGE_ROOT" "$STORAGE_DISKS_ROOT" "$APPDATA_DATA_DIR/storage"
+touch /etc/fuse.conf 2>/dev/null || true
+if [ -f /etc/fuse.conf ] && ! grep -q '^user_allow_other' /etc/fuse.conf; then
+  echo 'user_allow_other' >> /etc/fuse.conf
+fi
+storage_pool_mounted() {
+  [ -d "$STORAGE_ROOT" ] || return 1
+  awk -v mp="$STORAGE_ROOT" '$5==mp && ($0 ~ /fuse\.mergerfs/ || $0 ~ / mergerfs /) {found=1} END{exit !found}' /proc/self/mountinfo 2>/dev/null
+}
+# Virtual disks: sparse ext4 images stored in docker volumes, loop-mounted as /disks/<name>.
+VDISKS_ROOT="${VDISKS_ROOT:-/vdisks}"
+if [ -d "$VDISKS_ROOT" ]; then
+  for _vd in "$VDISKS_ROOT"/*/; do
+    [ -d "$_vd" ] || continue
+    _vname="$(basename "$_vd")"
+    _vimg="$_vd/disk.img"
+    _vsizevar="VDISK_$(echo "$_vname" | tr 'a-z-' 'A-Z_')_SIZE"
+    _vsize="$(eval "echo \${$_vsizevar:-${VDISK_DEFAULT_SIZE:-2G}}")"
+    if [ ! -f "$_vimg" ]; then
+      truncate -s "$_vsize" "$_vimg" && mkfs.ext4 -q -F "$_vimg" >>"$STORAGE_INIT_LOG" 2>&1 || { rm -f "$_vimg"; continue; }
+    fi
+    mkdir -p "$STORAGE_DISKS_ROOT/$_vname"
+    if ! awk -v mp="$STORAGE_DISKS_ROOT/$_vname" '$5==mp{f=1} END{exit !f}' /proc/self/mountinfo; then
+      mount -o loop "$_vimg" "$STORAGE_DISKS_ROOT/$_vname" >>"$STORAGE_INIT_LOG" 2>&1 || echo "[storage] cannot mount $_vimg" >>"$STORAGE_INIT_LOG"
+    fi
+  done
+fi
+if [ "${STORAGE_ENABLED:-1}" = "1" ]; then
+  STORAGE_HAS_DISKS=0
+  if [ -d "$STORAGE_DISKS_ROOT" ] && [ -n "$(ls -A "$STORAGE_DISKS_ROOT" 2>/dev/null)" ]; then STORAGE_HAS_DISKS=1; fi
+  if [ "$STORAGE_HAS_DISKS" = "1" ] || [ -f "$APPDATA_DATA_DIR/.storage-unified-appdata" ]; then
+    for _try in 1 2 3; do
+      if /usr/local/bin/php /var/www/AppDashboard/project/storage/watcher.php --once >>"$STORAGE_INIT_LOG" 2>&1; then
+        break
+      fi
+      sleep 3
+    done
+  fi
+fi
+if storage_pool_mounted; then
+  mkdir -p "$STORAGE_ROOT/files" "$STORAGE_ROOT/documents" "$STORAGE_ROOT/uploads" "$STORAGE_ROOT/shared" \
+           "$STORAGE_ROOT/applications" "$STORAGE_ROOT/appdashboard/data" "$STORAGE_ROOT/backup"
+  chown www-data:www-data "$STORAGE_ROOT" 2>/dev/null || true
+  chmod 0775 "$STORAGE_ROOT" 2>/dev/null || true
+  # Let the app user write to the top of each branch; contents keep their
+  # original ownership so host data stays untouched.
+  for _branch in "$STORAGE_DISKS_ROOT"/*; do
+    [ -d "$_branch" ] || continue
+    chgrp www-data "$_branch" 2>/dev/null || true
+    chmod g+rwx "$_branch" 2>/dev/null || true
+  done
+  seed_storage_dir() {
+    _src="$1"; _dst="$2"; _marker="$3"; shift 3
+    [ -f "$_marker" ] && return 0
+    mkdir -p "$_dst" 2>/dev/null || return 1
+    if [ "$(readlink -f "$_src" 2>/dev/null)" = "$(readlink -f "$_dst" 2>/dev/null)" ]; then
+      touch "$_marker" 2>/dev/null || true
+      return 0
+    fi
+    if [ -d "$_src" ] && [ -n "$(ls -A "$_src" 2>/dev/null)" ]; then
+      echo "[storage] seeding $_src -> $_dst" >>"$STORAGE_INIT_LOG"
+      if ! tar -C "$_src" -cf - "$@" . 2>>"$STORAGE_INIT_LOG" | tar -C "$_dst" -xf - 2>>"$STORAGE_INIT_LOG"; then
+        echo "[storage] seeding failed; keeping legacy paths" >>"$STORAGE_INIT_LOG"
+        return 1
+      fi
+    fi
+    touch "$_marker" 2>/dev/null || true
+    return 0
+  }
+  if [ "${STORAGE_UNIFY_APP_DATA:-1}" = "1" ]; then
+    _appdata_marker="$APPDATA_DATA_DIR/.storage-unified-appdata"
+    _uploads_marker="$APPDATA_DATA_DIR/.storage-unified-uploads"
+    if seed_storage_dir "$APPDATA_BASE_DIR" "$STORAGE_ROOT/applications" "$_appdata_marker" \
+        --exclude='./models' --exclude='./bot-venv' --exclude='./cloud_video_tmp' \
+        --exclude='./cloud_libreoffice_home' --exclude='./latex-texmf' --exclude='./latex-pdf-cache' \
+        --exclude='./.composer-cache' --exclude='./dashboard/uploads' \
+      && seed_storage_dir "$UPLOADS_BASE_DIR" "$STORAGE_ROOT/uploads" "$_uploads_marker"; then
+      export APPDATA_BASE_DIR="$STORAGE_ROOT/applications"
+      export UPLOADS_BASE_DIR="$STORAGE_ROOT/uploads"
+      chown -R www-data:www-data "$STORAGE_ROOT/applications" "$STORAGE_ROOT/uploads" 2>/dev/null || true
+    fi
+  fi
+  export STORAGE_STATE_DIR="$APPDATA_DATA_DIR/storage"
+elif [ -f "$APPDATA_DATA_DIR/.storage-unified-appdata" ] && [ "${STORAGE_REQUIRE_POOL:-1}" = "1" ]; then
+  # The pool was provisioned before, but no expected disk is mounted now.
+  # Refusing to start is safer than silently writing to the legacy/system disk.
+  echo "[storage] FATAL: merged storage is not mounted. Refusing to start to avoid writing outside the pool." >&2
+  echo "[storage] Mount the disks, or set STORAGE_REQUIRE_POOL=0 to allow legacy paths." >&2
+  exit 1
 fi
 if [ -f /var/www/AppDashboard/supervisord.conf ]; then
   cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf

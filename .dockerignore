@@ -28,6 +28,7 @@ vendor/
 webssh/vendor/
 apps/cloud/vendor/
 apps/steps/utils/.venv/
+apps/steps/utils/.venv/lib64
 bot/.venv/
 bot/*.log
 *.bak-*
@@ -57,6 +58,8 @@ apps/viewer/history.json
 downloads/*.apk
 !downloads/stepmonitor.apk
 !downloads/stepmonitor.json
+!downloads/spends-mobile.apk
+!downloads/spends-mobile.json
 downloads/*.tgz
 *.zip
 *.tar

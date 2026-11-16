@@ -43,6 +43,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Background location tracking (only started by an explicit user action) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Notification Permission (Android 13+) -->
@@ -75,7 +81,7 @@
         android:label="@string/app_name"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
-        android:theme="@style/Theme.HCWebhook"
+        android:theme="@style/Theme.NexSteps.Starting"
         tools:targetApi="31">
         <activity
             android:name=".MainActivity"
@@ -85,6 +91,13 @@
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="nexsteps" android:host="auth" />
+            </intent-filter>
+            <!-- Legacy pairing links generated before the NexSteps rebrand. -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
@@ -102,13 +115,42 @@
         <activity
             android:name=".LogsActivity"
             android:exported="false"
-            android:label="Logs" />
+            android:label="Logs"
+            android:theme="@style/Theme.NexSteps" />
 
         <!-- Personal data + all app settings, kept on its own screen -->
         <activity
             android:name=".SettingsActivity"
             android:exported="false"
-            android:label="@string/settings_title" />
+            android:label="@string/settings_title"
+            android:theme="@style/Theme.NexSteps" />
+
+<<<<<<< HEAD
+        <!-- Location recording settings, opened from settings and from the map -->
+        <activity
+            android:name=".LocationSettingsActivity"
+            android:exported="false"
+            android:label="@string/tracking_settings_title"
+            android:theme="@style/Theme.NexSteps" />
+        <activity
+            android:name=".PointsActivity"
+            android:exported="false"
+            android:label="@string/points_title"
+            android:theme="@style/Theme.NexSteps" />
+        <activity
+            android:name=".PointSelectionActivity"
+            android:exported="false"
+            android:label="@string/points_select_title"
+            android:theme="@style/Theme.NexSteps" />
+
+=======
+>>>>>>> mobile-spends
+        <!-- Theme, accent, language and orientation -->
+        <activity
+            android:name=".PersonalizationActivity"
+            android:exported="false"
+            android:label="@string/settings_personalization"
+            android:theme="@style/Theme.NexSteps" />
 
         <service
             android:name="androidx.appcompat.app.AppLocalesMetadataHolderService"
@@ -125,6 +167,13 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Long-running location recording, surfaced by an ongoing notification -->
+        <service
+            android:name=".location.LocationTrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"

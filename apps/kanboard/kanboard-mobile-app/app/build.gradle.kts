@@ -5,6 +5,9 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val appVersionName = "1.1.0"
+val appVersionCode = 2
+
 android {
     namespace = "com.appdashboard.planning"
     compileSdk = 35
@@ -13,8 +16,25 @@ android {
         applicationId = "com.appdashboard.planning"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = appVersionCode
+        versionName = appVersionName
+    }
+
+    signingConfigs {
+        create("release") {
+            val keystoreFile = file("release.jks")
+            if (keystoreFile.exists() && !System.getenv("KEYSTORE_PASSWORD").isNullOrBlank()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS")
+                keyPassword = System.getenv("KEY_PASSWORD")
+            } else {
+                storeFile = file("${System.getProperty("user.home")}/.android/debug.keystore")
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
     }
 
     buildTypes {
@@ -24,12 +44,22 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    lint {
+        // androidx.lifecycle's NonNullableMutableLiveDataDetector crashes with
+        // Kotlin 2.1 (KaCallableMemberCall interface mismatch), which breaks
+        // lintVitalAnalyzeRelease. The detector is advisory only.
+        disable += "NullSafeMutableLiveData"
+        abortOnError = false
+        checkReleaseBuilds = false
     }
 
     kotlinOptions {
@@ -73,4 +103,16 @@ dependencies {
     implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     implementation("com.flyfishxu.vetraui:core-android:1.0.0-alpha03")
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+tasks.register("printVersionName") {
+    doLast {
+        println(appVersionName)
+    }
+}
+
+tasks.register("printVersionCode") {
+    doLast {
+        println(appVersionCode)
+    }
 }

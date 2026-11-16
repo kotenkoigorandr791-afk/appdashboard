@@ -100,6 +100,22 @@ if ($db && $currentUserEmail !== 'default_user') {
     } catch (Exception $e) {}
 }
 
+// Only advertise a store photo when the file actually exists. Without this the
+// front-end probes store_<name>.png/.jpg for every store and logs noisy 404s.
+foreach ($userSettings['stores'] as &$__store) {
+    $__fn  = preg_replace('/[^a-zA-Z0-9]/', '_', (string)($__store['name'] ?? ''));
+    $__url = '';
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $__ext) {
+        $__file = $userDir . "/store_$__fn.$__ext";
+        if (is_file($__file)) {
+            $__url = "users/$currentUserFolder/store_$__fn.$__ext?t=" . filemtime($__file);
+            break;
+        }
+    }
+    $__store['photo_url'] = $__url;
+}
+unset($__store);
+
 $visibleStores = array_filter($userSettings['stores'], fn($s) => $s['visible'] ?? true);
 
 function getUserBackupDir($userEmail) {

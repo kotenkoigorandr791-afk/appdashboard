@@ -482,6 +482,8 @@ function loadOnlyOfficeEditorToTab(tab) {
         iframe = document.createElement('iframe');
         iframe.setAttribute('data-tab-id', tab.id);
         iframe.setAttribute('tabindex', '0');
+        iframe.setAttribute('allow', 'fullscreen');
+        iframe.setAttribute('allowfullscreen', '');
         const urlParams = new URLSearchParams(window.location.search);
         const lang = urlParams.get('lang') || 'en';
         // The rendered page is the source of truth: APP_CONFIG can lag behind the
@@ -531,15 +533,26 @@ function showTransferDialog(sourcePath, sourceType, mode = 'move') {
     window.selectedMoveFolder = '';
     window.selectedMoveRoot = sourceRoot;
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>${sourceType === 'dir' ? t(i18n, isCopy ? 'copyFolder' : 'moveFolder') : t(i18n, isCopy ? 'copyFileItem' : 'moveFile')}</h3>
+        <div class="modal-content tp-modal ${isCopy ? 'tp-copy' : 'tp-move'}" style="max-width: 500px;">
+            <div class="tp-accent"></div>
+            <div class="modal-header tp-header">
+                <div class="tp-title">
+                    <span class="tp-icon">
+                        ${isCopy
+                            ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>'
+                            : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7h12m0 0-4-4m4 4-4 4M16 17H4m0 0 4 4m-4-4 4-4"/></svg>'}
+                    </span>
+                    <h3>${sourceType === 'dir' ? t(i18n, isCopy ? 'copyFolder' : 'moveFolder') : t(i18n, isCopy ? 'copyFileItem' : 'moveFile')}</h3>
+                </div>
                 <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
-            <div class="modal-body">
-                <p>${t(i18n, isCopy ? 'copying' : 'moving')} <strong>${sourcePath}</strong></p>
+            <div class="modal-body tp-body">
+                <div class="tp-banner">
+                    <span>${t(i18n, isCopy ? 'copying' : 'moving')}</span>
+                    <span class="tp-file">${sourcePath.split('/').pop()}</span>
+                </div>
                 <div class="folder-selector">
                     <label>${t(i18n, 'selectTargetFolder')}</label>
                     <div class="move-root-toolbar" style="
@@ -568,9 +581,9 @@ function showTransferDialog(sourcePath, sourceType, mode = 'move') {
                     ${t(i18n, 'selectedFolder')} <span id="current-folder-path">/</span>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="btn-cancel-move" class="btn secondary">${t(i18n, 'cancel')}</button>
-                <button id="btn-confirm-move" class="btn primary">${t(i18n, isCopy ? 'copy' : 'move')}</button>
+            <div class="modal-footer tp-footer">
+                <button id="btn-cancel-move" class="tp-btn tp-btn-ghost">${t(i18n, 'cancel')}</button>
+                <button id="btn-confirm-move" class="tp-btn tp-btn-primary">${t(i18n, isCopy ? 'copy' : 'move')}</button>
             </div>
         </div>
     `;
@@ -1605,7 +1618,9 @@ function buildTreeFromFlatItems(flatItems) {
             const toggle = document.createElement('span');
             toggle.className = 'toggle';
             const dirMarkup = typeof getTreeDirToggleMarkup === 'function' ? getTreeDirToggleMarkup : () => '';
-            toggle.innerHTML = item.type === 'dir' ? dirMarkup(false) : getFileIcon(item.path || item.name);
+            toggle.innerHTML = item.type === 'dir'
+                ? dirMarkup(false)
+                : `<span class="win-arrow spacer" aria-hidden="true"></span>${getFileIcon(item.path || item.name)}`;
             const label = document.createElement('span');
             label.className = 'label';
             label.textContent = item.name;

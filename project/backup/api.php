@@ -8,8 +8,10 @@
 declare(strict_types=1);
 
 require_once __DIR__ . '/helpers.php';
+require_once dirname(__DIR__, 2) . '/lib/Storage/AppDataBackup.php';
 
 const RESTIC_CONFIG_KEY = 'restic_backup_config_enc';
+const APPDATA_BACKUP_PROFILE_ID = AppDataBackup::PROFILE_ID;
 
 /* ---------------------------------------------------------------------
  * Configuration storage (AES-256-GCM, same mechanism as the old dashboard)
@@ -156,6 +158,19 @@ function resticNormalizeProfile(array $in, ?array $previous = null): array {
     $within = trim((string)($ret['keep_within'] ?? ''));
     $profile['retention']['keep_within'] = preg_match('/^\d+[dmy]$/', $within) ? $within : '';
     $profile['retention']['prune'] = !empty($ret['prune'] ?? true);
+
+    // The application user-data backup is fixed: it cannot be disabled or lose
+    // its required sources, and it never prunes automatically.
+    $profile['mandatory'] = $profile['id'] === APPDATA_BACKUP_PROFILE_ID;
+    if ($profile['mandatory']) {
+        $profile['name'] = AppDataBackup::PROFILE_NAME;
+        $profile['enabled'] = true;
+        $profile['sources'] = array_values(array_unique(array_merge(
+            $profile['sources'],
+            AppDataBackup::requiredSources()
+        )));
+        $profile['retention']['prune'] = false;
+    }
     return $profile;
 }
 
@@ -329,6 +344,19 @@ function resticSaveConfig(array $input, ?array $previous = null): array {
             }
             $cfg['backups'][] = resticNormalizeProfile($profile, $prev);
         }
+        // A generic list save must never drop the mandatory profile.
+        $hasMandatory = false;
+        foreach ($cfg['backups'] as $savedProfile) {
+            if ((string)($savedProfile['id'] ?? '') === APPDATA_BACKUP_PROFILE_ID) $hasMandatory = true;
+        }
+        if (!$hasMandatory) {
+            foreach ((array)($previous['backups'] ?? []) as $storedProfile) {
+                if ((string)($storedProfile['id'] ?? '') === APPDATA_BACKUP_PROFILE_ID) {
+                    $cfg['backups'][] = resticNormalizeProfile([], $storedProfile);
+                    break;
+                }
+            }
+        }
     } else {
         // Preserve the stored list verbatim (including per-backup passwords).
         $cfg['backups'] = array_values((array)($previous['backups'] ?? []));
@@ -401,6 +429,9 @@ function resticUpdateProfile(string $id, array $input): array {
 }
 
 function resticDeleteProfile(string $id): void {
+    if ($id === APPDATA_BACKUP_PROFILE_ID) {
+        throw new InvalidArgumentException('backup_mandatory_profile');
+    }
     $cfg = resticLoadConfig();
     $profiles = [];
     $found = false;
@@ -1404,6 +1435,18 @@ function resticProgressFromLine(array $job, string $line): array {
 
 function resticRunJob(array $job): array {
     $p = $job['params'] ?? [];
+    // A mandatory application backup always includes a fresh PostgreSQL dump.
+    if ((string)($job['type'] ?? '') === 'backup'
+        && (string)($p['profile'] ?? '') === APPDATA_BACKUP_PROFILE_ID) {
+        $dump = AppDataBackup::dumpDatabase();
+        if (!$dump['ok']) {
+            throw new RuntimeException('appdata_db_dump_failed: ' . $dump['error']);
+        }
+        $sources = array_values(array_filter((array)($p['sources'] ?? []), 'is_string'));
+        $sources[] = AppDataBackup::dumpDir();
+        $p['sources'] = array_values(array_unique($sources));
+        $job['params'] = $p;
+    }
     $env = [
         'RESTIC_REPOSITORY' => resticRepositoryLocation((string)($p['repository'] ?? '')),
         'RESTIC_PASSWORD' => (string)($p['password'] ?? ''),
@@ -1532,6 +1575,22 @@ function resticComputeNextRun(array $schedule, int $from = 0): int {
 }
 
 function resticSchedulerTick(): void {
+    // The mandatory profile and compose-managed profiles are config-derived;
+    // recreate them before looking at schedules.
+    try {
+        AppDataBackup::syncEnvProfiles();
+        AppDataBackup::ensureProfile();
+    } catch (Throwable $e) {
+        @file_put_contents(resticDataDir() . '/scheduler.log', '[' . gmdate('c') . '] profile sync: ' . $e->getMessage() . "\n", FILE_APPEND | LOCK_EX);
+    }
+    // A storage pool with an expected disk missing must not be snapshotted:
+    // that would look like mass deletion in the repository. Profiles that do
+    // not touch the pool (for example the mandatory user-data backup when no
+    // pool is mounted) keep running normally.
+    $storageReady = !function_exists('storage_scheduler_sources_available') || storage_scheduler_sources_available();
+    if (!$storageReady) {
+        @file_put_contents(resticDataDir() . '/scheduler.log', '[' . gmdate('c') . '] storage disks are offline; pool profiles will be skipped\n', FILE_APPEND | LOCK_EX);
+    }
     $cfg = resticLoadConfig();
     $state = resticLoadScheduleState();
     if (!isset($state['profiles']) || !is_array($state['profiles'])) {
@@ -1568,6 +1627,27 @@ function resticSchedulerTick(): void {
             $next = time();
         }
         if (time() < $next || $running) continue;
+        $profileSources = array_values(array_filter((array)($profile['sources'] ?? []), 'is_string'));
+        $touchesPool = false;
+        $poolRoot = function_exists('storage_root') ? rtrim(storage_root(), '/') : '/storage';
+        foreach ($profileSources as $source) {
+            $source = rtrim($source, '/');
+            if ($source === $poolRoot || str_starts_with($source . '/', $poolRoot . '/')) { $touchesPool = true; break; }
+        }
+        if ($touchesPool && !$storageReady) {
+            $state['profiles'][$id] = resticComputeNextRun($schedule, time());
+            @file_put_contents(resticDataDir() . '/scheduler.log', '[' . gmdate('c') . '] skipped ' . $id . ': storage disks are offline\n', FILE_APPEND | LOCK_EX);
+            continue;
+        }
+        $missingSource = '';
+        foreach ($profileSources as $source) {
+            if (!file_exists($source)) { $missingSource = $source; break; }
+        }
+        if ($missingSource !== '') {
+            $state['profiles'][$id] = resticComputeNextRun($schedule, time());
+            @file_put_contents(resticDataDir() . '/scheduler.log', '[' . gmdate('c') . '] skipped ' . $id . ': missing source ' . $missingSource . "\n", FILE_APPEND | LOCK_EX);
+            continue;
+        }
         try {
             resticJobSpawn('backup', [
                 'profile' => $id,
@@ -1589,7 +1669,7 @@ function resticSchedulerTick(): void {
 
     // Legacy single-schedule fallback (config saved before the named list).
     $schedule = is_array($cfg['schedule'] ?? null) ? $cfg['schedule'] : [];
-    if (empty($profiles) && !empty($schedule['enabled']) && !$running
+    if (empty($profiles) && !empty($schedule['enabled']) && !$running && $storageReady
         && (string)($cfg['repository'] ?? '') !== '' && (string)($cfg['password'] ?? '') !== '') {
         $next = backupSafeInt($state['next_run'] ?? 0);
         if ($next <= 0) {
@@ -1699,14 +1779,32 @@ function resticResolveHostPath(string $path): ?string {
     return $mapped;
 }
 
-function resticAssertInsideRoot(string $real): bool {
+function resticAssertInsideRoot(string $real): bool
+{
     $bind = resticBindHome();
     if ($bind !== null && ($real === $bind['dest'] || str_starts_with($real, $bind['dest'] . '/'))) return true;
     $root = resticHostRoot();
     if ($root === '/' || $root === '') return true;
     $rootReal = realpath($root);
     if ($rootReal === false) $rootReal = $root;
-    return $real === $rootReal || str_starts_with($real, rtrim($rootReal, '/') . '/');
+    if ($real === $rootReal || str_starts_with($real, rtrim($rootReal, '/') . '/')) return true;
+    // Container-local application data is a legitimate backup source (the
+    // wizard opens /opt/ApplicationData and the backup state directory even
+    // when the whole host is mounted at /host). Keep the allow-list narrow.
+    $candidates = [
+        getenv('APPDATA_DATA_DIR') ?: (defined('APP_ROOT') ? APP_ROOT . '/data' : '/opt/AppDashboard/data'),
+        getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData',
+        getenv('UPLOADS_BASE_DIR') ?: '',
+        getenv('STORAGE_ROOT') ?: '/storage',
+    ];
+    foreach ($candidates as $candidate) {
+        $candidate = trim((string)$candidate);
+        if ($candidate === '' || $candidate[0] !== '/') continue;
+        $resolved = realpath($candidate);
+        if ($resolved === false) $resolved = rtrim($candidate, '/');
+        if ($real === $resolved || str_starts_with($real, rtrim($resolved, '/') . '/')) return true;
+    }
+    return false;
 }
 
 function resticHostBrowse(string $path, bool $onlyFolders = true, bool $showHidden = false): array {

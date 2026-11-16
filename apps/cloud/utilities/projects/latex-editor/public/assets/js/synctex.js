@@ -93,6 +93,8 @@
     document.head.appendChild(style);
     if (window.cloudEditorPanes) {
         cloudEditorPanes.enable({
+            // Arrows stay invisible until page-script2 renders a compiled PDF.
+            syncReady: false,
             onToPreview: toPdf,
             onToCode: pdfToCode,
             toPreviewTip: t.toPdfTip,

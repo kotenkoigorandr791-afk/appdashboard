@@ -4,13 +4,28 @@
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');
-            if (shareButton && window.openShareModal) {
-                shareButton.addEventListener('click', function () {
+            var chooser = document.getElementById('share-chooser');
+            if (shareButton && chooser) {
+                shareButton.addEventListener('click', function (event) {
+                    event.stopPropagation();
+                    chooser.hidden = !chooser.hidden;
+                });
+                document.addEventListener('click', function (event) {
+                    if (!chooser.contains(event.target) && event.target !== shareButton) chooser.hidden = true;
+                });
+                document.getElementById('share-choose-steps')?.addEventListener('click', function () {
+                    chooser.hidden = true;
+                    if (!window.openShareModal) return;
                     window.openShareModal('steps', 'app', 'step_routine', {
                         title: <?php echo json_encode($translations['steps_counter_title'] ?? 'My steps', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>,
                         defaultPermissions: ['view', 'interact'],
                         apiUrl: '/apps/steps/api/share.php'
                     });
+                });
+                document.getElementById('share-choose-location')?.addEventListener('click', function () {
+                    chooser.hidden = true;
+                    openModal('share-location-modal');
+                    window.dispatchEvent(new CustomEvent('steps-share-location-open'));
                 });
             }
         });
@@ -55,7 +70,6 @@
             window.addEventListener('blur', clearPressed);
         })();
 
-        Chart.register(ChartZoom);
 
         // Helper functions
         const formatNumber = num => num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
@@ -309,8 +323,8 @@
         }
 
         // Function to show alert
-        const ALERT_ICON_WARNING = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>';
-        const ALERT_ICON_INFO = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>';
+        const ALERT_ICON_WARNING = '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i>';
+        const ALERT_ICON_INFO = '<i class="fa-solid fa-circle-info" aria-hidden="true"></i>';
 
         function showAlert(message, isConfirm = false, options = {}) {
             return new Promise((resolve) => {
@@ -384,7 +398,9 @@
             document.querySelectorAll('.chart-type-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-type') === currentChartType));
             renderChartPreviews();
         }
-        function renderChartPreviews() {
+        async function renderChartPreviews() {
+            try { await window.ensureStepsCharts(); } catch (e) { return; }
+            if (!window.Chart) return;
             const canvasBar = document.getElementById('settings-chart-preview-bar');
             const canvasLine = document.getElementById('settings-chart-preview-line');
             if (!canvasBar || !canvasLine) return;
@@ -516,7 +532,7 @@
                     if (vn) vn.style.display = 'none';
                 }
                 if (modalId === 'stats-modal') {
-                    setTimeout(renderStatisticsModal, 0);
+                    setTimeout(openStatisticsExperience, 0);
                 }
                 modal.addEventListener('click', function(e) {
                     if (e.target === modal) {
@@ -527,7 +543,7 @@
         }
 
         function refreshBodyModalLock() {
-            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer'];
+            const ids = ['info-modal','stats-modal','settings-modal','add-steps-modal','day-steps-modal','user-modal','add-user-modal','video-confirm-modal','video-confirm-gaps-modal','alert-modal','video-crop-modal','guide-expand-modal','mobile-app-modal','global-image-viewer'];
             const any = ids.some(id => {
                 const m = document.getElementById(id);
                 if (!m) return false;
@@ -630,15 +646,17 @@
             return gradient;
         }
 
-        function renderChart(view, selectedDate, dataType, chartType, lang = currentLocale) {
+        async function renderChart(view, selectedDate, dataType, chartType, lang = currentLocale) {
+            try { await window.ensureStepsCharts(); } catch (e) { return; }
+            if (!window.Chart) return;
             if (chart) { chart.destroy(); chart = null; }
 
             const chartData = prepareChartData(view, selectedDate, dataType, lang);
             if (!chartData.data.length) return;
 
             document.getElementById('chart-label').textContent = getChartLabel(view, selectedDate, lang);
-            document.getElementById('chart-nav-left').style.display = 'block';
-            document.getElementById('chart-nav-right').style.display = 'block';
+            document.getElementById('chart-nav-left').style.display = 'inline-flex';
+            document.getElementById('chart-nav-right').style.display = 'inline-flex';
             document.getElementById('chart-nav-left').disabled = !canNavigateBackward();
             document.getElementById('chart-nav-right').disabled = !canNavigateForward();
 
@@ -787,76 +805,19 @@
                 if (Date.now() >= getPanelNotifSnoozeUntil('goal')) el.style.display = 'block';
             }, Math.floor(Math.random() * 60000));
         }
-        function updateStatsNotification() {
-            const steps = stepsData.map(entry => entry.steps),
-                  maxSteps = Math.max(...steps),
-                  maxDistance = (maxSteps * userSettings.stride_length) / 100000;
-            const monthData = stepsData.filter(entry =>
-                localDateFromYMD(entry.date).getMonth() === currentDate.getMonth() &&
-                localDateFromYMD(entry.date).getFullYear() === currentDate.getFullYear()
-            );
-            const avgSteps = monthData.length ? monthData.reduce((sum, entry) => sum + entry.steps, 0) / monthData.length : 0;
-            const el = document.getElementById('stats-notification');
-            document.getElementById('stats-content').innerHTML = `
-                <div class="notification-item">
-                    <span>${translations.max_steps}</span>
-                    <span class="notification-value">${formatNumber(maxSteps)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.max_distance}</span>
-                    <span class="notification-value">${maxDistance.toFixed(2)} ${translations.distance_km}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.avg_steps}</span>
-                    <span class="notification-value">${formatNumber(Math.round(avgSteps))}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.avg_distance}</span>
-                    <span class="notification-value">${(avgSteps * userSettings.stride_length / 100000).toFixed(2)} ${translations.distance_km}</span>
-                </div>`;
-            if (!el) return;
-            if (Date.now() < getPanelNotifSnoozeUntil('stats')) {
-                cancelStatsNotifTimer();
-                statsNotifRevealDone = false;
-                el.style.display = 'none';
-                return;
-            }
-            ensureStatsNotifScheduled();
-            if (statsNotifRevealDone) el.style.display = 'block';
-        }
-        function updateGoalNotification() {
-            const monthStart = new Date();
-            monthStart.setDate(1);
-            const currentMonth = monthStart.getMonth();
-            const currentYear = monthStart.getFullYear();
-            const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
-            const goalPerDay = userSettings.goal_steps;
-            const el = document.getElementById('goal-notification');
-            document.getElementById('goal-content').innerHTML = `
-                <div class="notification-item">
-                    <span>${translations.goal_daily_hint || 'пройти нужно каждый день по'}</span>
-                    <span class="notification-value">${formatNumber(goalPerDay)}</span>
-                </div>
-                <div class="notification-item">
-                    <span>${translations.goal_days_hint || 'ходить нужно'}</span>
-                    <span class="notification-value">${daysInMonth} ${translations.days || 'дней'}</span>
-                </div>`;
-            if (!el) return;
-            if (Date.now() < getPanelNotifSnoozeUntil('goal')) {
-                cancelGoalNotifTimer();
-                goalNotifRevealDone = false;
-                el.style.display = 'none';
-                return;
-            }
-            ensureGoalNotifScheduled();
-            if (goalNotifRevealDone) el.style.display = 'block';
-        }
+        // Informational pop-ups were removed on purpose: notifications are now
+        // reserved for real errors and things the user must act on. The stats and
+        // goal summaries live in the Statistics experience instead.
+        function updateStatsNotification() {}
+        function updateGoalNotification() {}
 
         function destroyStatisticsCharts() {
             if (yearlyDistributionChart) { yearlyDistributionChart.destroy(); yearlyDistributionChart = null; }
             if (monthlyIntensityChart) { monthlyIntensityChart.destroy(); monthlyIntensityChart = null; }
         }
-        function renderStatisticsModal(lang = currentLocale) {
+        async function renderStatisticsCharts(lang = currentLocale) {
+            try { await window.ensureStepsCharts(); } catch (e) { return; }
+            if (!window.Chart) return;
             destroyStatisticsCharts();
             const empty = document.getElementById('stats-empty');
             const grid = document.querySelector('#stats-modal .stats-grid');
@@ -963,6 +924,413 @@
             });
         }
 
+        const statsExperience = { summary: null, achievements: null, active: 'overview', summaryLoading: false, achievementsLoading: false, error: '' };
+
+        function statsText(id, value) {
+            const node = document.getElementById(id);
+            if (node) node.textContent = value == null || value === '' ? '—' : String(value);
+        }
+
+        function statsDistance(meters) {
+            const value = Number(meters) || 0;
+            if (value <= 0) return '0 km';
+            return value < 1000 ? Math.round(value) + ' m' : (value / 1000).toFixed(value >= 100000 ? 0 : 1) + ' km';
+        }
+
+        function statsDuration(seconds) {
+            const value = Math.max(0, Math.round(Number(seconds) || 0));
+            const hours = Math.floor(value / 3600);
+            const minutes = Math.round((value % 3600) / 60);
+            return hours > 0 ? hours + 'h ' + minutes + 'm' : minutes + 'm';
+        }
+
+        function statsDate(value) {
+            if (!value) return '';
+            const date = new Date(value);
+            return isNaN(date.getTime()) ? String(value) : date.toLocaleDateString(currentLocale, { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function statsBadge(text, kind) {
+            const node = document.createElement('span');
+            if (kind) node.className = kind;
+            node.textContent = text;
+            return node;
+        }
+
+        function renderStatsFreshness() {
+            const host = document.getElementById('stats-freshness');
+            if (!host) return;
+            host.textContent = '';
+            const summary = statsExperience.summary;
+            if (statsExperience.error) host.appendChild(statsBadge(statsExperience.error, 'is-waiting'));
+            if (summary) {
+                if (summary.processing) host.appendChild(statsBadge(translations.stats_processing || 'Updating in the background…', 'is-waiting'));
+                else host.appendChild(statsBadge(translations.stats_up_to_date || 'Up to date', 'is-live'));
+                if (summary.computed_at) host.appendChild(statsBadge(statsDate(summary.computed_at)));
+                if (summary.cached) host.appendChild(statsBadge(translations.stats_cached || 'Instant cached view'));
+            } else if (statsExperience.summaryLoading) {
+                host.appendChild(statsBadge(translations.stats_loading || 'Loading your activity…', 'is-waiting'));
+            }
+            const achievements = statsExperience.achievements;
+            if (achievements && achievements.enabled === false) host.appendChild(statsBadge(translations.achievement_disabled_notice || 'Achievements are disabled'));
+        }
+
+        function renderStatsOverview() {
+            const year = new Date().getFullYear();
+            let steps = 0;
+            let days = 0;
+            stepsData.forEach(entry => {
+                const date = localDateFromYMD(entry.date);
+                if (!isNaN(date.getTime()) && date.getFullYear() === year) {
+                    steps += Number(entry.steps) || 0;
+                    if ((Number(entry.steps) || 0) > 0) days++;
+                }
+            });
+            statsText('stats-overview-steps', formatNumber(steps));
+            statsText('stats-overview-average', days ? (translations.stats_daily_average || 'Daily average') + ': ' + formatNumber(Math.round(steps / days)) : '');
+            const summary = statsExperience.summary;
+            const metrics = summary && summary.metrics ? summary.metrics : {};
+            statsText('stats-overview-days', metrics.active_days != null ? formatNumber(metrics.active_days) : (days || 0));
+            statsText('stats-overview-distance', metrics.route_distance_m != null ? statsDistance(metrics.route_distance_m) : '—');
+            const places = summary && summary.most_visited_places ? summary.most_visited_places : [];
+            statsText('stats-overview-places', places.length ? formatNumber(places.length) : (metrics.cities ? metrics.cities.length : '—'));
+            const achievements = statsExperience.achievements;
+            statsText('stats-overview-earned', achievements && achievements.enabled !== false ? formatNumber(achievements.earned_count || 0) : '—');
+
+            const reach = document.getElementById('stats-overview-reach');
+            if (reach) {
+                reach.textContent = '';
+                const countries = metrics.countries || [];
+                const cities = metrics.cities || [];
+                countries.slice(0, 6).forEach(country => reach.appendChild(statsBadge((country.name || country.code || '') + ' · ' + (translations.stats_country || 'country'))));
+                cities.slice(0, 6).forEach(city => reach.appendChild(statsBadge(String(city))));
+                if (!countries.length && !cities.length) {
+                    reach.appendChild(statsBadge(translations.stats_reach_empty || 'Movement will appear here as your history grows.'));
+                }
+            }
+        }
+
+        function renderStatsMovement() {
+            const summary = statsExperience.summary;
+            if (!summary) return;
+            const metrics = summary.metrics || {};
+            const movement = summary.movement_patterns || {};
+            const places = summary.most_visited_places || [];
+            statsText('stats-movement-distance', statsDistance(metrics.route_distance_m));
+            statsText('stats-movement-trips', formatNumber(movement.trips || 0));
+            statsText('stats-movement-trip-avg', movement.avg_distance_m ? ' · ' + statsDistance(movement.avg_distance_m) : '');
+            statsText('stats-movement-time', statsDuration(metrics.active_seconds));
+            const top = places[0];
+            statsText('stats-movement-place', top ? (top.name || top.label || '—') : '—');
+            statsText('stats-movement-place-meta', top ? (translations.stats_visits || 'visits') + ': ' + formatNumber(top.visits || top.count || 0) : '');
+            const host = document.getElementById('stats-week-rhythm');
+            if (!host) return;
+            host.textContent = '';
+            const weekdays = (translations.days_of_week && translations.days_of_week.length === 7) ? translations.days_of_week : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+            const rows = movement.by_weekday || [];
+            const max = rows.reduce((value, row) => Math.max(value, Number(row.trips) || 0), 0);
+            for (let index = 0; index < 7; index++) {
+                const row = rows[index] || {};
+                const trips = Number(row.trips) || 0;
+                const day = document.createElement('div');
+                day.className = 'stats-rhythm-day';
+                const value = document.createElement('strong');
+                value.textContent = formatNumber(trips);
+                const bar = document.createElement('div');
+                bar.className = 'stats-rhythm-bar';
+                bar.style.height = (max ? Math.max(5, Math.round(trips / max * 96)) : 5) + 'px';
+                bar.title = weekdays[index] + ': ' + trips;
+                const label = document.createElement('small');
+                label.textContent = weekdays[index];
+                day.appendChild(value);
+                day.appendChild(bar);
+                day.appendChild(label);
+                host.appendChild(day);
+            }
+        }
+
+        function renderStatsQuality() {
+            const summary = statsExperience.summary;
+            if (!summary) return;
+            const coverage = summary.coverage || {};
+            const accuracy = summary.accuracy || {};
+            const health = summary.source_health || {};
+            const percent = Math.round((Number(coverage.coverage_ratio) || 0) * 100);
+            statsText('stats-quality-coverage', percent + '%');
+            statsText('stats-quality-accuracy', accuracy.avg_m != null ? '±' + Math.round(accuracy.avg_m) + ' m' : '—');
+            statsText('stats-quality-latest', health.latest_point_at ? statsDate(health.latest_point_at) : '—');
+            statsText('stats-quality-devices', formatNumber((health.devices || []).length));
+            const host = document.getElementById('stats-quality-sources');
+            if (!host) return;
+            host.textContent = '';
+            const sources = health.sources || {};
+            const devices = health.devices || [];
+            const sourceNames = Object.keys(sources);
+            if (!sourceNames.length && !devices.length) {
+                const empty = document.createElement('p');
+                empty.className = 'stats-source-empty';
+                empty.textContent = translations.stats_no_sources || 'No paired sources yet.';
+                host.appendChild(empty);
+                return;
+            }
+            // Tables read far better than loose chips: one row per source/device,
+            // tabular numbers in the count column, explicit column headers.
+            const cell = (item, className) => {
+                const td = document.createElement('td');
+                if (className) td.className = className;
+                if (item && item.nodeType === 1) td.appendChild(item);
+                else td.textContent = item;
+                return td;
+            };
+            const buildTable = (caption, headers, rows) => {
+                const table = document.createElement('table');
+                table.className = 'stats-source-table';
+                const cap = document.createElement('caption');
+                cap.textContent = caption;
+                table.appendChild(cap);
+                const thead = document.createElement('thead');
+                const headRow = document.createElement('tr');
+                headers.forEach(label => {
+                    const th = document.createElement('th');
+                    th.scope = 'col';
+                    th.textContent = label;
+                    headRow.appendChild(th);
+                });
+                thead.appendChild(headRow);
+                table.appendChild(thead);
+                const tbody = document.createElement('tbody');
+                rows.forEach(cells => {
+                    const tr = document.createElement('tr');
+                    cells.forEach(item => tr.appendChild(cell(item.text !== undefined ? item.text : item.node, item.className)));
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                return table;
+            };
+            if (sourceNames.length) {
+                host.appendChild(buildTable(
+                    translations.stats_sources_caption || 'Sources',
+                    [translations.stats_source_name || 'Source', translations.stats_source_points || 'Points'],
+                    sourceNames.map(source => ([
+                        { text: source, className: 'stats-source-name' },
+                        { text: formatNumber(sources[source]), className: 'stats-source-count' }
+                    ]))
+                ));
+            }
+            if (devices.length) {
+                const statusLabels = {
+                    active: translations.device_active || 'Active',
+                    paused: translations.device_paused || 'Paused',
+                    revoked: translations.device_revoked || 'Revoked'
+                };
+                host.appendChild(buildTable(
+                    translations.stats_devices_caption || 'Connected devices',
+                    [
+                        translations.device_name || 'Device',
+                        translations.stats_device_points || 'Points',
+                        translations.stats_device_last_seen || 'Last seen'
+                    ],
+                    devices.map(device => {
+                        const status = String(device.status || '').toLowerCase();
+                        const name = device.name || device.platform || 'Device';
+                        const label = statusLabels[status] || device.status || '—';
+                        const nameCell = document.createElement('div');
+                        nameCell.textContent = name;
+                        if (device.platform && device.platform !== name) {
+                            const meta = document.createElement('span');
+                            meta.className = 'render-card-meta';
+                            meta.style.display = 'block';
+                            meta.textContent = device.platform;
+                            nameCell.appendChild(meta);
+                        }
+                        const statusChip = document.createElement('span');
+                        statusChip.className = 'stats-source-status' +
+                            (status === 'paused' ? ' is-paused' : '') +
+                            (status === 'revoked' ? ' is-revoked' : '');
+                        statusChip.textContent = label;
+                        nameCell.appendChild(statusChip);
+                        return [
+                            { node: nameCell, className: 'stats-source-name' },
+                            { text: formatNumber(device.points), className: 'stats-source-count' },
+                            { text: device.last_seen_at ? statsDate(device.last_seen_at) : '—' }
+                        ];
+                    })
+                ));
+            }
+        }
+
+        function achievementVisual(item) {
+            const id = String(item.id || '');
+            const target = Number(item.target) || 0;
+            if (id.startsWith('coverage_days_')) {
+                return { tone: 'coverage', icon: target >= 365 ? 'fa-calendar-check' : target >= 30 ? 'fa-calendar-week' : 'fa-calendar-day' };
+            }
+            if (id.startsWith('coverage_cells_')) {
+                return { tone: 'coverage', icon: target >= 200 ? 'fa-map-location-dot' : target >= 50 ? 'fa-map' : 'fa-table-cells-large' };
+            }
+            if (id.startsWith('distance_')) {
+                return { tone: 'distance', icon: target >= 1000000 ? 'fa-compass' : target >= 500000 ? 'fa-route' : 'fa-person-walking' };
+            }
+            if (id.startsWith('places_')) {
+                return { tone: 'places', icon: target >= 25 ? 'fa-map-location-dot' : target >= 10 ? 'fa-map-pin' : 'fa-location-dot' };
+            }
+            if (id.startsWith('cities_')) return { tone: 'cities', icon: target >= 25 ? 'fa-city' : 'fa-building' };
+            if (id.startsWith('regions_')) return { tone: 'regions', icon: target >= 5 ? 'fa-map' : 'fa-map-location-dot' };
+            if (id.startsWith('countries_')) return { tone: 'countries', icon: target >= 10 ? 'fa-earth-americas' : 'fa-flag' };
+            return { tone: 'default', icon: 'fa-medal' };
+        }
+
+        function achievementTier(item) {
+            const target = Number(item.target) || 0;
+            if (item.unit === 'm') return (target / 1000) + ' km';
+            if (item.unit === 'days') return target + ' ' + (translations.achievement_days || 'days');
+            return formatNumber(target);
+        }
+
+        function renderStatsAchievements() {
+            const data = statsExperience.achievements;
+            const host = document.getElementById('stats-achievement-grid');
+            const empty = document.getElementById('stats-achievement-empty');
+            if (!host) return;
+            host.textContent = '';
+            const earned = data && data.enabled !== false ? (data.earned_achievements || []) : [];
+            if (data) statsText('stats-achievement-count', formatNumber(data.earned_count || earned.length));
+            if (empty) empty.hidden = earned.length > 0;
+            if (!data && statsExperience.achievementsLoading) {
+                if (empty) { empty.hidden = false; empty.textContent = translations.stats_loading || 'Loading…'; }
+                return;
+            }
+            earned.forEach((item, index) => {
+                const card = document.createElement('article');
+                const visual = achievementVisual(item);
+                card.className = 'stats-achievement stats-achievement--' + visual.tone;
+                card.style.animationDelay = Math.min(index * 35, 260) + 'ms';
+                const icon = document.createElement('div');
+                icon.className = 'stats-achievement-icon';
+                icon.innerHTML = '<i class="fa-solid ' + visual.icon + '" aria-hidden="true"></i>';
+                const title = document.createElement('h4');
+                title.textContent = translations[item.title_key] || trFallbackKey(item.title_key);
+                const description = document.createElement('p');
+                description.textContent = translations[item.description_key] || trFallbackKey(item.description_key);
+                const footer = document.createElement('footer');
+                const tier = document.createElement('span');
+                tier.textContent = achievementTier(item);
+                const badge = document.createElement('span');
+                badge.className = 'stats-achievement-badge';
+                badge.textContent = (translations.achievement_earned || 'Earned') + (item.earned_at ? ' · ' + statsDate(item.earned_at) : '');
+                footer.appendChild(tier);
+                footer.appendChild(badge);
+                card.appendChild(icon);
+                card.appendChild(title);
+                card.appendChild(description);
+                card.appendChild(footer);
+                host.appendChild(card);
+            });
+            if (!earned.length && data && empty) empty.textContent = translations.stats_no_achievements || 'Your first milestone is still ahead.';
+        }
+
+        function trFallbackKey(key) {
+            return String(key || '').replace(/^achievement_(desc_|family_|collection_)?/, '').replace(/_/g, ' ').replace(/\b\w/g, letter => letter.toUpperCase());
+        }
+
+        function activateStatsTab(name, focus) {
+            const valid = ['overview', 'activity', 'movement', 'achievements', 'quality'];
+            if (!valid.includes(name)) name = 'overview';
+            statsExperience.active = name;
+            document.querySelectorAll('#stats-modal .stats-tab').forEach(button => {
+                const on = button.getAttribute('data-stats-tab') === name;
+                button.classList.toggle('is-active', on);
+                button.setAttribute('aria-selected', on ? 'true' : 'false');
+                button.tabIndex = on ? 0 : -1;
+                if (on && focus) button.focus({ preventScroll: true });
+            });
+            document.querySelectorAll('#stats-modal .stats-panel').forEach(panel => {
+                const on = panel.getAttribute('data-stats-panel') === name;
+                panel.hidden = !on;
+                panel.classList.toggle('is-active', on);
+            });
+            if (name === 'activity') setTimeout(() => renderStatisticsCharts(), 20);
+            if (name === 'overview') renderStatsOverview();
+            if (name === 'movement') renderStatsMovement();
+            if (name === 'achievements') renderStatsAchievements();
+            if (name === 'quality') renderStatsQuality();
+            if (name === 'movement' || name === 'quality') loadStatsSummary(false);
+            if (name === 'achievements') loadStatsAchievements(false);
+        }
+
+        function statsGateway(endpoint) {
+            return '/apps/steps/api/session_gateway.php?endpoint=' + endpoint;
+        }
+
+        async function loadStatsSummary(force) {
+            if (statsExperience.summaryLoading) return;
+            if (statsExperience.summary && !force) return;
+            statsExperience.summaryLoading = true;
+            renderStatsFreshness();
+            try {
+                const response = await fetch(statsGateway('geolocation_statistics'), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                const data = await response.json();
+                if (!data.ok) throw new Error(data.error || 'statistics_failed');
+                statsExperience.summary = data;
+                statsExperience.error = '';
+            } catch (error) {
+                statsExperience.error = translations.stats_unavailable || 'Activity data is temporarily unavailable.';
+            } finally {
+                statsExperience.summaryLoading = false;
+                renderStatsFreshness();
+                renderStatsOverview();
+                renderStatsMovement();
+                renderStatsQuality();
+            }
+        }
+
+        async function loadStatsAchievements(force) {
+            if (statsExperience.achievementsLoading) return;
+            if (statsExperience.achievements && !force) return;
+            statsExperience.achievementsLoading = true;
+            renderStatsAchievements();
+            try {
+                const response = await fetch(statsGateway('geolocation_achievements'), { credentials: 'same-origin', headers: { Accept: 'application/json' } });
+                const data = await response.json();
+                if (!data.ok) throw new Error(data.error || 'achievements_failed');
+                statsExperience.achievements = data;
+            } catch (error) {
+                statsExperience.achievements = { enabled: true, earned_achievements: [], earned_count: 0 };
+                statsExperience.error = translations.stats_achievements_unavailable || 'Achievements are temporarily unavailable.';
+            } finally {
+                statsExperience.achievementsLoading = false;
+                renderStatsFreshness();
+                renderStatsOverview();
+                renderStatsAchievements();
+            }
+        }
+
+        function openStatisticsExperience() {
+            statsExperience.summary = null;
+            statsExperience.achievements = null;
+            statsExperience.error = '';
+            statsExperience.summaryLoading = false;
+            statsExperience.achievementsLoading = false;
+            activateStatsTab('overview');
+            loadStatsSummary(true);
+        }
+
+        document.addEventListener('click', event => {
+            const button = event.target && event.target.closest ? event.target.closest('#stats-modal .stats-tab') : null;
+            if (!button) return;
+            activateStatsTab(button.getAttribute('data-stats-tab'), true);
+        });
+        document.addEventListener('keydown', event => {
+            if (!event.target || !event.target.closest || !event.target.closest('#stats-modal .stats-tabbar')) return;
+            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return;
+            const tabs = Array.from(document.querySelectorAll('#stats-modal .stats-tab'));
+            const current = tabs.indexOf(document.activeElement);
+            if (current < 0) return;
+            event.preventDefault();
+            const next = tabs[(current + (event.key === 'ArrowRight' ? 1 : tabs.length - 1)) % tabs.length];
+            activateStatsTab(next.getAttribute('data-stats-tab'), true);
+        });
+
         // Functions for calendar
         function updateCalendar(lang = currentLocale) {
             const yearSelector = document.getElementById('year-selector');
@@ -973,6 +1341,7 @@
                 .join('');
             populateMonthSelectorForYear(currentDate.getFullYear(), lang, currentDate.getMonth() + 1);
             renderCalendar(new Date(currentDate.getFullYear(), currentDate.getMonth(), 1), lang);
+            refreshCustomSelects();
         }
 
         function populateMonthSelectorForYear(year, lang = currentLocale, selectMonth = null) {
@@ -981,12 +1350,14 @@
             if (!months.length) {
                 monthSelector.innerHTML = '<option value="-">—</option>';
                 monthSelector.disabled = true;
+                refreshCustomSelects();
                 return;
             }
             monthSelector.disabled = false;
             monthSelector.innerHTML = months
                 .map(m => `<option value="${m.value}" ${selectMonth && m.value === `${year}-${selectMonth}` ? 'selected' : ''}>${m.label}</option>`)
                 .join('');
+            refreshCustomSelects();
         }
 
         function syncCalendarSelectors() {
@@ -998,6 +1369,7 @@
             } else {
                 document.getElementById('month-selector').value = `${currentYear}-${currentDate.getMonth() + 1}`;
             }
+            refreshCustomSelects();
         }
 
         function renderCalendar(date, lang = currentLocale) {
@@ -1042,6 +1414,138 @@
             document.getElementById('goal-summary').innerHTML = `
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.total_steps}</span><span class="goal-summary-value">${formatNumber(totalSteps)}</span></div>
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.goal_days}</span><span class="goal-summary-value">${goalDays}</span></div>`;
+        }
+
+        // Main mode switch: steps / map
+        function initModeSwitch() {
+            const appMain = document.querySelector('.app-main'),
+                  mapView = document.getElementById('map-view'),
+                  buttons = Array.from(document.querySelectorAll('.mode-switch-btn'));
+            if (!buttons.length || !appMain || !mapView) return;
+            const applyMode = mode => {
+                buttons.forEach(btn => {
+                    const on = btn.getAttribute('data-mode') === mode;
+                    btn.classList.toggle('active', on);
+                    btn.setAttribute('aria-selected', on ? 'true' : 'false');
+                });
+                const showMap = mode === 'map';
+                appMain.hidden = showMap;
+                mapView.hidden = !showMap;
+                if (!showMap) document.body.classList.remove('map-sidebar-open');
+                if (showMap) {
+                    window.dispatchEvent(new Event('steps-map-shown'));
+                } else if (chart && typeof chart.resize === 'function') {
+                    chart.resize();
+                }
+            };
+            buttons.forEach(btn => btn.addEventListener('click', () => applyMode(btn.getAttribute('data-mode'))));
+        }
+
+        // Custom dropdowns for the calendar selectors
+        function initCustomSelect(nativeId, title) {
+            const native = document.getElementById(nativeId);
+            if (!native) return;
+            const root = native.closest('.custom-select');
+            if (!root) return;
+            const trigger = root.querySelector('.custom-select-trigger'),
+                  valueEl = root.querySelector('.custom-select-value'),
+                  menu = root.querySelector('.custom-select-menu');
+            if (!trigger || !valueEl || !menu) return;
+            const escapeHtml = text => String(text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const render = () => {
+                const options = Array.from(native.options).filter(opt => opt.value !== '' || native.dataset.allowEmpty);
+                const selected = options.find(opt => opt.selected) || options[0] || null;
+                valueEl.textContent = selected ? selected.textContent.trim() : '—';
+                trigger.disabled = native.disabled || !options.length;
+                menu.innerHTML = `<div class="custom-select-header">${escapeHtml(title)}</div><div class="custom-select-grid">` +
+                    options.map(opt => `<button type="button" class="custom-select-option${opt.selected ? ' active' : ''}" data-value="${escapeHtml(opt.value)}" role="option" aria-selected="${opt.selected ? 'true' : 'false'}">${escapeHtml(opt.textContent.trim())}</button>`).join('') +
+                    '</div>';
+            };
+            const close = () => {
+                root.classList.remove('is-open');
+                trigger.setAttribute('aria-expanded', 'false');
+            };
+            trigger.addEventListener('click', () => {
+                if (trigger.disabled) return;
+                if (root.classList.contains('is-open')) { close(); return; }
+                document.querySelectorAll('.custom-select.is-open').forEach(other => {
+                    other.classList.remove('is-open');
+                    const otherTrigger = other.querySelector('.custom-select-trigger');
+                    if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+                });
+                render();
+                root.classList.add('is-open');
+                trigger.setAttribute('aria-expanded', 'true');
+            });
+            menu.addEventListener('click', e => {
+                const option = e.target.closest('.custom-select-option');
+                if (!option) return;
+                const value = option.getAttribute('data-value');
+                close();
+                if (native.value !== value) {
+                    native.value = value;
+                    native.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+                render();
+            });
+            document.addEventListener('click', e => { if (!root.contains(e.target)) close(); });
+            document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+            native.addEventListener('change', render);
+            new MutationObserver(render).observe(native, { childList: true, subtree: true });
+            root._stepsRender = render;
+            render();
+        }
+        function refreshCustomSelects() {
+            document.querySelectorAll('.custom-select').forEach(root => {
+                if (typeof root._stepsRender === 'function') root._stepsRender();
+            });
+        }
+
+        // Minimalist day steps editor
+        function openDayStepsEditor(date) {
+            const input = document.getElementById('day-steps-input');
+            if (!input) return;
+            const entry = stepsData.find(item => item.date === date),
+                  steps = entry ? (Number(entry.steps) || 0) : 0;
+            input.dataset.date = date;
+            input.value = steps > 0 ? formatNumber(steps) : '';
+            const dateEl = document.getElementById('day-steps-date');
+            if (dateEl) dateEl.textContent = localDateFromYMD(date).toLocaleDateString(currentLocale, { day: 'numeric', month: 'long', year: 'numeric' });
+            openModal('day-steps-modal');
+            setTimeout(() => { input.focus(); input.select(); }, 60);
+        }
+        async function saveDaySteps() {
+            const input = document.getElementById('day-steps-input');
+            if (!input) return;
+            const date = input.dataset.date || '',
+                  steps = parseStepsRaw(input.value) || '0';
+            if (!date || !/^\d*$/.test(steps)) {
+                showToast(translations.invalid_date_steps || 'Invalid date or steps', 'error');
+                return;
+            }
+            const formData = new FormData();
+            formData.append('date', date);
+            formData.append('steps', steps);
+            formData.append('add_steps', '1');
+            try {
+                const response = await fetch('', { method: 'POST', body: formData, credentials: 'same-origin' });
+                const data = await response.json();
+                if (data.status !== 'success') {
+                    showToast(data.message || translations.failed_save_settings || 'Error', 'error');
+                    return;
+                }
+                const value = parseInt(steps, 10) || 0;
+                stepsData = stepsData.filter(entry => entry.date !== date);
+                stepsData.push({ date, steps: value });
+                stepsData.sort((a, b) => new Date(a.date) - new Date(b.date));
+                closeModal('day-steps-modal');
+                renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                updateCalendar(currentLocale);
+                updateStatsNotification();
+                updateGoalNotification();
+            } catch (err) {
+                showToast(`${translations.failed_save_settings || 'Error'}: ${err.message}`, 'error');
+            }
         }
 
         // Functions for add steps modal
@@ -3005,8 +3509,13 @@
 
         // App initialization
         function initApp() {
-            renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+            const paintChart = () => renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+            if ('requestIdleCallback' in window) requestIdleCallback(paintChart, {timeout: 1500});
+            else setTimeout(paintChart, 300);
             updateCalendar(currentLocale);
+            initCustomSelect('year-selector', translations.year || 'Year');
+            initCustomSelect('month-selector', translations.month || 'Month');
+            initModeSwitch();
             updateStatsNotification();
             updateGoalNotification();
             hideEmptyDataTypeButtons();
@@ -3072,6 +3581,1217 @@
                     renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
                 });
             });
+            const locationStatsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_statistics';
+            let locationStatsBusy = false;
+            function locationStatText(key, fallback) {
+                return (window.translations && translations[key]) || fallback;
+            }
+            function locationStatNumber(value, digits) {
+                const number = Number(value || 0);
+                return number.toLocaleString(currentLocale || 'en-US', { maximumFractionDigits: digits || 0 });
+            }
+            function locationStatDuration(seconds) {
+                const h = Math.floor(Number(seconds || 0) / 3600), m = Math.round((Number(seconds || 0) % 3600) / 60);
+                return h > 0 ? h + ' h ' + m + ' min' : m + ' min';
+            }
+            function renderLocationStatistics(data) {
+                const status = document.getElementById('location-stats-status');
+                const cards = document.getElementById('location-stats-cards');
+                const warnings = document.getElementById('location-stats-warnings');
+                const details = document.getElementById('location-stats-details');
+                const boundary = document.getElementById('location-stats-boundary');
+                const assumptions = document.getElementById('location-stats-assumptions');
+                if (!status || !cards || !details) return;
+                const m = data.metrics || {};
+                const coverage = data.coverage || {};
+                status.textContent = (data.range ? data.range.from + ' → ' + data.range.to + ' · ' : '') + (data.timezone || 'UTC') + (data.cached ? ' · ' + locationStatText('location_stats_cached', 'cached') : '');
+                const card = (label, value) => '<div class="location-card"><span>' + label + '</span><strong>' + value + '</strong></div>';
+                cards.innerHTML = [
+                    card(locationStatText('location_stats_points', 'Points'), locationStatNumber(m.point_count)),
+                    card(locationStatText('location_stats_distance', 'Distance'), locationStatNumber((m.route_distance_m || 0) / 1000, 1) + ' km'),
+                    card(locationStatText('location_stats_active_days', 'Active days'), locationStatNumber(m.active_days)),
+                    card(locationStatText('location_stats_countries', 'Countries'), locationStatNumber((m.countries || []).length)),
+                    card(locationStatText('location_stats_cities', 'Cities'), locationStatNumber((m.cities || []).length)),
+                    card(locationStatText('location_stats_visits', 'Visits'), locationStatNumber(m.visits)),
+                    card(locationStatText('location_stats_dwell', 'Dwell time'), locationStatDuration(m.dwell_seconds)),
+                    card(locationStatText('location_stats_places', 'Places'), locationStatNumber(m.places))
+                ].join('');
+                const residency = data.residency || {};
+                const warningList = residency.warnings || [];
+                warnings.innerHTML = warningList.length ? warningList.map(w => '<div class="location-warning"><i class="fas fa-triangle-exclamation"></i> ' + (w.country_name || w.country_code) + ': ' + w.days + ' / ' + w.window_days + ' ' + locationStatText('location_stats_days', 'days') + ' (' + w.window_from + ' → ' + w.window_to + ')</div>').join('') : '';
+                const top = (data.most_visited_places || []).map(p => '<li><span>' + p.name + '</span><span>' + p.visits + ' × · ' + locationStatDuration(p.dwell_seconds) + '</span></li>').join('');
+                const countries = (m.countries || []).map(c => c.name || c.code).join(', ');
+                const accuracy = data.accuracy || {};
+                const sourceRows = Object.entries((data.source_health || {}).sources || {}).map(([source, count]) => '<li><span>' + source + '</span><span>' + locationStatNumber(count) + '</span></li>').join('');
+                const months = (data.monthly || []).slice(-6).map(row => '<li><span>' + row.period + '</span><span>' + locationStatNumber((row.metrics.route_distance_m || 0) / 1000, 1) + ' km · ' + locationStatNumber(row.metrics.active_days) + ' d</span></li>').join('');
+                details.innerHTML = '<div class="location-detail-block"><h4>' + locationStatText('location_stats_top_places', 'Most visited places') + '</h4><ul>' + (top || '<li>' + locationStatText('location_stats_none', 'No data yet.') + '</li>') + '</ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_recent_months', 'Recent months') + '</h4><ul>' + (months || '<li>' + locationStatText('location_stats_none', 'No data yet.') + '</li>') + '</ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_coverage', 'Coverage & gaps') + '</h4><ul><li><span>' + locationStatText('location_stats_days_with_data', 'Days with data') + '</span><span>' + locationStatNumber(coverage.days_with_data) + ' / ' + locationStatNumber(coverage.days_total) + '</span></li><li><span>' + locationStatText('location_stats_missing_days', 'Missing days') + '</span><span>' + locationStatNumber(coverage.missing_days) + '</span></li><li><span>' + locationStatText('location_stats_gaps', 'Data gaps (latest)') + '</span><span>' + ((coverage.gaps || []).slice(0, 6).join(', ') || '—') + '</span></li></ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_accuracy', 'Accuracy') + '</h4><ul><li><span>' + locationStatText('location_stats_accuracy_avg', 'Average accuracy') + '</span><span>' + (accuracy.avg_m === null || accuracy.avg_m === undefined ? '—' : locationStatNumber(accuracy.avg_m, 1) + ' m') + '</span></li><li><span>' + locationStatText('location_stats_accuracy_missing', 'Missing accuracy') + '</span><span>' + locationStatNumber(accuracy.missing) + '</span></li><li><span>' + locationStatText('location_stats_sources', 'Sources') + '</span></li>' + (sourceRows || '') + '</ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_movement', 'Movement patterns') + '</h4><ul><li><span>' + locationStatText('location_stats_trips', 'Trips') + '</span><span>' + locationStatNumber((data.movement_patterns || {}).trips) + '</span></li><li><span>' + locationStatText('location_stats_avg_distance', 'Average trip distance') + '</span><span>' + locationStatNumber(((data.movement_patterns || {}).avg_distance_m || 0) / 1000, 1) + ' km</span></li><li><span>' + locationStatText('location_stats_avg_duration', 'Average trip duration') + '</span><span>' + locationStatDuration((data.movement_patterns || {}).avg_duration_s) + '</span></li></ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_comparison', 'Previous period') + '</h4><ul><li><span>' + locationStatText('location_stats_distance', 'Distance') + '</span><span>' + locationStatNumber(((data.comparison || {}).metrics?.route_distance_m || 0) / 1000, 1) + ' km</span></li><li><span>' + locationStatText('location_stats_active_days', 'Active days') + '</span><span>' + locationStatNumber((data.comparison || {}).metrics?.active_days) + '</span></li><li><span>' + locationStatText('location_stats_visits', 'Visits') + '</span><span>' + locationStatNumber((data.comparison || {}).metrics?.visits) + '</span></li></ul></div>'
+                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_countries', 'Countries') + '</h4><p>' + (countries || locationStatText('location_stats_boundary_missing', 'No boundary dataset imported yet.')) + '</p></div>';
+                const countryDataset = (data.boundary || {}).country_dataset;
+                boundary.textContent = countryDataset ? locationStatText('location_stats_boundary_version', 'Boundary dataset') + ': ' + countryDataset.version + ' (' + countryDataset.feature_count + ')' : ((data.boundary || {}).assumption || '');
+                assumptions.innerHTML = (data.assumptions || []).map(text => '<li>' + text + '</li>').join('');
+            }
+            async function loadLocationStatistics() {
+                const panel = document.getElementById('settings-panel-location');
+                if (!panel) return;
+                const tzInput = document.getElementById('location-stats-tz');
+                if (tzInput && !tzInput.dataset.initialized) {
+                    tzInput.dataset.initialized = '1';
+                    try { const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (browserTz) tzInput.value = browserTz; } catch (e) {}
+                }
+                const status = document.getElementById('location-stats-status');
+                const tz = (tzInput && tzInput.value.trim()) || 'UTC';
+                if (status) status.textContent = locationStatText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationStatsApi + '&tz=' + encodeURIComponent(tz), { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'statistics_failed');
+                    renderLocationStatistics(data);
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || locationStatText('map_error', 'Could not load data.');
+                }
+            }
+            document.getElementById('location-stats-refresh')?.addEventListener('click', async () => {
+                if (locationStatsBusy) return;
+                locationStatsBusy = true;
+                const tzInput = document.getElementById('location-stats-tz');
+                if (tzInput && !tzInput.dataset.initialized) {
+                    tzInput.dataset.initialized = '1';
+                    try { const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (browserTz) tzInput.value = browserTz; } catch (e) {}
+                }
+                const status = document.getElementById('location-stats-status');
+                const tz = (tzInput && tzInput.value.trim()) || 'UTC';
+                if (status) status.textContent = locationStatText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationStatsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'recompute', tz }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'statistics_failed');
+                    await loadLocationStatistics();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || locationStatText('map_error', 'Could not load data.');
+                } finally { locationStatsBusy = false; }
+            });
+            document.getElementById('location-stats-tz')?.addEventListener('change', loadLocationStatistics);
+            const locationImportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_imports';
+            let locationImportsPoll = null;
+            let locationImportsMaxBytes = 0;
+            function importText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function importStateClass(state) {
+                if (state === 'ready') return 'is-ready';
+                if (state === 'failed') return 'is-failed';
+                if (state === 'processing' || state === 'pending') return 'is-processing';
+                return '';
+            }
+            function importStateLabel(state) {
+                const labels = {
+                    pending: importText('location_import_state_pending', 'queued'),
+                    processing: importText('location_import_state_processing', 'importing'),
+                    ready: importText('location_import_state_ready', 'ready'),
+                    failed: importText('location_import_state_failed', 'failed'),
+                    deleted: importText('location_import_state_deleted', 'deleted')
+                };
+                return labels[state] || state;
+            }
+            function renderImports(data) {
+                const host = document.getElementById('location-import-history');
+                if (!host) return;
+                const imports = data.imports || [];
+                locationImportsMaxBytes = Number(data.max_bytes || 0);
+                host.innerHTML = '';
+                if (!imports.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = importText('location_import_none', 'No imports yet.');
+                    host.appendChild(empty);
+                    return;
+                }
+                imports.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'import-item';
+                    const head = document.createElement('div');
+                    head.className = 'import-item-head';
+                    const name = document.createElement('strong');
+                    const firstFile = (item.files || [])[0];
+                    name.textContent = firstFile ? firstFile.filename : importText('location_import_file', 'Import');
+                    const badge = document.createElement('span');
+                    badge.className = 'import-state ' + importStateClass(item.state);
+                    badge.textContent = importStateLabel(item.state);
+                    head.appendChild(name); head.appendChild(badge);
+                    const meta = document.createElement('div');
+                    meta.className = 'import-item-meta';
+                    const progress = item.progress || {};
+                    const parts = [item.format || '', (progress.points || 0) + ' ' + importText('location_import_points', 'points')];
+                    if (item.files && item.files.length) {
+                        parts.push(item.files.map(f => f.state + ' · ' + (f.accepted_count || 0) + '+' + (f.duplicate_count || 0) + 'dup').join(', '));
+                    }
+                    if (progress.finished_at) parts.push(progress.finished_at);
+                    meta.textContent = parts.filter(Boolean).join(' · ');
+                    card.appendChild(head); card.appendChild(meta);
+                    const errors = (item.errors && Object.keys(item.errors).length) ? JSON.stringify(item.errors) : '';
+                    if (errors) { const error = document.createElement('div'); error.className = 'import-error'; error.textContent = errors; card.appendChild(error); }
+                    const actions = document.createElement('div');
+                    actions.className = 'import-item-actions';
+                    if (item.state !== 'deleted' && item.state !== 'processing') {
+                        const del = document.createElement('button');
+                        del.type = 'button'; del.className = 'excel-btn'; del.dataset.importDelete = item.id;
+                        del.innerHTML = '<i class="fas fa-trash-can"></i> ' + importText('location_import_remove', 'Remove imported data');
+                        actions.appendChild(del);
+                    }
+                    const sourceAvailable = (item.files || []).some(f => f.source_available);
+                    if (sourceAvailable && item.state !== 'deleted') {
+                        const clean = document.createElement('button');
+                        clean.type = 'button'; clean.className = 'excel-btn'; clean.dataset.importCleanup = item.id;
+                        clean.innerHTML = '<i class="fas fa-file-circle-xmark"></i> ' + importText('location_import_delete_file', 'Delete source files');
+                        actions.appendChild(clean);
+                    }
+                    card.appendChild(actions);
+                    host.appendChild(card);
+                });
+            }
+            async function loadImports() {
+                const host = document.getElementById('location-import-history');
+                if (!host) return;
+                if (locationImportsPoll) { clearTimeout(locationImportsPoll); locationImportsPoll = null; }
+                try {
+                    const res = await fetch(locationImportsApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'import_list_failed');
+                    renderImports(data);
+                    const active = (data.imports || []).some(item => item.state === 'pending' || item.state === 'processing');
+                    if (active) locationImportsPoll = setTimeout(loadImports, 4000);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || importText('map_error', 'Could not load data.')) + '</p>';
+                }
+            }
+            async function importAction(action, id) {
+                const status = document.getElementById('location-import-status');
+                if (status) status.textContent = importText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationImportsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, id }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'import_action_failed');
+                    if (status) status.textContent = action === 'delete' ? (data.deleted_points + ' ' + importText('location_import_removed_points', 'points removed')) : importText('location_import_file_deleted', 'Source files deleted.');
+                    await loadImports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            }
+            document.getElementById('location-import-upload')?.addEventListener('click', async () => {
+                const input = document.getElementById('location-import-file');
+                const status = document.getElementById('location-import-status');
+                if (!input || !input.files || !input.files[0]) {
+                    if (status) status.textContent = importText('location_import_choose_file', 'Choose a file first.');
+                    return;
+                }
+                const file = input.files[0];
+                if (locationImportsMaxBytes > 0 && file.size > locationImportsMaxBytes) {
+                    if (status) status.textContent = importText('location_import_too_large', 'This file is too large.');
+                    return;
+                }
+                const body = new FormData();
+                body.append('file', file);
+                if (document.getElementById('location-import-delete-source')?.checked) body.append('delete_source', '1');
+                if (status) status.textContent = importText('location_import_uploading', 'Uploading…');
+                try {
+                    const res = await fetch(locationImportsApi, { method: 'POST', credentials: 'same-origin', body });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'upload_failed');
+                    if (status) status.textContent = importText('location_import_queued', 'Queued for import.');
+                    input.value = '';
+                    await loadImports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            });
+            document.getElementById('location-import-history')?.addEventListener('click', async (event) => {
+                const del = event.target.closest('[data-import-delete]');
+                if (del) {
+                    const id = del.getAttribute('data-import-delete');
+                    const message = importText('location_import_confirm_remove', 'Remove this import? Only points that no other source owns are deleted.');
+                    let confirmed = false;
+                    if (typeof window.showAlert === 'function') { try { confirmed = await window.showAlert(message, true); } catch (e) { confirmed = false; } }
+                    else confirmed = window.confirm(message);
+                    if (confirmed) await importAction('delete', id);
+                    return;
+                }
+                const clean = event.target.closest('[data-import-cleanup]');
+                if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
+            });
+            const placesApi = '/apps/steps/api/session_gateway.php?endpoint=places';
+            const geofencesApi = '/apps/steps/api/session_gateway.php?endpoint=geofences';
+            const qualityApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_quality';
+            function toolsText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            async function toolsCall(url, body) {
+                const res = await fetch(url, body === null ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'location_tools_failed');
+                return data;
+            }
+            function renderToolItems(hostId, items, label, onDelete) {
+                const host = document.getElementById(hostId);
+                if (!host) return;
+                host.innerHTML = '';
+                if (!items.length) { host.textContent = toolsText('location_tools_empty', 'Nothing here yet.'); return; }
+                items.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'location-tool-item';
+                    const text = document.createElement('span');
+                    text.textContent = label(item);
+                    row.appendChild(text);
+                    const button = document.createElement('button');
+                    button.type = 'button'; button.className = 'excel-btn';
+                    button.textContent = toolsText('location_tools_remove', 'Remove');
+                    button.addEventListener('click', () => onDelete(item));
+                    row.appendChild(button);
+                    host.appendChild(row);
+                });
+            }
+            function renderPlaceChips(tags) {
+                const host = document.getElementById('place-chips');
+                if (!host) return;
+                const list = (Array.isArray(tags) && tags.length ? tags : ['home', 'work', 'gym', 'school', 'family', 'favorite']).map(t => typeof t === 'string' ? t : (t.tag || t.key || t.name || '')).filter(Boolean);
+                host.innerHTML = '';
+                list.forEach(tag => {
+                    const b = document.createElement('button');
+                    b.type = 'button'; b.className = 'place-chip'; b.textContent = toolsText('place_tag_' + tag, tag);
+                    b.addEventListener('click', () => {
+                        const tagEl = document.getElementById('place-tag'), nameEl = document.getElementById('place-name');
+                        if (tagEl) tagEl.value = tag;
+                        if (nameEl && !nameEl.value) nameEl.value = b.textContent;
+                        host.querySelectorAll('.place-chip').forEach(x => x.classList.toggle('is-active', x === b));
+                    });
+                    host.appendChild(b);
+                });
+            }
+            window.addEventListener('steps-places-changed', () => loadLocationTools());
+            document.getElementById('place-pick')?.addEventListener('click', () => {
+                if (!window.stepsPickOnMap) return;
+                const lat = document.getElementById('place-lat'), lon = document.getElementById('place-lon'), rad = document.getElementById('place-radius');
+                window.stepsPickOnMap({ lat: Number(lat.value) || null, lon: Number(lon.value) || null, radius: Number(rad.value) || 120, onPick: (la, lo) => { lat.value = la.toFixed(6); lon.value = lo.toFixed(6); } });
+            });
+            async function loadLocationTools() {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    const [quality, places, zones] = await Promise.all([toolsCall(qualityApi, null), toolsCall(placesApi, null), toolsCall(geofencesApi, null)]);
+                    const c = quality.counts || {};
+                    const counts = document.getElementById('location-quality-counts');
+                    if (counts) counts.textContent = ['accepted', 'flagged', 'suspect', 'rejected', 'excluded_by_user', 'private_redacted', 'not_enough_evidence', 'pending'].map(k => k + ': ' + (c[k] || 0)).join(' · ');
+                    const settings = quality.settings || {};
+                    const geometry = document.getElementById('location-geometry-mode');
+                    const matchMode = document.getElementById('location-match-mode');
+                    if (geometry && settings.geometry_mode) geometry.value = settings.geometry_mode;
+                    if (matchMode && settings.mode) matchMode.value = settings.mode;
+                    const matchSummary = quality.matching || {};
+                    const summaryEl = document.getElementById('location-geometry-summary');
+                    if (summaryEl) summaryEl.textContent = toolsText('location_match_summary', 'Matched segments') + ': ' + (matchSummary.matched || 0) + ' · ' + toolsText('location_match_abstained', 'raw fallback') + ': ' + (matchSummary.abstained || 0) + ' · ' + toolsText('location_match_high', 'high confidence') + ': ' + (matchSummary.high || 0);
+                    renderQualityIssues(quality.issues || []);
+                    renderCorrections(quality.corrections || []);
+                    renderPlaceChips(places.builtin_tags || []);
+                    renderToolItems('location-places-list', places.places || [], p => p.name + ' · ' + p.tag + ' · ' + Number(p.radius_m).toFixed(0) + ' m', async p => {
+                        if (!window.confirm(toolsText('location_place_confirm', 'Delete this place?'))) return;
+                        try { await toolsCall(placesApi, { action: 'delete', id: p.id }); await loadLocationTools(); } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                    renderToolItems('location-geofences-list', (zones.geofences || []).filter(z => z.is_active), z => z.name + ' · ' + Number(z.radius_m).toFixed(0) + ' m', async z => {
+                        if (!window.confirm(toolsText('location_geofence_confirm', 'Disable this geofence?'))) return;
+                        try { await toolsCall(geofencesApi, { action: 'delete', id: z.id }); await loadLocationTools(); } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'location_tools_failed'; }
+            }
+            function renderQualityIssues(items) {
+                const host = document.getElementById('location-quality-issues');
+                if (!host) return;
+                host.innerHTML = '';
+                if (!items.length) { host.textContent = toolsText('location_quality_none', 'No quality issues in this range.'); return; }
+                items.slice(0, 30).forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'location-tool-item';
+                    const text = document.createElement('span');
+                    const when = item.source_at ? new Date(item.source_at).toLocaleString() : '';
+                    const reasons = Array.isArray(item.reasons) && item.reasons.length ? ' · ' + item.reasons.join(', ') : '';
+                    text.textContent = when + ' · ' + item.quality_state + reasons + (item.accuracy_m !== null && item.accuracy_m !== undefined ? ' · ' + Number(item.accuracy_m).toFixed(0) + ' m' : '');
+                    row.appendChild(text);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'excel-btn';
+                    button.textContent = toolsText('location_quality_exclude', 'Exclude');
+                    button.addEventListener('click', async () => {
+                        const status = document.getElementById('location-tools-status');
+                        try {
+                            await toolsCall(qualityApi, { action: 'correct', scope_type: 'points', point_ids: [item.id], effects: ['exclude_display', 'exclude_analytics'], reason: 'quality_issue', note: '' });
+                            if (status) status.textContent = toolsText('location_correction_saved', 'Correction saved.');
+                            await loadLocationTools();
+                        } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                    row.appendChild(button);
+                    host.appendChild(row);
+                });
+            }
+            function renderCorrections(items) {
+                const host = document.getElementById('location-corrections-list');
+                if (!host) return;
+                host.innerHTML = '';
+                const active = items.filter(item => item.state === 'active');
+                if (!active.length) { host.textContent = toolsText('location_corrections_none', 'No active corrections.'); return; }
+                active.forEach(item => {
+                    const row = document.createElement('div');
+                    row.className = 'location-tool-item';
+                    const text = document.createElement('span');
+                    text.textContent = item.scope_type + ' · ' + (item.point_count || 0) + ' ' + toolsText('location_points_short', 'points') + ' · ' + (item.effects_json || []).join(', ');
+                    row.appendChild(text);
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'excel-btn';
+                    button.textContent = toolsText('location_correction_undo', 'Undo');
+                    button.addEventListener('click', async () => {
+                        const status = document.getElementById('location-tools-status');
+                        try {
+                            await toolsCall(qualityApi, { action: 'undo', id: item.id });
+                            if (status) status.textContent = toolsText('location_correction_undone', 'Correction undone.');
+                            await loadLocationTools();
+                        } catch (e) { if (status) status.textContent = e.message; }
+                    });
+                    row.appendChild(button);
+                    host.appendChild(row);
+                });
+            }
+            document.getElementById('location-quality-reprocess')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try { await toolsCall(qualityApi, { action: 'reprocess' }); if (status) status.textContent = toolsText('location_quality_queued', 'Quality recheck queued.'); }
+                catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('location-match-save')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    const data = await toolsCall(qualityApi, { action: 'settings', mode: document.getElementById('location-match-mode')?.value || 'conservative', geometry_mode: document.getElementById('location-geometry-mode')?.value || 'raw' });
+                    if (status) status.textContent = toolsText('location_match_saved', 'Display settings saved.');
+                    await loadLocationTools();
+                    return data;
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('location-match-run')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try { await toolsCall(qualityApi, { action: 'match' }); if (status) status.textContent = toolsText('location_match_queued', 'Geometry recomputation queued.'); }
+                catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('location-correction-apply')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                const from = document.getElementById('location-correction-from')?.value || '';
+                const to = document.getElementById('location-correction-to')?.value || '';
+                const effects = Array.from(document.querySelectorAll('#location-correction-effects input:checked')).map(el => el.value);
+                if (!from || !to || !effects.length) { if (status) status.textContent = toolsText('location_correction_invalid', 'Choose a date range and at least one effect.'); return; }
+                try {
+                    await toolsCall(qualityApi, { action: 'correct', scope_type: 'range', from: from + 'T00:00:00Z', to: to + 'T23:59:59Z', effects, reason: document.getElementById('location-correction-reason')?.value || 'user_correction', note: document.getElementById('location-correction-note')?.value || '' });
+                    if (status) status.textContent = toolsText('location_correction_saved', 'Correction saved.');
+                    await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('place-create')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    await toolsCall(placesApi, { action: 'create', name: document.getElementById('place-name')?.value || '', tag: document.getElementById('place-tag')?.value || 'favorite', latitude: Number(document.getElementById('place-lat')?.value), longitude: Number(document.getElementById('place-lon')?.value), radius_m: Number(document.getElementById('place-radius')?.value || 120) });
+                    if (status) status.textContent = toolsText('location_place_saved', 'Place saved.'); await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
+            document.getElementById('geofence-create')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                try {
+                    await toolsCall(geofencesApi, { action: 'create', name: document.getElementById('geofence-name')?.value || '', latitude: Number(document.getElementById('geofence-lat')?.value), longitude: Number(document.getElementById('geofence-lon')?.value), radius_m: Number(document.getElementById('geofence-radius')?.value || 200), notify: true });
+                    if (status) status.textContent = toolsText('location_geofence_saved', 'Geofence saved.'); await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
+            const searchApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_search';
+            const savedViewsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_saved_views';
+            const analyticsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_analytics';
+            let locationSearchRange = null;
+            let locationSearchTimer = null;
+            function locationSearchText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function locationSearchResultRow(item) {
+                const row = document.createElement('div');
+                row.className = 'location-tool-item';
+                const text = document.createElement('span');
+                const when = item.started_at ? new Date(item.started_at).toLocaleString() : '';
+                text.textContent = item.type + ' · ' + item.title + (item.summary ? ' · ' + item.summary : '') + (when ? ' · ' + when : '');
+                row.appendChild(text);
+                return row;
+            }
+            async function runLocationSearch() {
+                const status = document.getElementById('location-search-range');
+                const resultsHost = document.getElementById('location-search-results');
+                const suggestionsHost = document.getElementById('location-search-suggestions');
+                const q = document.getElementById('location-search-q')?.value || '';
+                const type = document.getElementById('location-search-type')?.value || '';
+                const params = new URLSearchParams({ q, limit: '30' });
+                if (type) params.set('types', type);
+                if (locationSearchRange) { params.set('from', locationSearchRange.from); params.set('to', locationSearchRange.to); }
+                try {
+                    const data = await toolsCall(searchApi + '&' + params.toString(), null);
+                    if (status) status.textContent = (data.range && data.range.label ? data.range.label : '') + ' · ' + (data.range && data.range.timezone ? data.range.timezone : '');
+                    if (suggestionsHost) suggestionsHost.textContent = (data.suggestions || []).join(' · ');
+                    if (resultsHost) {
+                        resultsHost.innerHTML = '';
+                        if (!(data.results || []).length) resultsHost.textContent = locationSearchText('location_search_empty', 'No authorized matches.');
+                        else (data.results || []).forEach(item => resultsHost.appendChild(locationSearchResultRow(item)));
+                    }
+                } catch (e) {
+                    if (status) status.textContent = e.message;
+                }
+            }
+            async function loadSavedViews() {
+                const host = document.getElementById('location-saved-views');
+                if (!host) return;
+                try {
+                    const data = await toolsCall(savedViewsApi, null);
+                    host.innerHTML = '';
+                    if (!(data.views || []).length) { host.textContent = locationSearchText('location_views_empty', 'No saved views yet.'); return; }
+                    (data.views || []).forEach(view => {
+                        const row = document.createElement('div');
+                        row.className = 'location-tool-item';
+                        const text = document.createElement('span');
+                        text.textContent = (view.is_pinned ? '★ ' : '') + view.name + ' · ' + view.context + ' · ' + view.date_period;
+                        row.appendChild(text);
+                        const apply = document.createElement('button');
+                        apply.type = 'button'; apply.className = 'excel-btn'; apply.textContent = locationSearchText('location_view_apply', 'Apply');
+                        apply.addEventListener('click', async () => {
+                            try {
+                                const applied = await toolsCall(savedViewsApi + '&id=' + encodeURIComponent(view.id) + '&apply=1&tz=' + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC'), null);
+                                locationSearchRange = { from: applied.range.from, to: applied.range.to };
+                                const q = document.getElementById('location-search-q');
+                                if (q) q.value = (applied.view.query && applied.view.query.q) || '';
+                                await runLocationSearch();
+                            } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; }
+                        });
+                        row.appendChild(apply);
+                        const pin = document.createElement('button');
+                        pin.type = 'button'; pin.className = 'excel-btn'; pin.textContent = view.is_pinned ? locationSearchText('location_view_unpin', 'Unpin') : locationSearchText('location_view_pin', 'Pin');
+                        pin.addEventListener('click', async () => { try { await toolsCall(savedViewsApi, { action: 'pin', id: view.id }); await loadSavedViews(); } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; } });
+                        row.appendChild(pin);
+                        const del = document.createElement('button');
+                        del.type = 'button'; del.className = 'excel-btn'; del.textContent = locationSearchText('location_view_delete', 'Delete');
+                        del.addEventListener('click', async () => {
+                            if (!window.confirm(locationSearchText('location_view_confirm_delete', 'Delete this saved view?'))) return;
+                            try { await toolsCall(savedViewsApi, { action: 'delete', id: view.id }); await loadSavedViews(); } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; }
+                        });
+                        row.appendChild(del);
+                        host.appendChild(row);
+                    });
+                } catch (e) { host.textContent = e.message; }
+            }
+            async function loadAnalytics(refresh = false) {
+                const status = document.getElementById('location-analytics-status');
+                const cards = document.getElementById('location-analytics-cards');
+                const coverage = document.getElementById('location-analytics-coverage');
+                const places = document.getElementById('location-analytics-places');
+                const compare = document.getElementById('location-analytics-compare')?.checked ? '&compare=1' : '';
+                try {
+                    const data = await toolsCall(analyticsApi + '?from=' + encodeURIComponent(locationSearchRange?.from || '') + '&to=' + encodeURIComponent(locationSearchRange?.to || '') + '&tz=' + encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC') + compare + (refresh ? '&refresh=1' : ''), null);
+                    if (status) status.textContent = (data.range?.label || '') + ' · ' + (data.cached ? 'cached' : 'fresh') + ' · ' + (data.formula_version || '');
+                    const metrics = data.metrics || {};
+                    if (cards) {
+                        cards.innerHTML = '';
+                        [['distance_m', 'Distance', 'm'], ['trip_count', 'Trips', ''], ['active_days', 'Active days', ''], ['unique_places', 'Places', ''], ['new_places', 'New places', ''], ['geofence_events', 'Geofence events', '']].forEach(([key, label, unit]) => {
+                            const card = document.createElement('div'); card.className = 'location-card';
+                            card.textContent = label + ': ' + (metrics[key] ?? 0) + (unit ? ' ' + unit : '');
+                            cards.appendChild(card);
+                        });
+                    }
+                    if (coverage) {
+                        const c = data.coverage || {}; const q = data.quality || {};
+                        coverage.textContent = locationSearchText('location_analytics_coverage', 'Coverage') + ': ' + (c.quality_percent ?? 0) + '% · ' + (c.confidence || 'low') + ' · ' + (locationSearchText('location_analytics_gap', 'largest gap') + ': ' + Math.round((c.largest_gap_s || 0) / 60) + ' min') + ' · ' + (q.accepted || 0) + ' accepted / ' + (q.rejected || 0) + ' rejected';
+                    }
+                    if (places) {
+                        places.innerHTML = '';
+                        (data.places || []).slice(0, 5).forEach(p => { const row = document.createElement('div'); row.className = 'location-tool-item'; row.textContent = p.name + ' · ' + p.visits + ' visits'; places.appendChild(row); });
+                    }
+                    if (Array.isArray(data.warnings) && data.warnings.length && coverage) coverage.textContent += ' · ' + data.warnings.join(' · ');
+                } catch (e) { if (status) status.textContent = e.message; }
+            }
+            document.getElementById('location-search-run')?.addEventListener('click', runLocationSearch);
+            document.getElementById('location-search-q')?.addEventListener('input', () => { clearTimeout(locationSearchTimer); locationSearchTimer = setTimeout(runLocationSearch, 350); });
+            document.getElementById('location-view-save')?.addEventListener('click', async () => {
+                const name = document.getElementById('location-view-name')?.value || '';
+                if (!name.trim()) return;
+                try {
+                    await toolsCall(savedViewsApi, { action: 'create', name, context: document.getElementById('location-view-context')?.value || 'dashboard', date_period: document.getElementById('location-view-period')?.value || 'last_30_days', timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', query: { q: document.getElementById('location-search-q')?.value || '', types: document.getElementById('location-search-type')?.value ? [document.getElementById('location-search-type').value] : [] } });
+                    await loadSavedViews();
+                } catch (e) { const s = document.getElementById('location-tools-status'); if (s) s.textContent = e.message; }
+            });
+            document.getElementById('location-analytics-run')?.addEventListener('click', () => loadAnalytics(true));
+            const immichApi = '/apps/steps/api/session_gateway.php?endpoint=immich';
+            let immichGalleryPoll = null;
+            function immichText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function immichThumb(assetId) { return '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' + encodeURIComponent(assetId); }
+            function renderImmich(data) {
+                const host = document.getElementById('immich-gallery');
+                const status = document.getElementById('immich-status');
+                if (!host) return;
+                host.innerHTML = '';
+                const connection = data.connection;
+                if (!connection || !connection.connected) {
+                    if (status) status.textContent = immichText('immich_not_connected', 'Immich is not connected.');
+                    return;
+                }
+                if (status) status.textContent = immichText('immich_connected', 'Connected. Last sync:') + ' ' + String(connection.last_sync_at || '—').slice(0, 19).replace('T', ' ');
+                const gallery = data.gallery || {};
+                const assets = gallery.assets || [];
+                if (!assets.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = immichText('immich_none', 'No matched photos yet. Run a metadata sync.');
+                    host.appendChild(empty);
+                    return;
+                }
+                const summary = document.createElement('p');
+                summary.className = 'location-hint';
+                const placeText = Object.keys(gallery.places || {}).slice(0, 4).map(name => name + ' (' + gallery.places[name] + ')').join(', ');
+                summary.textContent = (placeText ? immichText('immich_places', 'Places') + ': ' + placeText : '') + (Object.keys(gallery.trips || {}).length ? ' · ' + immichText('immich_trips', 'Trips') + ': ' + Object.keys(gallery.trips).slice(0, 4).join(', ') : '');
+                host.appendChild(summary);
+                const grid = document.createElement('div');
+                grid.className = 'immich-gallery';
+                assets.forEach(asset => {
+                    const card = document.createElement('div');
+                    card.className = 'immich-card';
+                    const img = document.createElement('img');
+                    img.loading = 'lazy'; img.alt = asset.original_filename || ''; img.src = immichThumb(asset.id);
+                    card.appendChild(img);
+                    const caption = document.createElement('span');
+                    caption.textContent = [String(asset.captured_at || '').slice(0, 16).replace('T', ' '), asset.place_name, asset.trip_title].filter(Boolean).join(' · ');
+                    card.appendChild(caption);
+                    const candidate = (asset.match_json || {}).point_id;
+                    if (asset.state === 'unmatched' && candidate) {
+                        const write = document.createElement('button');
+                        write.type = 'button'; write.className = 'excel-btn'; write.dataset.immichWriteGps = asset.id; write.dataset.pointId = candidate;
+                        write.textContent = immichText('immich_write_gps', 'Write GPS');
+                        card.appendChild(write);
+                    }
+                    grid.appendChild(card);
+                });
+                host.appendChild(grid);
+            }
+            async function loadImmich() {
+                const host = document.getElementById('immich-gallery');
+                if (!host) return;
+                if (immichGalleryPoll) { clearTimeout(immichGalleryPoll); immichGalleryPoll = null; }
+                try {
+                    const res = await fetch(immichApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'immich_failed');
+                    renderImmich(data);
+                    if (data.connection && data.connection.connected && (data.connection.last_sync_at === null)) immichGalleryPoll = setTimeout(loadImmich, 5000);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || 'immich_failed') + '</p>';
+                }
+            }
+            async function immichAction(action, extra) {
+                const status = document.getElementById('immich-status');
+                if (status) status.textContent = immichText('map_loading', 'Loading…');
+                const res = await fetch(immichApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(Object.assign({ action }, extra || {})) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'immich_failed');
+                await loadImmich();
+                return data;
+            }
+            document.getElementById('immich-connect')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                try {
+                    await immichAction('connect', { server_url: document.getElementById('immich-server')?.value || '', api_key: document.getElementById('immich-api-key')?.value || '' });
+                    const key = document.getElementById('immich-api-key'); if (key) key.value = '';
+                    if (status) status.textContent = immichText('immich_saved', 'Immich connection saved.');
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-test')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                try { const data = await immichAction('test', { server_url: document.getElementById('immich-server')?.value || '', api_key: document.getElementById('immich-api-key')?.value || '' }); if (status) status.textContent = immichText('immich_test_ok', 'Connection works:') + ' ' + (data.server || 'Immich'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-sync')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                try { await immichAction('sync', {}); if (status) status.textContent = immichText('immich_sync_queued', 'Metadata sync queued. Photos will appear shortly.'); immichGalleryPoll = setTimeout(loadImmich, 5000); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-disconnect')?.addEventListener('click', async () => {
+                const status = document.getElementById('immich-status');
+                if (!window.confirm(immichText('immich_confirm_disconnect', 'Disconnect Immich and delete local photo metadata? Immich itself is not changed.'))) return;
+                try { await immichAction('disconnect', {}); if (status) status.textContent = immichText('immich_disconnected', 'Immich disconnected.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            document.getElementById('immich-gallery')?.addEventListener('click', async (event) => {
+                const button = event.target.closest('[data-immich-write-gps]');
+                if (!button) return;
+                if (!window.confirm(immichText('immich_confirm_write', 'Write this location to Immich? This changes the photo metadata in Immich.'))) return;
+                const status = document.getElementById('immich-status');
+                try { await immichAction('write_gps', { asset_id: button.dataset.immichWriteGps, point_id: button.dataset.pointId, confirm: true }); if (status) status.textContent = immichText('immich_gps_written', 'GPS metadata written to Immich.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'immich_failed'; }
+            });
+            const familyApi = '/apps/steps/api/session_gateway.php?endpoint=family';
+            function familyText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            async function familyRequest(body) {
+                const res = await fetch(familyApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'family_update_failed');
+                await loadFamily();
+                return data;
+            }
+            function familyButton(label, action, attrs, className) {
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = className || 'excel-btn';
+                button.dataset.familyAction = action;
+                Object.entries(attrs || {}).forEach(([key, value]) => button.dataset[key] = value);
+                button.textContent = label;
+                return button;
+            }
+            function renderFamily(data) {
+                const groupsHost = document.getElementById('family-groups');
+                const pendingHost = document.getElementById('family-pending');
+                if (!groupsHost || !pendingHost) return;
+                groupsHost.innerHTML = '';
+                pendingHost.innerHTML = '';
+                const pending = data.pending_invitations || [];
+                if (pending.length) {
+                    const heading = document.createElement('p');
+                    heading.className = 'location-hint';
+                    heading.textContent = familyText('family_pending_invites', 'Invitations waiting for you') + ':';
+                    pendingHost.appendChild(heading);
+                    pending.forEach(invite => {
+                        const card = document.createElement('div');
+                        card.className = 'import-item';
+                        const line = document.createElement('div');
+                        line.textContent = (invite.group_name || '') + ' · ' + invite.inviter_email + ' · ' + String(invite.expires_at || '').slice(0, 10);
+                        card.appendChild(line);
+                        const hint = document.createElement('div');
+                        hint.className = 'import-item-meta';
+                        hint.textContent = familyText('family_pending_hint', 'Use the invitation token from the person who invited you.');
+                        card.appendChild(hint);
+                        pendingHost.appendChild(card);
+                    });
+                }
+                const groups = data.groups || [];
+                if (!groups.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = familyText('family_none', 'No family groups yet.');
+                    groupsHost.appendChild(empty);
+                    return;
+                }
+                groups.forEach(group => {
+                    const card = document.createElement('div');
+                    card.className = 'family-group';
+                    const head = document.createElement('div');
+                    head.className = 'import-item-head';
+                    const title = document.createElement('strong');
+                    title.textContent = group.name + ' · ' + group.member_count + '/' + group.max_members + ' · ' + group.role;
+                    head.appendChild(title);
+                    const actions = document.createElement('div');
+                    actions.className = 'import-item-actions';
+                    if (group.role === 'owner' || group.role === 'admin') {
+                        actions.appendChild(familyButton(familyText('family_rename', 'Rename'), 'rename', { groupId: group.id, groupName: group.name }));
+                    }
+                    if (group.role !== 'owner') {
+                        actions.appendChild(familyButton(familyText('family_leave', 'Leave group'), 'leave', { groupId: group.id }));
+                    }
+                    head.appendChild(actions);
+                    card.appendChild(head);
+                    (group.members || []).forEach(member => {
+                        const row = document.createElement('div');
+                        row.className = 'family-member';
+                        const label = document.createElement('span');
+                        label.textContent = member.user_email + (member.user_email === group.owner_email ? ' · ' + familyText('family_owner', 'owner') : ' · ' + member.role);
+                        row.appendChild(label);
+                        const rowActions = document.createElement('div');
+                        rowActions.className = 'import-item-actions';
+                        if (group.role === 'owner' && member.user_email !== group.owner_email) {
+                            const select = document.createElement('select');
+                            ['admin', 'member'].forEach(role => { const option = document.createElement('option'); option.value = role; option.textContent = role; option.selected = member.role === role; select.appendChild(option); });
+                            select.dataset.familyRoleSelect = member.user_email;
+                            select.dataset.groupId = group.id;
+                            rowActions.appendChild(select);
+                            rowActions.appendChild(familyButton(familyText('family_apply_role', 'Apply role'), 'role', { groupId: group.id, email: member.user_email }));
+                            rowActions.appendChild(familyButton(familyText('family_transfer', 'Make owner'), 'transfer', { groupId: group.id, email: member.user_email }));
+                        }
+                        if (group.role !== 'member' && member.user_email !== group.owner_email && (group.role === 'owner' || member.role !== 'admin')) {
+                            rowActions.appendChild(familyButton(familyText('family_remove', 'Remove'), 'remove', { groupId: group.id, email: member.user_email }));
+                        }
+                        row.appendChild(rowActions);
+                        card.appendChild(row);
+                    });
+                    if (group.role === 'owner' || group.role === 'admin') {
+                        const form = document.createElement('div');
+                        form.className = 'family-invite-form';
+                        const email = document.createElement('input');
+                        email.type = 'email'; email.placeholder = familyText('family_email', 'person@example.com'); email.dataset.familyInviteEmail = '1';
+                        email.dataset.groupId = group.id;
+                        const role = document.createElement('select');
+                        ['member', 'admin'].forEach(value => { const option = document.createElement('option'); option.value = value; option.textContent = value; if (value === 'admin' && group.role !== 'owner') option.disabled = true; role.appendChild(option); });
+                        role.dataset.familyInviteRole = '1'; role.dataset.groupId = group.id;
+                        const invite = familyButton(familyText('family_invite', 'Invite'), 'invite', { groupId: group.id });
+                        form.appendChild(email); form.appendChild(role); form.appendChild(invite);
+                        card.appendChild(form);
+                        const invitations = group.invitations || [];
+                        invitations.forEach(invitation => {
+                            const inviteRow = document.createElement('div');
+                            inviteRow.className = 'family-member';
+                            const text = document.createElement('span');
+                            text.textContent = invitation.invitee_email + ' · ' + invitation.role + ' · ' + String(invitation.expires_at || '').slice(0, 10);
+                            inviteRow.appendChild(text);
+                            inviteRow.appendChild(familyButton(familyText('family_cancel_invite', 'Cancel invite'), 'cancel_invitation', { invitationId: invitation.id }));
+                            card.appendChild(inviteRow);
+                        });
+                    }
+                    groupsHost.appendChild(card);
+                });
+            }
+            async function loadFamily() {
+                const host = document.getElementById('family-groups');
+                if (!host) return;
+                try {
+                    const res = await fetch(familyApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'family_list_failed');
+                    renderFamily(data);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || 'family_list_failed') + '</p>';
+                }
+            }
+            document.getElementById('family-create')?.addEventListener('click', async () => {
+                const input = document.getElementById('family-new-name');
+                const status = document.getElementById('family-status');
+                try { await familyRequest({ action: 'create', name: input ? input.value : '' }); if (input) input.value = ''; if (status) status.textContent = familyText('family_created', 'Group created.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'family_create_failed'; }
+            });
+            document.getElementById('family-accept')?.addEventListener('click', async () => {
+                const input = document.getElementById('family-token');
+                const status = document.getElementById('family-status');
+                try { await familyRequest({ action: 'accept', token: input ? input.value : '' }); if (input) input.value = ''; if (status) status.textContent = familyText('family_joined', 'You joined the group.'); }
+                catch (e) { if (status) status.textContent = (e && e.message) || 'family_join_failed'; }
+            });
+            document.getElementById('family-groups')?.addEventListener('click', async (event) => {
+                const button = event.target.closest('[data-family-action]');
+                if (!button) return;
+                const action = button.dataset.familyAction;
+                const groupId = button.dataset.groupId || '';
+                const status = document.getElementById('family-status');
+                try {
+                    if (action === 'invite') {
+                        const group = button.closest('.family-group');
+                        const email = group?.querySelector('[data-family-invite-email]')?.value || '';
+                        const role = group?.querySelector('[data-family-invite-role]')?.value || 'member';
+                        const data = await familyRequest({ action: 'invite', group_id: groupId, email, role });
+                        if (status) status.textContent = familyText('family_invite_created', 'Invitation token (share privately):') + ' ' + (data.token || '');
+                    } else if (action === 'remove') {
+                        await familyRequest({ action: 'remove_member', group_id: groupId, email: button.dataset.email || '' });
+                        if (status) status.textContent = familyText('family_removed', 'Member removed.');
+                    } else if (action === 'leave') {
+                        await familyRequest({ action: 'leave', group_id: groupId });
+                        if (status) status.textContent = familyText('family_left', 'You left the group.');
+                    } else if (action === 'cancel_invitation') {
+                        await familyRequest({ action: 'cancel_invitation', invitation_id: button.dataset.invitationId || '' });
+                        if (status) status.textContent = familyText('family_invite_cancelled', 'Invitation cancelled.');
+                    } else if (action === 'role') {
+                        const select = button.closest('.family-member')?.querySelector('[data-family-role-select]');
+                        await familyRequest({ action: 'role', group_id: groupId, email: button.dataset.email || '', role: select ? select.value : 'member' });
+                        if (status) status.textContent = familyText('family_role_changed', 'Role updated.');
+                    } else if (action === 'transfer') {
+                        const message = familyText('family_confirm_transfer', 'Make this member the group owner?');
+                        if (!window.confirm(message)) return;
+                        await familyRequest({ action: 'transfer', group_id: groupId, email: button.dataset.email || '' });
+                        if (status) status.textContent = familyText('family_transferred', 'Ownership transferred.');
+                    } else if (action === 'rename') {
+                        const name = window.prompt(familyText('family_group_name', 'Group name'), button.dataset.groupName || '');
+                        if (name === null) return;
+                        await familyRequest({ action: 'rename', group_id: groupId, name });
+                        if (status) status.textContent = familyText('family_renamed', 'Group renamed.');
+                    }
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'family_update_failed'; }
+            });
+            const notificationsApi = '/apps/steps/api/session_gateway.php?endpoint=notifications';
+            const permissionsApi = '/apps/steps/api/session_gateway.php?endpoint=family_permissions';
+            function shareText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            async function shareRequest(api, body) {
+                const res = await fetch(api, body === null ? { credentials: 'same-origin' } : { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                const data = await res.json();
+                if (!res.ok || !data.ok) throw new Error((data && data.error) || 'request_failed');
+                return data;
+            }
+            function shareItem(text, actions) {
+                const row = document.createElement('div');
+                row.className = 'location-tool-item';
+                const label = document.createElement('span');
+                label.textContent = text;
+                row.appendChild(label);
+                const host = document.createElement('div');
+                host.className = 'import-item-actions';
+                (actions || []).forEach(action => {
+                    const button = document.createElement('button');
+                    button.type = 'button';
+                    button.className = 'excel-btn';
+                    button.textContent = action.label;
+                    button.addEventListener('click', action.onClick);
+                    host.appendChild(button);
+                });
+                row.appendChild(host);
+                return row;
+            }
+            function shareStatus(error) {
+                const el = document.getElementById('share-status');
+                if (el) el.textContent = error ? ((error && error.message) || String(error)) : '';
+            }
+            function renderSharing(data) {
+                const host = document.getElementById('share-grants');
+                if (!host) return;
+                host.innerHTML = '';
+                const active = (data.grants || []).filter(grant => grant.revoked_at === null);
+                if (!active.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = shareText('location_share_none', 'You are not sharing your location with anyone.');
+                    host.appendChild(empty);
+                    return;
+                }
+                active.forEach(grant => {
+                    const until = grant.ends_at ? String(grant.ends_at).slice(0, 10) : shareText('location_share_no_expiry', 'no expiry');
+                    const parts = [grant.viewer_email, grant.access_level, until];
+                    if (Number(grant.precision_m) > 0) parts.push(Number(grant.precision_m) + ' m');
+                    if (grant.family_group_name) parts.push(grant.family_group_name);
+                    if (grant.reason) parts.push(grant.reason);
+                    if (grant.paused_at) parts.push(shareText('location_share_paused', 'paused'));
+                    host.appendChild(shareItem(parts.join(' · '), [
+                        {
+                            label: grant.paused_at ? shareText('location_share_resume', 'Resume') : shareText('location_share_pause', 'Pause'),
+                            onClick: async () => {
+                                try { await shareRequest(permissionsApi, { action: grant.paused_at ? 'resume' : 'pause', id: grant.id }); await loadSharing(); }
+                                catch (e) { shareStatus(e); }
+                            }
+                        },
+                        {
+                            label: shareText('location_share_revoke', 'Revoke'),
+                            onClick: async () => {
+                                if (!window.confirm(shareText('location_share_confirm', 'Revoke this access? It stops immediately.'))) return;
+                                try { await shareRequest(permissionsApi, { action: 'revoke', id: grant.id }); await loadSharing(); }
+                                catch (e) { shareStatus(e); }
+                            }
+                        }
+                    ]));
+                });
+            }
+            window.addEventListener('steps-share-location-open', () => loadSharing());
+            async function loadSharing() {
+                const host = document.getElementById('share-grants');
+                if (!host) return;
+                try { renderSharing(await shareRequest(permissionsApi, null)); }
+                catch (e) { host.innerHTML = '<p class="import-error">' + ((e && e.message) || 'family_permissions_failed') + '</p>'; }
+            }
+            document.getElementById('share-create')?.addEventListener('click', async () => {
+                const status = document.getElementById('share-status');
+                const iso = id => { const value = document.getElementById(id)?.value || ''; return value ? new Date(value).toISOString() : ''; };
+                try {
+                    const until = document.getElementById('share-until')?.value || '';
+                    await shareRequest(permissionsApi, {
+                        action: 'grant',
+                        viewer_email: document.getElementById('share-viewer')?.value || '',
+                        access_level: document.getElementById('share-level')?.value || 'recent',
+                        ends_at: until ? new Date(until + 'T23:59:59').toISOString() : '',
+                        precision_m: Number(document.getElementById('share-precision')?.value || 0),
+                        reason: document.getElementById('share-reason')?.value || '',
+                        range_from: iso('share-from'),
+                        range_to: iso('share-to'),
+                        consent: !!document.getElementById('share-consent')?.checked
+                    });
+                    if (status) status.textContent = shareText('location_share_created', 'Location sharing saved.');
+                    await loadSharing();
+                } catch (e) { if (status) status.textContent = (e && e.message) || 'family_permissions_failed'; }
+            });
+            function notifStatus(error) {
+                const el = document.getElementById('notifications-status');
+                if (el) el.textContent = error ? ((error && error.message) || String(error)) : '';
+            }
+            async function loadNotifications() {
+                const eventsHost = document.getElementById('notif-events');
+                const hooksHost = document.getElementById('notifications-webhooks');
+                if (!eventsHost || !hooksHost) return;
+                try {
+                    const data = await shareRequest(notificationsApi, null);
+                    const prefs = data.preferences || {};
+                    const events = prefs.events || {};
+                    eventsHost.innerHTML = '';
+                    Object.keys(data.events || {}).forEach(key => {
+                        const label = document.createElement('label');
+                        label.className = 'notif-event';
+                        const box = document.createElement('input');
+                        box.type = 'checkbox';
+                        box.dataset.notifEvent = key;
+                        box.checked = events[key] !== false;
+                        label.appendChild(box);
+                        label.appendChild(document.createTextNode(' ' + (data.events[key] || key)));
+                        eventsHost.appendChild(label);
+                    });
+                    const inApp = document.getElementById('notif-in-app'); if (inApp) inApp.checked = prefs.in_app !== false;
+                    const webhook = document.getElementById('notif-webhook'); if (webhook) webhook.checked = prefs.webhook !== false;
+                    const quiet = prefs.quiet_hours || {};
+                    const quietBox = document.getElementById('notif-quiet'); if (quietBox) quietBox.checked = !!quiet.enabled;
+                    const quietStart = document.getElementById('notif-quiet-start'); if (quietStart) quietStart.value = quiet.start || '22:00';
+                    const quietEnd = document.getElementById('notif-quiet-end'); if (quietEnd) quietEnd.value = quiet.end || '07:00';
+                    hooksHost.innerHTML = '';
+                    const hooks = data.webhooks || [];
+                    if (!hooks.length) {
+                        const empty = document.createElement('p');
+                        empty.className = 'location-hint';
+                        empty.textContent = shareText('notifications_none', 'No webhooks yet.');
+                        hooksHost.appendChild(empty);
+                    }
+                    hooks.forEach(hook => {
+                        const eventsLabel = (hook.event_types || []).length ? hook.event_types.join(', ') : shareText('notifications_all_events', 'all events');
+                        hooksHost.appendChild(shareItem((hook.description || hook.url_host || 'webhook') + ' · ' + eventsLabel + (hook.is_active ? '' : ' · off'), [
+                            {
+                                label: shareText('notifications_delete', 'Delete'),
+                                onClick: async () => {
+                                    if (!window.confirm(shareText('notifications_confirm_delete', 'Delete this webhook?'))) return;
+                                    try { await shareRequest(notificationsApi, { action: 'delete_webhook', id: hook.id }); await loadNotifications(); }
+                                    catch (e) { notifStatus(e); }
+                                }
+                            }
+                        ]));
+                    });
+                    const deliveriesHost = document.getElementById('notification-deliveries');
+                    if (deliveriesHost) {
+                        deliveriesHost.innerHTML = '';
+                        (data.deliveries || []).slice(0, 8).forEach(delivery => {
+                            const text = delivery.event_type + ' · ' + delivery.state + ' · ' + (delivery.response_code || '-') + ' · ' + String(delivery.created_at || '').slice(0, 16) + (delivery.last_error ? ' · ' + delivery.last_error : '');
+                            deliveriesHost.appendChild(shareItem(text, []));
+                        });
+                    }
+                } catch (e) { notifStatus(e); }
+            }
+            document.getElementById('notifications-save')?.addEventListener('click', async () => {
+                const events = {};
+                document.querySelectorAll('[data-notif-event]').forEach(box => events[box.dataset.notifEvent] = box.checked);
+                try {
+                    await shareRequest(notificationsApi, {
+                        action: 'save_preferences',
+                        in_app: !!document.getElementById('notif-in-app')?.checked,
+                        webhook: !!document.getElementById('notif-webhook')?.checked,
+                        events,
+                        quiet_hours: {
+                            enabled: !!document.getElementById('notif-quiet')?.checked,
+                            start: document.getElementById('notif-quiet-start')?.value || '22:00',
+                            end: document.getElementById('notif-quiet-end')?.value || '07:00'
+                        }
+                    });
+                    const status = document.getElementById('notifications-status');
+                    if (status) status.textContent = shareText('notifications_saved', 'Preferences saved.');
+                    await loadNotifications();
+                } catch (e) { notifStatus(e); }
+            });
+            document.getElementById('notifications-webhook-create')?.addEventListener('click', async () => {
+                try {
+                    const types = (document.getElementById('notifications-webhook-events')?.value || '').split(',').map(part => part.trim()).filter(Boolean);
+                    const data = await shareRequest(notificationsApi, {
+                        action: 'create_webhook',
+                        url: document.getElementById('notifications-webhook-url')?.value || '',
+                        secret: document.getElementById('notifications-webhook-secret')?.value || '',
+                        description: document.getElementById('notifications-webhook-description')?.value || '',
+                        event_types: types
+                    });
+                    const status = document.getElementById('notifications-status');
+                    if (status) status.textContent = shareText('notifications_secret_once', 'Signing secret (store it now):') + ' ' + (data.secret || '');
+                    const secret = document.getElementById('notifications-webhook-secret'); if (secret) secret.value = '';
+                    await loadNotifications();
+                } catch (e) { notifStatus(e); }
+            });
+            document.getElementById('notifications-webhook-test')?.addEventListener('click', async () => {
+                try {
+                    await shareRequest(notificationsApi, { action: 'test_webhook' });
+                    const status = document.getElementById('notifications-status');
+                    if (status) status.textContent = shareText('notifications_test_queued', 'Test event queued.');
+                } catch (e) { notifStatus(e); }
+            });
+            const locationExportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_exports';
+            let locationExportsPoll = null;
+            let locationExportOptionsReady = false;
+            function exportText(key, fallback) { return (window.translations && translations[key]) || fallback; }
+            function exportFormatLabel(format) {
+                return ({ json: 'JSON', geojson: 'GeoJSON', gpx: 'GPX', backup: exportText('location_export_backup', 'Full account backup') })[format] || format;
+            }
+            function exportScopeLabel(scope) {
+                const type = (scope && scope.type) || 'all';
+                if (type === 'date') return exportText('location_export_scope_date', 'Date range') + ': ' + (scope.from || '') + ' – ' + (scope.to || '');
+                if (type === 'device') return exportText('location_export_scope_device', 'Device');
+                if (type === 'trip') return exportText('location_export_scope_trip', 'Trip');
+                if (type === 'place') return exportText('location_export_scope_place', 'Place');
+                return exportText('location_export_scope_all', 'All history');
+            }
+            function exportSize(bytes) {
+                const value = Number(bytes || 0);
+                if (value < 1024) return value + ' B';
+                if (value < 1024 * 1024) return (value / 1024).toFixed(1) + ' KB';
+                return (value / (1024 * 1024)).toFixed(1) + ' MB';
+            }
+            function updateExportScope() {
+                const type = document.getElementById('location-export-scope')?.value || 'all';
+                document.querySelectorAll('[data-export-scope]').forEach(field => {
+                    field.hidden = field.getAttribute('data-export-scope') !== type;
+                });
+                const format = document.getElementById('location-export-format')?.value || 'geojson';
+                const derived = document.getElementById('location-export-derived-wrap');
+                if (derived) derived.style.display = format === 'json' ? '' : 'none';
+                const scope = document.getElementById('location-export-scope');
+                if (scope) scope.disabled = format === 'backup';
+            }
+            function fillExportOptions(data) {
+                if (locationExportOptionsReady) return;
+                const options = data.options || {};
+                const fill = (id, rows, label) => {
+                    const select = document.getElementById(id);
+                    if (!select) return;
+                    select.innerHTML = '';
+                    if (!rows || !rows.length) {
+                        const option = document.createElement('option');
+                        option.value = '';
+                        option.textContent = exportText('location_export_none_option', 'None available');
+                        select.appendChild(option);
+                        return;
+                    }
+                    rows.forEach(row => {
+                        const option = document.createElement('option');
+                        option.value = row.id;
+                        option.textContent = label(row);
+                        select.appendChild(option);
+                    });
+                };
+                fill('location-export-device', options.devices, row => (row.name || row.id) + (row.platform ? ' · ' + row.platform : ''));
+                fill('location-export-trip', options.trips, row => (row.title || exportText('location_export_trip', 'Trip')) + (row.started_at ? ' · ' + String(row.started_at).slice(0, 10) : ''));
+                fill('location-export-place', options.places, row => row.name || row.id);
+                locationExportOptionsReady = true;
+            }
+            function renderExports(data) {
+                const host = document.getElementById('location-export-history');
+                if (!host) return;
+                fillExportOptions(data);
+                const exports = data.exports || [];
+                host.innerHTML = '';
+                if (!exports.length) {
+                    const empty = document.createElement('p');
+                    empty.className = 'location-hint';
+                    empty.textContent = exportText('location_export_none', 'No exports yet.');
+                    host.appendChild(empty);
+                    return;
+                }
+                exports.forEach(item => {
+                    const card = document.createElement('div');
+                    card.className = 'import-item';
+                    const head = document.createElement('div');
+                    head.className = 'import-item-head';
+                    const title = document.createElement('strong');
+                    title.textContent = exportFormatLabel(item.format) + ' · ' + exportScopeLabel(item.scope || {});
+                    const badge = document.createElement('span');
+                    badge.className = 'import-state ' + importStateClass(item.state);
+                    badge.textContent = importStateLabel(item.state);
+                    head.appendChild(title); head.appendChild(badge);
+                    const meta = document.createElement('div');
+                    meta.className = 'import-item-meta';
+                    const artifacts = item.artifacts || [];
+                    const available = artifacts.filter(a => a.available);
+                    const bits = [String(item.created_at || '').slice(0, 19).replace('T', ' ')];
+                    if (available.length) {
+                        bits.push(available.map(a => exportSize(a.size_bytes)).join(', '));
+                        bits.push(exportText('location_export_expires', 'Expires') + ' ' + String(available[0].expires_at || '').slice(0, 10));
+                    }
+                    if (item.state === 'failed' && item.errors && item.errors.error) bits.push(String(item.errors.error));
+                    meta.textContent = bits.filter(Boolean).join(' · ');
+                    card.appendChild(head); card.appendChild(meta);
+                    if (available.length) {
+                        const links = document.createElement('div');
+                        links.className = 'export-artifact-links';
+                        available.forEach(artifact => {
+                            const link = document.createElement('a');
+                            link.href = '/apps/steps/api/session_gateway.php?endpoint=geolocation_export_download&id=' + encodeURIComponent(artifact.id);
+                            link.innerHTML = '<i class="fas fa-download"></i> ' + exportText('location_export_download', 'Download') + ' (' + exportSize(artifact.size_bytes) + ')';
+                            links.appendChild(link);
+                        });
+                        card.appendChild(links);
+                    }
+                    if (item.state !== 'deleted') {
+                        const actions = document.createElement('div');
+                        actions.className = 'import-item-actions';
+                        const del = document.createElement('button');
+                        del.type = 'button'; del.className = 'excel-btn'; del.dataset.exportDelete = item.id;
+                        del.innerHTML = '<i class="fas fa-trash-can"></i> ' + exportText('location_export_remove', 'Delete export');
+                        actions.appendChild(del);
+                        card.appendChild(actions);
+                    }
+                    host.appendChild(card);
+                });
+            }
+            async function loadExports() {
+                const host = document.getElementById('location-export-history');
+                if (!host) return;
+                if (locationExportsPoll) { clearTimeout(locationExportsPoll); locationExportsPoll = null; }
+                try {
+                    const res = await fetch(locationExportsApi, { credentials: 'same-origin' });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'export_list_failed');
+                    renderExports(data);
+                    const active = (data.exports || []).some(item => item.state === 'pending' || item.state === 'processing');
+                    if (active) locationExportsPoll = setTimeout(loadExports, 4000);
+                } catch (e) {
+                    host.innerHTML = '<p class="import-error">' + ((e && e.message) || importText('map_error', 'Could not load data.')) + '</p>';
+                }
+            }
+            async function createExport() {
+                const status = document.getElementById('location-export-status');
+                const format = document.getElementById('location-export-format')?.value || 'geojson';
+                const type = format === 'backup' ? 'all' : (document.getElementById('location-export-scope')?.value || 'all');
+                const scope = { type, include_derived: !!document.getElementById('location-export-derived')?.checked };
+                if (type === 'date') {
+                    scope.from = document.getElementById('location-export-from')?.value || '';
+                    scope.to = document.getElementById('location-export-to')?.value || '';
+                    if (!scope.from || !scope.to) { if (status) status.textContent = exportText('location_export_choose_range', 'Choose both dates.'); return; }
+                } else if (type === 'device') {
+                    scope.device_id = document.getElementById('location-export-device')?.value || '';
+                } else if (type === 'trip') {
+                    scope.trip_id = document.getElementById('location-export-trip')?.value || '';
+                } else if (type === 'place') {
+                    scope.place_id = document.getElementById('location-export-place')?.value || '';
+                }
+                if (status) status.textContent = exportText('map_loading', 'Loading…');
+                try {
+                    const res = await fetch(locationExportsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create', format, scope }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'export_failed');
+                    if (status) status.textContent = exportText('location_export_queued', 'Export queued. It will be ready shortly.');
+                    await loadExports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            }
+            async function deleteExport(id) {
+                const message = exportText('location_export_confirm_remove', 'Delete this export and its file?');
+                let confirmed = false;
+                if (typeof window.showAlert === 'function') { try { confirmed = await window.showAlert(message, true); } catch (e) { confirmed = false; } }
+                else confirmed = window.confirm(message);
+                if (!confirmed) return;
+                const status = document.getElementById('location-export-status');
+                try {
+                    const res = await fetch(locationExportsApi, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete', id }) });
+                    const data = await res.json();
+                    if (!res.ok || !data.ok) throw new Error((data && data.error) || 'export_delete_failed');
+                    if (status) status.textContent = exportText('location_export_deleted', 'Export deleted.');
+                    await loadExports();
+                } catch (e) {
+                    if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');
+                }
+            }
+            document.getElementById('location-export-format')?.addEventListener('change', updateExportScope);
+            document.getElementById('location-export-scope')?.addEventListener('change', updateExportScope);
+            document.getElementById('location-export-create')?.addEventListener('click', createExport);
+            document.getElementById('location-export-history')?.addEventListener('click', (event) => {
+                const del = event.target.closest('[data-export-delete]');
+                if (del) deleteExport(del.getAttribute('data-export-delete'));
+            });
+            updateExportScope();
             document.querySelectorAll('.settings-tab').forEach(tab => {
                 tab.addEventListener('click', () => {
                     const id = tab.getAttribute('data-settings-tab');
@@ -3082,8 +4802,54 @@
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
                     if (id === 'backups') loadBackups();
+                    if (id === 'location') { loadLocationStatistics(); loadImports(); loadExports(); loadImmich(); loadLocationTools(); loadSavedViews(); loadAnalytics(); loadNotifications(); }
+                    if (id === 'family') { loadFamily(); }
+                    if (id === 'points') window.dispatchEvent(new CustomEvent('steps-points-tab-open'));
+                    if (id === 'render') window.dispatchEvent(new CustomEvent('steps-render-tab-open'));
+                    steps_syncSettingsUrl();
                 });
             });
+            function steps_syncSettingsUrl() {
+                try {
+                    const modal = document.getElementById('settings-modal');
+                    const url = new URL(window.location.href);
+                    const open = modal && modal.style.display !== 'none';
+                    const active = document.querySelector('.settings-tab.active');
+                    if (open) url.searchParams.set('settings', active ? active.getAttribute('data-settings-tab') : 'profile');
+                    else url.searchParams.delete('settings');
+                    history.replaceState(null, '', url);
+                } catch (e) {}
+            }
+            (function settingsDeepLink() {
+                const modal = document.getElementById('settings-modal');
+                if (!modal) return;
+                new MutationObserver(steps_syncSettingsUrl).observe(modal, { attributes: true, attributeFilter: ['style'] });
+                const wanted = (new URLSearchParams(window.location.search).get('settings') || '').replace(/[^a-z_]/g, '');
+                if (wanted) {
+                    openModal('settings-modal');
+                    const tab = document.querySelector('.settings-tab[data-settings-tab="' + wanted + '"]');
+                    if (tab) tab.click();
+                }
+                const upgrade = (select) => {
+                    if (select.closest('.custom-select') || select.multiple || select.dataset.nativeSelect) return;
+                    if (!select.id) select.id = 'sel-' + Math.random().toString(36).slice(2, 9);
+                    const root = document.createElement('div');
+                    root.className = 'custom-select';
+                    root.innerHTML = '<button type="button" class="custom-select-trigger" aria-haspopup="listbox" aria-expanded="false"><span class="custom-select-value"></span><i class="fas fa-chevron-down custom-select-caret" aria-hidden="true"></i></button><div class="custom-select-menu" role="listbox"></div>';
+                    select.parentNode.insertBefore(root, select);
+                    root.insertBefore(select, root.firstChild);
+                    select.classList.add('custom-select-native');
+                    select.tabIndex = -1;
+                    select.setAttribute('aria-hidden', 'true');
+                    const label = select.getAttribute('aria-label') || (select.closest('label') && select.closest('label').querySelector('span') ? select.closest('label').querySelector('span').textContent : '');
+                    initCustomSelect(select.id, label);
+                };
+                const shareModal = document.getElementById('share-location-modal');
+                const upgradeAll = () => { modal.querySelectorAll('select').forEach(upgrade); if (shareModal) shareModal.querySelectorAll('select').forEach(upgrade); };
+                upgradeAll();
+                new MutationObserver(upgradeAll).observe(modal, { childList: true, subtree: true });
+                if (shareModal) new MutationObserver(upgradeAll).observe(shareModal, { childList: true, subtree: true });
+            })();
 
             // Chart navigation
             document.getElementById('chart-nav-left').addEventListener('click', () => {
@@ -3131,6 +4897,7 @@
                 populateMonthSelectorForYear(year, currentLocale);
                 document.getElementById('month-selector').value = '-';
                 renderCalendar(new Date(year, 0, 1), currentLocale);
+                refreshCustomSelects();
             });
 
             // Month selection
@@ -3582,11 +5349,15 @@
             // Calendar click
             document.getElementById('calendar').addEventListener('click', e => {
                 const cell = e.target.closest('td[data-date]');
-                if (cell) {
-                    const date = cell.getAttribute('data-date');
-                    applyManualDate(date, currentLocale);
-                    openModal('add-steps-modal');
-                }
+                if (cell) openDayStepsEditor(cell.getAttribute('data-date'));
+            });
+
+            // Minimalist day steps editor
+            document.getElementById('day-steps-save')?.addEventListener('click', saveDaySteps);
+            document.getElementById('day-steps-cancel')?.addEventListener('click', () => closeModal('day-steps-modal'));
+            document.querySelector('#day-steps-modal .modal-close')?.addEventListener('click', () => closeModal('day-steps-modal'));
+            document.getElementById('day-steps-input')?.addEventListener('keydown', e => {
+                if (e.key === 'Enter') { e.preventDefault(); saveDaySteps(); }
             });
 
             // Handlers for Excel modal
@@ -3596,7 +5367,157 @@
         // App startup
         initApp();
 
-    </script>
+    (function () {
+    const valueDesc = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    const loc = () => (typeof currentLocale !== 'undefined' && currentLocale) ? currentLocale : 'en-US';
+    const p2 = n => String(n).padStart(2, '0');
+    const ymd = (y, m, d) => y + '-' + p2(m + 1) + '-' + p2(d);
+    const parse = v => { const m = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?/.exec(v || ''); return m ? { y: +m[1], m: +m[2] - 1, d: +m[3], h: +(m[4] || 0), i: +(m[5] || 0) } : null; };
+    const tx = (k, f) => (window.translations && translations[k]) || f;
+    function upgrade(input) {
+        if (input.dataset.dpDone || input.classList.contains('dp-native') || input.closest('.dp-field')) return;
+        input.dataset.dpDone = '1';
+        const dt = input.type === 'datetime-local';
+        const field = document.createElement('div'); field.className = 'dp-field'; field.dataset.dpNew = '1';
+        input.parentNode.insertBefore(field, input);
+        field.appendChild(input);
+        input.classList.add('dp-native'); input.tabIndex = -1; input.setAttribute('aria-hidden', 'true');
+        const trigger = document.createElement('button'); trigger.type = 'button'; trigger.className = 'dp-trigger'; trigger.setAttribute('aria-haspopup', 'dialog'); trigger.setAttribute('aria-expanded', 'false');
+        trigger.innerHTML = '<span class="dp-value"></span><i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i>';
+        const pop = document.createElement('div'); pop.className = 'dp-popover'; pop.setAttribute('role', 'dialog'); pop.hidden = true;
+        field.append(trigger, pop);
+        const valueEl = trigger.firstChild;
+        let cur = parse(input.value), view = new Date();
+        const sync = () => {
+            cur = parse(input.value);
+            if (!cur) { valueEl.textContent = '—'; return; }
+            const d = new Date(cur.y, cur.m, cur.d, cur.h, cur.i);
+            valueEl.textContent = dt ? d.toLocaleString(loc(), { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : d.toLocaleDateString(loc(), { day: 'numeric', month: 'short', year: 'numeric' });
+        };
+        Object.defineProperty(input, 'value', { configurable: true, get() { return valueDesc.get.call(this); }, set(v) { valueDesc.set.call(this, v); sync(); } });
+        const commit = (y, m, d, h, i) => {
+            const v = ymd(y, m, d) + (dt ? 'T' + p2(h) + ':' + p2(i) : '');
+            valueDesc.set.call(input, v); sync();
+            input.dispatchEvent(new Event('input', { bubbles: true }));
+            input.dispatchEvent(new Event('change', { bubbles: true }));
+        };
+        const render = () => {
+            view = new Date(view.getFullYear(), view.getMonth(), 1);
+            const wk = (window.translations && Array.isArray(translations.days_of_week) && translations.days_of_week.length === 7) ? translations.days_of_week : ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+            const y = view.getFullYear(), m = view.getMonth(), off = (new Date(y, m, 1).getDay() + 6) % 7, days = new Date(y, m + 1, 0).getDate();
+            const now = new Date(), today = ymd(now.getFullYear(), now.getMonth(), now.getDate()), sel = cur ? ymd(cur.y, cur.m, cur.d) : '';
+            let h = '<div class="dp-head"><button type="button" class="dp-nav" data-nav="-1"><i class="fas fa-chevron-left"></i></button><span class="dp-title">' + view.toLocaleDateString(loc(), { month: 'long', year: 'numeric' }) + '</span><button type="button" class="dp-nav" data-nav="1"><i class="fas fa-chevron-right"></i></button></div>';
+            h += '<div class="dp-weekdays">' + wk.map(d => '<span>' + d.slice(0, 2) + '</span>').join('') + '</div><div class="dp-grid">';
+            for (let k = 0; k < off; k++) h += '<span class="dp-empty"></span>';
+            for (let d = 1; d <= days; d++) { const s = ymd(y, m, d); h += '<button type="button" class="dp-day' + (s === sel ? ' is-selected' : '') + (s === today ? ' is-today' : '') + '" data-day="' + d + '">' + d + '</button>'; }
+            h += '</div>';
+            if (dt) h += '<div class="dp-time"><input type="number" min="0" max="23" class="dp-h" value="' + p2(cur ? cur.h : 0) + '"><span>:</span><input type="number" min="0" max="59" class="dp-i" value="' + p2(cur ? cur.i : 0) + '"></div>';
+            h += '<div class="dp-foot"><button type="button" class="dp-today" data-today>' + tx('map_today', 'Today') + '</button></div>';
+            pop.innerHTML = h;
+        };
+        const close = () => { pop.hidden = true; trigger.setAttribute('aria-expanded', 'false'); };
+        const open = () => {
+            document.querySelectorAll('.dp-popover').forEach(p => { p.hidden = true; });
+            view = cur ? new Date(cur.y, cur.m, 1) : new Date();
+            render(); pop.hidden = false; trigger.setAttribute('aria-expanded', 'true');
+            const r = trigger.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 16), hh = pop.offsetHeight || 340;
+            pop.style.width = w + 'px'; pop.style.left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8) + 'px';
+            let top = r.bottom + 8; if (top + hh > window.innerHeight - 8) top = Math.max(8, r.top - hh - 8);
+            pop.style.top = top + 'px'; pop.style.zIndex = '100002';
+        };
+        trigger.addEventListener('click', e => { e.stopPropagation(); pop.hidden ? open() : close(); });
+        pop.addEventListener('click', e => {
+            const nav = e.target.closest('[data-nav]');
+            if (nav) { view.setMonth(view.getMonth() + Number(nav.dataset.nav)); render(); return; }
+            const day = e.target.closest('[data-day]');
+            const base = cur || { h: 0, i: 0 };
+            if (day) { commit(view.getFullYear(), view.getMonth(), Number(day.dataset.day), base.h, base.i); if (dt) render(); else close(); return; }
+            if (e.target.closest('[data-today]')) { const n = new Date(); commit(n.getFullYear(), n.getMonth(), n.getDate(), dt ? n.getHours() : 0, dt ? n.getMinutes() : 0); if (dt) render(); else close(); }
+        });
+        pop.addEventListener('change', e => {
+            if (!e.target.matches('.dp-h,.dp-i')) return;
+            const b = cur || (() => { const n = new Date(); return { y: n.getFullYear(), m: n.getMonth(), d: n.getDate() }; })();
+            const hh = Math.min(23, Math.max(0, Number(pop.querySelector('.dp-h').value) || 0)), ii = Math.min(59, Math.max(0, Number(pop.querySelector('.dp-i').value) || 0));
+            commit(b.y, b.m, b.d, hh, ii);
+        });
+        document.addEventListener('click', e => { if (!pop.hidden && !pop.contains(e.target) && !field.contains(e.target)) close(); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape' && !pop.hidden) close(); });
+        input.addEventListener('change', sync);
+        sync();
+    }
+    const scan = root => (root.querySelectorAll ? root : document).querySelectorAll('input[type="date"],input[type="datetime-local"]').forEach(upgrade);
+    const start = () => { scan(document); new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(n => { if (n.nodeType === 1) { if (n.matches && n.matches('input[type="date"],input[type="datetime-local"]')) upgrade(n); else scan(n); } }))).observe(document.body, { childList: true, subtree: true }); };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', start); else start();
+
+    // Give every standard modal the same header: title on the left, close on the right.
+    // Keeping this in one place prevents new modals from drifting from the shared design.
+    function setupModalTopbars() {
+        const ids = [
+            'stats-modal', 'info-modal', 'mobile-app-modal', 'manual-pair-modal',
+            'share-location-modal', 'settings-modal', 'day-steps-modal', 'add-steps-modal',
+            'video-crop-modal', 'alert-modal', 'video-confirm-modal', 'video-confirm-gaps-modal'
+        ];
+        const closeLabel = <?php echo json_encode($translations['close'] ?? 'Close', JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT); ?>;
+
+        ids.forEach(function (id) {
+            const modal = document.getElementById(id);
+            if (!modal) return;
+            const content = modal.firstElementChild;
+            if (!content || content.querySelector(':scope > .modal-topbar')) return;
+
+            const title = content.querySelector('h1, h2, h3, .day-steps-title, .alert-title');
+            let close = null;
+            for (const child of Array.from(content.children)) {
+                if (child.classList && child.classList.contains('modal-close')) {
+                    close = child;
+                    break;
+                }
+            }
+
+            const topbar = document.createElement('div');
+            topbar.className = 'modal-topbar';
+
+            const titleShell = title ? title.closest('.info-header') : null;
+            if (title) {
+                title.classList.add('modal-topbar-title');
+                topbar.appendChild(title);
+                if (titleShell && content.contains(titleShell)) titleShell.remove();
+            } else {
+                const fallback = document.createElement('div');
+                fallback.className = 'modal-topbar-title';
+                fallback.textContent = content.getAttribute('data-modal-title') || '';
+                topbar.appendChild(fallback);
+            }
+
+            if (!close) {
+                close = document.createElement('button');
+                close.type = 'button';
+                close.className = 'modal-close';
+                close.setAttribute('aria-label', closeLabel);
+                close.addEventListener('click', function () {
+                    if (typeof closeModal === 'function') closeModal(id);
+                    else modal.style.display = 'none';
+                });
+            }
+            close.type = 'button';
+            close.classList.add('app-close-button');
+            close.setAttribute('aria-label', close.getAttribute('aria-label') || closeLabel);
+            close.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+            topbar.appendChild(close);
+
+            content.insertBefore(topbar, content.firstChild);
+            const body = document.createElement('div');
+            body.className = 'modal-body';
+            while (topbar.nextSibling) body.appendChild(topbar.nextSibling);
+            content.appendChild(body);
+            content.classList.add('has-modal-topbar');
+        });
+    }
+    setupModalTopbars();
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupModalTopbars);
+    }
+})();</script>
 
 </body>
 </html>

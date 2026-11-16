@@ -1469,4 +1469,9 @@ return [
     'Enable notifications by default for all new users' => 'Ve výchozím nastavení povolit oznámení pro všechny nové uživatele',
     'Assign the task to its creator for specific columns if no assignee is set manually' => 'Přiřadit úkol jeho tvůrci pro vybrané sloupce, pokud není ručně nastaven řešitel',
     'Assign a task to the logged user on column change to specified column if no user is assigned' => 'Přiřadit úkol přihlášenému uživateli při přesunu do zadaného sloupce, pokud není přiřazen žádný uživatel',
+    // Mobile pairing / settings modal
+    'Download mobile app' => 'Stáhnout mobilní aplikaci',
+    'Point your camera at this code to download the app file and install it on your phone.' => 'Nasměrujte kameru na tento kód, abyste stáhli soubor aplikace a nainstalovali jej do telefonu.',
+    'Scan to install' => 'Naskenujte pro instalaci',
+    'Updated' => 'Aktualizováno',
 ];

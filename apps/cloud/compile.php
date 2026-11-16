@@ -57,7 +57,11 @@ if (!defined('RUNMAT_PATH')) define('RUNMAT_PATH', '/usr/local/bin/runmat');
 
 if (!defined('MAX_EXECUTION_TIME')) define('MAX_EXECUTION_TIME', 30);
 if (!defined('MATLAB_EXECUTION_TIME')) define('MATLAB_EXECUTION_TIME', 120);
-if (!defined('TEMP_DIR')) define('TEMP_DIR', __DIR__ . '/temp');
+if (!defined('TEMP_DIR')) {
+    $__compileAppData = getenv('APPDATA_BASE_DIR');
+    if (!is_string($__compileAppData) || trim($__compileAppData) === '') $__compileAppData = '/opt/ApplicationData';
+    define('TEMP_DIR', rtrim($__compileAppData, '/') . '/cloud_runtime/temp');
+}
 if (!defined('STORAGE_DIR')) define('STORAGE_DIR', __DIR__ . '/storage');
 
 // Create temp directory if it doesn't exist

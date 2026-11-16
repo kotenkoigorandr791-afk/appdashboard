@@ -7,6 +7,9 @@ require_once dirname(__DIR__, 2) . '/includes/ai_compile_check.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_code_security.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_syntax_check.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_sandbox.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_file_index.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_reviews.php';
+require_once dirname(__DIR__, 4) . '/lib/Storage/AppFiles.php';
 require_once __DIR__ . '/ai_tools_speech.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
 
@@ -159,16 +162,47 @@ function cloud_ai_persist_file_content(array $resolved, string $content): bool
     return file_put_contents($resolved['target'], $content) !== false;
 }
 
-function cloud_ai_sync_file_tree_after_write(array $resolved): void
+function cloud_ai_index_sync(array $resolved, string $op = 'record', array $previous = []): void
 {
-    $email = function_exists('get_session_email') ? get_session_email() : null;
-    if (!$email || ($resolved['root'] ?? '') !== 'main') {
+    $user = (string)($resolved['user'] ?? '');
+    $rootKey = (string)($resolved['root'] ?? 'main');
+    $path = (string)($resolved['path'] ?? '');
+    if ($user === '' || $path === '' || !class_exists('AppFiles')) {
         return;
     }
-    if (!function_exists('invalidate_file_tree')) {
+    try {
+        $paths = cloud_index_paths($user, $rootKey, $path);
+        if ($op === 'delete') {
+            AppFiles::recordDelete('cloud', $user, $paths['root'], $paths['relative'], 'deleted');
+            return;
+        }
+        if ($op === 'move' && $previous !== []) {
+            $old = cloud_index_paths($user, $rootKey, (string)($previous['path'] ?? ''));
+            try {
+                AppFiles::recordMove('cloud', $user, $old['root'], $old['relative'], $paths['relative']);
+                return;
+            } catch (Throwable $e) {
+                // Different root (main <-> documents): mark the old subtree and
+                // index the new location instead of losing ids silently.
+                AppFiles::recordDelete('cloud', $user, $old['root'], $old['relative'], 'deleted');
+            }
+        }
+        AppFiles::refresh('cloud', $user, $paths['root'], $paths['relative']);
+    } catch (Throwable $e) {
+        error_log('cloud_ai_index_sync: ' . $e->getMessage());
+    }
+}
+
+function cloud_ai_sync_file_tree_after_write(array $resolved, string $op = 'record', array $previous = []): void
+{
+    cloud_ai_index_sync($resolved, $op, $previous);
+    $email = (string)($resolved['user'] ?? '');
+    if ($email === '' || ($resolved['root'] ?? '') !== 'main') {
         return;
     }
-    invalidate_file_tree($email);
+    if (function_exists('invalidate_file_tree')) {
+        invalidate_file_tree($email);
+    }
 }
 
 function cloud_ai_remove_path_recursive(string $path): bool
@@ -1165,7 +1199,7 @@ if ($action === 'ai_agent_tool') {
         if (!@rename($oldResolved['target'], $newResolved['target'])) {
             json_out(['ok' => false, 'error' => 'Rename failed'], 500);
         }
-        cloud_ai_sync_file_tree_after_write($newResolved);
+        cloud_ai_sync_file_tree_after_write($newResolved, 'move', $oldResolved);
         json_out(['ok' => true, 'path' => $newResolved['path'], 'root' => $newResolved['root'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'renamed' => true]);
     }
 
@@ -1193,7 +1227,7 @@ if ($action === 'ai_agent_tool') {
         if (!@rename($oldResolved['target'], $newResolved['target'])) {
             json_out(['ok' => false, 'error' => 'Move failed'], 500);
         }
-        cloud_ai_sync_file_tree_after_write($newResolved);
+        cloud_ai_sync_file_tree_after_write($newResolved, 'move', $oldResolved);
         json_out(['ok' => true, 'path' => $newResolved['path'], 'root' => $newResolved['root'], 'old_path' => $oldResolved['path'], 'persisted' => true, 'moved' => true]);
     }
 
@@ -1213,7 +1247,8 @@ if ($action === 'ai_agent_tool') {
         if (!@unlink($resolved['target'])) {
             json_out(['ok' => false, 'error' => 'Delete failed'], 500);
         }
-        cloud_ai_sync_file_tree_after_write($resolved);
+        cloud_reviews_delete_path((string)get_session_email(), $resolved['root'], $resolved['path']);
+        cloud_ai_sync_file_tree_after_write($resolved, 'delete');
         json_out(['ok' => true, 'deleted_path' => $resolved['path'], 'persisted' => true, 'deleted' => true]);
     }
 
@@ -1233,7 +1268,8 @@ if ($action === 'ai_agent_tool') {
         if (!cloud_ai_remove_path_recursive($resolved['target'])) {
             json_out(['ok' => false, 'error' => 'Directory delete failed'], 500);
         }
-        cloud_ai_sync_file_tree_after_write($resolved);
+        cloud_reviews_delete_path((string)get_session_email(), $resolved['root'], $resolved['path']);
+        cloud_ai_sync_file_tree_after_write($resolved, 'delete');
         json_out(['ok' => true, 'deleted_path' => $resolved['path'], 'persisted' => true, 'deleted' => true, 'type' => 'dir']);
     }
 
@@ -1246,43 +1282,38 @@ if ($action === 'ai_agent_tool') {
             json_out(['ok' => false, 'error' => 'not authenticated'], 401);
         }
         $rk = $rootKey !== '' ? $rootKey : get_requested_root_key();
-        $base = user_root($user, $rk);
         $safePath = $path === '' ? '' : safe_path($path);
-        $targetDir = $safePath === '' ? $base : $base . '/' . $safePath;
-        if (!is_dir($targetDir)) {
-            json_out(['ok' => false, 'error' => 'Directory not found'], 404);
-        }
+        // Listings always come from the shared file index; the assistant never
+        // scans the filesystem. AppFiles indexes the requested level on demand.
+        $paths = cloud_index_paths($user, $rk, $safePath);
+        $rootRel = $paths['root'];
+        $dirRel = $paths['relative'];
+        $listPath = $dirRel === $rootRel ? '' : substr($dirRel, strlen($rootRel) + 1);
         $entries = [];
         if ($recursive) {
-            $iterator = new RecursiveIteratorIterator(
-                new RecursiveDirectoryIterator($targetDir, FilesystemIterator::SKIP_DOTS),
-                RecursiveIteratorIterator::SELF_FIRST
-            );
-            foreach ($iterator as $item) {
-                $rel = ltrim(str_replace($targetDir, '', (string)$item->getPathname()), '/');
+            foreach (AppFiles::treeByRoot('cloud', $user, $rootRel, $listPath, $maxEntries) as $row) {
                 $entries[] = [
-                    'name' => $item->getFilename(),
-                    'path' => ($safePath !== '' ? $safePath . '/' : '') . str_replace('\\', '/', $rel),
-                    'type' => $item->isDir() ? 'dir' : 'file',
+                    'name' => $row['name'],
+                    'path' => ($safePath !== '' ? $safePath . '/' : '') . $row['path'],
+                    'type' => $row['type'],
+                    'size' => $row['size'],
+                    'mtime' => $row['mtime'],
                 ];
-                if (count($entries) >= $maxEntries) {
-                    break;
-                }
+                if (count($entries) >= $maxEntries) break;
             }
         } else {
-            foreach (scandir($targetDir) ?: [] as $name) {
-                if ($name === '.' || $name === '..') {
-                    continue;
-                }
-                $full = $targetDir . '/' . $name;
+            if (AppFiles::find('cloud', $user, $rootRel, $dirRel) === null) {
+                json_out(['ok' => false, 'error' => 'Directory not found'], 404);
+            }
+            $listing = AppFiles::listByRoot('cloud', $user, $rootRel, $listPath, ['limit' => $maxEntries]);
+            foreach ($listing['entries'] as $row) {
                 $entries[] = [
-                    'name' => $name,
-                    'path' => ltrim(($safePath !== '' ? $safePath . '/' : '') . $name, '/'),
-                    'type' => is_dir($full) ? 'dir' : 'file',
+                    'name' => $row['name'],
+                    'path' => ltrim(($safePath !== '' ? $safePath . '/' : '') . $row['path'], '/'),
+                    'type' => $row['type'],
+                    'size' => $row['size'],
+                    'mtime' => $row['mtime'],
                 ];
-                if (count($entries) >= $maxEntries) {
-                    break;
-                }
             }
         }
         json_out(['ok' => true, 'path' => $safePath, 'recursive' => $recursive, 'entries' => $entries, 'count' => count($entries)]);

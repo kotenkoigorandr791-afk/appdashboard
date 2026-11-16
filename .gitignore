@@ -27,8 +27,13 @@ graphify-out/
 **/graphify-out/
 **/.graphify*/
 /backups/
+# Runtime data lives on the APPDATA volume. The repository never stores it and
+# never links to it (no symlinks in the code tree).
+/data
 /data/*
-!/data
+/uploads
+/uploads/*
+/apps/spends/data
 *.log
 *.sqlite3
 *.sqlite
@@ -67,8 +72,7 @@ graphify-out/
 /apps/recipes/recipes/
 /apps/smart_home/data/
 /apps/viewer/history.json
-/uploads/*
-!/uploads
+
 /tmp/
 /.cache/
 /.cursor/
@@ -94,6 +98,7 @@ docs/APP_DEBUG_URLS.md
 APP_DEBUG_URLS.md
 debug_panel.php
 **/.codex/
+/.agents/
 **/AGENTS.md
 **/agents.md
 **/CLAUDE.md
@@ -125,6 +130,12 @@ opencode.json
 appdashboard-mcp/smoke-*-results.txt
 appdashboard-mcp/tmp-*
 appdashboard-mcp/tmp-gitea-wf/
+appdashboard-mcp/benchmarks/results/*-perf.jsonl
+appdashboard-mcp/benchmarks/results/*-server.log
+appdashboard-mcp/benchmarks/results/*.json
+.bench-token
+.bench-device
+.bench-login.json
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
 .aider*
@@ -157,9 +168,9 @@ core
 !apps/steps/core/**
 # ...and the spends app core helpers (real source, not build junk)
 !apps/spends/core/
-!apps/spends/core/**
-!apps/smart_home/core/
-!apps/smart_home/core/**
+!apps/spends/core/** !apps/smart_home/core/
+ !apps/smart_home/core/**
+
 !project/performance/core/
 !project/performance/core/**
 *.core
@@ -175,6 +186,7 @@ pnpm-debug.log*
 /apps/kanboard/kanboard-mobile-app/.cxx/
 /apps/kanboard/kanboard-mobile-app/.idea/
 /apps/kanboard/kanboard-mobile-app/**/build/
+/apps/kanboard/kanboard-mobile-app/app/release.jks
 /downloads/kanboard-mobile.apk
 /downloads/kanboard-mobile.json
 /downloads/kanboard-mobile-build.sha256
@@ -189,6 +201,7 @@ pnpm-debug.log*
 /apps/spends/spends-mobile-app/ios/
 /apps/spends/spends-mobile-app/local.properties
 /apps/spends/spends-mobile-app/app/release.jks
+/apps/spends/spends-mobile-app/android/app/release.jks
 /apps/spends/spends-mobile-app/captures/
 /apps/spends/spends-mobile-app/.cxx/
 /apps/spends/spends-mobile-app/.idea/
@@ -206,3 +219,32 @@ pnpm-debug.log*
 /downloads/spends-mobile.apk
 /downloads/spends-mobile.json
 /downloads/spends-mobile-build.sha256
+
+# Spends native Android (apps/spends/spends-native-android)
+/apps/spends/spends-native-android/.gradle/
+/apps/spends/spends-native-android/.kotlin/
+/apps/spends/spends-native-android/build/
+/apps/spends/spends-native-android/app/build/
+/apps/spends/spends-native-android/local.properties
+/apps/spends/spends-native-android/app/release.jks
+/apps/spends/spends-native-android/captures/
+/apps/spends/spends-native-android/.cxx/
+/apps/spends/spends-native-android/.idea/
+/apps/spends/spends-native-android/**/*.apk
+/apps/spends/spends-native-android/**/*.aab
+
+# Shared local Android toolchain (JDK/Gradle/SDK/emulator, download cache)
+/tools/
+
+<<<<<<< HEAD
+.tgrep/
+.tgrep-*/
+
+# Benchmark credentials
+.bench-login.json
+.bench-token
+.bench-device
+
+
+=======
+>>>>>>> mobile-spends

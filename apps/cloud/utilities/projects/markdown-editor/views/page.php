@@ -598,10 +598,10 @@
         </div>
     </div>
     <div class="status-message" id="statusMessage"></div>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=4"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-shared.js?v=5"></script>
     <script src="https://cdn.jsdelivr.net/npm/monaco-editor@0.52.2/min/vs/loader.js"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-touch-selection.js?v=4"></script>
-    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=2"></script>
+    <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-iframe-collab.js?v=6"></script>
     <script src="<?= htmlspecialchars($assetsBaseUrl) ?>/monaco-ai-iframe.js?v=2"></script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-panes.js'); ?></script>
 <script><?php readfile(dirname(__DIR__, 2) . '/shared/assets/editor-preview-sync.js'); ?></script>

@@ -31,6 +31,19 @@
         if (s.length <= maxChars) return s;
         return s.slice(0, maxChars) + `\n\n[... ${label || 'content'} truncated for 200k token budget; use read_file with offset_line or search_in_files ...]`;
     }
+    function buildFileContextBlock(file, label) {
+        const name = String(file?.name || 'file');
+        const content = String(file?.content || '');
+        const chunkSize = 6000;
+        if (content.length <= chunkSize) return `[${label}: ${name}]\n\n${content}`;
+        const chunks = [];
+        const maxChunks = Math.max(1, Math.floor(CONTEXT_LIMITS.maxMentionedChars / chunkSize));
+        for (let offset = 0; offset < content.length && chunks.length < maxChunks; offset += chunkSize) {
+            chunks.push(`[${label}: ${name}, part ${chunks.length + 1}]\n\n${content.slice(offset, offset + chunkSize)}`);
+        }
+        if (chunks.length * chunkSize < content.length) chunks.push(`[${label}: ${name}]\n\n[remaining parts omitted to protect the conversation context]`);
+        return chunks.join('\n\n---\n\n');
+    }
 
     const MAX_EXTERNAL_ATTACHMENTS = 4;
     let aiTreeDragFallbackPaths = [];
@@ -73,6 +86,9 @@
         isGenerating: false,
         currentMessageId: null,
         abortController: null,
+        generatingChatId: '',
+        generationMessageDiv: null,
+        generationUserMessage: null,
         currentFileContent: null,
         currentFileName: null,
         lastMessageStats: null,
@@ -119,6 +135,7 @@
         agentRunOutcome: null,
         agentUserRole: null,
         agentMentionPaths: [],
+        agentReadMemory: [],
         agentNewPaths: new Set(),
         agentRunStartedAt: null,
         agentTimerInterval: null,
@@ -131,6 +148,7 @@
         previewHighlightTabId: null
     };
     let modelDropdownState = { wrapper: null, button: null, menu: null, open: false };
+    let roleDropdownState = { wrapper: null, button: null, menu: null, open: false };
     const unavailableModels = new Set();
     let autoOcrProcessTimer = null;
 
@@ -182,6 +200,100 @@
         const div = document.createElement('div');
         div.textContent = text == null ? '' : String(text);
         return div.innerHTML;
+    }
+
+    function getLinksFromText(text) {
+        const links = [];
+        const pattern = /https?:\/\/[^\s<>"'`]+/gi;
+        let match;
+        while ((match = pattern.exec(String(text || '')))) {
+            const href = match[0].replace(/[),.!?:;]+$/, '');
+            try {
+                const url = new URL(href);
+                if (!/^https?:$/.test(url.protocol)) continue;
+                links.push({ raw: href, href: url.href, domain: url.hostname.replace(/^www\./i, '') });
+            } catch (_) {}
+        }
+        return links;
+    }
+
+    function getUniqueLinks(text) {
+        const links = getLinksFromText(text);
+        const seen = new Set();
+        return links.filter((link) => {
+            if (seen.has(link.href)) return false;
+            seen.add(link.href);
+            return true;
+        });
+    }
+
+    function getFaviconCandidates(host) {
+        try {
+            const url = new URL(host);
+            const domain = url.hostname.replace(/^www\./i, '');
+            return [
+                `https://icons.duckduckgo.com/ip3/${domain}.ico`,
+                new URL('/favicon.ico', url).href
+            ];
+        } catch (_) {
+            return [];
+        }
+    }
+
+    function createLinkCard(link) {
+        const card = document.createElement('a');
+        card.className = 'ai-link-card';
+        card.href = link.href;
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+        card.title = link.href;
+        const icon = document.createElement('img');
+        icon.className = 'ai-link-card-icon';
+        icon.alt = '';
+        icon.loading = 'eager';
+        icon.referrerPolicy = 'no-referrer';
+        const candidates = getFaviconCandidates(link.href);
+        let idx = 0;
+        const tryNext = () => {
+            idx += 1;
+            if (idx < candidates.length) {
+                icon.src = candidates[idx];
+            } else {
+                icon.style.display = 'none';
+            }
+        };
+        if (candidates.length) {
+            icon.addEventListener('error', tryNext);
+            icon.addEventListener('load', () => { if (icon.naturalWidth === 0) tryNext(); });
+            icon.src = candidates[0];
+        } else {
+            icon.style.display = 'none';
+        }
+        const domain = document.createElement('span');
+        domain.className = 'ai-link-card-domain';
+        domain.textContent = link.domain;
+        card.append(icon, domain);
+        return card;
+    }
+
+    function createUserMessageContent(content) {
+        const fragment = document.createDocumentFragment();
+        const text = String(content || '');
+        const links = getLinksFromText(text);
+        let offset = 0;
+        links.forEach((link) => {
+            const index = text.indexOf(link.raw, offset);
+            if (index < 0) return;
+            fragment.append(document.createTextNode(text.slice(offset, index)), createLinkCard(link));
+            offset = index + link.raw.length;
+        });
+        fragment.append(document.createTextNode(text.slice(offset)));
+        return fragment;
+    }
+
+    function renderLinkPreviews(text) {
+        if (!elements.linkPreviews) return;
+        elements.linkPreviews.replaceChildren(...getUniqueLinks(text).slice(0, 4).map(createLinkCard));
     }
 
     function logAiError(context, err) {
@@ -528,6 +640,9 @@
         }
         if (Array.isArray(config.models) && config.models.length) AI_CONFIG.configuredModels = config.models.slice();
         if (config.default_model) AI_CONFIG.defaultModel = String(config.default_model);
+        if (aiState.agentUserRole == null && Number.isFinite(Number(config.user_role))) {
+            aiState.agentUserRole = Number(config.user_role);
+        }
         if (!config.success) throw new Error(config.error || 'AI is not configured');
         if (!config.configured) throw new Error('AI API key is not configured');
         AI_CONFIG.directApi.configured = true;
@@ -826,19 +941,42 @@
     }
     function openModelDropdown() {
         if (!modelDropdownState.wrapper) return;
+        
+        // Ensure dropdown options are rendered before opening
+        if (modelDropdownState.menu && modelDropdownState.menu.children.length === 0) {
+            renderModelDropdownOptions();
+        }
+        
         const menu = modelDropdownState.menu;
         const btn = modelDropdownState.button;
         if (menu && btn) {
             modelDropdownState.wrapper.classList.remove('drop-up');
+            menu.classList.remove('drop-up');
             const rect = btn.getBoundingClientRect();
             const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
             const spaceBelow = Math.max(0, viewportH - rect.bottom - 8);
             const spaceAbove = Math.max(0, rect.top - 8);
             const menuHeight = Math.min(280, menu.scrollHeight || 280);
-            if (spaceBelow < Math.min(180, menuHeight) && spaceAbove > spaceBelow) modelDropdownState.wrapper.classList.add('drop-up');
+            
+            menu.style.left = rect.left + 'px';
+            menu.style.width = rect.width + 'px';
+            
+            if (spaceBelow < Math.min(180, menuHeight) && spaceAbove > spaceBelow) {
+                modelDropdownState.wrapper.classList.add('drop-up');
+                menu.classList.add('drop-up');
+                menu.style.top = 'auto';
+                menu.style.bottom = (viewportH - rect.top + 6) + 'px';
+            } else {
+                menu.style.top = (rect.bottom + 6) + 'px';
+                menu.style.bottom = 'auto';
+            }
         }
         modelDropdownState.open = true;
         modelDropdownState.wrapper.classList.add('open');
+        if (menu) {
+            menu.classList.add('open');
+            menu.style.display = 'block';
+        }
     }
     function markModelUnavailable(modelId) {
         const id = String(modelId || '').trim();
@@ -868,16 +1006,20 @@
             const menu = document.createElement('div');
             menu.className = 'ai-model-dropdown-menu';
             dd.appendChild(btn);
-            dd.appendChild(menu);
             wrap.appendChild(dd);
+            document.body.appendChild(menu);
             modelDropdownState.wrapper = dd;
             modelDropdownState.button = btn;
             modelDropdownState.menu = menu;
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                if (modelDropdownState.open) closeModelDropdown();
-                else openModelDropdown();
+                if (modelDropdownState.open) {
+                    closeModelDropdown();
+                } else {
+                    closeRoleDropdown();
+                    openModelDropdown();
+                }
             });
             menu.addEventListener('click', (e) => {
                 const item = e.target.closest('.ai-model-dropdown-item');
@@ -892,18 +1034,163 @@
         renderModelDropdownOptions();
         updateModelDropdownLabel();
     }
+    function renderRoleDropdownOptions() {
+        if (!roleDropdownState.menu || !elements.roleSelect) return;
+        roleDropdownState.menu.innerHTML = '';
+        Array.from(elements.roleSelect.options).forEach((option) => {
+            const item = document.createElement('button');
+            item.type = 'button';
+            item.className = 'ai-role-dropdown-item';
+            if (option.value === elements.roleSelect.value) item.classList.add('is-selected');
+            item.setAttribute('data-value', option.value);
+            item.textContent = option.text;
+            roleDropdownState.menu.appendChild(item);
+        });
+    }
+    function updateRoleDropdownLabel() {
+        if (!roleDropdownState.button || !elements.roleSelect) return;
+        const selectedOption = elements.roleSelect.options[elements.roleSelect.selectedIndex];
+        roleDropdownState.button.querySelector('.ai-role-dropdown-text').textContent = selectedOption?.text || elements.roleSelect.value || 'General Assistant';
+    }
+    function closeRoleDropdown() {
+        if (!roleDropdownState.wrapper) return;
+        roleDropdownState.open = false;
+        roleDropdownState.wrapper.classList.remove('open');
+        if (roleDropdownState.menu) {
+            roleDropdownState.menu.classList.remove('open');
+            roleDropdownState.menu.style.display = 'none';
+        }
+    }
+    function openRoleDropdown() {
+        if (!roleDropdownState.wrapper) return;
+        const menu = roleDropdownState.menu;
+        const btn = roleDropdownState.button;
+        if (menu && btn) {
+            roleDropdownState.wrapper.classList.remove('drop-up');
+            menu.classList.remove('drop-up');
+            const rect = btn.getBoundingClientRect();
+            const viewportH = window.innerHeight || document.documentElement.clientHeight || 0;
+            const spaceBelow = Math.max(0, viewportH - rect.bottom - 8);
+            const spaceAbove = Math.max(0, rect.top - 8);
+            const menuHeight = Math.min(280, menu.scrollHeight || 280);
+
+            menu.style.left = rect.left + 'px';
+            menu.style.width = rect.width + 'px';
+
+            if (spaceBelow < Math.min(180, menuHeight) && spaceAbove > spaceBelow) {
+                roleDropdownState.wrapper.classList.add('drop-up');
+                menu.classList.add('drop-up');
+                menu.style.top = 'auto';
+                menu.style.bottom = (viewportH - rect.top + 6) + 'px';
+            } else {
+                menu.style.top = (rect.bottom + 6) + 'px';
+                menu.style.bottom = 'auto';
+            }
+        }
+        roleDropdownState.open = true;
+        roleDropdownState.wrapper.classList.add('open');
+        if (menu) {
+            menu.classList.add('open');
+            menu.style.display = 'block';
+        }
+    }
+    function initCustomRoleDropdown() {
+        if (!elements.roleSelect) return;
+        const wrap = elements.roleSelect.closest('.select-wrapper');
+        if (!wrap) return;
+        
+        // Remove old dropdown wrapper if exists
+        const oldWrapper = wrap.querySelector('.ai-role-dropdown');
+        if (oldWrapper) {
+            oldWrapper.remove();
+        }
+        
+        // Remove old menu from body if exists
+        if (roleDropdownState.menu && roleDropdownState.menu.parentElement) {
+            roleDropdownState.menu.remove();
+        }
+        
+        const dd = document.createElement('div');
+        dd.className = 'ai-role-dropdown';
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'ai-role-dropdown-btn';
+        btn.innerHTML = '<span class="ai-role-dropdown-text"></span><span class="ai-role-dropdown-arrow">▾</span>';
+        const menu = document.createElement('div');
+        menu.className = 'ai-role-dropdown-menu';
+        dd.appendChild(btn);
+        wrap.appendChild(dd);
+        document.body.appendChild(menu);
+        roleDropdownState.wrapper = dd;
+        roleDropdownState.button = btn;
+        roleDropdownState.menu = menu;
+        roleDropdownState.open = false;
+        
+        btn.addEventListener('click', (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            if (roleDropdownState.open) {
+                closeRoleDropdown();
+            } else {
+                closeModelDropdown();
+                openRoleDropdown();
+            }
+        });
+        menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.ai-role-dropdown-item');
+            if (!item) return;
+            const value = item.getAttribute('data-value');
+            if (!value || !elements.roleSelect) return;
+            elements.roleSelect.value = value;
+            elements.roleSelect.dispatchEvent(new Event('change', { bubbles: true }));
+            closeRoleDropdown();
+        });
+        
+        renderRoleDropdownOptions();
+        updateRoleDropdownLabel();
+    }
     async function loadModelsFromApi(force) {
         if (!elements.modelSelect) return;
-        await ensureDirectApiKeyLoaded(force === true);
-        let ids = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels.filter(Boolean) : [];
-        if (ids.length === 0) {
-            const response = await fetch(getAiProxyUrl('ai_models'), { method: 'GET', credentials: 'same-origin' });
-            if (!response.ok) throw new Error(`Failed to fetch models: HTTP ${response.status}`);
-            const payload = await response.json();
-            const models = Array.isArray(payload?.data) ? payload.data : [];
-            ids = models.map((m) => String(m?.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+        
+        try {
+            await ensureDirectApiKeyLoaded(force === true);
+        } catch (e) {
+            // AI not configured - use default model only
+            console.warn('[AI Models] AI not configured, using default model');
+            const defaultModel = AI_CONFIG.defaultModel || 'github/gpt-4o-mini';
+            elements.modelSelect.innerHTML = '';
+            const option = document.createElement('option');
+            option.value = defaultModel;
+            option.textContent = formatModelLabel(defaultModel);
+            elements.modelSelect.appendChild(option);
+            elements.modelSelect.value = defaultModel;
+            aiState.selectedModel = defaultModel;
+            renderModelDropdownOptions();
+            updateModelDropdownLabel();
+            applyModelVisibilityForRole();
+            return;
         }
-        if (ids.length === 0) throw new Error('No models available');
+        
+        let ids = Array.isArray(AI_CONFIG.configuredModels) ? AI_CONFIG.configuredModels.filter(Boolean) : [];
+        
+        if (ids.length === 0) {
+            try {
+                const response = await fetch(getAiProxyUrl('ai_models'), { method: 'GET', credentials: 'same-origin' });
+                if (!response.ok) throw new Error(`Failed to fetch models: HTTP ${response.status}`);
+                const payload = await response.json();
+                const models = Array.isArray(payload?.data) ? payload.data : [];
+                ids = models.map((m) => String(m?.id || '').trim()).filter(Boolean).sort((a, b) => a.localeCompare(b));
+            } catch (e) {
+                console.warn('[AI Models] Failed to fetch from API, using default model');
+            }
+        }
+        
+        // Fallback to default model if no models available
+        if (ids.length === 0) {
+            const defaultModel = AI_CONFIG.defaultModel || 'github/gpt-4o-mini';
+            ids = [defaultModel];
+        }
+        
         const previous = aiState.selectedModel || elements.modelSelect.value || AI_CONFIG.defaultModel;
         elements.modelSelect.innerHTML = '';
         ids.forEach((id) => {
@@ -913,6 +1200,7 @@
             syncModelOptionMeta(option, unavailableModels.has(id));
             elements.modelSelect.appendChild(option);
         });
+        
         const preferredModels = [previous, ...getPreferredModelCandidates()];
         const pickedPreferred = preferredModels.find((id) => ids.includes(id));
         elements.modelSelect.value = pickedPreferred || ids[0];
@@ -950,7 +1238,20 @@
                 flex: 0 0 35% !important;
                 max-width: 35% !important;
             }
+            .ai-controls .select-wrapper:has(#ai-role-select) {
+                flex: 0 0 35% !important;
+                max-width: 35% !important;
+            }
             #ai-model-select {
+                position: absolute !important;
+                opacity: 0 !important;
+                pointer-events: none !important;
+                width: 0 !important;
+                height: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+            #ai-role-select {
                 position: absolute !important;
                 opacity: 0 !important;
                 pointer-events: none !important;
@@ -963,10 +1264,22 @@
                 position: relative !important;
                 width: 100% !important;
             }
+            .ai-role-dropdown {
+                position: relative !important;
+                width: 100% !important;
+            }
             .select-wrapper:has(#ai-model-select) > svg {
                 display: none !important;
             }
+            .select-wrapper:has(#ai-role-select) > svg {
+                display: none !important;
+            }
             .select-wrapper:has(#ai-model-select)::after {
+                display: none !important;
+                content: none !important;
+                background-image: none !important;
+            }
+            .select-wrapper:has(#ai-role-select)::after {
                 display: none !important;
                 content: none !important;
                 background-image: none !important;
@@ -987,7 +1300,30 @@
                 overflow: hidden !important;
                 text-overflow: ellipsis !important;
             }
+            .ai-role-dropdown-btn {
+                width: 100% !important;
+                border: 1px solid var(--border) !important;
+                background: var(--bg) !important;
+                color: var(--fg) !important;
+                border-radius: 999px !important;
+                min-height: 34px !important;
+                padding: 8px 32px 8px 12px !important;
+                text-align: left !important;
+                font-size: 12px !important;
+                cursor: pointer !important;
+                position: relative !important;
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
             .ai-model-dropdown-arrow {
+                position: absolute !important;
+                right: 10px !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                opacity: .75 !important;
+            }
+            .ai-role-dropdown-arrow {
                 position: absolute !important;
                 right: 10px !important;
                 top: 50% !important;
@@ -1024,18 +1360,29 @@
                 box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent) !important;
             }
             .ai-model-dropdown-menu {
-                position: absolute !important;
-                top: calc(100% + 6px) !important;
-                left: 0 !important;
-                right: 0 !important;
+                position: fixed !important;
                 max-height: 280px !important;
                 overflow-y: auto !important;
                 background: var(--panel) !important;
                 border: 1px solid var(--border) !important;
                 border-radius: 10px !important;
                 padding: 6px !important;
-                z-index: 120 !important;
-                display: none !important;
+                z-index: 9999999 !important;
+                display: none;
+                box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
+                scrollbar-width: thin !important;
+                scrollbar-color: rgba(160,160,170,.75) transparent !important;
+            }
+            .ai-role-dropdown-menu {
+                position: fixed !important;
+                max-height: 280px !important;
+                overflow-y: auto !important;
+                background: var(--panel) !important;
+                border: 1px solid var(--border) !important;
+                border-radius: 10px !important;
+                padding: 6px !important;
+                z-index: 9999999 !important;
+                display: none;
                 box-shadow: 0 8px 18px rgba(0,0,0,.18) !important;
                 scrollbar-width: thin !important;
                 scrollbar-color: rgba(160,160,170,.75) transparent !important;
@@ -1044,7 +1391,21 @@
                 top: auto !important;
                 bottom: calc(100% + 6px) !important;
             }
+            .ai-role-dropdown.drop-up .ai-role-dropdown-menu {
+                top: auto !important;
+                bottom: calc(100% + 6px) !important;
+            }
             .ai-model-dropdown.open .ai-model-dropdown-menu {
+                display: block !important;
+            }
+            .ai-role-dropdown.open .ai-role-dropdown-menu {
+                display: block !important;
+            }
+            /* The menu itself lives in <body>, so the .open class is applied to it
+               and not only to the wrapper — otherwise display:none!important kept
+               every dropdown closed. */
+            .ai-model-dropdown-menu.open,
+            .ai-role-dropdown-menu.open {
                 display: block !important;
             }
             .ai-model-dropdown-menu::-webkit-scrollbar {
@@ -1052,26 +1413,64 @@
                 height: 6px !important;
                 background: transparent !important;
             }
+            .ai-role-dropdown-menu::-webkit-scrollbar {
+                width: 6px !important;
+                height: 6px !important;
+                background: transparent !important;
+            }
             .ai-model-dropdown-menu::-webkit-scrollbar-track {
+                background: transparent !important;
+            }
+            .ai-role-dropdown-menu::-webkit-scrollbar-track {
                 background: transparent !important;
             }
             .ai-model-dropdown-menu::-webkit-scrollbar-thumb {
                 background: rgba(160,160,170,.75) !important;
                 border-radius: 999px !important;
             }
+            .ai-role-dropdown-menu::-webkit-scrollbar-thumb {
+                background: rgba(160,160,170,.75) !important;
+                border-radius: 999px !important;
+            }
             .ai-model-dropdown-item {
                 width: 100% !important;
                 border: 0 !important;
+                outline: none !important;
                 background: transparent !important;
                 color: var(--fg) !important;
                 text-align: left !important;
-                padding: 7px 8px !important;
-                border-radius: 7px !important;
+                padding: 8px 12px !important;
+                border-radius: 6px !important;
                 cursor: pointer !important;
-                font-size: 12px !important;
+                font-size: 13px !important;
+                transition: background 0.15s ease !important;
             }
-            .ai-model-dropdown-item:hover,.ai-model-dropdown-item.is-selected {
-                background: var(--bg) !important;
+            .ai-role-dropdown-item {
+                width: 100% !important;
+                border: 0 !important;
+                outline: none !important;
+                background: transparent !important;
+                color: var(--fg) !important;
+                text-align: left !important;
+                padding: 8px 12px !important;
+                border-radius: 6px !important;
+                cursor: pointer !important;
+                font-size: 13px !important;
+                transition: background 0.15s ease !important;
+            }
+            .ai-model-dropdown-item:hover {
+                background: var(--bg-hover, rgba(0,0,0,0.05)) !important;
+            }
+            .ai-model-dropdown-item.is-selected {
+                background: var(--bg-selected, rgba(0,0,0,0.08)) !important;
+                font-weight: 500 !important;
+            }
+            .ai-role-dropdown-item:hover {
+                background: var(--bg-hover, rgba(0,0,0,0.05)) !important;
+            }
+            .ai-role-dropdown-item.is-selected {
+                background: var(--bg-selected, rgba(0,0,0,0.08)) !important;
+                font-weight: 500 !important;
             }
             .ai-model-dropdown-divider {
                 height: 1px !important;
@@ -1163,6 +1562,42 @@
                 flex: 1 1 auto !important;
                 order: 2 !important;
             }
+            .ai-link-previews {
+                display: flex !important;
+                flex: 0 0 100% !important;
+                flex-wrap: wrap !important;
+                gap: 6px !important;
+                order: 1 !important;
+            }
+            .ai-link-previews:empty { display: none !important; }
+            .ai-link-card {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                max-width: 100%;
+                padding: 5px 8px;
+                border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
+                border-radius: 8px;
+                background: color-mix(in srgb, var(--panel) 68%, transparent);
+                color: var(--text);
+                font-size: 12px;
+                line-height: 16px;
+                text-decoration: none;
+                vertical-align: middle;
+            }
+            .ai-link-card:hover { background: var(--panel); }
+            .ai-link-card-icon {
+                width: 16px;
+                height: 16px;
+                flex: 0 0 16px;
+                border-radius: 3px;
+            }
+            .ai-link-card-domain {
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            .message.user-message .ai-link-card { margin: 1px 2px; }
             #btn-ai-send {
                 border-radius: 999px !important;
                 width: 38px !important;
@@ -1173,6 +1608,17 @@
                 margin: 0 !important;
                 order: 3 !important;
             }
+
+            .ai-composer-row {
+                display: flex !important;
+                align-items: center !important;
+                gap: 6px !important;
+                width: 100% !important;
+                min-width: 0 !important;
+                flex: 0 0 100% !important;
+                order: 2 !important;
+            }
+            .ai-composer-row #ai-input-text { flex: 1 1 auto !important; }
 
             .ai-attachments-row {
                 display: flex !important;
@@ -1729,25 +2175,23 @@
                 color: var(--fg) !important;
             }
             .ai-agent-plan-head .ai-agent-plan-pulse {
-                width: 8px !important;
-                height: 8px !important;
-                border-radius: 50% !important;
-                background: var(--accent) !important;
+                width: 18px !important;
+                height: 18px !important;
+                display: inline-flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                color: var(--accent) !important;
                 animation: ai-agent-pulse 1.2s ease-in-out infinite !important;
             }
-            .ai-agent-plan.running .ai-agent-plan-pulse { display: inline-block !important; }
+            .ai-agent-plan-head .ai-agent-plan-pulse svg { width: 18px !important; height: 18px !important; }
             .ai-agent-plan.done .ai-agent-plan-pulse {
-                display: none !important;
                 animation: none !important;
                 opacity: 1 !important;
                 transform: none !important;
             }
-            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse,
-            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse,
-            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { display: inline-block !important; }
-            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse { background: #6fbf3f !important; }
-            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse { background: #d14a4a !important; }
-            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { background: color-mix(in srgb, var(--fg) 35%, transparent) !important; }
+            .ai-agent-plan.done.outcome-success .ai-agent-plan-pulse { color: #6fbf3f !important; }
+            .ai-agent-plan.done.outcome-error .ai-agent-plan-pulse { color: #d14a4a !important; }
+            .ai-agent-plan.done.outcome-stopped .ai-agent-plan-pulse { color: color-mix(in srgb, var(--fg) 45%, transparent) !important; }
             .ai-agent-plan.ai-agent-plan-empty { display: none !important; }
             .ai-agent-stream-shell {
                 display: none !important;
@@ -1798,6 +2242,7 @@
                 background: var(--border) !important;
                 color: var(--muted) !important;
             }
+            .ai-agent-plan-icon svg { width: 13px !important; height: 13px !important; }
             .ai-agent-plan-step.running .ai-agent-plan-icon { background: var(--accent) !important; color: #fff !important; }
             .ai-agent-plan-step.done .ai-agent-plan-icon { background: #85b503 !important; color: #111 !important; }
             .ai-agent-plan-step.error .ai-agent-plan-icon { background: var(--ai-err-icon-bg, #d14a4a) !important; color: #fff !important; }
@@ -2841,6 +3286,7 @@
         await resolveAgentUserRole();
         applySavedSettings();
         initCustomModelDropdown();
+        initCustomRoleDropdown();
         applyModelVisibilityForRole();
         initChatScrollbar();
         try {
@@ -2896,6 +3342,8 @@
             if (optionExists) {
                 elements.roleSelect.value = aiState.selectedRole;
             }
+            updateRoleDropdownLabel();
+            renderRoleDropdownOptions();
         }
         if (elements.modeSelect) elements.modeSelect.checked = (aiState.chatMode || 'chat') === 'agent';
         if (elements.notifyCheckbox) elements.notifyCheckbox.checked = !!aiState.notifyOnComplete;
@@ -2930,7 +3378,8 @@
             mentionSuggestions: document.getElementById('mention-suggestions'),
             rememberCheckbox: document.getElementById('ai-remember-prev'),
             notifyCheckbox: document.getElementById('ai-notify-complete'),
-            attachmentsRow: document.getElementById('ai-attachments-row')
+            attachmentsRow: document.getElementById('ai-attachments-row'),
+            linkPreviews: document.getElementById('ai-link-previews')
         };
         
         ensureElementsExist();
@@ -2943,6 +3392,7 @@
         elements.modeSelect = document.getElementById('ai-mode-select') || elements.modeSelect;
         elements.settingsBtn = document.getElementById('btn-ai-settings') || elements.settingsBtn;
         elements.settingsModal = document.getElementById('ai-controls-modal') || elements.settingsModal;
+        elements.linkPreviews = document.getElementById('ai-link-previews') || elements.linkPreviews;
         ensureChatSessionControls();
         
         if (elements.modelSelect) {
@@ -2958,7 +3408,11 @@
             });
         }
         if (elements.roleSelect) {
-            elements.roleSelect.addEventListener('change', saveSettings);
+            elements.roleSelect.addEventListener('change', () => {
+                saveSettings();
+                updateRoleDropdownLabel();
+                renderRoleDropdownOptions();
+            });
         }
     }
 
@@ -2978,6 +3432,16 @@
                 attachmentsRow.className = 'ai-attachments-row hidden';
                 aiInput.insertBefore(attachmentsRow, elements.input);
                 elements.attachmentsRow = attachmentsRow;
+            }
+        }
+        if (!elements.linkPreviews) {
+            const aiInput = modalContent.querySelector('.ai-input');
+            if (aiInput && elements.input) {
+                const previews = document.createElement('div');
+                previews.id = 'ai-link-previews';
+                previews.className = 'ai-link-previews';
+                aiInput.insertBefore(previews, elements.input);
+                elements.linkPreviews = previews;
             }
         }
         
@@ -3202,9 +3666,13 @@
             aiInput.insertBefore(selectorsRow, aiInput.firstChild);
         }
         const modelWrap = elements.modelSelect?.parentElement || null;
+        const roleWrap = elements.roleSelect?.parentElement || null;
         const modeWrap = elements.modeSelect?.closest('.ai-mode-switch') || null;
         if (selectorsRow && modelWrap && modelWrap.parentElement !== selectorsRow) {
             selectorsRow.appendChild(modelWrap);
+        }
+        if (selectorsRow && roleWrap && roleWrap.parentElement !== selectorsRow) {
+            selectorsRow.appendChild(roleWrap);
         }
         if (selectorsRow && modeWrap && modeWrap.parentElement !== selectorsRow) {
             selectorsRow.appendChild(modeWrap);
@@ -3231,11 +3699,22 @@
         if (inputActionStack && elements.attachWrap && elements.attachWrap.parentElement !== inputActionStack) {
             inputActionStack.appendChild(elements.attachWrap);
         }
+        let composerRow = aiInput?.querySelector('.ai-composer-row') || null;
+        if (!composerRow && aiInput && elements.input && elements.sendBtn) {
+            composerRow = document.createElement('div');
+            composerRow.className = 'ai-composer-row';
+            aiInput.appendChild(composerRow);
+        }
+        if (composerRow) {
+            if (inputActionStack && inputActionStack.parentElement !== composerRow) composerRow.appendChild(inputActionStack);
+            if (elements.input.parentElement !== composerRow) composerRow.appendChild(elements.input);
+            if (elements.sendBtn.parentElement !== composerRow) composerRow.appendChild(elements.sendBtn);
+        }
         if (!elements.settingsModal) {
             const modal = document.createElement('div');
             modal.id = 'ai-controls-modal';
             modal.className = 'ai-controls-modal hidden';
-            modal.innerHTML = '<div class="ai-controls-modal-card"><div class="ai-controls-modal-head"><strong data-i18n-ai="aiSettings">Settings</strong><button type="button" class="icon-btn small ai-controls-modal-close" aria-label="close"><svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div><div class="ai-controls-modal-body"></div></div>';
+            modal.innerHTML = '<div class="ai-controls-modal-card"><div class="ai-controls-modal-head"><strong data-i18n-ai="aiSettings">Settings</strong><button type="button" class="icon-btn close-btn ai-controls-modal-close" aria-label="close"><svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></button></div><div class="ai-controls-modal-body"></div></div>';
             modalContent.appendChild(modal);
             elements.settingsModal = modal;
         }
@@ -3265,6 +3744,15 @@
         };
         ensureRow(elements.notifyCheckbox?.parentElement, 'aiNotifyOnComplete', 'Notify when finished');
         ensureRow(elements.roleSelect?.parentElement, 'aiRole', 'Role');
+        
+        // Reinitialize role dropdown after moving to settings modal
+        if (elements.roleSelect) {
+            roleDropdownState.wrapper = null;
+            roleDropdownState.button = null;
+            roleDropdownState.menu = null;
+            roleDropdownState.open = false;
+            initCustomRoleDropdown();
+        }
     }
 
     function attachEventListeners() {
@@ -3306,6 +3794,11 @@
         if (elements.input) {
             elements.input.addEventListener('keydown', handleInputKeydown);
             elements.input.addEventListener('input', handleMentionInput);
+            elements.input.addEventListener('input', () => renderLinkPreviews(elements.input.value));
+            elements.input.addEventListener('paste', () => {
+                requestAnimationFrame(() => renderLinkPreviews(elements.input.value));
+            });
+            renderLinkPreviews(elements.input.value);
             setupAiTreeDropZone();
         }
 
@@ -3351,7 +3844,19 @@
         }
 
         document.addEventListener('click', async (e) => {
-            if (modelDropdownState.wrapper && !modelDropdownState.wrapper.contains(e.target)) closeModelDropdown();
+            // Check if click is inside model dropdown (button or menu)
+            const clickedModelBtn = modelDropdownState.wrapper && modelDropdownState.wrapper.contains(e.target);
+            const clickedModelMenu = modelDropdownState.menu && modelDropdownState.menu.contains(e.target);
+            if (!clickedModelBtn && !clickedModelMenu && modelDropdownState.open) {
+                closeModelDropdown();
+            }
+            
+            // Check if click is inside role dropdown (button or menu)
+            const clickedRoleBtn = roleDropdownState.wrapper && roleDropdownState.wrapper.contains(e.target);
+            const clickedRoleMenu = roleDropdownState.menu && roleDropdownState.menu.contains(e.target);
+            if (!clickedRoleBtn && !clickedRoleMenu && roleDropdownState.open) {
+                closeRoleDropdown();
+            }
             if (elements.attachWrap && elements.attachWrap.contains(e.target)) {
                 // keep dropdown open until toggle or outside click
             } else {
@@ -4122,6 +4627,29 @@
     }
 
     function syncMentionedAttachmentsFromInput(inputValue) {
+        const source = String(inputValue || '');
+        const detected = extractMentionedFileNames(source);
+        if (detected.length) {
+            if (!Array.isArray(aiState.selectedMentionFiles)) aiState.selectedMentionFiles = [];
+            if (!Array.isArray(aiState.mentionPlacements)) aiState.mentionPlacements = [];
+            detected.forEach((name) => {
+                const normalized = normalizeMentionedFilePath(name);
+                if (!normalized || aiState.selectedMentionFiles.includes(normalized)) return;
+                aiState.selectedMentionFiles.push(normalized);
+                aiState.mentionPlacements.push({ name: normalized, index: String(inputValue || '').indexOf(`@${name}`) });
+            });
+            let cleaned = source;
+            detected.forEach((name) => {
+                const escaped = String(name).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                cleaned = cleaned.replace(new RegExp(`(^|\\s)@${escaped}(?=\\s|$)`, 'g'), '$1').replace(/\s{2,}/g, ' ');
+            });
+            if (cleaned !== source && elements.input && elements.input.value === source) {
+                const cursor = elements.input.selectionStart || cleaned.length;
+                elements.input.value = cleaned;
+                elements.input.selectionStart = Math.min(cursor, cleaned.length);
+                elements.input.selectionEnd = elements.input.selectionStart;
+            }
+        }
         renderMentionedAttachments();
     }
 
@@ -5143,7 +5671,7 @@
             plan.className = 'ai-agent-plan running ai-agent-plan-empty';
             const head = document.createElement('div');
             head.className = 'ai-agent-plan-head';
-            head.innerHTML = '<span class="ai-agent-plan-pulse"></span><span class="ai-agent-plan-head-text"></span>';
+            head.innerHTML = '<span class="ai-agent-plan-pulse" aria-hidden="true"></span><span class="ai-agent-plan-head-text"></span>';
             const steps = document.createElement('div');
             steps.className = 'ai-agent-plan-steps';
             const streamShell = document.createElement('div');
@@ -5242,6 +5770,18 @@
         return isChatToolRunMode()
             ? tr('aiChatThinking', 'Thinking…')
             : tr('aiAgentThinking', 'Thinking…');
+    }
+    function agentPlanStatusLabel(status) {
+        return tr({ running: 'aiStatusRunning', done: 'aiStatusSuccess', error: 'aiStatusError', pending: 'aiStatusPending' }[status] || 'aiStatusPending', status || 'Pending');
+    }
+    function agentPlanStatusIconMarkup(status) {
+        const icons = {
+            running: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7v5l3 2"/></svg>',
+            done: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg>',
+            error: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true"><path d="m7 7 10 10M17 7 7 17"/></svg>',
+            pending: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l2.5 1.5"/></svg>'
+        };
+        return icons[status] || icons.pending;
     }
     function applyToolRunRoleToMessage(messageId) {
         if (!messageId) return;
@@ -5592,7 +6132,10 @@
         row.className = `ai-agent-plan-step ${step.status || 'pending'}`;
         const icon = document.createElement('span');
         icon.className = 'ai-agent-plan-icon';
-        icon.textContent = step.status === 'done' ? '✓' : (step.status === 'error' ? '!' : (step.status === 'running' ? '…' : '·'));
+        const status = step.status || 'pending';
+        icon.innerHTML = agentPlanStatusIconMarkup(status);
+        icon.title = agentPlanStatusLabel(status);
+        icon.setAttribute('aria-label', agentPlanStatusLabel(status));
         const label = document.createElement('span');
         label.className = 'ai-agent-plan-label';
         const toolIcon = document.createElement('span');
@@ -5655,6 +6198,12 @@
         plan.classList.toggle('outcome-error', outcome === 'error');
         plan.classList.toggle('outcome-stopped', outcome === 'stopped');
         const headText = plan.querySelector('.ai-agent-plan-head-text');
+        const headIcon = plan.querySelector('.ai-agent-plan-pulse');
+        const headStatus = running ? 'running' : (outcome === 'success' ? 'done' : (outcome === 'error' ? 'error' : 'pending'));
+        if (headIcon) {
+            headIcon.innerHTML = agentPlanStatusIconMarkup(headStatus);
+            headIcon.title = agentPlanStatusLabel(headStatus);
+        }
         if (headText) {
             headText.textContent = running ? getToolRunWorkingLabel() : getToolRunPlanDoneLabel();
         }
@@ -6584,11 +7133,21 @@
         if (!message) return [];
         const mentions = [];
         const seen = new Set();
-        const mentionRegex = /(^|\s)@([^\s@]+)/g;
         const knownExts = '(?:md|markdown|tex|latex|txt|json|csv|xml|html?|css|js|mjs|cjs|ts|tsx|jsx|vue|php|py|rb|go|java|cs|c|cc|cpp|h|hpp|sh|ya?ml|sql|log|ini|toml|cfg|env|rst|pdf|docx?|xlsx?|pptx?)';
+        const extMentionRegex = new RegExp(`(^|\\s)@((?:[^\\s@]+\\s+)*?[^\\s@]+\\.${knownExts})(?=\\s|$)`, 'gi');
+        let extMatch;
+        while ((extMatch = extMentionRegex.exec(message)) !== null) {
+            let token = extMatch[2].trim().replace(/^[\("'`\[]+/, '').replace(/[\)"'`\].,;:!?]+$/, '');
+            if (token && !token.includes('\\') && !token.includes('..') && !seen.has(token)) {
+                seen.add(token);
+                mentions.push(token);
+            }
+        }
+        const maskedMessage = message.replace(extMentionRegex, '$1');
+        const mentionRegex = /(^|\s)@([^\s@]+)/g;
         let match;
 
-        while ((match = mentionRegex.exec(message)) !== null) {
+        while ((match = mentionRegex.exec(maskedMessage)) !== null) {
             let token = (match[2] || '').trim();
             token = token.replace(/^[("'`\[]+/, '').replace(/[)"'`\].,;:!?]+$/, '');
             const extMatch = token.match(new RegExp(`^(.+?\\.${knownExts})(?=[^/._-].*)`, 'i'));
@@ -6731,6 +7290,10 @@
         if (ocrModal && !ocrModal.classList.contains('hidden')) {
             return;
         }
+
+        // Close dropdowns when modal closes
+        closeModelDropdown();
+        closeRoleDropdown();
 
         elements.modal.classList.remove('ai-open');
         document.documentElement.classList.remove('ai-modal-open');
@@ -6970,7 +7533,11 @@
         }
         const virtualKeyboard = navigator.virtualKeyboard;
         if (virtualKeyboard && modalContent.dataset.virtualKeyboardBound !== '1') {
-            try { virtualKeyboard.overlaysContent = true; } catch (_) {}
+            try {
+                if (window.self === window.top) {
+                    virtualKeyboard.overlaysContent = true;
+                }
+            } catch (_) {}
             virtualKeyboard.addEventListener('geometrychange', scheduleModalViewportHeightSync);
             modalContent.dataset.virtualKeyboardBound = '1';
         }
@@ -7142,6 +7709,7 @@
                 e.stopPropagation();
                 menu.classList.toggle('hidden');
                 if (!menu.classList.contains('hidden')) {
+                    renderAiChatSessions();
                     const pr = menu.parentElement.getBoundingClientRect();
                     menu.style.left = '0';
                     menu.style.right = 'auto';
@@ -7250,7 +7818,7 @@
             modal = document.createElement('div');
             modal.id = 'ai-chat-manager-modal';
             modal.className = 'modal hidden';
-            modal.innerHTML = '<div class="modal-content ai-chat-manager-content"><div class="modal-header"><h3></h3><button type="button" class="icon-btn close-btn" aria-label="Close">×</button></div><div class="modal-body"><input type="search" class="ai-chat-manager-search" /><div class="ai-chat-manager-list"></div><p class="ai-chat-retention-note"></p></div></div>';
+            modal.innerHTML = '<div class="modal-content ai-chat-manager-content"><div class="modal-header"><h3></h3><button type="button" class="icon-btn close-btn" aria-label="Close">×</button></div><div class="modal-body"><div class="ai-chat-manager-search-wrap"><input type="search" class="ai-chat-manager-search" /><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg></div><div class="ai-chat-manager-list"></div><p class="ai-chat-retention-note"></p><button type="button" class="ai-chat-manager-clear"></button></div></div>';
             document.body.appendChild(modal);
             modal.querySelector('.close-btn').addEventListener('click', () => modal.classList.add('hidden'));
             modal.addEventListener('click', (e) => { if (e.target === modal) modal.classList.add('hidden'); });
@@ -7259,6 +7827,13 @@
         modal.querySelector('h3').textContent = tr('aiManageChats', 'Manage chats');
         modal.querySelector('.ai-chat-manager-search').placeholder = tr('aiSearchChats', 'Search chats');
         modal.querySelector('.ai-chat-retention-note').textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
+        modal.querySelector('.ai-chat-manager-clear').textContent = tr('aiDeleteAllChats', 'Delete all chats');
+        modal.querySelector('.ai-chat-manager-clear').onclick = async () => {
+            if (!confirm(tr('aiDeleteAllChatsConfirm', 'Delete all chats?'))) return;
+            await Promise.all((aiState.chatSessions || []).map((chat) => deleteAiChat(chat.id)));
+            await loadAiChatSessions();
+            renderAiChatManagerList();
+        };
         modal.classList.remove('hidden');
         renderAiChatManagerList();
     }
@@ -7278,7 +7853,10 @@
             const row = document.createElement('button');
             row.type = 'button';
             row.className = 'ai-chat-menu-item';
-            row.innerHTML = '<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="' + escapeHtml(tr('aiDeleteChat', 'Delete chat')) + '">×</span>';
+            const isGenerating = String(chat.id) === String(aiState.generatingChatId || '');
+            row.innerHTML = '<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span>' + (isGenerating
+                ? '<span class="ai-chat-generation-dots" aria-label="Generating"><i></i><i></i><i></i></span>'
+                : '<span class="ai-chat-menu-delete" title="' + escapeHtml(tr('aiDeleteChat', 'Delete chat')) + '">×</span>');
             row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
             row.querySelector('.ai-chat-menu-date').textContent = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleString() : '';
             row.addEventListener('click', (e) => {
@@ -7305,22 +7883,9 @@
         notice.className = 'ai-chat-retention-note';
         notice.textContent = tr('aiChatRetentionNote', 'Chats older than 30 days will be deleted.');
         menu.appendChild(notice);
-        const search = document.createElement('input');
-        search.type = 'search';
-        search.className = 'ai-chat-menu-search';
-        search.placeholder = tr('aiSearchChats', 'Search chats');
-        search.value = filterQuery || '';
-        search.addEventListener('input', () => renderAiChatSessions(search.value));
-        search.addEventListener('click', (e) => e.stopPropagation());
-        const searchWrap = document.createElement('div');
-        searchWrap.className = 'ai-chat-menu-search-wrap';
-        searchWrap.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.2-3.2"></path></svg>';
-        searchWrap.appendChild(search);
-        menu.appendChild(searchWrap);
         const q = String(filterQuery || '').trim().toLowerCase();
         const chats = (aiState.chatSessions || []).filter((chat) => !q || String(chat.title || '').toLowerCase().includes(q));
-        const PREVIEW_LIMIT = 8;
-        const preview = chats.slice(0, PREVIEW_LIMIT);
+        const preview = chats.slice();
         buildChatDividerNodes(preview).forEach((node) => {
             if (node && node.className === 'ai-chat-menu-divider') {
                 menu.appendChild(node);
@@ -7332,7 +7897,8 @@
             row.className = 'ai-chat-menu-item' + (String(chat.id) === String(aiState.activeChatId) ? ' active' : '');
             row.dataset.chatId = String(chat.id || '');
             const date = chat.updated_at ? new Date(Number(chat.updated_at) * 1000).toLocaleDateString() : '';
-            row.innerHTML = `<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span><span class="ai-chat-menu-delete" title="${escapeHtml(tr('aiDeleteChat', 'Delete chat'))}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d92d20" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>`;
+            const isGenerating = String(chat.id) === String(aiState.generatingChatId || '');
+            row.innerHTML = `<span class="ai-chat-menu-title"></span><span class="ai-chat-menu-date"></span>${isGenerating ? '<span class="ai-chat-generation-dots" aria-label="Generating"><i></i><i></i><i></i></span>' : `<span class="ai-chat-menu-delete" title="${escapeHtml(tr('aiDeleteChat', 'Delete chat'))}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#d92d20" stroke-width="2"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/></svg></span>`}`;
             row.querySelector('.ai-chat-menu-title').textContent = chat.title || 'New chat';
             row.querySelector('.ai-chat-menu-date').textContent = date;
             row.addEventListener('click', (e) => {
@@ -7346,7 +7912,7 @@
             });
             menu.appendChild(row);
         });
-        if (chats.length > PREVIEW_LIMIT) {
+        if (chats.length > 0) {
             const manage = document.createElement('button');
             manage.type = 'button';
             manage.className = 'ai-chat-menu-manage';
@@ -7357,12 +7923,17 @@
                 openAiChatManager();
             });
             menu.appendChild(manage);
-        }
-        if (search.value) {
+            menu.style.paddingBottom = '48px';
             requestAnimationFrame(() => {
-                search.focus();
-                const len = search.value.length;
-                try { search.setSelectionRange(len, len); } catch (_) {}
+                if (!menu.clientHeight) return;
+                while (menu.scrollHeight > menu.clientHeight) {
+                    const rows = menu.querySelectorAll('.ai-chat-menu-item');
+                    if (!rows.length) break;
+                    rows[rows.length - 1].remove();
+                    const dividers = menu.querySelectorAll('.ai-chat-menu-divider');
+                    const lastDivider = dividers[dividers.length - 1];
+                    if (lastDivider && (!lastDivider.nextElementSibling || !lastDivider.nextElementSibling.matches('.ai-chat-menu-item'))) lastDivider.remove();
+                }
             });
         }
     }
@@ -7376,11 +7947,7 @@
             });
             const data = await res.json();
             if (!data.success) throw new Error(data.error || 'Failed to load chats');
-            const activeBeforeLoad = aiState.activeChatId;
             aiState.chatSessions = Array.isArray(data.items) ? data.items : [];
-            if (activeBeforeLoad && String(activeBeforeLoad).startsWith('tmp_') && !aiState.chatSessions.some((c) => String(c.id) === String(activeBeforeLoad))) {
-                aiState.chatSessions.unshift({ id: activeBeforeLoad, title: 'New chat', updated_at: Math.floor(Date.now() / 1000) });
-            }
             if (!aiState.activeChatId || !aiState.chatSessions.some((c) => String(c.id) === String(aiState.activeChatId))) {
                 aiState.activeChatId = String(aiState.chatSessions[0]?.id || '');
                 localStorage.setItem('cloud_ai_active_chat_id', aiState.activeChatId);
@@ -7395,6 +7962,20 @@
         localStorage.setItem('cloud_ai_active_chat_id', chatId);
         resetChatPagination();
         await loadChatHistoryPage(false);
+        restoreActiveGeneration();
+    }
+
+    function restoreActiveGeneration() {
+        if (!aiState.isGenerating || String(aiState.activeChatId) !== String(aiState.generatingChatId)) return;
+        const generation = aiState.generationMessageDiv;
+        if (aiState.generationUserMessage && !elements.chat?.querySelector(`[data-generation-user="${aiState.generatingChatId}"]`)) {
+            const userId = addMessageToUI('user', aiState.generationUserMessage.content, false, null, false, aiState.generationUserMessage.attachments, aiState.generationUserMessage.mentionedFiles);
+            const userEl = userId ? document.getElementById(userId) : null;
+            if (userEl) userEl.dataset.generationUser = aiState.generatingChatId;
+        }
+        if (generation && !generation.isConnected) elements.chat?.appendChild(generation);
+        if (aiState.generationMessageDiv && !aiState.generationMessageDiv.style.display) return;
+        if (!document.getElementById('typingIndicator')) showTypingIndicator();
     }
 
     async function createAiChat() {
@@ -7852,7 +8433,7 @@
         plan.className = 'ai-agent-plan done';
         const head = document.createElement('div');
         head.className = 'ai-agent-plan-head';
-        head.innerHTML = `<span class="ai-agent-plan-pulse"></span><span class="ai-agent-plan-head-text">${escapeHtml(tr('aiAgentPlanDone', 'Agent plan'))}</span>`;
+        head.innerHTML = `<span class="ai-agent-plan-pulse" aria-hidden="true">${agentPlanStatusIconMarkup('done')}</span><span class="ai-agent-plan-head-text">${escapeHtml(tr('aiAgentPlanDone', 'Agent plan'))}</span>`;
         const stepsEl = document.createElement('div');
         stepsEl.className = 'ai-agent-plan-steps';
         steps.forEach((step) => appendPlanStepRow(stepsEl, { ...step, label: planLabelFromStoredStep(step) || step.label }));
@@ -7923,7 +8504,7 @@
         clearChatMessages();
         aiState.chatHistory.forEach((message) => {
             if (message.role === 'user') {
-                addMessageToUI('user', message.content, false, message.id, false);
+                addMessageToUI('user', message.content, false, message.id, false, message.attachments, message.mentionedFiles);
             } else if (message.isAgent && message.agentMeta) {
                 renderAgentHistoryBlock(message.id, message.agentMeta, message.content, message.stats);
             } else {
@@ -8397,7 +8978,7 @@
         return container;
     }
 
-    function addMessageToUI(role, content, saveToHistory = true, messageId = null, autoScroll = true) {
+    function addMessageToUI(role, content, saveToHistory = true, messageId = null, autoScroll = true, attachments = null, mentionedFiles = null) {
         if (!elements.chat) return null;
         
         const id = messageId || 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
@@ -8422,13 +9003,40 @@
         if (role === 'user') {
             const contentDiv = document.createElement('div');
             contentDiv.className = 'message-content';
-            contentDiv.textContent = content;
+            contentDiv.appendChild(createUserMessageContent(content));
             messageDiv.appendChild(contentDiv);
+            const attached = serializePendingAttachments(attachments || []);
+            const mentioned = (Array.isArray(mentionedFiles) ? mentionedFiles : []).filter(Boolean);
+            if (attached.length || mentioned.length) {
+                const files = document.createElement('div');
+                files.className = 'ai-message-attachments';
+                files.style.cssText = 'display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;';
+                attached.forEach((file) => {
+                    const item = document.createElement('span');
+                    item.className = 'ai-message-attachment';
+                    item.innerHTML = getAttachmentFileIconMarkup(file.name) + '<span></span>';
+                    item.querySelector('span:last-child').textContent = file.name || 'file';
+                    item.style.cssText = 'display:inline-flex;align-items:center;padding:4px 9px;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--muted);font-size:11px;';
+                    files.appendChild(item);
+                });
+                mentioned.forEach((name) => {
+                    const item = document.createElement('span');
+                    item.className = 'ai-message-attachment';
+                    item.innerHTML = getAttachmentFileIconMarkup(name) + '<span></span>';
+                    item.querySelector('span:last-child').textContent = name;
+                    item.style.cssText = 'display:inline-flex;align-items:center;padding:4px 9px;border:1px solid var(--border);border-radius:999px;background:var(--panel);color:var(--muted);font-size:11px;';
+                    files.appendChild(item);
+                });
+                messageDiv.appendChild(files);
+            }
             const footer = document.createElement('div');
             footer.className = 'message-footer';
             const actions = document.createElement('div');
             actions.className = 'message-actions';
-            actions.appendChild(createCopyButton(content, true));
+            const copyContent = mentioned.length
+                ? `${content}\n\n${mentioned.map((name) => `@${name}`).join(' ')}`
+                : content;
+            actions.appendChild(createCopyButton(copyContent, true));
             footer.appendChild(actions);
             messageDiv.appendChild(footer);
         } else {
@@ -8982,9 +9590,11 @@
 
     function getToolLoopHistory(messages, currentTask) {
         const task = String(currentTask || '').trim();
-        return (messages || [])
+        const history = (messages || [])
             .filter((m) => m && (m.role === 'system' || m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
             .filter((m) => !(m.role === 'user' && String(m.content || '').trim() === task));
+        const remembered = (aiState.agentReadMemory || []).slice(-12);
+        return remembered.length ? [{ role: 'user', content: '[Files already read in this agent session]\n' + remembered.join('\n\n---\n\n') }, ...history] : history;
     }
 
     async function sendChatWithTools(messageWithMentions, contextMessages, requestModel, rootOverride = '', pathRoots = null, openPath = '') {
@@ -9027,6 +9637,12 @@
                 return stepId;
             },
             onToolEnd: (stepId, name, _detail, result) => {
+                if (['read_file', 'search_in_files', 'search_by_regex', 'extract_document_text'].includes(name)) {
+                    const text = String(result?.content || result?.output || result?.result || '').trim();
+                    if (text) {
+                        aiState.agentReadMemory = [...(aiState.agentReadMemory || []).filter((entry) => !entry.startsWith(`[${name}]`)), `[${name}]\n${text.slice(0, 12000)}`].slice(-12);
+                    }
+                }
                 const summary = agentPlanResultSummary(name, result);
                 const isErr = !!(result?.error || result?.success === false);
                 if (isErr) logAiError(`Tool ${name} failed`, result?.error || result?.output || result);
@@ -9251,6 +9867,8 @@
                 return;
             }
             await ensureAiChatSessionForRequest();
+            aiState.generatingChatId = String(aiState.activeChatId || '');
+            renderAiChatSessions();
 
         aiState.abortController = new AbortController();
 
@@ -9260,7 +9878,7 @@
             typeof options.messageOverride === 'string'
                 ? message
                 : rebuildMessageWithMentions(message, aiState.mentionPlacements || []);
-        const attachmentsForRequest = Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments;
+        const attachmentsForRequest = (Array.isArray(options.attachmentsOverride) ? options.attachmentsOverride : aiState.externalAttachments).slice();
         const mentionedFilesForRequest = Array.isArray(options.mentionedFilesOverride) ? options.mentionedFilesOverride.slice() : (Array.isArray(aiState.selectedMentionFiles) ? aiState.selectedMentionFiles.slice() : []);
         const mentionedRootsForRequest = options.mentionedRootsOverride && typeof options.mentionedRootsOverride === 'object'
             ? { ...options.mentionedRootsOverride }
@@ -9269,9 +9887,15 @@
             .map((p) => mentionedRootsForRequest[normalizeMentionedFilePath(p)] || '')
             .find(Boolean) || getRootForToolRun();
 
-        if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false);
+        if (!options.skipUserMessageUI) addMessageToUI('user', userFacingMessage, false, null, true, attachmentsForRequest, mentionedFilesForRequest);
+        aiState.generationUserMessage = {
+            content: userFacingMessage,
+            attachments: serializePendingAttachments(attachmentsForRequest),
+            mentionedFiles: mentionedFilesForRequest.slice()
+        };
         if (!options.skipUserInputReset && elements.input) {
             elements.input.value = '';
+            renderLinkPreviews('');
             aiState.mentionPlacements = [];
             aiState.selectedMentionFiles = [];
             aiState.mentionedFileRoots = {};
@@ -9340,12 +9964,14 @@
         }
         
         try {
-            const fileData = await loadCurrentFileContent();
-            const openDocPath = fileData?.name || aiState.currentFileName || document.getElementById('viewer')?.dataset?.path || '';
-            if (isExtractableDocumentPath(openDocPath) && !(fileData?.content || '').trim()) {
-                flashStatus(tr('aiDocumentExtractEmpty', 'Could not extract text from the open document. Try read_file in chat/agent mode.'));
-            }
-            const mentionedContext = await loadMentionedFilesContext(messageWithMentions, fileData?.name || aiState.currentFileName, mentionedFilesForRequest, mentionedRootsForRequest);
+            const fileData = null;
+            const openDocPath = '';
+            const mentionedContext = await loadMentionedFilesContext(
+                messageWithMentions,
+                '',
+                mentionedFilesForRequest,
+                mentionedRootsForRequest
+            );
             if (Array.isArray(mentionedContext.resolvedPaths) && mentionedContext.resolvedPaths.length) {
                 mentionedFilesForRequest.length = 0;
                 mentionedContext.resolvedPaths.forEach((item) => {
@@ -9364,11 +9990,9 @@
 
             const isAgentMode = aiState.chatMode === 'agent' && isAgentEditorSupported();
             const useAgentTools = isAgentMode && !!window.AIAgentSkeleton?.runAgentLoop;
-            const useChatTools = !useAgentTools && !!window.AIAgentSkeleton?.runAgentLoop;
+            const useChatTools = false;
             const useFileToolContext = useAgentTools || useChatTools;
-            const openDocForTools = normalizeMentionedFilePath(
-                mentionedFilesForRequest[0] || fileData?.name || aiState.currentFileName || openDocPath || ''
-            );
+            const openDocForTools = useAgentTools ? normalizeMentionedFilePath(mentionedFilesForRequest[0] || '') : '';
             completionNotify.mode = useAgentTools ? 'agent' : 'chat';
             if (!isAgentMode && role !== 'general') {
                 messages.push({
@@ -9379,27 +10003,22 @@
 
             if (mentionedContext.files.length > 0) {
                 const filesPayload = mentionedContext.files
-                    .map((file) => {
-                        const body = useFileToolContext
-                            ? truncateForAgentContext(file.content, 6000, file.name)
-                            : file.content;
-                        return `[Referenced file: ${file.name}]\n${body}`;
-                    })
+                    .map((file) => buildFileContextBlock(file, 'Referenced file'))
                     .join('\n\n---\n\n');
 
                 messages.push({
                     role: 'user',
-                    content: `Additional referenced files from the same folder:\n\n${filesPayload}`
+                    content: `Additional referenced files from the same folder:\n\n${filesPayload.slice(0, CONTEXT_LIMITS.maxMentionedChars)}`
                 });
             }
             
             if (!options.skipAttachmentsContext && attachmentsForRequest.length > 0) {
                 const extBlocks = attachmentsForRequest
-                    .map((a) => `[Attached external file: ${a.name}]\n\n${a.content || ''}`)
+                    .map((a) => buildFileContextBlock(a, 'Attached external file'))
                     .join('\n\n---\n\n');
                 messages.push({
                     role: 'user',
-                    content: extBlocks
+                    content: extBlocks.slice(0, CONTEXT_LIMITS.maxMentionedChars)
                 });
             }
 
@@ -9411,7 +10030,7 @@
                 }
             }
 
-            const workspaceHint = buildWorkspaceContextHint(mentionedFilesForRequest, mentionedRootsForRequest, resolvedToolRoot, openDocForTools, attachmentsForRequest);
+            const workspaceHint = useAgentTools ? buildWorkspaceContextHint(mentionedFilesForRequest, mentionedRootsForRequest, resolvedToolRoot, openDocForTools, attachmentsForRequest) : '';
             const userContentWithMentions = messageWithMentions + (useFileToolContext ? workspaceHint : '');
             messages.push({ role: 'user', content: userContentWithMentions });
 
@@ -9420,9 +10039,9 @@
                 const agentMessageId = 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const mentionPaths = extractMentionedFileNames(messageWithMentions);
                 mentionedFilesForRequest.forEach((p) => mentionPaths.push(p));
-                if (fileData?.name) mentionPaths.push(fileData.name);
                 removeTypingIndicator();
                 addMessageToUI('assistant', '', false, agentMessageId, false);
+                aiState.generationMessageDiv = document.getElementById(agentMessageId);
                 resetAgentRun(agentMessageId, mentionPaths, 'agent');
                 applyToolRunRoleToMessage(agentMessageId);
                 let runOutcome = 'success';
@@ -9666,6 +10285,7 @@
             const messageDiv = document.createElement('div');
             messageDiv.className = 'message ai-message';
             messageDiv.id = messageId;
+            messageDiv.style.display = 'none';
             
             const header = document.createElement('div');
             header.className = 'message-header';
@@ -9682,6 +10302,7 @@
             messageDiv.appendChild(contentContainer);
             
             elements.chat.appendChild(messageDiv);
+            aiState.generationMessageDiv = messageDiv;
             
             const reader = response.body.getReader();
             const decoder = new TextDecoder();
@@ -9719,7 +10340,6 @@
                             if (content) {
                                 if (!gotFirstToken) {
                                     gotFirstToken = true;
-                                    removeTypingIndicator();
                                 }
                                 fullResponse += content;
                                 lastFullResponse = fullResponse;
@@ -9748,6 +10368,12 @@
                                         if (liveIndicator) liveIndicator.remove();
                                     }
                                     currentThinkDiv = null;
+                                }
+
+                                const answerText = fullResponse.replace(/<think>[\s\S]*?<\/think>/gi, '').replace(/<think>[\s\S]*$/gi, '').trim();
+                                if (answerText) {
+                                    removeTypingIndicator();
+                                    messageDiv.style.display = '';
                                 }
                                 
                                 const newInner = formatResponseInner(fullResponse, liveThinkBlocks);
@@ -10034,6 +10660,14 @@
     }
 
     function setInputState(disabled) {
+        if (!disabled) {
+            aiState.generatingChatId = '';
+            aiState.generationMessageDiv = null;
+            aiState.generationUserMessage = null;
+            renderAiChatSessions();
+            const manager = document.getElementById('ai-chat-manager-modal');
+            if (manager && !manager.classList.contains('hidden')) renderAiChatManagerList();
+        }
         if (elements.input) elements.input.disabled = false;
         // Keep send button clickable while generating (acts as Stop)
         if (elements.sendBtn) elements.sendBtn.disabled = false;

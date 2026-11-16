@@ -74,7 +74,6 @@ class AuthenticationProvider implements ServiceProviderInterface
         $acl->add('ColumnRestrictionController', '*', Role::PROJECT_MANAGER);
         $acl->add('CommentController', array('create', 'save', 'edit', 'update', 'confirm', 'remove'), Role::PROJECT_MEMBER);
         $acl->add('CommentListController', array('save'), Role::PROJECT_MEMBER);
-        $acl->add('CommentMailController', '*', Role::PROJECT_MEMBER);
         $acl->add('CustomFilterController', '*', Role::PROJECT_MEMBER);
         $acl->add('ExportController', '*', Role::PROJECT_MANAGER);
         $acl->add('ExternalTaskCreationController', '*', Role::PROJECT_MEMBER);

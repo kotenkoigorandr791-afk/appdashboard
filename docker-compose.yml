@@ -3,7 +3,7 @@ name: appdashboard
 services:
   appdashboard-db:
     profiles: ["container-db"]
-    image: postgres:16
+    image: postgis/postgis:16-3.5
     container_name: appdashboard-db
     restart: unless-stopped
     command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=2GB", "-c", "effective_cache_size=6GB", "-c", "work_mem=8MB", "-c", "maintenance_work_mem=256MB", "-c", "wal_compression=on", "-c", "checkpoint_timeout=15min", "-c", "max_wal_size=4GB", "-c", "autovacuum_vacuum_scale_factor=0.05", "-c", "autovacuum_analyze_scale_factor=0.02", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
@@ -133,7 +133,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        APP_VERSION: ${APP_VERSION:-1.0.2}
+        APP_VERSION: ${APP_VERSION:-1.0.7}
         APP_GIT_COMMIT: ${APP_GIT_COMMIT:-}
         APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
@@ -147,6 +147,12 @@ services:
         max-size: 20m
         max-file: "5"
     privileged: true
+    # Dynamic storage: MergerFS runs inside this container. /dev/fuse is the
+    # only extra device it needs; SYS_ADMIN is required for mount(2).
+    devices:
+      - /dev/fuse:/dev/fuse
+    cap_add:
+      - SYS_ADMIN
     ulimits:
       nofile:
         soft: 65535
@@ -163,6 +169,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
+      APP_VERSION: "${APP_VERSION:-1.0.7}"
       # Single source of truth for public hostnames. Entrypoint derives ai./search./git./...
       BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
       APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"
@@ -193,6 +200,7 @@ services:
       REDIS_PORT: "6379"
       REDIS_DATABASE: "0"
       REDIS_PREFIX: "appdashboard:"
+      SPENDS_ENCRYPTION_KEY_FILE: /opt/AppDashboard/data/secrets/spends-encryption.key
       PY_SIDECAR_URL: "${PY_SIDECAR_URL:-http://appdashboard-py:8100}"
       RUN_STARTUP_DEPS: "1"
       RUN_MCP_PACKAGE_BUILD: "1"
@@ -212,6 +220,9 @@ services:
       SMART_HOME_WS_BIND: 127.0.0.1
       # Per-user storage usage collector (Admin Panel → Statistics chart).
       # External app databases usually live in the host PostgreSQL (host.docker.internal:5432).
+      VDISK_VDISK1_SIZE: "${VDISK1_SIZE:-20G}"
+      VDISK_VDISK2_SIZE: "${VDISK2_SIZE:-30G}"
+      VDISK_VDISK3_SIZE: "${VDISK3_SIZE:-40G}"
       STORAGE_USAGE_ENABLED: "${STORAGE_USAGE_ENABLED:-1}"
       STORAGE_USAGE_INTERVAL: "${STORAGE_USAGE_INTERVAL:-900}"
       STORAGE_USAGE_DB_HOST: "${STORAGE_USAGE_DB_HOST:-host.docker.internal}"
@@ -238,19 +249,38 @@ services:
     security_opt:
       - seccomp:./deploy/seccomp-restic.json
     ports:
-      - "127.0.0.1:80:8080"
-      - "127.0.0.1:8808:8808"
+      - "80:8080"
+      - "8808:8808"
     volumes:
       - .:/var/www/AppDashboard
       - ./nginx/appdashboard.conf.template:/etc/nginx/templates/appdashboard.conf.template:ro
+      # The WAF rules are baked into /etc/nginx/modsecurity by the Dockerfile, so
+      # the code bind mount above never reaches them and every edit needed a full
+      # image rebuild. Mount them explicitly: now `docker compose restart` (or
+      # `nginx -s reload` in the container) picks up rule changes.
+      - ./deploy/waf/appdashboard-modsecurity.conf:/etc/nginx/modsecurity/appdashboard.conf:ro
+      - ./deploy/waf/appdashboard-crs-exclusions.conf:/etc/nginx/modsecurity/appdashboard-crs-exclusions.conf:ro
       - appdashboard-data:/opt/AppDashboard/data
       - appdashboard-appdata:/opt/ApplicationData
+      - appdashboard-vdisk1:/vdisks/vdisk1
+      - appdashboard-vdisk2:/vdisks/vdisk2
+      - appdashboard-vdisk3:/vdisks/vdisk3
       - appdashboard-logs:/var/log/nginx
       - appdashboard-logs:/var/log/bot
       - appdashboard-waf-logs:/var/log/modsecurity
       - /var/run/docker.sock:/var/run/docker.sock
       - /:/host
       - ${HOME:-/home/ihor}:/host-home
+      # Dynamic storage pool (optional). Each physical disk is mounted on the
+      # host first, then bind-mounted one directory per disk. Add a new disk by
+      # appending one line and recreating the container:
+      # - /mnt/hdd1:/disks/hdd1:rw
+      # - /mnt/hdd2:/disks/hdd2:rw
+      # - /mnt/backups/appdashboard:/backup:rw
+      # The app discovers them automatically; MergerFS runs in the container.
+      # Extra Restic backups (the application user-data backup is always
+      # present) can be declared here or created in the web UI:
+      # APPDASHBOARD_BACKUPS_JSON: '[{"name":"Host files","repository":"/backup/host","password":"change-me","sources":["/host-home"],"schedule":{"enabled":true,"frequency":"daily","time":"04:30"}}]'
     extra_hosts:
       - "host.docker.internal:host-gateway"
       - "host-gateway:host-gateway"
@@ -459,6 +489,9 @@ volumes:
   appdashboard-waf-logs:
   appdashboard-data:
   appdashboard-appdata:
+  appdashboard-vdisk1:
+  appdashboard-vdisk2:
+  appdashboard-vdisk3:
   appdashboard-db-data:
   appdashboard-redis-data:
   portainer-data:

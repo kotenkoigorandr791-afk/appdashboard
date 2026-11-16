@@ -36,10 +36,23 @@ if ($action === 'login' && $method === 'POST') {
 }
 if ($action === 'me' && $method === 'GET') {
     $auth = public_api_auth_user(true);
-    $users = loadUsers();
     $email = $auth['email'];
-    $role = $email === 'root@root' ? 2 : (int)($users[$email]['role'] ?? 0);
-    public_api_json(['ok' => true, 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '', 'role' => $role, 'photo' => $users[$email]['photo'] ?? '', 'language' => $users[$email]['language'] ?? 'en', 'theme' => $users[$email]['theme'] ?? 'light']]);
+    // public_api_auth_user() -> public_api_apply_user() already resolved this
+    // user via getUserByEmail(). Avoid loadUsers(), which reads the whole users
+    // table on this hot path (called for every MCP tools/list and tools/call).
+    $user = $_SESSION['user'] ?? $GLOBALS['public_api_user'] ?? [];
+    if (!is_array($user) || ($user['email'] ?? '') !== $email) {
+        $user = getUserByEmail($email) ?? [];
+    }
+    $role = $email === 'root@root' ? 2 : (int)($user['role'] ?? 0);
+    public_api_json(['ok' => true, 'user' => [
+        'email' => $email,
+        'name' => $user['name'] ?? '',
+        'role' => $role,
+        'photo' => $user['photo'] ?? '',
+        'language' => $user['language'] ?? 'en',
+        'theme' => $user['theme'] ?? 'light',
+    ]]);
 }
 if ($action === 'revoke' && $method === 'POST') {
     $token = public_api_bearer_token();

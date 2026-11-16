@@ -1,0 +1,6 @@
+{
+  "assets": [
+    {"id": "qa-asset-1", "exifInfo": {"latitude": 50.5201, "longitude": 30.5934, "dateTimeOriginal": "2025-05-07T15:00:00Z"}},
+    {"id": "qa-asset-2", "exifInfo": {"latitude": 50.5211, "longitude": 30.5944, "dateTimeOriginal": "2025-05-07T15:05:00Z"}}
+  ]
+}

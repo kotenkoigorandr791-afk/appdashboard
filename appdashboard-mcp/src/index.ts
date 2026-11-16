@@ -6,6 +6,7 @@ import { CallToolRequestSchema, ListToolsRequestSchema } from "@modelcontextprot
 import express from "express";
 import { randomUUID } from "node:crypto";
 import { authStorage, ensureAuth, getHost, getToken } from "./auth.js";
+import { SlidingWindowLimiter } from "./rate_limiter.js";
 import { callTool, listToolsForCurrentUser } from "./tools/index.js";
 import { runSetup } from "./setup.js";
 import { startAutoUpdater } from "./updater.js";
@@ -18,28 +19,11 @@ import {
 
 const BEARER_RE = /^[a-f0-9]{64}$/i;
 
-class SlidingWindowLimiter {
-  private hits = new Map<string, number[]>();
-  constructor(private windowMs: number, private max: number) {}
-  hit(key: string): { allowed: boolean; retryAfterMs: number } {
-    const now = Date.now();
-    let arr = this.hits.get(key);
-    if (!arr) {
-      arr = [];
-      this.hits.set(key, arr);
-    }
-    while (arr.length > 0 && now - arr[0]! > this.windowMs) arr.shift();
-    if (arr.length >= this.max) {
-      return { allowed: false, retryAfterMs: Math.max(1, this.windowMs - (now - arr[0]!)) };
-    }
-    arr.push(now);
-    if (this.hits.size > 10000) {
-      for (const [k, v] of this.hits) {
-        if (v.length === 0 || now - v[v.length - 1]! > this.windowMs * 2) this.hits.delete(k);
-      }
-    }
-    return { allowed: true, retryAfterMs: 0 };
-  }
+function envInt(name: string, fallback: number): number {
+  const raw = process.env[name];
+  if (!raw) return fallback;
+  const n = Number(raw);
+  return Number.isFinite(n) && n >= 0 ? Math.floor(n) : fallback;
 }
 
 function clientIp(req: express.Request): string {
@@ -83,10 +67,31 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
 
   if (httpMode) {
     const app = express();
-    const transports = new Map<string, { server: Server; transport: StreamableHTTPServerTransport }>();
-    const mcpLimiter = new SlidingWindowLimiter(60_000, 120);
-    const oauthLimiter = new SlidingWindowLimiter(60_000, 40);
-    const failLimiter = new SlidingWindowLimiter(60_000, 10);
+    type SessionEntry = {
+      server: Server;
+      transport: StreamableHTTPServerTransport;
+      lastUsed: number;
+      active: number;
+    };
+    const transports = new Map<string, SessionEntry>();
+    const mcpLimiter = new SlidingWindowLimiter(60_000, Math.max(1, envInt("MCP_RATE_LIMIT_MAX", 120)));
+    const oauthLimiter = new SlidingWindowLimiter(60_000, Math.max(1, envInt("MCP_OAUTH_RATE_LIMIT_MAX", 40)));
+    const failLimiter = new SlidingWindowLimiter(60_000, Math.max(1, envInt("MCP_FAIL_RATE_LIMIT_MAX", 10)));
+    const sessionIdleMs = Math.max(60_000, envInt("MCP_SESSION_IDLE_MS", 30 * 60_000));
+    const maxSessions = Math.max(1, envInt("MCP_MAX_SESSIONS", 1000));
+
+    // Disconnected HTTP clients do not always close their transport, so sweep
+    // idle sessions. `active` prevents a long-running request from being swept.
+    const sessionSweep = setInterval(() => {
+      const now = Date.now();
+      for (const [id, entry] of transports) {
+        if (entry.active === 0 && now - entry.lastUsed > sessionIdleMs) {
+          transports.delete(id);
+          void entry.transport.close().catch(() => undefined);
+        }
+      }
+    }, Math.min(60_000, Math.max(10_000, Math.floor(sessionIdleMs / 4))));
+    sessionSweep.unref?.();
     app.disable("x-powered-by");
     app.use((req, res, next) => {
       res.setHeader("X-Content-Type-Options", "nosniff");
@@ -210,6 +215,23 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
         return;
       }
       if (!entry) {
+        if (transports.size >= maxSessions) {
+          let oldestId: string | null = null;
+          let oldestAt = Infinity;
+          for (const [id, candidate] of transports) {
+            if (candidate.active === 0 && candidate.lastUsed < oldestAt) {
+              oldestAt = candidate.lastUsed;
+              oldestId = id;
+            }
+          }
+          if (!oldestId) {
+            res.status(503).json({ error: "too_many_sessions" });
+            return;
+          }
+          const evicted = transports.get(oldestId);
+          transports.delete(oldestId);
+          void evicted?.transport.close().catch(() => undefined);
+        }
         const server = createMcpServer();
         const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: () => randomUUID() });
         transport.onerror = (err) => console.error("[appdashboard-mcp] HTTP transport error:", err);
@@ -218,13 +240,20 @@ async function runServer(httpMode = false, port = 8808): Promise<void> {
           void server.close().catch(() => undefined);
         };
         await server.connect(transport);
-        entry = { server, transport };
+        entry = { server, transport, lastUsed: Date.now(), active: 0 };
       }
       const activeEntry = entry;
-      await authStorage.run({ token, deviceId }, async () => {
-        await activeEntry.transport.handleRequest(req, res, req.body);
-        if (activeEntry.transport.sessionId) transports.set(activeEntry.transport.sessionId, activeEntry);
-      });
+      activeEntry.active++;
+      activeEntry.lastUsed = Date.now();
+      try {
+        await authStorage.run({ token, deviceId }, async () => {
+          await activeEntry.transport.handleRequest(req, res, req.body);
+          if (activeEntry.transport.sessionId) transports.set(activeEntry.transport.sessionId, activeEntry);
+        });
+      } finally {
+        activeEntry.active--;
+        activeEntry.lastUsed = Date.now();
+      }
     });
     app.listen(port, "0.0.0.0", () => {
       console.error(`[appdashboard-mcp] HTTP transport listening on /mcp port ${port}`);

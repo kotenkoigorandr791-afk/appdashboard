@@ -1,3 +1,8 @@
+## v1.10.3 - 2026-10-30
+
+* ✅ Fixed the saved confirmation in Settings so it stays above the system navigation area
+* 🌙 Applied your selected theme consistently when the app opens
+
 ## v1.10.0 - 2026-10-25
 
 * 👤 New Settings screen with your personal data — name, email, daily step goal, height, weight, stride length and date of birth can now be viewed and edited from the app

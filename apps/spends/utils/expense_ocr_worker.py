@@ -642,6 +642,11 @@ def load_existing_stores(conn):
     except Exception:
         return []
 def ensure_db_schema(conn):
+    # PostgreSQL deployments provision these tables centrally and the worker runs
+    # as the unprivileged spends_app role, so any CREATE/ALTER here aborted the
+    # whole OCR job with "permission denied for schema spends_shared".
+    if conn.__class__.__name__ == "PgConnection":
+        return
     conn.execute("CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS stores(id TEXT PRIMARY KEY,name TEXT NOT NULL,visible INTEGER NOT NULL DEFAULT 1,sort_order INTEGER NOT NULL DEFAULT 0)")
     conn.execute("CREATE TABLE IF NOT EXISTS expenses(date TEXT NOT NULL,store TEXT NOT NULL,amount REAL NOT NULL DEFAULT 0,PRIMARY KEY(date,store))")

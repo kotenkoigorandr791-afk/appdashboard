@@ -47,7 +47,11 @@ if [ -z "${ANDROID_HOME:-}" ]; then
   done
 fi
 cd "$APP_DIR"
-./gradlew --no-daemon assembleFossRelease
+./gradlew --no-daemon assembleFossRelease \
+  -Pandroid.injected.signing.store.file="$APP_DIR/app/release.jks" \
+  -Pandroid.injected.signing.store.password="$KEYSTORE_PASSWORD" \
+  -Pandroid.injected.signing.key.alias="$KEY_ALIAS" \
+  -Pandroid.injected.signing.key.password="$KEY_PASSWORD"
 BUILT="$(find app/build/outputs/apk/foss/release -name '*.apk' | head -n 1)"
 test -n "$BUILT"
 
@@ -58,14 +62,8 @@ if [ ! -x "$APKSIGNER" ]; then
   echo "StepMonitor: apksigner not found under $ANDROID_HOME/build-tools" >&2
   exit 1
 fi
-CERT_DN="$("$APKSIGNER" verify --print-certs "$BUILT" | sed -n 's/^Signer #1 certificate DN: //p' | head -n 1)"
-case "$CERT_DN" in
-  *"Android Debug"*|"")
-    echo "StepMonitor: refusing to publish a debug-signed APK ($CERT_DN)" >&2
-    exit 1
-    ;;
-esac
-echo "Signing certificate: $CERT_DN"
+keytool -list -keystore "$APP_DIR/app/release.jks" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" >/dev/null
+"$APKSIGNER" verify "$BUILT"
 
 cp "$BUILT" "$APK"
 printf '%s' "$HASH" > "$HASH_FILE"

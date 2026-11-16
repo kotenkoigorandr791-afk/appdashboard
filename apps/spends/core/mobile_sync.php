@@ -14,6 +14,29 @@ function spends_mobile_signature(string $date, string $store, float $amount, str
     return hash('sha256', $normDate . '|' . $normStore . '|' . $normAmount . '|' . $normRaw);
 }
 
+function spends_mobile_asset_url(string $path): string
+{
+    if ($path === '' || filter_var($path, FILTER_VALIDATE_URL)) {
+        return $path;
+    }
+    $scheme = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? '')) === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = (string)($_SERVER['HTTP_HOST'] ?? '');
+    return $host === '' ? $path : $scheme . '://' . $host . '/apps/spends/' . ltrim($path, '/');
+}
+
+function spends_mobile_store_photo_url(string $email, string $name): string
+{
+    $safe = getSafeFolderName($email);
+    $file = 'store_' . preg_replace('/[^a-zA-Z0-9]/', '_', $name);
+    foreach (['png', 'jpg', 'jpeg', 'webp'] as $extension) {
+        $path = APPS_DATA_DIR . $safe . '/' . $file . '.' . $extension;
+        if (is_file($path)) {
+            return spends_mobile_asset_url('users/' . $safe . '/' . $file . '.' . $extension . '?t=' . filemtime($path));
+        }
+    }
+    return '';
+}
+
 function spends_mobile_ensure_store(AppDatabase $udb, string $store, string $category = 'other'): array
 {
     $store = trim($store);
@@ -79,15 +102,53 @@ function spends_mobile_ledger_put(
     if ($raw === '') {
         $st->bindValue(':r', null, PDO::PARAM_NULL);
     } else {
-        $st->bindValue(':r', $raw);
+        $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
     }
     $st->bindValue(':i', $imageName);
     $st->bindValue(':c', date('c'));
     $st->execute();
 }
 
-function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
+function spends_mobile_snapshot_revision(string $email): string
 {
+    $key = 'mobile_snapshot_revision:' . hash('sha256', $email);
+    // Time bucket keeps the revision moving even when Redis is unavailable, so
+    // clients are never stuck on a permanent "not_modified" answer.
+    $bucket = (string)floor(time() / 15);
+    $redis = app_redis();
+    if (!$redis) return '1-' . $bucket;
+    try {
+        $fullKey = app_redis_key('spends:' . $key);
+        $revision = $redis->get($fullKey);
+        if (is_string($revision) && $revision !== '') return $revision . '-' . $bucket;
+        $redis->set($fullKey, '1');
+    } catch (Throwable $e) {
+    }
+    return '1-' . $bucket;
+}
+
+function spends_mobile_sync_is_current(string $knownRevision): bool
+{
+    $email = spends_mobile_current_email();
+    return $email !== '' && $knownRevision !== '' && hash_equals(spends_mobile_snapshot_revision($email), $knownRevision);
+}
+
+function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $knownRevision = ''): array
+{
+    $email = spends_mobile_current_email();
+    $revision = spends_mobile_snapshot_revision($email);
+    if ($knownRevision !== '' && hash_equals($revision, $knownRevision)) {
+        return ['status' => 'not_modified', 'revision' => $revision, 'server_time' => time()];
+    }
+    $cacheKey = 'mobile_snapshot:' . hash('sha256', $email) . ':' . $revision;
+    // A caller without a revision explicitly asks for a full, fresh snapshot
+    // (for example right after OCR or an offline replay). Never serve it from
+    // the short-lived revision cache, otherwise a write that did not bump the
+    // revision would stay invisible until the cache expires.
+    if ($knownRevision !== '' && ($cached = spendsCacheGet($cacheKey))) {
+        $decoded = json_decode(spends_decrypt($cached, $email, 'snapshot-cache'), true);
+        if (is_array($decoded) && ($decoded['status'] ?? '') === 'success') return $decoded;
+    }
     $years = [];
     $yr = $udb->query("SELECT DISTINCT substr(date,1,4) AS y FROM expenses WHERE date <> '' ORDER BY y DESC");
     while ($row = $yr->fetch(PDO::FETCH_ASSOC)) {
@@ -106,7 +167,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         $date = (string)$row['date'];
         $store = (string)$row['store'];
         $amount = (float)$row['amount'];
-        $raw = (string)($row['ocr_raw_store'] ?? '');
+        $raw = spends_decrypt($row['ocr_raw_store'] ?? '', spends_db_user_id($udb), 'ocr');
         $expenses[] = [
             'date' => $date,
             'store' => $store,
@@ -135,12 +196,16 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         $known[] = (string)$row['signature'];
     }
 
-    $email = spends_mobile_current_email();
-
-    return [
+    $snapshot = [
         'status' => 'success',
+        'revision' => $revision,
         'server_time' => time(),
-        'profile' => ['email' => $email, 'app' => 'spends'],
+        'profile' => [
+            'email' => $email,
+            'name' => $GLOBALS['displayName'] ?? $email,
+            'image_url' => spends_mobile_asset_url((string)($GLOBALS['profilePhoto'] ?? '')),
+            'app' => 'spends',
+        ],
         'settings' => [
             'monthly_budget' => (float)($userSettings['monthly_budget'] ?? 100),
             'currency' => (string)($userSettings['currency'] ?? 'USD'),
@@ -148,7 +213,10 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
             'show_trend' => (bool)($userSettings['show_trend'] ?? false),
             'trim_empty_months' => (bool)($userSettings['trim_empty_months'] ?? false),
         ],
-        'stores' => $userSettings['stores'] ?? [],
+        'stores' => array_map(static function (array $store) use ($email): array {
+            $store['photo_url'] = spends_mobile_store_photo_url($email, (string)($store['name'] ?? ''));
+            return $store;
+        }, $userSettings['stores'] ?? []),
         'store_categories' => $userSettings['store_categories'] ?? spendsStoreCategories(),
         'years' => $years,
         'expenses' => $expenses,
@@ -157,7 +225,25 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings): array
         'goals' => function_exists('spendsGoalList') ? spendsGoalList($udb, true) : [],
         'tags' => function_exists('spendsTagList') ? spendsTagList($udb) : [],
         'known_signatures' => $known,
+        // Tag ids per payment: "YYYY-MM-DD\tstore" => [tag id, ...]
+        'expense_tags' => function_exists('spendsExpenseTagsFor') ? spendsExpenseTagsFor($udb, '0000-01-01', '9999-12-31') : [],
     ];
+    spendsCacheSet($cacheKey, spends_encrypt(json_encode($snapshot, JSON_UNESCAPED_UNICODE), $email, 'snapshot-cache'), 15);
+    return $snapshot;
+}
+
+function spends_mobile_invalidate_snapshot(): void
+{
+    $email = spends_mobile_current_email();
+    $redis = app_redis();
+    if ($email === '' || !$redis) return;
+    try {
+        $revisionKey = app_redis_key('spends:mobile_snapshot_revision:' . hash('sha256', $email));
+        $previous = (string)($redis->get($revisionKey) ?: '1');
+        $next = ctype_digit($previous) ? (string)((int)$previous + 1) : '1';
+        $redis->set($revisionKey, $next);
+    } catch (Throwable $e) {
+    }
 }
 
 function spends_mobile_push(AppDatabase $udb, array $payload): array
@@ -196,12 +282,30 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             continue;
         }
         $amount = round((float)$amount, 2);
-        $signature = trim((string)($row['signature'] ?? ''));
+        $signatureProvided = trim((string)($row['signature'] ?? ''));
+        $signature = $signatureProvided;
         if ($signature === '') {
             $signature = spends_mobile_signature($date, $store, $amount, $raw);
         }
-        if ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
+        // A supplied signature identifies one queued device write. Seeing it in
+        // the ledger means this exact write already landed (for example the app
+        // was killed before clearing its outbox), so it must not be repeated.
+        if ($signatureProvided !== '') {
+            if (spends_mobile_ledger_has($udb, $signature)) {
+                $skipped++;
+                continue;
+            }
+        } elseif ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
             $skipped++;
+            continue;
+        }
+        if ($mode === 'delete' || $amount < 0.005) {
+            $del = $udb->prepare('DELETE FROM expenses WHERE date = :d AND store = :s');
+            $del->bindValue(':d', $date);
+            $del->bindValue(':s', $store);
+            $del->execute();
+            spends_mobile_ledger_put($udb, $signature, $date, $store, 0.0, 'delete', 'mobile:delete');
+            $updated++;
             continue;
         }
         spends_mobile_ensure_store($udb, $store, (string)($row['category'] ?? 'other'));
@@ -209,32 +313,34 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         $exists->bindValue(':d', $date);
         $exists->bindValue(':s', $store);
         $prev = $exists->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($amount < 0.005) {
-            $del = $udb->prepare('DELETE FROM expenses WHERE date = :d AND store = :s');
-            $del->bindValue(':d', $date);
-            $del->bindValue(':s', $store);
-            $del->execute();
-            $updated++;
+        // Notification captures (Google Wallet) are their own entry source;
+        // only real receipt scans may be labelled as OCR.
+        $entrySource = match ($source) {
+            'ocr' => 'ocr',
+            'notification', 'wallet' => 'notification',
+            'subscription' => 'subscription',
+            default => 'manual',
+        };
+        if ($mode === 'add') {
+            // Multiple captures at the same store on the same day must accumulate,
+            // otherwise every new payment would overwrite the previous one.
+            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:e,:r)
+                ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2), entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
         } else {
-            $entrySource = match ($source) {
-                'ocr', 'wallet' => 'ocr',
-                'subscription' => 'subscription',
-                default => 'manual',
-            };
             $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:e,:r)
                 ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount, entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
-            $st->bindValue(':d', $date);
-            $st->bindValue(':s', $store);
-            $st->bindValue(':a', $amount, PDO::PARAM_STR);
-            $st->bindValue(':e', $entrySource);
-            if ($raw === '') {
-                $st->bindValue(':r', null, PDO::PARAM_NULL);
-            } else {
-                $st->bindValue(':r', $raw);
-            }
-            $st->execute();
-            $prev ? $updated++ : $created++;
         }
+        $st->bindValue(':d', $date);
+        $st->bindValue(':s', $store);
+        $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        $st->bindValue(':e', $entrySource);
+        if ($raw === '') {
+            $st->bindValue(':r', null, PDO::PARAM_NULL);
+        } else {
+            $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
+        }
+        $st->execute();
+        $prev ? $updated++ : $created++;
         spends_mobile_ledger_put($udb, $signature, $date, $store, $amount, $raw !== '' ? $raw : $source, 'mobile:' . $source);
     }
 
@@ -250,24 +356,36 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             continue;
         }
         $amount = round((float)$amount, 2);
-        $signature = trim((string)($row['signature'] ?? ''));
+        $signatureProvided = trim((string)($row['signature'] ?? ''));
+        $signature = $signatureProvided;
         if ($signature === '') {
             $signature = spends_mobile_signature($date, '__income__', $amount);
         }
-        if ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
+        if ($signatureProvided !== '') {
+            if (spends_mobile_ledger_has($udb, $signature)) {
+                $skipped++;
+                continue;
+            }
+        } elseif ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
             $skipped++;
             continue;
         }
-        if ($amount < 0.005) {
+        if ($mode === 'delete' || $amount < 0.005) {
             $del = $udb->prepare('DELETE FROM incomes WHERE date = :d');
             $del->bindValue(':d', $date);
             $del->execute();
+            spends_mobile_ledger_put($udb, $signature, $date, '__income__', 0.0, 'delete', 'mobile:income-delete');
+            $updated++;
+            continue;
+        }
+        if ($mode === 'add') {
+            $st = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=ROUND((incomes.amount+excluded.amount)::numeric,2)');
         } else {
             $st = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=excluded.amount');
-            $st->bindValue(':d', $date);
-            $st->bindValue(':a', $amount, PDO::PARAM_STR);
-            $st->execute();
         }
+        $st->bindValue(':d', $date);
+        $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        $st->execute();
         spends_mobile_ledger_put($udb, $signature, $date, '__income__', $amount, 'income', 'mobile:income');
         $updated++;
     }
@@ -302,7 +420,7 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         if ($raw === '') {
             $st->bindValue(':r', null, PDO::PARAM_NULL);
         } else {
-            $st->bindValue(':r', $raw);
+            $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
         }
         $st->execute();
         spends_mobile_ledger_put($udb, $signature, $date, $store, $amount, $raw !== '' ? $raw : 'wallet', 'wallet');
@@ -341,12 +459,33 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         }
     }
 
+    // Per-payment tags: [{"date":"2026-10-29","store":"Lidl","tags":["tag-id"]}]
+    if (!empty($payload['expense_tags']) && is_array($payload['expense_tags']) && function_exists('spendsExpenseTagsSet')) {
+        foreach ($payload['expense_tags'] as $row) {
+            if (!is_array($row)) {
+                continue;
+            }
+            $res = spendsExpenseTagsSet($udb, (string)($row['date'] ?? ''), (string)($row['store'] ?? ''), (array)($row['tags'] ?? []));
+            if (($res['status'] ?? '') === 'success') {
+                $updated++;
+            } else {
+                $errors[] = ['expense_tags' => $row, 'error' => $res['message'] ?? 'tag_failed'];
+            }
+        }
+    }
+
     if (!empty($payload['tags']) && is_array($payload['tags']) && function_exists('spendsTagUpsert')) {
         foreach ($payload['tags'] as $tagRow) {
             if (is_array($tagRow)) {
                 spendsTagUpsert($udb, $tagRow);
             }
         }
+    }
+
+    if ($created + $updated > 0) {
+        // Bump the snapshot revision so the next pull actually returns the new
+        // ledger instead of a stale "not_modified" answer.
+        spends_mobile_invalidate_snapshot();
     }
 
     return [
@@ -361,6 +500,8 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
 
 function spends_mobile_current_email(): string
 {
+    $apiEmail = $GLOBALS['public_api_user']['email'] ?? '';
+    if (is_string($apiEmail) && $apiEmail !== '') return $apiEmail;
     $email = (string)($_SESSION['user']['email'] ?? '');
     if ($email !== '') {
         return $email;
@@ -376,5 +517,11 @@ function spends_mobile_current_email(): string
 
 function spends_mobile_profile(): array
 {
-    return ['status' => 'success', 'profile' => ['email' => spends_mobile_current_email(), 'app' => 'spends']];
+    $email = spends_mobile_current_email();
+    return ['status' => 'success', 'profile' => [
+        'email' => $email,
+        'name' => $GLOBALS['displayName'] ?? $email,
+        'image_url' => spends_mobile_asset_url((string)($GLOBALS['profilePhoto'] ?? '')),
+        'app' => 'spends',
+    ]];
 }

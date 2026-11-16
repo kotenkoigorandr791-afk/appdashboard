@@ -15,7 +15,9 @@ $currentUser     = $safeUserName;
 $userName        = $userEmail ? explode('@', $userEmail)[0] : 'default_user';
 $userPhotoFromDB = $userEmail ? getUserPhoto($userEmail) : null;
 
-$usersDir = __DIR__ . '/../users';
+// User data lives on the APPDATA volume (STEPS_USERS_DIR); the repository no
+// longer carries a users/ symlink.
+$usersDir = defined('STEPS_USERS_DIR') ? rtrim(STEPS_USERS_DIR, '/') : __DIR__ . '/../users';
 $userDir  = "$usersDir/$safeUserName";
 checkDirectory($usersDir);
 checkDirectory($userDir);

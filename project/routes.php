@@ -112,8 +112,9 @@ if ($path === '/oauth/approve') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Authorize Application</title>
-        <link rel="icon" type="image/png" href="/icon.png">
-        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/png" href="/icon.png?v=3">
+        <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
             :root{
                 color-scheme: light dark;
@@ -246,8 +247,9 @@ if ($path === '/client-auth') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Desktop Authorization</title>
-        <link rel="icon" type="image/png" href="/icon.png">
-        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/png" href="/icon.png?v=3">
+        <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
             :root{
                 color-scheme: light dark;
@@ -313,7 +315,7 @@ if ($path === '/client-auth') {
     </head>
     <body>
         <div class="card">
-            <div class="pill">ServerKherson Desktop</div>
+            <div class="pill">NexOrbit Desktop</div>
             <?php if (!$validRequest): ?>
                 <h1>Authorization request is invalid or expired</h1>
                 <p>Return to the desktop app and start authorization again.</p>
@@ -565,7 +567,12 @@ if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path
     // Залогиненным промо-виджеты на home не показываем (флаг читается в home.js).
     $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
     echo '<script>window.__skUserLoggedIn = ' . ($__skHomeLoggedIn ? 'true' : 'false') . ';</script>';
-    include __DIR__ . '/views/home.html';
+    $__homeContent = file_get_contents(__DIR__ . '/views/home.html');
+    if ($__homeContent !== false) {
+        $__appVersion = htmlspecialchars(getenv('APP_VERSION') ?: '1.0.7', ENT_QUOTES, 'UTF-8');
+        $__homeContent = str_replace('id="navVersion">v1.0.7<', 'id="navVersion">v' . $__appVersion . '<', $__homeContent);
+        echo $__homeContent;
+    }
     exit;
 }else{
     $showLogin=false;

@@ -88,9 +88,10 @@ final class RecipeShareHandler extends BaseAppHandler
         if ($image === '') {
             return null;
         }
+        $recipesBase = function_exists('appdata_app_base_dir') ? appdata_app_base_dir('recipes') : dirname(__DIR__, 3) . '/apps/recipes';
         $candidates = [
-            dirname(__DIR__, 3) . '/apps/recipes/recipes/' . $resource->id . '/' . $image,
-            dirname(__DIR__, 3) . '/apps/recipes/' . ltrim($image, '/'),
+            rtrim($recipesBase, '/') . '/recipes/' . $resource->id . '/' . $image,
+            rtrim($recipesBase, '/') . '/' . ltrim($image, '/'),
         ];
         foreach ($candidates as $candidate) {
             if (is_file($candidate)) {
