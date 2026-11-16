@@ -21,11 +21,11 @@ RUN set -eux; \
     installer="$(find "$workdir" -maxdepth 2 -type f -name install-tl -print -quit)"; \
     perl "$installer" --no-interaction --scheme=small --texdir=/opt/texlive; \
     texbin="$(find /opt/texlive -type d -path '*/bin/*-linux' -print -quit)"; \
-    ln -s "$texbin" /opt/texlive/bin; \
-    /opt/texlive/bin/tlmgr install latexmk collection-latexrecommended collection-latexextra collection-fontsrecommended luatex; \
+    ln -sfn "$texbin" /opt/texlive/tlbin; \
+    /opt/texlive/tlbin/tlmgr install latexmk collection-latexrecommended collection-latexextra collection-fontsrecommended luatex; \
     rm -rf "$workdir"
 
-ENV PATH=/opt/texlive/bin:${PATH}
+ENV PATH=/opt/texlive/tlbin:${PATH}
 
 WORKDIR /app
 
