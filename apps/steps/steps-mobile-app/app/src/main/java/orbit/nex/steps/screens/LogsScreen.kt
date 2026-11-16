@@ -267,7 +267,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                                 val statusText = log.statusCode?.let { "${stringResource(R.string.logs_row_http_label)} $it" }
                                     ?: if (log.success) stringResource(R.string.logs_row_ok) else stringResource(R.string.logs_row_err)
                                 Text(
-                                    "${formatLogTime(log.timestamp)} · $statusText",
+                                    "${formatLogTime(log.timestamp)} Â· $statusText",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                                 if (expanded) {
@@ -342,9 +342,9 @@ private fun shareLogs(context: Context, logs: List<WebhookLog>) {
     val body = logs.joinToString("\n\n") { log ->
         buildString {
             append(formatLogTime(log.timestamp))
-            append(" · ")
+            append(" Â· ")
             append(if (log.success) "OK" else "ERR")
-            log.statusCode?.let { append(" · HTTP ").append(it) }
+            log.statusCode?.let { append(" Â· HTTP ").append(it) }
             append("\n").append(log.url)
             log.dataType?.let { append("\n").append(it) }
             log.errorMessage?.takeIf { it.isNotBlank() }?.let { append("\n").append(it) }

@@ -150,7 +150,6 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                                 )
                                                 Text(stringResource(label))
                                             }
-                                            Text(stringResource(label))
                                         }
                                     }
                                 }

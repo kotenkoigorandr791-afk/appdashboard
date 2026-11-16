@@ -207,10 +207,7 @@ class MainActivity : AppCompatActivity() {
         }
         Scaffold(
             topBar = {
-                AppTopBar(
-                    showTimer = selected != NavigationScreen.Home,
-                    onProfileClick = { selected = NavigationScreen.About }
-                )
+                AppTopBar(showTimer = selected != NavigationScreen.Home)
             },
             bottomBar = {
             NavigationBar(

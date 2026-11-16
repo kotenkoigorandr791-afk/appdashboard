@@ -896,4 +896,10 @@
     <string name="tracking_notification_live">LIVE</string>
     <string name="tracking_notification_route_label">TODAY\'S ROUTE</string>
     <string name="tracking_notification_pending_label">UNSYNCED</string>
+    <string name="logs_sync_location">Location sync</string>
+    <string name="tracking_notification_route">Route</string>
+    <string name="tracking_notification_compact">Location tracking active</string>
+    <string name="tracking_notification_pending">%1$d items unsynced</string>
+    <string name="map_layer_speed">Speed</string>
+    <string name="map_speed_legend_title">Speed</string>
 </resources>

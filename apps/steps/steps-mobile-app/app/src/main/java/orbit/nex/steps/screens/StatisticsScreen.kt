@@ -13,11 +13,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -65,20 +60,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Tab
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -127,7 +108,6 @@ import orbit.nex.steps.location.EarnedAchievements
 import orbit.nex.steps.location.ServerStatistics
 import orbit.nex.steps.location.StatisticsRepository
 import orbit.nex.steps.location.WeekdayMovement
-import orbit.nex.steps.ui.theme.AppCornerRadius
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -155,7 +135,6 @@ private enum class StatsTab(val titleRes: Int, val icon: ImageVector) {
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@Composable
 fun StatisticsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
@@ -183,7 +162,6 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     var seenAchievements by remember { mutableStateOf(prefs.getSeenAchievements()) }
     var serverLoading by remember { mutableStateOf(false) }
     var achievementsLoading by remember { mutableStateOf(false) }
-    var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
     val connected = config != null
     val selectedDate = LocalDate.now()
@@ -254,16 +232,6 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         goalSteps = config?.let { fetchStepGoal(it, prefs) } ?: 0
     }
     LaunchedEffect(chartMonth, currentConfigUrl) { loadLocalMonth() }
-    LaunchedEffect(currentConfigUrl) {
-        load()
-    }
-    // The goal lives in the server-side settings, same value the web chart draws.
-    LaunchedEffect(currentConfigUrl) {
-        goalSteps = config?.let { fetchStepGoal(it, prefs) } ?: 0
-    }
-    LaunchedEffect(chartMonth, currentConfigUrl) {
-        loadLocalMonth()
-    }
     LaunchedEffect(selectedDate, currentConfigUrl) {
         while (true) {
             loadAndroidSteps()
@@ -480,7 +448,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OverviewMetric(stringResource(R.string.stats_active_time), formatDuration(serverStats.activeSeconds), stringResource(R.string.stats_active_time_hint), Modifier.weight(1f))
-                            OverviewMetric(stringResource(R.string.stats_top_place), serverStats.places.firstOrNull()?.name ?: "—", stringResource(R.string.stats_visits, serverStats.places.firstOrNull()?.visits ?: 0), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_top_place), serverStats.places.firstOrNull()?.name ?: "â€”", stringResource(R.string.stats_visits, serverStats.places.firstOrNull()?.visits ?: 0), Modifier.weight(1f))
                         }
                     }
                     item {
@@ -551,19 +519,19 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OverviewMetric(stringResource(R.string.stats_coverage), "${(serverStats.coverageRatio * 100).roundToInt()}%", stringResource(R.string.stats_coverage_hint), Modifier.weight(1f))
-                            OverviewMetric(stringResource(R.string.stats_accuracy), serverStats.accuracyM?.let { "±${it.roundToInt()} m" } ?: "—", stringResource(R.string.stats_accuracy_hint), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_accuracy), serverStats.accuracyM?.let { "Â±${it.roundToInt()} m" } ?: "â€”", stringResource(R.string.stats_accuracy_hint), Modifier.weight(1f))
                         }
                     }
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                            OverviewMetric(stringResource(R.string.stats_latest_point), StatisticsRepository.dateLabel(serverStats.latestPointAt).ifBlank { "—" }, stringResource(R.string.stats_latest_point_hint), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_latest_point), StatisticsRepository.dateLabel(serverStats.latestPointAt).ifBlank { "â€”" }, stringResource(R.string.stats_latest_point_hint), Modifier.weight(1f))
                             OverviewMetric(stringResource(R.string.stats_devices), number.format(serverStats.devices.size), stringResource(R.string.stats_devices_hint), Modifier.weight(1f))
                         }
                     }
                     item {
                         AppSectionCard(title = stringResource(R.string.stats_sources), icon = Icons.Filled.Hub) {
-                            val sources = serverStats.sources.entries.map { "${it.key} · ${number.format(it.value)}" } +
-                                serverStats.devices.map { "${it.name} · ${it.status}" }
+                            val sources = serverStats.sources.entries.map { "${it.key} Â· ${number.format(it.value)}" } +
+                                serverStats.devices.map { "${it.name} Â· ${it.status}" }
                             if (sources.isEmpty()) {
                                 Text(stringResource(R.string.stats_no_sources), color = MaterialTheme.colorScheme.onSurfaceVariant)
                             } else {
@@ -612,82 +580,6 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                         Text(stringResource(metric.type.nameResId))
                         Text(metric.value)
                     }
-    val monthSteps = if (connected) state.steps else localMonthSteps
-    val daySteps = if (connected) state.steps[selectedDate] ?: 0L else androidSteps ?: 0L
-    val dayStepsError = if (connected) null else androidStepsError
-    Column(
-        modifier.fillMaxSize().padding(horizontal = 10.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Gap under the top bar that scrolls away with the content.
-        Spacer(Modifier.height(12.dp))
-        // Today's summary: gradient card with just the label and the count.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(AppCornerRadius))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.30f),
-                        )
-                    )
-                )
-        ) {
-            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Label and value on one line, e.g. "Today  8 000 steps".
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(
-                        stringResource(R.string.stats_today),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps),
-                        style = MaterialTheme.typography.headlineMedium,
-                    )
-                    Text(
-                        stringResource(R.string.stats_steps),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            }
-        }
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    IconButton(onClick = { if (monthOffset > -11) monthOffset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
-                    Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
-                }
-                StepsChart(monthSteps, chartMonth, goalSteps)
-            }
-        }
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.stats_heatmap_title), style = MaterialTheme.typography.titleMedium)
-                StepsHeatmap(monthSteps, chartMonth)
-            }
-        }
-        if (!connected && localMonthSteps.isNotEmpty()) {
-            Text(stringResource(R.string.stats_local_data), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
-        }
-        Button(onClick = { scope.launch { load(true); loadAndroidSteps(true); loadLocalMonth() } }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.dashboard_refresh))
-        }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (connected) state.byDay[selectedDate].orEmpty().forEach { metric ->
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Text(metric.value, style = MaterialTheme.typography.headlineSmall)
                 }
             }
         }
@@ -883,8 +775,6 @@ private fun formatDuration(seconds: Long): String {
 
 @Composable
 private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0, onDayClick: (LocalDate) -> Unit) {
-@Composable
-private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0) {
     val barTop = MaterialTheme.colorScheme.primary
     val barBottom = MaterialTheme.colorScheme.tertiary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -1057,7 +947,6 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
 private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int, onDayClick: (LocalDate) -> Unit) {
     // Gold marks the days the daily step goal was reached.
     val goalGold = Color(0xFFD4A017)
-private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
@@ -1091,7 +980,6 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
                                     } else Modifier
                                 )
                                 .clickable { picked = if (picked == date) null else date; onDayClick(date) },
-                                .clickable { picked = if (picked == date) null else date },
                             contentAlignment = Alignment.Center,
                         ) {
                             // Day of month so the grid reads as a calendar.
@@ -1102,10 +990,6 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
                                     goalReached -> goalGold
                                     intensity > 0.55f -> MaterialTheme.colorScheme.onPrimary
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                color = if (intensity > 0.55f) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                             )
                         }

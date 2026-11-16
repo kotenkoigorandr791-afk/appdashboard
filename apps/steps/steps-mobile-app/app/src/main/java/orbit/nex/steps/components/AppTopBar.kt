@@ -10,9 +10,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -53,8 +50,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import orbit.nex.steps.BuildConfig
 import orbit.nex.steps.PreferencesManager
@@ -69,8 +64,6 @@ private val CONTENT_EDGE_PADDING = 10.dp
  * App-level top bar with the profile avatar and name on the left and, on
  * secondary screens, the live sync countdown on the right. Tapping the avatar
  * or the name opens a read-only account dialog.
- * App-level top bar with the profile avatar on the left and, on secondary
- * screens, the live sync countdown on the right.
  *
  * Uses a slightly darker surface in light theme and a slightly lighter one in
  * dark theme than the page background, and aligns its content edge insets with
@@ -86,10 +79,6 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
     // profile refreshed in Settings shows up here without a restart.
     val profile = profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()
     val profileName = profile.name
-fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier = Modifier) {
-    val context = LocalContext.current
-    val prefs = remember { PreferencesManager(context) }
-    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
             delay(1_000)
@@ -130,13 +119,11 @@ fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier
                 AsyncImage(
                     model = avatarModel,
                     contentDescription = stringResource(R.string.account_title),
-                    contentDescription = stringResource(R.string.nav_about),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(34.dp)
                         .clip(CircleShape)
                         .clickable(onClick = { showAccount = true })
-                        .clickable(onClick = onProfileClick)
                 )
             } else {
                 Icon(
@@ -158,14 +145,6 @@ fun AppTopBar(showTimer: Boolean, onProfileClick: () -> Unit, modifier: Modifier
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.clickable { showAccount = true }
             )
-                    contentDescription = stringResource(R.string.nav_about),
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(CircleShape)
-                        .clickable(onClick = onProfileClick),
-                    tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
             Spacer(Modifier.weight(1f))
             if (showTimer && info != null) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.size(24.dp)) {
@@ -262,7 +241,7 @@ private fun AccountDialog(
                             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
                         )
                         Text(
-                            profile.email.ifBlank { "—" },
+                            profile.email.ifBlank { "â€”" },
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -271,8 +250,8 @@ private fun AccountDialog(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                AccountField(stringResource(R.string.personal_name), profile.name.ifBlank { "—" })
-                AccountField(stringResource(R.string.personal_email), profile.email.ifBlank { "—" })
+                AccountField(stringResource(R.string.personal_name), profile.name.ifBlank { "â€”" })
+                AccountField(stringResource(R.string.personal_email), profile.email.ifBlank { "â€”" })
                 AccountField(
                     stringResource(R.string.account_status),
                     stringResource(

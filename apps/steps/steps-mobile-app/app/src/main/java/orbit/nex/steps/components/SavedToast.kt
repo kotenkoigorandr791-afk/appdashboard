@@ -29,9 +29,6 @@ import androidx.compose.ui.unit.dp
  */
 @Composable
 fun SavedToast(text: String, modifier: Modifier = Modifier, isError: Boolean = false) {
- */
-@Composable
-fun SavedToast(text: String, modifier: Modifier = Modifier) {
     Surface(
         modifier,
         shape = RoundedCornerShape(99.dp),
@@ -50,7 +47,6 @@ fun SavedToast(text: String, modifier: Modifier = Modifier) {
                 modifier = Modifier.size(18.dp),
                 tint = if (isError) MaterialTheme.colorScheme.error else Color(0xFF1B8A3A)
             )
-            Icon(Icons.Filled.CheckCircle, contentDescription = null, modifier = Modifier.size(18.dp))
             Text(text, fontWeight = FontWeight.SemiBold)
         }
     }
