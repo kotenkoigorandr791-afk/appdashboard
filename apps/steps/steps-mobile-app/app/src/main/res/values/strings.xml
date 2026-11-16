@@ -766,7 +766,6 @@
     <string name="matching_desc_disabled">Raw GPS only.</string>
     <string name="matching_desc_conservative">Only snap where GPS fits a road clearly.</string>
     <string name="matching_desc_review">Flag uncertain snaps for manual review.</string>
-<string name="about_privacy_desc">• NexSteps does not collect, store, or transmit any personal data to third-party services • All health data remains on your device until sent to your configured data sync • NexSteps service URLs are stored locally on your device • You have full control over which data types are synced and where they are sent</string>
 <string name="account_title">Account</string>
 <string name="account_server">Server</string>
 <string name="account_status">Connection</string>
