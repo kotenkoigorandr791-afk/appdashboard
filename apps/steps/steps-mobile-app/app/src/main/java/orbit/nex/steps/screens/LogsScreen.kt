@@ -44,10 +44,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-<<<<<<< HEAD
 import androidx.compose.runtime.CompositionLocalProvider
-=======
->>>>>>> mobile-spends
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -55,10 +52,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-<<<<<<< HEAD
 import androidx.compose.material3.LocalContentColor
-=======
->>>>>>> mobile-spends
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
@@ -104,15 +98,12 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
             toast = null
         }
     }
-<<<<<<< HEAD
     LaunchedEffect(Unit) {
         while (true) {
             allLogs = prefs.getWebhookLogs()
             delay(1_000)
         }
     }
-=======
->>>>>>> mobile-spends
 
     val logs = remember(allLogs, query, newestFirst, statusFilter) {
         allLogs.asSequence()
@@ -127,10 +118,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
     }
 
     Box(modifier = modifier.fillMaxSize()) {
-<<<<<<< HEAD
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
-=======
->>>>>>> mobile-spends
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -320,10 +308,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                 }
             }
         }
-<<<<<<< HEAD
         }
-=======
->>>>>>> mobile-spends
         toast?.let { message ->
             SavedToast(
                 message,

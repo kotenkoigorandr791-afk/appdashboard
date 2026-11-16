@@ -19,12 +19,9 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-<<<<<<< HEAD
 import androidx.compose.material.icons.filled.Brightness4
 import androidx.compose.material.icons.filled.Brightness7
 import androidx.compose.material.icons.filled.Contrast
-=======
->>>>>>> mobile-spends
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -138,7 +135,6 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                             },
                                             shape = SegmentedButtonDefaults.itemShape(index, 3),
                                         ) {
-<<<<<<< HEAD
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -154,9 +150,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                                 )
                                                 Text(stringResource(label))
                                             }
-=======
                                             Text(stringResource(label))
->>>>>>> mobile-spends
                                         }
                                     }
                                 }

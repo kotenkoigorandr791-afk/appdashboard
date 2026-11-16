@@ -145,7 +145,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     LazyColumn(modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Spacer(Modifier.height(12.dp)) }
         // Branding plate, matching the one on the Spends settings tab.
-<<<<<<< HEAD
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -174,7 +173,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onPrimaryContainer,
                         )
-=======
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
@@ -236,7 +234,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
->>>>>>> mobile-spends
                     }
                 }
             }

@@ -213,11 +213,9 @@ fun SettingsScreen(onBack: () -> Unit) {
 
     // ── Personal data ────────────────────────────────────────────────────────
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
-<<<<<<< HEAD
     // Rendered from the local cache first, so opening settings never flashes
     // empty fields while the server request is in flight.
     var personal by remember { mutableStateOf(parsePersonalCache(prefs)) }
-=======
     var avatarModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
     }
@@ -225,16 +223,12 @@ fun SettingsScreen(onBack: () -> Unit) {
     // empty fields while the server request is in flight.
     var personal by remember { mutableStateOf(parsePersonalCache(prefs)) }
     var nameField by remember { mutableStateOf(profile.name) }
->>>>>>> mobile-spends
     var goalField by remember { mutableStateOf(personal[KEY_GOAL].orEmpty()) }
     var heightField by remember { mutableStateOf(personal[KEY_HEIGHT].orEmpty()) }
     var weightField by remember { mutableStateOf(personal[KEY_WEIGHT].orEmpty()) }
     var strideField by remember { mutableStateOf(personal[KEY_STRIDE].orEmpty()) }
     var birthField by remember { mutableStateOf(personal[KEY_BIRTH].orEmpty()) }
-<<<<<<< HEAD
-=======
     var nameError by remember { mutableStateOf<String?>(null) }
->>>>>>> mobile-spends
     var goalError by remember { mutableStateOf<String?>(null) }
     var heightError by remember { mutableStateOf<String?>(null) }
     var weightError by remember { mutableStateOf<String?>(null) }
@@ -343,13 +337,10 @@ fun SettingsScreen(onBack: () -> Unit) {
     fun validatePersonal(): Boolean {
         fun intIn(raw: String, min: Int, max: Int): Boolean =
             raw.isNotBlank() && raw.matches(Regex("^\\d+$")) && raw.toIntOrNull() in min..max
-<<<<<<< HEAD
-=======
         val name = nameField.trim()
         nameError = if (name.isEmpty() || name.length > 80) {
             context.getString(R.string.personal_name_invalid)
         } else null
->>>>>>> mobile-spends
         goalError = if (goalField.isBlank() || intIn(goalField, 1000, 200000)) null
         else context.getString(R.string.personal_goal_invalid)
         heightError = if (heightField.isBlank() || intIn(heightField, 50, 260)) null
@@ -364,11 +355,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                 context.getString(R.string.personal_birth_invalid)
             } else null
         }.getOrElse { context.getString(R.string.personal_birth_invalid) }
-<<<<<<< HEAD
         return listOf(goalError, heightError, weightError, strideError, birthError).all { it == null }
-=======
         return listOf(nameError, goalError, heightError, weightError, strideError, birthError).all { it == null }
->>>>>>> mobile-spends
     }
 
     fun savePersonal() {
@@ -409,8 +397,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                         strideField = refreshed[KEY_STRIDE] ?: strideField
                         birthField = refreshed[KEY_BIRTH] ?: birthField
                         prefs.setPersonalSettingsCache(refreshed.toJSONObject().toString())
-<<<<<<< HEAD
-=======
                     }
                 } else {
                     failed = true
@@ -436,7 +422,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 .toString()
                         )
                         nameField = profile.name
->>>>>>> mobile-spends
                     }
                 } else {
                     failed = true
@@ -446,11 +431,8 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             saveOk = !failed
             saveDetail = detail
-<<<<<<< HEAD
             showSavedToast = true
-=======
             if (!failed) showSavedToast = true
->>>>>>> mobile-spends
             saving = false
         }
     }
@@ -548,8 +530,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-<<<<<<< HEAD
-=======
                             Row(
                                 Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -596,7 +576,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 enabled = connected,
                                 modifier = Modifier.fillMaxWidth(),
                             )
->>>>>>> mobile-spends
                             OutlinedTextField(
                                 value = profile.email,
                                 onValueChange = {},
@@ -913,15 +892,12 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-<<<<<<< HEAD
                 // ── Location tracking ────────────────────────────────────────
                 // Recording controls and sampling live on their own screen, the
                 // same one the map links to.
-=======
                 // ── Personalization ──────────────────────────────────────────
                 // Theme, accent, language and orientation live on their own
                 // activity; this list only links to it.
->>>>>>> mobile-spends
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -929,11 +905,8 @@ fun SettingsScreen(onBack: () -> Unit) {
                             .fillMaxWidth()
                             .clickable {
                                 context.startActivity(
-<<<<<<< HEAD
                                     Intent(context, orbit.nex.steps.LocationSettingsActivity::class.java)
-=======
                                     Intent(context, orbit.nex.steps.PersonalizationActivity::class.java)
->>>>>>> mobile-spends
                                 )
                             },
                     ) {
@@ -943,29 +916,23 @@ fun SettingsScreen(onBack: () -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                         ) {
                             Icon(
-<<<<<<< HEAD
                                 Icons.Filled.LocationOn,
-=======
                                 Icons.Filled.Palette,
->>>>>>> mobile-spends
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.primary,
                             )
                             Column(Modifier.weight(1f)) {
                                 Text(
-<<<<<<< HEAD
                                     stringResource(R.string.tracking_settings_title),
                                     style = MaterialTheme.typography.titleMedium,
                                 )
                                 Text(
                                     stringResource(R.string.tracking_settings_desc),
-=======
                                     stringResource(R.string.settings_personalization),
                                     style = MaterialTheme.typography.titleMedium,
                                 )
                                 Text(
                                     stringResource(R.string.settings_personalization_desc),
->>>>>>> mobile-spends
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -975,7 +942,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-<<<<<<< HEAD
                         }
                     }
                 }
@@ -1037,8 +1003,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-=======
->>>>>>> mobile-spends
                         }
                     }
                 }
@@ -1106,14 +1070,11 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             if (showSavedToast) {
                 orbit.nex.steps.components.SavedToast(
-<<<<<<< HEAD
                     stringResource(if (saveOk == false) R.string.save_failed_toast else R.string.saved_toast),
                     Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
                     isError = saveOk == false,
-=======
                     stringResource(R.string.saved_toast),
                     Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
->>>>>>> mobile-spends
                 )
             }
             }
