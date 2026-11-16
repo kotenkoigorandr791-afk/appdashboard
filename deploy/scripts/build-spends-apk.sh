@@ -31,7 +31,7 @@ HASH="$(cd "$APP_DIR" && find . -type f ! -path './build/*' ! -path './.gradle/*
 if [ -f "$APK" ] && [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$HASH" ]; then exit 0; fi
 printf 'sdk.dir=%s\n' "$ANDROID_HOME" > "$APP_DIR/local.properties"
 export KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD
-"$APP_DIR/gradlew" --no-daemon -p "$APP_DIR" :app:assembleRelease
+sh "$APP_DIR/gradlew" --no-daemon -p "$APP_DIR" :app:assembleRelease
 BUILT="$APP_DIR/app/build/outputs/apk/release/app-release.apk"
 test -f "$BUILT"
 cp "$BUILT" "$APK"
