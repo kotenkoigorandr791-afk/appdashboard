@@ -612,6 +612,13 @@
     <string name="tracking_channel_desc">Ukazuje, že záznam polohy běží</string>
     <string name="tracking_notification_title">Sledování polohy je zapnuté</string>
     <string name="tracking_notification_text">%1$d měření čeká na odeslání</string>
+    <string name="tracking_notification_route">Dnešní trasa: %1$s</string>
+    <string name="tracking_notification_pending">%1$d bodů nesynchronizováno</string>
+    <string name="tracking_notification_subtitle">Záznam na pozadí</string>
+    <string name="tracking_notification_live">AKTIVNÍ</string>
+    <string name="tracking_notification_route_label">DNEŠNÍ TRASA</string>
+    <string name="tracking_notification_pending_label">NESYNCHRONIZOVÁNO</string>
+    <string name="tracking_notification_compact">%1$s · %2$d nesynch.</string>
     <string name="tracking_action_pause">Pozastavit</string>
     <string name="tracking_action_stop">Zastavit</string>
     <string name="tracking_diagnostics">%1$d čeká · %2$d odmítnuto · %3$d selhalo</string>

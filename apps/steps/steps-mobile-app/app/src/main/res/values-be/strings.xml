@@ -541,6 +541,13 @@
     <string name="tracking_channel_desc">Паказвае, што запіс месцазнаходжання працуе</string>
     <string name="tracking_notification_title">Адсочванне месцазнаходжання ўключана</string>
     <string name="tracking_notification_text">%1$d вымярэнняў чакаюць адпраўкі</string>
+    <string name="tracking_notification_route">Маршрут за сёння: %1$s</string>
+    <string name="tracking_notification_pending">%1$d кропак не сінхранізавана</string>
+    <string name="tracking_notification_subtitle">Запіс у фоне</string>
+    <string name="tracking_notification_live">АКТЫЎНА</string>
+    <string name="tracking_notification_route_label">МАРШРУТ ЗА СЁННЯ</string>
+    <string name="tracking_notification_pending_label">НЕ СІНХРАНІЗАВАНА</string>
+    <string name="tracking_notification_compact">%1$s · %2$d не сінхр.</string>
     <string name="tracking_action_pause">Пауза</string>
     <string name="tracking_action_stop">Стоп</string>
     <string name="tracking_diagnostics">%1$d чакаюць · %2$d адхілена · %3$d з памылкай</string>

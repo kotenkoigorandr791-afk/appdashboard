@@ -612,6 +612,13 @@
     <string name="tracking_channel_desc">Pokazuje, że zapis lokalizacji działa</string>
     <string name="tracking_notification_title">Śledzenie lokalizacji jest włączone</string>
     <string name="tracking_notification_text">%1$d pomiarów czeka na wysłanie</string>
+    <string name="tracking_notification_route">Dzisiejsza trasa: %1$s</string>
+    <string name="tracking_notification_pending">%1$d punktów niezsynchronizowanych</string>
+    <string name="tracking_notification_subtitle">Nagrywanie w tle</string>
+    <string name="tracking_notification_live">AKTYWNE</string>
+    <string name="tracking_notification_route_label">DZISIEJSZA TRASA</string>
+    <string name="tracking_notification_pending_label">NIEZSYNCHRONIZOWANE</string>
+    <string name="tracking_notification_compact">%1$s · %2$d niezsynch.</string>
     <string name="tracking_action_pause">Pauza</string>
     <string name="tracking_action_stop">Stop</string>
     <string name="tracking_diagnostics">%1$d oczekuje · %2$d odrzucone · %3$d błędne</string>

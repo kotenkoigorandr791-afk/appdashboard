@@ -684,6 +684,13 @@
     <string name="tracking_channel_desc">Shows that location recording is running</string>
     <string name="tracking_notification_title">Location tracking is on</string>
     <string name="tracking_notification_text">%1$d measurements waiting to upload</string>
+    <string name="tracking_notification_route">Today\'s route: %1$s</string>
+    <string name="tracking_notification_pending">%1$d points not synced</string>
+    <string name="tracking_notification_subtitle">Recording in background</string>
+    <string name="tracking_notification_live">LIVE</string>
+    <string name="tracking_notification_route_label">TODAY\'S ROUTE</string>
+    <string name="tracking_notification_pending_label">NOT SYNCED</string>
+    <string name="tracking_notification_compact">%1$s · %2$d not synced</string>
     <string name="tracking_action_pause">Pause</string>
     <string name="tracking_action_stop">Stop</string>
     <string name="tracking_diagnostics">%1$d pending · %2$d rejected · %3$d failed</string>

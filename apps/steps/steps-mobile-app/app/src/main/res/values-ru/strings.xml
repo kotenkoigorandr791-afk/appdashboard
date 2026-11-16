@@ -673,6 +673,13 @@
     <string name="tracking_channel_desc">Показывает, что запись местоположения работает</string>
     <string name="tracking_notification_title">Отслеживание местоположения включено</string>
     <string name="tracking_notification_text">%1$d измерений ждут отправки</string>
+    <string name="tracking_notification_route">Маршрут за сегодня: %1$s</string>
+    <string name="tracking_notification_pending">%1$d точек не синхронизировано</string>
+    <string name="tracking_notification_subtitle">Запись в фоне</string>
+    <string name="tracking_notification_live">АКТИВНО</string>
+    <string name="tracking_notification_route_label">МАРШРУТ ЗА СЕГОДНЯ</string>
+    <string name="tracking_notification_pending_label">НЕ СИНХРОНИЗИРОВАНО</string>
+    <string name="tracking_notification_compact">%1$s · %2$d не синхр.</string>
     <string name="tracking_action_pause">Пауза</string>
     <string name="tracking_action_stop">Стоп</string>
     <string name="tracking_diagnostics">%1$d ожидают · %2$d отклонено · %3$d с ошибкой</string>

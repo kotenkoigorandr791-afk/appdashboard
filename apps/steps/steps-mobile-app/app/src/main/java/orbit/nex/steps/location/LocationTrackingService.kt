@@ -17,6 +17,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.PowerManager
 import android.util.Log
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.FusedLocationProviderClient
@@ -35,7 +36,10 @@ import kotlinx.coroutines.launch
 import orbit.nex.steps.MainActivity
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
+import org.json.JSONObject
 import java.time.Instant
+import java.time.LocalDate
+import java.util.Locale
 import java.util.TimeZone
 import java.util.UUID
 import kotlin.math.abs
@@ -71,7 +75,7 @@ class LocationTrackingService : Service() {
             return
         }
         ensureChannel()
-        if (!promoteToForeground(pendingCount())) {
+        if (!promoteToForeground()) {
             stopSelf()
             return
         }
@@ -122,7 +126,7 @@ class LocationTrackingService : Service() {
         registerPowerReceiver()
         startUploadLoop()
         LocationUploadWorker.ensurePeriodic(this)
-        updateNotification(pendingCount())
+        updateNotification()
     }
 
     private fun stopTracking() {
@@ -163,7 +167,7 @@ class LocationTrackingService : Service() {
                 .addOnFailureListener { error ->
                     Log.e(TAG, "Location request failed: ${error.message}")
                     prefs.setLocationUploadFailure(error.message ?: "location_unavailable")
-                    updateNotification(pendingCount())
+                    updateNotification()
                 }
         }.onFailure { error ->
             Log.e(TAG, "Location request rejected: ${error.message}")
@@ -174,7 +178,7 @@ class LocationTrackingService : Service() {
         override fun onLocationResult(result: LocationResult) {
             result.locations.forEach { persist(it) }
             val pending = pendingCount()
-            updateNotification(pending)
+            updateNotification()
             // Small batches keep the outbox short without uploading on every fix.
             if (pending >= UPLOAD_EVERY) requestUpload()
         }
@@ -208,6 +212,9 @@ class LocationTrackingService : Service() {
             while (isActive) {
                 delay(UPLOAD_INTERVAL_MS)
                 if (System.currentTimeMillis() - lastUploadAtMs >= UPLOAD_INTERVAL_MS) requestUpload()
+                // Uploads may have settled in the background; keep the shade in
+                // sync with the real pending count.
+                updateNotification()
             }
         }
     }
@@ -235,8 +242,8 @@ class LocationTrackingService : Service() {
         manager.createNotificationChannel(channel)
     }
 
-    private fun promoteToForeground(pending: Int): Boolean {
-        val notification = buildNotification(pending)
+    private fun promoteToForeground(): Boolean {
+        val notification = buildNotification(pendingCount(), todayRouteMeters())
         return runCatching {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                 startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION)
@@ -249,12 +256,46 @@ class LocationTrackingService : Service() {
         }.getOrDefault(false)
     }
 
-    private fun updateNotification(pending: Int) {
+    private fun updateNotification() {
         val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        runCatching { manager.notify(NOTIFICATION_ID, buildNotification(pending)) }
+        runCatching { manager.notify(NOTIFICATION_ID, buildNotification(pendingCount(), todayRouteMeters())) }
     }
 
-    private fun buildNotification(pending: Int): Notification {
+    /**
+     * Sums the distance between today's stored measurements so the ongoing
+     * notification shows the route recorded so far, regardless of whether those
+     * points have already reached the server.
+     */
+    private fun todayRouteMeters(): Double {
+        val events = runCatching { LocationEventStore(this).eventsForDay(LocalDate.now()) }
+            .getOrDefault(emptyList())
+        if (events.size < 2) return 0.0
+        var total = 0.0
+        var previousLat: Double? = null
+        var previousLon: Double? = null
+        val result = FloatArray(1)
+        events.forEach { event ->
+            val payload = runCatching { JSONObject(event.payload) }.getOrNull() ?: return@forEach
+            val lat = payload.optDouble("latitude", Double.NaN)
+            val lon = payload.optDouble("longitude", Double.NaN)
+            if (lat.isNaN() || lon.isNaN()) return@forEach
+            val prevLat = previousLat
+            val prevLon = previousLon
+            if (prevLat != null && prevLon != null) {
+                Location.distanceBetween(prevLat, prevLon, lat, lon, result)
+                total += result[0]
+            }
+            previousLat = lat
+            previousLon = lon
+        }
+        return total
+    }
+
+    private fun formatDistance(meters: Double): String =
+        if (meters < 1_000) "${meters.toInt()} m"
+        else String.format(Locale.getDefault(), "%.1f km", meters / 1_000)
+
+    private fun buildNotification(pending: Int, routeMeters: Double): Notification {
         val open = PendingIntent.getActivity(
             this,
             0,
@@ -273,17 +314,38 @@ class LocationTrackingService : Service() {
             Intent(this, LocationTrackingService::class.java).setAction(ACTION_STOP),
             pendingIntentFlags(),
         )
+        val routeLine = getString(R.string.tracking_notification_route, formatDistance(routeMeters))
+        val distanceText = formatDistance(routeMeters)
+        val fullViews = RemoteViews(packageName, R.layout.notification_tracking).apply {
+            setTextViewText(R.id.notif_route, distanceText)
+            setTextViewText(R.id.notif_pending, pending.toString())
+            setOnClickPendingIntent(R.id.notif_pause, pause)
+            setOnClickPendingIntent(R.id.notif_stop, stop)
+            // Tapping the rest of the card opens the app; the buttons win because
+            // their click intents are attached to the child views.
+            setOnClickPendingIntent(R.id.notif_root, open)
+        }
+        // The collapsed shade is much shorter, so it gets its own single-row
+        // layout instead of a clipped version of the full card.
+        val compactViews = RemoteViews(packageName, R.layout.notification_tracking_compact).apply {
+            setTextViewText(
+                R.id.notif_compact_text,
+                getString(R.string.tracking_notification_compact, distanceText, pending),
+            )
+            setOnClickPendingIntent(R.id.notif_root, open)
+        }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setContentTitle(getString(R.string.tracking_notification_title))
-            .setContentText(getString(R.string.tracking_notification_text, pending))
-            .setSmallIcon(R.mipmap.ic_launcher)
+            .setContentText(routeLine)
+            .setSmallIcon(R.drawable.ic_notif_location)
             .setContentIntent(open)
             .setOngoing(true)
+            .setShowWhen(false)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
-            .addAction(0, getString(R.string.tracking_action_pause), pause)
-            .addAction(0, getString(R.string.tracking_action_stop), stop)
+            .setCustomContentView(compactViews)
+            .setCustomBigContentView(fullViews)
             .build()
     }
 
