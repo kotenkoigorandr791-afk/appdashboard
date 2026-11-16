@@ -522,7 +522,7 @@
                 "types chart"
                 "calendar chart"
                 "goal chart"
-                "view view";
+                ". view";
             gap: 10px 14px;
             align-items: stretch;
             padding: clamp(10px, 1.6vw, 16px);
@@ -537,7 +537,7 @@
         .view-btn { background: transparent; color: var(--muted-text); border: none; padding: 10px 12px; margin: 0; cursor: pointer; border-radius: var(--radius-sm); font-weight: 700; letter-spacing: 0; }
         .view-btn.active, .view-btn:hover { background: var(--surface-solid); color: var(--text-color); opacity: 1; box-shadow: 0 8px 22px rgba(0,0,0,0.1); }
         .chart-container { grid-area: chart; position: relative; margin-bottom: 0; display: flex; flex-direction: row; align-items: stretch; justify-content: center; gap: 10px; width: 100%; max-width: none; min-height: 0; height: 100%; margin-left: auto; margin-right: auto; box-sizing: border-box; padding: clamp(10px, 1.6vw, 16px); border-radius: calc(var(--radius-lg) - 4px); background: var(--surface-solid); border: 1px solid rgba(127,127,127,0.1); }
-        .chart-nav { flex-shrink: 0; align-self: center; font-size: 17px; background: transparent; border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 36px; height: 60px; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted-text); }
+        .chart-nav { flex-shrink: 0; align-self: center; font-size: 17px; background: transparent; border: 1px solid var(--border-color); border-radius: var(--radius-sm); width: 36px; height: 60px; min-height: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; color: var(--muted-text); }
         .chart-nav:hover { background: var(--primary-color); color: #fff; }
         .chart-nav:disabled { opacity: 0.3; cursor: not-allowed; background: var(--group-block-bg); color: var(--text-color); }
         .chart-nav:disabled:hover { background: var(--group-block-bg); color: var(--text-color); }
@@ -567,7 +567,18 @@
         .chart-wrapper { position: relative; width: 100%; max-width: none; margin: 0 auto; flex: 1 1 auto; min-height: 0; height: 100%; box-sizing: border-box; padding-top: 8px; }
         #steps-chart { width: 100%; height: 100%; min-height: 0; max-width: none; display: block; }
         .calendar-container { grid-area: calendar; margin-top: 0; width: 100%; margin-left: auto; margin-right: auto; min-width: 0; }
-        .calendar-header { display: flex; gap: 8px; justify-content: stretch; }
+        .calendar-header { display: flex; gap: 8px; align-items: stretch; justify-content: stretch; }
+        /* The chart period arrows live next to the year/month pickers. */
+        .calendar-header .chart-nav {
+            flex: 0 0 auto;
+            align-self: stretch;
+            width: 38px;
+            height: auto;
+            min-height: 0;
+            margin-bottom: 10px;
+            font-size: 15px;
+            border-radius: var(--radius-md);
+        }
         .calendar-header select { padding: 5px; border-radius: 4px; border: 1px solid var(--border-color); background: var(--modal-bg); color: var(--text-color); margin-bottom: 15px; }
         #year-selector { width: 90px; }
         #month-selector { width: 160px; }
@@ -856,6 +867,7 @@
         .stats-freshness .is-live { color: #15803d; border-color: color-mix(in srgb, #22c55e 36%, transparent); background: color-mix(in srgb, #22c55e 10%, transparent); }
         .stats-freshness .is-waiting { color: var(--primary-color); border-color: color-mix(in srgb, var(--primary-color) 35%, transparent); background: color-mix(in srgb, var(--primary-color) 9%, transparent); }
         .stats-tabbar {
+            margin: 16px 0 12px;
             position: sticky; top: -1px; z-index: 3; display: flex; gap: 4px; padding: 4px;
             border: 1px solid color-mix(in srgb, var(--border-color) 84%, transparent); border-radius: 14px;
             background: color-mix(in srgb, var(--group-block-bg) 88%, transparent);
@@ -2938,6 +2950,7 @@
             .chart-label { font-size: 20px; }
             #steps-chart { width: 100% !important; height: 100% !important; min-height: 240px; }
             .chart-nav { width: 28px; height: 52px; font-size: 14px; }
+            .calendar-header .chart-nav { width: 32px; font-size: 13px; }
 
             .settings-content, .add-steps-content, .user-content, .add-user-content, .video-confirm-inner, .video-confirm-gaps-inner, .excel-content, .backups-content, .alert-content, .info-content, .stats-content, .excel-hotkeys-inner, .mobile-app-content {
                 width: 100dvw !important;
@@ -4007,7 +4020,8 @@ height: 48px;
 .map-stage .leaflet-control-zoom { border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.42); }
 .map-stage .leaflet-control-zoom a { width: 34px; height: 34px; line-height: 34px; background: rgba(11,17,23,0.78); color: #dbeafe; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .map-stage .leaflet-control-zoom a:hover { background: rgba(56,189,248,0.24); color: #fff; }
-.map-stage .leaflet-control-scale-line { background: rgba(11,17,23,0.6); color: #cbd5e1; border-color: rgba(255,255,255,0.4); border-radius: 6px; }
+.map-stage .leaflet-bottom .leaflet-control-scale { margin: 0 0 22px 14px; }
+.map-stage .leaflet-control-scale-line { background: rgba(11,17,23,0.6); color: #cbd5e1; border-color: rgba(255,255,255,0.4); border-radius: 6px; padding: 2px 7px; }
 .map-stage .leaflet-control-attribution { background: rgba(11,17,23,0.55) !important; color: #94a3b8 !important; font-size: 9px !important; border-radius: 6px; }
 .map-stage .leaflet-control-attribution a { color: #7dd3fc !important; }
 .map-stage .leaflet-popup-content-wrapper { background: rgba(13,20,27,0.94); color: #e2e8f0; border-radius: 12px; border: 1px solid rgba(148,163,184,0.28); box-shadow: 0 18px 40px rgba(0,0,0,0.5); }
@@ -4031,6 +4045,8 @@ height: 48px;
 .map-workspace { transition: grid-template-columns 0.25s ease; }
 .map-workspace.is-collapsed { grid-template-columns: minmax(0, 1fr) 0; gap: 0; }
 .map-workspace.is-collapsed .map-sidebar { display: none; }
+.map-sidebar-backdrop { display: none; }
+body.map-sidebar-open { overflow: hidden !important; }
 .map-sidebar-show {
     position: absolute; top: 12px; right: 12px; z-index: 1000;
     width: 40px; height: 40px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.18);
@@ -4047,7 +4063,30 @@ height: 48px;
     .map-workspace.is-collapsed { grid-template-columns: 1fr; }
     .map-stage { min-height: 58vh; }
     .map-workspace.is-collapsed .map-stage { min-height: 76vh; }
-    .map-sidebar { order: 2; }
+    /* On phones the controls panel is a modal sheet over the map, not a block
+       stacked below it. */
+    .map-sidebar {
+        position: fixed;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        top: auto;
+        z-index: 1400;
+        max-height: min(86vh, 760px);
+        padding: 16px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+        border-radius: 20px 20px 0 0;
+        box-shadow: 0 -24px 60px rgba(0,0,0,0.45);
+        overscroll-behavior: contain;
+    }
+    .map-workspace:not(.is-collapsed) .map-sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 1350;
+        background: rgba(8,12,16,0.55);
+        -webkit-backdrop-filter: blur(3px);
+        backdrop-filter: blur(3px);
+    }
     .map-sidebar-head #ma-sidebar-hide i { transform: rotate(90deg); }
     .map-sidebar-show { width: 44px; height: 44px; }
 }
@@ -4282,6 +4321,7 @@ height: 48px;
 .map-panel-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .map-day-nav { display: flex; gap: 4px; }
 .map-day-btn {
+    flex: 0 0 auto;
     width: 26px;
     height: 26px;
     display: inline-flex;
@@ -4813,10 +4853,15 @@ iframe.render-preview-media { height: 60vh; }
 .points-row em { flex: 0 0 auto; font-style: normal; color: var(--muted-text); font-size: 12px; }
 .map-area-tools { display: flex; align-items: center; gap: 8px; margin-top: 8px; pointer-events: auto; }
 .map-area-tools [hidden] { display: none; }
+/* Icon-only buttons in the map panel stay square, not stretched rectangles. */
+.map-area-tools .trip-btn { width: 40px; padding: 0; }
 #ma-area-toggle.active { background: #ef4444; color: #fff; border-color: #ef4444; }
 @media (max-width: 820px) {
     .points-row { flex-wrap: wrap; }
     .points-row em { flex-basis: 100%; }
+    /* Touch-sized but still square icon buttons. */
+    .map-day-btn { width: 34px; height: 34px; font-size: 12px; }
+    .map-area-tools .trip-btn { width: 44px; }
 }
 
 /* --- Unified modal top bars and fullscreen settings --- */
@@ -4971,7 +5016,9 @@ iframe.render-preview-media { height: 60vh; }
 .app-steps input,
 .app-steps select,
 .app-steps textarea { transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast); }
-.app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out) { min-height: var(--control-height); border-radius: var(--radius-sm); }
+/* Icon-only controls own their geometry (pills and squares); the generic rule
+   only applies to text buttons. */
+.app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out):not(.mode-switch-btn):not(.map-day-btn):not(.map-sidebar-show):not(.map-reset-btn):not(.trip-close):not(.chart-nav) { min-height: var(--control-height); border-radius: var(--radius-sm); }
 .app-steps button:disabled { cursor: not-allowed; opacity: .52; }
 .app-steps button:not(:disabled):active { transform: translateY(1px); }
 .app-steps .app-icon { display: inline-block; width: 1em; font-family: "Font Awesome 6 Free"; font-size: 18px; font-style: normal; font-weight: 900; line-height: 1; text-align: center; }
@@ -5101,7 +5148,7 @@ iframe.render-preview-media { height: 60vh; }
     #stats-modal .stats-grid { grid-template-columns: 1fr; gap: var(--space-3); }
 }
 @media (max-width: 640px) {
-    .app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out) { min-height: 44px; }
+    .app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out):not(.mode-switch-btn):not(.map-day-btn):not(.map-sidebar-show):not(.map-reset-btn):not(.trip-close):not(.chart-nav) { min-height: 44px; }
     .app-steps th,
     .app-steps td { padding: var(--space-2); }
 }

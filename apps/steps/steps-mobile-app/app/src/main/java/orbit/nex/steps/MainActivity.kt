@@ -144,7 +144,6 @@ class MainActivity : AppCompatActivity() {
             }
         )
         var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
-        var trackingVisited by rememberSaveable { mutableStateOf(false) }
         val online by NetworkState.online.collectAsState()
         // The bar turns red while offline, flashes green for a moment after the
         // connection is back, then settles into its normal colour.
@@ -273,10 +272,7 @@ class MainActivity : AppCompatActivity() {
                         bottomNavItems.forEach { screen ->
                             NavigationBarItem(
                                 selected = selected == screen,
-                                onClick = {
-                                    if (screen == NavigationScreen.Tracking) trackingVisited = true
-                                    selected = screen
-                                },
+                                onClick = { selected = screen },
                                 icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
                                 label = { NavLabel(screen.titleResId) }
                             )
@@ -298,10 +294,9 @@ class MainActivity : AppCompatActivity() {
                             translationY = (1f - screenAlpha.value) * 14.dp.toPx()
                         }
                     ) {
-                        if (trackingVisited) TrackingMapScreen(Modifier)
                         when (selected) {
                             NavigationScreen.Home -> ConfigurationScreen(Modifier)
-                            NavigationScreen.Tracking -> Unit
+                            NavigationScreen.Tracking -> TrackingMapScreen(Modifier)
                             NavigationScreen.Statistics -> StatisticsScreen(Modifier)
                             NavigationScreen.About -> AboutScreen(Modifier)
                         }

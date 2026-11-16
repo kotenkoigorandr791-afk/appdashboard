@@ -126,18 +126,12 @@ $metricButtons = [
         </div>
         
         <div class="chart-container">
-            <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_prev'] ?? 'Previous'); ?>">
-                <i class="fas fa-chevron-left"></i>
-            </button>
             <div class="chart-main">
                 <div class="chart-label" id="chart-label"></div>
                 <div class="chart-wrapper">
                     <canvas id="steps-chart"></canvas>
                 </div>
             </div>
-            <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_next'] ?? 'Next'); ?>">
-                <i class="fas fa-chevron-right"></i>
-            </button>
         </div>
         
         <div class="view-selector">
@@ -148,6 +142,9 @@ $metricButtons = [
 
         <div class="calendar-container">
             <div class="calendar-header">
+                <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_prev'] ?? 'Previous'); ?>">
+                    <i class="fas fa-chevron-left"></i>
+                </button>
                 <div class="calendar-selector-box">
                     <div class="custom-select" data-custom-select="year-selector">
                         <select id="year-selector" class="custom-select-native" tabindex="-1" aria-hidden="true"></select>
@@ -166,6 +163,9 @@ $metricButtons = [
                         <div class="custom-select-menu" role="listbox"></div>
                     </div>
                 </div>
+                <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_next'] ?? 'Next'); ?>">
+                    <i class="fas fa-chevron-right"></i>
+                </button>
             </div>
             <div id="calendar"></div>
             <div class="goal-summary" id="goal-summary"></div>
@@ -186,6 +186,7 @@ $metricButtons = [
                             <i class="fas fa-sliders" aria-hidden="true"></i>
                         </button>
                     </div>
+                    <div class="map-sidebar-backdrop" aria-hidden="true"></div>
                     <aside class="map-sidebar" aria-label="<?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?>">
                         <div class="map-sidebar-head">
                             <div class="map-sidebar-title">
@@ -220,7 +221,7 @@ $metricButtons = [
                                 <div class="map-field">
                                     <span><?php echo htmlspecialchars($translations['map_from'] ?? 'From'); ?></span>
                                     <div class="dp-field">
-                                        <input type="date" id="ma-map-from" class="dp-native" tabindex="-1" aria-hidden="true">
+                                        <input type="date" id="ma-map-from" class="dp-native" tabindex="-1" aria-hidden="true" max="<?php echo date('Y-m-d'); ?>">
                                         <button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false">
                                             <span class="dp-value">—</span>
                                             <i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i>
@@ -231,7 +232,7 @@ $metricButtons = [
                                 <div class="map-field">
                                     <span><?php echo htmlspecialchars($translations['map_to'] ?? 'To'); ?></span>
                                     <div class="dp-field">
-                                        <input type="date" id="ma-map-to" class="dp-native" tabindex="-1" aria-hidden="true">
+                                        <input type="date" id="ma-map-to" class="dp-native" tabindex="-1" aria-hidden="true" max="<?php echo date('Y-m-d'); ?>">
                                         <button type="button" class="dp-trigger" aria-haspopup="dialog" aria-expanded="false">
                                             <span class="dp-value">—</span>
                                             <i class="fas fa-calendar-days dp-icon" aria-hidden="true"></i>
@@ -334,8 +335,19 @@ $metricButtons = [
                         summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}'); ?>
                     };
                     const iso = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-                    if (!toInput.value) toInput.value = iso(new Date());
+                    const todayIso = () => iso(new Date());
+                    // A day that has not started yet has no data, so never show it.
+                    const capToToday = () => {
+                        const today = todayIso();
+                        if (toInput.value && toInput.value > today) toInput.value = today;
+                        if (fromInput.value && fromInput.value > today) fromInput.value = today;
+                        if (fromInput.value && toInput.value && fromInput.value > toInput.value) fromInput.value = toInput.value;
+                    };
+                    toInput.max = todayIso();
+                    fromInput.max = todayIso();
+                    if (!toInput.value) toInput.value = todayIso();
                     if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 864e5));
+                    capToToday();
                     const fallbackProviders={
                         esri_dark:{name:'Esri Dark Gray Canvas',url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:16},
                         esri_imagery:{name:'Esri Satellite',url:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:19},
@@ -656,6 +668,7 @@ $metricButtons = [
                         to.setDate(to.getDate()+days);
                         fromInput.value=toYMD(from);
                         toInput.value=toYMD(to);
+                        capToToday();
                         fromInput.dispatchEvent(new Event('change',{bubbles:true}));
                         toInput.dispatchEvent(new Event('change',{bubbles:true}));
                     }
@@ -901,13 +914,40 @@ $metricButtons = [
                         }
                         chunkCache.set(key,{data,at:Date.now(),bytes:bytes||0});
                     }
+                    // Counts the features that are actually drawn. The server sends
+                    // per-layer counts too, but a layer that was not queried (family
+                    // scope, disabled filter) reports nothing, which used to leave the
+                    // map summary stuck at zero next to visible data.
+                    function countLayers(features){
+                        const c={trips:0,stops:0,places:0,visits:0,points:0};
+                        let stopPoints=0, clusters=0, pointTotal=0;
+                        (Array.isArray(features)?features:[]).forEach(f=>{
+                            const p=(f&&f.properties)||{}, layer=p.layer||'';
+                            if(layer==='trip') c.trips+=1;
+                            else if(layer==='stop') stopPoints+=1;
+                            else if(layer==='place') c.places+=1;
+                            else if(layer==='visit') c.visits+=1;
+                            else if(layer==='point_cluster'){ clusters+=1; pointTotal+=Number(p.count)||1; }
+                            else if(layer==='point') pointTotal+=1;
+                        });
+                        c.stops=stopPoints+clusters;
+                        c.points=pointTotal||clusters;
+                        return c;
+                    }
                     function applyViewportData(data){
                         providers=data.providers||providers;
                         if(!provider) provider=(data.settings&&data.settings.provider)||(providers.esri_dark?'esri_dark':'osm');
                         if(!providerSel.options.length) renderProviders();
                         render(data.geojson.features);
-                        const c=data.meta.counts||{};
-                        summary.textContent=t.summary.replace('{trips}',c.trips||0).replace('{stops}',(c.stops||0)+(c.point_clusters||0)).replace('{places}',c.places||0).replace('{visits}',c.visits||0).replace('{points}',c.points||(c.point_clusters||0));
+                        const server=Object.assign({},(data.meta&&data.meta.counts)||{});
+                        const derived=countLayers(data.geojson.features);
+                        const count=key=>{
+                            const fromServer=Number(server[key]);
+                            return fromServer>0?fromServer:(derived[key]||0);
+                        };
+                        const serverStops=Number(server.stops)||0, serverClusters=Number(server.point_clusters)||0;
+                        const stops=(serverStops+serverClusters)>0?serverStops+serverClusters:derived.stops;
+                        summary.textContent=t.summary.replace('{trips}',count('trips')).replace('{stops}',stops).replace('{places}',count('places')).replace('{visits}',count('visits')).replace('{points}',count('points'));
                         if(!data.geojson.features.length) summary.textContent=t.empty;
                     }
                     function clearPrefetchQueue(abortRequests){
@@ -1304,15 +1344,29 @@ $metricButtons = [
                         ptOffset=0; ptLoad();
                     });                    const SIDEBAR_KEY='stepsMapSidebarHidden';
                     const hideBtn=document.getElementById('ma-sidebar-hide'), showBtn=document.getElementById('ma-sidebar-show');
+                    const sidebarModal=window.matchMedia('(max-width: 820px)');
+                    let sidebarHidden=false;
+                    function syncSidebarModal(){
+                        // On phones the panel behaves like a modal sheet, so the page
+                        // behind it must not scroll and the backdrop click closes it.
+                        document.body.classList.toggle('map-sidebar-open', !sidebarHidden && sidebarModal.matches && !mapHost.hidden);
+                    }
                     function setSidebar(hidden){
+                        sidebarHidden=!!hidden;
                         section.classList.toggle('is-collapsed',hidden);
                         if(showBtn) showBtn.hidden=!hidden;
+                        syncSidebarModal();
                         try{ localStorage.setItem(SIDEBAR_KEY,hidden?'1':'0'); }catch(e){}
                         setTimeout(()=>{ if(map) map.invalidateSize({pan:false}); },260);
                     }
                     hideBtn?.addEventListener('click',()=>setSidebar(true));
                     showBtn?.addEventListener('click',()=>setSidebar(false));
+                    section.querySelector('.map-sidebar-backdrop')?.addEventListener('click',()=>setSidebar(true));
+                    if(sidebarModal.addEventListener) sidebarModal.addEventListener('change',syncSidebarModal);
+                    window.addEventListener('steps-map-shown',syncSidebarModal);
+                    document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!section.classList.contains('is-collapsed')&&sidebarModal.matches) setSidebar(true); });
                     try{ if(localStorage.getItem(SIDEBAR_KEY)==='1') setSidebar(true); }catch(e){}
+                    syncSidebarModal();
                     const onRangeChanged=()=>{
                         didFit=false;
                         clearPrefetchQueue(true);
@@ -1521,6 +1575,8 @@ $metricButtons = [
                         syncRenderKind(); loadRenderJobs();
                     });
                     syncRenderKind();
+                    toInput.addEventListener('change', capToToday);
+                    fromInput.addEventListener('change', capToToday);
                     fromInput.addEventListener('change',()=>{ if(toInput.value&&fromInput.value>toInput.value){ toInput.value=fromInput.value; toInput.dispatchEvent(new Event('input',{bubbles:true})); const v=toInput.closest('.dp-field')?.querySelector('.dp-value'); const d=parseYMD(toInput.value); if(v&&d) v.textContent=d.toLocaleDateString(dateLocale(),{day:'numeric',month:'short',year:'numeric'}); } onRangeChanged(); });
                     toInput.addEventListener('change',()=>{ if(fromInput.value&&toInput.value<fromInput.value){ fromInput.value=toInput.value; const v=fromInput.closest('.dp-field')?.querySelector('.dp-value'); const d=parseYMD(fromInput.value); if(v&&d) v.textContent=d.toLocaleDateString(dateLocale(),{day:'numeric',month:'short',year:'numeric'}); } onRangeChanged(); });
                     document.getElementById('ma-map-day-prev')?.addEventListener('click',()=>shiftRange(-1));

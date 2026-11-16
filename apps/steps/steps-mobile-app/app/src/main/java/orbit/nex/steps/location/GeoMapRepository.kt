@@ -23,6 +23,27 @@ data class GeoTrip(
 )
 
 /**
+ * One weighted line of the server heatmap layer. The server aggregates repeated
+ * passes over the same street into a single line with a relative [intensity]
+ * in 0..1 and an absolute [weight] (number of passes).
+ */
+data class GeoHeatLine(
+    val path: List<GeoLatLon>,
+    val weight: Int,
+    val intensity: Float,
+)
+
+/**
+ * One continuous run of the travelled track with an average [kmh] and the
+ * server speed [bucket] (0..5, slowest to fastest).
+ */
+data class GeoSpeedSegment(
+    val path: List<GeoLatLon>,
+    val bucket: Int,
+    val kmh: Double,
+)
+
+/**
  * A point feature: a stop, place, visit, raw location point or heat cell.
  * [layer] is the server layer key, [count] the aggregated number of records.
  */
@@ -42,10 +63,14 @@ data class GeoBoundingBox(val north: Double, val south: Double, val east: Double
 data class GeoMapData(
     val trips: List<GeoTrip> = emptyList(),
     val points: List<GeoPointFeature> = emptyList(),
+    /** Weighted lines of the `heatmap` layer. */
+    val heat: List<GeoHeatLine> = emptyList(),
+    /** Track split into speed buckets by the `speed` layer. */
+    val speed: List<GeoSpeedSegment> = emptyList(),
     val bbox: GeoBoundingBox? = null,
     val error: String? = null,
 ) {
-    val isEmpty: Boolean get() = trips.isEmpty() && points.isEmpty()
+    val isEmpty: Boolean get() = trips.isEmpty() && points.isEmpty() && heat.isEmpty() && speed.isEmpty()
 }
 
 /**
@@ -60,16 +85,18 @@ class GeoMapRepository(
 ) {
 
     suspend fun loadDay(config: WebhookConfig, day: LocalDate): GeoMapData = withContext(Dispatchers.IO) {
-        // The endpoint validates an exclusive upper bound, so a single day is
-        // requested as [day, day + 1).
-        val from = day.toString()
-        val to = day.plusDays(1).toString()
+        // A bare date would be parsed by the server as UTC midnight, which drops
+        // the local first hours of the day. Send the local day as explicit
+        // instants: [local 00:00, local next 00:00).
+        val zone = java.time.ZoneId.systemDefault()
+        val from = day.atStartOfDay(zone).toInstant().toString()
+        val to = day.plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1).toString()
         val url = buildString {
             append(apiBase(config))
             append("/geolocation_map?from=").append(from)
             append("&to=").append(to)
             append("&zoom=").append(MAP_ZOOM)
-            append("&layers=trips,stops,places,visits,points,heatmap")
+            append("&layers=trips,stops,places,visits,points,heatmap,speed")
         }
         val request = Request.Builder()
             .url(url)
@@ -102,37 +129,43 @@ class GeoMapRepository(
         }
         val trips = mutableListOf<GeoTrip>()
         val points = mutableListOf<GeoPointFeature>()
+        val heat = mutableListOf<GeoHeatLine>()
+        val speed = mutableListOf<GeoSpeedSegment>()
         val features = root.optJSONObject("geojson")?.optJSONArray("features") ?: JSONArray()
         for (i in 0 until features.length()) {
             val feature = features.optJSONObject(i) ?: continue
             val properties = feature.optJSONObject("properties") ?: JSONObject()
             val geometry = feature.optJSONObject("geometry") ?: continue
             val layer = properties.optString("layer")
-            when (geometry.optString("type")) {
-                "LineString" -> {
-                    val path = readLine(geometry.optJSONArray("coordinates"))
-                    if (path.size >= 2) {
-                        trips += GeoTrip(
-                            id = properties.optString("id"),
-                            title = properties.optString("title"),
-                            path = path,
-                            distanceM = properties.optDouble("distance_m", 0.0),
-                        )
-                    }
+            // The heatmap and speed layers are LineStrings too, so the layer key
+            // decides what a line becomes. Treating every line as a trip is what
+            // used to leave the heatmap overlay permanently empty.
+            fun addLine(path: List<GeoLatLon>) {
+                if (path.size < 2) return
+                when (layer) {
+                    "heatmap" -> heat += GeoHeatLine(
+                        path = path,
+                        weight = properties.optInt("weight", 1),
+                        intensity = properties.optDouble("intensity", 0.5).toFloat().coerceIn(0f, 1f),
+                    )
+                    "speed" -> speed += GeoSpeedSegment(
+                        path = path,
+                        bucket = properties.optInt("bucket", 0).coerceIn(0, 5),
+                        kmh = properties.optDouble("kmh", 0.0),
+                    )
+                    else -> trips += GeoTrip(
+                        id = properties.optString("id"),
+                        title = properties.optString("title"),
+                        path = path,
+                        distanceM = properties.optDouble("distance_m", 0.0),
+                    )
                 }
+            }
+            when (geometry.optString("type")) {
+                "LineString" -> addLine(readLine(geometry.optJSONArray("coordinates")))
                 "MultiLineString" -> {
                     val lines = geometry.optJSONArray("coordinates") ?: JSONArray()
-                    for (line in 0 until lines.length()) {
-                        val path = readLine(lines.optJSONArray(line))
-                        if (path.size >= 2) {
-                            trips += GeoTrip(
-                                id = properties.optString("id"),
-                                title = properties.optString("title"),
-                                path = path,
-                                distanceM = properties.optDouble("distance_m", 0.0),
-                            )
-                        }
-                    }
+                    for (line in 0 until lines.length()) addLine(readLine(lines.optJSONArray(line)))
                 }
                 "Point" -> {
                     val coordinates = geometry.optJSONArray("coordinates") ?: continue
@@ -162,8 +195,11 @@ class GeoMapRepository(
             val east = box.optDouble("maxLon", Double.NaN)
             if (south.isNaN() || north.isNaN() || west.isNaN() || east.isNaN()) null
             else GeoBoundingBox(north = north, south = south, east = east, west = west)
-        }
-        return GeoMapData(trips = trips, points = points, bbox = bbox)
+        } ?: boundingBoxOf(points.asSequence().map { it.lat to it.lon } +
+            trips.asSequence().flatMap { trip -> trip.path.asSequence().map { it.lat to it.lon } } +
+            heat.asSequence().flatMap { line -> line.path.asSequence().map { it.lat to it.lon } } +
+            speed.asSequence().flatMap { segment -> segment.path.asSequence().map { it.lat to it.lon } })
+        return GeoMapData(trips = trips, points = points, heat = heat, speed = speed, bbox = bbox)
     }
 
     private fun readLine(coordinates: JSONArray?): List<GeoLatLon> {
@@ -177,6 +213,23 @@ class GeoMapRepository(
             if (isCoordinate(lat, lon)) path += GeoLatLon(lat, lon)
         }
         return path
+    }
+
+    private fun boundingBoxOf(coordinates: Sequence<Pair<Double, Double>>): GeoBoundingBox? {
+        var north = Double.NEGATIVE_INFINITY
+        var south = Double.POSITIVE_INFINITY
+        var east = Double.NEGATIVE_INFINITY
+        var west = Double.POSITIVE_INFINITY
+        var seen = false
+        coordinates.forEach { (lat, lon) ->
+            if (!isCoordinate(lat, lon)) return@forEach
+            seen = true
+            north = maxOf(north, lat)
+            south = minOf(south, lat)
+            east = maxOf(east, lon)
+            west = minOf(west, lon)
+        }
+        return if (seen) GeoBoundingBox(north = north, south = south, east = east, west = west) else null
     }
 
     private fun isCoordinate(lat: Double, lon: Double): Boolean =

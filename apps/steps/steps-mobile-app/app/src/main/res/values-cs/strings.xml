@@ -356,6 +356,7 @@
     <string name="system_default">Systémový (výchozí)</string>
     <string name="logs_sync_notification">Oznámení</string>
     <string name="logs_sync_conflict">Konflikt</string>
+    <string name="logs_sync_location">Poloha</string>
     <string name="logs_action_export">Export Logs</string>
     <string name="logs_export_intent_title">Export synchronization logs</string>
     <string name="logs_count">%1$d logs</string>
@@ -722,6 +723,8 @@
     <string name="map_panels_title">Prozkoumejte mapu</string>
     <string name="map_panels_subtitle">Místa, cesty a kvalita dat bez opuštění mapy</string>
     <string name="map_panels_open">Otevřít panely mapy</string>
+    <string name="map_layer_speed">Trasa podle rychlosti</string>
+    <string name="map_speed_legend_title">Rychlost, km/h</string>
     <string name="weekday_mon">Po</string>
     <string name="weekday_tue">Út</string>
     <string name="weekday_wed">St</string>

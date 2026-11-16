@@ -32,7 +32,8 @@ class LocationUploadWorker(
 
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val prefs = PreferencesManager(applicationContext)
-        if (!prefs.isLocationTrackingEnabled()) return@withContext Result.success()
+        // Tracking may have been switched off while points were still queued; they
+        // must reach the server anyway, so only an auth failure blocks the drain.
         if (prefs.hasAuthError()) return@withContext Result.success()
 
         val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }

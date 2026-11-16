@@ -18,7 +18,9 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.WebhookConfig
+import orbit.nex.steps.WebhookLog
 import java.io.IOException
+import java.util.UUID
 
 /** Result of one upload attempt; [error] is null when every row was settled. */
 data class UploadReport(
@@ -51,6 +53,8 @@ class LocationUploader(
         config: WebhookConfig,
         prefs: PreferencesManager,
         limit: Int = LocationEventStore.DEFAULT_BATCH,
+        /** A combined sync run writes one log row for both points and health data. */
+        writeLog: Boolean = true,
     ): UploadReport = withContext(Dispatchers.IO) {
         val store = LocationEventStore(appContext)
         store.trim()
@@ -61,6 +65,7 @@ class LocationUploader(
             put("points", buildJsonArray { events.forEach { add(Json.parseToJsonElement(it.payload)) } })
         }
         val url = batchUrl(config)
+        val startedAt = System.currentTimeMillis()
         val request = Request.Builder()
             .url(url)
             .post(body.toString().toRequestBody(JSON_MEDIA_TYPE))
@@ -77,6 +82,7 @@ class LocationUploader(
                     if (response.code == 409) {
                         events.forEach { store.settle(it.eventId, LocationEventStore.STATE_DUPLICATE) }
                         prefs.setLocationUploadSuccess()
+                        if (writeLog) log(prefs, url, 409, true, "Location batch already stored: ${events.size}", events.size, startedAt)
                         return@use UploadReport(duplicate = events.size, pending = store.pendingCount())
                     }
                     if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
@@ -90,6 +96,7 @@ class LocationUploader(
                         events.forEach { store.settle(it.eventId, LocationEventStore.STATE_FAILED, error) }
                     }
                     prefs.setLocationUploadFailure(error)
+                    if (writeLog) log(prefs, url, response.code, false, "Location batch failed: $error (${events.size} points)", events.size, startedAt)
                     return@use UploadReport(
                         failed = if (retryable) 0 else events.size,
                         pending = store.pendingCount(),
@@ -107,6 +114,7 @@ class LocationUploader(
                     store.release(events.map { it.id })
                     store.retryLater(events.map { it.id }, "unexpected_response")
                     prefs.setLocationUploadFailure("unexpected_response")
+                    if (writeLog) log(prefs, url, response.code, false, "Location batch response incomplete, keeping ${events.size} points", events.size, startedAt)
                     return@use UploadReport(
                         pending = store.pendingCount(),
                         error = "unexpected_response",
@@ -142,6 +150,15 @@ class LocationUploader(
                 }
                 val pending = store.pendingCount()
                 if (unknown == 0) prefs.setLocationUploadSuccess()
+                if (writeLog) log(
+                    prefs,
+                    url,
+                    200,
+                    unknown == 0,
+                    "Location batch: $accepted accepted, $duplicate duplicate, $rejected rejected, $unknown retried",
+                    events.size,
+                    startedAt,
+                )
                 UploadReport(
                     accepted = accepted,
                     duplicate = duplicate,
@@ -154,12 +171,43 @@ class LocationUploader(
         } catch (e: IOException) {
             store.retryLater(events.map { it.id }, e.message ?: "network")
             prefs.setLocationUploadFailure(e.message ?: "network")
+            if (writeLog) log(prefs, url, null, false, "Location batch failed: ${e.message ?: "network"} (${events.size} points)", events.size, startedAt)
             UploadReport(
                 pending = store.pendingCount(),
                 error = e.message ?: "network",
                 retryable = true,
             )
         }
+    }
+
+    /**
+     * Writes one row per batch to the log screen, so a user can tell whether the
+     * recorded coordinates really reached the server.
+     */
+    private fun log(
+        prefs: PreferencesManager,
+        url: String,
+        statusCode: Int?,
+        success: Boolean,
+        message: String,
+        recordCount: Int,
+        startedAt: Long,
+    ) {
+        prefs.addWebhookLog(
+            WebhookLog(
+                id = UUID.randomUUID().toString(),
+                timestamp = System.currentTimeMillis(),
+                url = url,
+                statusCode = statusCode,
+                success = success,
+                errorMessage = message,
+                dataType = "location",
+                recordCount = recordCount,
+                responseTimeMs = System.currentTimeMillis() - startedAt,
+                syncType = "location",
+                deliveryFormat = WebhookLog.FORMAT_JSON,
+            )
+        )
     }
 
     /**

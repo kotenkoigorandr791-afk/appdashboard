@@ -364,6 +364,7 @@
     <string name="logs_sync_auto">Auto</string>
     <string name="logs_sync_test">Test</string>
     <string name="logs_sync_conflict">Conflict</string>
+    <string name="logs_sync_location">Location</string>
     <string name="logs_sync_notification">Notification</string>
     <string name="system_default">System default</string>
     <string name="logs_action_export">Export Logs</string>
@@ -710,6 +711,8 @@
     <string name="map_layer_visits">Visits</string>
     <string name="map_layer_points">Points</string>
     <string name="map_layer_heatmap">Heatmap</string>
+    <string name="map_layer_speed">Track by speed</string>
+    <string name="map_speed_legend_title">Speed, km/h</string>
     <string name="map_no_data">No movements recorded on this day</string>
     <string name="points_title">Points</string>
     <string name="points_desc">View, select and remove synchronized location points</string>

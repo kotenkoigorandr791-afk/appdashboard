@@ -655,8 +655,8 @@
             if (!chartData.data.length) return;
 
             document.getElementById('chart-label').textContent = getChartLabel(view, selectedDate, lang);
-            document.getElementById('chart-nav-left').style.display = 'block';
-            document.getElementById('chart-nav-right').style.display = 'block';
+            document.getElementById('chart-nav-left').style.display = 'inline-flex';
+            document.getElementById('chart-nav-right').style.display = 'inline-flex';
             document.getElementById('chart-nav-left').disabled = !canNavigateBackward();
             document.getElementById('chart-nav-right').disabled = !canNavigateForward();
 
@@ -1431,6 +1431,7 @@
                 const showMap = mode === 'map';
                 appMain.hidden = showMap;
                 mapView.hidden = !showMap;
+                if (!showMap) document.body.classList.remove('map-sidebar-open');
                 if (showMap) {
                     window.dispatchEvent(new Event('steps-map-shown'));
                 } else if (chart && typeof chart.resize === 'function') {

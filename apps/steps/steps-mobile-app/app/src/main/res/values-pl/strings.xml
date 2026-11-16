@@ -356,6 +356,7 @@
     <string name="system_default">Domyślny (system)</string>
     <string name="logs_sync_notification">Powiadomienie</string>
     <string name="logs_sync_conflict">Konflikt</string>
+    <string name="logs_sync_location">Lokalizacja</string>
     <string name="logs_action_export">Export Logs</string>
     <string name="logs_export_intent_title">Export synchronization logs</string>
     <string name="logs_count">%1$d logs</string>
@@ -722,6 +723,8 @@
     <string name="map_panels_title">Odkrywaj mapę</string>
     <string name="map_panels_subtitle">Miejsca, podróże i jakość danych bez opuszczania mapy</string>
     <string name="map_panels_open">Otwórz panele mapy</string>
+    <string name="map_layer_speed">Trasa według prędkości</string>
+    <string name="map_speed_legend_title">Prędkość, km/h</string>
     <string name="weekday_mon">Pon</string>
     <string name="weekday_tue">Wt</string>
     <string name="weekday_wed">Śr</string>

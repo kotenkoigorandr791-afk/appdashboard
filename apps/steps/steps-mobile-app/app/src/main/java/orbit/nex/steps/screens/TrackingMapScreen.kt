@@ -4,9 +4,8 @@ import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.location.LocationManager
 import android.graphics.Paint
+import android.graphics.Path
 import android.graphics.Point
-import android.graphics.RadialGradient
-import android.graphics.Shader
 import android.graphics.drawable.GradientDrawable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -35,6 +34,7 @@ import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Map
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Satellite
+import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -81,10 +81,13 @@ import org.osmdroid.views.overlay.TilesOverlay
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.location.GeoBoundingBox
+import orbit.nex.steps.location.GeoHeatLine
 import orbit.nex.steps.location.GeoLatLon
 import orbit.nex.steps.location.GeoMapData
 import orbit.nex.steps.location.GeoMapRepository
 import orbit.nex.steps.location.GeoPointFeature
+import orbit.nex.steps.location.GeoSpeedSegment
+import orbit.nex.steps.location.StoredLocationEvent
 import orbit.nex.steps.location.LocationPermissionState
 import orbit.nex.steps.location.LocationPermissions
 import orbit.nex.steps.location.LocationEventStore
@@ -105,6 +108,16 @@ private enum class MapStyle(val key: String, val titleRes: Int) {
     }
 }
 
+private object TrackingMapCache {
+    private val data = mutableMapOf<String, GeoMapData>()
+
+    fun get(configUrl: String?, day: LocalDate): GeoMapData? = data["${configUrl.orEmpty()}:${day}"]
+
+    fun put(configUrl: String?, day: LocalDate, value: GeoMapData) {
+        if (value.error == null) data["${configUrl.orEmpty()}:${day}"] = value
+    }
+}
+
 /** GeoJSON layers the map can draw, matching the server's layer keys. */
 private enum class GeoLayer(val key: String, val titleRes: Int) {
     TRIPS("trips", R.string.map_layer_trips),
@@ -113,6 +126,7 @@ private enum class GeoLayer(val key: String, val titleRes: Int) {
     VISITS("visits", R.string.map_layer_visits),
     POINTS("points", R.string.map_layer_points),
     HEATMAP("heatmap", R.string.map_layer_heatmap),
+    SPEED("speed", R.string.map_layer_speed),
 }
 
 private object CartoLight : XYTileSource(
@@ -156,34 +170,61 @@ private object EsriTransportation : OnlineTileSourceBase(
             MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
 }
 
-/** Translucent density overlay; heat cells come from the server aggregation. */
+/**
+ * Heatmap drawn from the server's weighted route lines.
+ *
+ * The `heatmap` layer is a set of LineStrings (one per repeatedly travelled
+ * street) rather than isolated cells, so each line gets a wide warm halo and a
+ * narrow bright core whose width and alpha follow `intensity`.
+ */
 private class HeatmapOverlay(
-    private val cells: List<GeoPointFeature>,
-    private val color: Int,
+    private val lines: List<GeoHeatLine>,
 ) : Overlay() {
 
-    private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+        style = Paint.Style.STROKE
+        strokeCap = Paint.Cap.ROUND
+        strokeJoin = Paint.Join.ROUND
+    }
     private val screenPoint = Point()
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow || cells.isEmpty()) return
+        if (shadow || lines.isEmpty()) return
         val projection = mapView.projection
-        cells.forEach { cell ->
-            projection.toPixels(GeoPoint(cell.lat, cell.lon), screenPoint)
-            val radius = 18f + 42f * cell.intensity.coerceIn(0f, 1f)
-            paint.shader = RadialGradient(
-                screenPoint.x.toFloat(),
-                screenPoint.y.toFloat(),
-                radius,
-                intArrayOf(color, AndroidColor.TRANSPARENT),
-                floatArrayOf(0f, 1f),
-                Shader.TileMode.CLAMP,
-            )
-            canvas.drawCircle(screenPoint.x.toFloat(), screenPoint.y.toFloat(), radius, paint)
+        val density = mapView.resources.displayMetrics.density
+        lines.forEach { line ->
+            val path = Path()
+            var started = false
+            line.path.forEach { coordinate ->
+                projection.toPixels(GeoPoint(coordinate.lat, coordinate.lon), screenPoint)
+                if (started) {
+                    path.lineTo(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+                } else {
+                    path.moveTo(screenPoint.x.toFloat(), screenPoint.y.toFloat())
+                    started = true
+                }
+            }
+            if (!started) return@forEach
+            val intensity = line.intensity.coerceIn(0f, 1f)
+            paint.color = AndroidColor.argb((55 + 85 * intensity).toInt(), 255, 120, 40)
+            paint.strokeWidth = (5f + 11f * intensity) * density
+            canvas.drawPath(path, paint)
+            paint.color = AndroidColor.argb((120 + 90 * intensity).toInt(), 255, 212, 74)
+            paint.strokeWidth = (1.4f + 2.2f * intensity) * density
+            canvas.drawPath(path, paint)
         }
-        paint.shader = null
     }
 }
+
+/** Slowest to fastest buckets returned by the server `speed` layer. */
+private val SPEED_BUCKET_COLORS = intArrayOf(
+    AndroidColor.rgb(140, 146, 158),
+    AndroidColor.rgb(56, 148, 224),
+    AndroidColor.rgb(52, 190, 122),
+    AndroidColor.rgb(232, 194, 62),
+    AndroidColor.rgb(240, 132, 48),
+    AndroidColor.rgb(226, 68, 58),
+)
 
 private fun dot(color: Int, border: Int, sizeDp: Int): GradientDrawable =
     GradientDrawable().apply {
@@ -215,8 +256,18 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     var lastUploadAt by remember { mutableStateOf(prefs.getLocationUploadOkAt()) }
     var lastError by remember { mutableStateOf(prefs.getLocationUploadError()) }
 
-    var selectedDay by remember { mutableStateOf(prefs.getMapDay()?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now()) }
-    var data by remember { mutableStateOf(GeoMapData()) }
+    // A stored day from the future has nothing to show, so it opens on today.
+    var selectedDay by remember {
+        mutableStateOf(
+            (prefs.getMapDay()?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now())
+                .coerceAtMost(LocalDate.now()),
+        )
+    }
+    // Server data and the local outbox stay separate so that a sync landing in
+    // the background never duplicates the measurements still waiting for it.
+    var remoteData by remember { mutableStateOf(GeoMapData()) }
+    var localEvents by remember { mutableStateOf<List<StoredLocationEvent>>(emptyList()) }
+    val data = remember(remoteData, localEvents) { remoteData.withLocalEvents(localEvents) }
     var loading by remember { mutableStateOf(false) }
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
     var layers by remember { mutableStateOf(prefs.getMapLayers()) }
@@ -241,6 +292,9 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             pendingUploads = LocationTrackingManager.pendingCount(context)
             lastUploadAt = prefs.getLocationUploadOkAt()
             lastError = prefs.getLocationUploadError()
+            // Unsynced measurements appear on the map as soon as they are
+            // recorded, and disappear once the server confirms them.
+            localEvents = runCatching { LocationEventStore(context).eventsForDay(selectedDay) }.getOrDefault(localEvents)
             delay(2_000)
         }
     }
@@ -248,9 +302,17 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
 
     LaunchedEffect(selectedDay, config) {
-        loading = true
+        localEvents = runCatching { LocationEventStore(context).eventsForDay(selectedDay) }.getOrDefault(localEvents)
+        val cached = TrackingMapCache.get(config?.url, selectedDay)
+        if (cached != null) {
+            remoteData = cached
+            loading = false
+            return@LaunchedEffect
+        }
+        loading = config != null
         val remote = config?.let { repository.loadDay(it, selectedDay) } ?: GeoMapData()
-        data = remote.withLocalEvents(LocationEventStore(context).eventsForDay(selectedDay))
+        TrackingMapCache.put(config?.url, selectedDay, remote)
+        remoteData = remote
         loading = false
     }
 
@@ -399,9 +461,24 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 },
             )
             MapControlButton(
+                icon = Icons.Filled.Speed,
+                contentDescription = stringResource(R.string.map_layer_speed),
+                active = GeoLayer.SPEED.key in layers,
+                onClick = {
+                    layers = if (GeoLayer.SPEED.key in layers) layers - GeoLayer.SPEED.key else layers + GeoLayer.SPEED.key
+                    prefs.setMapLayers(layers)
+                },
+            )
+            MapControlButton(
                 icon = Icons.Filled.MyLocation,
                 contentDescription = stringResource(R.string.map_locate),
                 onClick = { fitToData() },
+            )
+        }
+
+        if (GeoLayer.SPEED.key in layers) {
+            SpeedLegend(
+                Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 190.dp),
             )
         }
 
@@ -642,23 +719,40 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
     mapView.overlays.clear()
     val resources = mapView.resources
     val density = resources.displayMetrics.density
-    val primary = AndroidColor.rgb(38, 108, 255)
     val tripColor = AndroidColor.rgb(46, 125, 255)
     val stopColor = AndroidColor.rgb(240, 150, 40)
     val placeColor = AndroidColor.rgb(120, 80, 220)
     val visitColor = AndroidColor.rgb(40, 170, 110)
     val pointColor = AndroidColor.argb(150, 90, 90, 100)
-    val pendingPointColor = AndroidColor.argb(210, 230, 130, 20)
+    val pendingPointColor = AndroidColor.argb(220, 232, 132, 20)
+    val speedOn = GeoLayer.SPEED.key in layers && data.speed.isNotEmpty()
 
-    if (GeoLayer.TRIPS.key in layers) {
-        data.trips.forEach { trip ->
-            val line = Polyline(mapView)
-            trip.path.forEach { line.addPoint(GeoPoint(it.lat, it.lon)) }
-            line.outlinePaint.color = tripColor
-            line.outlinePaint.strokeWidth = 5f * density
-            line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
-            mapView.overlays.add(line)
+    fun addPolyline(path: List<GeoLatLon>, color: Int, widthDp: Float) {
+        val line = Polyline(mapView)
+        path.forEach { line.addPoint(GeoPoint(it.lat, it.lon)) }
+        line.outlinePaint.color = color
+        line.outlinePaint.strokeWidth = widthDp * density
+        line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
+        line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+        mapView.overlays.add(line)
+    }
+
+    // A speed-coloured track replaces the plain trip line: drawing both would
+    // simply hide the colour scale under the solid stroke.
+    if (speedOn) {
+        data.speed.forEach { segment ->
+            val casing = AndroidColor.argb(90, 0, 0, 0)
+            addPolyline(segment.path, casing, 7.5f)
+            addPolyline(segment.path, SPEED_BUCKET_COLORS[segment.bucket.coerceIn(0, 5)], 5.5f)
         }
+    } else if (GeoLayer.TRIPS.key in layers) {
+        data.trips.forEach { trip -> addPolyline(trip.path, tripColor, 5f) }
+    }
+
+    // Only repeatedly travelled streets are returned by the server, and the
+    // overlay goes on top of the track so the hotspots stay readable.
+    if (GeoLayer.HEATMAP.key in layers && data.heat.isNotEmpty()) {
+        mapView.overlays.add(HeatmapOverlay(data.heat))
     }
 
     fun addPoints(layerKey: String, color: Int, border: Int, sizeDp: Int, title: (GeoPointFeature) -> String?) {
@@ -681,25 +775,64 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
     // Raw points and aggregated clusters are decoration: dense days would be
     // unreadable as markers, so only clustered positions are drawn.
     if (GeoLayer.POINTS.key in layers) {
-        data.points.filter { it.layer == "point_cluster" || it.layer == "point" || it.layer == "local_point" }.forEach { feature ->
+        data.points.filter { it.layer == "point_cluster" || it.layer == "point" }.forEach { feature ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            marker.icon = dot(if (feature.pending) pendingPointColor else pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
+            marker.icon = dot(pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
             mapView.overlays.add(marker)
         }
     }
-    if (GeoLayer.HEATMAP.key in layers) {
-        val cells = data.points.filter { it.layer == "heatmap" }
-        if (cells.isNotEmpty()) {
-            mapView.overlays.add(HeatmapOverlay(cells, AndroidColor.argb(130, 255, 82, 45)))
-        }
+    // Measurements that have not reached the server yet are always drawn, even
+    // with the points layer off, so nothing recorded on the device is invisible.
+    data.points.filter { it.pending }.forEach { feature ->
+        val marker = Marker(mapView)
+        marker.position = GeoPoint(feature.lat, feature.lon)
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+        marker.icon = dot(pendingPointColor, AndroidColor.WHITE, (9 * density).toInt())
+        // No label to show, so an empty info bubble would only get in the way.
+        marker.setOnMarkerClickListener { _, _ -> true }
+        mapView.overlays.add(marker)
     }
     mapView.invalidate()
 }
 
-private fun GeoMapData.withLocalEvents(events: List<orbit.nex.steps.location.StoredLocationEvent>): GeoMapData {
-    val local = events.mapNotNull { event ->
+@Composable
+private fun SpeedLegend(modifier: Modifier = Modifier) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.86f),
+        shadowElevation = 4.dp,
+        modifier = modifier,
+    ) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+            Text(
+                stringResource(R.string.map_speed_legend_title),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.size(4.dp))
+            SPEED_LEGEND_LABELS.forEachIndexed { index, label ->
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Box(
+                        Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(3.dp))
+                            .background(Color(SPEED_BUCKET_COLORS[index])),
+                    )
+                    Text(label, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+        }
+    }
+}
+
+private val SPEED_LEGEND_LABELS = listOf("0–3", "3–6", "6–12", "12–25", "25–50", "50+")
+
+private fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoMapData {
+    // Only measurements the server has not confirmed yet: accepted rows stay in
+    // the outbox for a few days and would otherwise duplicate server points.
+    val local = events.filter { it.isPending }.mapNotNull { event ->
         runCatching { JSONObject(event.payload) }.getOrNull()?.let { payload ->
             val lat = payload.optDouble("latitude", Double.NaN)
             val lon = payload.optDouble("longitude", Double.NaN)

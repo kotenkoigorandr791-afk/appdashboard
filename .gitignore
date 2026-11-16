@@ -130,6 +130,12 @@ opencode.json
 appdashboard-mcp/smoke-*-results.txt
 appdashboard-mcp/tmp-*
 appdashboard-mcp/tmp-gitea-wf/
+appdashboard-mcp/benchmarks/results/*-perf.jsonl
+appdashboard-mcp/benchmarks/results/*-server.log
+appdashboard-mcp/benchmarks/results/*.json
+.bench-token
+.bench-device
+.bench-login.json
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
 .aider*
@@ -232,5 +238,10 @@ pnpm-debug.log*
 
 .tgrep/
 .tgrep-*/
+
+# Benchmark credentials
+.bench-login.json
+.bench-token
+.bench-device
 
 

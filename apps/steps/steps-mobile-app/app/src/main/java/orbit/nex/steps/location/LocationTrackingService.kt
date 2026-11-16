@@ -140,7 +140,9 @@ class LocationTrackingService : Service() {
     private fun applyRequest() {
         if (!LocationPermissions.hasForeground(this)) return
         val powerSaver = (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
-        val intervalMs = prefs.getSyncIntervalMinutes().coerceAtLeast(1) * 60_000L
+        // Sampling cadence is the location setting, not the health data sync
+        // interval: sharing the two made recording follow the webhook schedule.
+        val intervalMs = prefs.getLocationIntervalMinutes().coerceAtLeast(1) * 60_000L
         val priority = when {
             powerSaver -> Priority.PRIORITY_LOW_POWER
             else -> when (prefs.getLocationAccuracy()) {

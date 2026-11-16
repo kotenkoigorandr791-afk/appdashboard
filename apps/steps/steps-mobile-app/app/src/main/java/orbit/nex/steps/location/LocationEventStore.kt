@@ -17,7 +17,13 @@ data class StoredLocationEvent(
     val createdAtMs: Long,
     val deviceSequence: Long,
     val attempts: Int,
-)
+    val state: String = LocationEventStore.STATE_PENDING,
+) {
+    /** True while the measurement has not been confirmed by the server. */
+    val isPending: Boolean get() = state == LocationEventStore.STATE_PENDING ||
+        state == LocationEventStore.STATE_UPLOADING ||
+        state == LocationEventStore.STATE_FAILED
+}
 
 /**
  * Durable local outbox for location measurements.
@@ -105,7 +111,7 @@ class LocationEventStore(context: Context) {
         val out = mutableListOf<StoredLocationEvent>()
         db.rawQuery(
             "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, " +
-                "$COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS FROM $TABLE " +
+                "$COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS, $COLUMN_STATE FROM $TABLE " +
                 "WHERE $COLUMN_ID IN (${ids.joinToString(",")}) " +
                 "ORDER BY $COLUMN_DEVICE_SEQUENCE ASC, $COLUMN_ID ASC",
             null,
@@ -185,7 +191,7 @@ class LocationEventStore(context: Context) {
         val to = day.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
         val out = mutableListOf<StoredLocationEvent>()
         helper.readableDatabase.rawQuery(
-            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, $COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS FROM $TABLE WHERE $COLUMN_CREATED_AT >= ? AND $COLUMN_CREATED_AT < ? ORDER BY $COLUMN_DEVICE_SEQUENCE ASC, $COLUMN_ID ASC",
+            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, $COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS, $COLUMN_STATE FROM $TABLE WHERE $COLUMN_CREATED_AT >= ? AND $COLUMN_CREATED_AT < ? ORDER BY $COLUMN_DEVICE_SEQUENCE ASC, $COLUMN_ID ASC",
             arrayOf(from.toString(), to.toString()),
         ).use { cursor -> while (cursor.moveToNext()) out += cursor.toEvent() }
         return out
@@ -230,6 +236,7 @@ class LocationEventStore(context: Context) {
         createdAtMs = getLong(3),
         deviceSequence = getLong(4),
         attempts = getInt(5),
+        state = getString(6) ?: LocationEventStore.STATE_PENDING,
     )
 
     private class Helper(context: Context) : SQLiteOpenHelper(context, DB_NAME, null, DB_VERSION) {

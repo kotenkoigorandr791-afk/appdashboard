@@ -434,6 +434,9 @@ final class StepsGeolocationMap
                     ];
                 }
                 $meta['counts']['point_clusters'] = count($rows);
+                // The summary line reports raw points, so an aggregated view must
+                // still count every point inside the clusters.
+                $meta['counts']['points'] = array_sum(array_map(static fn(array $row): int => (int)$row['total'], $rows));
             } else {
                 $sql = "SELECT id, source_at, accuracy_m, device_id, quality_state,
                                round(ST_Y(position)::numeric, $precision) AS lat,
@@ -477,24 +480,13 @@ final class StepsGeolocationMap
         }
 
         if (in_array('heatmap', $layers, true)) {
-            $heatCell = self::heatCellForZoom($zoom);
-            $lineCell = max(0.00002, min(0.0005, $tolerance / 5));
-            $routeSql = "WITH routes AS (
-                    SELECT 1::int AS weight,
-                           ST_SnapToGrid(ST_SimplifyPreserveTopology(geometry, $tolerance), $lineCell) AS line,
-                           started_at, ended_at
-                      FROM geo_trips
-                     WHERE user_email = :owner AND deleted_at IS NULL AND geometry IS NOT NULL
-                       AND geometry && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
-                       AND started_at <= :to AND ended_at >= :from)
-                SELECT COUNT(*)::int AS weight, ST_AsGeoJSON(ST_SimplifyPreserveTopology(line, $tolerance)) AS geojson
-                  FROM routes WHERE NOT ST_IsEmpty(line) AND ST_NPoints(line) >= 2
-              GROUP BY line ORDER BY weight DESC LIMIT $limit";
-            $routeStmt = $pdo->prepare($routeSql);
-            $routeParams = $params;
-            unset($routeParams[':device']);
-            $routeStmt->execute($routeParams);
-            $tripRows = $routeStmt->fetchAll(PDO::FETCH_ASSOC);
+            // Density grid: roughly one street width, so repeated passes on the
+            // same street land in the same cell instead of neighbouring ones.
+            $densityCell = max(0.0002, min(0.002, self::heatCellForZoom($zoom) / 4));
+            // Heat is a density overlay: a street walked once is already drawn by
+            // the trip track, so only cells passed by two or more separate routes
+            // are returned. Otherwise heat just hides the underlying track.
+            $heatMinWeight = 2;
             $segParams = [':owner' => $owner, ':from' => $from, ':to' => $to, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
             if ($device !== '') $segParams[':device'] = $device;
             $pointSql = self::trackCte($device !== '') . ", segs AS (
@@ -503,21 +495,26 @@ final class StepsGeolocationMap
                       FROM grouped
                 ), lines AS (
                     SELECT grp, ST_MakeLine(prev_pos, position) AS line,
-                           ST_SnapToGrid(ST_LineInterpolatePoint(ST_MakeLine(prev_pos, position), 0.5), $lineCell) AS cell
+                           ST_SnapToGrid(ST_LineInterpolatePoint(ST_MakeLine(prev_pos, position), 0.5), $densityCell) AS cell
                       FROM segs
                      WHERE prev_pos IS NOT NULL AND position <> prev_pos
                 ), visible AS (
                     SELECT * FROM lines WHERE line && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
                 ), wt AS (
-                    SELECT cell, COUNT(DISTINCT grp)::int AS weight FROM visible GROUP BY cell
+                    -- Every pass counts, so a road driven out and back, or reused by
+                    -- several trips, becomes dense; a one-way street does not.
+                    SELECT cell, COUNT(*)::int AS weight FROM visible GROUP BY cell
+                ), dense AS (
+                    SELECT v.grp, v.line, wt.weight
+                      FROM visible v JOIN wt ON wt.cell = v.cell
+                     WHERE wt.weight >= $heatMinWeight
                 )
-                SELECT wt.weight, ST_AsGeoJSON(ST_LineMerge(ST_Collect(v.line))) AS geojson
-                  FROM visible v JOIN wt ON wt.cell = v.cell
-              GROUP BY v.grp, wt.weight ORDER BY wt.weight DESC LIMIT 3000";
+                SELECT weight, ST_AsGeoJSON(ST_LineMerge(ST_Collect(line))) AS geojson
+                  FROM dense
+              GROUP BY grp, weight ORDER BY weight DESC LIMIT 3000";
             $pointStmt = $pdo->prepare($pointSql);
             $pointStmt->execute($segParams);
             $rows = $pointStmt->fetchAll(PDO::FETCH_ASSOC);
-            if ($rows === []) $rows = $tripRows;
             $max = 1;
             foreach ($rows as $row) $max = max($max, (int)$row['weight']);
             foreach ($rows as $row) {
@@ -531,7 +528,9 @@ final class StepsGeolocationMap
                         'layer' => 'heatmap',
                         'route' => true,
                         'weight' => $weight,
-                        'intensity' => round($weight / $max, 3),
+                        // Spread the visible range over every dense cell, with a
+                        // floor so a street passed twice is still a warm hint.
+                        'intensity' => round(0.35 + 0.65 * ($weight - $heatMinWeight) / max(1, $max - $heatMinWeight), 3),
                     ],
                 ];
             }

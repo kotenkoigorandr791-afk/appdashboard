@@ -64,7 +64,16 @@ if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], 
     exit;
 }
 $stepsAppDir = APP_ROOT . '/apps/steps';
-$usersDir = $stepsAppDir . '/users';
+// User data lives on the APPDATA volume (same root the Steps UI reads). Writing
+// under the repository copy left health day files invisible to the app, so only
+// steps that also reached SQL were ever shown.
+// Use the same constant the Steps UI resolves, so a health payload written here
+// is the one the page later reads.
+if (!defined('STEPS_USERS_DIR')) {
+    require_once $stepsAppDir . '/core/bootstrap.php';
+}
+$usersDir = defined('STEPS_USERS_DIR') ? rtrim(STEPS_USERS_DIR, '/') : steps_appdata_dir('');
+if (!$usersDir) $usersDir = $stepsAppDir . '/users';
 $safeUserName = get_current_user_folder();
 $userDir = $usersDir . '/' . $safeUserName;
 checkDirectory($usersDir);

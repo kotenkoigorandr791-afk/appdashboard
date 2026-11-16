@@ -18,6 +18,7 @@ fun localizedLogLabel(dataType: String?, syncType: String?): String? {
         "test" -> stringResource(R.string.logs_sync_test)
         "conflict" -> stringResource(R.string.logs_sync_conflict)
         "notification" -> stringResource(R.string.logs_sync_notification)
+        "location" -> stringResource(R.string.logs_sync_location)
         else -> dataType ?: syncType
     }
 }

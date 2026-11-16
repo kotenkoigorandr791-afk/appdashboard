@@ -94,7 +94,9 @@ class PreferencesManager(context: Context) {
         private const val KEY_MAP_DAY = "map_day"
         private const val KEY_SEEN_ACHIEVEMENTS = "seen_achievement_ids"
         const val MAP_BASEMAP_AUTO = "auto"
-        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "visits")
+        // Points are on by default: the day view should show what the server has
+        // recorded next to the measurements still waiting to be uploaded.
+        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "visits", "points")
         private const val DEFAULT_LOCATION_INTERVAL_MINUTES = 15
         private const val KEY_LAST_SYNC_OK_AT = "last_sync_ok_at"
         private const val KEY_LAST_AUTH_ERROR_AT = "last_auth_error_at"

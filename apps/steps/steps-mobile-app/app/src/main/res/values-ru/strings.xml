@@ -357,6 +357,7 @@
     <string name="system_default">Системная (по умолчанию)</string>
     <string name="logs_sync_notification">Уведомление</string>
     <string name="logs_sync_conflict">Конфликт</string>
+    <string name="logs_sync_location">Координаты</string>
     <string name="logs_action_export">Экспорт логов</string>
     <string name="logs_export_intent_title">Экспорт логов синхронизации</string>
     <string name="logs_count">%1$d logs</string>
@@ -699,6 +700,8 @@
     <string name="map_layer_visits">Визиты</string>
     <string name="map_layer_points">Точки</string>
     <string name="map_layer_heatmap">Тепловая карта</string>
+    <string name="map_layer_speed">Трек по скорости</string>
+    <string name="map_speed_legend_title">Скорость, км/ч</string>
     <string name="map_no_data">Нет перемещений за этот день</string>
     <string name="points_title">Точки</string>
     <string name="points_desc">Просмотр, выбор и удаление синхронизированных точек</string>

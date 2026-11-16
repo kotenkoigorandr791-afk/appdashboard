@@ -356,6 +356,7 @@
     <string name="system_default">Системна (за замовчуванням)</string>
     <string name="logs_sync_notification">Сповіщення</string>
     <string name="logs_sync_conflict">Конфлікт</string>
+    <string name="logs_sync_location">Координати</string>
     <string name="logs_action_export">Export Logs</string>
     <string name="logs_export_intent_title">Export synchronization logs</string>
     <string name="logs_count">%1$d logs</string>
@@ -727,6 +728,8 @@
     <string name="map_panels_title">Досліджуйте карту</string>
     <string name="map_panels_subtitle">Місця, подорожі та якість даних, не залишаючи карту</string>
     <string name="map_panels_open">Відкрити панелі карти</string>
+    <string name="map_layer_speed">Трек за швидкістю</string>
+    <string name="map_speed_legend_title">Швидкість, км/год</string>
     <string name="weekday_mon">Пн</string>
     <string name="weekday_tue">Вт</string>
     <string name="weekday_wed">Ср</string>
