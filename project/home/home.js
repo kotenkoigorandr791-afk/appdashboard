@@ -779,33 +779,60 @@ uk: {
   }
 
   // ── Fetch and render news ────────────────────────────────────────────────────
-  function loadNews() {
+  // Short-lived session cache: returning to the page (or jumping to /news) renders
+  // the already fetched feed immediately instead of starting from scratch.
+  const NEWS_CACHE_KEY = 'sk_home_news_cache_v1';
+  const NEWS_CACHE_TTL = 5 * 60 * 1000;
+  let newsLoaded = false;
+
+  function readNewsCache() {
+    try {
+      const raw = sessionStorage.getItem(NEWS_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.items)) return null;
+      if (Date.now() - (parsed.ts || 0) > NEWS_CACHE_TTL) return null;
+      return parsed.items;
+    } catch (e) { return null; }
+  }
+
+  function writeNewsCache(items) {
+    try { sessionStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ ts: Date.now(), items })); } catch (e) {}
+  }
+
+  function applyNews(items) {
+    newsItems = items || [];
+    if (isNewsRoute) {
+      visibleNewsItems = newsItems;
+      showNewsSection();
+    } else {
+      visibleNewsItems = todayNews(newsItems);
+      if (visibleNewsItems.length) showNewsSection();
+      else hideNewsSection();
+    }
+    checkTodayToast();
+  }
+
+  function loadNews(force) {
+    if (newsLoaded && !force) return;
+    const cached = force ? null : readNewsCache();
+    if (cached) applyNews(cached);
+    const finish = items => {
+      newsLoaded = true;
+      if (items) writeNewsCache(items);
+      applyNews(items);
+    };
     fetch('/main?api=news&action=list')
       .then(r => r.json())
       .then(data => {
-        if (!data.ok) {
-          if (isNewsRoute) {
-            visibleNewsItems = [];
-            showNewsSection();
-          }
+        if (!data || !data.ok) {
+          if (!cached) finish(null);
           return;
         }
-        newsItems = data.items || [];
-        if (isNewsRoute) {
-          visibleNewsItems = newsItems;
-          showNewsSection();
-        } else {
-          visibleNewsItems = todayNews(newsItems);
-          if (visibleNewsItems.length) showNewsSection();
-          else hideNewsSection();
-        }
-        checkTodayToast();
+        finish(data.items || []);
       })
       .catch(() => {
-        if (isNewsRoute) {
-          visibleNewsItems = [];
-          showNewsSection();
-        }
+        if (!cached) finish(null);
       });
   }
 
@@ -1158,7 +1185,12 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
   }
 
   // ── App cards ────────────────────────────────────────────────────────────────
+  // The grid sits below the fold: render it when the section approaches the
+  // viewport, so the first paint does not wait for 11 cards and their icons.
+  let cardsRendered = false;
+
   function renderCards(l) {
+    cardsRendered = true;
     const t = I18N[l] || I18N.en;
     spotlight.innerHTML = '';
     const sp = document.createElement('div');
@@ -1189,6 +1221,22 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
       card.addEventListener('mousemove', (e) => updateTooltipPosition(e, card));
       grid.appendChild(card);
     });
+  }
+
+  function ensureCards() {
+    if (!cardsRendered) renderCards(lang);
+  }
+
+  function initLazyCards() {
+    const section = $('appsSection');
+    if (!section || isNewsRoute) return;
+    if (!('IntersectionObserver' in window)) { ensureCards(); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      observer.disconnect();
+      ensureCards();
+    }, { rootMargin: '0px' });
+    observer.observe(section);
   }
 
 let tooltipTimer = null;
@@ -1430,7 +1478,7 @@ function handleAppMouseEnter(e, card, name, desc) {
     lang = l;
     updateLanguageMenu(l);
     applyTexts(l);
-    renderCards(l);
+    if (cardsRendered) renderCards(l);
     if (l === 'ru') {
       scheduleRuNotify();
     } else {
@@ -1681,6 +1729,7 @@ function handleAppMouseEnter(e, card, name, desc) {
   $('navGoFeaturesBtn').addEventListener('click', () => {
     closeNav();
     if (isNewsRoute) { location.href = '/' + location.search + '#apps'; return; }
+    ensureCards();
     $('appsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
@@ -1746,9 +1795,22 @@ function handleAppMouseEnter(e, card, name, desc) {
   } else {
     scheduleEngagement();
     scheduleExploreWidget();
-    if (location.hash === '#apps') setTimeout(() => $('appsSection')?.scrollIntoView({ block: 'start' }), 80);
+    initLazyCards();
+    if (location.hash === '#apps') setTimeout(() => { ensureCards(); $('appsSection')?.scrollIntoView({ block: 'start' }); }, 80);
   }
-  loadNews();
+  // News is not part of the first screen: load it after the page is usable so it
+  // never competes with CSS/JS/icon for bandwidth. /news loads it right away.
+  function whenIdle(callback) {
+    if ('requestIdleCallback' in window) requestIdleCallback(callback, { timeout: 2500 });
+    else setTimeout(callback, 300);
+  }
+  if (isNewsRoute) {
+    loadNews(false);
+  } else if (document.readyState === 'complete') {
+    whenIdle(() => loadNews(false));
+  } else {
+    window.addEventListener('load', () => whenIdle(() => loadNews(false)), { once: true });
+  }
 
   // ── News calendar (GitHub-style) ──────────────────────────────────────────
   (function initCalendar() {

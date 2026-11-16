@@ -1,11 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="fx-pending">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
   <title>NexOrbit</title>
   <meta name="description" content="NexOrbit — your server, your apps, your control. A secure platform for accessing and managing your apps and servers." />
-  <link rel="icon" type="image/png" href="/home/icon.png?v=3">
+  <link rel="icon" type="image/png" href="/home/icon-64.png?v=4">
   <link rel="stylesheet" href="/home/home.css">
 </head>
 <body>
@@ -27,7 +27,7 @@
       <button type="button" id="navOpenBtn" class="nav-open-btn" aria-controls="navDrawer" aria-expanded="false" aria-label="Menu">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="20" y2="12"/><line x1="4" y1="18" x2="20" y2="18"/></svg>
       </button>
-      <div class="brand"><img src="/home/icon.png" alt="NexOrbit" class="brand-icon"><h1>NexOrbit</h1></div>
+      <div class="brand"><img src="/home/icon-64.png?v=4" alt="NexOrbit" class="brand-icon" width="28" height="28" decoding="async"><h1>NexOrbit</h1></div>
     </div>
     <div class="header-sep"></div>
     <div class="header-right">
@@ -128,7 +128,7 @@
   <div id="navBackdrop" class="nav-backdrop" aria-hidden="true"></div>
   <aside id="navDrawer" class="nav-drawer" aria-hidden="true" aria-label="Site menu">
     <div class="nav-drawer-head">
-      <img src="/home/icon.png" alt="NexOrbit" class="brand-icon"><span data-i18n="nav_menu_title">Menu</span>
+      <img src="/home/icon-64.png?v=4" alt="NexOrbit" class="brand-icon" width="28" height="28" decoding="async"><span data-i18n="nav_menu_title">Menu</span>
       <button type="button" id="navCloseBtn" class="nav-drawer-close" aria-label="Close">&times;</button>
     </div>
     <nav class="nav-drawer-links">
@@ -180,47 +180,61 @@
 
   <script src="/home/home.js"></script>
   <script>
-    /* ============================================================
-       ЧАСТИЦЫ (как в главная.html)
-       ============================================================ */
-    (function createParticles() {
-      var container = document.getElementById('particles');
-      if (!container) return;
-      if (container.childElementCount) return;
-      var count = 28;
-      for (var i = 0; i < count; i++) {
-        var p = document.createElement('div');
-        p.className = 'particle';
-        p.style.left = (Math.random() * 100) + '%';
-        p.style.animationDuration = (8 + Math.random() * 14) + 's';
-        p.style.animationDelay = (Math.random() * 12) + 's';
-        var size = 2 + Math.random() * 3;
-        p.style.width = size + 'px';
-        p.style.height = size + 'px';
-        if (Math.random() > 0.6) {
-          p.style.background = '#22d3ee';
-          p.style.boxShadow = '0 0 10px 2px rgba(34, 211, 238, 0.6)';
-        } else if (Math.random() > 0.5) {
-          p.style.background = '#8b5cf6';
-          p.style.boxShadow = '0 0 10px 2px rgba(139, 92, 246, 0.6)';
+    /* Decorative effects (particles + orb parallax) are not needed for the first
+       paint, so they start after the load event, while the browser is idle. */
+    (function () {
+      function createParticles() {
+        var container = document.getElementById('particles');
+        if (!container) return;
+        if (container.childElementCount) return;
+        var count = 28;
+        for (var i = 0; i < count; i++) {
+          var p = document.createElement('div');
+          p.className = 'particle';
+          p.style.left = (Math.random() * 100) + '%';
+          p.style.animationDuration = (8 + Math.random() * 14) + 's';
+          p.style.animationDelay = (Math.random() * 12) + 's';
+          var size = 2 + Math.random() * 3;
+          p.style.width = size + 'px';
+          p.style.height = size + 'px';
+          if (Math.random() > 0.6) {
+            p.style.background = '#22d3ee';
+            p.style.boxShadow = '0 0 10px 2px rgba(34, 211, 238, 0.6)';
+          } else if (Math.random() > 0.5) {
+            p.style.background = '#8b5cf6';
+            p.style.boxShadow = '0 0 10px 2px rgba(139, 92, 246, 0.6)';
+          }
+          container.appendChild(p);
         }
-        container.appendChild(p);
       }
-    })();
 
-    /* ============================================================
-       ПАРАЛЛАКС ОРБОВ (как в главная.html)
-       ============================================================ */
-    var orbs = document.querySelectorAll('.glow-orb');
-    document.addEventListener('mousemove', function(e) {
-      var x = (e.clientX / window.innerWidth - 0.5) * 30;
-      var y = (e.clientY / window.innerHeight - 0.5) * 30;
-      orbs.forEach(function(orb, i) {
-        var speed = 0.5 + i * 0.25;
-        orb.style.marginLeft = (x * speed) + 'px';
-        orb.style.marginTop  = (y * speed) + 'px';
-      });
-    });
+      function initParallax() {
+        var orbs = document.querySelectorAll('.glow-orb');
+        document.addEventListener('mousemove', function(e) {
+          var x = (e.clientX / window.innerWidth - 0.5) * 30;
+          var y = (e.clientY / window.innerHeight - 0.5) * 30;
+          orbs.forEach(function(orb, i) {
+            var speed = 0.5 + i * 0.25;
+            orb.style.marginLeft = (x * speed) + 'px';
+            orb.style.marginTop  = (y * speed) + 'px';
+          });
+        });
+      }
+
+      function initVisualFx() {
+        document.documentElement.classList.remove('fx-pending');
+        createParticles();
+        initParallax();
+      }
+      function scheduleVisualFx() {
+        setTimeout(function () {
+          if ('requestIdleCallback' in window) requestIdleCallback(initVisualFx, { timeout: 1500 });
+          else initVisualFx();
+        }, 250);
+      }
+      if (document.readyState === 'complete') scheduleVisualFx();
+      else window.addEventListener('load', scheduleVisualFx, { once: true });
+    })();
   </script>
 </body>
 </html>

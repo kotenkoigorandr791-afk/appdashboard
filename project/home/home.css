@@ -34,6 +34,18 @@ body.light-theme {
   color: #1a2b38;
 }
 
+/* Decorative background layers are revealed right after the first paint:
+   blurred orbs and animated gradients are expensive to rasterize and would
+   otherwise delay FCP/LCP. The body gradient keeps the same colours meanwhile. */
+.fx-pending .bg-layer,
+.fx-pending .glow-orb,
+.fx-pending .scanline,
+.fx-pending .particles { opacity: 0; }
+.bg-layer,
+.glow-orb,
+.scanline,
+.particles { transition: opacity 0.5s ease; }
+
 /* ============================================================
    АНИМИРОВАННЫЙ ФОН (как в главная.html)
    ============================================================ */
