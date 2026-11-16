@@ -263,10 +263,12 @@
             <section>
                 <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
                 <div id="analytics-store-summary"></div>
+                <div class="list-pagination" id="analytics-store-pagination" hidden></div>
             </section>
             <section>
                 <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
                 <div id="analytics-category-summary"></div>
+                <div class="list-pagination" id="analytics-category-pagination" hidden></div>
             </section>
         </div>
         <div class="rate-chart-container"><canvas id="ocr-analytics-chart"></canvas></div>
