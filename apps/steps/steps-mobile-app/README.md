@@ -61,7 +61,7 @@ adb connect 100.120.132.28:34545
 
 ### What's new
 
-For every release and new build, add customer-facing update notes to the `What's new` window so users clearly understand what changed after updating. Release notes are bundled with the app in `app/src/main/res/raw/release_notes.md` as `## vX.Y.Z - YYYY-MM-DD` sections followed by `* ` bullets, with translations in matching `res/raw-<locale>/release_notes.md` folders (de, es, fr, it, ja, ko, pl, pt, ru, ta, uk, zh, be, cs). Each new section must include current, user-visible information and concise icons/emoji at the start of bullets when they improve scanning in the app window. The window prefers the bundled section for the installed version (in the device locale) and falls back to the GitHub releases API only when no local section matches. Before installing on a device, verify that the `What's new` window opens after the app update and contains the current change list.
+For every release and new build, add customer-facing update notes to the `What's new` window so users clearly understand what changed after updating. Release notes are bundled with the app in `app/src/main/res/raw/release_notes.md` as `## vX.Y.Z - YYYY-MM-DD` sections followed by `* ` bullets, with translations in matching `res/raw-<locale>/release_notes.md` folders (de, es, fr, it, ja, ko, pl, pt, ru, ta, uk, zh, be, cs). Each new section must include current, user-visible information and concise icons/emoji at the start of bullets when they improve scanning in the app window. Before installing on a device, verify that the `What's new` window opens after the app update and contains the current change list.
 
 ### Production updates
 

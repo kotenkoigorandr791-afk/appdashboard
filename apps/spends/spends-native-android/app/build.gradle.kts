@@ -6,6 +6,10 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val appVersionName = rootProject.file("../../../VERSION").readText().trim().removePrefix("v")
+val appVersionParts = appVersionName.split('.').map { it.toInt() }
+val appVersionCode = appVersionParts[0] * 10000 + appVersionParts[1] * 100 + appVersionParts.getOrElse(2) { 0 }
+
 android {
     namespace = "orbit.nex.finance"
     compileSdk = 35
@@ -13,8 +17,8 @@ android {
         applicationId = "orbit.nex.finance"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "1.0.7"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
     buildFeatures {
         buildConfig = true

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes" />
-  <title>NexOrbit — Your server. Your apps. Your control.</title>
+  <title>NexOrbit</title>
   <meta name="description" content="NexOrbit — your server, your apps, your control. A secure platform for accessing and managing your apps and servers." />
   <link rel="icon" type="image/png" href="/home/icon.png?v=3">
   <link rel="stylesheet" href="/home/home.css">
@@ -136,7 +136,7 @@
       <button type="button" id="navGoNewsBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 22h16"/><path d="M4 2h16v20H4z"/><path d="M8 6h8"/><path d="M8 10h8"/><path d="M8 14h5"/></svg><span data-i18n="nav_news">News</span></button>
       <button type="button" id="navGoFeaturesBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg><span data-i18n="nav_features">Explore platform capabilities</span></button>
     </nav>
-    <div class="nav-drawer-version">v<?php echo htmlspecialchars(getenv('APP_VERSION') ?: '1.0.7'); ?></div>
+    <div class="nav-drawer-version" id="navVersion">v1.0.7</div>
     <div class="nav-drawer-auth">
       <a href="/login" class="btn-primary" id="drawerLoginLink"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg><span data-i18n="signin">Sign in</span></a>
       <a href="/register" class="btn-secondary" id="drawerRegisterLink" data-i18n-tooltip="register_tooltip"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg><span data-i18n="register">Register</span></a>

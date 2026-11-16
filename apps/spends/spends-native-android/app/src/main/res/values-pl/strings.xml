@@ -161,7 +161,7 @@
     <string name="update_up_to_date">Masz najnowszą wersję.</string>
     <string name="update_available">Dostępna jest wersja %1$s.</string>
     <string name="update_settings_title">Aktualizacje aplikacji</string>
-    <string name="update_settings_subtitle">Sprawdź wersje produkcyjne i z GitHub</string>
+    <string name="update_settings_subtitle">Sprawdź połączony serwer</string>
     <string name="update_banner">Nex Finance %1$s jest gotowe</string>
     <string name="update_download">Pobierz i zainstaluj</string>
     <string name="update_downloading">Pobieranie… %1$d%%</string>

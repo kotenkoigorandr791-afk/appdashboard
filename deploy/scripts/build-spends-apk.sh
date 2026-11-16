@@ -31,15 +31,15 @@ HASH="$(cd "$APP_DIR" && find . -type f ! -path './build/*' ! -path './.gradle/*
 if [ -f "$APK" ] && [ -f "$HASH_FILE" ] && [ "$(cat "$HASH_FILE")" = "$HASH" ]; then exit 0; fi
 printf 'sdk.dir=%s\n' "$ANDROID_HOME" > "$APP_DIR/local.properties"
 export KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD
-"$ROOT/apps/kanboard/kanboard-mobile-app/gradlew" --no-daemon -p "$APP_DIR" :app:assembleRelease
+"$APP_DIR/gradlew" --no-daemon -p "$APP_DIR" :app:assembleRelease
 BUILT="$APP_DIR/app/build/outputs/apk/release/app-release.apk"
 test -f "$BUILT"
 cp "$BUILT" "$APK"
 printf '%s' "$HASH" > "$HASH_FILE"
 SIZE_BYTES="$(stat -c '%s' "$APK")"
 APK_HASH="$(sha256sum "$APK" | awk '{print $1}')"
-VERSION_NAME="$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)"/\1/p' "$APP_DIR/app/build.gradle.kts" | head -n 1)"
-VERSION_CODE="$(sed -n 's/^[[:space:]]*versionCode = \([0-9][0-9]*\)/\1/p' "$APP_DIR/app/build.gradle.kts" | head -n 1)"
+VERSION_NAME="$(tr -d '[:space:]' < "$ROOT/VERSION")"
+VERSION_CODE="$(( $(printf '%s' "$VERSION_NAME" | cut -d. -f1) * 10000 + $(printf '%s' "$VERSION_NAME" | cut -d. -f2) * 100 + $(printf '%s' "$VERSION_NAME" | cut -d. -f3) ))"
 test -n "$VERSION_NAME"
 test -n "$VERSION_CODE"
 printf '{"version":"%s","version_code":%s,"hash":"%s","size_bytes":%s,"built_at":%s}\n' "$VERSION_NAME" "$VERSION_CODE" "$APK_HASH" "$SIZE_BYTES" "$(date +%s)" > "$META_FILE"

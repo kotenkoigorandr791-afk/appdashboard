@@ -567,7 +567,12 @@ if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path
     // Залогиненным промо-виджеты на home не показываем (флаг читается в home.js).
     $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
     echo '<script>window.__skUserLoggedIn = ' . ($__skHomeLoggedIn ? 'true' : 'false') . ';</script>';
-    include __DIR__ . '/views/home.html';
+    $__homeContent = file_get_contents(__DIR__ . '/views/home.html');
+    if ($__homeContent !== false) {
+        $__appVersion = htmlspecialchars(getenv('APP_VERSION') ?: '1.0.7', ENT_QUOTES, 'UTF-8');
+        $__homeContent = str_replace('id="navVersion">v1.0.7<', 'id="navVersion">v' . $__appVersion . '<', $__homeContent);
+        echo $__homeContent;
+    }
     exit;
 }else{
     $showLogin=false;

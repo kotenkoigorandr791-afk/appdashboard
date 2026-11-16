@@ -161,7 +161,7 @@
     <string name="update_up_to_date">Máte nejnovější verzi.</string>
     <string name="update_available">Je dostupná verze %1$s.</string>
     <string name="update_settings_title">Aktualizace aplikace</string>
-    <string name="update_settings_subtitle">Zkontrolovat produkční a GitHub verze</string>
+    <string name="update_settings_subtitle">Zkontrolovat připojený server</string>
     <string name="update_banner">Nex Finance %1$s je připraveno</string>
     <string name="update_download">Stáhnout a nainstalovat</string>
     <string name="update_downloading">Stahuji… %1$d%%</string>

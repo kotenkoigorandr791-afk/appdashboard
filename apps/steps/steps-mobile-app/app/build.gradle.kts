@@ -5,15 +5,9 @@ plugins {
     alias(libs.plugins.protobuf)
 }
 
-val appVersionMajor = 1
-val appVersionMinor = 10
-<<<<<<< HEAD
-val appVersionPatch = 7
-=======
-val appVersionPatch = 4
->>>>>>> mobile-spends
-val appVersionCode = (appVersionMajor * 10000) + (appVersionMinor * 100) + appVersionPatch
-val appVersionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
+val appVersionName = rootProject.file("../../../VERSION").readText().trim().removePrefix("v")
+val appVersionParts = appVersionName.split('.').map { it.toInt() }
+val appVersionCode = appVersionParts[0] * 10000 + appVersionParts[1] * 100 + appVersionParts.getOrElse(2) { 0 }
 
 android {
     namespace = "orbit.nex.steps"

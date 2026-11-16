@@ -66,65 +66,20 @@ class AppUpdateChecker(private val context: Context) {
         .readTimeout(60, TimeUnit.SECONDS)
         .build()
 
-    @Serializable
-    private data class GithubRelease(
-        val tag_name: String = "",
-        val name: String = "",
-        val body: String = "",
-        val html_url: String = "",
-        val published_at: String = "",
-        val draft: Boolean = true,
-        val prerelease: Boolean = true,
-        val assets: List<GithubAsset> = emptyList(),
-    )
-
-    private data class PublishedRelease(
-        val version_name: String,
-        val body: String,
-        val html_url: String,
-        val published_at: String,
-        val info: UpdateInfo,
-    )
-
-    @Serializable
-    private data class GithubAsset(
-        val name: String = "",
-        val browser_download_url: String = "",
-    )
-
     suspend fun checkForUpdate(endpoint: String, token: String): UpdateCheck = withContext(Dispatchers.IO) {
-        val serverResult = checkProductionServer(endpoint, token)
-        val published = fetchPublishedReleases()
-        val newest = published.maxWithOrNull { left, right ->
-            compareVersions(left.version_name, right.version_name)
-        }
-        val githubResult = newest?.info?.takeIf { isNewer(it.version_name) }
-        val candidates = listOfNotNull(serverResult, githubResult)
-        val latest = candidates.maxWithOrNull { left, right ->
-            compareVersions(left.version_name, right.version_name)
-                .takeIf { it != 0 } ?: left.version_code.compareTo(right.version_code)
-        }
-        val notes = newest?.let {
-            ReleaseNotes(
-                version_name = it.version_name,
-                body = it.body,
-                html_url = it.html_url,
-                published_at = it.published_at,
-            )
-        }
+        val serverResult = checkContainer(endpoint, token)
         when {
-            latest != null -> UpdateCheck(UpdateOutcome.UPDATE_AVAILABLE, latest, notes)
-            serverResult != null || newest != null -> UpdateCheck(UpdateOutcome.UP_TO_DATE, null, notes)
+            serverResult != null -> UpdateCheck(UpdateOutcome.UPDATE_AVAILABLE, serverResult)
+            token.isNotBlank() -> UpdateCheck(UpdateOutcome.UP_TO_DATE)
             token.isBlank() -> UpdateCheck(UpdateOutcome.NOT_CONNECTED)
             else -> UpdateCheck(UpdateOutcome.ERROR)
         }
     }
 
-    private fun checkProductionServer(endpoint: String, token: String): UpdateInfo? {
+    private fun checkContainer(endpoint: String, token: String): UpdateInfo? {
         if (token.isBlank()) return null
-        // Ask the server the device is paired with; the hardcoded production host
-        // failed DNS on other deployments and surfaced as an update error.
-        val base = endpoint.trim().trimEnd('/').substringBefore("/api/").ifBlank { PRODUCTION_BASE_URL }
+        val base = endpoint.trim().trimEnd('/').substringBefore("/api/")
+        if (base.isBlank()) return null
         return runCatching {
             val request = Request.Builder()
                 .url("$base/api/spends/version")
@@ -135,80 +90,18 @@ class AppUpdateChecker(private val context: Context) {
                 .build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@use null
-                json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
+                val info = json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
                     .copy(source = "server")
                     .takeIf { it.available && it.version_code > BuildConfig.VERSION_CODE }
+                info?.copy(download_url = "$base${info.apk_path.ifBlank { "/api/spends/apk" }}")
             }
         }.getOrNull()
     }
 
-    /**
-     * Published (non-draft, non-prerelease) builds of this app with their release notes.
-     * Fetched fresh on every check so the updates screen follows new releases without an app update.
-     */
-    private fun fetchPublishedReleases(): List<PublishedRelease> = runCatching {
-        val request = Request.Builder()
-            .url("$GITHUB_API/releases?per_page=50")
-            .header("Accept", "application/vnd.github+json")
-            .header("X-GitHub-Api-Version", "2022-11-28")
-            .header("Cache-Control", "no-cache")
-            .get()
-            .build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) {
-                emptyList()
-            } else {
-                json.decodeFromString<List<GithubRelease>>(response.body?.string().orEmpty())
-                    .asSequence()
-                    .filter { !it.draft && !it.prerelease }
-                    .mapNotNull { release ->
-                        val version = SPENDS_TAG.matchEntire(release.tag_name)?.groupValues?.get(1)
-                            ?: return@mapNotNull null
-                        val apk = release.assets.firstOrNull { it.name.endsWith(".apk", ignoreCase = true) }
-                            ?: return@mapNotNull null
-                        if (apk.browser_download_url.isBlank()) return@mapNotNull null
-                        PublishedRelease(
-                            version_name = version,
-                            body = release.body,
-                            html_url = release.html_url,
-                            published_at = release.published_at,
-                            info = UpdateInfo(
-                                available = true,
-                                version_name = version,
-                                source = "github",
-                                download_url = apk.browser_download_url,
-                                release_notes = release.body,
-                            ),
-                        )
-                    }
-                    .toList()
-            }
-        }
-    }.getOrDefault(emptyList())
-
-    private fun isNewer(versionName: String): Boolean =
-        versionName.isNotBlank() && compareVersions(versionName, BuildConfig.VERSION_NAME) > 0
-
-    private fun compareVersions(left: String, right: String): Int {
-        val leftParts = left.substringAfterLast('v').split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
-        val rightParts = right.substringAfterLast('v').split('.', '-', '+').map { it.toIntOrNull() ?: 0 }
-        for (index in 0 until maxOf(leftParts.size, rightParts.size)) {
-            val comparison = (leftParts.getOrElse(index) { 0 }).compareTo(rightParts.getOrElse(index) { 0 })
-            if (comparison != 0) return comparison
-        }
-        return 0
-    }
-
     suspend fun downloadApk(token: String, info: UpdateInfo, onProgress: ((Int) -> Unit)? = null): File? =
         withContext(Dispatchers.IO) {
-            val github = info.source == "github"
-            if (!github && token.isBlank()) return@withContext null
-            val path = info.apk_path.ifBlank { "/api/spends/apk" }
-            val url = when {
-                github -> info.download_url
-                path.startsWith("http://") || path.startsWith("https://") -> path
-                else -> PRODUCTION_BASE_URL + path
-            }
+            if (token.isBlank()) return@withContext null
+            val url = info.download_url
             if (url.isBlank()) return@withContext null
             val dir = File(context.cacheDir, "updates").apply { mkdirs() }
             val safeVersion = info.version_name.replace(Regex("[^A-Za-z0-9._-]"), "_")
@@ -220,10 +113,8 @@ class AppUpdateChecker(private val context: Context) {
                     .url(url)
                     .header("Accept", "application/vnd.android.package-archive")
                     .get()
-                if (!github) {
-                    requestBuilder.header("Authorization", "Bearer $token")
-                        .header("X-Device-Id", deviceId)
-                }
+                requestBuilder.header("Authorization", "Bearer $token")
+                    .header("X-Device-Id", deviceId)
                 val request = requestBuilder.build()
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext null
@@ -296,9 +187,6 @@ class AppUpdateChecker(private val context: Context) {
     }
 
     companion object {
-        private const val PRODUCTION_BASE_URL = "https://serverkherson.xyz"
-        private const val GITHUB_API = "https://api.github.com/repos/kotenkoigorandr791-afk/appdashboard"
-        private val SPENDS_TAG = Regex("spends-v?([0-9]+(?:\\.[0-9]+){1,3})")
 
         /** Posts a "ready to install" notification for a downloaded APK. */
         fun postInstallNotification(context: Context, apkFile: File, versionName: String) {

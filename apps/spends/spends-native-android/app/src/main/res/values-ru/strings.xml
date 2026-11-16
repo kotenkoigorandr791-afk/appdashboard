@@ -181,7 +181,7 @@
     <string name="update_up_to_date">У вас последняя версия.</string>
     <string name="update_available">Доступна версия %1$s.</string>
     <string name="update_settings_title">Обновления приложения</string>
-    <string name="update_settings_subtitle">Проверить production и релизы GitHub</string>
+    <string name="update_settings_subtitle">Проверить подключенный сервер</string>
     <string name="update_banner">Доступна Nex Finance %1$s</string>
     <string name="update_download">Скачать и установить</string>
     <string name="update_downloading">Загрузка… %1$d%%</string>
