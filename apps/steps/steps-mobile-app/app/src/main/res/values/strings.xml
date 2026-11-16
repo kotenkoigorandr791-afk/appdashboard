@@ -636,4 +636,7 @@
     <string name="unit_mmhg">%1$s mmHg</string>
     <string name="unit_percent">%1$s%%</string>
     <string name="settings_personalization_desc">Theme, accent color, language and screen orientation</string>
+    <string name="tracking_settings_title">Location tracking</string>
+    <string name="points_title">Points</string>
+    <string name="points_select_title">Point selection map</string>
 </resources>
