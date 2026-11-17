@@ -1,4 +1,4 @@
-#bdp-app > * { flex-shrink: 0; }
+﻿#bdp-app > * { flex-shrink: 0; }
 /* Backup Manager — scoped to #bdp-app so it can live inside the Admin Panel. */
 
 #bdp-app {
@@ -30,6 +30,16 @@
 }
 
 /* Standalone page palette (admin panel supplies the same variables). */
+
+/* Light theme override */
+#bdp-app[data-theme="light"] {
+    --bdp-bg: var(--bg-color, #f5f7fa);
+    --bdp-surface: color-mix(in srgb, var(--bg-color, #f5f7fa) 90%, var(--text-color, #1a2332) 10%);
+    --bdp-surface-2: color-mix(in srgb, var(--bg-color, #f5f7fa) 82%, var(--text-color, #1a2332) 18%);
+    --bdp-text: var(--text-color, #1a2332);
+    --bdp-muted: color-mix(in srgb, var(--text-color, #1a2332) 50%, transparent);
+    --bdp-border: var(--border-color, rgba(0, 0, 0, .12));
+}
 .bdp-body {
     margin: 0;
     padding: 0;

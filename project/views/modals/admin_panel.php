@@ -748,7 +748,7 @@ body.light-theme .ap-gate-oauth .oauth-provider-btn:hover{box-shadow:0 10px 24px
         font-size: 9px;
     }
 }
-#ap-stats-range-controls { flex-wrap: wrap; }
+#ap-stats-range-controls { flex-wrap: nowrap; overflow-x: auto; max-width: 100%; padding-bottom: 2px; }
 #ap-stats-range-controls > * { white-space: nowrap; flex-shrink: 0; }
 #ap-stats-range-controls input[type="date"] { flex-shrink: 1; }
 @media (min-width: 1200px) {
@@ -890,6 +890,128 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     outline: none;
     border-color: var(--primary-color);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+/* AI model selectors - custom dropdown */
+.ap-model-select {
+    position: relative;
+    width: 100%;
+    max-width: 520px;
+}
+.ap-model-select select {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+    width: 1px;
+    height: 1px;
+}
+.ap-model-select-trigger {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-height: 38px;
+    padding: 8px 38px 8px 12px;
+    border: 1px solid color-mix(in srgb, var(--border-color) 86%, var(--primary-color));
+    border-radius: 12px;
+    background: var(--bg-color);
+    color: var(--text-color);
+    font-family: monospace;
+    font-size: 12px;
+    cursor: pointer;
+    transition: border-color .2s ease, box-shadow .2s ease;
+    user-select: none;
+}
+.ap-model-select-trigger:hover { border-color: var(--primary-color); }
+.ap-model-select.open .ap-model-select-trigger {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary-color) 20%, transparent);
+}
+.ap-model-select-icon {
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    color: var(--primary-color);
+}
+.ap-model-select-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ap-model-select-arrow {
+    position: absolute;
+    right: 13px;
+    width: 16px;
+    height: 16px;
+    color: #6b7280;
+    transition: transform .2s ease;
+}
+.ap-model-select.open .ap-model-select-arrow { transform: rotate(180deg); }
+.ap-model-select-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    width: 100%;
+    max-height: 280px;
+    overflow-y: auto;
+    background: var(--bg-color);
+    border: 1px solid var(--primary-color);
+    border-radius: 12px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.15);
+    z-index: 1000;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-8px);
+    transition: opacity .18s ease, transform .18s ease, visibility .18s;
+}
+.ap-model-select.open .ap-model-select-dropdown {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+.ap-model-select-option {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    font-family: monospace;
+    font-size: 12px;
+    color: var(--text-color);
+    cursor: pointer;
+    transition: background-color .15s ease;
+}
+.ap-model-select-option:hover {
+    background: color-mix(in srgb, var(--primary-color) 12%, transparent);
+}
+.ap-model-select-option.selected {
+    background: color-mix(in srgb, var(--primary-color) 16%, transparent);
+    color: var(--primary-color);
+    font-weight: 600;
+}
+.ap-model-select-option-icon {
+    flex-shrink: 0;
+    width: 17px;
+    height: 17px;
+    color: var(--primary-color);
+}
+.ap-model-select-option-text {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.ap-model-select-dropdown::-webkit-scrollbar { width: 8px; }
+.ap-model-select-dropdown::-webkit-scrollbar-track {
+    background: transparent;
+    margin: 4px 0;
+}
+.ap-model-select-dropdown::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--border-color) 60%, transparent);
+    border-radius: 4px;
+}
+.ap-model-select-dropdown::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in srgb, var(--border-color) 80%, transparent);
 }
 .ap-copy-email{
     display:inline-flex;
@@ -1463,7 +1585,20 @@ var apStorageUsage = null;
 var panelHash={'ap-users':'usermanagement','ap-settings':'ap-settings','ap-email':'emailsetting','ap-apps-access':'appaccess','ap-telegram':'telegram','ap-stats':'stats','ap-ssh':'sshterminal','ap-backup':'backup','ap-storage':'storage','ap-docs':'documentation','ap-db':'database','ap-omniroute':'omniroute','ap-performance':'performance','ap-docker':'docker','ap-docker-manager':'dockermanager'};
 var hashPanel={'usermanagement':'ap-users','ap-settings':'ap-settings','emailsetting':'ap-email','appaccess':'ap-apps-access','telegram':'ap-telegram','stats':'ap-stats','sshterminal':'ap-ssh','backup':'ap-backup','storage':'ap-storage','documentation':'ap-docs','database':'ap-db','omniroute':'ap-omniroute','performance':'ap-performance','docker':'ap-docker','dockermanager':'ap-docker-manager'};
 var OMNIROUTE_URL='/omniroute-bridge?next=/admin-omniroute/home';
-function currentResolvedTheme(){return typeof resolveTheme==='function'?resolveTheme(getSelectedThemeValue()):<?php echo json_encode($themeForAppLink, JSON_HEX_TAG); ?>;}
+function currentResolvedTheme(){
+    // 1. Try URL param ?theme=
+    var urlTheme=(new URLSearchParams(location.search)).get('theme');
+    if(urlTheme==='light'||urlTheme==='dark') return urlTheme;
+    // 2. Try window.__SHELL_THEME set by main page
+    if(window.__SHELL_THEME&&window.__SHELL_THEME!=='auto'&&window.__SHELL_THEME!=='device') return window.__SHELL_THEME;
+    // 3. Try resolveTheme from main page JS
+    if(typeof resolveTheme==='function'&&typeof getSelectedThemeValue==='function'){
+        var t=resolveTheme(getSelectedThemeValue());
+        if(t==='light'||t==='dark') return t;
+    }
+    // 4. PHP fallback
+    return <?php echo json_encode($themeForAppLink, JSON_HEX_TAG); ?>;
+}
 function injectOmniRouteTheme(){
     var frame=document.getElementById('ap-omniroute-frame');
     if(!frame) return;
@@ -1653,6 +1788,12 @@ function apSessionStartTimer(expiresAt){
 }
 function openPanel(id){
     if(!dynRoot)return;
+    // Apply theme to embedded panels immediately (before init)
+    var _apThemeNow=currentResolvedTheme();
+    var _bdp=dynRoot.querySelector('#bdp-app');
+    if(_bdp) _bdp.setAttribute('data-theme',_apThemeNow);
+    var _stg=dynRoot.querySelector('#stg-app');
+    if(_stg) _stg.setAttribute('data-theme',_apThemeNow);
     overlay.classList.toggle('ap-edge-omniroute',id==='ap-omniroute');
     dynRoot.querySelectorAll('.ap-panel').forEach(function(p){p.classList.remove('active');});
     dynRoot.querySelectorAll('.ap-nav-btn').forEach(function(b){b.classList.remove('active');});
@@ -1680,6 +1821,30 @@ function openPanel(id){
             try{window.BackupPanel.init(dynRoot);}catch(e){console.error('[AdminPanel] BackupPanel.init:',e);}
         }else if(typeof window.BackupPanel.refresh==='function'){
             try{window.BackupPanel.refresh();}catch(e){}
+        }
+        var bdpApp=dynRoot.querySelector('#bdp-app');
+        if(bdpApp){
+            var theme=currentResolvedTheme();
+            bdpApp.setAttribute('data-theme',theme);
+            if(typeof window.BackupPanel.setTheme==='function'){
+                try{window.BackupPanel.setTheme(theme);}catch(e){}
+            }
+        }
+    }
+    if(id==='ap-storage'&&window.StoragePanel){
+        if(!apPanelInited['ap-storage']){
+            apPanelInited['ap-storage']=true;
+            try{window.StoragePanel.init(dynRoot.querySelector('#ap-storage'));}catch(e){console.error('[AdminPanel] StoragePanel.init:',e);}
+        }else if(typeof window.StoragePanel.refresh==='function'){
+            try{window.StoragePanel.refresh();}catch(e){}
+        }
+        var stgApp=dynRoot.querySelector('#stg-app');
+        if(stgApp){
+            var theme=currentResolvedTheme();
+            stgApp.setAttribute('data-theme',theme);
+            if(typeof window.StoragePanel.setTheme==='function'){
+                try{window.StoragePanel.setTheme(theme);}catch(e){}
+            }
         }
     }
     if(id==='ap-storage'&&window.StoragePanel){
@@ -2749,8 +2914,12 @@ function wireEvents(){
             if(!tooltip) return;
             var rect = btn.getBoundingClientRect();
             tooltip.style.display = 'block';
-            tooltip.style.left = (rect.right + 12) + 'px';
-            tooltip.style.top = (rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2)) + 'px';
+            // Force reflow to get actual offsetHeight
+            void tooltip.offsetHeight;
+            requestAnimationFrame(function(){
+                tooltip.style.left = (rect.right + 12) + 'px';
+                tooltip.style.top = (rect.top + (rect.height / 2) - (tooltip.offsetHeight / 2)) + 'px';
+            });
         }
         function hideNavTooltip(btn){
             var tooltip = btn ? btn.querySelector('.ap-tooltip') : null;
@@ -3185,6 +3354,7 @@ function wireEvents(){
             var o=document.createElement('option');
             o.value='';o.textContent=T.ai_models_label||'Add models above';
             selectEl.appendChild(o);
+            apUpdateCustomSelect(selectEl);
             return;
         }
         models.forEach(function(m){
@@ -3193,9 +3363,112 @@ function wireEvents(){
             if(m===cur)o.selected=true;
             selectEl.appendChild(o);
         });
+        apUpdateCustomSelect(selectEl);
+    }
+    // Custom select dropdown logic
+    function apInitCustomSelect(selectEl){
+        if(!selectEl||selectEl.dataset.apCustomInit)return;
+        selectEl.dataset.apCustomInit='1';
+        var wrap=selectEl.closest('.ap-model-select');
+        if(!wrap)return;
+        var isAi=selectEl.id==='ap-ai-default-model';
+        var iconSvg=isAi
+            ?'<svg class="ap-model-select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg>'
+            :'<svg class="ap-model-select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="11" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v2M8 21h8"/></svg>';
+        var trigger=document.createElement('div');trigger.className='ap-model-select-trigger';
+        var triggerIcon=document.createElement('div');triggerIcon.innerHTML=iconSvg;
+        var triggerText=document.createElement('div');triggerText.className='ap-model-select-text';
+        var arrow=document.createElement('div');arrow.className='ap-model-select-arrow';
+        arrow.innerHTML='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>';
+        trigger.appendChild(triggerIcon.firstChild);
+        trigger.appendChild(triggerText);
+        trigger.appendChild(arrow);
+        var dropdown=document.createElement('div');dropdown.className='ap-model-select-dropdown';
+        wrap.appendChild(trigger);
+        wrap.appendChild(dropdown);
+        function updateTrigger(){
+            var sel=selectEl.selectedOptions[0];
+            triggerText.textContent=sel?sel.textContent:(T.ai_models_label||'Select model');
+        }
+        function renderDropdown(){
+            dropdown.innerHTML='';
+            Array.from(selectEl.options).forEach(function(opt){
+                var item=document.createElement('div');
+                item.className='ap-model-select-option';
+                if(opt.selected)item.classList.add('selected');
+                item.dataset.value=opt.value;
+                var itemIcon=document.createElement('div');itemIcon.innerHTML=iconSvg;
+                var itemText=document.createElement('div');itemText.className='ap-model-select-option-text';
+                itemText.textContent=opt.textContent;
+                item.appendChild(itemIcon.firstChild);
+                item.appendChild(itemText);
+                item.addEventListener('click',function(){
+                    selectEl.value=opt.value;
+                    selectEl.dispatchEvent(new Event('change',{bubbles:true}));
+                    updateTrigger();
+                    wrap.classList.remove('open');
+                    Array.from(dropdown.querySelectorAll('.ap-model-select-option')).forEach(function(el){el.classList.remove('selected');});
+                    item.classList.add('selected');
+                });
+                dropdown.appendChild(item);
+            });
+        }
+        trigger.addEventListener('click',function(e){
+            e.stopPropagation();
+            var wasOpen=wrap.classList.contains('open');
+            document.querySelectorAll('.ap-model-select.open').forEach(function(el){el.classList.remove('open');});
+            if(!wasOpen){
+                wrap.classList.add('open');
+                renderDropdown();
+            }
+        });
+        document.addEventListener('click',function(e){
+            if(!wrap.contains(e.target))wrap.classList.remove('open');
+        });
+        selectEl.addEventListener('change',updateTrigger);
+        updateTrigger();
+        renderDropdown();
+    }
+    function apUpdateCustomSelect(selectEl){
+        if(!selectEl||!selectEl.dataset.apCustomInit)return;
+        var wrap=selectEl.closest('.ap-model-select');
+        if(!wrap)return;
+        var trigger=wrap.querySelector('.ap-model-select-trigger .ap-model-select-text');
+        var sel=selectEl.selectedOptions[0];
+        if(trigger)trigger.textContent=sel?sel.textContent:(T.ai_models_label||'Select model');
+        var dropdown=wrap.querySelector('.ap-model-select-dropdown');
+        if(!dropdown)return;
+        var isAi=selectEl.id==='ap-ai-default-model';
+        var iconSvg=isAi
+            ?'<svg class="ap-model-select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="3"/><path d="M9 9h.01M15 9h.01M9 15h6"/></svg>'
+            :'<svg class="ap-model-select-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="4" width="6" height="11" rx="3"/><path d="M5 11v1a7 7 0 0 0 14 0v-1M12 19v2M8 21h8"/></svg>';
+        dropdown.innerHTML='';
+        Array.from(selectEl.options).forEach(function(opt){
+            var item=document.createElement('div');
+            item.className='ap-model-select-option';
+            if(opt.selected)item.classList.add('selected');
+            item.dataset.value=opt.value;
+            var itemIcon=document.createElement('div');itemIcon.innerHTML=iconSvg;
+            var itemText=document.createElement('div');itemText.className='ap-model-select-option-text';
+            itemText.textContent=opt.textContent;
+            item.appendChild(itemIcon.firstChild);
+            item.appendChild(itemText);
+            item.addEventListener('click',function(){
+                selectEl.value=opt.value;
+                selectEl.dispatchEvent(new Event('change',{bubbles:true}));
+                if(trigger)trigger.textContent=opt.textContent;
+                wrap.classList.remove('open');
+                Array.from(dropdown.querySelectorAll('.ap-model-select-option')).forEach(function(el){el.classList.remove('selected');});
+                item.classList.add('selected');
+            });
+            dropdown.appendChild(item);
+        });
     }
     var modelsElLive=dynRoot.querySelector('#ap-ai-models'),defaultElLive=dynRoot.querySelector('#ap-ai-default-model');
     var speechModelsElLive=dynRoot.querySelector('#ap-ai-speech-models'),speechModelElLive=dynRoot.querySelector('#ap-ai-speech-model');
+    // Initialize custom selects
+    if(defaultElLive)apInitCustomSelect(defaultElLive);
+    if(speechModelElLive)apInitCustomSelect(speechModelElLive);
     if(modelsElLive){
         modelsElLive.addEventListener('input',function(){
             apSyncModelSelect(defaultElLive, modelsElLive.value, defaultElLive?defaultElLive.value:'');

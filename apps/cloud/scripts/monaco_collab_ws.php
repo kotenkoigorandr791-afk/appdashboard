@@ -21,12 +21,30 @@ $meta = [];
 $roomSnapshots = [];
 $authed = [];
 
+function ws_ticket_directories(): array
+{
+    // PHP-FPM and this service may live in different systemd temp namespaces
+    // (PrivateTmp), so /tmp and /var/tmp are not guaranteed to be the same
+    // filesystem. Prefer the application storage directory, which both
+    // processes share, and keep the old temp locations as fallbacks.
+    $dirs = [
+        dirname(__DIR__) . '/storage/.monaco_collab_tickets',
+        '/var/tmp/cloud_monaco_tickets',
+        sys_get_temp_dir() . '/cloud_monaco_tickets',
+    ];
+    return array_values(array_unique($dirs));
+}
+
 function ws_validate_ticket(string $ticket): ?string
 {
     $ticket = preg_replace('/[^a-f0-9]/', '', strtolower($ticket));
     if ($ticket === '' || strlen($ticket) < 16) return null;
-    $file = sys_get_temp_dir() . '/cloud_monaco_tickets/' . $ticket . '.json';
-    if (!is_file($file)) return null;
+    $file = null;
+    foreach (ws_ticket_directories() as $dir) {
+        $candidate = $dir . '/' . $ticket . '.json';
+        if (is_file($candidate)) { $file = $candidate; break; }
+    }
+    if ($file === null) return null;
     $raw = @file_get_contents($file);
     $data = is_string($raw) ? json_decode($raw, true) : null;
     if (!is_array($data) || empty($data['email'])) return null;
@@ -42,8 +60,11 @@ function ws_room_update_snapshot(string $roomKey, array $message, array &$roomSn
     if (!isset($message['content']) || !is_string($message['content'])) return false;
     $updatedAt = (int)($message['updatedAt'] ?? time());
     $current = $roomSnapshots[$roomKey] ?? null;
-    if ($current !== null && $current['content'] === $message['content']) {
-        return false;
+    if ($current !== null) {
+        if ($current['content'] === $message['content']) return false;
+        // Last write wins, ordered by arrival on the server. Client clocks are not
+        // comparable across machines: a user whose clock ran behind had every edit
+        // silently dropped as "stale".
     }
     $prevRevision = $current !== null ? (int)($current['revision'] ?? 0) : 0;
     $roomSnapshots[$roomKey] = [
@@ -123,7 +144,7 @@ function ws_handshake($client, string $buffer): bool
     return true;
 }
 
-function ws_remove_client($clientId, array &$clients, array &$handshakes, array &$clientBuffers, array &$rooms, array &$meta, array &$authed = null): void
+function ws_remove_client($clientId, array &$clients, array &$handshakes, array &$clientBuffers, array &$rooms, array &$meta, ?array &$authed = null): void
 {
     foreach (array_keys($rooms) as $roomKey) {
         unset($rooms[$roomKey][$clientId]);
@@ -193,6 +214,15 @@ function ws_dispatch_message(string $clientId, array $message, array &$clients, 
         ws_send_to_client($clientId, json_encode(['type' => 'auth_error', 'error' => 'auth required'], JSON_UNESCAPED_UNICODE), $clients);
         return;
     }
+    if ($message['type'] === 'ping') {
+        // Heartbeat: clients drop half-open sockets that never fire `close`.
+        ws_send_to_client($clientId, json_encode([
+            'type' => 'pong',
+            'at' => (int)($message['at'] ?? 0),
+            'serverTime' => (int)(microtime(true) * 1000)
+        ], JSON_UNESCAPED_UNICODE), $clients);
+        return;
+    }
     if ($message['type'] === 'join' && !empty($message['roomKey'])) {
         $roomKey = (string)$message['roomKey'];
         $rooms[$roomKey][$clientId] = true;
@@ -203,16 +233,12 @@ function ws_dispatch_message(string $clientId, array $message, array &$clients, 
             'name' => (string)($message['name'] ?? 'user'),
             'color' => (string)($message['color'] ?? '#3b82f6')
         ];
-        if (isset($message['content']) && is_string($message['content'])) {
-            $incoming = $message['content'];
-            $hasRoomSnapshot = !empty($roomSnapshots[$roomKey]);
-            $incomingAt = (int)($message['updatedAt'] ?? time());
-            $snapAt = $hasRoomSnapshot ? (int)($roomSnapshots[$roomKey]['updatedAt'] ?? 0) : 0;
-            if (!$hasRoomSnapshot || $incomingAt >= $snapAt) {
-                $message['revision'] = (int)($message['revision'] ?? 0);
-                $message['updatedAt'] = $incomingAt;
-                ws_room_update_snapshot($roomKey, $message, $roomSnapshots);
-            }
+        // A join announces a client; it must never replace an established room
+        // snapshot with that client's potentially stale local buffer.
+        if (empty($roomSnapshots[$roomKey]) && isset($message['content']) && is_string($message['content'])) {
+            $message['revision'] = (int)($message['revision'] ?? 0);
+            $message['updatedAt'] = (int)($message['updatedAt'] ?? time());
+            ws_room_update_snapshot($roomKey, $message, $roomSnapshots);
         }
         if (!empty($roomSnapshots[$roomKey])) {
             $snap = $roomSnapshots[$roomKey];

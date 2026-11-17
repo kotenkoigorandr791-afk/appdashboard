@@ -65,7 +65,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import orbit.nex.finance.data.Appearance
 import orbit.nex.finance.data.Dispute
-import orbit.nex.finance.data.Expense
+import orbit.nex.finance.data.OutboxItem
+import orbit.nex.finance.data.OutboxSync
 import orbit.nex.finance.data.Session
 import orbit.nex.finance.data.Snapshot
 import orbit.nex.finance.ui.AppBackground
@@ -143,7 +144,7 @@ private fun DisputeScreen(
                 a.isNotBlank() && raw.lowercase().contains(a)
             }?.name.orEmpty()
 
-    DetailScreen(stringResource(R.string.disputes_title), onBack) {
+    DetailScreen(stringResource(R.string.disputes_title), onBack, insetTop = true) {
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -260,27 +261,21 @@ private fun DisputeScreen(
                                     busy = true
                                     scope.launch {
                         val amount = amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
-                        val ok = runCatching {
-                                            app.api.pushJson(
-                                                session,
-                                                """{"expenses":[${app.api.expenseJson(
-                                                    Expense(
-                                                        date = dispute.date.ifBlank { LocalDate.now().toString() },
-                                                        store = storeName,
-                                                        amount = amount,
-                                                        entrySource = if (dispute.source == "ocr") "ocr" else "notification",
-                                                        ocrRawStore = if (dispute.source == "ocr") dispute.rawName else "",
-                                                    ),
-                                                )}]}""",
-                                            )
-                                        }.isSuccess
-                                        if (ok) {
-                                            removeDispute(app, dispute.id)
-                                            runCatching { app.store.saveSnapshot(app.api.pull(session)) }
-                                            message = context.getString(R.string.disputes_saved)
-                                        } else {
-                                            message = context.getString(R.string.disputes_failed)
-                                        }
+                                        OutboxSync.enqueue(
+                                            app.store,
+                                            OutboxItem(
+                                                kind = "expense",
+                                                date = dispute.date.ifBlank { LocalDate.now().toString() },
+                                                store = storeName,
+                                                amount = amount,
+                                                source = if (dispute.source == "ocr") "ocr" else "notification",
+                                                raw = if (dispute.source == "ocr") dispute.rawName else "",
+                                            ),
+                                        )
+                                        val ok = runCatching { OutboxSync.flush(app.store, app.api) }.getOrDefault(false)
+                                        removeDispute(app, dispute.id)
+                                        runCatching { app.store.saveSnapshot(app.api.pull(session)) }
+                                        message = context.getString(if (ok) R.string.disputes_saved else R.string.wallet_saved)
                                         busy = false
                                     }
                                 },

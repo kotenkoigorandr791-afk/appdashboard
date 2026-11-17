@@ -36,9 +36,7 @@ data class UpdateInfo(
     val size_bytes: Long = 0,
     val built_at: Long = 0,
     val apk_path: String = "",
-    /** Absolute download URL, used by the GitHub release source. */
     val download_url: String = "",
-    /** "server" | "production" | "github" - where this candidate came from. */
     val source: String = "server",
 )
 
@@ -76,11 +74,6 @@ class AppUpdateChecker(private val context: Context) {
      * answered on a different host (redirect / domain change), the redirect is
      * followed and the new base is persisted back into the config.
      */
-    /**
-     * Collects candidates from the paired server, the production service and the
-     * public GitHub releases, then returns the newest build. Each source may be
-     * unavailable independently, so a failure in one never blocks the others.
-     */
     suspend fun checkForUpdate(): UpdateCheck = withContext(Dispatchers.IO) {
         if (FlavorUtils.isPlayStore) return@withContext UpdateCheck(CheckOutcome.UP_TO_DATE)
         val candidates = mutableListOf<UpdateInfo>()
@@ -99,7 +92,7 @@ class AppUpdateChecker(private val context: Context) {
                             if (response.isSuccessful) {
                                 val info = json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
                                     .copy(source = "server")
-                                if (info.available) candidates += info
+                                if (info.available) candidates += info.copy(download_url = apiUrl(info.apk_path.ifBlank { "/api/steps/apk" }, config).orEmpty())
                                 persistRedirectedBase(config, response.request.url.toString())
                             }
                         }
@@ -110,23 +103,6 @@ class AppUpdateChecker(private val context: Context) {
             }
         }
 
-        // Production dashboard: public version metadata, no session required.
-        try {
-            val request = Request.Builder()
-                .url(PRODUCTION_BASE + "/api/steps/version")
-                .header("Accept", "application/json").get().build()
-            client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    val info = json.decodeFromString<UpdateInfo>(response.body?.string().orEmpty())
-                    if (info.available) candidates += info.copy(source = "production")
-                }
-            }
-        } catch (_: Exception) {
-            sawError = true
-        }
-
-        githubRelease()?.let { candidates += it }
-
         val newest = candidates.maxByOrNull { it.version_code }
         if (newest == null) {
             return@withContext if (sawError) UpdateCheck(CheckOutcome.ERROR) else UpdateCheck(CheckOutcome.NOT_CONNECTED)
@@ -135,57 +111,6 @@ class AppUpdateChecker(private val context: Context) {
             return@withContext UpdateCheck(CheckOutcome.UP_TO_DATE, newest)
         }
         UpdateCheck(CheckOutcome.UPDATE_AVAILABLE, newest)
-    }
-
-    /** Newest published GitHub release tagged `steps-vX.Y.Z`, if any. */
-    private fun githubRelease(): UpdateInfo? = try {
-        val request = Request.Builder()
-            .url("https://api.github.com/repos/$GITHUB_REPO/releases?per_page=20")
-            .header("Accept", "application/vnd.github+json")
-            .header("User-Agent", "NexSteps/${BuildConfig.VERSION_NAME}")
-            .get().build()
-        client.newCall(request).execute().use { response ->
-            if (!response.isSuccessful) return null
-            val releases = org.json.JSONArray(response.body?.string().orEmpty())
-            var best: UpdateInfo? = null
-            for (i in 0 until releases.length()) {
-                val release = releases.optJSONObject(i) ?: continue
-                if (release.optBoolean("draft") || release.optBoolean("prerelease")) continue
-                val tag = release.optString("tag_name")
-                if (!tag.startsWith("steps-v")) continue
-                val version = tag.removePrefix("steps-v").trim()
-                val code = versionCodeOf(version) ?: continue
-                val assets = release.optJSONArray("assets") ?: continue
-                for (j in 0 until assets.length()) {
-                    val asset = assets.optJSONObject(j) ?: continue
-                    val name = asset.optString("name")
-                    val url = asset.optString("browser_download_url")
-                    if (!name.endsWith(".apk", ignoreCase = true) || url.isBlank()) continue
-                    val candidate = UpdateInfo(
-                        available = true,
-                        version_name = version,
-                        version_code = code,
-                        size_bytes = asset.optLong("size"),
-                        download_url = url,
-                        source = "github",
-                    )
-                    if (best == null || candidate.version_code > best.version_code) best = candidate
-                }
-            }
-            best
-        }
-    } catch (_: Exception) {
-        null
-    }
-
-    /** 1.10.2 -> 11002, matching the versionCode scheme in build.gradle.kts. */
-    private fun versionCodeOf(version: String): Int? {
-        val parts = version.trim().removePrefix("v").split('.')
-        if (parts.size < 2) return null
-        val major = parts.getOrNull(0)?.toIntOrNull() ?: return null
-        val minor = parts.getOrNull(1)?.toIntOrNull() ?: return null
-        val patch = parts.getOrNull(2)?.takeWhile { it.isDigit() }?.toIntOrNull() ?: 0
-        return major * 10000 + minor * 100 + patch
     }
 
     private fun persistRedirectedBase(config: WebhookConfig, finalUrl: String) {
@@ -207,7 +132,6 @@ class AppUpdateChecker(private val context: Context) {
         val config = connectedConfig()
         val url = when {
             info.download_url.isNotBlank() -> info.download_url
-            info.source == "production" -> PRODUCTION_BASE + info.apk_path.ifBlank { "/api/steps/apk" }
             else -> {
                 val cfg = config ?: return@withContext null
                 apiUrl(info.apk_path.ifBlank { "/api/steps/apk" }, cfg) ?: return@withContext null
@@ -219,11 +143,10 @@ class AppUpdateChecker(private val context: Context) {
         dest.delete()
         try {
             val builder = Request.Builder().url(url).header("Accept", "application/json")
-            if (info.source != "github" && config != null) {
+            if (config != null) {
                 builder.header("Authorization", config.headers["Authorization"].orEmpty())
                 builder.header("X-Device-Id", prefs.getDeviceId())
             }
-            if (info.source == "github") builder.header("User-Agent", "NexSteps/${BuildConfig.VERSION_NAME}")
             val request = builder.get().build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return@withContext null
@@ -309,8 +232,6 @@ class AppUpdateChecker(private val context: Context) {
 
     companion object {
         private const val UPDATE_CHECK_THROTTLE_MS = 24L * 60 * 60 * 1000
-        private const val PRODUCTION_BASE = "https://serverkherson.xyz"
-        private const val GITHUB_REPO = "kotenkoigorandr791-afk/appdashboard"
         const val ACTION_INSTALL_UPDATE = "orbit.nex.steps.INSTALL_UPDATE"
         private const val CHANNEL_ID = "app_updates"
         private const val NOTIFICATION_ID = 3001

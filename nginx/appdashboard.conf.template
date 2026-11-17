@@ -637,6 +637,20 @@ server {
         expires 1h;
     }
 
+
+    # Steps location API: bounded uploads, rate limits and a long import timeout.
+    location ^~ /apps/steps/api/ {
+        client_max_body_size 260m;
+        limit_req zone=appdashboard_api burst=240 nodelay;
+        fastcgi_request_buffering off;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_read_timeout 300;
+        fastcgi_send_timeout 300;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
     location ~ ^/apps/steps/(steps-mobile-app|upload_sessions)(/|$) {
         return 404;
     }

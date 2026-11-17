@@ -102,7 +102,6 @@
           <a href="#profile" data-i18n="navProfile">User Profile</a>
           <a href="#settings" data-i18n="navSettings">Settings</a>
           <a href="#bottom-buttons" data-i18n="navBottom">Bottom Buttons</a>
-          <a href="#qr-code" data-i18n="navQR">QR Code</a>
           <a href="#statistics" data-i18n="navStats">Statistics</a>
           <a href="#sessions" data-i18n="navSessions">Session Management</a>
           <a href="#pin-code" data-i18n="navPIN">One-Time PIN</a>
@@ -210,13 +209,10 @@
 
         <h2 id="bottom-buttons" data-i18n="bottomTitle">Bottom Buttons Toolbar</h2>
         <p data-i18n="bottomP1">The bottom toolbar is a fixed control panel located at the bottom of the main page, providing instant access to essential utility functions. This bar remains visible as you scroll and adapts responsively to different screen sizes, collapsing into a menu on mobile devices.</p>
-        <p data-i18n="bottomP2">The toolbar contains five primary function buttons, each represented by an intuitive icon and label:</p>
+        <p data-i18n="bottomP2">The toolbar contains four primary function buttons, each represented by an intuitive icon and label:</p>
 
         <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn1">Statistics Button</h3>
         <p data-i18n="bottomStatsDesc">The chart icon opens comprehensive server and usage statistics. View visit data, server load metrics, and user activity across different time periods (year, month, week). Useful for understanding platform usage patterns and server performance.</p>
-
-        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn2">QR Code Button</h3>
-        <p data-i18n="bottomQRDesc">The QR code icon generates a scannable code containing the site's URL. Perfect for quickly sharing access to the platform with colleagues or accessing the site from mobile devices without typing the full address.</p>
 
         <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="bottomBtn3">Public Files Button</h3>
         <p data-i18n="bottomFilesDesc">The folder icon opens the public files management interface where you can upload, download, and organize files that are accessible to other users. This is your personal shared storage space on the platform.</p>
@@ -228,29 +224,7 @@
         <p data-i18n="bottomPINDesc">The key icon generates a temporary, single-use PIN code for quick authentication on other devices without entering your full username and password. Ideal for secure temporary access.</p>
 
         <div class="note" data-i18n="bottomNote">All bottom toolbar buttons open modal dialogs that can be closed by clicking outside the modal, pressing Escape, or clicking the dedicated close button. Your current work in other applications remains unaffected.</div>
-
-        <h2 id="qr-code" data-i18n="qrTitle">QR Code Generator</h2>
-        <p data-i18n="qrP1">The QR Code feature provides a quick and convenient way to share platform access with others or transfer your current session to a mobile device. Click the QR Code button in the bottom toolbar to open the QR code generation modal.</p>
-        <a href="main_photos/qr_code_modal_en.jpg" class="lightbox-trigger" data-title="QR Code Modal"><img src="main_photos/qr_code_modal_en.jpg" alt="QR code modal"></a>
-        <div class="caption" data-i18n="qrCaption">QR code modal displaying a scannable code with sharing options.</div>
-
-        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="qrSection1">How It Works</h3>
-        <p data-i18n="qrHowItWorks">The system generates a standard QR code containing the platform's URL encoded with your current theme and language preferences. When scanned, users are directed to the login page with your preferred settings pre-selected.</p>
-
-        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="qrSection2">Common Use Cases</h3>
-        <ul>
-          <li data-i18n="qrUse1"><strong>Mobile device setup:</strong> Scan the code with your phone to quickly open the site on mobile without typing the long URL</li>
-          <li data-i18n="qrUse2"><strong>Team sharing:</strong> Display the code during meetings so colleagues can quickly join the platform</li>
-          <li data-i18n="qrUse3"><strong>Documentation:</strong> Include in printed materials or presentations for easy digital access</li>
-          <li data-i18n="qrUse4"><strong>Guest access:</strong> Share temporary access with visitors who need to view public content</li>
-        </ul>
-
-        <h3 style="font-size: 18px; margin-top: 20px; margin-bottom: 10px;" data-i18n="qrSection3">Scanning Instructions</h3>
-        <p data-i18n="qrScanInstructions">To scan the QR code, use your smartphone's built-in camera (iOS 11+ or Android 9+) or any QR code scanning application. Point your camera at the code displayed on screen - your device will automatically detect it and show a notification to open the link. No special apps are required on modern smartphones.</p>
-
-        <p data-i18n="qrP2"><strong>Security note:</strong> The QR code contains only the site's URL and does not include any authentication credentials or session data. Anyone scanning the code will still need to log in with their own credentials. The code expires when you close the modal, and a new code is generated each time you open it.</p>
-
-        <h2 id="statistics" data-i18n="statsTitle">Usage Statistics</h2>
+<h2 id="statistics" data-i18n="statsTitle">Usage Statistics</h2>
         <p data-i18n="statsP1">The Statistics feature provides comprehensive insights into platform usage and server performance. Access this tool by clicking the Statistics button (chart icon) in the bottom toolbar. The statistics modal displays interactive data visualizations and detailed metrics.</p>
         <a href="main_photos/statistic_modal_en.jpg" class="lightbox-trigger" data-title="Statistics Modal"><img src="main_photos/statistic_modal_en.jpg" alt="Statistics modal"></a>
         <div class="caption" data-i18n="statsCaption">Statistics window with time period selector and data visualization.</div>
@@ -385,7 +359,7 @@
       en: {
         brand: "Main Page", langLabel: "Language:", themeLabel: "Theme:", backLabel: "Back", topicsTitle: "Topics",
         navOverview: "Overview", navMenu: "Menu Bar", navProfile: "User Profile", navSettings: "Settings",
-        navBottom: "Bottom Buttons", navQR: "QR Code", navStats: "Statistics", navSessions: "Session Management", navPIN: "One-Time PIN",
+        navBottom: "Bottom Buttons", navStats: "Statistics", navSessions: "Session Management", navPIN: "One-Time PIN",
         pageTitle: "Main Page Instructions", pageIntro: "This page explains the main functions of the central hub for all applications on this site.",
         overviewTitle: "Overview", overviewP1: "The main page serves as your personal dashboard and central hub for all available applications on the platform. When you first log in, you'll see an intuitive tile-based layout displaying all applications you have permission to access.",
         overviewP2: "Each tile represents a separate application or service. The tiles are organized in a responsive grid that adapts to your screen size. Click on any tile to launch the corresponding application in the same window. You can return to the main page at any time using the browser's back button or the menu.",
@@ -407,13 +381,8 @@
         settingsP3: "All settings are automatically saved when you make a selection. Click anywhere outside the modal or the close button to exit. If you access settings from a documentation page (like this one), the back button in the top bar will return you to the main application.",
         settingsCaption: "Settings window with language selector, theme options, and color picker.", settingsNote: "Account-wide synchronization: Accent color changes are permanently saved to your user account and will be applied across all applications, devices, and sessions. This ensures a consistent personalized experience everywhere you log in.",
         bottomTitle: "Bottom Buttons Toolbar", bottomP1: "The bottom toolbar is a fixed control panel located at the bottom of the main page, providing instant access to essential utility functions. This bar remains visible as you scroll and adapts responsively to different screen sizes, collapsing into a menu on mobile devices.",
-        bottomP2: "The toolbar contains five primary function buttons, each represented by an intuitive icon and label:", bottomBtn1: "Statistics Button", bottomStatsDesc: "The chart icon opens comprehensive server and usage statistics. View visit data, server load metrics, and user activity across different time periods (year, month, week). Useful for understanding platform usage patterns and server performance.", bottomBtn2: "QR Code Button", bottomQRDesc: "The QR code icon generates a scannable code containing the site's URL. Perfect for quickly sharing access to the platform with colleagues or accessing the site from mobile devices without typing the full address.", bottomBtn3: "Public Files Button", bottomFilesDesc: "The folder icon opens the public files management interface where you can upload, download, and organize files that are accessible to other users. This is your personal shared storage space on the platform.", bottomBtn4: "Session Management Button", bottomSessionDesc: "The devices icon opens session control where you can view all active login locations, terminate sessions on other devices for security, and manage trusted devices for automatic login.", bottomBtn5: "One-Time PIN Button", bottomPINDesc: "The key icon generates a temporary, single-use PIN code for quick authentication on other devices without entering your full username and password. Ideal for secure temporary access.",
+        bottomP2: "The toolbar contains four primary function buttons, each represented by an intuitive icon and label:", bottomBtn1: "Statistics Button", bottomStatsDesc: "The chart icon opens comprehensive server and usage statistics. View visit data, server load metrics, and user activity across different time periods (year, month, week). Useful for understanding platform usage patterns and server performance.", bottomBtn3: "Public Files Button", bottomFilesDesc: "The folder icon opens the public files management interface where you can upload, download, and organize files that are accessible to other users. This is your personal shared storage space on the platform.", bottomBtn4: "Session Management Button", bottomSessionDesc: "The devices icon opens session control where you can view all active login locations, terminate sessions on other devices for security, and manage trusted devices for automatic login.", bottomBtn5: "One-Time PIN Button", bottomPINDesc: "The key icon generates a temporary, single-use PIN code for quick authentication on other devices without entering your full username and password. Ideal for secure temporary access.",
         bottomNote: "All bottom toolbar buttons open modal dialogs that can be closed by clicking outside the modal, pressing Escape, or clicking the dedicated close button. Your current work in other applications remains unaffected.",
-        qrTitle: "QR Code Generator", qrP1: "The QR Code feature provides a quick and convenient way to share platform access with others or transfer your current session to a mobile device. Click the QR Code button in the bottom toolbar to open the QR code generation modal.",
-        qrP2: "Security note: The QR code contains only the site's URL and does not include any authentication credentials or session data. Anyone scanning the code will still need to log in with their own credentials. The code expires when you close the modal, and a new code is generated each time you open it.", qrCaption: "QR code modal displaying a scannable code with sharing options.",
-        qrSection1: "How It Works", qrHowItWorks: "The system generates a standard QR code containing the platform's URL encoded with your current theme and language preferences. When scanned, users are directed to the login page with your preferred settings pre-selected.",
-        qrSection2: "Common Use Cases", qrUse1: "Mobile device setup: Scan the code with your phone to quickly open the site on mobile without typing the long URL", qrUse2: "Team sharing: Display the code during meetings so colleagues can quickly join the platform", qrUse3: "Documentation: Include in printed materials or presentations for easy digital access", qrUse4: "Guest access: Share temporary access with visitors who need to view public content",
-        qrSection3: "Scanning Instructions", qrScanInstructions: "To scan the QR code, use your smartphone's built-in camera (iOS 11+ or Android 9+) or any QR code scanning application. Point your camera at the code displayed on screen - your device will automatically detect it and show a notification to open the link. No special apps are required on modern smartphones.",
         statsTitle: "Usage Statistics", statsP1: "The Statistics feature provides comprehensive insights into platform usage and server performance. Access this tool by clicking the Statistics button (chart icon) in the bottom toolbar. The statistics modal displays interactive data visualizations and detailed metrics.",
         statsP2: "The statistics window offers three granular viewing modes to analyze usage patterns:", statsL1: "By Year - View aggregated annual statistics with monthly breakdowns. Ideal for long-term trend analysis and year-over-year comparisons. Shows total visits, unique users, and peak usage months.", statsL2: "By Month - Detailed monthly view with daily breakdowns. Perfect for understanding weekly patterns and identifying specific high-traffic days. Includes average daily usage and day-of-week comparisons.", statsL3: "By Week - Granular weekly view showing hourly patterns. Best for analyzing daily activity peaks and understanding when different user groups are most active.",
         statsSection1: "Time Period Selection", statsPeriodDesc: "The statistics window offers three granular viewing modes to analyze usage patterns:",
@@ -444,7 +413,7 @@
       ua: {
         brand: "Головна сторінка", langLabel: "Мова:", themeLabel: "Тема:", backLabel: "Назад", topicsTitle: "Теми",
         navOverview: "Огляд", navMenu: "Меню", navProfile: "Профіль користувача", navSettings: "Налаштування",
-        navBottom: "Нижні кнопки", navQR: "QR-код", navStats: "Статистика", navSessions: "Керування сесіями", navPIN: "Одноразовий PIN-код",
+        navBottom: "Нижні кнопки", navStats: "Статистика", navSessions: "Керування сесіями", navPIN: "Одноразовий PIN-код",
         pageTitle: "Інструкція до головної сторінки", pageIntro: "Ця сторінка пояснює основні функції центрального хабу для всіх застосунків на цьому сайті.",
         overviewTitle: "Огляд", overviewP1: "Головна сторінка є центральним хабом для всіх доступних застосунків. Ви побачите плиткове розташування всіх застосунків, до яких маєте доступ.",
         overviewP2: "Кожна плитка представляє окремий застосунок. Натисніть на будь-яку плитку, щоб відкрити відповідний застосунок.",
@@ -460,9 +429,7 @@
         settingsP3: "Під цими параметрами ви знайдете:", settingsL4: "Правила використання - Правила використання сайту", settingsL5: "Політика конфіденційності - Рекомендації щодо обробки даних та конфіденційності",
         settingsCaption: "Вікно налаштувань з параметрами мови, теми та кольору акцентів.", settingsNote: "Важливо: Зміни кольору акцентів будуть застосовані до вашого акаунта у всіх застосунках на цьому сайті.",
         bottomTitle: "Нижні кнопки", bottomP1: "Внизу сторінки розташовано п'ять кнопок для швидкого доступу до додаткових функцій:",
-        bottomL1: "Статистика - Перегляд статистики використання сервера", bottomL2: "QR-код - Поділіться цим сайтом з іншими через QR-код", bottomL3: "Публічні файли - Керування загальнодоступними файлами", bottomL4: "Сесії - Керування активними сесіями та довіреними пристроями", bottomL5: "Одноразовий PIN-код - Генерація PIN-коду для швидкого входу на інших пристроях",
-        qrTitle: "QR-код", qrP1: "Натисніть кнопку QR-коду, щоб згенерувати код для сканування та поширення цього сайту.",
-        qrP2: "Інші можуть сканувати цей QR-код, щоб швидко отримати доступ до цього сайту без введення URL. Це зручно для поширення на мобільних пристроях.", qrCaption: "Модальне вікно QR-коду для швидкого поширення сайту.",
+        bottomL1: "Статистика - Перегляд статистики використання сервера", bottomL3: "Публічні файли - Керування загальнодоступними файлами", bottomL4: "Сесії - Керування активними сесіями та довіреними пристроями", bottomL5: "Одноразовий PIN-код - Генерація PIN-коду для швидкого входу на інших пристроях",
         statsTitle: "Статистика", statsP1: "Натисніть кнопку Статистика, щоб переглянути статистику використання сервера.",
         statsP2: "Вікно статистики пропонує три режими перегляду:", statsL1: "За рік - Перегляд статистики за весь рік", statsL2: "За місяць - Перегляд статистики за конкретний місяць", statsL3: "За тиждень - Перегляд статистики за конкретний тиждень",
         statsP3: "Це допомагає зрозуміти, наскільки часто використовуються різні сервери.", statsCaption: "Вікно статистики з даними відвідувань сервера.",

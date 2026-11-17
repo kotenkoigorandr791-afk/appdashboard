@@ -40,6 +40,7 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ManageAccounts
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
@@ -210,21 +211,16 @@ fun SettingsScreen(onBack: () -> Unit) {
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
     val connected = configs.any { it.isEnabled }
 
-    // ── Personal data ────────────────────────────────────────────────────────
+    // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
-    var avatarModel by remember {
-        mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
-    }
     // Rendered from the local cache first, so opening settings never flashes
     // empty fields while the server request is in flight.
     var personal by remember { mutableStateOf(parsePersonalCache(prefs)) }
-    var nameField by remember { mutableStateOf(profile.name) }
     var goalField by remember { mutableStateOf(personal[KEY_GOAL].orEmpty()) }
     var heightField by remember { mutableStateOf(personal[KEY_HEIGHT].orEmpty()) }
     var weightField by remember { mutableStateOf(personal[KEY_WEIGHT].orEmpty()) }
     var strideField by remember { mutableStateOf(personal[KEY_STRIDE].orEmpty()) }
     var birthField by remember { mutableStateOf(personal[KEY_BIRTH].orEmpty()) }
-    var nameError by remember { mutableStateOf<String?>(null) }
     var goalError by remember { mutableStateOf<String?>(null) }
     var heightError by remember { mutableStateOf<String?>(null) }
     var weightError by remember { mutableStateOf<String?>(null) }
@@ -243,7 +239,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
     }
 
-    // ── App settings ─────────────────────────────────────────────────────────
+    // â”€â”€ App settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
     var permissionsSheetOpen by remember { mutableStateOf(false) }
@@ -298,9 +294,6 @@ fun SettingsScreen(onBack: () -> Unit) {
         if (fetched.error == null) {
             if (fetched.photo.isNotBlank()) downloadAvatarFile(context, fetched.photo)
             profile = fetched
-            avatarModel = localAvatarFile(context).takeIf { it.exists() }?.absolutePath
-                ?: fetched.photo.takeIf { it.isNotBlank() }
-            nameField = fetched.name
         }
         val (values, ok) = loadPersonalSettings(config, prefs)
         personalLoadFailed = !ok
@@ -336,10 +329,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     fun validatePersonal(): Boolean {
         fun intIn(raw: String, min: Int, max: Int): Boolean =
             raw.isNotBlank() && raw.matches(Regex("^\\d+$")) && raw.toIntOrNull() in min..max
-        val name = nameField.trim()
-        nameError = if (name.isEmpty() || name.length > 80) {
-            context.getString(R.string.personal_name_invalid)
-        } else null
         goalError = if (goalField.isBlank() || intIn(goalField, 1000, 200000)) null
         else context.getString(R.string.personal_goal_invalid)
         heightError = if (heightField.isBlank() || intIn(heightField, 50, 260)) null
@@ -354,7 +343,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 context.getString(R.string.personal_birth_invalid)
             } else null
         }.getOrElse { context.getString(R.string.personal_birth_invalid) }
-        return listOf(nameError, goalError, heightError, weightError, strideError, birthError).all { it == null }
+        return listOf(goalError, heightError, weightError, strideError, birthError).all { it == null }
     }
 
     fun savePersonal() {
@@ -378,7 +367,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             putIfChanged(KEY_WEIGHT, weightField)
             putIfChanged(KEY_STRIDE, strideField)
             putIfChanged(KEY_BIRTH, birthField)
-            val nameChanged = nameField.trim() != profile.name && nameField.trim().isNotBlank()
 
             var failed = false
             var detail = ""
@@ -403,34 +391,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                     if (detail.isBlank()) detail = "HTTP $code"
                 }
             }
-            if (nameChanged && !failed) {
-                val (code, body) = postJson(config, prefs, "/profile", JSONObject().put("name", nameField.trim()))
-                if (code in 200..299) {
-                    val serverProfile = JSONObject(body).optJSONObject("profile")
-                    if (serverProfile != null) {
-                        profile = ServerProfile(
-                            name = serverProfile.optString("name"),
-                            email = serverProfile.optString("email"),
-                            photo = absoluteProfileUrl(config.url, serverProfile.optString("photo")),
-                        )
-                        prefs.setProfileCache(
-                            JSONObject()
-                                .put("name", profile.name)
-                                .put("email", profile.email)
-                                .put("photo", profile.photo)
-                                .toString()
-                        )
-                        nameField = profile.name
-                    }
-                } else {
-                    failed = true
-                    detail = runCatching { JSONObject(body).optString("message") }.getOrDefault("")
-                    if (detail.isBlank()) detail = "HTTP $code"
-                }
-            }
             saveOk = !failed
             saveDetail = detail
-            if (!failed) showSavedToast = true
+            showSavedToast = true
             saving = false
         }
     }
@@ -497,7 +460,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // ── Personal data ────────────────────────────────────────────
+                // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -528,52 +491,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                if (connected && avatarModel != null) {
-                                    AsyncImage(
-                                        model = avatarModel,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(56.dp).clip(CircleShape),
-                                    )
-                                } else {
-                                    Icon(
-                                        if (connected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(56.dp),
-                                        tint = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        profile.name.ifBlank { stringResource(R.string.app_name) },
-                                        style = MaterialTheme.typography.titleMedium,
-                                    )
-                                    Text(
-                                        profile.email.ifBlank { profile.error.orEmpty() },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            OutlinedTextField(
-                                value = nameField,
-                                onValueChange = {
-                                    nameField = it.take(80)
-                                    nameError = null
-                                },
-                                label = { Text(stringResource(R.string.personal_name)) },
-                                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                                isError = nameError != null,
-                                supportingText = { nameError?.let { message -> Text(message) } },
-                                singleLine = true,
-                                enabled = connected,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
                             OutlinedTextField(
                                 value = profile.email,
                                 onValueChange = {},
@@ -689,7 +606,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Network ──────────────────────────────────────────────────
+                // â”€â”€ Network â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -712,7 +629,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Permissions ──────────────────────────────────────────────
+                // â”€â”€ Permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -740,7 +657,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Sync interval ────────────────────────────────────────────
+                // â”€â”€ Sync interval â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -817,7 +734,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Conflicts ────────────────────────────────────────────────
+                // â”€â”€ Conflicts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -890,7 +807,68 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Personalization ──────────────────────────────────────────
+                // â”€â”€ Location tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                // Recording controls and sampling live on their own screen, the
+                // same one the map links to.
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                context.startActivity(
+                                    Intent(context, orbit.nex.steps.LocationSettingsActivity::class.java)
+                                )
+                            },
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.tracking_settings_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    stringResource(R.string.tracking_settings_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            context.startActivity(Intent(context, orbit.nex.steps.PointsActivity::class.java))
+                        },
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.points_title), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.points_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
+                        }
+                    }
+                }
+
+                // â”€â”€ Personalization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 // Theme, accent, language and orientation live on their own
                 // activity; this list only links to it.
                 item {
@@ -934,7 +912,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Data types ───────────────────────────────────────────────
+                // â”€â”€ Data types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -979,7 +957,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Export ───────────────────────────────────────────────────
+                // â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -997,8 +975,9 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             if (showSavedToast) {
                 orbit.nex.steps.components.SavedToast(
-                    stringResource(R.string.saved_toast),
+                    stringResource(if (saveOk == false) R.string.save_failed_toast else R.string.saved_toast),
                     Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    isError = saveOk == false,
                 )
             }
             }

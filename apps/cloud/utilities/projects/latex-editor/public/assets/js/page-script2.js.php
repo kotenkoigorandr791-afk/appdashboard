@@ -151,6 +151,9 @@
         value: initialContent,
         language: 'latex',
         theme: isDark ? 'custom-dark' : 'custom-light',
+        // Do not box Cyrillic/other non-ASCII characters in orange: Russian
+        // text is normal content here (same as the plain text editor).
+        unicodeHighlight: { ambiguousCharacters: false, invisibleCharacters: false, nonBasicASCII: false },
         automaticLayout: false,
         largeFileOptimizations: true,
         maxTokenizationLineLength: 20000,
@@ -736,31 +739,45 @@
     
     function setupAutoSave() {
       if (!editor) return;
-      
+
       editor.onDidChangeModelContent(function() {
-        const currentContent = editor.getValue();
         if (autoSaveTimer) clearTimeout(autoSaveTimer);
-        autoSaveTimer = setTimeout(() => {
-          if (currentContent !== lastContent) {
-            autoSaveFile(currentContent);
-            lastContent = currentContent;
-          }
+        autoSaveTimer = setTimeout(function() {
+          autoSaveTimer = null;
+          // Read the value when the timer fires: a value captured when the timer
+          // was armed is stale after 15s of typing.
+          const currentContent = editor ? editor.getValue() : '';
+          if (currentContent !== lastContent) autoSaveFile(currentContent);
         }, 15000);
       });
     }
-    
+
     function autoSaveFile(content) {
-      if (!content.trim()) return;
+      if (typeof content !== 'string') return;
       const formData = new FormData();
       formData.append('autosave', 'true');
       formData.append('content', content);
       fetch('', { method: 'POST', body: formData })
-      .then(response => response.json())
-      .then(result => {
-        if (result.success) notifyParentSaved();
+      .then(async response => {
+        const text = await response.text();
+        let result = null;
+        try { result = text ? JSON.parse(text) : null; } catch (_) {}
+        if (!response.ok || !result || !result.success) {
+          throw new Error((result && result.error) || ('HTTP ' + response.status));
+        }
+        // Only mark the text saved after the server confirmed the write.
+        lastContent = content;
+        notifyParentSaved(true);
       })
-      .catch(error => {
-        // Auto-save error - silent
+      .catch(function() {
+        // Keep the buffer dirty and retry: previously lastContent was advanced
+        // before the request and a single failure lost the changes for good.
+        if (autoSaveTimer) return;
+        autoSaveTimer = setTimeout(function() {
+          autoSaveTimer = null;
+          const retryContent = editor ? editor.getValue() : '';
+          if (retryContent !== lastContent) autoSaveFile(retryContent);
+        }, 15000);
       });
     }
     
@@ -1479,16 +1496,18 @@
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
         body: 'save=true&content=' + encodeURIComponent(content)
       })
-      .then(response => response.json())
-      .then(result => {
-        if (result.success) {
-          notifyParentSaved(true);
-          lastContent = content;
-          return;
+      .then(async response => {
+        const text = await response.text();
+        let result = null;
+        try { result = text ? JSON.parse(text) : null; } catch (_) {}
+        if (!response.ok || !result?.success) {
+          throw new Error(result?.error || `save failed (${response.status})`);
         }
-        setStatus(t['save_failed'], 'status-error');
-        notifyParentSaved(false, t['save_failed']);
-        throw new Error('save failed');
+        return result;
+      })
+      .then(() => {
+        notifyParentSaved(true);
+        lastContent = content;
       })
       .catch(error => {
         setStatus(t['save_error'], 'status-error');
@@ -1622,7 +1641,14 @@
       const dpr = window.devicePixelRatio || 1;
       return Math.min(Math.max(dpr, 1), PDF_OUTPUT_SCALE_CAP);
     }
+    // The preview->code arrows only make sense once a PDF is actually rendered.
+    function setSyncArrowsReady(ready) {
+      if (window.cloudEditorPanes && typeof cloudEditorPanes.setSyncReady === 'function') {
+        cloudEditorPanes.setSyncReady(!!ready);
+      }
+    }
     function teardownPdfViewer() {
+      setSyncArrowsReady(false);
       if (pdfPageObserver) {
         try { pdfPageObserver.disconnect(); } catch (_) {}
         pdfPageObserver = null;
@@ -1973,6 +1999,7 @@
           }
         }, { root: pdfView, rootMargin: '240px 0px', threshold: 0.01 });
         wrappers.forEach(w => pdfPageObserver.observe(w));
+        setSyncArrowsReady(true);
         setStatus(t['pdf_loaded'], 'status-ok');
       }).catch(error => {
         if (token !== pdfRenderToken) return;

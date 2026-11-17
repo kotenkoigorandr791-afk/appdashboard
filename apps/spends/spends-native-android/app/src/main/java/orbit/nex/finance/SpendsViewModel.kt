@@ -14,14 +14,16 @@ import orbit.nex.finance.data.BackupFile
 import orbit.nex.finance.data.LocalBackupPayload
 import orbit.nex.finance.data.Expense
 import orbit.nex.finance.data.Goal
-import orbit.nex.finance.data.Income
 import orbit.nex.finance.data.LocalExtras
+import orbit.nex.finance.data.OutboxItem
+import orbit.nex.finance.data.OutboxSync
 import orbit.nex.finance.data.PendingCapture
 import orbit.nex.finance.data.Rates
 import orbit.nex.finance.data.Session
 import orbit.nex.finance.data.SessionStore
 import orbit.nex.finance.data.Snapshot
 import orbit.nex.finance.data.SpendsApi
+import orbit.nex.finance.data.withOutbox
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -44,6 +46,9 @@ data class AppState(
     val scan: ScanResult? = null,
     val scanBusy: Boolean = false,
 ) {
+    /** Writes waiting for a working connection; drawn as a small banner when > 0. */
+    val queuedWrites: Int get() = extras.outbox.size
+
     /** Server and device backups merged by name. */
     val allBackups: List<BackupEntry>
         get() {
@@ -75,7 +80,7 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     private var auxRefreshAt = 0L
     private val json = kotlinx.serialization.json.Json { ignoreUnknownKeys = true; prettyPrint = false }
     val state: StateFlow<AppState> = combine(store.session, store.snapshot, store.extras, loading, error) { session, snapshot, extras, busy, message ->
-        AppState(session = session, snapshot = snapshot, extras = extras, loading = busy, error = message, rates = rates.value, backups = backups.value)
+        AppState(session = session, snapshot = snapshot.withOutbox(extras.outbox), extras = extras, loading = busy, error = message, rates = rates.value, backups = backups.value)
     }
         .combine(rates) { s, r -> s.copy(rates = r) }
         .combine(backups) { s, b -> s.copy(backups = b) }
@@ -108,11 +113,15 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
     /** Background pull used by the periodic sync: never shows the loading indicator. */
     fun refreshQuietly() = launch { pull(quiet = true) }
 
-    private suspend fun pull(quiet: Boolean, session: Session = state.value.session) {
+    private suspend fun pull(quiet: Boolean, session: Session = state.value.session, force: Boolean = false) {
         if (session.token.isBlank() || session.endpoint.isBlank()) return
         run("Could not refresh", quiet) {
-            val fresh = api.pull(session, state.value.snapshot)
-            store.saveSnapshot(fresh)
+            // Replay anything captured offline before asking for the fresh ledger.
+            val hadQueuedWrites = store.extrasNow().outbox.isNotEmpty()
+            runCatching { OutboxSync.flush(store, api) }
+            // If writes were just flushed a plain revision check may still answer
+            // "not_modified", which would hide them after the outbox is cleared.
+            val fresh = OutboxSync.pull(store, api, state.value.snapshot, force || hadQueuedWrites)
             if (System.currentTimeMillis() - auxRefreshAt >= 300_000) {
                 auxRefreshAt = System.currentTimeMillis()
                 runCatching { rates.value = api.rates(session, fresh.currency.ifBlank { "USD" }) }
@@ -120,60 +129,85 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
             }
         }
     }
+
+    /** Retries queued writes; called on start-up and whenever connectivity returns. */
+    fun flushOutbox() = launch {
+        val queued = store.extrasNow().outbox
+        if (queued.isEmpty()) return@launch
+        val session = state.value.session
+        if (session.token.isBlank()) return@launch
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        if (delivered || store.extrasNow().outbox.size != queued.size) {
+            runCatching { OutboxSync.pull(store, api, state.value.snapshot, force = true) }
+        }
+    }
     fun addExpense(date: String, storeName: String, amount: String, source: String = "manual", done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || storeName.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date, merchant, and amount")
-        run("Could not save") { api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(Expense(date, storeName, numeric, entrySource = source))}]}"""); refresh(); markSaved(); done() }
+        // Persist first: even if the request below fails the charge is safe.
+        OutboxSync.enqueue(store, OutboxItem(kind = "expense", date = date, store = storeName, amount = numeric, source = source))
+        // The outbox overlay already shows the new row, so close the sheet
+        // immediately instead of waiting for a possibly slow server round-trip.
+        markSaved()
+        done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun addIncome(date: String, amount: String, done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date and amount")
-        run("Could not save income") { api.pushJson(state.value.session, """{"incomes":[${api.incomeJson(Income(date, numeric))}]}"""); refresh(); markSaved(); done() }
+        OutboxSync.enqueue(store, OutboxItem(kind = "income", date = date, amount = numeric, source = "manual"))
+        markSaved()
+        done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun addTransfer(date: String, from: String, to: String, amount: String, done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (from.isBlank() || to.isBlank() || numeric == null || numeric <= 0 || from == to) return@launch fail("Choose two different stores and an amount")
-        run("Could not save transfer") {
-            api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(Expense(date, from, numeric, entrySource = "manual"))}]}""")
-            api.pushJson(state.value.session, """{"incomes":[${api.incomeJson(Income(date, numeric))}]}""")
-            done()
-            refresh()
-            markSaved()
-        }
+        OutboxSync.enqueueAll(store, listOf(
+            OutboxItem(kind = "expense", date = date, store = from, amount = numeric, source = "manual"),
+            OutboxItem(kind = "income", date = date, amount = numeric, source = "manual"),
+        ))
+        markSaved()
+        done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     /** Edits every field of a payment. Server rows are keyed by date+store, so a key
-     * change is a delete of the old row followed by an insert of the new one. */
+     * change is a delete of the old row followed by an insert of the new one. Both
+     * steps are queued together, so an interrupted connection cannot leave a gap. */
     fun updateExpense(old: Expense, date: String, storeName: String, amount: String, done: () -> Unit = {}) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || storeName.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date, merchant, and amount")
-        run("Could not update") {
-            if (date == old.date && storeName == old.store) {
-                api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(old.copy(amount = numeric))}]}""")
-            } else {
-                api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(old.copy(amount = 0.0))}]}""")
-                api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(old.copy(date = date, store = storeName, amount = numeric))}]}""")
-                val oldTags = state.value.snapshot.expenseTags["${old.date}\t${old.store}"].orEmpty()
-                if (oldTags.isNotEmpty()) runCatching { api.setExpenseTags(state.value.session, date, storeName, oldTags) }
-            }
-            refresh()
-            markSaved()
-            done()
+        val writes = buildList {
+            if (date != old.date || storeName != old.store) add(OutboxItem(kind = "expense", mode = "delete", date = old.date, store = old.store, amount = 0.0, source = old.entrySource))
+            add(OutboxItem(kind = "expense", mode = "set", date = date, store = storeName, amount = numeric, source = old.entrySource, raw = old.ocrRawStore))
         }
+        OutboxSync.enqueueAll(store, writes)
+        markSaved()
+        done()
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        if (delivered && (date != old.date || storeName != old.store)) {
+            val oldTags = state.value.snapshot.expenseTags["${old.date}\t${old.store}"].orEmpty()
+            if (oldTags.isNotEmpty()) runCatching { api.setExpenseTags(state.value.session, date, storeName, oldTags) }
+        }
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun deleteExpense(expense: Expense) = launch {
-        run("Could not delete") {
+        runCatching {
             val extras = store.extrasNow()
             store.saveExtras(extras.copy(trash = (listOf(expense) + extras.trash).take(200)))
-            api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(expense.copy(amount = 0.0))}]}""")
-            refresh()
         }
+        OutboxSync.enqueue(store, OutboxItem(kind = "expense", mode = "delete", date = expense.date, store = expense.store, amount = 0.0, source = expense.entrySource))
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun restoreTrash(expense: Expense) = launch {
-        run("Could not restore") {
-            api.pushJson(state.value.session, """{"expenses":[${api.expenseJson(expense)}]}""")
-            store.saveExtras(store.extrasNow().copy(trash = store.extrasNow().trash.filterNot { it.signature == expense.signature && it.date == expense.date && it.store == expense.store }))
-            refresh()
-        }
+        OutboxSync.enqueue(store, OutboxItem(kind = "expense", mode = "set", date = expense.date, store = expense.store, amount = expense.amount, source = expense.entrySource, raw = expense.ocrRawStore))
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        store.updateExtras { it.copy(trash = it.trash.filterNot { row -> row.signature == expense.signature && row.date == expense.date && row.store == expense.store }) }
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun emptyTrash() = launch { store.saveExtras(store.extrasNow().copy(trash = emptyList())) }
     /** Reads the wallet notifications currently in the shade, books them and clears them. */
@@ -188,13 +222,17 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         if (result.written > 0) refreshQuietly()
     }
     fun clearScanResult() { scan.value = null }
-    fun enqueuePending(item: PendingCapture) = launch {        val extras = store.extrasNow()
+    fun enqueuePending(item: PendingCapture) = launch {
+        val extras = store.extrasNow()
         if (extras.pending.any { it.date == item.date && it.store == item.store && it.amount == item.amount }) return@launch
         store.saveExtras(extras.copy(pending = extras.pending + item))
     }
     fun confirmPending(item: PendingCapture) = launch {
-        addExpense(item.date, item.store, item.amount.toString(), "wallet")
-        store.saveExtras(store.extrasNow().copy(pending = store.extrasNow().pending.filterNot { it.at == item.at && it.store == item.store }))
+        OutboxSync.enqueue(store, OutboxItem(kind = "expense", date = item.date, store = item.store, amount = item.amount, source = "wallet", raw = item.raw))
+        store.updateExtras { extras -> extras.copy(pending = extras.pending.filterNot { it.at == item.at && it.store == item.store }) }
+        val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
+        markSaved()
+        if (delivered) runCatching { pull(quiet = true, force = true) }
     }
     fun updatePendingStore(item: PendingCapture, storeName: String) = launch {
         if (storeName.isBlank()) return@launch
@@ -335,12 +373,16 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         if (!quiet) loading.value = true
         error.value = null
         runCatching { block() }.onFailure { failure ->
-            error.value = when {
-                // A dropped connection is not a server fault: show a short, stable
-                // message instead of OkHttp's "Unable to resolve host …" text.
-                failure is orbit.nex.finance.data.OfflineException -> "No internet connection"
-                failure.message?.contains("resolve host", ignoreCase = true) == true -> "No internet connection"
-                else -> failure.message?.takeIf(String::isNotBlank) ?: fallback
+            val dropped = failure is orbit.nex.finance.data.OfflineException ||
+                failure.message?.contains("resolve host", ignoreCase = true) == true
+            when {
+                // When a paired account loses the server, the app keeps working
+                // from local storage. The offline banner already explains the
+                // state, so a blocking dialog would only get in the way.
+                dropped && state.value.session.token.isNotBlank() -> Unit
+                // The unpaired flow still needs a clear connection message.
+                dropped -> error.value = "No internet connection"
+                else -> error.value = failure.message?.takeIf(String::isNotBlank) ?: fallback
             }
         }
         if (!quiet) loading.value = false

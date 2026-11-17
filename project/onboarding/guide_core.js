@@ -100,18 +100,6 @@
             var m = byId('shared-files-modal');
             if (m) m.style.display = 'none';
         },
-        qr_on: function () {
-            var m = byId('qr-modal');
-            if (m && m.style.display !== 'flex') {
-                var b = byId('qr-button');
-                if (b) b.click();
-                else m.style.display = 'flex';
-            }
-        },
-        qr_off: function () {
-            var m = byId('qr-modal');
-            if (m) m.style.display = 'none';
-        },
         profile_on: function () {
             var m = byId('profile-modal');
             if (m && m.style.display !== 'flex') m.style.display = 'flex';
@@ -165,7 +153,7 @@
         }
     };
 
-    var ALL_OFF = ['weather_off', 'notif_off', 'chat_off', 'sidebar_off', 'settings_off', 'shortcuts_off', 'sessions_off', 'shared_files_off', 'qr_off', 'profile_off', 'otp_gen_off', 'search_off', 'trusted_off'];
+    var ALL_OFF = ['weather_off', 'notif_off', 'chat_off', 'sidebar_off', 'settings_off', 'shortcuts_off', 'sessions_off', 'shared_files_off', 'profile_off', 'otp_gen_off', 'search_off', 'trusted_off'];
 
     var idx = 0;
     var running = false;

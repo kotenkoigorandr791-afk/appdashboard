@@ -52,6 +52,7 @@ RUN install -d /usr/share/postgresql-common/pgdg \
     && curl -fsSL https://www.postgresql.org/media/keys/ACCC4CF8.asc -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
     && echo 'deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt bookworm-pgdg main' > /etc/apt/sources.list.d/pgdg.list
 
+# ffmpeg is the route-video encoder: libx264, High profile, yuv420p, +faststart. No separate video container.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     bubblewrap nginx libnginx-mod-http-modsecurity libnginx-mod-http-brotli-filter libnginx-mod-http-brotli-static modsecurity-crs supervisor git curl ca-certificates sudo unzip zip p7zip-full bzip2 mosquitto mosquitto-clients \
     libpq5 libzip4 libpng16-16 libjpeg62-turbo libfreetype6 \
@@ -102,6 +103,9 @@ COPY deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
 COPY supervisord.conf /etc/supervisor/conf.d/appdashboard.conf
 COPY --from=app-builder /var/www/AppDashboard/ /var/www/AppDashboard/
 RUN test -f /var/www/AppDashboard/apps/smart_home/core/perf.php
+# Country boundaries ship with the image so statistics can name countries
+# without a live geocoder; fail the build if the dataset is missing.
+RUN test -s /var/www/AppDashboard/apps/steps/resources/boundaries/ne_110m_admin_0_countries.geojson
 RUN mkdir -p /var/www/AppDashboard/apps/lopaka
 WORKDIR /var/www/AppDashboard
 COPY apps/lopaka/ /var/www/AppDashboard/apps/lopaka/

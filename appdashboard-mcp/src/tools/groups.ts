@@ -83,6 +83,11 @@ export const TOOL_GROUPS: ToolGroup[] = [
     prefixes: ["steps_"],
   },
   {
+    id: "geolocation",
+    description: "Steps location history, read-only with family permissions",
+    prefixes: ["geolocation_"],
+  },
+  {
     id: "immich",
     description: "Immich photo library: albums, assets, search",
     prefixes: ["immich_"],

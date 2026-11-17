@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import okhttp3.OkHttpClient
+import orbit.nex.finance.data.NetworkState
 import orbit.nex.finance.data.SessionStore
 import orbit.nex.finance.data.SpendsApi
 
@@ -20,6 +21,8 @@ class SpendsApplication : Application(), ImageLoaderFactory {
 
     override fun onCreate() {
         super.onCreate()
+        NetworkState.start(this)
+        WalletListener.install(this)
         // Mirror the stored language so every activity can apply it in attachBaseContext.
         runCatching { runBlocking { AppLocale.store(this@SpendsApplication, store.appearance.first().language) } }
     }

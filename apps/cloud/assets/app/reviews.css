@@ -140,6 +140,10 @@
 .crv-list::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 999px; }
 .crv-list::-webkit-scrollbar-track { background: transparent; }
 
+.rv-line { background: color-mix(in srgb, #f0b429 14%, transparent) !important; box-shadow: inset 3px 0 0 #f0b429; }
+.rv-annot-inline { display: inline-block; max-width: min(340px, 42vw); margin-left: 8px; padding: 1px 8px; border-radius: 999px; border: 1px solid color-mix(in srgb, #f0b429 55%, transparent); background: color-mix(in srgb, var(--panel) 88%, #f0b429); color: var(--fg); font: 500 11.5px/1.5 "Segoe UI", system-ui, sans-serif; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: middle; }
+.rv-annot-inline:hover { border-color: #f0b429; background: color-mix(in srgb, #f0b429 16%, var(--panel)); }
+
 .crv-card {
     border: 1px solid color-mix(in srgb, var(--border) 75%, transparent);
     border-radius: 16px;

@@ -54,9 +54,15 @@ if (isset($_GET['get_expense_meta'])) {
     exit(json_encode(['status'=>'success','meta'=>['entry_source'=>$source,'ocr_raw_store'=>$ocrRaw]]));
 }
 if (isset($_GET['get_ocr_stats'])) {
+    if (!spendsRateLimit('ocr_stats:' . $currentUser, 60, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'error', 'message' => 'rate_limited']));
+    }
     $storeFilter = trim($_GET['store'] ?? '__all__');
     $year = (int)($_GET['year'] ?? 0);
-    $yearWhere = $year > 0 ? " AND date LIKE '" . AppDatabase::escapeString((string)$year) . "-%'" : '';
+    $yearStart = $year > 0 ? sprintf('%04d-01-01', $year) : null;
+    $yearEnd = $year > 0 ? sprintf('%04d-12-31', $year) : null;
     $stores = [];
     $sr = $udb->query("SELECT name FROM stores ORDER BY name ASC");
     while ($row = $sr->fetch(PDO::FETCH_ASSOC)) if (!empty($row['name'])) $stores[] = $row['name'];
@@ -70,22 +76,24 @@ if (isset($_GET['get_ocr_stats'])) {
     foreach ($userSettings['stores'] ?? [] as $s) {
         $categoryByStore[(string)($s['name'] ?? '')] = spendsNormalizeStoreCategory($s['category'] ?? 'other');
     }
-    if ($storeFilter === '__all__') {
-        $dr = $udb->query("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC,store ASC");
-        while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-        $mr = $udb->query("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC,store ASC");
-        while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
-    } else {
-        $st = $udb->prepare("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY date,store ORDER BY date ASC");
-        $st->bindValue(':s', $storeFilter);
-        $dr = $st->execute();
-        while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
-        $st2 = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE store=:s AND amount>0 $yearWhere GROUP BY ym,store ORDER BY ym ASC");
-        $st2->bindValue(':s', $storeFilter);
-        $mr = $st2->execute();
-        while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
+    $expWhere = $year > 0 ? 'date >= :yearStart AND date <= :yearEnd' : '1=1';
+    $expParams = $year > 0 ? [':yearStart' => $yearStart, ':yearEnd' => $yearEnd] : [];
+    if ($storeFilter !== '__all__') {
+        $expWhere .= ' AND store = :store';
+        $expParams[':store'] = $storeFilter;
     }
-    $summaryRes = $udb->query("SELECT store,ROUND(SUM(amount)::numeric,2) AS total,COUNT(DISTINCT date) AS active_days,ROUND(SUM(CASE WHEN date='" . AppDatabase::escapeString($today) . "' THEN amount ELSE 0 END)::numeric,2) AS today FROM expenses WHERE amount>0 $yearWhere GROUP BY store ORDER BY total DESC,store ASC");
+    $dr = $udb->prepare("SELECT date,store,ROUND(SUM(amount)::numeric,2) AS amount FROM expenses WHERE $expWhere AND amount>0 GROUP BY date,store ORDER BY date ASC,store ASC");
+    foreach ($expParams as $name => $value) $dr->bindValue($name, $value);
+    $dr->execute();
+    while ($row = $dr->fetch(PDO::FETCH_ASSOC)) $daily[] = $row;
+    $mr = $udb->prepare("SELECT substr(date,1,7) AS ym,store,ROUND(SUM(amount)::numeric,2) AS amount_sum,COUNT(DISTINCT date) AS intensity FROM expenses WHERE $expWhere AND amount>0 GROUP BY ym,store ORDER BY ym ASC,store ASC");
+    foreach ($expParams as $name => $value) $mr->bindValue($name, $value);
+    $mr->execute();
+    while ($row = $mr->fetch(PDO::FETCH_ASSOC)) $monthly[] = $row;
+    $summaryRes = $udb->prepare("SELECT store,ROUND(SUM(amount)::numeric,2) AS total,COUNT(DISTINCT date) AS active_days,ROUND(SUM(CASE WHEN date=:today THEN amount ELSE 0 END)::numeric,2) AS today FROM expenses WHERE amount>0 AND $expWhere GROUP BY store ORDER BY total DESC,store ASC");
+    foreach ($expParams as $name => $value) $summaryRes->bindValue($name, $value);
+    $summaryRes->bindValue(':today', $today);
+    $summaryRes->execute();
     while ($row = $summaryRes->fetch(PDO::FETCH_ASSOC)) {
         $total = (float)($row['total'] ?? 0);
         $activeDays = max(0, (int)($row['active_days'] ?? 0));
@@ -126,9 +134,19 @@ if (isset($_GET['get_available_years'])) {
 }
 
 // Exchange Rates API
+$allowedRateHosts = ['api.exchangerate-api.com', 'bank.gov.ua', 'api.nbp.pl', 'api.nbrb.by'];
 if (isset($_GET['get_exchange_rates'])) {
+    if (!spendsRateLimit('exchange_rates:' . $currentUser, 60, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'error', 'message' => 'rate_limited']));
+    }
     $base = strtoupper(trim((string)($_GET['base'] ?? 'USD')));
     if (!preg_match('/^[A-Z]{3}$/', $base)) exit(json_encode(['status' => 'error', 'message' => 'invalid_base']));
+    $url = 'https://api.exchangerate-api.com/v4/latest/' . $base;
+    $parsed = parse_url($url);
+    $host = $parsed['host'] ?? '';
+    if (!in_array($host, $allowedRateHosts, true)) exit(json_encode(['status' => 'error', 'message' => 'invalid_base']));
     $cached = spendsCacheGet('rates:' . $base);
     if ($cached !== null) exit($cached);
     try {
@@ -142,12 +160,18 @@ if (isset($_GET['get_exchange_rates'])) {
         if (!empty($rates)) spendsCacheSet('rates:' . $base, $payload, 3600);
         exit($payload);
     } catch (Exception $e) {
-        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+        error_log('spends: ' . $e->getMessage());
+        exit(json_encode(['status' => 'error', 'message' => 'server_error']));
     }
 }
 
 // ─── Historical exchange rates (per-bank sources, last N days) ────────────────
 if (isset($_GET['get_exchange_history'])) {
+    if (!spendsRateLimit('exchange_history:' . $currentUser, 30, 60)) {
+        http_response_code(429);
+        header('Content-Type: application/json; charset=utf-8');
+        exit(json_encode(['status' => 'error', 'message' => 'rate_limited']));
+    }
     $currencies = isset($_GET['currencies']) ? array_slice(array_filter(array_map('trim', explode(',', strtoupper($_GET['currencies'])))), 0, 10) : ['EUR', 'USD', 'UAH', 'PLN', 'BYN'];
     $currencies = array_values(array_unique(array_merge(['EUR', 'USD', 'UAH', 'PLN', 'BYN'], $currencies)));
     $days = min(30, max(2, (int)($_GET['days'] ?? 14)));
@@ -355,7 +379,8 @@ if (isset($_GET['chat_search_users'])) {
         }
         exit(json_encode(['status' => 'success', 'users' => $users]));
     } catch (Exception $e) {
-        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+        error_log('spends chat_search_users: ' . $e->getMessage());
+        exit(json_encode(['status' => 'error', 'message' => 'server_error']));
     }
 }
 
@@ -430,7 +455,8 @@ if (isset($_POST['chat_send_message'])) {
         $stmt->execute();
         exit(json_encode(['status' => 'success', 'message_id' => $db->lastInsertRowID()]));
     } catch (Exception $e) {
-        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+        error_log('spends chat_send_message: ' . $e->getMessage());
+        exit(json_encode(['status' => 'error', 'message' => 'server_error']));
     }
 }
 
@@ -524,14 +550,25 @@ if (isset($_GET['year_data'])) {
 
     $yearExpenses = [];
     $yearIncomes = [];
+    $yearLike = $year > 0 ? $year . '-%' : '';
     if (!empty($yearStoreNames)) {
-        $inList = implode(',', array_map(fn($s)=>"'".AppDatabase::escapeString($s)."'", $yearStoreNames));
-        $res = $udb->query("SELECT date, store, amount FROM expenses WHERE store IN ($inList) AND date LIKE '$year-%' ORDER BY date ASC");
+        $placeholders = implode(',', array_map(fn($s) => ':store' . md5($s), $yearStoreNames));
+        $storesParam = [];
+        foreach ($yearStoreNames as $snm => $sn) {
+            $storesParam[':store' . md5($sn)] = $sn;
+        }
+        $inList = implode(',', array_keys($storesParam));
+        $res = $udb->prepare("SELECT date, store, amount FROM expenses WHERE store IN ($inList) AND date LIKE :yearStart");
+        $res->bindValue(':yearStart', $year . '-%', PDO::PARAM_STR);
+        foreach ($storesParam as $pk => $pv) $res->bindValue($pk, $pv, PDO::PARAM_STR);
+        $res->execute();
         while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
             $yearExpenses[$row['date']][$row['store']] = (float)$row['amount'];
         }
     }
-    $resInc = $udb->query("SELECT date, amount FROM incomes WHERE date LIKE '$year-%' ORDER BY date ASC");
+    $resInc = $udb->prepare("SELECT date, amount FROM incomes WHERE date LIKE :yearStart");
+    $resInc->bindValue(':yearStart', $year . '-%', PDO::PARAM_STR);
+    $resInc->execute();
     while ($row = $resInc->fetch(PDO::FETCH_ASSOC)) $yearIncomes[$row['date']] = (float)$row['amount'];
 
     exit(json_encode([
@@ -544,15 +581,16 @@ if (isset($_GET['year_data'])) {
 }
 
 if (isset($_POST['add_date_ajax'])) {
-    $date = $_POST['date'] ?? '';
-    if ($date && preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) && strtotime($date)) {
+    $date = (string)($_POST['date'] ?? '');
+    $dt = DateTime::createFromFormat('!Y-m-d', $date);
+    if ($dt !== false && $dt->format('Y-m-d') === $date) {
         exit(json_encode(['status'=>'success','message'=>$__t('date_added'),'date'=>$date]));
     }
     exit(json_encode(['status'=>'error','message'=>$__t('invalid_date_format')]));
 }
 
 if (isset($_POST['add_edit_store'])) {
-    $storeId   = $_POST['store_id']   ?? (string)time();
+    $storeId   = $_POST['store_id']   ?? bin2hex(random_bytes(8));
     $storeName = trim($_POST['store_name'] ?? '');
     $storeCategory = spendsNormalizeStoreCategory($_POST['store_category'] ?? 'other');
     if (empty($storeName)) exit(json_encode(['status'=>'error','message'=>$__t('store_name_required')]));
@@ -600,21 +638,15 @@ if (isset($_POST['add_edit_store'])) {
         @chmod($uDir, SPENDS_RUNTIME_DIR_MODE);
         $pngFile = "$uDir/store_$fn.png";
         $decoded = false;
-        $convert = trim((string)@shell_exec('command -v convert 2>/dev/null'));
-        if ($convert !== '') {
-            $cmd = escapeshellarg($convert) . ' ' . escapeshellarg($tmp) . ' -auto-orient ' . escapeshellarg('png32:' . $pngFile) . ' 2>&1';
-            @exec($cmd, $out, $code);
-            $decoded = $code === 0 && is_file($pngFile) && @getimagesize($pngFile) !== false;
-        }
-        if (!$decoded && function_exists('imagecreatefromstring')) {
-            $raw = @file_get_contents($tmp);
-            $image = $raw === false ? false : @imagecreatefromstring($raw);
-            if ($image !== false) {
-                imagealphablending($image, false);
-                imagesavealpha($image, true);
-                $decoded = imagepng($image, $pngFile, 6);
-                imagedestroy($image);
-            }
+        $raw = @file_get_contents($tmp);
+        $image = @imagecreatefromstring($raw);
+        if ($image !== false) {
+            imagealphablending($image, false);
+            imagesavealpha($image, true);
+            $decoded = imagepng($image, $pngFile, 6);
+            imagedestroy($image);
+        } else {
+            exit(json_encode(['status'=>'error','message'=>$__t('crop_failed')]));
         }
         if (!$decoded) exit(json_encode(['status'=>'error','message'=>$__t('crop_failed')]));
         foreach (['jpg','jpeg','webp'] as $ext) {
@@ -882,7 +914,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_analyze'])) 
         spendsSlotRelease($slotUser);
         spendsSlotRelease('bank_global');
         @unlink($dest);
-        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+        error_log('spends bank_csv_analyze: ' . $e->getMessage());
+        exit(json_encode(['status' => 'error', 'message' => 'server_error']));
     }
 }
 
@@ -1130,7 +1163,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['bank_csv_apply'])) {
         unset($_SESSION['bank_csv_sessions'][$token]);
         exit(json_encode(['status' => 'success']));
     } catch (Throwable $e) {
-        exit(json_encode(['status' => 'error', 'message' => $e->getMessage()]));
+        error_log('spends bank_csv_apply: ' . $e->getMessage());
+        exit(json_encode(['status' => 'error', 'message' => 'server_error']));
     }
 }
 
@@ -1244,16 +1278,21 @@ if (isset($_POST['backup_action'])) {
         } else {
             @unlink($organizedFile);
         }
-        $maxBackups = 30;
-        $indexedNames = array_column(spends_list_backups($currentUser), 'name');
-        if (!in_array($name . '.csv', $indexedNames, true) && count($indexedNames) >= $maxBackups) {
-            exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
-        }
         if ($csv === null || $csv === '') {
             exit(json_encode(['status'=>'error','message'=>$__t('msg_no_organized_data')]));
         }
+        // Serialize the limit check + write so concurrent saves cannot exceed the cap.
+        $lockFh = @fopen("$userBackupDir/.backup.lock", 'c');
+        if ($lockFh) @flock($lockFh, LOCK_EX);
+        $maxBackups = 30;
+        $indexedNames = array_column(spends_list_backups($currentUser), 'name');
+        if (!in_array($name . '.csv', $indexedNames, true) && count($indexedNames) >= $maxBackups) {
+            if ($lockFh) { @flock($lockFh, LOCK_UN); @fclose($lockFh); }
+            exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
+        }
         file_put_contents($backupPath, $csv);
         spends_record_backup($currentUser, $name . '.csv');
+        if ($lockFh) { @flock($lockFh, LOCK_UN); @fclose($lockFh); }
         exit(json_encode(['status'=>'success','message'=>$__t('msg_backup_saved')]));
     }
     elseif ($action === 'restore' && isset($_POST['backup_file'])) {
@@ -1272,7 +1311,7 @@ if (isset($_POST['backup_action'])) {
             if (!$chk->execute()->fetch(PDO::FETCH_ASSOC)) {
                 $maxOrd = (int)$udb->query('SELECT COALESCE(MAX(sort_order),0)+1 FROM stores')->fetch(PDO::FETCH_NUM)[0];
                     $ist = $udb->prepare("INSERT INTO stores (id,name,visible,sort_order,category) VALUES (:id,:n,1,:o,'other') ON CONFLICT (user_id,id) DO UPDATE SET name=excluded.name, visible=excluded.visible, sort_order=excluded.sort_order, category=excluded.category");
-                $ist->bindValue(':id', (string)time().rand(100,999));
+                $ist->bindValue(':id', bin2hex(random_bytes(16)), PDO::PARAM_STR);
                 $ist->bindValue(':n', $sn);
                 $ist->bindValue(':o', $maxOrd, PDO::PARAM_INT);
                 $ist->execute();
@@ -1326,19 +1365,28 @@ if (isset($_POST['backup_action'])) {
         $uploaded = $_FILES['backup_file'];
         if ($uploaded['error'] !== UPLOAD_ERR_OK) exit(json_encode(['status'=>'error','message'=>$__t('upload_error')]));
         $fn   = preg_replace('/[^a-zA-Z0-9._-]/', '', basename($uploaded['name']));
+        if (!str_ends_with(strtolower($fn), '.csv')) {
+            exit(json_encode(['status'=>'error','message'=>$__t('msg_csv_only')]));
+        }
         $ftype= mime_content_type($uploaded['tmp_name']);
+        // Serialize the limit check + move so concurrent uploads cannot exceed the cap.
+        $lockFh = @fopen("$userBackupDir/.backup.lock", 'c');
+        if ($lockFh) @flock($lockFh, LOCK_EX);
         $indexedNames = array_column(spends_list_backups($currentUser), 'name');
         if (($uploaded['size'] ?? 0) > 16 * 1024 * 1024 || (!in_array($fn, $indexedNames, true) && count($indexedNames) >= 30)) {
-            exit(json_encode(['status'=>'error','message'=>'backup_limit_reached']));
-        }
-        if ($ftype === 'text/csv' || $ftype === 'text/plain' || str_contains($fn, '.csv')) {
+            $result = ['status'=>'error','message'=>'backup_limit_reached'];
+        } elseif ($ftype === 'text/csv' || $ftype === 'text/plain' || str_contains($fn, '.csv')) {
             if (move_uploaded_file($uploaded['tmp_name'], "$userBackupDir/$fn")) {
                 spends_record_backup($currentUser, $fn);
-                exit(json_encode(['status'=>'success','message'=>$__t('backup_uploaded')]));
+                $result = ['status'=>'success','message'=>$__t('backup_uploaded')];
+            } else {
+                $result = ['status'=>'error','message'=>$__t('msg_move_failed')];
             }
-            exit(json_encode(['status'=>'error','message'=>$__t('msg_move_failed')]));
+        } else {
+            $result = ['status'=>'error','message'=>$__t('msg_csv_only')];
         }
-        exit(json_encode(['status'=>'error','message'=>$__t('msg_csv_only')]));
+        if ($lockFh) { @flock($lockFh, LOCK_UN); @fclose($lockFh); }
+        exit(json_encode($result));
     }
     exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_backup_action')]));
 }

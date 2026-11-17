@@ -1,11 +1,11 @@
 (function () {
   const I18N = {
 en: {
-      hero_title: 'Secure Cloud Shell Access',
-      hero_desc1: 'ServerKherson is a web-based cloud shell application that allows users to securely access and manage remote servers.',
+      hero_title: 'Your server. Your apps. Your control.',
+      hero_desc1: 'NexOrbit — your server, your apps, your control. A secure web platform to access and manage your apps and servers.',
       hero_desc2: 'We use Google OAuth authentication to protect user accounts and ensure secure access to private server resources. Only basic profile information is requested for identification. The platform offers a variety of applications including cloud file management, interactive maps, photo backup, movie collections, recipe management, expense tracking, health tracking, and development tools — all accessible through a single account.',
       loading_app: 'Opening…',
-      loading_title: 'ServerKherson',
+      loading_title: 'NexOrbit',
       loading_sub: 'Opening…',
       signin: 'Sign in', register: 'Register', otp_button: 'One Time PIN',
       features_title: 'Server applications overview', apps_heading: 'Installed applications',
@@ -14,7 +14,7 @@ en: {
       promo_cta: 'Create free account', terms: 'Terms of use', privacy: 'Privacy policy',
       nav_menu_title: 'Menu', nav_home: 'Home', nav_features: 'Explore platform capabilities', nav_news: 'News',
       gallery_empty: 'No screenshots are available for this application yet.',
-      portal_title: 'ServerKherson portal', portal_badge: 'Main hub',
+      portal_title: 'NexOrbit portal', portal_badge: 'Main hub',
       news_section_title: 'News', news_layout_edit: 'Edit layout', news_layout_done: 'Done',
       waiting_btn: 'Waiting...', loading_btn: 'Loading...', logging_out: 'Logging out...', news_toast_label: 'New', news_more_btn: 'View more news', news_read_more: 'Read full news',       news_empty: 'No news yet.',       cal_less: 'Less', cal_more: 'More', cal_title: 'News Calendar',
       explore_title: 'Explore more capabilities', explore_subtitle: 'Open any app to get started',
@@ -81,14 +81,14 @@ en: {
         }
       },
       apps: { portal: 'Landing, auth, and registration — the hub for all apps on this server', cloud: 'Cloud file manager with editors (3MF, PDF, LaTeX...)', dawarich: 'Interactive maps, routes, and favorites', films: 'Movie manager – collection, comments', gitea: 'Git repositories and code collaboration', immich: 'Photo & video backup with albums', kanboard: 'Kanban boards for projects and tasks', lopaka: 'Graphics editor for embedded displays', recipes: 'Custom recipes manager', smart_home: 'Smart home device dashboard', spends: 'Expense tracker with charts', steps: 'Health & activity tracker' }, app_names: { cloud: 'Cloud Storage', dawarich: 'Maps', films: 'Movie Manager', gitea: 'Gitea', immich: 'Immich', kanboard: 'Kanboard', lopaka: 'Lopaka', recipes: 'Recipes', smart_home: 'Smart Home', spends: 'Spending Tracker', steps: 'Steps Counter' },
-      app_details: { portal: 'The main ServerKherson web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', dawarich: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', gitea: 'Self-hosted Git service for repositories, issues, and pull requests with code review and collaboration.', immich: 'Self-hosted photo and video backup with albums, search, and timeline browsing.', kanboard: 'Kanban project management: boards, tasks, swimlanes, and team workflows.', lopaka: 'Graphics editor and code generator for embedded displays (TFT, U8g2, MicroPython).', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', smart_home: 'Control and monitor smart home devices from a single dashboard: sensors, switches, MQTT, and automations.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.' }
+      app_details: { portal: 'The main NexOrbit web hub: landing page, sign-in, and registration — your gateway before opening individual applications hosted on this server.', cloud: 'Comprehensive cloud storage manager with built-in editors for 3MF, PDF, LaTeX, markdown, photo manipulation, and audio transcription. Supports real-time collaboration and versioning.', dawarich: 'Interactive map viewer supporting KML, GPS exchange formats. Save favorites, measure routes, and view terrain.', films: 'Personal movie database with comments, watchlist, and categories. Track what you\'ve watched and share reviews.', gitea: 'Self-hosted Git service for repositories, issues, and pull requests with code review and collaboration.', immich: 'Self-hosted photo and video backup with albums, search, and timeline browsing.', kanboard: 'Kanban project management: boards, tasks, swimlanes, and team workflows.', lopaka: 'Graphics editor and code generator for embedded displays (TFT, U8g2, MicroPython).', recipes: 'Create, share, and collect custom recipes. Organize by ingredients, tags, and meal types.', smart_home: 'Control and monitor smart home devices from a single dashboard: sensors, switches, MQTT, and automations.', spends: 'Expense tracker similar to spreadsheet with charts, monthly statistics, and store-based categorization.', steps: 'Activity tracker for steps, distance, calories. Set daily goals and view progress over time.' }
     },
 uk: {
-      hero_title: 'Безпечний доступ до хмарної консолі',
-      hero_desc1: 'ServerKherson — це веб-застосунок для безпечного доступу та керування серверами.',
+      hero_title: 'Ваш сервер. Ваші застосунки. Ваш контроль.',
+      hero_desc1: 'NexOrbit — ваш сервер, ваші застосунки, ваш контроль. Безпечна вебплатформа для доступу та керування серверами й застосунками.',
       hero_desc2: 'Ми використовуємо Google OAuth для захисту облікових записів. Запитується лише базова інформація профілю. Платформа пропонує різноманітні застосунки: хмарне керування файлами, інтерактивні мапи, бекап фото, фільмотеку, рецепти, облік витрат, трекер активності та інструменти розробника — все доступне через єдиний обліковий запис.',
       loading_app: 'Відкриття…',
-      loading_title: 'ServerKherson',
+      loading_title: 'NexOrbit',
       loading_sub: 'Відкриття…',
       signin: 'Увійти', register: 'Реєстрація', otp_button: 'Одноразовий PIN',
       features_title: 'Огляд серверних застосунків', apps_heading: 'Окремі застосунки',
@@ -97,7 +97,7 @@ uk: {
       promo_cta: 'Створити акаунт', terms: 'Правила використання', privacy: 'Політика конфіденційності',
       nav_menu_title: 'Меню', nav_home: 'Головна', nav_features: 'Можливості платформи', nav_news: 'Новини',
       gallery_empty: 'Для цього застосунку поки немає скріншотів.',
-      portal_title: 'Портал ServerKherson', portal_badge: 'Головний хаб',
+      portal_title: 'Портал NexOrbit', portal_badge: 'Головний хаб',
       news_section_title: 'Новини', news_layout_edit: 'Редагувати макет', news_layout_done: 'Готово',
       waiting_btn: 'Очікування...', loading_btn: 'Завантаження...', logging_out: 'Вихід з акаунту...', news_toast_label: 'Нове', news_more_btn: 'Дивитись більше новин', news_read_more: 'Розгорнути новину',       news_empty: 'Новин ще немає.',       cal_less: 'Менше', cal_more: 'Більше', cal_title: 'Календар новин',
       explore_title: 'Дослідіть більше можливостей', explore_subtitle: 'Відкрийте будь-який додаток',
@@ -164,14 +164,14 @@ uk: {
         }
       },
       apps: { portal: 'Головна, вхід і реєстрація — центр доступу до всіх застосунків', cloud: 'Хмарний менеджер файлів з редакторами', dawarich: 'Інтерактивні мапи, маршрути та обране', films: 'Менеджер фільмів – колекція, коментарі', gitea: 'Git-репозиторії та спільна розробка', immich: 'Бекап фото й відео з альбомами', kanboard: 'Kanban-дошки для проєктів і задач', lopaka: 'Графічний редактор для вбудованих дисплеїв', recipes: 'Менеджер рецептів', smart_home: 'Панель керування розумним домом', spends: 'Трекер витрат з графіками', steps: 'Трекер здоров\'я і активності' }, app_names: { cloud: 'Хмарне сховище', dawarich: 'Карта', films: 'Менеджер фільмів', gitea: 'Гіт-репозиторій', immich: 'Фотографії', kanboard: 'Менеджер задач', lopaka: 'Генератор графіки', recipes: 'Рецепти', smart_home: 'Розумний дім', spends: 'Трекер витрат', steps: 'Лічильник кроків' },
-      app_details: { portal: 'Головний веб-хаб ServerKherson: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', dawarich: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', gitea: 'Власний Git-сервіс: репозиторії, задачі, pull request та огляд коду.', immich: 'Самостійний бекап фото й відео з альбомами, пошуком і стрічкою часу.', kanboard: 'Kanban-керування проєктами: дошки, задачі, доріжки та командна робота.', lopaka: 'Графічний редактор і генератор коду для вбудованих дисплеїв (TFT, U8g2, MicroPython).', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', smart_home: 'Керування пристроями розумного дому з однієї панелі: сенсори, перемикачі, MQTT та автоматизації.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.' }
+      app_details: { portal: 'Головний веб-хаб NexOrbit: стартова сторінка, вхід і реєстрація.', cloud: 'Повноцінний хмарний менеджер з редакторами 3MF, PDF, LaTeX, Markdown, фото та транскрипцією аудіо.', dawarich: 'Інтерактивна мапа з підтримкою KML, GPS. Зберігайте обране, вимірюйте маршрути.', films: 'База фільмів з коментарями, списком перегляду та категоріями.', gitea: 'Власний Git-сервіс: репозиторії, задачі, pull request та огляд коду.', immich: 'Самостійний бекап фото й відео з альбомами, пошуком і стрічкою часу.', kanboard: 'Kanban-керування проєктами: дошки, задачі, доріжки та командна робота.', lopaka: 'Графічний редактор і генератор коду для вбудованих дисплеїв (TFT, U8g2, MicroPython).', recipes: 'Створюйте та діліться рецептами. Організація за інгредієнтами, тегами.', smart_home: 'Керування пристроями розумного дому з однієї панелі: сенсори, перемикачі, MQTT та автоматизації.', spends: 'Трекер витрат з графіками та статистикою по магазинах.', steps: 'Трекер активності: кроки, дистанція, калорії. Цілі та прогрес.' }
     },
     ru: {
-      hero_title: 'Безопасный доступ к облачной консоли',
-      hero_desc1: 'ServerKherson — это веб-приложение для безопасного доступа и управления серверами.',
+      hero_title: 'Ваш сервер. Ваши приложения. Ваш контроль.',
+      hero_desc1: 'NexOrbit — ваш сервер, ваши приложения, ваш контроль. Безопасная веб-платформа для доступа и управления серверами и приложениями.',
       hero_desc2: 'Мы используем Google OAuth для защиты аккаунтов. Запрашивается только базовая информация профиля. Платформа предлагает разнообразные приложения: облачное управление файлами, интерактивные карты, бекап фото, фільмотеку, рецепты, учёт расходов, трекер активности и инструменты разработчика — всё доступно через единую учётную запись.',
       loading_app: 'Открытие…',
-      loading_title: 'ServerKherson',
+      loading_title: 'NexOrbit',
       loading_sub: 'Открытие…',
       signin: 'Войти', register: 'Регистрация', otp_button: 'Одноразовый PIN',
       features_title: 'Обзор серверных приложений', apps_heading: 'Отдельные приложения',
@@ -180,7 +180,7 @@ uk: {
       promo_cta: 'Создать аккаунт', terms: 'Правила использования', privacy: 'Политика конфиденциальности',
       nav_menu_title: 'Меню', nav_home: 'Главная', nav_features: 'Возможности платформы', nav_news: 'Новости',
       gallery_empty: 'Для этого приложения пока нет скриншотов.',
-      portal_title: 'Портал ServerKherson', portal_badge: 'Главный хаб',
+      portal_title: 'Портал NexOrbit', portal_badge: 'Главный хаб',
       news_section_title: 'Новости', news_layout_edit: 'Редактировать макет', news_layout_done: 'Готово',
       waiting_btn: 'Ожидание...', loading_btn: 'Загрузка...', logging_out: 'Выход из аккаунта...', news_toast_label: 'Новое', news_more_btn: 'Посмотреть больше новостей', news_read_more: 'Раскрыть новость',       news_empty: 'Новостей пока нет.',       cal_less: 'Меньше', cal_more: 'Больше', cal_title: 'Календарь новостей',
       explore_title: 'Исследуйте возможности', explore_subtitle: 'Откройте любое приложение',
@@ -247,14 +247,14 @@ uk: {
         }
       },
       apps: { portal: 'Главная, вход и регистрация — центр доступа ко всем приложениям', cloud: 'Облачный менеджер файлов с редакторами', dawarich: 'Интерактивные карты, маршруты и избранное', films: 'Менеджер фильмов – коллекция, комментарии', gitea: 'Git-репозитории и совместная разработка', immich: 'Бекап фото и видео с альбомами', kanboard: 'Kanban-доски для проектов и задач', lopaka: 'Графический редактор для встраиваемых дисплеев', recipes: 'Менеджер рецептов', smart_home: 'Панель управления умным домом', spends: 'Учёт расходов с графиками', steps: 'Трекер здоровья и активности' }, app_names: { cloud: 'Облачное хранилище', dawarich: 'Карта', films: 'Менеджер фильмов', gitea: 'Гит-репозиторий', immich: 'Фотографии', kanboard: 'Менеджер задач', lopaka: 'Генератор графики', recipes: 'Рецепты', smart_home: 'Умный дом', spends: 'Трекер расходов', steps: 'Счетчик шагов' },
-      app_details: { portal: 'Главный сайт ServerKherson: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', dawarich: 'Интерактивные карты с поддержкой KML, GPS. Избранное, маршруты.', films: 'База фильмов с комментариями, списком просмотра, категориями.', gitea: 'Собственный Git-сервис: репозитории, задачи, pull request и обзор кода.', immich: 'Резервное копирование фото и видео с альбомами, поиском и лентой времени.', kanboard: 'Kanban-управление проектами: доски, задачи, дорожки и командная работа.', lopaka: 'Графический редактор и генератор кода для встраиваемых дисплеев (TFT, U8g2, MicroPython).', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', smart_home: 'Управление устройствами умного дома из одной панели: датчики, реле, MQTT и автоматизации.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.' }
+      app_details: { portal: 'Главный сайт NexOrbit: главная страница, вход и регистрация.', cloud: 'Облачный менеджер с редакторами 3MF, PDF, LaTeX, Markdown, фото и транскрипцией аудио.', dawarich: 'Интерактивные карты с поддержкой KML, GPS. Избранное, маршруты.', films: 'База фильмов с комментариями, списком просмотра, категориями.', gitea: 'Собственный Git-сервис: репозитории, задачи, pull request и обзор кода.', immich: 'Резервное копирование фото и видео с альбомами, поиском и лентой времени.', kanboard: 'Kanban-управление проектами: доски, задачи, дорожки и командная работа.', lopaka: 'Графический редактор и генератор кода для встраиваемых дисплеев (TFT, U8g2, MicroPython).', recipes: 'Рецепты: создание, обмен, сбор. По ингредиентам и тегам.', smart_home: 'Управление устройствами умного дома из одной панели: датчики, реле, MQTT и автоматизации.', spends: 'Учет расходов как таблица с графиками и статистикой.', steps: 'Трекер активности: шаги, калории, дистанция, цели.' }
     },
     be: {
-      hero_title: 'Бяспечны доступ да хмарнай кансолі',
-      hero_desc1: 'ServerKherson — гэта вэб-праграма для бяспечнага доступу да сервераў.',
+      hero_title: 'Ваш сервер. Вашыя праграмы. Ваш кантроль.',
+      hero_desc1: 'NexOrbit — ваш сервер, вашыя праграмы, ваш кантроль. Бяспечная вэб-платформа для доступу і кіравання серверамі і праграмамі.',
       hero_desc2: 'Мы выкарыстоўваем Google OAuth для абароны ўліковых запісаў. Запытваецца толькі базавая інфармацыя профілю. Платформа прапануе разнастайныя прыкладанні: воблачнае кіраванне файламі, інтерактыўныя мапы, бэкап фота, фільматэка, рэцэпты, улік выдаткаў, трэкер актыўнасці і інструменты распрацоўшчыка — усё даступна праз адзіны ўліковы запіс.',
       loading_app: 'Адкрыццё…',
-      loading_title: 'ServerKherson',
+      loading_title: 'NexOrbit',
       loading_sub: 'Адкрыццё…',
       signin: 'Увайсці', register: 'Рэгістрацыя', otp_button: 'Аднаразовы PIN',
       features_title: 'Агляд серверных прыкладанняў', apps_heading: 'Асобныя прыкладанні',
@@ -263,7 +263,7 @@ uk: {
       promo_cta: 'Стварыць уліковы запіс', terms: 'Правілы карыстання', privacy: 'Палітыка прыватнасці',
       nav_menu_title: 'Меню', nav_home: 'Галоўная', nav_features: 'Магчымасці платформы', nav_news: 'Навіны',
       gallery_empty: 'Для гэтага прыкладання пакуль няма здымкаў экрана.',
-      portal_title: 'Партал ServerKherson', portal_badge: 'Галоўны хаб',
+      portal_title: 'Партал NexOrbit', portal_badge: 'Галоўны хаб',
       news_section_title: 'Навіны', news_layout_edit: 'Рэдагаваць макет', news_layout_done: 'Гатова',
       waiting_btn: 'Чаканне...', loading_btn: 'Загрузка...', logging_out: 'Выхад з уліковага запісу...', news_toast_label: 'Новае', news_more_btn: 'Паглядзець больш навін', news_read_more: 'Разгарнуць навіну',       news_empty: 'Навін яшчэ няма.',       cal_less: 'Менш', cal_more: 'Больш', cal_title: 'Календар навін',
       explore_title: 'Даследуйце магчымасці', explore_subtitle: 'Адкрыйце любы дадатак',
@@ -329,14 +329,14 @@ uk: {
         }
       },
       apps: { portal: 'Галоўная, уваход і рэгістрацыя — цэнтр доступу да ўсіх прыкладанняў', cloud: 'Воблачны менеджар файлаў з рэдактарамі', dawarich: 'Інтэрактыўныя мапы, маршруты і абранае', films: 'Менеджар фільмаў – калекцыя, каментары', gitea: 'Git-рэпазітарыі і сумесная распрацоўка', immich: 'Бэкап фота і відэа з альбомамі', kanboard: 'Kanban-дошкі для праектаў і задач', lopaka: 'Графічны рэдактар для ўбудаваных дысплеяў', recipes: 'Менеджар рэцэптаў', smart_home: 'Панэль кіравання разумным домам', spends: 'Улік выдаткаў з графікамі', steps: 'Трэкер здароўя і актыўнасці' }, app_names: { cloud: 'Воблачнае сховішча', dawarich: 'Карта', films: 'Менеджар фільмаў', gitea: 'Гіт-рэпазіторый', immich: 'Фотаздымкі', kanboard: 'Менэджэр задач', lopaka: 'Генератар графікі', recipes: 'Рэцэпты', smart_home: 'Разумны дом', spends: 'Трэкер выдаткаў', steps: 'Лічыльнік крокаў' },
-      app_details: { portal: 'Галоўны сайт ServerKherson: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', dawarich: 'Інтэрактыўныя мапы з падтрымкай KML, GPS. Абранае, маршруты.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', gitea: 'Уласны Git-сэрвіс: рэпазітарыі, задачы, pull request і агляд кода.', immich: 'Рэзервовае капіраванне фота і відэа з альбомамі, пошукам і стужкай часу.', kanboard: 'Kanban-кіраванне праектамі: дошкі, задачы, дарожкі і камандная праца.', lopaka: 'Графічны рэдактар і генератар кода для ўбудаваных дысплеяў (TFT, U8g2, MicroPython).', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', smart_home: 'Кіраванне прыладамі разумнага дому з адной панэлі: датчыкі, рэле, MQTT і аўтаматызацыі.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.' }
+      app_details: { portal: 'Галоўны сайт NexOrbit: старонка, уваход і рэгістрацыя.', cloud: 'Воблачны менеджар з рэдактарамі 3MF, PDF, LaTeX, Markdown, фота і транскрыпцыяй аўдыё.', dawarich: 'Інтэрактыўныя мапы з падтрымкай KML, GPS. Абранае, маршруты.', films: 'База фільмаў з каментарамі, спісам прагляду, катэгорыямі.', gitea: 'Уласны Git-сэрвіс: рэпазітарыі, задачы, pull request і агляд кода.', immich: 'Рэзервовае капіраванне фота і відэа з альбомамі, пошукам і стужкай часу.', kanboard: 'Kanban-кіраванне праектамі: дошкі, задачы, дарожкі і камандная праца.', lopaka: 'Графічны рэдактар і генератар кода для ўбудаваных дысплеяў (TFT, U8g2, MicroPython).', recipes: 'Рэцэпты: стварэнне, абмен, збор. Па інгрэдыентах і тэгах.', smart_home: 'Кіраванне прыладамі разумнага дому з адной панэлі: датчыкі, рэле, MQTT і аўтаматызацыі.', spends: 'Улік выдаткаў як табліца з графікамі і статыстыкай.', steps: 'Трэкер актыўнасці: крокі, калорыі, адлегласць, мэты.' }
     },
     pl: {
-      hero_title: 'Bezpieczny dostęp do powłoki chmurowej',
-      hero_desc1: 'ServerKherson to aplikacja webowa umożliwiająca bezpieczny dostęp do zdalnych serwerów.',
+      hero_title: 'Twój serwer. Twoje aplikacje. Twoja kontrola.',
+      hero_desc1: 'NexOrbit — Twój serwer, Twoje aplikacje, Twoja kontrola. Bezpieczna platforma webowa do dostępu i zarządzania serwerami i aplikacjami.',
       hero_desc2: 'Używamy Google OAuth do ochrony kont. Pobierane są tylko podstawowe dane profilu. Platforma oferuje różnorodne aplikacje: zarządzanie plikami w chmurze, interaktywne mapy, kopie zapasowe zdjęć, kolekcje filmów, przepisy, śledzenie wydatków, tracker aktywności i narzędzia deweloperskie — wszystko dostępne przez jedno konto.',
       loading_app: 'Otwieranie…',
-      loading_title: 'ServerKherson',
+      loading_title: 'NexOrbit',
       loading_sub: 'Otwieranie…',
       signin: 'Zaloguj się', register: 'Rejestracja', otp_button: 'Jednorazowy PIN',
       features_title: 'Przegląd aplikacji serwerowych', apps_heading: 'Zainstalowane aplikacje',
@@ -345,7 +345,7 @@ uk: {
       promo_cta: 'Utwórz konto', terms: 'Regulamin', privacy: 'Polityka prywatności',
       nav_menu_title: 'Menu', nav_home: 'Strona główna', nav_features: 'Możliwości platformy', nav_news: 'Aktualności',
       gallery_empty: 'Brak zrzutów ekranu dla tej aplikacji.',
-      portal_title: 'Portal ServerKherson', portal_badge: 'Główny hub',
+      portal_title: 'Portal NexOrbit', portal_badge: 'Główny hub',
       news_section_title: 'Aktualności', news_layout_edit: 'Edytuj układ', news_layout_done: 'Gotowe',
       waiting_btn: 'Czekanie...', loading_btn: 'Ładowanie...', logging_out: 'Wylogowywanie...', news_toast_label: 'Nowe', news_more_btn: 'Zobacz więcej aktualności', news_read_more: 'Rozwiń aktualność',       news_empty: 'Brak aktualności.',       cal_less: 'Mniej', cal_more: 'Więcej', cal_title: 'Kalendarz aktualności',
       explore_title: 'Odkryj więcej możliwości', explore_subtitle: 'Otwórz dowolną aplikację',
@@ -411,14 +411,14 @@ uk: {
         }
       },
       apps: { portal: 'Strona główna, logowanie i rejestracja — centrum dostępu do wszystkich aplikacji', cloud: 'Menedżer plików w chmurze z edytorami', dawarich: 'Interaktywne mapy, trasy i ulubione', films: 'Menedżer filmów – kolekcja, komentarze', gitea: 'Repozytoria Git i współpraca nad kodem', immich: 'Kopia zapasowa zdjęć i wideo z albumami', kanboard: 'Tablice Kanban dla projektów i zadań', lopaka: 'Edytor graficzny dla wbudowanych wyświetlaczy', recipes: 'Menedżer przepisów', smart_home: 'Panel sterowania inteligentnym domem', spends: 'Śledzenie wydatków z wykresami', steps: 'Śledzenie zdrowia i aktywności' }, app_names: { cloud: 'Chmura', dawarich: 'Mapy', films: 'Menedżer filmów', gitea: 'Repozytorium Gita', immich: 'Zdjęcia', kanboard: 'Menedżer zadań', lopaka: 'Generator grafiki', recipes: 'Przepisy', smart_home: 'Inteligentny dom', spends: 'Wydatki', steps: 'Licznik kroków' },
-      app_details: { portal: 'Główny hub ServerKherson: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', dawarich: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', gitea: 'Własnoręcznie hostowany serwis Git: repozytoria, zgłoszenia, pull requesty i przegląd kodu.', immich: 'Kopia zapasowa zdjęć i wideo z albumami, wyszukiwaniem i osią czasu.', kanboard: 'Zarządzanie projektami Kanban: tablice, zadania, tory i praca zespołowa.', lopaka: 'Edytor graficzny i generator kodu dla wbudowanych wyświetlaczy (TFT, U8g2, MicroPython).', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', smart_home: 'Sterowanie urządzeniami inteligentnego domu z jednego panelu: czujniki, przełączniki, MQTT i automatyzacje.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.' }
+      app_details: { portal: 'Główny hub NexOrbit: strona główna, logowanie i rejestracja.', cloud: 'Kompleksowy menedżer plików z edytorami 3MF, PDF, LaTeX, Markdown, zdjęć i transkrypcji audio.', dawarich: 'Interaktywna mapa obsługująca KML, GPS. Ulubione, trasy.', films: 'Baza filmów z komentarzami, listą do obejrzenia i kategoriami.', gitea: 'Własnoręcznie hostowany serwis Git: repozytoria, zgłoszenia, pull requesty i przegląd kodu.', immich: 'Kopia zapasowa zdjęć i wideo z albumami, wyszukiwaniem i osią czasu.', kanboard: 'Zarządzanie projektami Kanban: tablice, zadania, tory i praca zespołowa.', lopaka: 'Edytor graficzny i generator kodu dla wbudowanych wyświetlaczy (TFT, U8g2, MicroPython).', recipes: 'Twórz, udostępniaj i zbieraj przepisy. Według składników i tagów.', smart_home: 'Sterowanie urządzeniami inteligentnego domu z jednego panelu: czujniki, przełączniki, MQTT i automatyzacje.', spends: 'Śledzenie wydatków jak arkusz kalkulacyjny z wykresami.', steps: 'Śledzenie aktywności: kroki, kalorie, dystans, cele.' }
     },
     cs: {
-      hero_title: 'Bezpečný přístup ke cloudovému shellu',
-      hero_desc1: 'ServerKherson je webová aplikace umožňující bezpečný přístup ke vzdáleným serverům.',
+      hero_title: 'Tvůj server. Tvé aplikace. Tvá kontrola.',
+      hero_desc1: 'NexOrbit — tvůj server, tvé aplikace, tvá kontrola. Bezpečná webová platforma pro přístup a správu serverů a aplikací.',
       hero_desc2: 'Pro ochranu účtů používáme Google OAuth. Jsou vyžadovány pouze základní informace z profilu. Platforma nabízí různé aplikace: cloudovou správu souborů, interaktivní mapy, zálohu fotek, filmové sbírky, recepty, sledování výdajů, tracker aktivity a vývojářské nástroje — vše dostupné přes jeden účet.',
       loading_app: 'Otevírání…',
-      loading_title: 'ServerKherson',
+      loading_title: 'NexOrbit',
       loading_sub: 'Otevírání…',
       signin: 'Přihlásit se', register: 'Registrace', otp_button: 'Jednorázový PIN',
       features_title: 'Přehled serverových aplikací', apps_heading: 'Nainstalované aplikace',
@@ -427,7 +427,7 @@ uk: {
       promo_cta: 'Vytvořit účet', terms: 'Podmínky použití', privacy: 'Zásady ochrany soukromí',
       nav_menu_title: 'Nabídka', nav_home: 'Domů', nav_features: 'Možnosti platformy', nav_news: 'Novinky',
       gallery_empty: 'Pro tuto aplikaci zatím nejsou dostupné žádné snímky obrazovky.',
-      portal_title: 'Portál ServerKherson', portal_badge: 'Hlavní uzel',
+      portal_title: 'Portál NexOrbit', portal_badge: 'Hlavní uzel',
       news_section_title: 'Novinky', news_layout_edit: 'Upravit rozložení', news_layout_done: 'Hotovo',
       waiting_btn: 'Čekání...', loading_btn: 'Načítání...', logging_out: 'Odhlášení...', news_toast_label: 'Nové', news_more_btn: 'Zobrazit více novinek', news_read_more: 'Rozbalit novinku',       news_empty: 'Zatím žádné novinky.',       cal_less: 'Méně', cal_more: 'Více', cal_title: 'Kalendář novinek',
       explore_title: 'Prozkoumejte další možnosti', explore_subtitle: 'Otevřete libovolnou aplikaci',
@@ -493,7 +493,7 @@ uk: {
         }
       },
       apps: { portal: 'Hlavní stránka, přihlášení a registrace — centrum přístupu ke všem aplikacím', cloud: 'Správce souborů v cloudu s editory', dawarich: 'Interaktivní mapy, trasy a oblíbené', films: 'Správce filmů – sbírka, komentáře', gitea: 'Repozitáře Git a spolupráce na kódu', immich: 'Záloha fotek a videí s alby', kanboard: 'Kanban tabule pro projekty a úkoly', lopaka: 'Grafický editor pro vestavěné displeje', recipes: 'Správce receptů', smart_home: 'Panel chytré domácnosti', spends: 'Sledování výdajů s grafy', steps: 'Sledování zdraví a aktivity' }, app_names: { cloud: 'Cloudové úložiště', dawarich: 'Mapy', films: 'Správce filmů', gitea: 'Git repozitář', immich: 'Fotografie', kanboard: 'Správce úkolů', lopaka: 'Generátor grafiky', recipes: 'Recepty', smart_home: 'Chytrá domácnost', spends: 'Sledování výdajů', steps: 'Počítadlo kroků' },
-      app_details: { portal: 'Hlavní hub ServerKherson: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', dawarich: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', gitea: 'Vlastní Git služba: repozitáře, issues, pull requesty a recenze kódu.', immich: 'Záloha fotek a videí s alby, vyhledáváním a časovou osou.', kanboard: 'Kanban řízení projektů: tabule, úkoly, dráhy a týmová práce.', lopaka: 'Grafický editor a generátor kódu pro vestavěné displeje (TFT, U8g2, MicroPython).', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', smart_home: 'Ovládání zařízení chytré domácnosti z jednoho panelu: senzory, spínače, MQTT a automatizace.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.' }
+      app_details: { portal: 'Hlavní hub NexOrbit: hlavní stránka, přihlášení a registrace.', cloud: 'Komplexní správce souborů s editory 3MF, PDF, LaTeX, Markdown, fotek a přepisu zvuku.', dawarich: 'Interaktivní mapa s podporou KML, GPS. Oblíbené, trasy.', films: 'Databáze filmů s komentáři, seznamem ke zhlédnutí a kategoriemi.', gitea: 'Vlastní Git služba: repozitáře, issues, pull requesty a recenze kódu.', immich: 'Záloha fotek a videí s alby, vyhledáváním a časovou osou.', kanboard: 'Kanban řízení projektů: tabule, úkoly, dráhy a týmová práce.', lopaka: 'Grafický editor a generátor kódu pro vestavěné displeje (TFT, U8g2, MicroPython).', recipes: 'Vytvářejte a sdílejte recepty. Podle ingrediencí a tagů.', smart_home: 'Ovládání zařízení chytré domácnosti z jednoho panelu: senzory, spínače, MQTT a automatizace.', spends: 'Sledování výdajů jako tabulka s grafy.', steps: 'Sledování aktivity: kroky, kalorie, vzdálenost, cíle.' }
     }
   };
 
@@ -779,33 +779,60 @@ uk: {
   }
 
   // ── Fetch and render news ────────────────────────────────────────────────────
-  function loadNews() {
+  // Short-lived session cache: returning to the page (or jumping to /news) renders
+  // the already fetched feed immediately instead of starting from scratch.
+  const NEWS_CACHE_KEY = 'sk_home_news_cache_v1';
+  const NEWS_CACHE_TTL = 5 * 60 * 1000;
+  let newsLoaded = false;
+
+  function readNewsCache() {
+    try {
+      const raw = sessionStorage.getItem(NEWS_CACHE_KEY);
+      if (!raw) return null;
+      const parsed = JSON.parse(raw);
+      if (!parsed || !Array.isArray(parsed.items)) return null;
+      if (Date.now() - (parsed.ts || 0) > NEWS_CACHE_TTL) return null;
+      return parsed.items;
+    } catch (e) { return null; }
+  }
+
+  function writeNewsCache(items) {
+    try { sessionStorage.setItem(NEWS_CACHE_KEY, JSON.stringify({ ts: Date.now(), items })); } catch (e) {}
+  }
+
+  function applyNews(items) {
+    newsItems = items || [];
+    if (isNewsRoute) {
+      visibleNewsItems = newsItems;
+      showNewsSection();
+    } else {
+      visibleNewsItems = todayNews(newsItems);
+      if (visibleNewsItems.length) showNewsSection();
+      else hideNewsSection();
+    }
+    checkTodayToast();
+  }
+
+  function loadNews(force) {
+    if (newsLoaded && !force) return;
+    const cached = force ? null : readNewsCache();
+    if (cached) applyNews(cached);
+    const finish = items => {
+      newsLoaded = true;
+      if (items) writeNewsCache(items);
+      applyNews(items);
+    };
     fetch('/main?api=news&action=list')
       .then(r => r.json())
       .then(data => {
-        if (!data.ok) {
-          if (isNewsRoute) {
-            visibleNewsItems = [];
-            showNewsSection();
-          }
+        if (!data || !data.ok) {
+          if (!cached) finish(null);
           return;
         }
-        newsItems = data.items || [];
-        if (isNewsRoute) {
-          visibleNewsItems = newsItems;
-          showNewsSection();
-        } else {
-          visibleNewsItems = todayNews(newsItems);
-          if (visibleNewsItems.length) showNewsSection();
-          else hideNewsSection();
-        }
-        checkTodayToast();
+        finish(data.items || []);
       })
       .catch(() => {
-        if (isNewsRoute) {
-          visibleNewsItems = [];
-          showNewsSection();
-        }
+        if (!cached) finish(null);
       });
   }
 
@@ -1158,7 +1185,12 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
   }
 
   // ── App cards ────────────────────────────────────────────────────────────────
+  // The grid sits below the fold: render it when the section approaches the
+  // viewport, so the first paint does not wait for 11 cards and their icons.
+  let cardsRendered = false;
+
   function renderCards(l) {
+    cardsRendered = true;
     const t = I18N[l] || I18N.en;
     spotlight.innerHTML = '';
     const sp = document.createElement('div');
@@ -1189,6 +1221,22 @@ ${visibleNewsItems.length > 1 ? `<div class="news-modal-nav">
       card.addEventListener('mousemove', (e) => updateTooltipPosition(e, card));
       grid.appendChild(card);
     });
+  }
+
+  function ensureCards() {
+    if (!cardsRendered) renderCards(lang);
+  }
+
+  function initLazyCards() {
+    const section = $('appsSection');
+    if (!section || isNewsRoute) return;
+    if (!('IntersectionObserver' in window)) { ensureCards(); return; }
+    const observer = new IntersectionObserver(entries => {
+      if (!entries.some(entry => entry.isIntersecting)) return;
+      observer.disconnect();
+      ensureCards();
+    }, { rootMargin: '0px' });
+    observer.observe(section);
   }
 
 let tooltipTimer = null;
@@ -1430,7 +1478,7 @@ function handleAppMouseEnter(e, card, name, desc) {
     lang = l;
     updateLanguageMenu(l);
     applyTexts(l);
-    renderCards(l);
+    if (cardsRendered) renderCards(l);
     if (l === 'ru') {
       scheduleRuNotify();
     } else {
@@ -1470,7 +1518,7 @@ function handleAppMouseEnter(e, card, name, desc) {
     const overlay = document.createElement('div');
     overlay.id = 'pageLoadingOverlay';
     overlay.className = 'loading-overlay';
-    overlay.innerHTML = `<div class="loading-overlay-box"><img class="loading-overlay-logo" src="/home/icon.png" alt=""><h2 class="loading-overlay-title">${escH(t.loading_title || 'ServerKherson')}</h2><p class="loading-overlay-sub">${escH(sub || t.loading_sub || t.loading_app || 'Opening…')}</p><div class="loading-overlay-bar" aria-hidden="true"></div></div>`;
+    overlay.innerHTML = `<div class="loading-overlay-box"><img class="loading-overlay-logo" src="/home/icon.png" alt=""><h2 class="loading-overlay-title">${escH(t.loading_title || 'NexOrbit')}</h2><p class="loading-overlay-sub">${escH(sub || t.loading_sub || t.loading_app || 'Opening…')}</p><div class="loading-overlay-bar" aria-hidden="true"></div></div>`;
     document.body.appendChild(overlay);
   }
 
@@ -1681,6 +1729,7 @@ function handleAppMouseEnter(e, card, name, desc) {
   $('navGoFeaturesBtn').addEventListener('click', () => {
     closeNav();
     if (isNewsRoute) { location.href = '/' + location.search + '#apps'; return; }
+    ensureCards();
     $('appsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
   });
 
@@ -1746,9 +1795,22 @@ function handleAppMouseEnter(e, card, name, desc) {
   } else {
     scheduleEngagement();
     scheduleExploreWidget();
-    if (location.hash === '#apps') setTimeout(() => $('appsSection')?.scrollIntoView({ block: 'start' }), 80);
+    initLazyCards();
+    if (location.hash === '#apps') setTimeout(() => { ensureCards(); $('appsSection')?.scrollIntoView({ block: 'start' }); }, 80);
   }
-  loadNews();
+  // News is not part of the first screen: load it after the page is usable so it
+  // never competes with CSS/JS/icon for bandwidth. /news loads it right away.
+  function whenIdle(callback) {
+    if ('requestIdleCallback' in window) requestIdleCallback(callback, { timeout: 2500 });
+    else setTimeout(callback, 300);
+  }
+  if (isNewsRoute) {
+    loadNews(false);
+  } else if (document.readyState === 'complete') {
+    whenIdle(() => loadNews(false));
+  } else {
+    window.addEventListener('load', () => whenIdle(() => loadNews(false)), { once: true });
+  }
 
   // ── News calendar (GitHub-style) ──────────────────────────────────────────
   (function initCalendar() {

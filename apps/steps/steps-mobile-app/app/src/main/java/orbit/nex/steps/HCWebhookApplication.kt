@@ -2,6 +2,7 @@ package orbit.nex.steps
 
 import android.app.Application
 import androidx.work.BackoffPolicy
+import org.osmdroid.config.Configuration
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.NetworkType
@@ -16,6 +17,17 @@ class HCWebhookApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         preferencesManager = PreferencesManager(this)
+        val osmdroid = Configuration.getInstance()
+        osmdroid.load(this, getSharedPreferences("osmdroid", MODE_PRIVATE))
+        osmdroid.userAgentValue = "$packageName/${BuildConfig.VERSION_NAME} (https://nex.orbit)"
+        // Connectivity is observed app-wide so the offline banner and the bar
+        // indicator react the moment the network drops.
+        NetworkState.start(this)
+
+        // Location work is only resumed when the user previously enabled it.
+        if (preferencesManager.isLocationTrackingEnabled()) {
+            orbit.nex.steps.location.LocationUploadWorker.ensurePeriodic(this)
+        }
 
         // Schedule syncs based on the selected sync mode
         when (preferencesManager.getSyncMode()) {

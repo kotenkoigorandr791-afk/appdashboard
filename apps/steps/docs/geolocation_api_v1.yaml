@@ -1,0 +1,317 @@
+openapi: 3.0.3
+info:
+  title: Steps Location API
+  version: "1.0.0"
+  description: >
+    Authenticated, owner-scoped location API. API keys are scoped and stored as
+    hashes. There are no public-link or unauthenticated endpoints. Every
+    response includes api_version and request_id.
+
+    The reference deployment dispatches resources through the `path` query
+    parameter, e.g. `/apps/steps/api/v1.php?path=points&limit=50`. The OpenAPI
+    paths below name the resources; map each one to `?path=<path>` (see the
+    x-dispatch extension). Path-style URLs only work where the web server
+    forwards PATH_INFO, which the reference nginx does not.
+servers:
+  - url: /apps/steps/api/v1.php
+    description: Use ?path=<resource> (see x-dispatch) for the deployed form.
+x-dispatch:
+  points: "?path=points"
+  trips: "?path=trips"
+  trip: "?path=trips/{id}"
+  places: "?path=places"
+  visits: "?path=visits"
+  family_permissions: "?path=family/permissions"
+  immich_assets: "?path=immich/assets"
+  imports: "?path=imports"
+  exports: "?path=exports"
+  statistics: "?path=statistics"
+  achievements: "?path=achievements"
+security:
+  - ApiKeyHeader: []
+  - BearerAuth: []
+components:
+  securitySchemes:
+    ApiKeyHeader:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: stp_<secret>
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 200, default: 50 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0, default: 0 }
+    From:
+      name: from
+      in: query
+      schema: { type: string, format: date-time }
+    To:
+      name: to
+      in: query
+      schema: { type: string, format: date-time }
+    Bbox:
+      name: bbox
+      in: query
+      description: minLon,minLat,maxLon,maxLat
+      schema: { type: string }
+  schemas:
+    Error:
+      type: object
+      required: [ok, error, message, api_version, request_id]
+      properties:
+        ok: { type: boolean, enum: [false] }
+        error: { type: string }
+        message: { type: string }
+        details: { type: object, additionalProperties: true }
+        api_version: { type: string, enum: [v1] }
+        request_id: { type: string }
+    Point:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        device_id: { type: string, format: uuid, nullable: true }
+        source_type: { type: string, enum: [mobile, import, api] }
+        source_at: { type: string, format: date-time }
+        quality_state: { type: string, enum: [pending, accepted, flagged, rejected] }
+        accuracy_m: { type: number, nullable: true }
+        latitude: { type: number }
+        longitude: { type: number }
+    Trip:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        started_at: { type: string, format: date-time }
+        ended_at: { type: string, format: date-time }
+        distance_m: { type: number }
+        duration_s: { type: integer }
+        state: { type: string }
+        processor_version: { type: string }
+        bbox:
+          type: object
+          nullable: true
+          properties:
+            minLon: { type: number }
+            minLat: { type: number }
+            maxLon: { type: number }
+            maxLat: { type: number }
+    Place:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        name: { type: string }
+        tag: { type: string }
+        latitude: { type: number }
+        longitude: { type: number }
+        radius_m: { type: number }
+        timezone: { type: string }
+        is_active: { type: boolean }
+    Page:
+      type: object
+      properties:
+        total: { type: integer }
+        limit: { type: integer }
+        offset: { type: integer }
+        next_offset: { type: integer, nullable: true }
+paths:
+  /points:
+    get:
+      summary: List owner points
+      security:
+        - ApiKeyHeader: [read:points]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+        - $ref: '#/components/parameters/Bbox'
+        - { name: state, in: query, schema: { type: string } }
+        - { name: source, in: query, schema: { type: string } }
+        - { name: device_id, in: query, schema: { type: string, format: uuid } }
+      responses:
+        '200':
+          description: Page of points
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Point' }
+        '400': { $ref: '#/components/responses/Error' }
+        '401': { $ref: '#/components/responses/Error' }
+        '403': { $ref: '#/components/responses/Error' }
+    post:
+      summary: Capture one point or a batch
+      security:
+        - ApiKeyHeader: [write:points]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - type: object
+                - type: object
+                  properties:
+                    points:
+                      type: array
+                      maxItems: 500
+                      items: { type: object }
+      responses:
+        '202':
+          description: Per-point processing results
+        '400': { $ref: '#/components/responses/Error' }
+  /trips:
+    get:
+      summary: List owner trips
+      security:
+        - ApiKeyHeader: [read:trips]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200':
+          description: Page of trips
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Trip' }
+  /trips/{id}:
+    get:
+      summary: Get one owner trip
+      security:
+        - ApiKeyHeader: [read:trips]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string, format: uuid } }
+      responses:
+        '200': { description: Trip }
+        '404': { $ref: '#/components/responses/Error' }
+  /places:
+    get:
+      summary: List owner places
+      security:
+        - ApiKeyHeader: [read:places]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Page of places
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Page'
+                  - type: object
+                    properties:
+                      items:
+                        type: array
+                        items: { $ref: '#/components/schemas/Place' }
+  /visits:
+    get:
+      summary: List confirmed visits
+      security:
+        - ApiKeyHeader: [read:visits]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/From'
+        - $ref: '#/components/parameters/To'
+      responses:
+        '200': { description: Page of visits }
+  /family/permissions:
+    get:
+      summary: List grants owned by the caller and grants shared with the caller
+      security:
+        - ApiKeyHeader: [read:family]
+      responses:
+        '200': { description: Grants }
+  /immich/assets:
+    get:
+      summary: List Immich asset metadata
+      description: Returns metadata only; never image bytes or thumbnails.
+      security:
+        - ApiKeyHeader: [read:immich]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200': { description: Asset metadata }
+  /imports:
+    get:
+      summary: List import jobs and processing states
+      security:
+        - ApiKeyHeader: [read:imports]
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200': { description: Imports }
+  /exports:
+    get:
+      summary: List export jobs
+      security:
+        - ApiKeyHeader: [read:exports]
+      responses:
+        '200': { description: Exports }
+    post:
+      summary: Create an export job
+      security:
+        - ApiKeyHeader: [write:exports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                format: { type: string, enum: [json, geojson, gpx, backup] }
+                scope: { type: object }
+      responses:
+        '202': { description: Export queued }
+        '400': { $ref: '#/components/responses/Error' }
+  /statistics:
+    get:
+      summary: Owner statistics for an explicit timezone and range
+      security:
+        - ApiKeyHeader: [read:statistics]
+      parameters:
+        - { name: tz, in: query, schema: { type: string, default: UTC } }
+        - { name: from, in: query, schema: { type: string, format: date } }
+        - { name: to, in: query, schema: { type: string, format: date } }
+      responses:
+        '200': { description: Statistics summary }
+        '400': { $ref: '#/components/responses/Error' }
+  /achievements:
+    get:
+      summary: Private achievement progress
+      description: Empty when the owner disabled the achievements module.
+      security:
+        - ApiKeyHeader: [read:achievements]
+      responses:
+        '200': { description: Achievement progress }
+responses:
+  Error:
+    description: Stable error body
+    content:
+      application/json:
+        schema: { $ref: '#/components/schemas/Error' }

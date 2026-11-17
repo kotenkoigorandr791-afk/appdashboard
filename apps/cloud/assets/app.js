@@ -1219,6 +1219,12 @@ async function renderShareModalForPath(filePath, displayName, expiresOption = 'n
 
     shareState.currentPath = filePath;
     shareState.currentRoot = root || document.getElementById('viewer')?.dataset?.tabRoot || (typeof getActiveTabRoot === 'function' ? getActiveTabRoot() : null) || (typeof getCurrentCloudRoot === 'function' ? getCurrentCloudRoot() : 'main');
+    const shareTitle = document.getElementById('share-modal-title');
+    if (shareTitle) {
+        const baseTitle = t(i18n, 'shareFile') || 'Share file';
+        const label = String(displayName || filePath.split('/').pop() || '').trim();
+        shareTitle.textContent = label ? baseTitle.replace(/\s*:?\s*$/, '') + ': ' + label : baseTitle;
+    }
     shareState.currentExpiresOption = expiresOption || 'never';
     if (!update) shareState.currentRestrictions.password = '';
     flashStatus(t(i18n, 'generatingLink'));
@@ -1436,6 +1442,9 @@ function initShareFeature() {
     });
     document.getElementById('btn-close-share').addEventListener('click', () => {
         document.getElementById('share-modal').classList.add('hidden');
+    });
+    document.getElementById('btn-copy-share-link-inline')?.addEventListener('click', () => {
+        document.getElementById('btn-copy-share-link')?.click();
     });
     document.getElementById('btn-copy-share-link').addEventListener('click', async () => {
         const link = document.getElementById('share-link').href;
@@ -4211,10 +4220,13 @@ function formatDisplayPath(path) {
 
 const TREE_FOLDER_ICON_COLOR = '#eb9a05';
 function getTreeDirToggleMarkup(isOpen = false) {
-    return `<span class="tree-folder-icon${isOpen ? ' is-open' : ''}" aria-hidden="true"><svg class="tree-folder-icon-svg tree-folder-icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg><svg class="tree-folder-icon-svg tree-folder-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z"/><path d="M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1"/></svg></span>`;
+    // Windows 11 style: arrow + folder icon
+    return `<span class="win-arrow${isOpen ? ' open' : ''}" aria-hidden="true"><svg viewBox="0 0 16 16" width="12" height="12"><path fill="currentColor" d="M6 4l4 4-4 4"/></svg></span><span class="tree-folder-icon${isOpen ? ' is-open' : ''}" aria-hidden="true"><svg class="tree-folder-icon-svg tree-folder-icon-closed" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg><svg class="tree-folder-icon-svg tree-folder-icon-open" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 5a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h2.5a1.5 1.5 0 0 1 1.2.6l.6.8a1.5 1.5 0 0 0 1.2.6z"/><path d="M3 8.268a2 2 0 0 0-1 1.738V19a2 2 0 0 0 2 2h11a2 2 0 0 0 1.732-1"/></svg></span>`;
 }
 function setTreeDirToggleOpen(toggleEl, isOpen) {
     if (!toggleEl) return;
+    const arrow = toggleEl.querySelector('.win-arrow');
+    if (arrow) arrow.classList.toggle('open', !!isOpen);
     const icon = toggleEl.querySelector('.tree-folder-icon');
     if (icon) icon.classList.toggle('is-open', !!isOpen);
     toggleEl.closest('.node')?.classList.toggle('tree-dir-open', !!isOpen);
@@ -7922,15 +7934,19 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
     
     // Show loading
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>${permanent ? t(i18n, 'deletePermanently') : t(i18n, 'confirmDelete')}</h3>
+        <div class="modal-content dm-modal${permanent ? ' is-permanent' : ''}">
+            <div class="dm-accent"></div>
+            <div class="modal-header dm-header">
+                <div class="dm-title">
+                    <span class="dm-dot"></span>
+                    <h3>${permanent ? t(i18n, 'deletePermanently') : t(i18n, 'confirmDelete')}</h3>
+                </div>
                 <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
-            <div class="modal-body">
-                <div style="text-align: center; padding: 20px;">
+            <div class="modal-body dm-body">
+                <div style="text-align: center; padding: 16px 0;">
                     <div class="spinner" style="
                         width: 40px;
                         height: 40px;
@@ -7942,12 +7958,12 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
                             <path d="M20 2a18 18 0 0 1 18 18" stroke="var(--accent)" stroke-width="4" stroke-linecap="round" opacity="0.8"/>
                         </svg>
                     </div>
-                    <div>${t(i18n, 'loadingFileInfo')}</div>
+                    <div style="color:var(--muted);">${t(i18n, 'loadingFileInfo')}</div>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="btn-cancel-delete-selected" class="btn secondary">${t(i18n, 'cancel')}</button>
-                <button id="btn-confirm-delete-selected" class="btn danger" disabled>${t(i18n, 'delete')}</button>
+            <div class="modal-footer dm-footer">
+                <button id="btn-cancel-delete-selected" class="dm-btn dm-btn-ghost">${t(i18n, 'cancel')}</button>
+                <button id="btn-confirm-delete-selected" class="dm-btn dm-btn-danger" disabled>${t(i18n, 'delete')}</button>
             </div>
         </div>
     `;
@@ -8036,59 +8052,105 @@ function showDeleteConfirmationModal(selectedItems, options = {}) {
         // Update the modal content
         const modalBody = modal.querySelector('.modal-body');
         modalBody.innerHTML = `
-            <p>${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
-            ${!fromTrash ? `<label class="animated-check-label" style="margin:12px 0;"><input type="checkbox" id="delete-selected-permanently-checkbox" class="animated-checkbox"/><span class="animated-checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>${t(i18n, 'deletePermanently')}</span></label>` : ''}
-            ${foldersCount > 0 ? `<p style="font-size: 12px; color: var(--muted);">${t(i18n, 'folders')}: ${foldersCount}, ${t(i18n, 'files')}: ${filesCount}</p>` : ''}
-            <div style="max-height: 300px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 4px;">
-                <div style="padding: 8px; background: var(--panel); border-bottom: 1px solid var(--border); font-weight: bold; display: flex; justify-content: space-between;">
+            <div class="dm-main">
+                <div class="dm-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </div>
+                <div class="dm-text">
+                    <p class="dm-question">${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
+                    <p class="dm-hint">${foldersCount > 0 ? `${t(i18n, 'folders')}: ${foldersCount} · ${t(i18n, 'files')}: ${filesCount}` : `${t(i18n, 'files')}: ${filesCount}`}</p>
+                </div>
+            </div>
+            ${!fromTrash ? `<div class="dm-check-card">
+                <label class="animated-check-label dm-check-label">
+                    <input type="checkbox" id="delete-selected-permanently-checkbox" class="animated-checkbox"/>
+                    <span class="animated-checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <span class="dm-check-copy">
+                        <span class="dm-check-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <span>${t(i18n, 'deletePermanently')}</span>
+                        </span>
+                        <span class="dm-check-hint">${t(i18n, 'permanentDeleteWarning')}</span>
+                    </span>
+                </label>
+            </div>` : ''}
+            <div class="dm-list">
+                <div class="dm-list-head">
                     <span>${t(i18n, 'fileName')}</span>
                     <span>${t(i18n, 'fileSize')}</span>
                 </div>
                 ${fileInfos.map(item => {
                     const icon = getItemIconMarkup(item);
-                    
                     return `
-                        <div style="padding: 6px 8px; display: flex; justify-content: space-between; border-bottom: 1px solid var(--border);">
-                            <span style="color: var(--muted); display: flex; align-items: center; gap: 4px;">
+                        <div class="dm-list-row">
+                            <span class="dm-list-name">
                                 ${icon}
-                                <span title="${item.path}">${item.name}</span>
+                                <span title="${escapeHtml(item.path)}">${escapeHtml(item.name)}</span>
                             </span>
-                            <span style="font-family: monospace;">${formatBytes(item.size)}</span>
+                            <span class="dm-list-size">${formatBytes(item.size)}</span>
                         </div>
                     `;
                 }).join('')}
-                <div style="padding: 8px; background: var(--panel); font-weight: bold; display: flex; justify-content: space-between;">
+                <div class="dm-list-total">
                     <span>${t(i18n, 'total')}:</span>
                     <span>${formatBytes(totalSize)}</span>
                 </div>
             </div>
-            <p style="margin-top: 15px; color: #e74c3c; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 4px;">
+            <p class="dm-warning">
                 <strong>${t(i18n, 'warning')}:</strong> ${permanent ? t(i18n, 'trashPermanentDeleteWarning') : t(i18n, 'trashMoveWarning')}
             </p>
         `;
         
         // Enable the delete button
         confirmBtn.disabled = false;
+        const permanentCheckbox = modal.querySelector('#delete-selected-permanently-checkbox');
+        const modalContent = modal.querySelector('.dm-modal');
+        permanentCheckbox?.addEventListener('change', () => {
+            const isPermanent = !!permanentCheckbox.checked;
+            permanent = isPermanent;
+            modalContent?.classList.toggle('is-permanent', isPermanent);
+            confirmBtn.textContent = isPermanent ? t(i18n, 'deletePermanently') : t(i18n, 'btnDelete');
+        });
         
     }).catch(err => {
         console.error('Failed to load file sizes:', err);
         // If sizes could not be loaded, show a simple window
         const modalBody = modal.querySelector('.modal-body');
         modalBody.innerHTML = `
-            <p>${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
-            ${!fromTrash ? `<label class="animated-check-label" style="margin:12px 0;"><input type="checkbox" id="delete-selected-permanently-checkbox" class="animated-checkbox"/><span class="animated-checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg><span>${t(i18n, 'deletePermanently')}</span></label>` : ''}
-            <div style="max-height: 200px; overflow-y: auto; margin-top: 10px; border: 1px solid var(--border); border-radius: 4px; padding: 8px;">
+            <div class="dm-main">
+                <div class="dm-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                </div>
+                <div class="dm-text">
+                    <p class="dm-question">${permanent ? t(i18n, 'deleteSelectedPermanentlyConfirm', { count: selectedItems.length }) : t(i18n, 'deleteSelectedConfirm', { count: selectedItems.length })}</p>
+                    <p class="dm-hint">${t(i18n, 'warning')}</p>
+                </div>
+            </div>
+            ${!fromTrash ? `<div class="dm-check-card">
+                <label class="animated-check-label dm-check-label">
+                    <input type="checkbox" id="delete-selected-permanently-checkbox" class="animated-checkbox"/>
+                    <span class="animated-checkbox-box"><svg width="24" height="18" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></span>
+                    <span class="dm-check-copy">
+                        <span class="dm-check-title">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+                            <span>${t(i18n, 'deletePermanently')}</span>
+                        </span>
+                        <span class="dm-check-hint">${t(i18n, 'permanentDeleteWarning')}</span>
+                    </span>
+                </label>
+            </div>` : ''}
+            <div class="dm-list">
                 ${selectedItems.map(item => {
                     const fileName = item.split('/').pop();
                     const icon = getItemIconMarkup({ name: fileName, type: 'file' });
                     return `
-                        <div style="padding: 4px; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 4px;">
-                            ${icon} ${fileName}
+                        <div class="dm-list-row">
+                            <span class="dm-list-name">${icon}<span>${escapeHtml(fileName)}</span></span>
                         </div>
                     `;
                 }).join('')}
             </div>
-            <p style="margin-top: 15px; color: #e74c3c; background: rgba(231, 76, 60, 0.1); padding: 10px; border-radius: 4px;">
+            <p class="dm-warning">
                 <strong>${t(i18n, 'warning')}:</strong> ${permanent ? t(i18n, 'trashPermanentDeleteWarning') : t(i18n, 'trashMoveWarning')}
             </p>
         `;
@@ -8311,58 +8373,62 @@ function showArchiveOptionsModal(defaultName = '') {
         const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
         const safeName = escapeHtml(defaultName || `selected_${timestamp}.zip`);
         modal.innerHTML = `
-            <div class="modal-content" style="max-width: 460px;">
-                <div class="modal-header">
-                    <h3>${escapeHtml(label('createArchive', 'Create archive'))}</h3>
+            <div class="modal-content ar-modal" style="max-width: 460px;">
+                <div class="ar-accent"></div>
+                <div class="modal-header ar-header">
+                    <div class="ar-title">
+                        <span class="ar-icon">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M5 8a2 2 0 1 1 0-4h14a2 2 0 1 1 0 4M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+                        </span>
+                        <h3>${escapeHtml(label('createArchive', 'Create archive'))}</h3>
+                    </div>
                     <button class="icon-btn close-btn" aria-label="${escapeHtml(label('close', 'Close'))}">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                     </button>
                 </div>
-                <div class="modal-body">
-                    <style>
-                        .archive-checkbox{display:flex;align-items:center;gap:10px;margin-top:12px;cursor:pointer;user-select:none}
-                        .archive-checkbox input{position:absolute;opacity:0;pointer-events:none}
-                        .archive-checkbox-box{width:18px;height:18px;border:1px solid var(--border);border-radius:5px;background:var(--panel);display:inline-flex;align-items:center;justify-content:center;color:#fff;transition:all .16s ease}
-                        .archive-checkbox input:checked + .archive-checkbox-box{background:var(--accent);border-color:var(--accent)}
-                        .archive-checkbox input:checked + .archive-checkbox-box::after{content:"";width:8px;height:4px;border-left:2px solid currentColor;border-bottom:2px solid currentColor;transform:rotate(-45deg);margin-top:-2px}
-                        .archive-password-row{display:flex;gap:6px;margin-top:10px}
-                        .archive-password-row.hidden{display:none}
-                        .archive-password-row input{flex:1;min-width:0}
-                        .archive-password-row .icon-btn{width:34px;height:34px;border:1px solid var(--border);border-radius:6px;background:var(--panel);color:var(--fg);display:flex;align-items:center;justify-content:center}
-                    </style>
-                    <div class="form-group">
-                        <label>${escapeHtml(label('fileName', 'File name'))}</label>
-                        <input id="archive-options-name" type="text" value="${safeName}" style="width:100%;">
+                <div class="modal-body ar-body">
+                    <div class="ar-field">
+                        <label class="ar-label" for="archive-options-name">${escapeHtml(label('fileName', 'File name'))}</label>
+                        <div class="ar-input-wrap">
+                            <input id="archive-options-name" class="ar-input" type="text" value="${safeName}" autocomplete="off" spellcheck="false">
+                            <span id="archive-options-ext" class="ar-ext">.zip</span>
+                        </div>
                     </div>
-                    <div class="form-group">
-                        <label>${escapeHtml(label('archiveType', 'Archive type'))}</label>
-                        <select id="archive-options-format" style="width:100%;">
-                            <option value="zip">ZIP</option>
-                            <option value="7z">7Z</option>
-                            <option value="tar">TAR</option>
-                            <option value="tar.gz">TAR.GZ</option>
-                        </select>
+                    <div class="ar-field">
+                        <label class="ar-label" for="archive-options-format">${escapeHtml(label('archiveType', 'Archive type'))}</label>
+                        <div class="ar-select-wrap">
+                            <select id="archive-options-format" class="ar-select">
+                                <option value="zip">ZIP (.zip)</option>
+                                <option value="7z">7Z (.7z)</option>
+                                <option value="tar">TAR (.tar)</option>
+                                <option value="tar.gz">TAR.GZ (.tar.gz)</option>
+                            </select>
+                            <span class="ar-chevron">
+                                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                            </span>
+                        </div>
                     </div>
-                    <label class="animated-check-label" style="margin-top:12px;">
-                        <input id="archive-options-encrypt" type="checkbox" class="animated-checkbox" style="width:32px;height:32px;"/>
-                        <span class="animated-checkbox-box" style="width:20px;height:20px;">
-                          <svg width="20" height="15" viewBox="0 0 24 18" fill="none"><path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                        </span>
+                    <label class="ar-check-label">
+                        <input id="archive-options-encrypt" type="checkbox" class="ar-checkbox">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="11" width="16" height="10" rx="2"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/></svg>
                         <span>${escapeHtml(label('encryptArchive', 'Encrypt archive'))}</span>
                     </label>
-                    <div id="archive-password-row" class="archive-password-row hidden">
-                        <input id="archive-options-password" type="password" autocomplete="new-password" placeholder="${escapeHtml(label('password', 'Password'))}">
-                        <button id="archive-password-toggle" class="icon-btn" type="button" title="${escapeHtml(label('showPassword', 'Show password'))}">
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
+                    <div id="archive-password-row" class="ar-password-row hidden">
+                        <input id="archive-options-password" class="ar-input" type="password" autocomplete="new-password" placeholder="${escapeHtml(label('password', 'Password'))}">
+                        <button id="archive-password-toggle" class="ar-icon-btn" type="button" title="${escapeHtml(label('showPassword', 'Show password'))}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
                         </button>
-                        <button id="archive-password-generate" class="icon-btn" type="button" title="${escapeHtml(label('suggestPassword', 'Suggest strong password'))}">
-                            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="m17.8 6.2 1.4-1.4"/><path d="m10.8 13.2-1.4 1.4"/><path d="m17.8 11.8 1.4 1.4"/><path d="m10.8 4.8-1.4-1.4"/><path d="M4 20 14 10"/><path d="m5 15 4 4"/></svg>
+                        <button id="archive-password-generate" class="ar-icon-btn" type="button" title="${escapeHtml(label('suggestPassword', 'Suggest strong password'))}">
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 4V2"/><path d="M15 16v-2"/><path d="M8 9h2"/><path d="M20 9h2"/><path d="m17.8 6.2 1.4-1.4"/><path d="m10.8 13.2-1.4 1.4"/><path d="m17.8 11.8 1.4 1.4"/><path d="m10.8 4.8-1.4-1.4"/><path d="M4 20 14 10"/><path d="m5 15 4 4"/></svg>
                         </button>
                     </div>
                 </div>
-                <div class="modal-footer">
-                    <button id="archive-options-cancel" class="btn secondary">${escapeHtml(label('cancel', 'Cancel'))}</button>
-                    <button id="archive-options-create" class="btn primary">${escapeHtml(label('create', 'Create'))}</button>
+                <div class="modal-footer ar-footer">
+                    <button id="archive-options-cancel" class="ar-btn ar-btn-ghost" type="button">${escapeHtml(label('cancel', 'Cancel'))}</button>
+                    <button id="archive-options-create" class="ar-btn ar-btn-primary" type="button">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14M5 8a2 2 0 1 1 0-4h14a2 2 0 1 1 0 4M5 8v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8"/><path d="M10 12h4"/></svg>
+                        <span>${escapeHtml(label('create', 'Create'))}</span>
+                    </button>
                 </div>
             </div>
         `;
@@ -8374,7 +8440,11 @@ function showArchiveOptionsModal(defaultName = '') {
         const passwordRow = modal.querySelector('#archive-password-row');
         const passwordToggle = modal.querySelector('#archive-password-toggle');
         const passwordGenerate = modal.querySelector('#archive-password-generate');
+        const extBadge = modal.querySelector('#archive-options-ext');
         if (window.CloudFilenameGuard) window.CloudFilenameGuard.attach(nameInput);
+        const syncExtensionBadge = () => {
+            if (extBadge) extBadge.textContent = formatSelect.value === 'tar.gz' ? '.tar.gz' : '.' + formatSelect.value;
+        };
         const syncPassword = () => {
             const canEncrypt = ['zip', '7z'].includes(formatSelect.value);
             encryptInput.disabled = !canEncrypt;
@@ -8383,6 +8453,7 @@ function showArchiveOptionsModal(defaultName = '') {
         };
         formatSelect.addEventListener('change', () => {
             nameInput.value = replaceArchiveNameExtension(nameInput.value, formatSelect.value);
+            syncExtensionBadge();
             syncPassword();
         });
         encryptInput.addEventListener('change', syncPassword);
@@ -8428,6 +8499,7 @@ function showArchiveOptionsModal(defaultName = '') {
             }
             close({ archiveName, format, password });
         });
+        syncExtensionBadge();
         syncPassword();
         nameInput.focus();
     });
@@ -8440,28 +8512,19 @@ async function downloadSelectedItems() {
         return;
     }
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-    const options = await showArchiveOptionsModal(`selected_${timestamp}.zip`);
-    if (!options) return;
 
     try {
-        const response = await api('create_archive', {
+        // Downloading several items packs them into a temporary ZIP and starts
+        // the download right away: no options dialog and no password.
+        const result = await api('create_archive', {
             items: JSON.stringify(selectedItems),
-            archive_name: options.archiveName,
-            format: options.format,
-            password: options.password,
-            temporary: '1',
-            async: '1'
+            archive_name: `selected_${timestamp}.zip`,
+            format: 'zip',
+            temporary: '1'
         }, 'POST');
-        const result = response.job_id ? await waitForArchiveJob(response.job_id, t(window.i18n, 'creatingArchive')) : response;
-        if (result.cancelled) {
-            flashStatus(t(window.i18n, 'cancelled') || 'Cancelled');
-        } else if (result.success !== false && result.download_url) {
-            downloadTemporaryArchive(result.download_url, result.archive_name);
-            flashStatus(t(window.i18n, 'archiveCreatedAndDownloading'));
-        } else if (result.success !== false && result.archive_path) {
-            const archivePath = result.archive_path;
-            downloadPath(archivePath);
-            flashStatus(t(window.i18n, 'archiveCreatedAndDownloading'));
+        if (result.success !== false && (result.download_url || result.archive_path)) {
+            if (result.download_url) downloadTemporaryArchive(result.download_url, result.archive_name);
+            else downloadPath(result.archive_path);
         } else {
             flashStatus(t(window.i18n, 'archiveCreationFailed') + ': ' + (result.error || 'Unknown error'));
         }
@@ -8483,16 +8546,28 @@ function showMoveDialogForMultiple(selectedPaths) {
     window.moveDialogSourceRoot = sourceRoot;
     window.selectedMoveFolder = '';
     window.selectedMoveRoot = sourceRoot;
+    const firstSelectedName = String(selectedPaths[0] || '').split('/').pop();
+    const extraSelectedCount = selectedPaths.length - 1;
+    const selectedFilesChip = extraSelectedCount > 0 ? `${firstSelectedName} +${extraSelectedCount}` : firstSelectedName;
     modal.innerHTML = `
-        <div class="modal-content" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3>${t(i18n, 'moveSelectedItems')}</h3>
+        <div class="modal-content tp-modal tp-move" style="max-width: 500px;">
+            <div class="tp-accent"></div>
+            <div class="modal-header tp-header">
+                <div class="tp-title">
+                    <span class="tp-icon">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 7h12m0 0-4-4m4 4-4 4M16 17H4m0 0 4 4m-4-4 4-4"/></svg>
+                    </span>
+                    <h3>${t(i18n, 'moveSelectedItems')}</h3>
+                </div>
                 <button class="icon-btn close-btn" aria-label="${escapeHtml(t(i18n, 'close') || 'Close')}">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
                 </button>
             </div>
-            <div class="modal-body">
-                <p>${t(i18n, 'movingItemsCount', { count: selectedPaths.length })}</p>
+            <div class="modal-body tp-body">
+                <div class="tp-banner">
+                    <span>${t(i18n, 'movingItemsCount', { count: selectedPaths.length })}</span>
+                    <span class="tp-file">${escapeHtml(selectedFilesChip)}</span>
+                </div>
                 <div class="folder-selector">
                     <label>${t(i18n, 'selectTargetFolder')}</label>
                     <div class="move-root-toolbar" style="
@@ -8517,13 +8592,13 @@ function showMoveDialogForMultiple(selectedPaths) {
                         background: var(--panel);
                     "></div>
                 </div>
-                <div class="current-folder" style="margin: 10px 0; padding: 10px; background: var(--panel); border-radius: 4px;">
+                <div class="current-folder">
                     ${t(i18n, 'selectedFolder')} <span id="current-folder-path">/</span>
                 </div>
             </div>
-            <div class="modal-footer">
-                <button id="btn-cancel-move" class="btn secondary">${t(i18n, 'cancel')}</button>
-                <button id="btn-confirm-move" class="btn primary">${t(i18n, 'move')}</button>
+            <div class="modal-footer tp-footer">
+                <button id="btn-cancel-move" class="tp-btn tp-btn-ghost">${t(i18n, 'cancel')}</button>
+                <button id="btn-confirm-move" class="tp-btn tp-btn-primary">${t(i18n, 'move')}</button>
             </div>
         </div>
     `;
@@ -8666,7 +8741,9 @@ function renderNodes(items, basePath = '', depth = 0) {
         });
         const toggle = document.createElement('span');
         toggle.className = 'toggle';
-        toggle.innerHTML = item.type === 'dir' ? getTreeDirToggleMarkup(false) : getFileIcon(item.path || item.name);
+        toggle.innerHTML = item.type === 'dir'
+            ? getTreeDirToggleMarkup(false)
+            : `<span class="win-arrow spacer" aria-hidden="true"></span>${getFileIcon(item.path || item.name)}`;
         const label = document.createElement('span');
         label.className = 'label';
         label.textContent = item.name;
@@ -9134,7 +9211,60 @@ function handleMonacoCollabSocketMessage(payload) {
         });
     }
 }
+function startMonacoCollabHeartbeat(socket) {
+    stopMonacoCollabHeartbeat();
+    monacoCollabSocketState.lastMessageAt = Date.now();
+    // A connection that dies silently (sleep, network switch, dead proxy) never
+    // fires `close`, so ping the server and drop the socket when it goes quiet.
+    monacoCollabSocketState.heartbeatTimer = setInterval(() => {
+        if (monacoCollabSocketState.socket !== socket || socket.readyState !== WebSocket.OPEN) return;
+        if (!monacoCollabSocketState.authed) return;
+        if (Date.now() - (monacoCollabSocketState.lastMessageAt || 0) > 65000) {
+            try { socket.close(); } catch (_) {}
+            return;
+        }
+        try { socket.send(JSON.stringify({ type: 'ping', at: Date.now() })); } catch (_) {}
+    }, 20000);
+}
+function stopMonacoCollabHeartbeat() {
+    if (monacoCollabSocketState.heartbeatTimer) {
+        clearInterval(monacoCollabSocketState.heartbeatTimer);
+        monacoCollabSocketState.heartbeatTimer = null;
+    }
+}
+function resumeMonacoCollabSessions() {
+    monacoCollabSessions.forEach((session, tabId) => {
+        const editor = editorsMap.get(tabId);
+        sendMonacoCollabSocketMessage({
+            type: 'join',
+            roomKey: session.roomKey,
+            path: session.filePath,
+            root: session.rootKey,
+            clientId: monacoCollabSocketState.clientId,
+            name: currentUserState.user || 'user',
+            color: session.color,
+            content: editor?.getValue?.() ?? session.lastSyncedContent ?? '',
+            revision: session.docRevision || 0,
+            updatedAt: Date.now()
+        });
+        requestMonacoCollabSync(tabId);
+    });
+}
+function attachMonacoCollabRecoveryListeners() {
+    if (monacoCollabSocketState.recoveryAttached) return;
+    monacoCollabSocketState.recoveryAttached = true;
+    const resume = () => {
+        ensureMonacoCollabSocket();
+        if (monacoCollabSocketState.authed) resumeMonacoCollabSessions();
+    };
+    window.addEventListener('online', resume);
+    window.addEventListener('focus', resume);
+    document.addEventListener('visibilitychange', () => {
+        if (!document.hidden) resume();
+    });
+}
 function ensureMonacoCollabSocket() {
+    attachMonacoCollabRecoveryListeners();
     // Do not try to connect while the browser is offline.
     if (typeof navigator !== 'undefined' && navigator.onLine === false) return;
     const existing = monacoCollabSocketState.socket;
@@ -9152,6 +9282,7 @@ function ensureMonacoCollabSocket() {
         socket.addEventListener('open', async () => {
             monacoCollabSocketState.wasConnected = true;
             monacoCollabSocketState.reconnectAttempts = 0;
+            startMonacoCollabHeartbeat(socket);
             try {
                 const ticketRes = await api('monaco_collab_ticket', {}, 'POST');
                 if (ticketRes?.ok && ticketRes.ticket && monacoCollabSocketState.socket === socket) {
@@ -9162,8 +9293,10 @@ function ensureMonacoCollabSocket() {
             }
         });
         socket.addEventListener('message', (event) => {
+            monacoCollabSocketState.lastMessageAt = Date.now();
             try {
                 const payload = JSON.parse(event.data);
+                if (payload?.type === 'pong') return;
                 if (payload?.type === 'auth_ok') {
                     monacoCollabSocketState.authed = true;
                     const isReconnect = !!monacoCollabSocketState.wasConnected;
@@ -9185,19 +9318,24 @@ function ensureMonacoCollabSocket() {
                             revision: session.docRevision || 0,
                             updatedAt: Date.now()
                         });
-                        if (isReconnect) {
-                            if (session.syncRequestTimer) clearTimeout(session.syncRequestTimer);
-                            session.syncRequestTimer = setTimeout(() => {
-                                session.syncRequestTimer = null;
-                                requestMonacoCollabSync(tabId);
-                            }, MONACO_COLLAB_SYNC_REQUEST_MS);
-                        }
+                        // Always pull the room state after (re)connecting: a user who
+                        // joined later or lost the connection must catch up without
+                        // reloading the file.
+                        if (session.syncRequestTimer) clearTimeout(session.syncRequestTimer);
+                        session.syncRequestTimer = setTimeout(() => {
+                            session.syncRequestTimer = null;
+                            requestMonacoCollabSync(tabId);
+                        }, isReconnect ? MONACO_COLLAB_SYNC_REQUEST_MS : 400);
                     });
                     flushMonacoCollabSocketQueue();
                     return;
                 }
                 if (payload?.type === 'auth_error') {
                     console.error('Monaco collab auth failed:', payload.error);
+                    // The ticket is single-use: reconnect so a fresh one is
+                    // requested instead of staying on a dead, unauthenticated socket.
+                    monacoCollabSocketState.authed = false;
+                    try { socket.close(); } catch (_) {}
                     return;
                 }
                 handleMonacoCollabSocketMessage(payload);
@@ -9207,6 +9345,7 @@ function ensureMonacoCollabSocket() {
         });
         socket.addEventListener('close', () => {
             if (monacoCollabSocketState.socket !== socket) return;
+            stopMonacoCollabHeartbeat();
             monacoCollabSocketState.socket = null;
             monacoCollabSocketState.authed = false;
             if (monacoCollabSocketState.reconnectTimer) clearTimeout(monacoCollabSocketState.reconnectTimer);
@@ -9359,7 +9498,9 @@ async function autoSaveFile(editor, filePath, tabId = null) {
     if (content === null || content === undefined) return;
     const resolvedTab = resolvedTabId ? tabsState.tabs.find(t => t.id === resolvedTabId) : null;
     try {
-        await api('save_file', { path: filePath, content, root: getTabRoot(resolvedTab) });
+        // getResolvedTabRoot() also recovers the root from the path prefix, so a
+        // restored tab (or a hidden root) never saves into the wrong storage.
+        await api('save_file', { path: filePath, content, root: getResolvedTabRoot(resolvedTab) });
         const collabSession = resolvedTabId ? getMonacoCollabSession(resolvedTabId) : null;
         if (collabSession) {
             collabSession.lastSyncedContent = content;
@@ -9378,11 +9519,20 @@ async function autoSaveFile(editor, filePath, tabId = null) {
     } catch (err) {
         flashStatus(t(i18n, 'autoSaveFailed') + err.message);
         if (resolvedTabId && resolvedTabId === tabsState.activeTabId) showErrorCross(document.getElementById('btn-save'));
-    } finally {
+        // One transient failure used to drop the changes for good because the
+        // timer was cleared below. Keep retrying while the tab is still open.
         if (resolvedTabId) {
             clearAutoSaveTimer(resolvedTabId);
+            const retryTab = tabsState.tabs.find(t => t.id === resolvedTabId);
+            const retryEditor = editorsMap.get(resolvedTabId) || editor || null;
+            if (retryTab && retryEditor) {
+                const retryId = setTimeout(() => autoSaveFile(retryEditor, filePath, resolvedTabId), 5000);
+                autoSaveTimers.set(resolvedTabId, retryId);
+            }
         }
+        return;
     }
+    if (resolvedTabId) clearAutoSaveTimer(resolvedTabId);
 }
 function isMobileDevice() {
     return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -9432,7 +9582,7 @@ function flushPendingAutoSavesSync() {
         const content = getCurrentEditorContent(tabId);
         try {
             const xhr = new XMLHttpRequest();
-            xhr.open('POST', 'api.php', false);
+            xhr.open('POST', (window.APP_CONFIG && window.APP_CONFIG.apiBase) || 'api.php', false);
             xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
             xhr.send(new URLSearchParams({
                 action: 'save_file',
@@ -10529,7 +10679,7 @@ function refreshTabContent(tabId) {
     if (tab.photoEditor) {
         openPhotoEditor(tab.path);
     } else if (tab.latexEditor) {
-        openLatexEditor(tab.path);
+        openLatexEditor(tab.path, getResolvedTabRoot(tab));
     } else if (tab.transcriptionEditor) {
         openTranscriptionEditor(tab.path);
     } else if (tab.ttsEditor) {
@@ -10537,9 +10687,9 @@ function refreshTabContent(tabId) {
     } else if (tab.onlyOfficeEditor) {
         openOnlyOfficeEditor(tab.path);
     } else if (tab.markdownEditor) {
-        openMarkdownEditor(tab.path);
+        openMarkdownEditor(tab.path, getResolvedTabRoot(tab));
     } else if (tab.htmlEditor) {
-        openHtmlEditor(tab.path);
+        openHtmlEditor(tab.path, getResolvedTabRoot(tab));
     } else if (tab.zipViewer) {
         const newTab = {
             id: tabsState.nextTabId++,

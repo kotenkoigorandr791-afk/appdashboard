@@ -98,6 +98,7 @@ docs/APP_DEBUG_URLS.md
 APP_DEBUG_URLS.md
 debug_panel.php
 **/.codex/
+/.agents/
 **/AGENTS.md
 **/agents.md
 **/CLAUDE.md
@@ -129,6 +130,12 @@ opencode.json
 appdashboard-mcp/smoke-*-results.txt
 appdashboard-mcp/tmp-*
 appdashboard-mcp/tmp-gitea-wf/
+appdashboard-mcp/benchmarks/results/*-perf.jsonl
+appdashboard-mcp/benchmarks/results/*-server.log
+appdashboard-mcp/benchmarks/results/*.json
+.bench-token
+.bench-device
+.bench-login.json
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
 .aider*
@@ -225,3 +232,19 @@ pnpm-debug.log*
 /apps/spends/spends-native-android/.idea/
 /apps/spends/spends-native-android/**/*.apk
 /apps/spends/spends-native-android/**/*.aab
+
+# Shared local Android toolchain (JDK/Gradle/SDK/emulator, download cache)
+/tools/
+
+<<<<<<< HEAD
+.tgrep/
+.tgrep-*/
+
+# Benchmark credentials
+.bench-login.json
+.bench-token
+.bench-device
+
+
+=======
+>>>>>>> mobile-spends

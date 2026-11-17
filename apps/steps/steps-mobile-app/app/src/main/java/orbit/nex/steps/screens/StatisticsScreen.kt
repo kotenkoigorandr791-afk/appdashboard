@@ -1,9 +1,18 @@
 package orbit.nex.steps.screens
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,20 +23,43 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.BarChart
+import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.CalendarViewWeek
+import androidx.compose.material.icons.filled.DirectionsWalk
+import androidx.compose.material.icons.filled.EmojiEvents
+import androidx.compose.material.icons.filled.GridView
+import androidx.compose.material.icons.filled.Hub
+import androidx.compose.material.icons.filled.Insights
+import androidx.compose.material.icons.filled.LocationCity
+import androidx.compose.material.icons.filled.Map
+import androidx.compose.material.icons.filled.Place
+import androidx.compose.material.icons.filled.Public
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Route
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material.icons.filled.VerifiedUser
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ScrollableTabRow
 import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -37,6 +69,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,11 +83,14 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -63,7 +99,15 @@ import orbit.nex.steps.HealthDataType
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.WebhookConfig
-import orbit.nex.steps.ui.theme.AppCornerRadius
+import orbit.nex.steps.components.AppEmptyState
+import orbit.nex.steps.components.AppHeroSurface
+import orbit.nex.steps.components.AppSectionCard
+import orbit.nex.steps.components.AppStatusPill
+import orbit.nex.steps.location.AchievementCard
+import orbit.nex.steps.location.EarnedAchievements
+import orbit.nex.steps.location.ServerStatistics
+import orbit.nex.steps.location.StatisticsRepository
+import orbit.nex.steps.location.WeekdayMovement
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -81,22 +125,48 @@ import java.util.Locale
 import kotlin.math.roundToInt
 data class StatMetric(val type: HealthDataType, val value: String)
 data class StatsState(val byDay: Map<LocalDate, List<StatMetric>> = emptyMap(), val steps: Map<LocalDate, Long> = emptyMap(), val error: String? = null)
+private enum class StatsTab(val titleRes: Int, val icon: ImageVector) {
+    OVERVIEW(R.string.stats_tab_overview, Icons.Filled.Insights),
+    ACTIVITY(R.string.stats_tab_activity, Icons.Filled.DirectionsWalk),
+    MOVEMENT(R.string.stats_tab_movement, Icons.Filled.Route),
+    ACHIEVEMENTS(R.string.stats_tab_achievements, Icons.Filled.EmojiEvents),
+    QUALITY(R.string.stats_tab_quality, Icons.Filled.VerifiedUser),
+}
+
 @Composable
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 fun StatisticsScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
+    val repository = remember { StatisticsRepository(prefs) }
+    val reduceMotion = remember {
+        android.provider.Settings.Global.getFloat(
+            context.contentResolver,
+            android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+            1f,
+        ) == 0f
+    }
+    var selectedTab by rememberSaveable { mutableStateOf(StatsTab.OVERVIEW.name) }
+    val tab = StatsTab.entries.firstOrNull { it.name == selectedTab } ?: StatsTab.OVERVIEW
     var monthOffset by remember { mutableIntStateOf(0) }
     var goalSteps by remember { mutableIntStateOf(0) }
     var state by remember { mutableStateOf(StatsState()) }
     var localMonthSteps by remember { mutableStateOf<Map<LocalDate, Long>>(emptyMap()) }
     var androidSteps by remember { mutableStateOf<Long?>(null) }
     var androidStepsError by remember { mutableStateOf<String?>(null) }
+    var selectedStatsDate by remember { mutableStateOf<LocalDate?>(null) }
     var currentConfigUrl by remember { mutableStateOf(prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url) }
+    var serverStats by remember { mutableStateOf(ServerStatistics()) }
+    var achievements by remember { mutableStateOf(EarnedAchievements()) }
+    var seenAchievements by remember { mutableStateOf(prefs.getSeenAchievements()) }
+    var serverLoading by remember { mutableStateOf(false) }
+    var achievementsLoading by remember { mutableStateOf(false) }
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
     val connected = config != null
     val selectedDate = LocalDate.now()
     val chartMonth = YearMonth.now().plusMonths(monthOffset.toLong())
+
     suspend fun load(force: Boolean = false) {
         state = config?.let { fetchYearStats(it, prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }, prefs, force, context) } ?: StatsState()
     }
@@ -129,116 +199,582 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                 androidStepsError = it.message
             }
     }
+    suspend fun loadServer(force: Boolean = false) {
+        val active = config ?: return
+        if (serverLoading || (!force && serverStats.hasData)) return
+        serverLoading = true
+        serverStats = repository.load(active)
+        serverLoading = false
+    }
+    suspend fun loadAchievements(force: Boolean = false) {
+        val active = config ?: return
+        if (achievementsLoading || (!force && achievements.cards.isNotEmpty())) return
+        achievementsLoading = true
+        achievements = repository.achievements(active)
+        achievementsLoading = false
+    }
+
     LaunchedEffect(Unit) {
         while (true) {
             val newUrl = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }?.url
             if (newUrl != currentConfigUrl) {
                 currentConfigUrl = newUrl
                 state = StatsState()
+                serverStats = ServerStatistics()
+                achievements = EarnedAchievements()
                 load()
             }
             delay(2_000)
         }
     }
-    LaunchedEffect(currentConfigUrl) {
-        load()
-    }
-    // The goal lives in the server-side settings, same value the web chart draws.
+    LaunchedEffect(currentConfigUrl) { load() }
     LaunchedEffect(currentConfigUrl) {
         goalSteps = config?.let { fetchStepGoal(it, prefs) } ?: 0
     }
-    LaunchedEffect(chartMonth, currentConfigUrl) {
-        loadLocalMonth()
-    }
+    LaunchedEffect(chartMonth, currentConfigUrl) { loadLocalMonth() }
     LaunchedEffect(selectedDate, currentConfigUrl) {
         while (true) {
             loadAndroidSteps()
             delay(ANDROID_CACHE_MAX_AGE_MS)
         }
     }
+    LaunchedEffect(tab, currentConfigUrl) {
+        when (tab) {
+            StatsTab.MOVEMENT, StatsTab.QUALITY -> loadServer()
+            StatsTab.ACHIEVEMENTS -> {
+                loadServer()
+                loadAchievements()
+            }
+            else -> Unit
+        }
+    }
+
     val monthSteps = if (connected) state.steps else localMonthSteps
     val daySteps = if (connected) state.steps[selectedDate] ?: 0L else androidSteps ?: 0L
     val dayStepsError = if (connected) null else androidStepsError
-    Column(
-        modifier.fillMaxSize().padding(horizontal = 10.dp).verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    val number = NumberFormat.getIntegerInstance(Locale.getDefault())
+    val yearSteps = remember(monthSteps) {
+        monthSteps.filterKeys { it.year == selectedDate.year }.values.sum()
+    }
+
+    LazyColumn(
+        modifier.fillMaxSize().padding(horizontal = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+        contentPadding = PaddingValues(top = 12.dp, bottom = 22.dp),
     ) {
-        // Gap under the top bar that scrolls away with the content.
-        Spacer(Modifier.height(12.dp))
-        // Today's summary: gradient card with just the label and the count.
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(AppCornerRadius))
-                .background(
-                    Brush.linearGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.primary.copy(alpha = 0.34f),
-                            MaterialTheme.colorScheme.surfaceVariant,
-                            MaterialTheme.colorScheme.tertiary.copy(alpha = 0.30f),
-                        )
-                    )
-                )
-        ) {
-            Column(Modifier.padding(horizontal = 18.dp, vertical = 16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                // Label and value on one line, e.g. "Today  8 000 steps".
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
+        item {
+            AppHeroSurface {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        stringResource(R.string.stats_today),
-                        style = MaterialTheme.typography.titleMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        stringResource(R.string.stats_private_eyebrow).uppercase(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        NumberFormat.getIntegerInstance(Locale.getDefault()).format(daySteps),
+                        stringResource(R.string.stats_experience_title),
                         style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
                     )
                     Text(
-                        stringResource(R.string.stats_steps),
+                        stringResource(R.string.stats_experience_subtitle),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            number.format(daySteps),
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            stringResource(R.string.stats_steps_today_suffix),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Spacer(Modifier.weight(1f))
+                        AppStatusPill(
+                            if (serverStats.processing) stringResource(R.string.stats_processing) else stringResource(R.string.stats_private),
+                            highlighted = serverStats.processing,
+                        )
+                    }
+                    dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                 }
-                dayStepsError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
-                    IconButton(onClick = { if (monthOffset > -11) monthOffset-- }) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null) }
-                    Text(chartMonth.format(DateTimeFormatter.ofPattern("yyyy-MM")), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null) }
+
+        item {
+            ScrollableTabRow(
+                selectedTabIndex = tab.ordinal,
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary,
+                edgePadding = 0.dp,
+                divider = {},
+            ) {
+                StatsTab.entries.forEach { item ->
+                    Tab(
+                        selected = tab == item,
+                        onClick = { selectedTab = item.name },
+                        text = { Text(stringResource(item.titleRes), maxLines = 1, style = MaterialTheme.typography.labelMedium) },
+                        icon = { Icon(item.icon, contentDescription = null, modifier = Modifier.size(17.dp)) },
+                    )
                 }
-                StepsChart(monthSteps, chartMonth, goalSteps)
             }
         }
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(stringResource(R.string.stats_heatmap_title), style = MaterialTheme.typography.titleMedium)
-                StepsHeatmap(monthSteps, chartMonth)
+
+        when (tab) {
+            StatsTab.OVERVIEW -> {
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OverviewMetric(
+                            stringResource(R.string.stats_active_days),
+                            number.format(serverStats.activeDays),
+                            stringResource(R.string.stats_active_days_hint),
+                            Modifier.weight(1f),
+                        )
+                        OverviewMetric(
+                            stringResource(R.string.stats_distance),
+                            formatDistance(serverStats.routeDistanceM),
+                            stringResource(R.string.stats_distance_hint),
+                            Modifier.weight(1f),
+                        )
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        OverviewMetric(
+                            stringResource(R.string.stats_places),
+                            number.format(serverStats.places.size),
+                            stringResource(R.string.stats_places_hint),
+                            Modifier.weight(1f),
+                        )
+                        OverviewMetric(
+                            stringResource(R.string.stats_earned),
+                            number.format(achievements.earnedCount),
+                            stringResource(R.string.stats_earned_hint),
+                            Modifier.weight(1f),
+                        )
+                    }
+                }
+                item {
+                    AppSectionCard(
+                        title = stringResource(R.string.stats_steps_this_year),
+                        kicker = stringResource(R.string.stats_this_year),
+                        icon = Icons.AutoMirrored.Filled.TrendingUp,
+                    ) {
+                        Text(number.format(yearSteps), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                        Text(
+                            stringResource(R.string.stats_steps),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                item {
+                    AppSectionCard(title = stringResource(R.string.stats_reach), icon = Icons.Filled.Public) {
+                        val reach = serverStats.countries.take(6) + serverStats.cities.take(6)
+                        if (reach.isEmpty()) {
+                            Text(
+                                stringResource(R.string.stats_reach_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                reach.forEach { AppStatusPill(it) }
+                            }
+                        }
+                    }
+                }
+            }
+
+            StatsTab.ACTIVITY -> {
+                item {
+                    AppSectionCard(
+                        title = chartMonth.format(DateTimeFormatter.ofPattern("MMMM yyyy", Locale.getDefault())),
+                        icon = Icons.Filled.BarChart,
+                        action = {
+                            Row {
+                                IconButton(onClick = { if (monthOffset > -11) monthOffset-- }) {
+                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.stats_previous_month))
+                                }
+                                IconButton(onClick = { if (monthOffset < 0) monthOffset++ }) {
+                                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.stats_next_month))
+                                }
+                            }
+                        },
+                    ) {
+                        StepsChart(monthSteps, chartMonth, goalSteps) { selectedStatsDate = it }
+                    }
+                }
+                item {
+                    AppSectionCard(title = stringResource(R.string.stats_heatmap_title), icon = Icons.Filled.GridView) {
+                        StepsHeatmap(monthSteps, chartMonth, goalSteps) { selectedStatsDate = it }
+                    }
+                }
+                if (!connected && localMonthSteps.isNotEmpty()) {
+                    item { Text(stringResource(R.string.stats_local_data), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall) }
+                }
+                if (connected) {
+                    val metrics = state.byDay[selectedDate].orEmpty()
+                    if (metrics.isNotEmpty()) {
+                        item {
+                            AppSectionCard(title = stringResource(R.string.stats_today), icon = Icons.Filled.Today) {
+                                metrics.forEach { metric ->
+                                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                                        Text(stringResource(metric.type.nameResId))
+                                        Text(metric.value, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                state.error?.let { error -> item { AppEmptyState(error, isError = true) } }
+            }
+
+            StatsTab.MOVEMENT -> {
+                if (serverLoading && !serverStats.hasData) {
+                    item { LoadingCard(stringResource(R.string.stats_loading)) }
+                } else if (serverStats.error != null) {
+                    item { AppEmptyState(stringResource(R.string.stats_unavailable), isError = true) }
+                } else {
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OverviewMetric(stringResource(R.string.stats_route_distance), formatDistance(serverStats.routeDistanceM), stringResource(R.string.stats_confirmed_only), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_trips), number.format(serverStats.trips), stringResource(R.string.stats_avg_trip) + " " + formatDistance(serverStats.averageTripM), Modifier.weight(1f))
+                        }
+                    }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OverviewMetric(stringResource(R.string.stats_active_time), formatDuration(serverStats.activeSeconds), stringResource(R.string.stats_active_time_hint), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_top_place), serverStats.places.firstOrNull()?.name ?: "â€”", stringResource(R.string.stats_visits, serverStats.places.firstOrNull()?.visits ?: 0), Modifier.weight(1f))
+                        }
+                    }
+                    item {
+                        AppSectionCard(title = stringResource(R.string.stats_week_rhythm), icon = Icons.Filled.CalendarViewWeek) {
+                            WeeklyRhythm(serverStats.byWeekday)
+                        }
+                    }
+                }
+            }
+
+            StatsTab.ACHIEVEMENTS -> {
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(
+                                stringResource(R.string.stats_earned_only).uppercase(),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                fontWeight = FontWeight.Bold,
+                            )
+                            Text(stringResource(R.string.stats_milestones), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                        }
+                        Text(
+                            number.format(achievements.earnedCount),
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
+                }
+                when {
+                    achievementsLoading && achievements.cards.isEmpty() -> item { LoadingCard(stringResource(R.string.stats_loading)) }
+                    achievements.error != null -> item { AppEmptyState(stringResource(R.string.stats_achievements_unavailable), isError = true) }
+                    !achievements.enabled -> item { AppEmptyState(stringResource(R.string.stats_achievements_disabled)) }
+                    achievements.cards.isEmpty() -> item { AppEmptyState(stringResource(R.string.stats_no_achievements)) }
+                    else -> item {
+                        val rows = (achievements.cards.size + 1) / 2
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            modifier = Modifier.fillMaxWidth().height((rows * 174).dp),
+                            userScrollEnabled = false,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp),
+                            verticalArrangement = Arrangement.spacedBy(9.dp),
+                        ) {
+                            itemsIndexed(achievements.cards, key = { _, card -> card.id }) { index, card ->
+                                EarnedAchievementCard(
+                                    card = card,
+                                    index = index,
+                                    reduceMotion = reduceMotion,
+                                    seen = card.id in seenAchievements,
+                                    onSeen = {
+                                        prefs.markAchievementsSeen(setOf(card.id))
+                                        seenAchievements = seenAchievements + card.id
+                                    },
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            StatsTab.QUALITY -> {
+                if (serverLoading && !serverStats.hasData) {
+                    item { LoadingCard(stringResource(R.string.stats_loading)) }
+                } else if (serverStats.error != null) {
+                    item { AppEmptyState(stringResource(R.string.stats_unavailable), isError = true) }
+                } else {
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OverviewMetric(stringResource(R.string.stats_coverage), "${(serverStats.coverageRatio * 100).roundToInt()}%", stringResource(R.string.stats_coverage_hint), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_accuracy), serverStats.accuracyM?.let { "Â±${it.roundToInt()} m" } ?: "â€”", stringResource(R.string.stats_accuracy_hint), Modifier.weight(1f))
+                        }
+                    }
+                    item {
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            OverviewMetric(stringResource(R.string.stats_latest_point), StatisticsRepository.dateLabel(serverStats.latestPointAt).ifBlank { "â€”" }, stringResource(R.string.stats_latest_point_hint), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_devices), number.format(serverStats.devices.size), stringResource(R.string.stats_devices_hint), Modifier.weight(1f))
+                        }
+                    }
+                    item {
+                        AppSectionCard(title = stringResource(R.string.stats_sources), icon = Icons.Filled.Hub) {
+                            val sources = serverStats.sources.entries.map { "${it.key} Â· ${number.format(it.value)}" } +
+                                serverStats.devices.map { "${it.name} Â· ${it.status}" }
+                            if (sources.isEmpty()) {
+                                Text(stringResource(R.string.stats_no_sources), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            } else {
+                                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                    sources.forEach { AppStatusPill(it) }
+                                }
+                            }
+                            Text(
+                                stringResource(R.string.stats_quality_note),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
             }
         }
-        if (!connected && localMonthSteps.isNotEmpty()) {
-            Text(stringResource(R.string.stats_local_data), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+
+        item {
+            OutlinedButton(
+                onClick = {
+                    scope.launch {
+                        load(true)
+                        loadAndroidSteps(true)
+                        loadLocalMonth()
+                        loadServer(true)
+                        loadAchievements(true)
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Icon(Icons.Filled.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.size(8.dp))
+                Text(stringResource(R.string.dashboard_refresh))
+            }
         }
-        Button(onClick = { scope.launch { load(true); loadAndroidSteps(true); loadLocalMonth() } }, modifier = Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.dashboard_refresh))
-        }
-        state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-        if (connected) state.byDay[selectedDate].orEmpty().forEach { metric ->
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(stringResource(metric.type.nameResId), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                    Text(metric.value, style = MaterialTheme.typography.headlineSmall)
+    }
+
+    selectedStatsDate?.let { date ->
+        ModalBottomSheet(onDismissRequest = { selectedStatsDate = null }) {
+            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(formatTooltipDate(date), style = MaterialTheme.typography.titleLarge)
+                Text("${number.format(monthSteps[date] ?: 0L)} ${stringResource(R.string.stats_steps)}", style = MaterialTheme.typography.headlineSmall)
+                state.byDay[date].orEmpty().forEach { metric ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text(stringResource(metric.type.nameResId))
+                        Text(metric.value)
+                    }
                 }
             }
         }
     }
 }
+
 @Composable
-private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0) {
+private fun OverviewMetric(label: String, value: String, hint: String, modifier: Modifier = Modifier) {
+    Surface(
+        modifier = modifier,
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceVariant,
+    ) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                label.uppercase(),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(value, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(hint, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 2)
+        }
+    }
+}
+
+@Composable
+private fun LoadingCard(text: String) {
+    Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.padding(22.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+            Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    }
+}
+
+@Composable
+private fun WeeklyRhythm(rows: List<WeekdayMovement>) {
+    val labels = listOf(
+        R.string.weekday_mon, R.string.weekday_tue, R.string.weekday_wed, R.string.weekday_thu,
+        R.string.weekday_fri, R.string.weekday_sat, R.string.weekday_sun,
+    )
+    val max = rows.maxOfOrNull { it.trips }?.coerceAtLeast(1) ?: 1
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
+        labels.forEachIndexed { index, labelRes ->
+            val trips = rows.getOrNull(index)?.trips ?: 0
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(trips.toString(), style = MaterialTheme.typography.labelSmall)
+                Box(
+                    Modifier
+                        .fillMaxWidth()
+                        .height((8 + 54 * (trips.toFloat() / max)).dp)
+                        .background(
+                            Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))),
+                            MaterialTheme.shapes.small,
+                        )
+                )
+                Text(stringResource(labelRes), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+    }
+}
+
+@Composable
+private fun EarnedAchievementCard(
+    card: AchievementCard,
+    index: Int,
+    reduceMotion: Boolean,
+    seen: Boolean,
+    onSeen: () -> Unit,
+) {
+    val tone = achievementTone(card)
+    var visible by remember(card.id) { mutableStateOf(false) }
+    LaunchedEffect(card.id, seen) {
+        if (reduceMotion || seen) {
+            visible = true
+        } else {
+            delay((index * 45L).coerceAtMost(315L))
+            visible = true
+            onSeen()
+        }
+    }
+    AnimatedVisibility(
+        visible = visible,
+        enter = if (reduceMotion || seen) EnterTransition.None else fadeIn(tween(320)) + slideInVertically(tween(320)) { it / 4 },
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = tone.copy(alpha = 0.09f),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(Modifier.padding(13.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = tone.copy(alpha = 0.14f),
+                    modifier = Modifier.size(36.dp),
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(achievementIcon(card), contentDescription = null, tint = tone, modifier = Modifier.size(20.dp))
+                    }
+                }
+                Text(
+                    stringResource(achievementTitleRes(card.titleKey)),
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    stringResource(achievementDescriptionRes(card.descriptionKey)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 3,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Spacer(Modifier.weight(1f))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    Text(achievementTier(card), style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        StatisticsRepository.dateLabel(card.earnedAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = tone,
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun achievementIcon(card: AchievementCard): ImageVector = when {
+    card.id.startsWith("coverage_days_") && card.target >= 365 -> Icons.Filled.CalendarMonth
+    card.id.startsWith("coverage_days_") && card.target >= 30 -> Icons.Filled.CalendarViewWeek
+    card.id.startsWith("coverage_days_") -> Icons.Filled.Today
+    card.id.startsWith("coverage_cells_") && card.target >= 50 -> Icons.Filled.Map
+    card.id.startsWith("coverage_cells_") -> Icons.Filled.GridView
+    card.id.startsWith("distance_") && card.target >= 1_000_000 -> Icons.Filled.Insights
+    card.id.startsWith("distance_") && card.target >= 500_000 -> Icons.Filled.Route
+    card.id.startsWith("distance_") -> Icons.Filled.DirectionsWalk
+    card.id.startsWith("places_") && card.target >= 10 -> Icons.Filled.Map
+    card.id.startsWith("places_") -> Icons.Filled.Place
+    card.id.startsWith("cities_") -> Icons.Filled.LocationCity
+    card.id.startsWith("regions_") -> Icons.Filled.Map
+    card.id.startsWith("countries_") -> Icons.Filled.Public
+    else -> Icons.Filled.EmojiEvents
+}
+
+private fun achievementTone(card: AchievementCard): Color = when {
+    card.id.startsWith("coverage_") -> Color(0xFF16A34A)
+    card.id.startsWith("distance_") -> Color(0xFF2563EB)
+    card.id.startsWith("places_") -> Color(0xFFD97706)
+    card.id.startsWith("cities_") -> Color(0xFF7C3AED)
+    card.id.startsWith("regions_") -> Color(0xFF0891B2)
+    card.id.startsWith("countries_") -> Color(0xFFDB2777)
+    else -> Color(0xFF7C3AED)
+}
+
+private fun achievementTitleRes(key: String): Int = when (key) {
+    "achievement_family_countries" -> R.string.achievement_family_countries
+    "achievement_family_regions" -> R.string.achievement_family_regions
+    "achievement_family_cities" -> R.string.achievement_family_cities
+    "achievement_family_places" -> R.string.achievement_family_places
+    "achievement_family_distance" -> R.string.achievement_family_distance
+    else -> R.string.achievement_family_coverage
+}
+
+private fun achievementDescriptionRes(key: String): Int = when (key) {
+    "achievement_desc_countries" -> R.string.achievement_desc_countries
+    "achievement_desc_regions" -> R.string.achievement_desc_regions
+    "achievement_desc_cities" -> R.string.achievement_desc_cities
+    "achievement_desc_places" -> R.string.achievement_desc_places
+    "achievement_desc_distance" -> R.string.achievement_desc_distance
+    else -> R.string.achievement_desc_coverage
+}
+
+private fun achievementTier(card: AchievementCard): String = when (card.unit) {
+    "m" -> "${(card.target / 1000).roundToInt()} km"
+    "days" -> "${card.target.roundToInt()}"
+    else -> NumberFormat.getIntegerInstance(Locale.getDefault()).format(card.target)
+}
+
+private fun formatDistance(meters: Double): String =
+    if (meters <= 0.0) "0 km"
+    else if (meters < 1000) "${meters.roundToInt()} m"
+    else String.format(Locale.getDefault(), "%.1f km", meters / 1000.0)
+
+private fun formatDuration(seconds: Long): String {
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    return if (hours > 0) "${hours}h ${minutes}m" else "${minutes}m"
+}
+
+@Composable
+private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0, onDayClick: (LocalDate) -> Unit) {
     val barTop = MaterialTheme.colorScheme.primary
     val barBottom = MaterialTheme.colorScheme.tertiary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
@@ -267,6 +803,7 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
         if (count > 0L) {
             tapX = offset.x
             tooltip = BarTooltip(date, count)
+            onDayClick(date)
         }
     }
     LaunchedEffect(tooltip) {
@@ -407,7 +944,9 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
     }
 }
 @Composable
-private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
+private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int, onDayClick: (LocalDate) -> Unit) {
+    // Gold marks the days the daily step goal was reached.
+    val goalGold = Color(0xFFD4A017)
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
@@ -428,23 +967,29 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth) {
                         val count = steps[date] ?: 0L
                         val intensity = (count.toFloat() / max.toFloat()).coerceIn(0f, 1f)
                         val color = if (count <= 0L) empty else lerp(base, warm, intensity).copy(alpha = 0.35f + 0.65f * intensity)
+                        val goalReached = goal > 0 && count >= goal
                         Box(
                             modifier = Modifier
                                 .weight(1f)
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(color)
-                                .clickable { picked = if (picked == date) null else date },
+                                .then(
+                                    if (goalReached) {
+                                        Modifier.border(1.5.dp, goalGold, RoundedCornerShape(4.dp))
+                                    } else Modifier
+                                )
+                                .clickable { picked = if (picked == date) null else date; onDayClick(date) },
                             contentAlignment = Alignment.Center,
                         ) {
                             // Day of month so the grid reads as a calendar.
                             Text(
                                 date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.labelSmall,
-                                color = if (intensity > 0.55f) {
-                                    MaterialTheme.colorScheme.onPrimary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                color = when {
+                                    goalReached -> goalGold
+                                    intensity > 0.55f -> MaterialTheme.colorScheme.onPrimary
+                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                             )
                         }

@@ -43,6 +43,12 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <!-- Background location tracking (only started by an explicit user action) -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_LOCATION" />
     <uses-permission android:name="android.permission.CAMERA" />
 
     <!-- Notification Permission (Android 13+) -->
@@ -119,6 +125,23 @@
             android:label="@string/settings_title"
             android:theme="@style/Theme.NexSteps" />
 
+        <!-- Location recording settings, opened from settings and from the map -->
+        <activity
+            android:name=".LocationSettingsActivity"
+            android:exported="false"
+            android:label="@string/tracking_settings_title"
+            android:theme="@style/Theme.NexSteps" />
+        <activity
+            android:name=".PointsActivity"
+            android:exported="false"
+            android:label="@string/points_title"
+            android:theme="@style/Theme.NexSteps" />
+        <activity
+            android:name=".PointSelectionActivity"
+            android:exported="false"
+            android:label="@string/points_select_title"
+            android:theme="@style/Theme.NexSteps" />
+
         <!-- Theme, accent, language and orientation -->
         <activity
             android:name=".PersonalizationActivity"
@@ -141,6 +164,13 @@
             android:enabled="true"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <!-- Long-running location recording, surfaced by an ongoing notification -->
+        <service
+            android:name=".location.LocationTrackingService"
+            android:enabled="true"
+            android:exported="false"
+            android:foregroundServiceType="location" />
         <service
             android:name="androidx.work.impl.foreground.SystemForegroundService"
             android:foregroundServiceType="dataSync"

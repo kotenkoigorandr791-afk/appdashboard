@@ -343,9 +343,9 @@ $stgIcon = static function (string $name, int $size = 16): string {
                     <label class="stg-field"><span><?php echo $stgE('backup_profile_pool'); ?></span>
                         <select id="stg-backup-profile"><option value=""><?php echo $stgE('not_configured'); ?></option></select>
                     </label>
-                    <div class="stg-row">
-                        <button type="button" class="stg-btn stg-btn-primary" data-stg-action="backup_attach"><?php echo $stgIcon('plus', 14); ?><span><?php echo $stgE('add_storage_profile'); ?></span></button>
-                        <button type="button" class="stg-btn" data-stg-action="backup_now"><?php echo $stgIcon('backup', 14); ?><span><?php echo $stgE('back_up_pool'); ?></span></button>
+                    <div class="stg-row" role="group" aria-label="<?php echo $stgE('backup_actions'); ?>">
+                        <button type="button" class="stg-btn stg-btn-primary" data-stg-action="backup_attach" aria-label="<?php echo $stgE('add_storage_profile'); ?>"><?php echo $stgIcon('plus', 14); ?><span><?php echo $stgE('add_storage_profile'); ?></span></button>
+                        <button type="button" class="stg-btn" data-stg-action="backup_now" aria-label="<?php echo $stgE('back_up_pool'); ?>"><?php echo $stgIcon('backup', 14); ?><span><?php echo $stgE('back_up_pool'); ?></span></button>
                     </div>
                     <div class="stg-note"><?php echo $stgE('scheduled_skipped'); ?></div>
                 </div>
@@ -381,8 +381,8 @@ $stgIcon = static function (string $name, int $size = 16): string {
                     </div>
                     <label class="stg-check"><input type="checkbox" id="stg-backup-required"><span><?php echo $stgE('require_snapshot'); ?></span></label>
                     <label class="stg-check"><input type="checkbox" id="stg-delete-source"><span><?php echo $stgE('delete_source'); ?></span></label>
-                    <div class="stg-row">
-                        <button type="button" class="stg-btn stg-btn-primary" data-stg-action="save_settings"><?php echo $stgIcon('check', 14); ?><span><?php echo $stgE('save_settings'); ?></span></button>
+                    <div class="stg-row" role="group">
+                        <button type="button" class="stg-btn stg-btn-primary" data-stg-action="save_settings" aria-label="<?php echo $stgE('save_settings'); ?>"><?php echo $stgIcon('check', 14); ?><span><?php echo $stgE('save_settings'); ?></span></button>
                     </div>
                 </div>
             </section>

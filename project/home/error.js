@@ -17,8 +17,8 @@
       retry: 'Try again',
       home: 'Home',
       contact: 'Write administrator',
-      subject: 'ServerKherson error',
-      body: 'Hello. I received an error on ServerKherson.'
+      subject: 'NexOrbit error',
+      body: 'Hello. I received an error on NexOrbit.'
     },
     uk: {
       status: { 400: 'Некоректний запит', 401: 'Потрібна авторизація', 403: 'Доступ заборонено', 404: 'Не знайдено', 405: 'Метод не дозволено', 408: 'Час запиту минув', 413: 'Запит завеликий', 429: 'Забагато запитів', 500: 'Помилка сервера', 501: 'Не реалізовано', 502: 'Помилка шлюзу', 503: 'Сервіс недоступний', 504: 'Час шлюзу минув' },
@@ -29,8 +29,8 @@
       retry: 'Спробувати ще раз',
       home: 'Головна',
       contact: 'Написати адміністратору',
-      subject: 'Помилка ServerKherson',
-      body: 'Вітаю. Я отримав помилку на ServerKherson.'
+      subject: 'Помилка NexOrbit',
+      body: 'Вітаю. Я отримав помилку на NexOrbit.'
     },
     ru: {
       status: { 400: 'Некорректный запрос', 401: 'Нужна авторизация', 403: 'Доступ запрещён', 404: 'Не найдено', 405: 'Метод не разрешён', 408: 'Время запроса истекло', 413: 'Запрос слишком большой', 429: 'Слишком много запросов', 500: 'Ошибка сервера', 501: 'Не реализовано', 502: 'Ошибка шлюза', 503: 'Сервис недоступен', 504: 'Время шлюза истекло' },
@@ -41,8 +41,8 @@
       retry: 'Попробовать снова',
       home: 'Главная',
       contact: 'Написать администратору',
-      subject: 'Ошибка ServerKherson',
-      body: 'Здравствуйте. Я получил ошибку на ServerKherson.'
+      subject: 'Ошибка NexOrbit',
+      body: 'Здравствуйте. Я получил ошибку на NexOrbit.'
     },
     be: {
       status: { 400: 'Некарэктны запыт', 401: 'Патрэбна аўтарызацыя', 403: 'Доступ забаронены', 404: 'Не знойдзена', 405: 'Метад не дазволены', 408: 'Час запыту скончыўся', 413: 'Запыт занадта вялікі', 429: 'Занадта шмат запытаў', 500: 'Памылка сервера', 501: 'Не рэалізавана', 502: 'Памылка шлюза', 503: 'Сэрвіс недаступны', 504: 'Час шлюза скончыўся' },
@@ -53,8 +53,8 @@
       retry: 'Паспрабаваць яшчэ раз',
       home: 'Галоўная',
       contact: 'Напісаць адміністратару',
-      subject: 'Памылка ServerKherson',
-      body: 'Вітаю. Я атрымаў памылку на ServerKherson.'
+      subject: 'Памылка NexOrbit',
+      body: 'Вітаю. Я атрымаў памылку на NexOrbit.'
     },
     pl: {
       status: { 400: 'Nieprawidłowe żądanie', 401: 'Wymagana autoryzacja', 403: 'Brak dostępu', 404: 'Nie znaleziono', 405: 'Metoda niedozwolona', 408: 'Limit czasu żądania', 413: 'Żądanie jest zbyt duże', 429: 'Za dużo żądań', 500: 'Błąd serwera', 501: 'Nie zaimplementowano', 502: 'Błąd bramy', 503: 'Usługa niedostępna', 504: 'Limit czasu bramy' },
@@ -65,8 +65,8 @@
       retry: 'Spróbuj ponownie',
       home: 'Strona główna',
       contact: 'Napisz do administratora',
-      subject: 'Błąd ServerKherson',
-      body: 'Dzień dobry. Otrzymałem błąd w ServerKherson.'
+      subject: 'Błąd NexOrbit',
+      body: 'Dzień dobry. Otrzymałem błąd w NexOrbit.'
     },
     cs: {
       status: { 400: 'Neplatný požadavek', 401: 'Je vyžadováno přihlášení', 403: 'Přístup odepřen', 404: 'Nenalezeno', 405: 'Metoda není povolena', 408: 'Vypršel čas požadavku', 413: 'Požadavek je příliš velký', 429: 'Příliš mnoho požadavků', 500: 'Chyba serveru', 501: 'Není implementováno', 502: 'Chyba brány', 503: 'Služba není dostupná', 504: 'Vypršel čas brány' },
@@ -77,8 +77,8 @@
       retry: 'Zkusit znovu',
       home: 'Domů',
       contact: 'Napsat administrátorovi',
-      subject: 'Chyba ServerKherson',
-      body: 'Dobrý den. Na ServerKherson jsem obdržel chybu.'
+      subject: 'Chyba NexOrbit',
+      body: 'Dobrý den. Na NexOrbit jsem obdržel chybu.'
     }
   };
   const $ = id => document.getElementById(id);
@@ -110,7 +110,7 @@
   function render() {
     const t = I18N[lang] || I18N.en;
     document.documentElement.lang = lang;
-    document.title = `ServerKherson — ${errorCode}`;
+    document.title = `NexOrbit — ${errorCode}`;
     $('errorCode').textContent = errorCode;
     $('errorStatusText').textContent = t.status[errorCode] || t.status[500];
     $('errorTitle').textContent = t.title;

@@ -17,6 +17,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Brightness4
+import androidx.compose.material.icons.filled.Brightness7
+import androidx.compose.material.icons.filled.Contrast
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
@@ -76,7 +79,15 @@ fun AppearanceScreen(appearance: Appearance, store: SessionStore) {
                         "dark" to stringResource(R.string.theme_dark),
                     ).forEachIndexed { index, (value, label) ->
                         SegmentedButton(selected = appearance.theme == value, onClick = { save(appearance.copy(theme = value)) }, shape = SegmentedButtonDefaults.itemShape(index, 3)) {
-                            Text(label)
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                val icon = when (value) {
+                                    "auto" -> Icons.Filled.Contrast
+                                    "light" -> Icons.Filled.Brightness7
+                                    else -> Icons.Filled.Brightness4
+                                }
+                                Icon(icon, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Text(label)
+                            }
                         }
                     }
                 }
@@ -111,7 +122,7 @@ fun AppearanceScreen(appearance: Appearance, store: SessionStore) {
                     }
                 }
                 Text(stringResource(R.string.language), style = MaterialTheme.typography.titleSmall)
-                listOf("" to stringResource(R.string.system_default), "en" to "English", "uk" to "Українська", "ru" to "Русский", "pl" to "Polski", "be" to "Беларуская", "cs" to "Čeština", "ar" to "العربية").forEach { (tag, name) ->
+                listOf("" to stringResource(R.string.system_default), "en" to "English", "uk" to "Українська", "ru" to "Русский", "pl" to "Polski", "be" to "Беларуская", "cs" to "Čeština").forEach { (tag, name) ->
                     Row(Modifier.fillMaxWidth().clickable { save(appearance.copy(language = tag)) }.padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                         RadioButton(appearance.language == tag, onClick = null)
                         Spacer(Modifier.size(10.dp))

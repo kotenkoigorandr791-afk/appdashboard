@@ -73,8 +73,9 @@ cloud_require_session_auth();
   <link rel="preload" as="image" href="assets/background_<?php echo $safeTheme; ?>.jpg" fetchpriority="high" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" />
-  <link rel="stylesheet" href="assets/styles.css?v=66" />
-  <link rel="stylesheet" href="assets/app/reviews.css?v=5" />
+  <link rel="stylesheet" href="assets/styles.css?v=71" />
+  <link rel="stylesheet" href="assets/win11-tree.css?v=4" />
+  <link rel="stylesheet" href="assets/app/reviews.css?v=6" />
   <script>
     try {
       if (localStorage.getItem('hideLangSwitcher') === '1') {
@@ -231,13 +232,13 @@ cloud_require_session_auth();
 <script defer src="assets/transliteration.js?v=1"></script>
 <script defer src="assets/completions.js"></script>
 <script defer src="assets/filename-guard.js?v=1"></script>
-<script defer src="assets/app.js?v=58"></script>
-<script defer src="assets/app/reviews.js?v=5"></script>
-<script defer src="assets/app/editors-and-tree.js?v=17"></script>
+<script defer src="assets/app.js?v=61"></script>
+<script defer src="assets/app/reviews.js?v=6"></script>
+<script defer src="assets/app/editors-and-tree.js?v=18"></script>
 <script defer src="assets/app/media-player.js?v=1"></script>
 <script defer src="assets/app/viewer-layout.js?v=1"></script>
-<script defer src="assets/app/file-viewers.js?v=4"></script>
-<script defer src="assets/app/file-actions.js?v=16"></script>
+<script defer src="assets/app/file-viewers.js?v=5"></script>
+<script defer src="assets/app/file-actions.js?v=20"></script>
 <script defer src="assets/app/downloads-and-account.js?v=1"></script>
 <script defer src="assets/app/cloud-groups.js?v=9"></script>
 <script defer src="assets/audio-player.js?v=4"></script>
@@ -248,11 +249,11 @@ cloud_require_session_auth();
 <script defer src="assets/storage-usage-modal.js?v=1"></script>
 <script defer src="assets/upload.js?v=5"></script>
 <script defer src="assets/advanced-search.js?v=1"></script>
-<script defer src="assets/properties-modal.js?v=1"></script>
+<script defer src="assets/properties-modal.js?v=2"></script>
 <script defer src="assets/ai-agent-skeleton.js?v=15"></script>
-<script defer src="assets/ai-assistant.js?v=45"></script>
-<script defer src="assets/monaco-shared.js?v=6"></script>
-<script defer src="assets/monaco-editor.js?v=24"></script>
+<script defer src="assets/ai-assistant.js?v=47"></script>
+<script defer src="assets/monaco-shared.js?v=7"></script>
+<script defer src="assets/monaco-editor.js?v=25"></script>
 
 
 </head>
@@ -1092,33 +1093,38 @@ cloud_require_session_auth();
 
   <!-- Modal for file sharing -->
 <div id="share-modal" class="modal hidden">
-  <div class="modal-content" style="max-width: 560px; overflow:hidden;">
-    <div class="modal-header" style="padding-right:52px; margin:0 -6px; border-bottom:1px solid var(--border);">
-      <h3 data-i18n="shareFile">Share File</h3>
-      <button id="btn-close-share" class="icon-btn" style="position:absolute; top:10px; right:10px; z-index:2;">
-        <svg width="20" height="20" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+  <div class="modal-content sh-modal" style="max-width: 520px;">
+    <div class="sh-accent"></div>
+    <div class="modal-header sh-header">
+      <div class="sh-title">
+        <span class="sh-icon">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="m8.59 13.51 6.83 3.98"/><path d="m15.41 6.51-6.82 3.98"/></svg>
+        </span>
+        <h3 id="share-modal-title" data-i18n="shareFile">Share file</h3>
+      </div>
+      <button id="btn-close-share" class="icon-btn close-btn" aria-label="Close">
+        <svg width="18" height="18" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
       </button>
     </div>
-    <div class="modal-body" style="text-align: center; padding: 20px; position:relative;">
-      <div id="share-link-container" style="margin: 15px 0; word-break: break-all; background: var(--panel); padding: 12px; border-radius: 6px; font-family: monospace;">
+    <div class="modal-body sh-body">
+      <div id="share-link-container" class="sh-link-row">
         <a id="share-link" href="#" target="_blank"></a>
+        <button id="btn-copy-share-link-inline" class="sh-copy-btn" type="button" title="Copy" aria-label="Copy">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        </button>
       </div>
-      <div id="qrcode-container" style="margin: 20px auto; display: inline-block;"></div>
+      <div class="sh-qr"><div id="qrcode-container"></div></div>
     </div>
-    <div id="share-modal-actions" class="modal-footer" style="display:flex; align-items:center; justify-content:center; gap:10px; flex-wrap:nowrap;">
-        <button id="btn-share-settings" class="btn secondary" type="button" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-settings2-icon lucide-settings-2"><path d="M14 17H5"/><path d="M19 7h-9"/><circle cx="17" cy="17" r="3"/><circle cx="7" cy="7" r="3"/></svg>
-          <span data-i18n="shareLinkSettings">Link settings</span>
-        </button>
-        <button id="btn-copy-share-link" class="btn secondary" style="display:inline-flex; align-items:center; gap:8px; height:38px;">
-        <svg width="16" height="16" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" fill="none">
-            <path d="M8 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2v-3"></path>
-            <path d="M16 3h5v5"></path>
-            <path d="M21 3l-7.5 7.5"></path>
-        </svg>
+    <div id="share-modal-actions" class="modal-footer sh-footer">
+      <button id="btn-share-settings" class="sh-btn sh-btn-ghost" type="button">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6V4m0 2a2 2 0 1 0 0 4m0-4a2 2 0 1 1 0 4m-6 8a2 2 0 1 0 0-4m0 4a2 2 0 1 1 0-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 1 0 0-4m0 4a2 2 0 1 1 0-4m0 4v2m0-6V4"/></svg>
+        <span data-i18n="shareLinkSettings">Link settings</span>
+      </button>
+      <button id="btn-copy-share-link" class="sh-btn sh-btn-primary">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
         <span data-i18n="shareCopyButton">Copy link</span>
-        </button>
-      </div>
+      </button>
+    </div>
   </div>
 </div>
 <div id="share-settings-modal" class="modal hidden">
@@ -1321,15 +1327,21 @@ cloud_require_session_auth();
 
 <!-- Modal for delete confirmation -->
 <div id="delete-modal" class="modal hidden">
-  <div class="modal-content" style="max-width: 500px;">
-    <div class="modal-header">
-      <h3 id="delete-modal-title" data-i18n="deleteConfirmation">Delete confirmation</h3>
-      <button class="icon-btn close-btn" id="btn-close-delete-modal">&times;</button>
+  <div class="modal-content dm-modal">
+    <div class="dm-accent"></div>
+    <div class="modal-header dm-header">
+      <div class="dm-title">
+        <span class="dm-dot"></span>
+        <h3 id="delete-modal-title" data-i18n="deleteConfirmation">Delete confirmation</h3>
+      </div>
+      <button class="icon-btn close-btn" id="btn-close-delete-modal" aria-label="Close">
+        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+      </button>
     </div>
-    <div class="modal-body">
-      <div style="display: flex; align-items: center; margin-bottom: 15px;">
-        <div style="margin-right: 12px; display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; background: rgba(255, 100, 100, 0.1); border-radius: 50%;">
-          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color: #ff6b6b;">
+    <div class="modal-body dm-body">
+      <div class="dm-main">
+        <div class="dm-icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M10 11v6"/>
             <path d="M14 11v6"/>
             <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/>
@@ -1337,27 +1349,36 @@ cloud_require_session_auth();
             <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
           </svg>
         </div>
-        <div>
-          <p id="delete-confirmation-text"></p>
-          <label id="delete-permanent-option" class="animated-check-label" style="margin-top:12px;">
-            <input type="checkbox" id="delete-permanently-checkbox" class="animated-checkbox" />
-            <span class="animated-checkbox-box">
-              <svg width="24" height="18" viewBox="0 0 24 18" fill="none">
-                <path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
-              </svg>
-            </span>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-            <span data-i18n="deletePermanently">Delete permanently</span>
-          </label>
-          <p id="delete-warning-text" style="color: var(--muted); font-size: 14px; margin-top: 8px;" data-i18n="permanentDeleteWarning">
-            This action cannot be undone.
-          </p>
+        <div class="dm-text">
+          <p id="delete-confirmation-text" class="dm-question"></p>
+          <p class="dm-hint" data-i18n="permanentDeleteWarning">Action affects linked resources and build files.</p>
         </div>
       </div>
+      <div id="delete-permanent-option" class="dm-check-card">
+        <label class="animated-check-label dm-check-label">
+          <input type="checkbox" id="delete-permanently-checkbox" class="animated-checkbox" />
+          <span class="animated-checkbox-box">
+            <svg width="24" height="18" viewBox="0 0 24 18" fill="none">
+              <path d="M2 9L8.5 15.5L22 2" stroke="#fff" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+            </svg>
+          </span>
+          <svg id="checkbox-triangle" class="triangle-svg" style="width: 16px; height: 16px; display: none;" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#e74c3c">
+            <path d="M12 16L4 6h16l-8 10z"/>
+          </svg>
+          <span class="dm-check-copy">
+            <span class="dm-check-title">
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+              <span data-i18n="deletePermanently">Delete permanently</span>
+              <span id="delete-irreversible-badge" class="dm-badge">⚠️ Irreversible</span>
+            </span>
+            <span id="delete-warning-text" class="dm-check-hint" data-i18n="permanentDeleteWarning">This action cannot be undone.</span>
+          </span>
+        </label>
+      </div>
     </div>
-    <div class="modal-footer">
-      <button id="btn-cancel-delete" class="btn secondary" data-i18n="btnCancel">Cancel</button>
-      <button id="btn-confirm-delete" class="btn danger" data-i18n="btnDelete">Delete</button>
+    <div class="modal-footer dm-footer">
+      <button id="btn-cancel-delete" class="dm-btn dm-btn-ghost" data-i18n="btnCancel">Cancel</button>
+      <button id="btn-confirm-delete" class="dm-btn dm-btn-danger" data-i18n="btnDelete">Delete</button>
     </div>
   </div>
 </div>

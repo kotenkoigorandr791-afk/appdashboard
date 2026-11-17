@@ -14,7 +14,6 @@ const SHELL_MODALS: Array<{
   { name: 'email', trigger: '#email-button', topbarSelector: '#email-modal .std-topbar', closeSelector: '#close-email', forceOpen: true },
   { name: 'users', trigger: '#users-button', topbarSelector: '#users-modal .std-topbar', closeSelector: '#close-users', forceOpen: true },
   { name: 'sessions', trigger: '#sessions-button', topbarSelector: '#sessions-modal .std-topbar', closeSelector: '#close-sessions' },
-  { name: 'qr-code', trigger: '#qr-button', topbarSelector: '#qr-modal .std-topbar', closeSelector: '#close-qr' },
   { name: 'telegram-bot', trigger: '#tg-bot-button', topbarSelector: '#tg-bot-modal .std-topbar', closeSelector: '#close-tg-bot', forceOpen: true },
   { name: 'shortcuts', trigger: '#shortcuts-help-button', topbarSelector: '#shortcuts-modal .std-topbar', closeSelector: '#close-shortcuts' },
   { name: 'wallpaper', trigger: '#wallpaper-open-btn', topbarSelector: '#wallpaper-modal .std-topbar', closeSelector: '#close-wallpaper-modal' },

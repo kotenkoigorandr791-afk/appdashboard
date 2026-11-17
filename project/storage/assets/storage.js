@@ -386,8 +386,8 @@
             if (status === 'ready_to_remove') {
                 actions = '<span class="stg-muted">' + esc(t('add_another_disk_text')) + '</span>';
             } else {
-                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '">' + icon('scan', 13) + '<span>' + esc(t('check_disk_btn')) + '</span></button>';
-                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '"' + (canRemove ? '' : ' disabled') + '>' + icon('trash', 13) + '<span>' + esc(t('safely_remove')) + '</span></button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm" data-stg-action="disk_check" data-stg-disk="' + esc(disk.id) + '" aria-label="' + esc(t('check_disk_btn')) + '">' + icon('scan', 13) + '<span>' + esc(t('check_disk_btn')) + '</span></button>';
+                actions += '<button type="button" class="stg-btn stg-btn-sm stg-btn-danger" data-stg-action="remove_disk" data-stg-disk="' + esc(disk.id) + '" aria-label="' + esc(t('safely_remove')) + '" ' + (canRemove ? '' : ' disabled') + '>' + icon('trash', 13) + '<span>' + esc(t('safely_remove')) + '</span></button>';
             }
             var total = Number(disk.total_bytes) || 0;
             var used = Number(disk.used_bytes) || 0;

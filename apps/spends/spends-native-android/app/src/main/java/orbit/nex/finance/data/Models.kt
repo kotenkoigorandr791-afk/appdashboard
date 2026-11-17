@@ -77,6 +77,29 @@ data class BackupEntry(
     val trash: List<Expense> = emptyList(),
     /** Unresolved wallet/OCR conflicts shown behind the yellow banner. */
     val disputes: List<Dispute> = emptyList(),
+    /**
+     * Writes that still have to reach the server. Anything captured while the
+     * device is offline lives here (on disk) and is retried automatically, so a
+     * dropped connection can never lose a charge.
+     */
+    val outbox: List<OutboxItem> = emptyList(),
+)
+
+/**
+ * One durable ledger write waiting for the server.
+ * kind = "expense" | "income"; an expense with amount 0 deletes the row.
+ */
+@Serializable data class OutboxItem(
+    val id: String = java.util.UUID.randomUUID().toString(),
+    val kind: String = "expense",
+    /** "add" (sum with an existing day/store row), "set" (replace) or "delete". */
+    val mode: String = "add",
+    val date: String = "",
+    val store: String = "",
+    val amount: Double = 0.0,
+    val source: String = "manual",
+    val raw: String = "",
+    val at: Long = System.currentTimeMillis(),
 )
 @Serializable data class Rates(
     val base: String = "USD",
