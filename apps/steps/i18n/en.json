@@ -699,5 +699,17 @@
     "zeep_ready_section": "Ready to import",
     "zeep_start": "Import",
     "zeep_zip_file_label": "Archive file",
-    "zeep_zip_section": "ZIP archive"
+    "zeep_zip_section": "ZIP archive",
+    "mobile_app_connect_title": "Connect a new device",
+    "mobile_app_connect_desc": "Create a connection link and open it on your phone. The app connects automatically.",
+    "mobile_app_connect_button": "Create a connection link",
+    "mobile_app_devices_title": "Connected devices",
+    "mobile_app_devices_refresh": "Refresh",
+    "mobile_app_devices_empty": "No devices connected yet.",
+    "mobile_app_devices_error": "Could not load devices.",
+    "mobile_app_devices_state_active": "Connected",
+    "mobile_app_devices_state_pending": "Waiting for the phone",
+    "mobile_app_devices_created": "Added {t}",
+    "mobile_app_devices_last_used": "Last used {t}",
+    "mobile_app_devices_disconnect": "Disconnect"
 }

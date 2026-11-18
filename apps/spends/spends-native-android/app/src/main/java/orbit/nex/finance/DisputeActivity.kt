@@ -152,7 +152,7 @@ private fun DisputeScreen(
             Text(stringResource(R.string.disputes_desc), color = MaterialTheme.colorScheme.onSurfaceVariant)
             Card(Modifier.fillMaxWidth().clickable { pickFilterDate = true }, RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant)) {
                 Row(Modifier.fillMaxWidth().padding(14.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text(filterDate ?: "All dates", color = MaterialTheme.colorScheme.onSurface)
+                    Text(filterDate ?: stringResource(R.string.disputes_all_dates), color = MaterialTheme.colorScheme.onSurface)
                     Icon(Icons.Outlined.CalendarMonth, stringResource(R.string.date_label))
                 }
             }

@@ -650,5 +650,17 @@
     "zeep_ready_section": "Gotowe",
     "zeep_start": "Importuj",
     "zeep_zip_file_label": "Plik archiwum",
-    "zeep_zip_section": "Archiwum ZIP"
+    "zeep_zip_section": "Archiwum ZIP",
+    "mobile_app_connect_title": "Połącz nowe urządzenie",
+    "mobile_app_connect_desc": "Utwórz link połączenia i otwórz go w telefonie. Aplikacja połączy się automatycznie.",
+    "mobile_app_connect_button": "Utwórz link połączenia",
+    "mobile_app_devices_title": "Połączone urządzenia",
+    "mobile_app_devices_refresh": "Odśwież",
+    "mobile_app_devices_empty": "Brak połączonych urządzeń.",
+    "mobile_app_devices_error": "Nie udało się wczytać urządzeń.",
+    "mobile_app_devices_state_active": "Połączono",
+    "mobile_app_devices_state_pending": "Oczekuje na telefon",
+    "mobile_app_devices_created": "Dodano {t}",
+    "mobile_app_devices_last_used": "Ostatnio użyto {t}",
+    "mobile_app_devices_disconnect": "Odłącz"
 }

@@ -650,5 +650,17 @@
     "zeep_ready_section": "Гатова да імпарту",
     "zeep_start": "Імпартаваць",
     "zeep_zip_file_label": "Файл архіва",
-    "zeep_zip_section": "ZIP-архіў"
+    "zeep_zip_section": "ZIP-архіў",
+    "mobile_app_connect_title": "Падключыць новую прыладу",
+    "mobile_app_connect_desc": "Стварыце спасылку падключэння і адкрыйце яе на тэлефоне. Праграма падключыцца аўтаматычна.",
+    "mobile_app_connect_button": "Стварыць спасылку падключэння",
+    "mobile_app_devices_title": "Падключаныя прылады",
+    "mobile_app_devices_refresh": "Абнавіць",
+    "mobile_app_devices_empty": "Пакуль няма падключаных прылад.",
+    "mobile_app_devices_error": "Не ўдалося загрузіць прылады.",
+    "mobile_app_devices_state_active": "Падключана",
+    "mobile_app_devices_state_pending": "Чакае тэлефон",
+    "mobile_app_devices_created": "Дададзена {t}",
+    "mobile_app_devices_last_used": "Апошняе выкарыстанне {t}",
+    "mobile_app_devices_disconnect": "Адключыць"
 }

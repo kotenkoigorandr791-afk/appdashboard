@@ -650,5 +650,17 @@
     "zeep_ready_section": "Готово до імпорту",
     "zeep_start": "Імпортувати",
     "zeep_zip_file_label": "Файл архіву",
-    "zeep_zip_section": "ZIP-архів"
+    "zeep_zip_section": "ZIP-архів",
+    "mobile_app_connect_title": "Підключити новий пристрій",
+    "mobile_app_connect_desc": "Створіть посилання підключення й відкрийте його на телефоні. Застосунок підключиться автоматично.",
+    "mobile_app_connect_button": "Створити посилання підключення",
+    "mobile_app_devices_title": "Підключені пристрої",
+    "mobile_app_devices_refresh": "Оновити",
+    "mobile_app_devices_empty": "Поки немає підключених пристроїв.",
+    "mobile_app_devices_error": "Не вдалося завантажити пристрої.",
+    "mobile_app_devices_state_active": "Підключено",
+    "mobile_app_devices_state_pending": "Очікує телефон",
+    "mobile_app_devices_created": "Додано {t}",
+    "mobile_app_devices_last_used": "Останнє використання {t}",
+    "mobile_app_devices_disconnect": "Відключити"
 }

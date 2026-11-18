@@ -699,5 +699,17 @@
     "zeep_ready_section": "Готово к импорту",
     "zeep_start": "Импортировать",
     "zeep_zip_file_label": "Файл архива",
-    "zeep_zip_section": "ZIP-архив"
+    "zeep_zip_section": "ZIP-архив",
+    "mobile_app_connect_title": "Подключить новое устройство",
+    "mobile_app_connect_desc": "Создайте ссылку подключения и откройте её на телефоне. Приложение подключится автоматически.",
+    "mobile_app_connect_button": "Создать ссылку подключения",
+    "mobile_app_devices_title": "Подключенные устройства",
+    "mobile_app_devices_refresh": "Обновить",
+    "mobile_app_devices_empty": "Пока нет подключенных устройств.",
+    "mobile_app_devices_error": "Не удалось загрузить устройства.",
+    "mobile_app_devices_state_active": "Подключено",
+    "mobile_app_devices_state_pending": "Ожидает телефон",
+    "mobile_app_devices_created": "Добавлено {t}",
+    "mobile_app_devices_last_used": "Последнее использование {t}",
+    "mobile_app_devices_disconnect": "Отключить"
 }

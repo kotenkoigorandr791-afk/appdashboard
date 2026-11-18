@@ -51,7 +51,7 @@ private fun authOrigin(value: String): String? {
     if (uri.scheme?.lowercase() !in listOf("http", "https") || uri.host.isNullOrBlank() || uri.userInfo != null || uri.query != null || uri.fragment != null || (uri.path.isNotEmpty() && uri.path != "/") || uri.port > 65535 || uri.port == 0) return null
     return "${uri.scheme.lowercase()}://${uri.rawAuthority}"
 }
-private suspend fun authPost(origin: String, path: String, device: String, body: JSONObject): JSONObject = withContext(Dispatchers.IO) {
+private suspend fun authPost(origin: String, path: String, device: String, body: JSONObject, fallbackError: String): JSONObject = withContext(Dispatchers.IO) {
     val connection = URL(origin + path).openConnection() as HttpURLConnection
     try {
         connection.requestMethod = "POST"
@@ -65,7 +65,7 @@ private suspend fun authPost(origin: String, path: String, device: String, body:
         connection.outputStream.use { it.write(body.toString().toByteArray(Charsets.UTF_8)) }
         val response = (if (connection.responseCode in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader()?.use { it.readText() }.orEmpty()
         val result = JSONObject(response)
-        if (connection.responseCode !in 200..299 || !result.optBoolean("ok")) error(result.optString("error", "Ошибка входа"))
+        if (connection.responseCode !in 200..299 || !result.optBoolean("ok")) error(result.optString("error", fallbackError))
         result
     } finally { connection.disconnect() }
 }
@@ -118,7 +118,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                         busy = true; error = null
                         authJob = scope.launch {
                             try {
-                                val req = authPost(origin, "/public-api/auth/client_auth/request", deviceId, JSONObject().put("platform", "nexspends").put("device_name", "NexSpends"))
+                                val req = authPost(origin, "/public-api/auth/client_auth/request", deviceId, JSONObject().put("platform", "nexspends").put("device_name", "NexSpends"), context.getString(R.string.nex_auth_failed))
                                 val browser = Uri.parse(req.getString("browser_url"))
                                 val browserUri = Uri.parse(origin).buildUpon().encodedPath(browser.encodedPath).encodedQuery(browser.encodedQuery).build()
                                 context.startActivity(Intent(Intent.ACTION_VIEW, browserUri))
@@ -126,7 +126,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                                 repeat(300) {
                                     if (!complete) {
                                         delay(2000)
-                                        val result = try { authPost(origin, "/public-api/auth/client_auth/poll", deviceId, JSONObject().put("request_id", req.getString("request_id")).put("poll_token", req.getString("poll_token"))) } catch (_: java.io.IOException) { null }
+                                        val result = try { authPost(origin, "/public-api/auth/client_auth/poll", deviceId, JSONObject().put("request_id", req.getString("request_id")).put("poll_token", req.getString("poll_token")), context.getString(R.string.nex_auth_failed)) } catch (_: java.io.IOException) { null }
                                         if (result?.optString("status") == "approved") { complete = true; onToken(origin, result.getString("token")) }
                                         if (result?.optString("status") == "expired") error(context.getString(R.string.nex_auth_expired))
                                     }
@@ -144,7 +144,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                             busy = true; error = null
                             authJob = scope.launch {
                                 try {
-                                    val result = authPost(origin, "/public-api/auth/login", deviceId, JSONObject().put("email", email.trim()).put("password", password).put("platform", "nexspends").put("device_name", "NexSpends"))
+                                    val result = authPost(origin, "/public-api/auth/login", deviceId, JSONObject().put("email", email.trim()).put("password", password).put("platform", "nexspends").put("device_name", "NexSpends"), context.getString(R.string.nex_auth_failed))
                                     password = ""
                                     onToken(origin, result.getString("token"))
                                 } catch (e: CancellationException) { throw e } catch (e: Exception) { error = when (e.message) { "invalid_credentials" -> context.getString(R.string.nex_auth_invalid_credentials); "email_not_verified" -> context.getString(R.string.nex_auth_unverified); else -> context.getString(R.string.nex_auth_connection_error) } } finally { busy = false }

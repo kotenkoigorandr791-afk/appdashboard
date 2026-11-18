@@ -102,7 +102,7 @@ fun ChangelogScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.primaryContainer,
                                 ) {
                                     Text(
-                                        text = "Installed",
+                                        text = stringResource(R.string.changelog_installed),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
                                         modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)

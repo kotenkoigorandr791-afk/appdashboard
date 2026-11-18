@@ -760,6 +760,47 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
             $profileSuccess=$translations['password_changed'];
         }
     }
+    if(isset($_POST['list_mobile_tokens'])||($_POST['action']??'')==='list_mobile_tokens'){
+        apSecRequireSameOrigin();
+        $email=$_SESSION['user']['email']??'';
+        $tokenApp=appClientAuthTokenAppId($_POST['token_app']??'');
+        while(ob_get_level()>1)ob_end_clean();
+        header('Content-Type: application/json');
+        if($email===''||$tokenApp===''){
+            echo json_encode(['success'=>false,'error'=>(string)($translations['login']??'Not authenticated')]);
+            exit;
+        }
+        try{
+            $tokenDb=getDB();
+            ensureClientAuthTokensSchema($tokenDb);
+            $stmt=$tokenDb->prepare("SELECT token_hash, device_name, device_id, platform, created_at, last_used_at, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC");
+            $stmt->bindValue(':e',$email,PDO::PARAM_STR);
+            $stmt->bindValue(':a',$tokenApp,PDO::PARAM_STR);
+            $stmt->bindValue(':t',time(),PDO::PARAM_INT);
+            $result=$stmt->execute();
+            $rows=[];
+            while($row=$result->fetch(PDO::FETCH_ASSOC)){
+                $rows[]=$row;
+            }
+            $devices=[];
+            foreach($rows as $row){
+                $deviceId=(string)($row['device_id']??'');
+                $claimed=!in_array($deviceId,['','mcp_external'],true);
+                $devices[]=[
+                    'token_hash'=>(string)($row['token_hash']??''),
+                    'name'=>(string)($row['device_name']??'')!==''?(string)$row['device_name']:'Mobile app',
+                    'device_id'=>$deviceId,
+                    'claimed'=>$claimed,
+                    'created_at'=>(int)($row['created_at']??0),
+                    'last_used_at'=>(int)($row['last_used_at']??0),
+                ];
+            }
+            echo json_encode(['success'=>true,'devices'=>$devices]);
+        }catch(Throwable $e){
+            echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
+        }
+        exit;
+    }
     if(isset($_POST['generate_mcp_token'])||($_POST['action']??'')==='generate_mcp_token'){
         apSecRequireSameOrigin();
         $email=$_SESSION['user']['email']??'';
@@ -777,20 +818,8 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 // they never show up in the MCP token list.
                 $mcpPlatform=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':$tokenName;
                 $tokenApp=(($_POST['mcp_token_purpose']??'')==='mcp_agent')?'mcp':appClientAuthTokenAppId($_POST['token_app']??'');
-                if($tokenApp==='steps'&&!empty($_POST['force_new'])){
-                    // Re-pairing drops the previous pairing completely, including the
-                    // device it was bound to, so the old phone stops being authorised.
-                    $revokeSteps=$tokenDb->prepare("DELETE FROM client_auth_tokens WHERE email = :e AND app_id = 'steps' AND revoked = 0");
-                    $revokeSteps->bindValue(':e',$email,PDO::PARAM_STR);
-                    $revokeSteps->execute();
-                }
-                // The spends mobile pairing screen also issues a single app-scoped
-                // token per user; a "new token" click must invalidate the old one.
-                if($tokenApp==='spends'&&!empty($_POST['force_new'])){
-                    $revokeSpends=$tokenDb->prepare("UPDATE client_auth_tokens SET revoked = 1 WHERE email = :e AND app_id = 'spends' AND revoked = 0");
-                    $revokeSpends->bindValue(':e',$email,PDO::PARAM_STR);
-                    $revokeSpends->execute();
-                }
+                // Mobile pairing supports several phones per account: a new pairing
+                // request must never invalidate tokens that other devices already use.
                 $tokenData=createClientAuthToken($tokenDb,$email,'mcp_external',$tokenName,$mcpPlatform,$tokenApp);
                 $_SESSION['mcp_generated_token']=(string)$tokenData['token'];
                 $profileSuccess=$translations['mcp_setup_token_generated'];

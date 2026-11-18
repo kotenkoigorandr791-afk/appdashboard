@@ -64,6 +64,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -77,6 +78,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import orbit.nex.finance.R
 import orbit.nex.finance.data.Appearance
 import orbit.nex.finance.data.Session
 import orbit.nex.finance.data.Snapshot
@@ -108,12 +110,13 @@ private fun prettyDate(raw: String): String = runCatching {
     LocalDate.parse(raw).format(DateTimeFormatter.ofPattern("d MMM", Locale.getDefault()))
 }.getOrDefault(raw)
 
+@Composable
 private fun stateLabel(state: String): String = when (state) {
-    "queued" -> "Waiting for the server"
-    "processing" -> "Reading your receipts"
-    "done" -> "Finished"
-    "error" -> "Failed"
-    "canceled" -> "Canceled"
+    "queued" -> stringResource(R.string.ocr_status_waiting)
+    "processing" -> stringResource(R.string.ocr_status_processing)
+    "done" -> stringResource(R.string.ocr_status_done)
+    "error" -> stringResource(R.string.ocr_status_error)
+    "canceled" -> stringResource(R.string.ocr_status_canceled)
     else -> state.replaceFirstChar { it.titlecase(Locale.getDefault()) }
 }
 
@@ -185,8 +188,8 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
         containerColor = Color.Transparent,
         topBar = {
             TopAppBar(
-                title = { Text("Receipt OCR", modifier = Modifier.fillMaxWidth().padding(end = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End) },
-                navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back") } },
+                title = { Text(stringResource(R.string.ocr_title), modifier = Modifier.fillMaxWidth().padding(end = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.End) },
+                navigationIcon = { IconButton(onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, stringResource(R.string.back)) } },
             )
         },
     ) { padding ->
@@ -207,9 +210,9 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                         contentAlignment = Alignment.Center,
                     ) { Icon(Icons.Outlined.ReceiptLong, null, tint = MaterialTheme.colorScheme.onPrimaryContainer) }
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Scan receipts", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
+                        Text(stringResource(R.string.ocr_intro_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                         Text(
-                            "Pick screenshots from your wallet or a photo of a receipt. The server reads the store, date and amount.",
+                            stringResource(R.string.ocr_intro_body),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -218,7 +221,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
             }
 
             Button({ picker.launch("image/*") }, Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(16.dp)) {
-                Text(if (files.isEmpty()) "Choose screenshots" else "${files.size} selected · choose more")
+                Text(if (files.isEmpty()) stringResource(R.string.ocr_choose) else stringResource(R.string.ocr_choose_more, files.size))
             }
 
             if (files.isNotEmpty()) {
@@ -230,13 +233,13 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                 ) {
                     itemsIndexed(files) { index, uri ->
                         Box(Modifier.fillMaxWidth().height(88.dp).clip(RoundedCornerShape(14.dp)).background(MaterialTheme.colorScheme.surfaceVariant)) {
-                            AsyncImage(uri, "photo ${index + 1}", Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                            AsyncImage(uri, stringResource(R.string.ocr_photo_desc, index + 1), Modifier.matchParentSize(), contentScale = ContentScale.Crop)
                             Box(
                                 Modifier.align(Alignment.TopEnd).padding(4.dp).size(20.dp)
                                     .clip(CircleShape).background(Color.Black.copy(alpha = 0.55f))
                                     .clickable { files = files.toMutableList().also { it.removeAt(index) } },
                                 contentAlignment = Alignment.Center,
-                            ) { Icon(Icons.Outlined.Close, "Remove", tint = Color.White, modifier = Modifier.size(14.dp)) }
+                            ) { Icon(Icons.Outlined.Close, stringResource(R.string.ocr_remove), tint = Color.White, modifier = Modifier.size(14.dp)) }
                         }
                     }
                 }
@@ -244,7 +247,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
 
             Button(
                 {
-                    if (files.isEmpty() || session.token.isBlank()) { message = "Choose files first"; return@Button }
+                    if (files.isEmpty() || session.token.isBlank()) { message = context.getString(R.string.ocr_choose_files_first); return@Button }
                     busy = true; message = ""
                     scope.launch {
                         runCatching {
@@ -254,7 +257,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                             }.filter { it.second.isNotEmpty() }
                             val root = app.api.ocrStart(session, payloads)
                             jobId = root["job_id"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                            if (jobId.isBlank()) error(root["message"]?.jsonPrimitive?.contentOrNull ?: "OCR did not start")
+                            if (jobId.isBlank()) error(root["message"]?.jsonPrimitive?.contentOrNull ?: context.getString(R.string.ocr_start_failed))
                             status = root
                         }.onFailure { message = it.message.orEmpty() }
                         busy = false
@@ -266,9 +269,9 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
             ) {
                 if (busy) {
                     CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                    Text("Uploading…", Modifier.padding(start = 10.dp))
+                    Text(stringResource(R.string.ocr_uploading), Modifier.padding(start = 10.dp))
                 } else {
-                    Text("Send to server")
+                    Text(stringResource(R.string.ocr_send))
                 }
             }
 
@@ -295,9 +298,9 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                                 Text(stateLabel(state), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
                                 Text(
                                     when {
-                                        total > 0 && state != "done" -> "$processed of $total files"
-                                        added > 0 || duplicates > 0 -> "$added added · $duplicates duplicates"
-                                        else -> "No charges recognised yet"
+                                        total > 0 && state != "done" -> stringResource(R.string.ocr_progress_files, processed, total)
+                                        added > 0 || duplicates > 0 -> stringResource(R.string.ocr_progress_result, added, duplicates)
+                                        else -> stringResource(R.string.ocr_none_recognised)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -313,7 +316,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                         if (state == "error") {
                             val reason = job?.text("message").orEmpty()
                             Text(
-                                reason.ifBlank { "OCR failed on the server" },
+                                reason.ifBlank { stringResource(R.string.ocr_failed_server) },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
@@ -330,7 +333,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
 
             if (shownRecords.isNotEmpty()) {
                 Row(Modifier.fillMaxWidth().padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-                    Text("Recognised charges", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                    Text(stringResource(R.string.ocr_recognised_title), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
                     Text("${shownRecords.size}", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 shownRecords.forEach { row ->
@@ -345,7 +348,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                             RemotePhoto(photoFor(store), store.take(1).uppercase(Locale.getDefault()), round = false, size = 46.dp)
                             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                                 Text(
-                                    store.ifBlank { "Unknown store" },
+                                    store.ifBlank { stringResource(R.string.ocr_unknown_store) },
                                     style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
                                     maxLines = 1,
@@ -378,7 +381,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
             }
 
             if (unresolved.isNotEmpty()) {
-                Text("Needs a store", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
+                Text(stringResource(R.string.ocr_needs_store), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold, color = MaterialTheme.colorScheme.onBackground)
             }
             unresolved.forEach { row ->
                 val o = row.jsonObject
@@ -401,7 +404,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                         }
                         ExposedDropdownMenuBox(open, { open = it }) {
                             OutlinedTextField(
-                                selected.ifBlank { "Map to store" },
+                                selected.ifBlank { stringResource(R.string.ocr_map_to_store) },
                                 {},
                                 Modifier.fillMaxWidth().menuAnchor(),
                                 readOnly = true,
@@ -430,7 +433,7 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                                 if (left.isEmpty()) {
                                     app.api.ocrFinalize(session, jobId)
                                     runCatching { app.store.saveSnapshot(app.api.pull(session, Snapshot())) }
-                                    message = "Saved. New charges are now in your ledger."
+                                    message = context.getString(R.string.ocr_mapping_saved)
                                 }
                             }.onFailure { message = it.message.orEmpty() }
                             busy = false
@@ -439,13 +442,13 @@ private fun OcrScreen(app: SpendsApplication, onBack: () -> Unit) {
                     Modifier.fillMaxWidth().height(50.dp),
                     enabled = map.isNotEmpty() && !busy,
                     shape = RoundedCornerShape(16.dp),
-                ) { Text("Apply mapping") }
+                ) { Text(stringResource(R.string.ocr_apply_mapping)) }
             }
 
             if (state == "done" && unresolved.isEmpty() && shownRecords.isNotEmpty()) {
                 Card(Modifier.fillMaxWidth(), RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant)) {
                     Text(
-                        "OCR finished. The recognised charges were added to your ledger.",
+                        stringResource(R.string.ocr_finished),
                         Modifier.padding(14.dp),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

@@ -927,4 +927,6 @@
 <string name="manual_sync_history_offer_title">Import existing health data?</string>
 <string name="manual_sync_history_offer_message">Health Connect contains data from before NexSteps was installed. Choose a period to sync it. Regular sync only includes today.</string>
 <string name="manual_sync_history_permission_required">Allow access to older health data to sync this period.</string>
+    <string name="changelog_installed">Installed</string>
+    <string name="nex_auth_failed">Sign-in failed</string>
 </resources>
