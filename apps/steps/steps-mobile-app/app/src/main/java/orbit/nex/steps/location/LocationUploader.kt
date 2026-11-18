@@ -59,7 +59,7 @@ class LocationUploader(
         val store = LocationEventStore(appContext)
         store.trim()
         val events = store.claim(limit)
-        if (events.isEmpty()) return@withContext UploadReport(pending = 0)
+        if (events.isEmpty()) return@withContext UploadReport(pending = store.pendingCount())
 
         val body = buildJsonObject {
             put("points", buildJsonArray { events.forEach { add(Json.parseToJsonElement(it.payload)) } })
@@ -79,22 +79,10 @@ class LocationUploader(
         try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    if (response.code == 409) {
-                        events.forEach { store.settle(it.eventId, LocationEventStore.STATE_DUPLICATE) }
-                        prefs.setLocationUploadSuccess()
-                        if (writeLog) log(prefs, url, 409, true, "Location batch already stored: ${events.size}", events.size, startedAt)
-                        return@use UploadReport(duplicate = events.size, pending = store.pendingCount())
-                    }
                     if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
-                    val retryable = response.code == 408 || response.code == 429 || response.code >= 500
+                    val retryable = response.code == 408 || response.code == 409 || response.code == 429 || response.code >= 500
                     val error = "HTTP ${response.code}"
-                    if (retryable) {
-                        store.retryLater(events.map { it.id }, error)
-                    } else {
-                        // A permanently rejected batch (bad route, oversized body)
-                        // must not spin forever.
-                        events.forEach { store.settle(it.eventId, LocationEventStore.STATE_FAILED, error) }
-                    }
+                    store.retryLater(events.map { it.id }, error)
                     prefs.setLocationUploadFailure(error)
                     if (writeLog) log(prefs, url, response.code, false, "Location batch failed: $error (${events.size} points)", events.size, startedAt)
                     return@use UploadReport(

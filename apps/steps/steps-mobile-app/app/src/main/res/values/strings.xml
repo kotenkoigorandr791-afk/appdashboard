@@ -923,4 +923,8 @@
 <string name="nex_health_intro_title">Connect your activity</string>
 <string name="nex_health_intro_message">NexSteps uses Health Connect to read the activity data you choose. Android will show its own setup and permission screens next.</string>
 <string name="nex_health_intro_later">Later</string>
+<string name="manual_sync_history_button">Sync past data</string>
+<string name="manual_sync_history_offer_title">Import existing health data?</string>
+<string name="manual_sync_history_offer_message">Health Connect contains data from before NexSteps was installed. Choose a period to sync it. Regular sync only includes today.</string>
+<string name="manual_sync_history_permission_required">Allow access to older health data to sync this period.</string>
 </resources>

@@ -1,4 +1,10 @@
 package orbit.nex.steps.screens
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.material3.Switch
+import orbit.nex.steps.location.LocationPermissions
+import orbit.nex.steps.location.LocationTrackingManager
+import orbit.nex.steps.location.TrackingState
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -65,13 +71,10 @@ import okhttp3.Request
 private enum class ConnectionTestResult { SUCCESS, FAILURE }
 
 @Composable
-fun ConfigurationScreen(modifier: Modifier = Modifier) {
+fun ConfigurationScreen(modifier: Modifier = Modifier, historyRequest: Int = 0) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
-    val scope = rememberCoroutineScope()
     val connected = prefs.getWebhookConfigs().any { it.isEnabled }
-    var testing by remember { mutableStateOf(false) }
-    var testResult by remember { mutableStateOf<ConnectionTestResult?>(null) }
     androidx.compose.runtime.LaunchedEffect(connected) {
         if (connected && prefs.getEnabledDataTypes().isEmpty()) {
             prefs.setEnabledDataTypes(HealthDataType.values().toSet())
@@ -84,45 +87,50 @@ fun ConfigurationScreen(modifier: Modifier = Modifier) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Gap under the top bar that scrolls away with the content.
         Spacer(Modifier.height(12.dp))
-        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(stringResource(R.string.home_title), style = MaterialTheme.typography.titleLarge)
-                val userConnected = prefs.isUserConnected()
-                Text(if (userConnected) stringResource(R.string.auth_connected) else stringResource(R.string.auth_waiting), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Button(
-                    onClick = {
-                        scope.launch {
-                            testing = true
-                            testResult = null
-                            testResult = testConnection(context, prefs.getWebhookConfigs().firstOrNull { it.isEnabled })
-                            testing = false
-                        }
-                    },
-                    enabled = connected && !testing,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = when (testResult) {
-                            ConnectionTestResult.SUCCESS -> Color(0xFF66BB6A)
-                            ConnectionTestResult.FAILURE -> Color(0xFF9B1C31)
-                            null -> MaterialTheme.colorScheme.primary
-                        }
-                    ),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    if (testing) {
-                        CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                        Spacer(Modifier.size(8.dp))
-                        Text(stringResource(R.string.settings_test_connection_progress))
-                    } else {
-                        Icon(Icons.Filled.CloudDone, contentDescription = null)
-                        Text(stringResource(R.string.settings_test_connection_home), modifier = Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-        }
+        LocationTrackingCard()
         NextSyncCard(prefs = prefs)
-        ManualSyncCard()
+        ManualSyncCard(historyRequest = historyRequest)
+    }
+}
+
+
+@Composable
+private fun LocationTrackingCard() {
+    val context = LocalContext.current
+    val manager = remember { LocationTrackingManager(context) }
+    var state by remember { mutableStateOf(manager.state()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            manager.reconcile()
+            state = manager.state()
+            delay(2_000)
+        }
+    }
+    val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        if (LocationPermissions.hasForeground(context)) manager.start()
+        state = manager.state()
+    }
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
+        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(R.string.tracking_title), style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(when (state) {
+                    TrackingState.RUNNING -> R.string.tracking_status_running
+                    TrackingState.PAUSED -> R.string.tracking_status_paused
+                    TrackingState.PERMISSION_MISSING -> R.string.tracking_status_permission
+                    TrackingState.NOT_CONNECTED -> R.string.tracking_status_no_connection
+                    TrackingState.OFF -> R.string.tracking_status_off
+                }), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            Switch(checked = state == TrackingState.RUNNING || state == TrackingState.PAUSED, onCheckedChange = { enabled ->
+                if (enabled) {
+                    if (LocationPermissions.hasForeground(context)) manager.start()
+                    else permissionLauncher.launch(LocationPermissions.foregroundPermissions())
+                } else manager.stop()
+                state = manager.state()
+            })
+        }
     }
 }
 

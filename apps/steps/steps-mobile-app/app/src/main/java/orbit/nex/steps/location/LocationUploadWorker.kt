@@ -40,12 +40,21 @@ class LocationUploadWorker(
             ?: return@withContext Result.success()
 
         try {
-            val report = LocationUploader(applicationContext).uploadPending(config, prefs)
-            when {
-                report.error == null -> Result.success()
-                report.retryable -> Result.retry()
-                else -> Result.failure()
+            val uploader = LocationUploader(applicationContext)
+            var result: Result? = null
+            while (result == null) {
+                val report = uploader.uploadPending(config, prefs)
+                when {
+                    report.error != null && report.retryable -> result = Result.retry()
+                    report.error != null -> result = Result.failure()
+                    report.pending == 0 -> {
+                        if (!prefs.isLocationTrackingEnabled()) cancelPeriodic(applicationContext)
+                        result = Result.success()
+                    }
+                    report.accepted + report.duplicate + report.rejected == 0 -> result = Result.retry()
+                }
             }
+            result
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {

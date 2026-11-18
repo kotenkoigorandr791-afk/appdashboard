@@ -42,9 +42,7 @@ class LocationEventStore(context: Context) {
 
     private val helper = Helper(context.applicationContext)
 
-    /** @return true when this event id was not stored before and the queue has room. */
     fun insert(deviceId: String, event: LocationEvent): Boolean {
-        if (pendingCount() >= MAX_PENDING) return false
         val values = ContentValues().apply {
             put(COLUMN_EVENT_ID, event.clientEventId)
             put(COLUMN_PAYLOAD, event.toServerJson(deviceId))
@@ -197,11 +195,6 @@ class LocationEventStore(context: Context) {
         return out
     }
 
-    /**
-     * Keeps storage bounded: settled rows expire after [RETENTION_DAYS], and at
-     * most [MAX_SETTLED_ROWS] settled rows are kept. Pending rows are never
-     * discarded here; [insert] refuses new work once [MAX_PENDING] is reached.
-     */
     fun trim() {
         val db = helper.writableDatabase
         db.delete(
@@ -283,7 +276,6 @@ class LocationEventStore(context: Context) {
 
     companion object {
         const val DEFAULT_BATCH = 200
-        const val MAX_PENDING = 20_000
         private const val MAX_SETTLED_ROWS = 5_000
         private const val RETENTION_DAYS = 7L
         private const val RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000
@@ -297,7 +289,7 @@ class LocationEventStore(context: Context) {
         const val STATE_FAILED = "failed"
 
         val SETTLED_STATES = setOf(STATE_ACCEPTED, STATE_DUPLICATE, STATE_REJECTED, STATE_FAILED)
-        private val SETTLED_SQL = SETTLED_STATES.joinToString(",") { "'$it'" }
+        private val SETTLED_SQL = listOf(STATE_ACCEPTED, STATE_DUPLICATE).joinToString(",") { "'$it'" }
 
         private const val DB_NAME = "location_events.db"
         private const val DB_VERSION = 2

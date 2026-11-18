@@ -42,6 +42,7 @@ class LocationTrackingManager(private val context: Context) {
         if (!prefs.isLocationTrackingEnabled()) return TrackingState.OFF
         if (prefs.isLocationTrackingPaused()) return TrackingState.PAUSED
         if (!LocationPermissions.hasForeground(appContext)) return TrackingState.PERMISSION_MISSING
+        if (!LocationTrackingService.isRecording) return TrackingState.PAUSED
         return TrackingState.RUNNING
     }
 
@@ -73,7 +74,12 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingEnabled(false)
         prefs.setLocationTrackingPaused(false)
         LocationTrackingService.stop(appContext)
-        LocationUploadWorker.cancelPeriodic(appContext)
+        if (pendingCount(appContext) > 0) {
+            LocationUploadWorker.enqueue(appContext)
+            LocationUploadWorker.ensurePeriodic(appContext)
+        } else {
+            LocationUploadWorker.cancelPeriodic(appContext)
+        }
     }
 
     /**

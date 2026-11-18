@@ -130,6 +130,7 @@ class LocationTrackingService : Service() {
     }
 
     private fun stopTracking() {
+        isRecording = false
         if (active) {
             runCatching { fusedClient.removeLocationUpdates(locationCallback) }
             active = false
@@ -164,12 +165,15 @@ class LocationTrackingService : Service() {
         runCatching {
             fusedClient.removeLocationUpdates(locationCallback)
             fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+                .addOnSuccessListener { if (active) isRecording = true }
                 .addOnFailureListener { error ->
+                    isRecording = false
                     Log.e(TAG, "Location request failed: ${error.message}")
                     prefs.setLocationUploadFailure(error.message ?: "location_unavailable")
                     updateNotification()
                 }
         }.onFailure { error ->
+            isRecording = false
             Log.e(TAG, "Location request rejected: ${error.message}")
         }
     }
@@ -380,6 +384,9 @@ class LocationTrackingService : Service() {
     }
 
     companion object {
+        @Volatile
+        var isRecording: Boolean = false
+            private set
         private const val TAG = "LocationTrackingService"
         private const val NOTIFICATION_ID = 2003
         private const val UPLOAD_EVERY = 20

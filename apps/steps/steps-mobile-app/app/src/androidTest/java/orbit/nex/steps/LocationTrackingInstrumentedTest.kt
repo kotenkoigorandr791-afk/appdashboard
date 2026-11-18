@@ -142,6 +142,7 @@ class LocationTrackingInstrumentedTest {
         // Backoff must prevent an immediate second request (no request storm).
         val second = LocationUploader(context).uploadPending(config, prefs)
         assertNull(second.error)
+        assertEquals(1, second.pending)
         assertEquals(1, server.requestCount)
         assertEquals(1, store.pendingCount())
     }
@@ -157,6 +158,17 @@ class LocationTrackingInstrumentedTest {
 
         assertTrue(report.retryable)
         assertEquals(1, store.pendingCount())
+    }
+
+    @Test
+    fun conflictResponseKeepsUnconfirmedPoints() = runBlocking {
+        val store = LocationEventStore(context)
+        store.insert(prefs.getLocationDeviceId(), event())
+        server.enqueue(MockResponse().setResponseCode(409))
+        val report = LocationUploader(context).uploadPending(config, prefs)
+        assertTrue(report.retryable)
+        assertEquals(1, store.pendingCount())
+        assertEquals(0, store.counts()[LocationEventStore.STATE_DUPLICATE] ?: 0)
     }
 
     @Test

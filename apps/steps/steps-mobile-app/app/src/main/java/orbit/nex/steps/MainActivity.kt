@@ -87,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         preferencesManager = PreferencesManager(this)
+        orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(this)
         if (preferencesManager.getWebhookConfigs().any { it.isEnabled } && preferencesManager.getEnabledDataTypes().isEmpty()) {
             preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
         }
@@ -169,12 +170,17 @@ class MainActivity : AppCompatActivity() {
         }
         var notificationRequestStarted by remember { mutableStateOf(false) }
         var healthRequestStarted by remember { mutableStateOf(false) }
+        var healthPermissionRevision by remember { mutableStateOf(0) }
+        var showHistoryOffer by remember { mutableStateOf(false) }
+        var historyRequest by remember { mutableStateOf(0) }
+        val setupPrefs = remember { getSharedPreferences("nexsteps_setup", MODE_PRIVATE) }
         var pendingHealthPermissions by remember { mutableStateOf<Set<String>>(emptySet()) }
         val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             notificationDone = true
         }
         val healthPermissionLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
             preferencesManager.setKnownGrantedPermissions(granted)
+            healthPermissionRevision++
         }
         LaunchedEffect(Unit) {
             if (!notificationDone && !notificationRequestStarted) {
@@ -209,6 +215,32 @@ class MainActivity : AppCompatActivity() {
                 dismissButton = {
                     TextButton(onClick = { pendingHealthPermissions = emptySet() }) { Text(stringResource(R.string.nex_health_intro_later)) }
                 },
+            )
+        }
+        LaunchedEffect(connected, healthPermissionRevision) {
+            if (!connected || setupPrefs.getBoolean("history_offer_checked", false)) return@LaunchedEffect
+            val hc = HealthConnectManager(this@MainActivity)
+            val granted = runCatching { hc.getGrantedPermissions() }.getOrDefault(emptySet())
+            val types = HealthConnectManager.grantedDataTypes(granted).intersect(preferencesManager.getEnabledDataTypes())
+            if (types.isEmpty()) return@LaunchedEffect
+            val now = java.time.Instant.now()
+            val installed = java.time.Instant.ofEpochMilli(packageManager.getPackageInfo(packageName, 0).firstInstallTime)
+            val end = minOf(installed, now)
+            val start = if ("android.permission.health.READ_HEALTH_DATA_HISTORY" in granted) java.time.Instant.EPOCH else now.minus(java.time.Duration.ofDays(29))
+            if (!start.isBefore(end)) return@LaunchedEffect
+            val result = hc.hasHistoricalRecords(types, start, end)
+            if (result.isSuccess) {
+                setupPrefs.edit().putBoolean("history_offer_checked", true).apply()
+                showHistoryOffer = result.getOrThrow()
+            }
+        }
+        if (showHistoryOffer) {
+            AlertDialog(
+                onDismissRequest = { showHistoryOffer = false },
+                title = { Text(stringResource(R.string.manual_sync_history_offer_title)) },
+                text = { Text(stringResource(R.string.manual_sync_history_offer_message)) },
+                confirmButton = { TextButton(onClick = { showHistoryOffer = false; selected = NavigationScreen.Home; historyRequest++ }) { Text(stringResource(R.string.manual_sync_history_button)) } },
+                dismissButton = { TextButton(onClick = { showHistoryOffer = false }) { Text(stringResource(R.string.nex_health_intro_later)) } },
             )
         }
         // Auto-resolve if user saved a preference
@@ -248,7 +280,7 @@ class MainActivity : AppCompatActivity() {
         }) { padding ->
             AppBackground {
                 when (selected) {
-                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
+                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
                     NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
                     NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
                     NavigationScreen.About -> AboutScreen(Modifier.padding(padding))

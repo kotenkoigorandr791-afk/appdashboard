@@ -646,4 +646,8 @@
 <string name="nex_health_intro_title">Подключите данные активности</string>
 <string name="nex_health_intro_message">NexSteps использует Health Connect для чтения выбранных данных об активности. Далее Android покажет собственные экраны настройки и разрешений.</string>
 <string name="nex_health_intro_later">Позже</string>
+<string name="manual_sync_history_button">Синхронизировать историю</string>
+<string name="manual_sync_history_offer_title">Загрузить прежние данные?</string>
+<string name="manual_sync_history_offer_message">В Health Connect найдены данные до установки NexSteps. Выберите период для синхронизации. Обычная синхронизация охватывает только сегодня.</string>
+<string name="manual_sync_history_permission_required">Разрешите доступ к прежним данным здоровья для синхронизации этого периода.</string>
 </resources>
