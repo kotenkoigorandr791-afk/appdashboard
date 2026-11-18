@@ -433,7 +433,7 @@
     <string name="auth_link_label">Connection link</string>
     <string name="auth_connect">Connect</string>
     <string name="auth_connected">Connected to AppDashboard</string>
-    <string name="auth_waiting">Open the steps website, tap the mobile app button, then scan the QR code.</string>
+    <string name="auth_waiting">Connect to Nexorbit to sync your activity.</string>
     <string name="home_title">NexSteps sync</string>
     <string name="action_grant_permissions">Grant Health Connect permissions</string>
     <string name="sync_success">Sync completed</string>
@@ -902,4 +902,25 @@
     <string name="tracking_notification_pending">%1$d items unsynced</string>
     <string name="map_layer_speed">Speed</string>
     <string name="map_speed_legend_title">Speed</string>
+<string name="nex_auth_server">Server domain</string>
+<string name="nex_auth_continue">Continue</string>
+<string name="nex_auth_invalid_domain">Enter a valid server address</string>
+<string name="nex_auth_nexorbit">Sign in with Nexorbit</string>
+<string name="nex_auth_password_login">Sign in with email and password</string>
+<string name="nex_auth_email">Email</string>
+<string name="nex_auth_password">Password</string>
+<string name="nex_auth_login">Sign in</string>
+<string name="nex_auth_change_domain">Change domain</string>
+<string name="nex_auth_cancel">Cancel</string>
+<string name="nex_auth_expired">Sign-in timed out</string>
+<string name="nex_auth_invalid_credentials">Incorrect email or password</string>
+<string name="nex_auth_unverified">Verify your email address</string>
+<string name="nex_auth_connection_error">Could not connect to the server</string>
+<string name="nex_auth_feature_1">Steps and daily activity</string>
+<string name="nex_auth_feature_2">Activity history and goals</string>
+<string name="nex_auth_feature_3">Routes and statistics</string>
+<string name="nex_auth_feature_4">Sync with Nexorbit</string>
+<string name="nex_health_intro_title">Connect your activity</string>
+<string name="nex_health_intro_message">NexSteps uses Health Connect to read the activity data you choose. Android will show its own setup and permission screens next.</string>
+<string name="nex_health_intro_later">Later</string>
 </resources>

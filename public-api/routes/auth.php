@@ -30,7 +30,8 @@ if ($action === 'login' && $method === 'POST') {
     $db = getDB();
     if (!$db) public_api_json(['ok' => false, 'error' => 'db_unavailable'], 500);
     public_api_reset_fails('login');
-    $tokenData = public_api_issue_token($db, $email, public_api_device_id(), $deviceName, $platform, null, 'public_api');
+    $appId = match ($platform) { 'nexsteps' => 'steps', 'nexspends' => 'spends', default => 'public_api' };
+    $tokenData = public_api_issue_token($db, $email, public_api_device_id(), $deviceName, $platform, null, $appId);
     $role = $email === 'root@root' ? 2 : (int)($users[$email]['role'] ?? 0);
     public_api_json(['ok' => true, 'token' => $tokenData['token'], 'expires_at' => $tokenData['expires_at'], 'token_type' => 'Bearer', 'user' => ['email' => $email, 'name' => $users[$email]['name'] ?? '', 'role' => $role]]);
 }
@@ -78,7 +79,8 @@ if ($action === 'client_auth') {
         $deviceId = public_api_require_device_id();
         $deviceName = trim((string)($body['device_name'] ?? 'MCP Client'));
         $platform = trim((string)($body['platform'] ?? 'mcp'));
-        $req = public_api_create_browser_auth_request($db, $deviceId, $deviceName, $platform, '');
+        $callback = match ($platform) { 'nexsteps' => 'nexsteps://auth', 'nexspends' => 'spends://auth', default => '' };
+        $req = public_api_create_browser_auth_request($db, $deviceId, $deviceName, $platform, $callback);
         $browserUrl = public_api_host_base() . '/client-auth?request_id=' . urlencode($req['request_id']) . '&browser_token=' . urlencode($req['browser_token']);
         public_api_json([
             'ok' => true,

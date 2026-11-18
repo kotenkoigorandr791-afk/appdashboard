@@ -239,13 +239,6 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
 @Composable private fun SpendsApp(app: SpendsApplication, pairingLink: String?, openPending: Boolean) {
     val context = LocalContext.current
     var startupScreen by remember { mutableStateOf(initialStartupScreen(context)) }
-    if (startupScreen != null) {
-        StartupNotice(startupScreen!!) {
-            completeStartup(context)
-            startupScreen = null
-        }
-        return
-    }
     val model: SpendsViewModel = viewModel { SpendsViewModel(app.store, app.api) }
     val state by model.state.collectAsState()
     val appearance by app.store.appearance.collectAsState(Appearance())
@@ -295,6 +288,14 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     if (state.session.token.isBlank()) {
         PairingScreen(pairingLink.orEmpty(), model)
         ErrorDialog(state.error, model::dismissError)
+        return
+    }
+
+    if (startupScreen != null) {
+        StartupNotice(startupScreen!!) {
+            completeStartup(context)
+            startupScreen = null
+        }
         return
     }
 

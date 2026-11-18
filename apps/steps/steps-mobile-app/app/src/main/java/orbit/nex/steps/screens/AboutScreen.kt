@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
@@ -70,8 +69,6 @@ import orbit.nex.steps.components.downloadAvatarFile
 import orbit.nex.steps.components.localAvatarFile
 import orbit.nex.steps.updates.AppUpdateChecker
 import orbit.nex.steps.updates.CheckOutcome
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -90,7 +87,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
-    var link by remember { mutableStateOf("") }
     var status by remember {
         mutableStateOf(if (prefs.isUserConnected()) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting))
     }
@@ -104,26 +100,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
     var profilePhotoModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
-    }
-
-    fun connect(value: String) {
-        runCatching {
-            val uri = Uri.parse(value.trim())
-            val endpoint = uri.getQueryParameter("endpoint").orEmpty()
-            val token = uri.getQueryParameter("token").orEmpty()
-            require(endpoint.startsWith("http") && token.isNotBlank())
-            configs = listOf(WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token")))
-            prefs.setWebhookConfigs(configs)
-            prefs.setEnabledDataTypes(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() })
-            status = context.getString(R.string.auth_connected)
-            link = ""
-        }.onFailure {
-            status = context.getString(R.string.auth_invalid_link)
-        }
-    }
-
-    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.takeIf { it.isNotBlank() }?.let { connect(it) }
     }
 
     LaunchedEffect(configs) {
@@ -223,45 +199,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             Icon(Icons.Filled.LinkOff, contentDescription = null)
                             Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = 8.dp))
                         }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(56.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.errorContainer
-                            ) {
-                                Icon(
-                                    Icons.Filled.CloudOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(12.dp),
-                                    tint = Color(0xFFFFC107)
-                                )
-                            }
-                            Button(onClick = {
-                                scanner.launch(ScanOptions().apply {
-                                    setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                                    setPrompt(context.getString(R.string.auth_scan_qr))
-                                    setBeepEnabled(false)
-                                    setOrientationLocked(true)
-                                })
-                            }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
-                                Text(stringResource(R.string.auth_scan_qr), modifier = Modifier.padding(start = 8.dp))
-                            }
-                            OutlinedTextField(
-                                value = link,
-                                onValueChange = { link = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.auth_link_label)) }
-                            )
-                            Button(onClick = { connect(link) }, modifier = Modifier.fillMaxWidth()) {
-                                Text(stringResource(R.string.auth_connect))
-                            }
-                        }
+
                     }
                 }
             }

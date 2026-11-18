@@ -386,4 +386,22 @@
     <string name="unit_kg">%1$s кг</string>
     <string name="unit_mmhg">%1$s мм рт. ст.</string>
     <string name="unit_percent">%1$s%%</string>
+<string name="nex_auth_server">Домен сервера</string>
+<string name="nex_auth_continue">Продолжить</string>
+<string name="nex_auth_invalid_domain">Введите корректный адрес сервера</string>
+<string name="nex_auth_nexorbit">Войти с помощью Nexorbit</string>
+<string name="nex_auth_password_login">Войти по почте и паролю</string>
+<string name="nex_auth_email">Почта</string>
+<string name="nex_auth_password">Пароль</string>
+<string name="nex_auth_login">Войти</string>
+<string name="nex_auth_change_domain">Изменить домен</string>
+<string name="nex_auth_cancel">Отменить</string>
+<string name="nex_auth_expired">Время входа истекло</string>
+<string name="nex_auth_invalid_credentials">Неверная почта или пароль</string>
+<string name="nex_auth_unverified">Подтвердите адрес электронной почты</string>
+<string name="nex_auth_connection_error">Не удалось подключиться к серверу</string>
+<string name="nex_auth_feature_1">Доходы и расходы в одном месте</string>
+<string name="nex_auth_feature_2">Бюджеты и финансовые цели</string>
+<string name="nex_auth_feature_3">История покупок и статистика</string>
+<string name="nex_auth_feature_4">Синхронизация с Nexorbit</string>
 </resources>

@@ -10,9 +10,11 @@ import android.graphics.drawable.GradientDrawable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -20,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,7 +41,6 @@ import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SegmentedButton
@@ -59,11 +59,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
@@ -424,70 +429,104 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    Box(modifier.fillMaxSize().background(mapBackground)) {
+    BoxWithConstraints(modifier.fillMaxSize().background(mapBackground)) {
+        // Floating UI is sized from the map viewport rather than from fixed dp:
+        // on a 320dp wide phone the default 48dp controls and pills covered a
+        // third of the map. Narrow screens get compact pills, smaller controls
+        // and tighter edge insets.
+        val compact = maxWidth < 360.dp
+        val edge = if (compact) 8.dp else 12.dp
+        val uiScale = ((maxWidth - edge * 2) / 388.dp).coerceIn(0.7f, 1f)
+        val controlSize = (44.dp * uiScale).coerceAtLeast(30.dp)
+        val controlIconSize = (22.dp * uiScale).coerceAtLeast(15.dp)
+
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
-        // Floating header: what is recording and which day is shown. The Scaffold
-        // already insets the content below the top bar and above the nav bar, so
-        // only a small map margin is needed here (the old 126dp offset pushed the
-        // pills into the middle of the map).
-        Column(
-            Modifier.align(Alignment.TopCenter).padding(top = 12.dp, start = 12.dp, end = 12.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+        // Floating header: what is recording and which day is shown. Both pills
+        // always share one row and split the available width, so they fit even
+        // on the narrowest screen instead of stacking into two lines. Their
+        // labels ellipsize rather than push the row out of the viewport.
+        Box(
+            Modifier
+                .align(Alignment.TopCenter)
+                .fillMaxWidth()
+                .padding(start = edge, end = edge, top = edge),
         ) {
-            TrackingSwitchPill(
-                tracking = trackingState == TrackingState.RUNNING || trackingState == TrackingState.PAUSED,
-                paused = trackingState == TrackingState.PAUSED,
-                onCheckedChange = { enabled ->
-                    if (enabled) {
-                        if (!LocationPermissions.hasForeground(context) || permissionDenied) {
-                            permissionLauncher.launch(LocationPermissions.foregroundPermissions())
+            val switchPill: @Composable (Modifier) -> Unit = { pillModifier ->
+                TrackingSwitchPill(
+                    tracking = trackingState == TrackingState.RUNNING || trackingState == TrackingState.PAUSED,
+                    paused = trackingState == TrackingState.PAUSED,
+                    compact = compact,
+                    modifier = pillModifier,
+                    onCheckedChange = { enabled ->
+                        if (enabled) {
+                            if (!LocationPermissions.hasForeground(context) || permissionDenied) {
+                                permissionLauncher.launch(LocationPermissions.foregroundPermissions())
+                            } else {
+                                manager.start()
+                            }
                         } else {
-                            manager.start()
+                            manager.stop()
                         }
-                    } else {
-                        manager.stop()
-                    }
-                    trackingState = manager.state()
-                },
-            )
-            DayPill(
-                selectedDay = selectedDay,
-                onPrevious = {
-                    selectedDay = selectedDay.minusDays(1)
-                    fittedDay = null
-                    restoringCamera = false
-                },
-                onNext = {
-                    if (selectedDay.isBefore(LocalDate.now())) {
-                        selectedDay = selectedDay.plusDays(1)
+                        trackingState = manager.state()
+                    },
+                )
+            }
+            val dayPill: @Composable (Modifier) -> Unit = { pillModifier ->
+                DayPill(
+                    selectedDay = selectedDay,
+                    compact = compact,
+                    modifier = pillModifier,
+                    onPrevious = {
+                        selectedDay = selectedDay.minusDays(1)
                         fittedDay = null
                         restoringCamera = false
-                    }
-                },
-            )
+                    },
+                    onNext = {
+                        if (selectedDay.isBefore(LocalDate.now())) {
+                            selectedDay = selectedDay.plusDays(1)
+                            fittedDay = null
+                            restoringCamera = false
+                        }
+                    },
+                )
+            }
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                switchPill(Modifier.weight(1f))
+                dayPill(Modifier.weight(1f))
+            }
         }
 
-        // Map controls.
+        // Map controls, scaled with the viewport so five buttons do not take up
+        // half of a small map.
         Column(
-            Modifier.align(Alignment.CenterEnd).padding(end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            Modifier.align(Alignment.CenterEnd).padding(end = edge),
+            verticalArrangement = Arrangement.spacedBy((10.dp * uiScale).coerceAtLeast(6.dp)),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             MapControlButton(
                 icon = Icons.Filled.TravelExplore,
                 contentDescription = stringResource(R.string.map_panels_open),
+                size = controlSize,
+                iconSize = controlIconSize,
                 onClick = { showPanels = true },
             )
             MapControlButton(
                 icon = Icons.Filled.Layers,
                 contentDescription = stringResource(R.string.map_layers),
+                size = controlSize,
+                iconSize = controlIconSize,
                 onClick = { showLayers = true },
             )
             MapControlButton(
                 icon = Icons.Filled.LocalFireDepartment,
                 contentDescription = stringResource(R.string.map_layer_heatmap),
+                size = controlSize,
+                iconSize = controlIconSize,
                 active = GeoLayer.HEATMAP.key in layers,
                 onClick = {
                     layers = if (GeoLayer.HEATMAP.key in layers) layers - GeoLayer.HEATMAP.key else layers + GeoLayer.HEATMAP.key
@@ -497,6 +536,8 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             MapControlButton(
                 icon = Icons.Filled.Speed,
                 contentDescription = stringResource(R.string.map_layer_speed),
+                size = controlSize,
+                iconSize = controlIconSize,
                 active = GeoLayer.SPEED.key in layers,
                 onClick = {
                     layers = if (GeoLayer.SPEED.key in layers) layers - GeoLayer.SPEED.key else layers + GeoLayer.SPEED.key
@@ -506,6 +547,8 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             MapControlButton(
                 icon = Icons.Filled.MyLocation,
                 contentDescription = stringResource(R.string.map_locate),
+                size = controlSize,
+                iconSize = controlIconSize,
                 onClick = { fitToData() },
             )
         }
@@ -524,10 +567,14 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        // The legend and the sync state stack together in one bottom corner so
-        // they can never cover each other or float in the middle of the map.
+        // The legend and the sync state stack together along the bottom edge.
+        // The status box spans the free width so it does not leave a large empty
+        // strip on the right side of the map.
         Column(
-            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+            Modifier
+                .align(Alignment.BottomStart)
+                .fillMaxWidth()
+                .padding(start = edge, end = edge, bottom = edge),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (GeoLayer.SPEED.key in layers) {
@@ -538,6 +585,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 error = data.error ?: lastError,
                 lastUploadAt = lastUploadAt,
                 pending = pendingUploads,
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }
@@ -599,21 +647,31 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 private fun TrackingSwitchPill(
     tracking: Boolean,
     paused: Boolean,
+    compact: Boolean,
     onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     Surface(
         shape = RoundedCornerShape(percent = 50),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
         shadowElevation = 6.dp,
+        modifier = modifier,
     ) {
         Row(
-            Modifier.padding(start = 14.dp, end = 6.dp, top = 2.dp, bottom = 2.dp),
+            Modifier
+                .fillMaxWidth()
+                .padding(
+                    start = if (compact) 10.dp else 14.dp,
+                    end = if (compact) 4.dp else 6.dp,
+                    top = 2.dp,
+                    bottom = 2.dp,
+                ),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
         ) {
             Box(
                 Modifier
-                    .size(9.dp)
+                    .size(if (compact) 7.dp else 9.dp)
                     .clip(CircleShape)
                     .background(
                         when {
@@ -625,10 +683,28 @@ private fun TrackingSwitchPill(
             )
             Text(
                 stringResource(R.string.map_tracking),
-                style = MaterialTheme.typography.labelLarge,
+                style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Medium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
             )
-            Switch(checked = tracking, onCheckedChange = onCheckedChange)
+            // The M3 switch is a fixed 52x32dp widget. On a compact pill it is
+            // scaled down inside a smaller box, otherwise it would leave no room
+            // for the label next to the day selector.
+            Box(
+                Modifier.size(
+                    width = if (compact) 40.dp else 52.dp,
+                    height = if (compact) 26.dp else 32.dp,
+                ),
+                contentAlignment = Alignment.Center,
+            ) {
+                Switch(
+                    checked = tracking,
+                    onCheckedChange = onCheckedChange,
+                    modifier = if (compact) Modifier.scale(0.78f) else Modifier,
+                )
+            }
         }
     }
 }
@@ -636,8 +712,10 @@ private fun TrackingSwitchPill(
 @Composable
 private fun DayPill(
     selectedDay: LocalDate,
+    compact: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val today = LocalDate.now()
     val formatter = remember { DateTimeFormatter.ofPattern("d MMM, EEE", Locale.getDefault()) }
@@ -650,47 +728,87 @@ private fun DayPill(
         shape = RoundedCornerShape(percent = 50),
         color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
         shadowElevation = 4.dp,
+        modifier = modifier,
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            IconButton(onClick = onPrevious) {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowLeft,
-                    contentDescription = stringResource(R.string.map_previous_day),
-                )
-            }
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            DayArrowButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                contentDescription = stringResource(R.string.map_previous_day),
+                compact = compact,
+                onClick = onPrevious,
+            )
             Text(
                 label,
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.width(112.dp),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
+                modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
-            IconButton(onClick = onNext, enabled = selectedDay.isBefore(today)) {
-                Icon(
-                    Icons.AutoMirrored.Filled.KeyboardArrowRight,
-                    contentDescription = stringResource(R.string.map_next_day),
-                )
-            }
+            DayArrowButton(
+                icon = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = stringResource(R.string.map_next_day),
+                compact = compact,
+                enabled = selectedDay.isBefore(today),
+                onClick = onNext,
+            )
         }
     }
 }
 
 @Composable
-private fun MapControlButton(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+private fun DayArrowButton(
+    icon: ImageVector,
     contentDescription: String,
+    compact: Boolean,
+    onClick: () -> Unit,
+    enabled: Boolean = true,
+) {
+    // Plain clickable box instead of IconButton: IconButton keeps a 48dp
+    // minimum touch target, which is too wide for the compact day pill.
+    Box(
+        Modifier
+            .size(if (compact) 30.dp else 40.dp)
+            .clip(CircleShape)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            icon,
+            contentDescription = contentDescription,
+            modifier = Modifier.size(if (compact) 18.dp else 24.dp),
+            tint = if (enabled) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+            },
+        )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun MapControlButton(
+    icon: ImageVector,
+    contentDescription: String,
+    size: Dp,
+    iconSize: Dp,
     active: Boolean = false,
     onClick: () -> Unit,
 ) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        onClick = onClick,
+        shape = RoundedCornerShape(if (size < 40.dp) 10.dp else 14.dp),
         color = if (active) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
         shadowElevation = 4.dp,
+        modifier = Modifier.size(size),
     ) {
-        IconButton(onClick = onClick) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             Icon(
                 icon,
                 contentDescription = contentDescription,
                 tint = if (active) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface,
+                modifier = Modifier.size(iconSize),
             )
         }
     }

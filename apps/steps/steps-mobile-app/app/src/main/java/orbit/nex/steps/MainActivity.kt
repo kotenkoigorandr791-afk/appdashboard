@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -47,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
@@ -143,7 +146,7 @@ class MainActivity : AppCompatActivity() {
         LaunchedEffect(Unit) {
             AppUpdateManager.start(applicationContext)
         }
-        if (showWhatsNew) {
+        if (showWhatsNew && connected) {
             WhatsNewSheet(
                 visible = true,
                 onDismiss = {
@@ -151,6 +154,12 @@ class MainActivity : AppCompatActivity() {
                     preferencesManager.setWhatsNewPending(false)
                 },
             )
+        }
+        if (!connected) {
+            AppBackground {
+                ConnectionGateScreen(onConnected = { connected = true })
+            }
+            return
         }
         var notificationDone by remember {
             mutableStateOf(
@@ -160,6 +169,7 @@ class MainActivity : AppCompatActivity() {
         }
         var notificationRequestStarted by remember { mutableStateOf(false) }
         var healthRequestStarted by remember { mutableStateOf(false) }
+        var pendingHealthPermissions by remember { mutableStateOf<Set<String>>(emptySet()) }
         val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             notificationDone = true
         }
@@ -180,8 +190,26 @@ class MainActivity : AppCompatActivity() {
             val missingPermissions = requiredPermissions - grantedPermissions
             if (missingPermissions.isNotEmpty()) {
                 healthRequestStarted = true
-                healthPermissionLauncher.launch(requiredPermissions)
+                pendingHealthPermissions = requiredPermissions
             }
+        }
+        if (pendingHealthPermissions.isNotEmpty()) {
+            AlertDialog(
+                onDismissRequest = { pendingHealthPermissions = emptySet() },
+                icon = { Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(48.dp)) },
+                title = { Text(stringResource(R.string.nex_health_intro_title)) },
+                text = { Text(stringResource(R.string.nex_health_intro_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val permissions = pendingHealthPermissions
+                        pendingHealthPermissions = emptySet()
+                        healthPermissionLauncher.launch(permissions)
+                    }) { Text(stringResource(R.string.nex_auth_continue)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingHealthPermissions = emptySet() }) { Text(stringResource(R.string.nex_health_intro_later)) }
+                },
+            )
         }
         // Auto-resolve if user saved a preference
         LaunchedEffect(pendingConflict) {
@@ -193,12 +221,6 @@ class MainActivity : AppCompatActivity() {
                     pendingConflict = null
                 }
             }
-        }
-        if (!connected) {
-            AppBackground {
-                ConnectionGateScreen(onConnected = { connected = true })
-            }
-            return
         }
         // Back from any tab returns to Home first instead of leaving the app.
         // Nested screens (settings, logs) are separate activities and finish one

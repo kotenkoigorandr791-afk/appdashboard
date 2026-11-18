@@ -386,4 +386,22 @@
     <string name="unit_kg">%1$s kg</string>
     <string name="unit_mmhg">%1$s mmHg</string>
     <string name="unit_percent">%1$s%%</string>
+<string name="nex_auth_server">Server domain</string>
+<string name="nex_auth_continue">Continue</string>
+<string name="nex_auth_invalid_domain">Enter a valid server address</string>
+<string name="nex_auth_nexorbit">Sign in with Nexorbit</string>
+<string name="nex_auth_password_login">Sign in with email and password</string>
+<string name="nex_auth_email">Email</string>
+<string name="nex_auth_password">Password</string>
+<string name="nex_auth_login">Sign in</string>
+<string name="nex_auth_change_domain">Change domain</string>
+<string name="nex_auth_cancel">Cancel</string>
+<string name="nex_auth_expired">Sign-in timed out</string>
+<string name="nex_auth_invalid_credentials">Incorrect email or password</string>
+<string name="nex_auth_unverified">Verify your email address</string>
+<string name="nex_auth_connection_error">Could not connect to the server</string>
+<string name="nex_auth_feature_1">Income and expenses in one place</string>
+<string name="nex_auth_feature_2">Budgets and financial goals</string>
+<string name="nex_auth_feature_3">Purchase history and statistics</string>
+<string name="nex_auth_feature_4">Sync with Nexorbit</string>
 </resources>

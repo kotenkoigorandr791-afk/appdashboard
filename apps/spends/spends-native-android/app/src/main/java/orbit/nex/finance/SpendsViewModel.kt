@@ -99,6 +99,8 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         }
     }
 
+    fun deviceId(): String = store.deviceId()
+
     fun pair(linkOrEndpoint: String, suppliedToken: String = "", done: () -> Unit) = launch {
         val (endpoint, token) = parsePairing(linkOrEndpoint, suppliedToken) ?: return@launch fail("Enter a pairing link or endpoint and token")
         run("Could not pair") {

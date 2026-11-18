@@ -752,7 +752,9 @@ if (isset($_GET['api']) && $_GET['api'] === 'client_auth') {
         $email = (string)$_SESSION['user']['email'];
         $users = loadUsers();
         if (!isset($users[$email])) json_out(['ok' => false, 'error' => 'user_not_found'], 404);
-        $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), (string)($row['platform'] ?? ''), 'cloud');
+        $platform = (string)($row['platform'] ?? '');
+        $appId = match ($platform) { 'nexsteps' => 'steps', 'nexspends' => 'spends', default => 'cloud' };
+        $tokenData = createClientAuthToken($db, $email, (string)($row['device_id'] ?? ''), (string)($row['device_name'] ?? ''), $platform, $appId);
         $upd = $db->prepare("UPDATE client_auth_browser_requests SET status = 'approved', email = :e, issued_token = :t, approved_at = :a WHERE request_id = :r");
         $upd->bindValue(':e', $email, PDO::PARAM_STR);
         $upd->bindValue(':t', $tokenData['token'], PDO::PARAM_STR);

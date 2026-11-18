@@ -424,7 +424,7 @@
     <string name="auth_link_label">Ссылка подключения</string>
     <string name="auth_connect">Подключить</string>
     <string name="auth_connected">Подключено к AppDashboard</string>
-    <string name="auth_waiting">Откройте сайт шагов, нажмите кнопку мобильного приложения и отсканируйте QR-код.</string>
+    <string name="auth_waiting">Подключитесь к Nexorbit для синхронизации активности.</string>
     <string name="home_title">Синхронизация NexSteps</string>
     <string name="action_grant_permissions">Разрешить доступ Health Connect</string>
     <string name="sync_success">Синхронизация завершена</string>
@@ -625,4 +625,25 @@
     <string name="unit_mmhg">%1$s мм рт. ст.</string>
     <string name="unit_percent">%1$s%%</string>
     <string name="settings_personalization_desc">Тема, цвет акцента, язык и ориентация экрана</string>
+<string name="nex_auth_server">Домен сервера</string>
+<string name="nex_auth_continue">Продолжить</string>
+<string name="nex_auth_invalid_domain">Введите корректный адрес сервера</string>
+<string name="nex_auth_nexorbit">Войти с помощью Nexorbit</string>
+<string name="nex_auth_password_login">Войти по почте и паролю</string>
+<string name="nex_auth_email">Почта</string>
+<string name="nex_auth_password">Пароль</string>
+<string name="nex_auth_login">Войти</string>
+<string name="nex_auth_change_domain">Изменить домен</string>
+<string name="nex_auth_cancel">Отменить</string>
+<string name="nex_auth_expired">Время входа истекло</string>
+<string name="nex_auth_invalid_credentials">Неверная почта или пароль</string>
+<string name="nex_auth_unverified">Подтвердите адрес электронной почты</string>
+<string name="nex_auth_connection_error">Не удалось подключиться к серверу</string>
+<string name="nex_auth_feature_1">Шаги и активность каждый день</string>
+<string name="nex_auth_feature_2">История и цели активности</string>
+<string name="nex_auth_feature_3">Маршруты и статистика</string>
+<string name="nex_auth_feature_4">Синхронизация с Nexorbit</string>
+<string name="nex_health_intro_title">Подключите данные активности</string>
+<string name="nex_health_intro_message">NexSteps использует Health Connect для чтения выбранных данных об активности. Далее Android покажет собственные экраны настройки и разрешений.</string>
+<string name="nex_health_intro_later">Позже</string>
 </resources>

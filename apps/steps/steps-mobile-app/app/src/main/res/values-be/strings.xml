@@ -423,7 +423,7 @@
     <string name="auth_link_label">Спасылка падключэння</string>
     <string name="auth_connect">Падключыць</string>
     <string name="auth_connected">Падключана да AppDashboard</string>
-    <string name="auth_waiting">Адкрыйце сайт крокаў, націсніце кнопку мабільнай праграмы і адскануйце QR-код.</string>
+    <string name="auth_waiting">Падключыцеся да Nexorbit для сінхранізацыі актыўнасці.</string>
     <string name="home_title">Сінхранізацыя NexSteps</string>
     <string name="action_grant_permissions">Дазволіць доступ Health Connect</string>
     <string name="sync_success">Сінхранізацыя завершана</string>

@@ -424,7 +424,7 @@
     <string name="auth_link_label">Connection link</string>
     <string name="auth_connect">Connect</string>
     <string name="auth_connected">Connected to AppDashboard</string>
-    <string name="auth_waiting">Open the steps website, tap the mobile app button, then scan the QR code.</string>
+    <string name="auth_waiting">Připojte se k Nexorbit pro synchronizaci aktivity.</string>
     <string name="home_title">NexSteps sync</string>
     <string name="action_grant_permissions">Grant Health Connect permissions</string>
     <string name="sync_success">Sync completed</string>

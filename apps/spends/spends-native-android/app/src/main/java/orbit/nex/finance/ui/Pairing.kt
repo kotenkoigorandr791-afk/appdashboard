@@ -17,7 +17,6 @@ import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material3.Button
@@ -46,45 +45,14 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import orbit.nex.finance.AppState
 import orbit.nex.finance.R
 import orbit.nex.finance.SpendsViewModel
 
 @Composable
 fun PairingScreen(initialLink: String, model: SpendsViewModel) {
-    val context = LocalContext.current
-    var link by remember(initialLink) { mutableStateOf(initialLink) }
-    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.takeIf { it.isNotBlank() }?.let { model.pair(it, "") {} }
-    }
-    LaunchedEffect(initialLink) { if (initialLink.contains("token=")) model.pair(initialLink, "") {} }
-    AppBackground {
-        Column(Modifier.fillMaxSize().padding(20.dp), verticalArrangement = Arrangement.Center) {
-            Card(colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(modifier = Modifier.size(56.dp), shape = CircleShape, color = MaterialTheme.colorScheme.errorContainer) {
-                        Icon(Icons.Filled.CloudOff, null, Modifier.padding(12.dp), tint = Color(0xFFFFC107))
-                    }
-                    Text(stringResource(R.string.pair_title), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface)
-                    Text(stringResource(R.string.pair_desc), color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Button({
-                        scanner.launch(ScanOptions().apply {
-                            setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                            setPrompt(context.getString(R.string.pair_scan_prompt))
-                            setBeepEnabled(false)
-                            setOrientationLocked(true)
-                        })
-                    }, Modifier.fillMaxWidth()) {
-                        Icon(Icons.Filled.QrCodeScanner, null)
-                        Text(stringResource(R.string.pair_scan), Modifier.padding(start = 8.dp))
-                    }
-                    OutlinedTextField(link, { link = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.pair_link_label)) })
-                    Button({ model.pair(link, "") {} }, Modifier.fillMaxWidth()) { Text(stringResource(R.string.pair_connect)) }
-                }
-            }
-        }
+    NexAuthScreen(deviceId = model.deviceId()) { origin, token ->
+        model.pair("$origin/api/spends", token) {}
     }
 }
 
