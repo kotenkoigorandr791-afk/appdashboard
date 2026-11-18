@@ -10,32 +10,10 @@ $stepmonitorMeta = is_file($stepmonitorMetaFile) ? (json_decode((string)file_get
 $stepmonitorVersionName = (string)($stepmonitorMeta['version'] ?? '');
 $stepmonitorBuiltAt = (int)($stepmonitorMeta['built_at'] ?? 0);
 $stepmonitorAvailable = is_file($stepmonitorApk);
-$stepmonitorServerIp = (string)($_SERVER['SERVER_ADDR'] ?? '');
-if ($stepmonitorServerIp === '' || str_starts_with($stepmonitorServerIp, '127.') || $stepmonitorServerIp === '::1') {
-    $stepmonitorHostIps = function_exists('gethostbynamel') ? (gethostbynamel(gethostname()) ?: []) : [];
-    foreach ($stepmonitorHostIps as $candidateIp) {
-        $candidateIp = (string)$candidateIp;
-        if (str_starts_with($candidateIp, '192.168.') || str_starts_with($candidateIp, '10.') || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $candidateIp)) {
-            $stepmonitorServerIp = $candidateIp;
-            break;
-        }
-    }
-    foreach ($stepmonitorHostIps as $candidateIp) {
-        if ($stepmonitorServerIp === '' && !str_starts_with((string)$candidateIp, '127.')) {
-            $stepmonitorServerIp = (string)$candidateIp;
-            break;
-        }
-    }
-}
-$stepmonitorFallbackLanIp = '192.168.2.158';
-if ($stepmonitorServerIp === '' || str_starts_with($stepmonitorServerIp, '127.') || str_starts_with($stepmonitorServerIp, '172.17.') || str_starts_with($stepmonitorServerIp, '172.18.')) {
-    $stepmonitorServerIp = $stepmonitorFallbackLanIp;
-}
-$stepmonitorPort = (string)($_SERVER['SERVER_PORT'] ?? '');
-$stepmonitorForwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
-$stepmonitorScheme = ($stepmonitorForwardedProto === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $stepmonitorPort === '443') ? 'https' : 'http';
-$stepmonitorPortPart = ($stepmonitorPort !== '' && !in_array($stepmonitorPort, ['80', '443'], true)) ? ':' . $stepmonitorPort : '';
-$stepmonitorLanEndpoint = $stepmonitorServerIp !== '' ? $stepmonitorScheme . '://' . $stepmonitorServerIp . $stepmonitorPortPart . '/api/steps' : '';
+// The endpoint must be reachable from the phone, not from inside the container:
+// SERVER_ADDR/SERVER_PORT are the Docker bridge IP and nginx's internal port.
+require_once dirname(__DIR__, 3) . '/lib/mobile_pair_endpoint.php';
+$stepmonitorLanEndpoint = mobile_pair_endpoint('steps');
 $stepmonitorApkDownloadName = 'NexSteps' . ($stepmonitorVersionName !== '' ? '-' . preg_replace('/[^A-Za-z0-9._-]+/', '-', $stepmonitorVersionName) : '') . '.apk';
 $metricHasValue = static function (array $metrics, string $type): bool {
     if ($type === 'distance') return isset($metrics['distance']['total_meters']) && is_numeric($metrics['distance']['total_meters']) && (float)$metrics['distance']['total_meters'] > 0;
@@ -3472,9 +3450,9 @@ $metricButtons = [
             const copyLinkBtn=document.getElementById('mobile-app-copy-link');
             const hintBtn=document.getElementById('mobile-app-manual-hint');
 
-            const lanEndpoint=<?php echo json_encode($stepmonitorLanEndpoint, JSON_HEX_TAG); ?>;
-            const currentHost=window.location.hostname;
-            const endpoint=(lanEndpoint && (currentHost==='localhost'||currentHost==='127.0.0.1'||currentHost==='::1')) ? lanEndpoint : window.location.origin + '/api/steps';
+            // Server-computed: the browser origin, or the configured LAN host when
+            // the dashboard is opened on loopback. Never the container's address.
+            const endpoint=<?php echo json_encode($stepmonitorLanEndpoint, JSON_HEX_TAG); ?> || (window.location.origin + '/api/steps');
 
             let pairing={token:'',link:''};
 

@@ -179,6 +179,11 @@ services:
       BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
       APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"
       APP_PUBLIC_BASE_URL: "${APP_PUBLIC_BASE_URL:-}"
+      # Address a phone on the LAN can reach (host or host:port). Only used for
+      # mobile pairing links when the dashboard is opened on localhost, where the
+      # browser origin is not reachable from a phone or emulator.
+      MOBILE_PAIR_HOST: "${MOBILE_PAIR_HOST:-}"
+      MOBILE_PAIR_BASE_URL: "${MOBILE_PAIR_BASE_URL:-}"
       AI_PUBLIC_HOST: "${AI_PUBLIC_HOST:-}"
       AI_PUBLIC_URL: "${AI_PUBLIC_URL:-}"
       OMNIROUTE_UPSTREAM: "${OMNIROUTE_UPSTREAM:-http://host.docker.internal:20128}"

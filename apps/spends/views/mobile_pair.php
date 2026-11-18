@@ -10,28 +10,10 @@
  * /api/spends even if it leaks into another integration.
  */
 $mobilePairRoot = dirname(__DIR__, 3);
-$mobilePairServerIp = (string)($_SERVER['SERVER_ADDR'] ?? '');
-if ($mobilePairServerIp === '' || str_starts_with($mobilePairServerIp, '127.') || $mobilePairServerIp === '::1') {
-    $mobilePairHostIps = function_exists('gethostbynamel') ? (gethostbynamel(gethostname()) ?: []) : [];
-    foreach ($mobilePairHostIps as $candidateIp) {
-        $candidateIp = (string)$candidateIp;
-        if (str_starts_with($candidateIp, '192.168.') || str_starts_with($candidateIp, '10.') || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $candidateIp)) {
-            $mobilePairServerIp = $candidateIp;
-            break;
-        }
-    }
-    foreach ($mobilePairHostIps as $candidateIp) {
-        if ($mobilePairServerIp === '' && !str_starts_with((string)$candidateIp, '127.')) {
-            $mobilePairServerIp = (string)$candidateIp;
-            break;
-        }
-    }
-}
-$mobilePairPort = (string)($_SERVER['SERVER_PORT'] ?? '');
-$mobilePairForwardedProto = strtolower((string)($_SERVER['HTTP_X_FORWARDED_PROTO'] ?? ''));
-$mobilePairScheme = ($mobilePairForwardedProto === 'https' || (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || $mobilePairPort === '443') ? 'https' : 'http';
-$mobilePairPortPart = ($mobilePairPort !== '' && !in_array($mobilePairPort, ['80', '443'], true)) ? ':' . $mobilePairPort : '';
-$mobilePairLanEndpoint = $mobilePairServerIp !== '' ? $mobilePairScheme . '://' . $mobilePairServerIp . $mobilePairPortPart . '/api/spends' : '';
+// The endpoint must be reachable from the phone, not from inside the container:
+// SERVER_ADDR/SERVER_PORT are the Docker bridge IP and nginx's internal port.
+require_once dirname(__DIR__, 3) . '/lib/mobile_pair_endpoint.php';
+$mobilePairLanEndpoint = mobile_pair_endpoint('spends');
 
 // Release APK of the companion app.
 $mobilePairApkFile = $mobilePairRoot . '/downloads/spends-mobile.apk';
@@ -297,11 +279,9 @@ try {
     const hintLink = document.getElementById('manual-pair-link');
     const hintToken = document.getElementById('manual-pair-token');
     const regenBtn = document.getElementById('manual-pair-regenerate');
-    const lanEndpoint = <?= json_encode($mobilePairLanEndpoint, JSON_HEX_TAG) ?>;
-    const currentHost = window.location.hostname;
-    const endpoint = (lanEndpoint && (currentHost === 'localhost' || currentHost === '127.0.0.1' || currentHost === '::1'))
-        ? lanEndpoint
-        : window.location.origin + '/api/spends';
+    // Server-computed: the browser origin, or the configured LAN host when the
+    // dashboard is opened on loopback. Never the container's internal address.
+    const endpoint = <?= json_encode($mobilePairLanEndpoint, JSON_HEX_TAG) ?> || (window.location.origin + '/api/spends');
     const noTokenMsg = <?= json_encode($translations['manual_pair_generate_first'] ?? 'Generate a QR code first.', JSON_HEX_TAG) ?>;
     const copyLabel = <?= json_encode($translations['copy'] ?? 'Copy', JSON_HEX_TAG) ?>;
     const copiedLabel = <?= json_encode($translations['copied'] ?? 'Copied', JSON_HEX_TAG) ?>;
