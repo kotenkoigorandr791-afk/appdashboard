@@ -252,23 +252,91 @@ def _latex_log_for_display(work: Path) -> str:
     return body[-LATEX_LOG_DISPLAY_CHARS:]
 
 
-def _latex_missing_file(output: str) -> str:
-    match = re.search(r"(?:File|I can't find file) [`']([^`']+\.(?:sty|cls|def|fd|cfg|clo|ldf|bbx|cbx|lbx|bst))[`']", output, re.I)
-    if not match:
-        return ""
-    name = Path(match.group(1)).name
-    return name if re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\.(?:sty|cls|def|fd|cfg|clo|ldf|bbx|cbx|lbx|bst)", name, re.I) else ""
+# Files a TeX run can report as missing. "Encoding file `t2aenc.def' not found"
+# (fontenc + T2A) is the same failure mode as a missing .sty: a TeX Live package
+# simply is not installed yet, and tlmgr can supply it.
+_LATEX_FILE_EXT = r"sty|cls|def|fd|cfg|clo|ldf|bbx|cbx|lbx|bst|enc|tfm|pfb|afm|otf|ttf|map|tex"
+_LATEX_MISSING_FILE_RE = re.compile(
+    r"(?:File|I can't find file|Encoding file|Font file|font file)\s*[`']([^`']+\.(?:" + _LATEX_FILE_EXT + r"))[`']",
+    re.I,
+)
+_LATEX_FILE_NAME_RE = re.compile(
+    r"[A-Za-z0-9][A-Za-z0-9_.-]{0,127}\.(?:" + _LATEX_FILE_EXT + r")",
+    re.I,
+)
 
 
-def _latex_install_missing_package(filename: str, env: dict) -> bool:
+def _latex_missing_files(output: str, work: Path) -> list[str]:
+    """Missing package files named by the run, including ones only the log shows.
+
+    latexmk -quiet can fail with nothing useful on stdout, so document.log is
+    scanned as well: a package the log names is still installable and the compile
+    then succeeds on the retry.
+    """
+    texts = [output or ""]
+    try:
+        log_file = work / "document.log"
+        if log_file.is_file():
+            texts.append(log_file.read_text(encoding="utf-8", errors="replace"))
+    except OSError:
+        pass
+    names: list[str] = []
+    for text in texts:
+        for match in _LATEX_MISSING_FILE_RE.finditer(text):
+            name = Path(match.group(1)).name
+            if name not in names and _LATEX_FILE_NAME_RE.fullmatch(name):
+                names.append(name)
+    return names
+
+
+def _latex_tlmgr_env() -> dict:
+    """tlmgr needs a HOME that outlives a single compile.
+
+    The compile job's temp dir is deleted afterwards, so a usermode tree
+    initialised there would vanish and every document would reinstall the same
+    packages. Keep it in the persistent TeX Live cache volume instead.
+    """
+    home = LATEX_TEXMF / "tlmgr-home"
+    home.mkdir(parents=True, exist_ok=True)
+    tmp = LATEX_TEXMF / "tlmgr-tmp"
+    tmp.mkdir(parents=True, exist_ok=True)
+    env = _latex_env(home)
+    env["HOME"] = str(home)
+    # Usermode installs land in TEXMFHOME, which kpathsea already searches, so
+    # the next compile finds the package without any extra flag.
+    env["TEXMFHOME"] = str(LATEX_TEXMF / "home")
+    env["TEXMFVAR"] = str(LATEX_TEXMF / "var")
+    env["TEXMFCACHE"] = str(LATEX_TEXMF / "var")
+    env["TMPDIR"] = str(tmp)
+    return env
+
+
+def _latex_install_missing_package(filename: str) -> bool:
+    env = _latex_tlmgr_env()
     with _latex_package_lock:
-        _run(["tlmgr", "init-usertree"], timeout=60, extra_env=env)
-        search = _run(["tlmgr", "search", "--global", "--file", f"/{filename}"], timeout=90, extra_env=env)
-        package = next((line.split(":", 1)[0] for line in search.stdout.splitlines() if re.fullmatch(r"[A-Za-z0-9_.-]+:", line)), "")
+        try:
+            search = _run(
+                ["tlmgr", "search", "--global", "--file", f"/{filename}"],
+                timeout=120,
+                extra_env=env,
+            )
+        except OSError:
+            return False
+        package = next(
+            (line.split(":", 1)[0] for line in search.stdout.splitlines() if re.fullmatch(r"[A-Za-z0-9_.-]+:", line)),
+            "",
+        )
         if not package:
             return False
-        install = _run(["tlmgr", "install", "--usermode", package], timeout=180, extra_env=env)
-        return install.returncode == 0
+        try:
+            # The image runs as www-data while the TeX Live tree is root-owned, so
+            # the system install usually fails; the usermode tree is the fallback.
+            if _run(["tlmgr", "install", package], timeout=300, extra_env=env).returncode == 0:
+                return True
+            _run(["tlmgr", "init-usertree"], timeout=120, extra_env=env)
+            return _run(["tlmgr", "install", "--usermode", package], timeout=300, extra_env=env).returncode == 0
+        except OSError:
+            return False
 
 
 def _respond_latex(ok: bool, pdf: Path, output: str, sid: str, format: str):
@@ -342,10 +410,25 @@ def _latex_compile_sync(latex: str, selected: str, synctex: str, format: str, as
         try:
             env = _latex_env(work)
             proc = None
+            installed: set[str] = set()
             for attempt in range(LATEX_PACKAGE_RETRIES + 1):
-                proc = _run(cmd + [source.name], timeout=LATEX_COMPILE_TIMEOUT, cwd=str(work), extra_env=env)
-                missing = _latex_missing_file(proc.stdout or "")
-                if proc.returncode == 0 or not missing or attempt == LATEX_PACKAGE_RETRIES or not _latex_install_missing_package(missing, env):
+                # A newly installed package changes what TeX can resolve, so force a
+                # full run instead of letting latexmk reuse the failed job's state.
+                run_cmd = cmd + (["-g"] if attempt else []) + [source.name]
+                proc = _run(run_cmd, timeout=LATEX_COMPILE_TIMEOUT, cwd=str(work), extra_env=env)
+                if proc.returncode == 0:
+                    break
+                missing = [name for name in _latex_missing_files(proc.stdout or "", work) if name not in installed]
+                if not missing or attempt == LATEX_PACKAGE_RETRIES:
+                    break
+                # One document often misses several files (babel + hyphenation +
+                # fonts); install a few per round so a retry actually converges.
+                progressed = False
+                for name in missing[:4]:
+                    if _latex_install_missing_package(name):
+                        installed.add(name)
+                        progressed = True
+                if not progressed:
                     break
             output = proc.stdout or ""
             ok = proc.returncode == 0 and pdf.is_file()

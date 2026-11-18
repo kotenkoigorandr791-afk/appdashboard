@@ -22,10 +22,33 @@ RUN set -eux; \
     perl "$installer" --no-interaction --scheme=small --texdir=/opt/texlive; \
     texbin="$(find /opt/texlive -type d -path '*/bin/*-linux' -print -quit)"; \
     ln -sfn "$texbin" /opt/texlive/tlbin; \
-    /opt/texlive/tlbin/tlmgr install latexmk collection-latexrecommended collection-latexextra collection-fontsrecommended luatex; \
+    packages="latexmk collection-latexrecommended collection-latexextra collection-fontsrecommended collection-langcyrillic cm-super luatex"; \
+    for attempt in 1 2 3; do \
+        if /opt/texlive/tlbin/tlmgr install $packages; then break; fi; \
+        if [ "$attempt" = 3 ]; then exit 1; fi; \
+        sleep 15; \
+    done; \
+    /opt/texlive/tlbin/mktexlsr; \
     rm -rf "$workdir"
 
 ENV PATH=/opt/texlive/tlbin:${PATH}
+
+# Fail the image build instead of the user's first compile. The editor sends
+# Cyrillic documents, and pdflatex with \usepackage[T2A]{fontenc} dies with
+# "Encoding file `t2aenc.def' not found" unless collection-langcyrillic (the
+# cyrillic package) is installed -- scheme=small does not include it. Both
+# engines the sidecar selects are exercised here: pdflatex for Latin/short
+# documents, lualatex + fontspec for Unicode text.
+RUN set -eux; \
+    work=/tmp/latex-smoke; mkdir -p "$work"; cd "$work"; \
+    printf '\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\usepackage[russian,english]{babel}\n\\begin{document}\nПривет, мир! Тест 0123.\n\\end{document}\n' > t2a.tex; \
+    printf '\\documentclass{article}\n\\usepackage{fontspec}\n\\setmainfont{DejaVu Serif}\n\\begin{document}\nПривет, мир! Тест 0123.\n\\end{document}\n' > lua.tex; \
+    test -n "$(kpsewhich t2aenc.def)"; \
+    latexmk -pdf -interaction=nonstopmode -halt-on-error -quiet t2a.tex; \
+    latexmk -lualatex -interaction=nonstopmode -halt-on-error -quiet lua.tex; \
+    test -s t2a.pdf; \
+    test -s lua.pdf; \
+    cd /; rm -rf "$work"
 
 WORKDIR /app
 
@@ -38,6 +61,12 @@ COPY apps/recipes/bg_remove.py /app/apps/recipes/
 COPY apps/spends/utils/parser_bridge.py apps/spends/utils/expense_ocr_worker.py apps/spends/utils/merchant_classifier.py /app/apps/spends/utils/
 COPY deploy/python-sidecar/process_pdf.py deploy/python-sidecar/server.py deploy/python-sidecar/entrypoint.sh /app/
 RUN chmod +x /app/entrypoint.sh && chmod -R a+rX /app
+
+# A fresh named volume inherits the ownership of its mountpoint from the image. Without
+# these directories the container runs as www-data against a root-owned volume, cannot
+# create its data dirs and exits on start -- the first `docker compose up` on a new host.
+RUN mkdir -p /opt/ApplicationData /var/www && chown -R www-data:www-data /opt/ApplicationData /var/www
+
 USER www-data
 
 EXPOSE 8100

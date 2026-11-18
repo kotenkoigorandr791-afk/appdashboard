@@ -7,8 +7,10 @@ export U2NET_HOME="${U2NET_HOME:-$MODELS_ROOT/rembg}"
 export XDG_CACHE_HOME="${XDG_CACHE_HOME:-$MODELS_ROOT/cache}"
 export XDG_DATA_HOME="${XDG_DATA_HOME:-$MODELS_ROOT}"
 export HOME="${HOME:-$MODELS_ROOT/home}"
+# Temporary files must stay on the APPDATA volume, not in the container layer.
+export TMPDIR="${TMPDIR:-/opt/ApplicationData/tmp}"
 
-mkdir -p "$HF_HOME" "$U2NET_HOME" "$XDG_CACHE_HOME" "$HOME"
+mkdir -p "$HF_HOME" "$U2NET_HOME" "$XDG_CACHE_HOME" "$HOME" "$TMPDIR"
 
 prefetch_models() {
   if [ "${PREFETCH_MODELS:-1}" != "1" ]; then
