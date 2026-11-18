@@ -23,8 +23,8 @@ if (!defined('UPLOAD_SESSIONS_DIR')) {
         }
     }
     if ($stepsUpload === null) {
-        $link = __DIR__ . '/../upload_sessions';
-        $stepsUpload = (is_link($link) && realpath($link)) ? realpath($link) : $link;
+        // Never fall back to the code tree (host bind mount).
+        $stepsUpload = rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/upload_sessions';
     }
     define('UPLOAD_SESSIONS_DIR', $stepsUpload);
 }
@@ -39,7 +39,7 @@ if (!defined('STEPS_USERS_DIR')) {
     if (function_exists('appdata_app_base_dir')) {
         try { $stepsUsersDir = rtrim(appdata_app_base_dir('steps'), '/'); } catch (Throwable $e) { $stepsUsersDir = null; }
     }
-    if ($stepsUsersDir === null) $stepsUsersDir = __DIR__ . '/../users';
+    if ($stepsUsersDir === null) $stepsUsersDir = rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/users';
     define('STEPS_USERS_DIR', $stepsUsersDir);
 }
 @mkdir(STEPS_USERS_DIR, 0775, true);

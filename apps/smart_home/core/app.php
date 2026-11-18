@@ -15,6 +15,27 @@ if (session_status() !== PHP_SESSION_ACTIVE) {
 }
 header('Content-Type: text/html; charset=UTF-8');
 define('SH_APP_DIR', dirname(__DIR__));
+
+/**
+ * Smart Home runtime data root. Always on the APPDATA volume: SH_APP_DIR is a
+ * bind mount of the host repository, so writing there would bypass the volume
+ * and its backups.
+ */
+function sh_data_dir(): string {
+    static $dir = null;
+    if ($dir !== null) return $dir;
+    $env = getenv('SMART_HOME_DATA_DIR');
+    if (is_string($env) && trim($env) !== '') return $dir = rtrim($env, '/');
+    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    if (is_file($helper)) {
+        require_once $helper;
+        try {
+            return $dir = rtrim(appdata_app_base_dir('smart_home'), '/') . '/data';
+        } catch (Throwable $e) {
+        }
+    }
+    return $dir = rtrim(sys_get_temp_dir(), '/\\') . '/appdashboard-smart-home-data';
+}
 require_once dirname(SH_APP_DIR, 2) . '/lib/app_db.php';
 require_once dirname(SH_APP_DIR, 2) . '/lib/app_domains.php';
 function sh_default_domain(): string { return function_exists('app_base_domain') ? app_base_domain() : 'localhost'; }
@@ -1136,7 +1157,7 @@ MD;
 }
 
 function sh_migrate_json_runtime_data(AppDatabase $db): void {
-    $wsFile = SH_APP_DIR . '/data/global/ws_tokens.json';
+    $wsFile = sh_data_dir() . '/global/ws_tokens.json';
     if (is_file($wsFile)) {
         $tokens = json_decode((string)file_get_contents($wsFile), true) ?: [];
         foreach ($tokens as $tok => $meta) {
@@ -1151,7 +1172,7 @@ function sh_migrate_json_runtime_data(AppDatabase $db): void {
         @unlink($wsFile);
     }
     foreach (['control_queue.json' => 'queue', 'control_results.json' => 'results'] as $file => $kind) {
-        $path = SH_APP_DIR . '/data/global/' . $file;
+        $path = sh_data_dir() . '/global/' . $file;
         if (!is_file($path)) continue;
         $data = json_decode((string)file_get_contents($path), true) ?: [];
         if ($kind === 'queue') {
@@ -2479,7 +2500,7 @@ function sh_monitor_log(string $email, ?string $deviceId, string $eventType, arr
 // ─── Migration from JSON files ─────────────────────────────────────────────────
 function sh_migrate_from_json(): void {
     $db = sh_db();
-    $dataDir = SH_APP_DIR . '/data';
+    $dataDir = sh_data_dir();
     if (!is_dir($dataDir)) return;
     $usersDir = $dataDir . '/users';
     if (!is_dir($usersDir)) return;
@@ -2546,7 +2567,7 @@ function sh_migrate_from_json(): void {
 }
 
 // Run migration once (flag in data/ — app dir is not writable in production)
-$dataDir = SH_APP_DIR . '/data';
+$dataDir = sh_data_dir();
 $migrationFlag = $dataDir . '/.migrated_to_db';
 $legacyMigrationFlag = SH_APP_DIR . '/.migrated_to_db';
 if (!is_file($migrationFlag) && !is_file($legacyMigrationFlag)) {

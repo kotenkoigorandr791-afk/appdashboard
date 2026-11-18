@@ -354,7 +354,7 @@ final class StepsGeolocationRender
     {
         $helper = dirname(__DIR__, 3) . '/storage_helper.php';
         if (is_file($helper)) require_once $helper;
-        $base = function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') : dirname(__DIR__) . '/upload_sessions';
+        $base = function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') : rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/upload_sessions';
         return $base . '/' . $sub;
     }
 
@@ -815,7 +815,7 @@ final class StepsGeolocationRender
     {
         $helper = dirname(__DIR__, 3) . '/storage_helper.php';
         if (is_file($helper)) require_once $helper;
-        $base = function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') . '/geo_renders' : dirname(__DIR__) . '/upload_sessions/geo_renders';
+        $base = function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') . '/geo_renders' : rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/geo_renders';
         $dir = $base . '/' . (preg_replace('/[^a-zA-Z0-9._@-]/', '_', $owner) ?: 'user');
         if (!is_dir($dir) && !mkdir($dir, 0700, true)) throw new StepsGeolocationRenderError('render_failed');
         $name = $jobId . '.' . $ext;

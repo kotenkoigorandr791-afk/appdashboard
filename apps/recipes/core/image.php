@@ -173,9 +173,30 @@ function recipes_write_product_preview_webp(string $srcPath, string $dstPath): b
     imagedestroy($dst);
     return $ok && is_file($dstPath);
 }
+/**
+ * Canonical recipes data root. Always a volume path, never the code tree:
+ * apps/recipes is bind-mounted from the host repository.
+ */
+function recipes_data_base(): string {
+    static $base = null;
+    if ($base !== null) return $base;
+    if (defined('RECIPES_DATA_BASE') && trim((string)RECIPES_DATA_BASE) !== '') {
+        return $base = rtrim((string)RECIPES_DATA_BASE, '/');
+    }
+    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    if (is_file($helper)) {
+        require_once $helper;
+        try {
+            return $base = rtrim(appdata_app_base_dir('recipes'), '/');
+        } catch (Throwable $e) {
+        }
+    }
+    return $base = rtrim(sys_get_temp_dir(), '/\\') . '/appdashboard-recipes';
+}
+
 function recipes_fs_dir(string $dir): string {
     if ($dir === '') return '';
-    return str_starts_with($dir, '/') ? rtrim($dir, '/') : rtrim(__DIR__ . '/../' . $dir, '/');
+    return str_starts_with($dir, '/') ? rtrim($dir, '/') : rtrim(recipes_data_base() . '/' . $dir, '/');
 }
 function recipes_product_preview_refresh(string $products_dir, string $product_id, ?string $main_image): ?string {
     $dir = recipes_fs_dir($products_dir) . '/' . $product_id;

@@ -1179,7 +1179,9 @@ function cloud_video_jobs_dir(): string {
     return $dir;
 }
 function cloud_video_tmp_dir(): string {
-    $base = is_dir('/opt/ApplicationData') && is_writable('/opt/ApplicationData') ? '/opt/ApplicationData' : upload_sessions_dir();
+    $appdataBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($appdataBase) || trim($appdataBase) === '') $appdataBase = '/opt/ApplicationData';
+    $base = is_dir($appdataBase) && is_writable($appdataBase) ? rtrim($appdataBase, '/') : upload_sessions_dir();
     $dir = $base . '/cloud_video_tmp';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
     return $dir;
@@ -4515,13 +4517,13 @@ if ($action === 'patch_file_tree') {
 
 if ($action === 'monaco_collab_ticket') {
     $email = cloud_api_email();
-    // The standalone WebSocket service and PHP-FPM can run in different systemd
-    // temp namespaces (PrivateTmp), so tickets must not rely on /tmp or /var/tmp:
-    // the app storage directory is on the filesystem both processes share.
-    // Legacy temp locations are still written for older server processes.
+    // Tickets must live on the APPDATA volume shared by PHP-FPM and the
+    // WebSocket service. Never write them into the code tree (bind mount) or
+    // the container temp layer.
+    $appdataBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($appdataBase) || trim($appdataBase) === '') $appdataBase = '/opt/ApplicationData';
     $ticketDirs = [
-        dirname(__DIR__, 2) . '/storage/.monaco_collab_tickets',
-        '/var/tmp/cloud_monaco_tickets',
+        rtrim($appdataBase, '/') . '/cloud_runtime/monaco_collab_tickets',
         sys_get_temp_dir() . '/cloud_monaco_tickets',
     ];
     $ticket = bin2hex(random_bytes(16));

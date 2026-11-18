@@ -23,13 +23,12 @@ $authed = [];
 
 function ws_ticket_directories(): array
 {
-    // PHP-FPM and this service may live in different systemd temp namespaces
-    // (PrivateTmp), so /tmp and /var/tmp are not guaranteed to be the same
-    // filesystem. Prefer the application storage directory, which both
-    // processes share, and keep the old temp locations as fallbacks.
+    // Tickets live on the APPDATA volume shared by PHP-FPM and this service.
+    // Never use the code tree (a bind mount) or the container temp layer.
+    $base = getenv('APPDATA_BASE_DIR');
+    if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
     $dirs = [
-        dirname(__DIR__) . '/storage/.monaco_collab_tickets',
-        '/var/tmp/cloud_monaco_tickets',
+        rtrim($base, '/') . '/cloud_runtime/monaco_collab_tickets',
         sys_get_temp_dir() . '/cloud_monaco_tickets',
     ];
     return array_values(array_unique($dirs));

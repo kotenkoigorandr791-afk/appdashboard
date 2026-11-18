@@ -11,8 +11,8 @@ if (!defined('UPLOAD_SESSIONS_DIR')) {
         }
     }
     if ($spendsUploadSessions === null) {
-        $link = __DIR__ . '/../upload_sessions';
-        $spendsUploadSessions = (is_link($link) && realpath($link)) ? realpath($link) : $link;
+        // Never fall back to the code tree (host bind mount).
+        $spendsUploadSessions = rtrim(sys_get_temp_dir(), '/') . '/appdashboard_spends/upload_sessions';
     }
     define('UPLOAD_SESSIONS_DIR', $spendsUploadSessions);
 }

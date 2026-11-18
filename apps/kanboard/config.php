@@ -19,9 +19,34 @@ if (!defined('APP_VERSION')) {
 
 $kb = kanboard_db_resolve();
 
+// Runtime data (attachments, thumbnails, cache) belongs on the APPDATA volume.
+// The code tree is a bind mount on the host, so writing there bypasses the
+// volume, the quotas and the backup profile. Never fall back to the repository.
+$kbDataDir = getenv('KANBOARD_DATA_DIR');
+if (!is_string($kbDataDir) || trim($kbDataDir) === '') {
+    $kbDataDir = null;
+    $kbStorageHelper = dirname(__DIR__, 2) . '/storage_helper.php';
+    if (is_file($kbStorageHelper)) {
+        require_once $kbStorageHelper;
+        try {
+            $kbDataDir = rtrim(appdata_app_base_dir('kanboard'), '/') . '/data';
+        } catch (Throwable $e) {
+            $kbDataDir = null;
+        }
+    }
+}
+if (!is_string($kbDataDir) || trim($kbDataDir) === '') {
+    // Last-resort fallback is still a volume-backed temp dir, never __DIR__.
+    $kbDataDir = rtrim(sys_get_temp_dir(), '/\\') . '/appdashboard-kanboard-data';
+}
+$kbDataDir = rtrim($kbDataDir, '/\\');
+foreach ([$kbDataDir, $kbDataDir . '/files', $kbDataDir . '/cache'] as $kbDir) {
+    if (!is_dir($kbDir)) @mkdir($kbDir, 0775, true);
+}
+
 define('DEBUG', false);
 define('LOG_DRIVER', 'system');
-define('DATA_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'data');
+define('DATA_DIR', $kbDataDir);
 define('PLUGINS_DIR', __DIR__ . DIRECTORY_SEPARATOR . 'plugins');
 define('FILES_DIR', DATA_DIR . DIRECTORY_SEPARATOR . 'files');
 define('CACHE_DIR', DATA_DIR . DIRECTORY_SEPARATOR . 'cache');

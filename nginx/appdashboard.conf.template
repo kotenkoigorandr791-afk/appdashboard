@@ -56,6 +56,13 @@ server {
     port_in_redirect off;
 
     root /var/www/AppDashboard;
+    # Request bodies and proxied responses must be buffered on a volume, never
+    # in the container write layer. Directories are created by docker-entrypoint.sh.
+    client_body_temp_path __APPDATA_BASE_DIR__/nginx/client_body;
+    proxy_temp_path __APPDATA_BASE_DIR__/nginx/proxy;
+    fastcgi_temp_path __APPDATA_BASE_DIR__/nginx/fastcgi;
+    uwsgi_temp_path __APPDATA_BASE_DIR__/nginx/uwsgi;
+    scgi_temp_path __APPDATA_BASE_DIR__/nginx/scgi;
     index index.php index.html;
 
     client_max_body_size 64m;

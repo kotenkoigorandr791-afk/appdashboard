@@ -62,7 +62,12 @@ if (!defined('TEMP_DIR')) {
     if (!is_string($__compileAppData) || trim($__compileAppData) === '') $__compileAppData = '/opt/ApplicationData';
     define('TEMP_DIR', rtrim($__compileAppData, '/') . '/cloud_runtime/temp');
 }
-if (!defined('STORAGE_DIR')) define('STORAGE_DIR', __DIR__ . '/storage');
+if (!defined('STORAGE_DIR')) {
+    // Cloud storage root lives on the APPDATA volume; never in the code tree.
+    $__compileStorageBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($__compileStorageBase) || trim($__compileStorageBase) === '') $__compileStorageBase = '/opt/ApplicationData';
+    define('STORAGE_DIR', rtrim($__compileStorageBase, '/') . '/cloud');
+}
 
 // Create temp directory if it doesn't exist
 if (!is_dir(TEMP_DIR)) {

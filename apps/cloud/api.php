@@ -69,7 +69,13 @@ header('X-Content-Type-Options: nosniff');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 }
 
-const STORAGE_DIR = __DIR__ . '/storage';
+// Cloud storage root lives on the APPDATA volume; the code tree is a bind mount.
+if (!defined('STORAGE_DIR')) {
+    $__cloudStorageBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($__cloudStorageBase) || trim($__cloudStorageBase) === '') $__cloudStorageBase = '/opt/ApplicationData';
+    define('STORAGE_DIR', rtrim($__cloudStorageBase, '/') . '/cloud');
+    unset($__cloudStorageBase);
+}
 const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500MB per request hard cap
 $blockedExtensions = ['php','php3','php4','php5','php7','php8','phtml','phar','phps','pht','phtm','inc','cgi','pl','py','rb','exe','sh','bat','cmd','com','dll','jsp','asp','aspx','war','htaccess','htpasswd'];
 
@@ -2714,14 +2720,15 @@ function convertDocument($inputFile, $outputFile, $from, $to) {
         throw new Exception("LibreOffice not found. Please install LibreOffice for document conversion.");
     }
 
-    $tempDir = '/opt/ApplicationData/cloud_temp_convert';
+    $tempDir = CLOUD_RUNTIME_DIR . '/temp_convert';
     if (!is_dir($tempDir)) {
-        @mkdir($tempDir, 0777, true);
+        @mkdir($tempDir, 0775, true);
     }
     if (!is_dir($tempDir) || !is_writable($tempDir)) {
-        $tempDir = __DIR__ . '/temp_convert';
+        // Never fall back to the code tree: it is a bind mount on the host.
+        $tempDir = rtrim(sys_get_temp_dir(), '/') . '/cloud_temp_convert';
         if (!is_dir($tempDir)) {
-            @mkdir($tempDir, 0777, true);
+            @mkdir($tempDir, 0775, true);
         }
     }
     $loHome = cloud_libreoffice_home();
@@ -3315,13 +3322,9 @@ function resolve_cloud_user_email_from_legacy_name(AppDatabase $db, string $name
 }
 
 function migrate_legacy_users_json(): void {
+    // Legacy file is only ever read; never delete or create paths in the code tree.
     $legacyFile = __DIR__ . '/data/users.json';
     if (!is_file($legacyFile)) {
-        $dataDir = __DIR__ . '/data';
-        if (is_dir($dataDir)) {
-            $left = array_diff(scandir($dataDir) ?: [], ['.', '..']);
-            if (!$left) @rmdir($dataDir);
-        }
         return;
     }
     $raw = @file_get_contents($legacyFile);

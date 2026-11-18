@@ -3,7 +3,9 @@ name: appdashboard
 services:
   appdashboard-db:
     profiles: ["container-db"]
-    image: postgis/postgis:16-3.5
+    # -3.7 is built on Debian 13 (glibc 2.41), same as postgres:16 on this host;
+    # -3.5/bullseye (glibc 2.31) would mismatch the existing data dir collation.
+    image: postgis/postgis:16-3.7
     container_name: appdashboard-db
     restart: unless-stopped
     command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=2GB", "-c", "effective_cache_size=6GB", "-c", "work_mem=8MB", "-c", "maintenance_work_mem=256MB", "-c", "wal_compression=on", "-c", "checkpoint_timeout=15min", "-c", "max_wal_size=4GB", "-c", "autovacuum_vacuum_scale_factor=0.05", "-c", "autovacuum_analyze_scale_factor=0.02", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
@@ -112,6 +114,9 @@ services:
       SYNCTEX_TTL: "${SYNCTEX_TTL:-1800}"
       LATEX_TEXMF_CACHE: /opt/ApplicationData/latex-texmf
       LATEX_PDF_CACHE: /opt/ApplicationData/latex-pdf-cache
+      # Temporary files (synctex, latex jobs, rembg, parser) must live on the
+      # APPDATA volume. The sidecar entrypoint creates the directory.
+      TMPDIR: /opt/ApplicationData/tmp
     volumes:
       - .:/var/www/AppDashboard
       - ./deploy/python-sidecar/server.py:/app/server.py:ro
@@ -133,7 +138,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        APP_VERSION: ${APP_VERSION:-1.0.7}
+        APP_VERSION: ${APP_VERSION:-1.10.9}
         APP_GIT_COMMIT: ${APP_GIT_COMMIT:-}
         APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
@@ -169,7 +174,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
-      APP_VERSION: "${APP_VERSION:-1.0.7}"
+      APP_VERSION: "${APP_VERSION:-1.10.9}"
       # Single source of truth for public hostnames. Entrypoint derives ai./search./git./...
       BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
       APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"
@@ -203,7 +208,10 @@ services:
       SPENDS_ENCRYPTION_KEY_FILE: /opt/AppDashboard/data/secrets/spends-encryption.key
       PY_SIDECAR_URL: "${PY_SIDECAR_URL:-http://appdashboard-py:8100}"
       RUN_STARTUP_DEPS: "1"
-      RUN_MCP_PACKAGE_BUILD: "1"
+      # Building the MCP tarball rewrites appdashboard-mcp/dist and downloads/ in
+      # the bind-mounted repository on every start. Keep the prebuilt package by
+      # default; set this to 1 only when intentionally rebuilding it.
+      RUN_MCP_PACKAGE_BUILD: "${RUN_MCP_PACKAGE_BUILD:-0}"
       APP_WAF_RULE_ENGINE: "${APP_WAF_RULE_ENGINE:-On}"
       PHP_OPCACHE_ENABLE: "1"
       # AI requests (non-streaming) can legitimately take longer than the
@@ -267,6 +275,8 @@ services:
       - appdashboard-vdisk3:/vdisks/vdisk3
       - appdashboard-logs:/var/log/nginx
       - appdashboard-logs:/var/log/bot
+      - appdashboard-logs:/var/log/supervisor
+      - appdashboard-logs:/var/log/php-fpm
       - appdashboard-waf-logs:/var/log/modsecurity
       - /var/run/docker.sock:/var/run/docker.sock
       - /:/host

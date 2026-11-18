@@ -29,6 +29,12 @@ RUN composer install --no-interaction --no-progress --no-dev --prefer-dist --opt
     && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader --working-dir=/var/www/AppDashboard/webssh \
     && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader --working-dir=/var/www/AppDashboard/apps/cloud \
     && rm -rf /root/.composer /tmp/*
+# phppresentation writes temp files relative to CWD (the bind-mounted repo) when
+# saving to php://output; point it at the PHP temp dir instead. Composer
+# regenerates vendor on rebuild, so the patch must live in the image build.
+RUN sed -i "s|@tempnam('./'|@tempnam(sys_get_temp_dir()|" \
+        /var/www/AppDashboard/apps/cloud/vendor/phpoffice/phppresentation/src/PhpPresentation/Writer/ODPresentation.php \
+        /var/www/AppDashboard/apps/cloud/vendor/phpoffice/phppresentation/src/PhpPresentation/Writer/PowerPoint2007.php
 
 # --- Runtime: no compiler toolchain; LaTeX is compiled only in the appdashboard-py sidecar
 FROM php:8.5.12-fpm-bookworm

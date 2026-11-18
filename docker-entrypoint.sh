@@ -44,9 +44,27 @@ APP_ROOT=/var/www/AppDashboard
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
 APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
 UPLOADS_BASE_DIR="${UPLOADS_BASE_DIR:-${APPDATA_BASE_DIR%/}/dashboard/uploads}"
-mkdir -p "$APPDATA_BASE_DIR/cloud_runtime/temp" "$APPDATA_BASE_DIR/cloud_runtime/temp_convert" "$APPDATA_BASE_DIR/cloud_runtime/upload_sessions" "$APPDATA_BASE_DIR/cloud_runtime/transcription_uploads" "$APPDATA_BASE_DIR/cloud_runtime/tts_output" "$APPDATA_BASE_DIR/cloud"
+# Every temporary file must live on a volume. These paths are pinned to the
+# APPDATA volume (not the code tree, not the container layer) and are exported
+# to PHP, supervisord children and nginx below.
+APPDATA_TMP_DIR="${APPDATA_TMP_DIR:-${APPDATA_BASE_DIR%/}/tmp}"
+APPDATA_SESSION_DIR="${APPDATA_SESSION_DIR:-${APPDATA_BASE_DIR%/}/php-sessions}"
+APPDATA_NGINX_TMP_DIR="${APPDATA_NGINX_TMP_DIR:-${APPDATA_BASE_DIR%/}/nginx}"
+APPDATA_MOSQUITTO_DIR="${APPDATA_MOSQUITTO_DIR:-${APPDATA_BASE_DIR%/}/mosquitto}"
+export TMPDIR="$APPDATA_TMP_DIR"
+mkdir -p "$APPDATA_BASE_DIR/cloud_runtime/temp" "$APPDATA_BASE_DIR/cloud_runtime/temp_convert" "$APPDATA_BASE_DIR/cloud_runtime/upload_sessions" "$APPDATA_BASE_DIR/cloud_runtime/transcription_uploads" "$APPDATA_BASE_DIR/cloud_runtime/tts_output" "$APPDATA_BASE_DIR/cloud" \
+         "$APPDATA_TMP_DIR" "$APPDATA_SESSION_DIR" "$APPDATA_MOSQUITTO_DIR" \
+         "$APPDATA_NGINX_TMP_DIR/client_body" "$APPDATA_NGINX_TMP_DIR/proxy" "$APPDATA_NGINX_TMP_DIR/fastcgi" "$APPDATA_NGINX_TMP_DIR/uwsgi" "$APPDATA_NGINX_TMP_DIR/scgi"
+chown -R www-data:www-data "$APPDATA_TMP_DIR" "$APPDATA_SESSION_DIR" "$APPDATA_NGINX_TMP_DIR" 2>/dev/null || true
+chmod 0700 "$APPDATA_SESSION_DIR" 2>/dev/null || true
+chmod 0770 "$APPDATA_TMP_DIR" "$APPDATA_NGINX_TMP_DIR" 2>/dev/null || true
+# Persist PHP's temporary/upload/session paths on the volume for FPM and CLI alike.
+{
+  printf 'sys_temp_dir=%s\n' "$APPDATA_TMP_DIR"
+  printf 'upload_tmp_dir=%s\n' "$APPDATA_TMP_DIR"
+  printf 'session.save_path=%s\n' "$APPDATA_SESSION_DIR"
+} > /usr/local/etc/php/conf.d/appdashboard-storage.ini
 sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf 2>/dev/null || true
-[ -d /var/www/AppDashboard/apps/cloud/temp_convert ] || rm -f /var/www/AppDashboard/apps/cloud/temp_convert
 if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   sed -i 's/^pm = .*/pm = dynamic/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-200}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
@@ -80,7 +98,7 @@ fi
 # $APPDATA_DATA_DIR/storage holds storage/индекс state (locks). It must exist
 # before supervisord starts php-fpm and the file-index worker (both as www-data),
 # otherwise root-owned copies created by one-off CLI runs break them.
-mkdir -p "$APPDATA_DATA_DIR" "$APPDATA_DATA_DIR/storage" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot
+mkdir -p "$APPDATA_DATA_DIR" "$APPDATA_DATA_DIR/storage" "$UPLOADS_BASE_DIR/avatars" "$UPLOADS_BASE_DIR/support_chat" "$UPLOADS_BASE_DIR/avatar_cache" "$APPDATA_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.cache" "$APPDATA_BASE_DIR/cloud_libreoffice_home/.config" "$APPDATA_BASE_DIR/cloud_libreoffice_home/tmp" /var/www/.cache /var/log/bot
 if [ -f "$APP_ROOT/bot/bot.log" ]; then
   [ -f /var/log/bot/bot.log ] || cp -a "$APP_ROOT/bot/bot.log" /var/log/bot/bot.log 2>/dev/null || true
   mv "$APP_ROOT/bot/bot.log" "/tmp/appdashboard-bot-log-migrated-$(date +%s)" 2>/dev/null || true
@@ -100,8 +118,8 @@ fi
 for _legacy_link in "$APP_ROOT/data" "$APP_ROOT/uploads"; do
   if [ -L "$_legacy_link" ]; then rm -f "$_legacy_link"; fi
 done
-chown -R www-data:www-data "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert /var/www/.cache /var/log/bot 2>/dev/null || true
-chmod -R 0775 "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/AppDashboard/apps/cloud/temp_convert 2>/dev/null || true
+chown -R www-data:www-data "$APPDATA_DATA_DIR" "$UPLOADS_BASE_DIR" "$APPDATA_BASE_DIR/cloud_libreoffice_home" /var/www/.cache /var/log/bot 2>/dev/null || true
+chmod -R 0775 "$APPDATA_BASE_DIR/cloud_libreoffice_home" 2>/dev/null || true
 find "$APPDATA_DATA_DIR/.ssh" -type d -exec chmod 0700 {} \; 2>/dev/null || true
 find "$APPDATA_DATA_DIR/.ssh" -type f -exec chmod 0600 {} \; 2>/dev/null || true
 find "$APPDATA_DATA_DIR/ssh_ws_tokens" -type d -exec chmod 0700 {} \; 2>/dev/null || true
@@ -164,15 +182,31 @@ chown -h www-data:www-data "$APP_ROOT/data" "$APP_ROOT/uploads" 2>/dev/null || t
 chmod -R u+rwX,g+rwX "$UPLOADS_BASE_DIR" 2>/dev/null || true
 chown www-data:www-data "$APPDATA_BASE_DIR" 2>/dev/null || true
 chmod 750 "$APPDATA_DATA_DIR" 2>/dev/null || true
-mkdir -p /var/lib/mosquitto /etc/mosquitto
-touch /etc/mosquitto/smarthome.passwd /etc/mosquitto/smarthome.acl
-chown -R mosquitto:mosquitto /var/lib/mosquitto 2>/dev/null || true
-chmod 0600 /etc/mosquitto/smarthome.passwd /etc/mosquitto/smarthome.acl 2>/dev/null || true
+# MQTT credentials, ACL and the broker persistence file live on the APPDATA
+# volume so they survive container replacement and never land in the image.
+# Keep the broker config in sync with the bind-mounted source tree so paths do
+# not depend on an image rebuild.
+if [ -f /var/www/AppDashboard/deploy/mosquitto/smarthome.conf ]; then
+  cp /var/www/AppDashboard/deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
+  chmod 0644 /etc/mosquitto/conf.d/smarthome.conf
+fi
+mkdir -p /etc/mosquitto "$APPDATA_MOSQUITTO_DIR"
+touch "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl"
+chown -R mosquitto:mosquitto "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
+chmod 0700 "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
+chmod 0600 "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl" 2>/dev/null || true
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard || true
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
+# ensure-apps-appdata chowns the whole APPDATA tree to www-data; the broker runs
+# as the mosquitto user and needs its own credentials/state directory back.
+mkdir -p "$APPDATA_MOSQUITTO_DIR"
+touch "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl"
+chown -R mosquitto:mosquitto "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
+chmod 0700 "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
+chmod 0600 "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl" 2>/dev/null || true
 # Seed the bundled lopaka build only when the app directory is absent or
 # empty. A bind-mounted checkout must never be wiped: the previous guard keyed
 # off index.html, which the lopaka rewrite no longer ships, so it deleted the
@@ -385,6 +419,7 @@ if storage_pool_mounted; then
         --exclude='./models' --exclude='./bot-venv' --exclude='./cloud_video_tmp' \
         --exclude='./cloud_libreoffice_home' --exclude='./latex-texmf' --exclude='./latex-pdf-cache' \
         --exclude='./.composer-cache' --exclude='./dashboard/uploads' \
+        --exclude='./tmp' --exclude='./php-sessions' --exclude='./nginx' --exclude='./mosquitto' \
       && seed_storage_dir "$UPLOADS_BASE_DIR" "$STORAGE_ROOT/uploads" "$_uploads_marker"; then
       export APPDATA_BASE_DIR="$STORAGE_ROOT/applications"
       export UPLOADS_BASE_DIR="$STORAGE_ROOT/uploads"

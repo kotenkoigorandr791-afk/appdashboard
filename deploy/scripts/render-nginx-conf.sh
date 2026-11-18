@@ -36,7 +36,9 @@ def main() -> int:
     sentry_proxy_host = (os.environ.get("SENTRY_PROXY_HOST") or f"sentry.{base}").strip()
     app_url = (os.environ.get("APP_PUBLIC_BASE_URL") or f"{scheme}://{base}").rstrip("/")
     app_url_http = f"http://{base}"
+    appdata_base = (os.environ.get("APPDATA_BASE_DIR") or "/opt/ApplicationData").rstrip("/")
     repl = {
+        "__APPDATA_BASE_DIR__": appdata_base,
         "__AI_HOST_ESC__": ai_host.replace(".", r"\."),
         "__BASE_DOMAIN_ESC__": base.replace(".", r"\."),
         "__AI_HOST__": ai_host,

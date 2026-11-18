@@ -38,7 +38,8 @@ final class StepsGeolocationImports
         if (function_exists('appdata_app_base_dir')) {
             try { $cached = rtrim(appdata_app_base_dir('steps'), '/') . '/geo_imports'; return $cached; } catch (Throwable $e) {}
         }
-        $cached = dirname(__DIR__) . '/upload_sessions/geo_imports';
+        // Never write into the code tree if the appdata helper is unavailable.
+        $cached = rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/geo_imports';
         return $cached;
     }
 

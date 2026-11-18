@@ -84,6 +84,14 @@ strip_junk() {
 
 # cloud
 ensure_dir "$APPDATA_BASE/cloud"
+ensure_dir "$APPDATA_BASE/cloud_runtime/sync_bus"
+ensure_dir "$APPDATA_BASE/cloud_runtime/monaco_collab_tickets"
+if [ -d "$ROOT/apps/cloud/storage/.sync_bus" ]; then
+  cp -a "$ROOT/apps/cloud/storage/.sync_bus"/. "$APPDATA_BASE/cloud_runtime/sync_bus"/ 2>/dev/null || true
+fi
+if [ -d "$ROOT/apps/cloud/storage/.monaco_collab_tickets" ]; then
+  cp -a "$ROOT/apps/cloud/storage/.monaco_collab_tickets"/. "$APPDATA_BASE/cloud_runtime/monaco_collab_tickets"/ 2>/dev/null || true
+fi
 ensure_data "$ROOT/apps/cloud/storage" "$APPDATA_BASE/cloud" dir
 for name in temp temp_convert transcription_uploads tts_output upload_sessions; do
   ensure_data "$ROOT/apps/cloud/$name" "$APPDATA_BASE/cloud_runtime/$name" dir
@@ -111,12 +119,30 @@ ensure_data "$ROOT/apps/steps/upload_sessions" "$APPDATA_BASE/steps/upload_sessi
 ensure_dir "$APPDATA_BASE/smart_home"
 ensure_data "$ROOT/apps/smart_home/data" "$APPDATA_BASE/smart_home/data" dir
 
+# kanboard (task attachments and thumbnails). Keep the tracked .gitkeep in the
+# code tree but move every runtime file to the volume.
+KB_SRC="$ROOT/apps/kanboard/data"
+KB_DST="$APPDATA_BASE/kanboard/data"
+ensure_dir "$KB_DST"
+ensure_dir "$KB_DST/files"
+ensure_dir "$KB_DST/cache"
+if [ -d "$KB_SRC" ] && [ ! -L "$KB_SRC" ]; then
+  for _kb_item in files cache; do
+    if [ -d "$KB_SRC/$_kb_item" ]; then
+      cp -a "$KB_SRC/$_kb_item"/. "$KB_DST/$_kb_item"/ 2>/dev/null || true
+      rm -rf "$KB_SRC/$_kb_item" 2>/dev/null || true
+    fi
+  done
+fi
+chown -R www-data:www-data "$KB_DST" 2>/dev/null || true
+chmod -R u+rwX,g+rwX "$KB_DST" 2>/dev/null || true
+
 # spends
 if [ -f "$ROOT/deploy/scripts/ensure-spends-appdata.sh" ]; then
   sh "$ROOT/deploy/scripts/ensure-spends-appdata.sh" "$ROOT/apps/spends" || true
 fi
 
-for app in cloud films recipes spends steps smart_home; do
+for app in cloud films recipes spends steps smart_home kanboard; do
   if [ -d "$ROOT/apps/$app" ]; then
     strip_junk "$ROOT/apps/$app"
   fi

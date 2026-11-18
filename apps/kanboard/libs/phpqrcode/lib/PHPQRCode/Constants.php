@@ -11,7 +11,9 @@ class Constants
 {
     const QR_CACHEABLE = false;
     const QR_CACHE_DIR = ''; //dirname(__FILE__) . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . '..' . DIRECTORY_SEPARATOR . 'cache' . DIRECTORY_SEPARATOR;
-    const QR_LOG_DIR   = '/tmp/qrcode_log/';
+    // Error logging is disabled: writing to '/tmp' would land in the container
+    // write layer instead of a volume.
+    const QR_LOG_DIR   = false;
 
     const QR_FIND_BEST_MASK = true;
     const QR_FIND_FROM_RANDOM = false;
