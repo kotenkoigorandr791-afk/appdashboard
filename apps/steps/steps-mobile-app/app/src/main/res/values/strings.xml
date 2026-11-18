@@ -894,7 +894,7 @@
 <string name="library_status_archived">Archived</string>
     <string name="tracking_notification_subtitle">Background recording</string>
     <string name="tracking_notification_live">LIVE</string>
-    <string name="tracking_notification_route_label">TODAY\'S ROUTE</string>
+    <string name="tracking_notification_route_label">ROUTE</string>
     <string name="tracking_notification_pending_label">UNSYNCED</string>
     <string name="logs_sync_location">Location sync</string>
     <string name="tracking_notification_route">Route</string>

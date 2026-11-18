@@ -22,9 +22,13 @@ $families = array_values(array_unique(array_column($definitions, 'family')));
 foreach (['countries', 'regions', 'cities', 'places', 'distance', 'coverage'] as $family) {
     geo_ach_assert(in_array($family, $families, true), 'missing achievement family: ' . $family);
 }
+// The steps half feeds the same ladder: walking and hybrid milestones exist.
+foreach (['steps_total', 'steps_day', 'steps_goal', 'steps_streak', 'steps_walk', 'steps_trail'] as $family) {
+    geo_ach_assert(in_array($family, $families, true), 'missing steps achievement family: ' . $family);
+}
 foreach ($definitions as $definition) {
     geo_ach_assert((int)$definition['target'] > 0, 'non-positive target: ' . $definition['id']);
-    geo_ach_assert(in_array($definition['unit'], ['count', 'm', 'days', 'cells'], true), 'unexpected unit: ' . $definition['id']);
+    geo_ach_assert(in_array($definition['unit'], ['count', 'm', 'days', 'cells', 'steps'], true), 'unexpected unit: ' . $definition['id']);
     foreach (['transport', 'mode', 'activity', 'flight', 'drive'] as $forbidden) {
         geo_ach_assert(!str_contains($definition['family'], $forbidden) && !str_contains($definition['id'], $forbidden), 'transport achievement leaked: ' . $definition['id']);
     }
@@ -52,6 +56,13 @@ $metrics = [
     'distance_m' => 1234.5678,
     'coverage_days' => 9,
     'coverage_cells' => 12,
+    'steps_total' => 250000,
+    'steps_best_day' => 12500,
+    'steps_active_days' => 40,
+    'steps_goal_days' => 12,
+    'steps_streak' => 8,
+    'steps_distance_m' => 175000.0,
+    'steps_trail_days' => 5,
 ];
 $first = StepsGeolocationAchievements::evaluate($metrics);
 $second = StepsGeolocationAchievements::evaluate($metrics);
@@ -68,12 +79,24 @@ geo_ach_assert($byId['places_3']['earned'] === true, 'places_3 should be earned'
 geo_ach_assert($byId['coverage_days_7']['earned'] === true, 'coverage_days_7 should be earned');
 geo_ach_assert($byId['coverage_days_30']['earned'] === false, 'coverage_days_30 should not be earned');
 geo_ach_assert($byId['distance_100']['progress'] === 1234.57, 'distance progress must be rounded to centimetres');
+geo_ach_assert($byId['steps_total_100000']['earned'] === true, 'steps_total_100000 should be earned');
+geo_ach_assert($byId['steps_total_500000']['earned'] === false, 'steps_total_500000 should not be earned');
+geo_ach_assert($byId['steps_day_10000']['earned'] === true, 'steps_day_10000 should be earned');
+geo_ach_assert($byId['steps_goal_7']['earned'] === true, 'steps_goal_7 should be earned');
+geo_ach_assert($byId['steps_streak_7']['earned'] === true, 'steps_streak_7 should be earned');
+geo_ach_assert($byId['steps_streak_30']['earned'] === false, 'steps_streak_30 should not be earned');
+geo_ach_assert($byId['steps_walk_200']['earned'] === false, 'steps_walk_200 should not be earned');
+geo_ach_assert($byId['steps_trail_7']['earned'] === false, 'steps_trail_7 should not be earned');
+geo_ach_assert($byId['steps_trail_7']['progress'] === 5.0, 'hybrid trail progress wrong');
 
 // Same metrics always produce the same row set, even when reordered.
 $ordered = [];
 foreach ([
     'coverage_cells' => 12, 'coverage_days' => 9, 'distance_m' => 1234.5678,
     'places' => 3, 'cities' => 4, 'regions' => 1, 'countries' => 2,
+    'steps_trail_days' => 5, 'steps_distance_m' => 175000.0, 'steps_streak' => 8,
+    'steps_goal_days' => 12, 'steps_active_days' => 40, 'steps_best_day' => 12500,
+    'steps_total' => 250000,
 ] as $key => $value) $ordered[$key] = $value;
 geo_ach_assert(json_encode(StepsGeolocationAchievements::evaluate($ordered)) === json_encode($first), 'metric order changed the result');
 
@@ -96,5 +119,16 @@ $check($first);
 
 geo_ach_assert(StepsGeolocationAchievements::normalizeReason('IMPORT') === 'import', 'reason normalization failed');
 geo_ach_assert(StepsGeolocationAchievements::normalizeReason('unknown') === 'manual', 'unknown reason not normalized');
+
+// The owner-facing bridge snapshot carries numbers only: no coordinates.
+$highlights = StepsGeolocationAchievements::highlights($metrics);
+geo_ach_assert($highlights['steps_total'] === 250000, 'step highlight missing');
+geo_ach_assert($highlights['steps_trail_days'] === 5, 'hybrid highlight missing');
+geo_ach_assert($highlights['route_distance_m'] === 1234.5678, 'track highlight missing');
+foreach (array_keys($highlights) as $key) {
+    geo_ach_assert(!in_array($key, ['latitude', 'longitude', 'position'], true), 'location field leaked: ' . $key);
+}
+$zero = StepsGeolocationAchievements::highlights([]);
+geo_ach_assert($zero['steps_total'] === 0 && $zero['route_distance_m'] === 0.0, 'empty highlights must be zero');
 
 echo "ok\n";

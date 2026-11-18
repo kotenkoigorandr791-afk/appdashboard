@@ -17,7 +17,7 @@ require_once __DIR__ . '/geolocation_statistics.php';
 
 final class StepsGeolocationAchievements
 {
-    public const RULES_VERSION = 'achievements-1';
+    public const RULES_VERSION = 'achievements-2';
     public const DEFAULT_TIMEZONE = 'UTC';
     /** Achievements never leave the owner's account. */
     public const PUBLIC = false;
@@ -28,6 +28,12 @@ final class StepsGeolocationAchievements
         'explorer' => ['title_key' => 'achievement_collection_explorer', 'prefixes' => ['countries_', 'cities_']],
         'pathfinder' => ['title_key' => 'achievement_collection_pathfinder', 'prefixes' => ['regions_', 'distance_']],
         'local' => ['title_key' => 'achievement_collection_local', 'prefixes' => ['places_', 'coverage_']],
+        // Walking milestones come from the daily step counter, so the steps half
+        // of the app feeds the same private achievement set as the track half.
+        'walker' => ['title_key' => 'achievement_collection_walker', 'prefixes' => ['steps_total_', 'steps_day_', 'steps_goal_', 'steps_streak_', 'steps_walk_']],
+        // Hybrid milestones: days that satisfy the step goal *and* carry an
+        // accepted track sample, which is the point where both halves meet.
+        'trailblazer' => ['title_key' => 'achievement_collection_trailblazer', 'prefixes' => ['steps_trail_']],
     ];
 
     /** @return list<array{id:string,family:string,metric:string,target:int,unit:string,collection:string}> */
@@ -67,6 +73,27 @@ final class StepsGeolocationAchievements
         foreach ([10 => 'local', 50 => 'local', 200 => 'local'] as $cells => $collection) {
             $add('coverage_cells_' . $cells, 'coverage', 'coverage_cells', $cells, 'cells', $collection);
         }
+        // Step-counter milestones. They read steps_days/goal_steps, i.e. the same
+        // owner-scoped data the steps screen renders, so the two halves of the
+        // app report one consistent story instead of two parallel ladders.
+        foreach ([10_000 => 'walker', 100_000 => 'walker', 500_000 => 'walker', 1_000_000 => 'walker', 5_000_000 => 'walker'] as $steps => $collection) {
+            $add('steps_total_' . $steps, 'steps_total', 'steps_total', $steps, 'steps', $collection);
+        }
+        foreach ([5_000 => 'walker', 10_000 => 'walker', 15_000 => 'walker', 20_000 => 'walker', 30_000 => 'walker'] as $steps => $collection) {
+            $add('steps_day_' . $steps, 'steps_day', 'steps_best_day', $steps, 'steps', $collection);
+        }
+        foreach ([7 => 'walker', 30 => 'walker', 100 => 'walker', 365 => 'walker'] as $days => $collection) {
+            $add('steps_goal_' . $days, 'steps_goal', 'steps_goal_days', $days, 'days', $collection);
+        }
+        foreach ([3 => 'walker', 7 => 'walker', 30 => 'walker', 100 => 'walker'] as $days => $collection) {
+            $add('steps_streak_' . $days, 'steps_streak', 'steps_streak', $days, 'days', $collection);
+        }
+        foreach ([50 => 'walker', 200 => 'walker', 500 => 'walker', 1_000 => 'walker', 5_000 => 'walker'] as $kilometres => $collection) {
+            $add('steps_walk_' . $kilometres, 'steps_walk', 'steps_distance_m', $kilometres * 1000, 'm', $collection);
+        }
+        foreach ([7 => 'trailblazer', 30 => 'trailblazer', 100 => 'trailblazer'] as $days => $collection) {
+            $add('steps_trail_' . $days, 'steps_trail', 'steps_trail_days', $days, 'days', $collection);
+        }
         return $out;
     }
 
@@ -84,6 +111,12 @@ final class StepsGeolocationAchievements
             'cities' => ['icon' => 'location_city', 'description_key' => 'achievement_desc_cities'],
             'places' => ['icon' => 'place', 'description_key' => 'achievement_desc_places'],
             'distance' => ['icon' => 'route', 'description_key' => 'achievement_desc_distance'],
+            'steps_total' => ['icon' => 'footprints', 'description_key' => 'achievement_desc_steps_total'],
+            'steps_day' => ['icon' => 'star', 'description_key' => 'achievement_desc_steps_day'],
+            'steps_goal' => ['icon' => 'bullseye', 'description_key' => 'achievement_desc_steps_goal'],
+            'steps_streak' => ['icon' => 'fire', 'description_key' => 'achievement_desc_steps_streak'],
+            'steps_walk' => ['icon' => 'walking', 'description_key' => 'achievement_desc_steps_walk'],
+            'steps_trail' => ['icon' => 'trail', 'description_key' => 'achievement_desc_steps_trail'],
             default => ['icon' => 'calendar', 'description_key' => 'achievement_desc_coverage'],
         };
     }
@@ -144,6 +177,108 @@ final class StepsGeolocationAchievements
     }
 
     /**
+     * Step-counter metrics. The steps half of the app keeps its daily totals in
+     * `steps_days` (same PostgreSQL database) and its personal goal/stride in
+     * `steps_settings`, so walking milestones can be evaluated in the very same
+     * deterministic pass as the location rules instead of living in a separate
+     * gamification silo. Every value stays owner-scoped and private.
+     *
+     * @return array<string,int|float>
+     */
+    public static function stepsMetrics(PDO $pdo, string $owner): array
+    {
+        $owner = strtolower(trim($owner));
+        $out = [
+            'steps_total' => 0,
+            'steps_best_day' => 0,
+            'steps_active_days' => 0,
+            'steps_goal_days' => 0,
+            'steps_streak' => 0,
+            'steps_distance_m' => 0.0,
+            'steps_trail_days' => 0,
+            'steps_goal' => 10000,
+            'steps_stride_cm' => 70,
+        ];
+        if (!self::tableExists($pdo, 'steps_days')) return $out;
+
+        // Personal goal and stride, with the same defaults the steps settings use.
+        if (self::tableExists($pdo, 'steps_settings')) {
+            $settings = $pdo->prepare('SELECT key, value FROM steps_settings WHERE user_email = :owner');
+            $settings->execute([':owner' => $owner]);
+            foreach ($settings->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if ($row['key'] === 'goal_steps' && (int)$row['value'] > 0) $out['steps_goal'] = (int)$row['value'];
+                if ($row['key'] === 'stride_length' && (int)$row['value'] > 0) $out['steps_stride_cm'] = (int)$row['value'];
+            }
+        }
+
+        $daily = $pdo->prepare(
+            'SELECT COALESCE(SUM(steps), 0) AS total,
+                    COALESCE(MAX(steps), 0) AS best,
+                    COUNT(*) FILTER (WHERE steps > 0) AS active_days,
+                    COUNT(*) FILTER (WHERE steps >= :goal) AS goal_days
+               FROM steps_days
+              WHERE user_email = :owner'
+        );
+        $daily->execute([':goal' => (int)$out['steps_goal'], ':owner' => $owner]);
+        $row = $daily->fetch(PDO::FETCH_ASSOC) ?: [];
+        $out['steps_total'] = (int)($row['total'] ?? 0);
+        $out['steps_best_day'] = (int)($row['best'] ?? 0);
+        $out['steps_active_days'] = (int)($row['active_days'] ?? 0);
+        $out['steps_goal_days'] = (int)($row['goal_days'] ?? 0);
+        $out['steps_distance_m'] = round($out['steps_total'] * ((int)$out['steps_stride_cm'] / 100), 2);
+
+        // Longest run of consecutive active days. Computed in PHP from the stored
+        // dates so the result does not depend on database interval arithmetic.
+        $dates = $pdo->prepare('SELECT date FROM steps_days WHERE user_email = :owner AND steps > 0 ORDER BY date ASC');
+        $dates->execute([':owner' => $owner]);
+        $streak = 0;
+        $bestStreak = 0;
+        $previous = null;
+        foreach ($dates->fetchAll(PDO::FETCH_COLUMN) as $raw) {
+            $day = self::parseDay((string)$raw);
+            if ($day === null) continue;
+            if ($previous !== null && $day->getTimestamp() - $previous->getTimestamp() === 86400) $streak++;
+            else $streak = 1;
+            if ($streak > $bestStreak) $bestStreak = $streak;
+            $previous = $day;
+        }
+        $out['steps_streak'] = $bestStreak;
+
+        // Hybrid days: the step goal was met and the track half recorded accepted
+        // samples that day. This is the explicit bridge between both halves.
+        if (self::tableExists($pdo, 'geo_statistics_daily')) {
+            $trail = $pdo->prepare(
+                'SELECT COUNT(DISTINCT s.date)
+                   FROM steps_days s
+                   JOIN geo_statistics_daily g
+                     ON g.user_email = s.user_email AND g.day = s.date::date
+                  WHERE s.user_email = :owner AND s.steps >= :goal AND g.accepted_count > 0'
+            );
+            $trail->execute([':goal' => (int)$out['steps_goal'], ':owner' => $owner]);
+            $out['steps_trail_days'] = (int)$trail->fetchColumn();
+        }
+        return $out;
+    }
+
+    private static function tableExists(PDO $pdo, string $table): bool
+    {
+        try {
+            $stmt = $pdo->prepare("SELECT to_regclass('public.' || :name)");
+            $stmt->execute([':name' => $table]);
+            return $stmt->fetchColumn() !== null;
+        } catch (Throwable $e) {
+            return false;
+        }
+    }
+
+    private static function parseDay(string $raw): ?DateTimeImmutable
+    {
+        if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $raw)) return null;
+        $day = DateTimeImmutable::createFromFormat('!Y-m-d', $raw, new DateTimeZone('UTC'));
+        return $day === false ? null : $day;
+    }
+
+    /**
      * Deterministic metrics for the current input. Only owner-scoped rows are read;
      * no live geocoder, no public data and no transport inference are involved.
      *
@@ -194,6 +329,16 @@ final class StepsGeolocationAchievements
             $regions = (int)$regionStmt->fetchColumn();
         }
 
+        $steps = self::stepsMetrics($pdo, $owner);
+        $sw = ['day_count' => 0, 'day_max' => ''];
+        if (self::tableExists($pdo, 'steps_days')) {
+            $stepsWatermark = $pdo->prepare(
+                'SELECT COUNT(*) AS day_count, COALESCE(MAX(date), \'\') AS day_max FROM steps_days WHERE user_email = :owner'
+            );
+            $stepsWatermark->execute([':owner' => $owner]);
+            $sw = $stepsWatermark->fetch(PDO::FETCH_ASSOC) ?: $sw;
+        }
+
         $watermark = $pdo->prepare(
             "SELECT
                 (SELECT COUNT(*) FROM geo_location_points WHERE user_email = :owner) AS point_count,
@@ -212,6 +357,8 @@ final class StepsGeolocationAchievements
             (string)($w['visit_count'] ?? 0), (string)($w['visit_max'] ?? ''),
             (string)($w['place_count'] ?? 0), (string)($w['place_max'] ?? ''),
             (string)($w['import_count'] ?? 0), (string)($w['import_max'] ?? ''),
+            (string)($sw['day_count'] ?? 0), (string)($sw['day_max'] ?? ''),
+            (string)$steps['steps_total'], (string)$steps['steps_goal'], (string)$steps['steps_stride_cm'],
             (string)($regionDataset['version'] ?? ''), self::RULES_VERSION,
         ]));
 
@@ -223,6 +370,14 @@ final class StepsGeolocationAchievements
             'distance_m' => round((float)($row['distance_m'] ?? 0), 2),
             'coverage_days' => (int)($row['coverage_days'] ?? 0),
             'coverage_cells' => (int)$cells->fetchColumn(),
+            'steps_total' => (int)$steps['steps_total'],
+            'steps_best_day' => (int)$steps['steps_best_day'],
+            'steps_active_days' => (int)$steps['steps_active_days'],
+            'steps_goal_days' => (int)$steps['steps_goal_days'],
+            'steps_streak' => (int)$steps['steps_streak'],
+            'steps_distance_m' => (float)$steps['steps_distance_m'],
+            'steps_trail_days' => (int)$steps['steps_trail_days'],
+            'steps_goal' => (int)$steps['steps_goal'],
             'input_watermark' => $inputWatermark,
             'boundary_versions' => [
                 'country' => (string)(StepsGeolocationStatistics::boundaryDataset($pdo, 'country')['version'] ?? ''),
@@ -309,6 +464,13 @@ final class StepsGeolocationAchievements
                     'distance_m' => $metrics['distance_m'],
                     'coverage_days' => $metrics['coverage_days'],
                     'coverage_cells' => $metrics['coverage_cells'],
+                    'steps_total' => $metrics['steps_total'],
+                    'steps_best_day' => $metrics['steps_best_day'],
+                    'steps_active_days' => $metrics['steps_active_days'],
+                    'steps_goal_days' => $metrics['steps_goal_days'],
+                    'steps_streak' => $metrics['steps_streak'],
+                    'steps_distance_m' => $metrics['steps_distance_m'],
+                    'steps_trail_days' => $metrics['steps_trail_days'],
                 ],
             ], JSON_UNESCAPED_SLASHES);
             foreach ($evaluated as $row) {
@@ -429,6 +591,7 @@ final class StepsGeolocationAchievements
                 'total_count' => 0,
                 'input_watermark' => null,
                 'recalculated_at' => null,
+                'highlights' => self::zeroHighlights(),
             ];
         }
 
@@ -522,6 +685,33 @@ final class StepsGeolocationAchievements
             'input_watermark' => $watermark,
             'recalculated_at' => $recalculatedAt,
             'processing' => $processing,
+            'highlights' => self::highlights($metrics),
         ];
+    }
+
+    /**
+     * The bridge between both halves: a compact owner-only snapshot the UI can
+     * show next to the achievement toggle (no coordinates, no public links).
+     *
+     * @param array<string,mixed> $metrics
+     * @return array<string,int|float>
+     */
+    public static function highlights(array $metrics): array
+    {
+        return [
+            'steps_total' => (int)($metrics['steps_total'] ?? 0),
+            'steps_goal' => (int)($metrics['steps_goal'] ?? 0),
+            'steps_goal_days' => (int)($metrics['steps_goal_days'] ?? 0),
+            'steps_streak' => (int)($metrics['steps_streak'] ?? 0),
+            'steps_trail_days' => (int)($metrics['steps_trail_days'] ?? 0),
+            'steps_distance_m' => (float)($metrics['steps_distance_m'] ?? 0),
+            'route_distance_m' => (float)($metrics['distance_m'] ?? 0),
+        ];
+    }
+
+    /** @return array<string,int|float> */
+    private static function zeroHighlights(): array
+    {
+        return self::highlights([]);
     }
 }

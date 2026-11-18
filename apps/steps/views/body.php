@@ -2580,6 +2580,7 @@ $metricButtons = [
                             <p class="location-hint"><?php echo htmlspecialchars($translations['achievement_hint'] ?? 'Private milestones based only on your confirmed history. There is no leaderboard and nothing is shared publicly.'); ?></p>
                             <label class="location-import-option"><input type="checkbox" id="achievements-enabled" checked> <span><?php echo htmlspecialchars($translations['achievement_enable'] ?? 'Enable achievements'); ?></span></label>
                             <p id="achievements-status" class="location-status" role="status" aria-live="polite"></p>
+                            <div id="achievements-bridge" class="achievement-bridge" hidden></div>
                             <div id="achievements-list" class="location-import-history"></div>
                             <p id="achievements-disabled" class="location-hint" hidden><?php echo htmlspecialchars($translations['achievement_disabled_notice'] ?? 'Achievements are disabled. Existing results stay stored but are hidden, and no new evaluations run until you enable them again.'); ?></p>
                         </section>
@@ -2624,6 +2625,37 @@ $metricButtons = [
                         return row;
                     }
 
+                    function fmtInt(value) {
+                        return String(Math.round(Number(value) || 0)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
+                    }
+                    // The steps half and the track half share one achievement set, so
+                    // the panel shows the bridge state instead of a second ladder.
+                    function renderBridge(data) {
+                        var host = byId('achievements-bridge');
+                        if (!host) return;
+                        var h = data && data.highlights;
+                        if (!data || !data.enabled || !h) { host.hidden = true; host.innerHTML = ''; return; }
+                        var items = [
+                            [tr('achievement_bridge_steps_total', 'Steps counted'), fmtInt(h.steps_total)],
+                            [tr('achievement_bridge_goal_streak', 'Goal streak'), fmtInt(h.steps_streak) + ' ' + tr('achievement_days', 'days')],
+                            [tr('achievement_bridge_trail_days', 'Goal days with track'), fmtInt(h.steps_trail_days)],
+                            [tr('achievement_bridge_route', 'Tracked route'), (Math.round(Number(h.route_distance_m || 0) / 100) / 10) + ' km']
+                        ];
+                        host.innerHTML = '';
+                        items.forEach(function (pair) {
+                            var cell = document.createElement('div');
+                            cell.className = 'achievement-bridge-item';
+                            var label = document.createElement('span');
+                            label.textContent = pair[0];
+                            var value = document.createElement('strong');
+                            value.textContent = pair[1];
+                            cell.appendChild(label);
+                            cell.appendChild(value);
+                            host.appendChild(cell);
+                        });
+                        host.hidden = false;
+                    }
+
                     function renderAchievements(data, showList) {
                         var enabled = byId('achievements-enabled');
                         var hint = byId('achievements-disabled');
@@ -2632,6 +2664,7 @@ $metricButtons = [
                         enabled.checked = !!data.enabled;
                         hint.hidden = !!data.enabled;
                         list.innerHTML = '';
+                        renderBridge(data);
                         // Settings only owns the preference and a bounded recompute.
                         // Earned cards and progress live in the Statistics experience,
                         // so this panel never renders a locked/progress checklist.

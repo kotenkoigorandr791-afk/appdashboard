@@ -1,6 +1,13 @@
     <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
     <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
-    <script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
+    <?php
+    // The share endpoint verifies X-SharePoint-CSRF against the session token, so
+    // the page has to publish it. Without this every create/list call answered
+    // 403 csrf_invalid (the share dialog silently failed in the steps app).
+    if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24));
+    ?>
+    <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
+    <script src="/project/sharepoint/assets/js/share-modal.js?v=13"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');
@@ -1177,6 +1184,13 @@
             if (id.startsWith('cities_')) return { tone: 'cities', icon: target >= 25 ? 'fa-city' : 'fa-building' };
             if (id.startsWith('regions_')) return { tone: 'regions', icon: target >= 5 ? 'fa-map' : 'fa-map-location-dot' };
             if (id.startsWith('countries_')) return { tone: 'countries', icon: target >= 10 ? 'fa-earth-americas' : 'fa-flag' };
+            // Steps milestones share the same cards as the location ones.
+            if (id.startsWith('steps_total_')) return { tone: 'steps', icon: 'fa-shoe-prints' };
+            if (id.startsWith('steps_day_')) return { tone: 'steps', icon: 'fa-star' };
+            if (id.startsWith('steps_goal_')) return { tone: 'steps', icon: 'fa-bullseye' };
+            if (id.startsWith('steps_streak_')) return { tone: 'steps', icon: 'fa-fire-flame-curved' };
+            if (id.startsWith('steps_walk_')) return { tone: 'steps', icon: target >= 1000000 ? 'fa-person-hiking' : 'fa-person-walking' };
+            if (id.startsWith('steps_trail_')) return { tone: 'trail', icon: 'fa-map-location-dot' };
             return { tone: 'default', icon: 'fa-medal' };
         }
 
@@ -1184,6 +1198,7 @@
             const target = Number(item.target) || 0;
             if (item.unit === 'm') return (target / 1000) + ' km';
             if (item.unit === 'days') return target + ' ' + (translations.achievement_days || 'days');
+            if (item.unit === 'steps') return formatNumber(target) + ' ' + (translations.steps || 'steps');
             return formatNumber(target);
         }
 

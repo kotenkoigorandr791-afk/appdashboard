@@ -57,6 +57,7 @@ import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.components.APP_LANGUAGES
 import orbit.nex.steps.components.AppBackground
+import orbit.nex.steps.location.LocationTrackingService
 import orbit.nex.steps.ui.theme.AppThemeRevision
 
 /**
@@ -132,6 +133,9 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                                 // Every open activity picks the new palette up on its own,
                                                 // so the whole app changes, not just this screen.
                                                 AppThemeRevision.bump()
+                                                // The tracking card is drawn outside the app, so it
+                                                // needs an explicit refresh to follow the theme.
+                                                LocationTrackingService.refreshNotification(context)
                                             },
                                             shape = SegmentedButtonDefaults.itemShape(index, 3),
                                         ) {

@@ -196,13 +196,14 @@
                     <tr>
                         <th><?= htmlspecialchars($translations['date']) ?></th>
                         <?php foreach ($visibleStores as $store):
-                            $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
-                            $safe = getSafeFolderName($currentUser);
-                            $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.png") ? "users/$safe/store_$fn.png" : (file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null);
+                            // photo_url is resolved server-side and is only set when
+                            // the file exists (png/jpg/jpeg/webp), so the browser
+                            // never requests a missing store_<name>.png.
+                            $storePhoto = (string)($store['photo_url'] ?? '');
                         ?>
                             <th>
                                 <div class="store-header">
-                                    <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
+                                    <?php if ($storePhoto): ?><img src="<?= htmlspecialchars($storePhoto) ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>" onerror="this.remove()"><?php endif; ?>
                                     <?= htmlspecialchars($store['name']) ?>
                                 </div>
                             </th>
@@ -444,12 +445,10 @@
             </div>
             <div class="store-list" id="store-list">
                 <?php foreach ($userSettings['stores'] as $store):
-                    $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
-                    $safe = getSafeFolderName($currentUser);
-                    $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.png") ? "users/$safe/store_$fn.png" : (file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null);
+                    $storePhoto = (string)($store['photo_url'] ?? '');
                 ?>
                     <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>">
-                        <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
+                        <?php if ($storePhoto): ?><img src="<?= htmlspecialchars($storePhoto) ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>" onerror="this.remove()"><?php endif; ?>
                         <span style="flex:1;"><?= htmlspecialchars($store['name']) ?></span>
                         <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)" title="<?= htmlspecialchars($translations['visible'] ?? 'Visible') ?>">
                             <?php if ($store['visible']): ?>

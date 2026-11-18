@@ -1071,10 +1071,6 @@ function manualAddStores(){
     // Hidden stores still accept expenses, so fall back to them when nothing is visible.
     return visible.length ? visible : all;
 }
-function manualAddStorePhoto(name){
-    const fn = String(name || '').replace(/[^a-zA-Z0-9]/g, '_');
-    return `users/${currentUserFolder}/store_${fn}.png`;
-}
 // CSP on the page forbids eval(), so the amount is parsed without it.
 function parseManualAmount(val){
     const s = String(val || '').replace(/\s/g, '').replace(/,/g, '.');

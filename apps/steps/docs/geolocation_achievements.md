@@ -7,11 +7,30 @@ public location link, and no transport-specific achievement.
 ## Rules and determinism
 
 - Rules live in `core/geolocation_achievements.php` under a versioned id
-  (`achievements-1`). Each definition has a family, metric, target, unit and
+  (`achievements-2`). Each definition has a family, metric, target, unit and
   themed collection.
 - Metrics are computed in PostgreSQL/PostGIS from `geo_statistics_daily`,
   `geo_visits`/`geo_places`, accepted points (1° coverage cells) and the
   optionally imported, versioned `region` boundary dataset.
+
+## Steps and location share one ladder
+
+The step counter and the location history feed the same private achievement
+set instead of two parallel game systems:
+
+- `walker` collection, from `steps_days`/`steps_settings`: total steps, best
+day, days that met the personal goal, longest consecutive-day streak and
+walking distance (total steps × the owner's own stride length).
+- `trailblazer` collection, the explicit bridge: days that met the step goal
+**and** carry accepted track samples (`geo_statistics_daily.accepted_count`).
+- Any steps write queues the same deduplicated `achievements` processor run the
+track half uses (`steps_achievements_bump()` in `models/StepsModel.php`), so a
+new step total is reflected on the next bounded pass.
+- `progress()` also returns `highlights`, a coordinate-free snapshot (steps
+counted, goal streak, goal days with track, tracked route distance) that the
+settings panel renders as the bridge between both halves.
+- The `achievements-2` rule version is a new key, so old stored rows stay intact
+and are rebuilt deterministically on first read.
 - `geo_achievements` stores `rule_version`, `input_watermark`, `progress`,
   `earned`, `first_earned_at`, `recalculated_at` and `reason` for every row, so
   the same input always rebuilds the same result and the first-earned time is

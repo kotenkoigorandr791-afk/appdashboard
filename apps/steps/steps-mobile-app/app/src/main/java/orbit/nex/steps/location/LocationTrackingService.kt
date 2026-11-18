@@ -11,6 +11,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.ServiceInfo
+import android.content.res.Configuration
 import android.location.Location
 import android.os.Build
 import android.os.IBinder
@@ -90,6 +91,12 @@ class LocationTrackingService : Service() {
                 prefs.setLocationTrackingPaused(false)
                 stopSelf()
                 return START_NOT_STICKY
+            }
+            ACTION_REFRESH -> {
+                // Re-inflates the card so a theme, or an in-app theme override,
+                // is reflected without waiting for the next location fix.
+                updateNotification()
+                return START_STICKY
             }
             ACTION_PAUSE -> {
                 stopTracking()
@@ -299,17 +306,56 @@ class LocationTrackingService : Service() {
         if (meters < 1_000) "${meters.toInt()} m"
         else String.format(Locale.getDefault(), "%.1f km", meters / 1_000)
 
+    /**
+     * Day or night colours for the card. The app can force a theme that differs
+     * from the system night mode, so RemoteViews never rely on resource
+     * qualifiers alone: the palette is chosen here and applied explicitly.
+     */
+    private data class NotificationPalette(
+        val card: Int,
+        val chip: Int,
+        val iconTile: Int,
+        val stop: Int,
+        val label: Int,
+        val value: Int,
+        val pending: Int,
+    )
+
+    private fun notificationPalette(): NotificationPalette {
+        val dark = when (prefs.getThemeMode()) {
+            "dark" -> true
+            "light" -> false
+            else -> (resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK) ==
+                Configuration.UI_MODE_NIGHT_YES
+        }
+        return if (dark) {
+            NotificationPalette(
+                card = R.drawable.notif_card_bg_night,
+                chip = R.drawable.notif_chip_bg_night,
+                iconTile = R.drawable.notif_icon_bg_night,
+                stop = R.drawable.notif_stop_bg_night,
+                label = R.color.notif_night_label,
+                value = R.color.notif_night_value,
+                pending = R.color.notif_night_pending,
+            )
+        } else {
+            NotificationPalette(
+                card = R.drawable.notif_card_bg_day,
+                chip = R.drawable.notif_chip_bg_day,
+                iconTile = R.drawable.notif_icon_bg_day,
+                stop = R.drawable.notif_stop_bg_day,
+                label = R.color.notif_day_label,
+                value = R.color.notif_day_value,
+                pending = R.color.notif_day_pending,
+            )
+        }
+    }
+
     private fun buildNotification(pending: Int, routeMeters: Double): Notification {
         val open = PendingIntent.getActivity(
             this,
             0,
             Intent(this, MainActivity::class.java),
-            pendingIntentFlags(),
-        )
-        val pause = PendingIntent.getService(
-            this,
-            1,
-            Intent(this, LocationTrackingService::class.java).setAction(ACTION_PAUSE),
             pendingIntentFlags(),
         )
         val stop = PendingIntent.getService(
@@ -320,13 +366,25 @@ class LocationTrackingService : Service() {
         )
         val routeLine = getString(R.string.tracking_notification_route, formatDistance(routeMeters))
         val distanceText = formatDistance(routeMeters)
+        val palette = notificationPalette()
+        val labelColor = ContextCompat.getColor(this, palette.label)
+        val valueColor = ContextCompat.getColor(this, palette.value)
+        val pendingColor = ContextCompat.getColor(this, palette.pending)
         val fullViews = RemoteViews(packageName, R.layout.notification_tracking).apply {
             setTextViewText(R.id.notif_route, distanceText)
             setTextViewText(R.id.notif_pending, pending.toString())
-            setOnClickPendingIntent(R.id.notif_pause, pause)
+            setTextColor(R.id.notif_route_label, labelColor)
+            setTextColor(R.id.notif_pending_label, labelColor)
+            setTextColor(R.id.notif_route, valueColor)
+            setTextColor(R.id.notif_pending, pendingColor)
+            setInt(R.id.notif_card, "setBackgroundResource", palette.card)
+            setInt(R.id.notif_icon_wrap, "setBackgroundResource", palette.iconTile)
+            setInt(R.id.notif_route_chip, "setBackgroundResource", palette.chip)
+            setInt(R.id.notif_pending_chip, "setBackgroundResource", palette.chip)
+            setInt(R.id.notif_stop, "setBackgroundResource", palette.stop)
             setOnClickPendingIntent(R.id.notif_stop, stop)
-            // Tapping the rest of the card opens the app; the buttons win because
-            // their click intents are attached to the child views.
+            // Tapping the rest of the card opens the app; the stop action wins
+            // because its click intent is attached to the child view.
             setOnClickPendingIntent(R.id.notif_root, open)
         }
         // The collapsed shade is much shorter, so it gets its own single-row
@@ -336,6 +394,9 @@ class LocationTrackingService : Service() {
                 R.id.notif_compact_text,
                 getString(R.string.tracking_notification_compact, distanceText, pending),
             )
+            setTextColor(R.id.notif_compact_text, valueColor)
+            setInt(R.id.notif_compact_card, "setBackgroundResource", palette.card)
+            setInt(R.id.notif_compact_icon_wrap, "setBackgroundResource", palette.iconTile)
             setOnClickPendingIntent(R.id.notif_root, open)
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -374,6 +435,12 @@ class LocationTrackingService : Service() {
         powerReceiver = null
     }
 
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        // System light/dark switch ("auto" theme) has to repaint the card.
+        updateNotification()
+    }
+
     override fun onDestroy() {
         stopTracking()
         scope.coroutineContext[Job]?.cancel()
@@ -395,6 +462,7 @@ class LocationTrackingService : Service() {
         const val ACTION_START = "orbit.nex.steps.location.START"
         const val ACTION_STOP = "orbit.nex.steps.location.STOP"
         const val ACTION_PAUSE = "orbit.nex.steps.location.PAUSE"
+        const val ACTION_REFRESH = "orbit.nex.steps.location.REFRESH"
 
         fun start(context: Context) {
             val intent = Intent(context, LocationTrackingService::class.java).setAction(ACTION_START)
@@ -412,6 +480,17 @@ class LocationTrackingService : Service() {
             val intent = Intent(context, LocationTrackingService::class.java).setAction(ACTION_PAUSE)
             runCatching { context.startService(intent) }
                 .onFailure { Log.e(TAG, "Failed to pause location tracking: ${it.message}", it) }
+        }
+
+        /** Rebuilds the ongoing notification, e.g. after the theme changed. */
+        fun refreshNotification(context: Context) {
+            val prefs = PreferencesManager(context)
+            // Only refresh a live recording: starting the service for a paused or
+            // stopped session would keep a foreground service alive for nothing.
+            if (!prefs.isLocationTrackingEnabled() || prefs.isLocationTrackingPaused()) return
+            val intent = Intent(context, LocationTrackingService::class.java).setAction(ACTION_REFRESH)
+            runCatching { context.startService(intent) }
+                .onFailure { Log.e(TAG, "Failed to refresh tracking notification: ${it.message}", it) }
         }
     }
 }

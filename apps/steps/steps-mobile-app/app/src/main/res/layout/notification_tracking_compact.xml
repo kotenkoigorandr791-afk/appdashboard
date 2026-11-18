@@ -1,4 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!--
+    Collapsed tracking notification: one compact line. The card colour is set at
+    runtime from the notification palette so it matches the expanded card in both
+    the light and the dark theme.
+-->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/notif_root"
     android:layout_width="match_parent"
@@ -6,24 +11,26 @@
     android:padding="2dp">
 
     <LinearLayout
+        android:id="@+id/notif_compact_card"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@drawable/notif_card_bg"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="10dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="10dp"
-        android:paddingBottom="8dp">
+        android:paddingStart="8dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="8dp"
+        android:paddingBottom="6dp">
 
         <FrameLayout
-            android:layout_width="30dp"
-            android:layout_height="30dp"
+            android:id="@+id/notif_compact_icon_wrap"
+            android:layout_width="22dp"
+            android:layout_height="22dp"
             android:background="@drawable/notif_icon_bg">
 
             <ImageView
-                android:layout_width="17dp"
-                android:layout_height="17dp"
+                android:layout_width="13dp"
+                android:layout_height="13dp"
                 android:layout_gravity="center"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_notif_location" />
@@ -33,42 +40,20 @@
             android:id="@+id/notif_compact_text"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="10dp"
+            android:layout_marginStart="8dp"
             android:layout_weight="1"
             android:ellipsize="end"
             android:includeFontPadding="false"
             android:maxLines="1"
-            android:textColor="#FFFFFFFF"
-            android:textSize="13sp"
+            android:textColor="@color/notif_night_value"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
-        <LinearLayout
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
-            android:background="@drawable/notif_live_bg"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
-            android:paddingStart="6dp"
-            android:paddingTop="2dp"
-            android:paddingEnd="7dp"
-            android:paddingBottom="2dp">
-
-            <ImageView
-                android:layout_width="6dp"
-                android:layout_height="6dp"
-                android:contentDescription="@null"
-                android:src="@drawable/notif_dot_green" />
-
-            <TextView
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginStart="4dp"
-                android:includeFontPadding="false"
-                android:text="@string/tracking_notification_live"
-                android:textColor="#FF6EE7A0"
-                android:textSize="8sp"
-                android:textStyle="bold" />
-        </LinearLayout>
+        <ImageView
+            android:layout_width="7dp"
+            android:layout_height="7dp"
+            android:layout_marginStart="6dp"
+            android:contentDescription="@null"
+            android:src="@drawable/notif_dot_green" />
     </LinearLayout>
 </FrameLayout>

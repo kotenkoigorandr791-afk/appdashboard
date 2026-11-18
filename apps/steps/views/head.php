@@ -5077,6 +5077,14 @@ iframe.render-preview-media { height: 60vh; }
 .stats-achievement--cities { --achievement-color: #7c3aed; }
 .stats-achievement--regions { --achievement-color: #0891b2; }
 .stats-achievement--countries { --achievement-color: #db2777; }
+.stats-achievement--steps { --achievement-color: #0d9488; }
+.stats-achievement--trail { --achievement-color: #ea580c; }
+/* Bridge between the steps half and the location half, shown in settings. */
+.achievement-bridge { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; margin: 12px 0 0; }
+.achievement-bridge[hidden] { display: none; }
+.achievement-bridge-item { display: flex; flex-direction: column; gap: 2px; padding: 10px 12px; border-radius: var(--radius-sm); background: var(--group-block-bg); border: 1px solid var(--border-color); }
+.achievement-bridge-item span { color: var(--muted-text); font-size: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.achievement-bridge-item strong { font-size: 15px; }
 /* Metric rows breathe: spacing above and below keeps cards from sticking. */
 .stats-experience .stats-metric-grid { margin: 16px 0 20px; }
 /* Tab icons get a contrasting chip so they never blend into the surface. */
