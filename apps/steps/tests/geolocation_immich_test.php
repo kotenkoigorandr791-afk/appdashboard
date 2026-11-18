@@ -24,6 +24,9 @@ function geo_immich_cleanup(PDO $pdo, string $owner): void
 $owner = 'qa-immich@example.test';
 $keyFile = sys_get_temp_dir() . '/steps-geo-key-' . bin2hex(random_bytes(4)) . '.key';
 putenv('STEPS_GEOLOCATION_KEY_FILE=' . $keyFile);
+// The mock Immich server is a local process: the outbound SSRF guard rejects
+// private hosts unless they are explicitly allowlisted, so do it for the test.
+putenv('GEO_SSRF_ALLOW_PRIVATE_HOSTS=127.0.0.1,::1');
 $db = app_main_db();
 steps_geolocation_migrate($db);
 $pdo = $db->getPdo();

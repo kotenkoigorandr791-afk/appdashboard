@@ -29,6 +29,22 @@ geo_stats_assert($daily['2026-01-01']['sources']['import'] === 2, 'source counts
 geo_stats_assert($daily['2026-01-01']['accuracy'][4] === 1, 'accuracy bucket <=200 wrong');
 geo_stats_assert($daily['2026-01-01']['accuracy'][6] === 1, 'missing accuracy bucket wrong');
 
+// A GPS teleport must not be stitched into the daily route distance.
+$jump = [
+    ['source_at' => '2026-03-01T08:00:00Z', 'latitude' => 50.4500, 'longitude' => 30.5200, 'quality_state' => 'accepted', 'source_type' => 'import'],
+    ['source_at' => '2026-03-01T08:01:00Z', 'latitude' => 52.2297, 'longitude' => 21.0122, 'quality_state' => 'accepted', 'source_type' => 'import'],
+    ['source_at' => '2026-03-01T10:00:00Z', 'latitude' => 52.2400, 'longitude' => 21.0200, 'quality_state' => 'accepted', 'source_type' => 'import'],
+];
+$jumpDaily = StepsGeolocationStatistics::groupDaily($jump, 'UTC');
+geo_stats_assert($jumpDaily['2026-03-01']['distance_m'] == 0, 'implausible jump was added to distance: ' . $jumpDaily['2026-03-01']['distance_m']);
+geo_stats_assert($jumpDaily['2026-03-01']['point_count'] === 3, 'jump samples must still be counted');
+// A long gap is not continuous evidence either.
+$gap = [
+    ['source_at' => '2026-04-01T08:00:00Z', 'latitude' => 50.4500, 'longitude' => 30.5200, 'quality_state' => 'accepted', 'source_type' => 'import'],
+    ['source_at' => '2026-04-01T09:00:00Z', 'latitude' => 50.4600, 'longitude' => 30.5300, 'quality_state' => 'accepted', 'source_type' => 'import'],
+];
+geo_stats_assert(StepsGeolocationStatistics::groupDaily($gap, 'UTC')['2026-04-01']['distance_m'] == 0, 'distance across a long gap counted');
+
 $sequence = StepsGeolocationStatistics::countrySequences([
     ['day' => '2026-02-01', 'country_code' => 'UA', 'country_name' => 'Ukraine'],
     ['day' => '2026-02-02', 'country_code' => 'UA', 'country_name' => 'Ukraine'],

@@ -150,6 +150,7 @@ final class StepsGeolocationStatistics
     public static function groupDaily(array $points, string $timezone, array $countries = [], array $cities = []): array
     {
         $tz = new DateTimeZone(self::timezone($timezone));
+        $thresholds = StepsGeolocationQuality::thresholds();
         $days = [];
         $previous = null;
         foreach ($points as $point) {
@@ -193,11 +194,19 @@ final class StepsGeolocationStatistics
                     $gap = $at - $prevAt;
                     if ($gap > 0 && $gap <= 21600) $days[$day]['active_seconds'] += $gap;
                     $prevDay = (new DateTimeImmutable('@' . $prevAt))->setTimezone($tz)->format('Y-m-d');
-                    if ($prevDay === $day && $gap > 0) {
-                        $days[$day]['distance_m'] += StepsGeolocationQuality::haversineMeters(
+                    // Only continuous evidence contributes distance. A GPS teleport
+                    // (app restart, edited sample, another city minutes later) used
+                    // to add hundreds of kilometres to a single day, so a segment
+                    // must fit the configured gap and maximum speed. Unusual
+                    // samples are still counted, just not stitched into the route.
+                    if ($prevDay === $day && $gap > 0 && $gap <= $thresholds['max_segment_gap_s']) {
+                        $segment = StepsGeolocationQuality::haversineMeters(
                             (float)$previous['latitude'], (float)$previous['longitude'],
                             (float)$point['latitude'], (float)$point['longitude']
                         );
+                        if ($segment <= $thresholds['max_jump_m'] || ($segment / $gap) <= $thresholds['max_speed_mps']) {
+                            $days[$day]['distance_m'] += $segment;
+                        }
                     }
                 }
             }
