@@ -23,7 +23,7 @@ class Plugin extends Base
             'script-src' => "'self' 'unsafe-inline' https://browser.sentry-cdn.com",
             'style-src' => "'self' 'unsafe-inline'",
             'img-src' => "* data:",
-            'connect-src' => "'self' https://sentry.serverkherson.xyz https://browser.sentry-cdn.com",
+            'connect-src' => "'self' https://sentry.nxorbit.top https://browser.sentry-cdn.com",
         ]);
         $this->authenticationManager->register(new DashboardAuth($this->container));
         $this->avatarManager->register(new ShellAvatarProvider($this->container));

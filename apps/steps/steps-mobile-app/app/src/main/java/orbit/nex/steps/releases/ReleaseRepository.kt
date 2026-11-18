@@ -79,6 +79,6 @@ class ReleaseRepository(context: Context) {
         private const val KEY_CACHE_TS = "ts"
         private const val CACHE_TTL_MS = 10 * 60 * 1000L
         private const val RELEASES_URL =
-            "https://git.serverkherson.xyz/api/v1/repos/kotenkoigorandr791/apps-dashboard/releases?limit=20"
+            "https://git.nxorbit.top/api/v1/repos/kotenkoigorandr791/apps-dashboard/releases?limit=20"
     }
 }

@@ -15,7 +15,7 @@ test.describe('no silent login in embedded context (task 004)', () => {
   test('unauthenticated embedded /authorize does not issue a code or redirect silently', async ({ request }) => {
     const qs = new URLSearchParams({
       client_id: 'immich',
-      redirect_uri: 'https://photo.serverkherson.xyz/auth/login',
+      redirect_uri: 'https://photo.nxorbit.top/auth/login',
       response_type: 'code',
       scope: 'openid',
       embed: '1',

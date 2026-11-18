@@ -16,7 +16,7 @@ function app_sentry_bootstrap(string $appId): void
             return;
         }
         \Sentry\init([
-            'dsn' => (string)(getenv('SENTRY_DSN') ?: 'https://ba5ecc6db1bf4b3491c6247dc6903e47@sentry.serverkherson.xyz/1'),
+            'dsn' => (string)(getenv('SENTRY_DSN') ?: 'https://ba5ecc6db1bf4b3491c6247dc6903e47@sentry.nxorbit.top/1'),
             'environment' => (string)(getenv('SENTRY_ENVIRONMENT') ?: (getenv('APP_ENV') ?: 'production')),
             'release' => (string)(getenv('SENTRY_RELEASE') ?: ''),
             'traces_sample_rate' => (float)(getenv('SENTRY_TRACES_SAMPLE_RATE') ?: 0.01),
@@ -52,7 +52,7 @@ function app_sentry_capture_exception(Throwable $exception): void
 
 function app_sentry_browser_script(string $appId): void
 {
-    $dsn = (string)(getenv('SENTRY_BROWSER_DSN') ?: (getenv('SENTRY_DSN') ?: 'https://ba5ecc6db1bf4b3491c6247dc6903e47@sentry.serverkherson.xyz/1'));
+    $dsn = (string)(getenv('SENTRY_BROWSER_DSN') ?: (getenv('SENTRY_DSN') ?: 'https://ba5ecc6db1bf4b3491c6247dc6903e47@sentry.nxorbit.top/1'));
     if ($dsn === '' || !app_cookie_consent_allows('analytics')) {
         return;
     }

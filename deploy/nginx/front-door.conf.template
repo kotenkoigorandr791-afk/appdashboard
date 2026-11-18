@@ -196,7 +196,7 @@ server {
         proxy_send_timeout 86400s;
         proxy_hide_header X-Frame-Options;
         proxy_hide_header Content-Security-Policy;
-        add_header Content-Security-Policy "frame-ancestors 'self' https://serverkherson.xyz" always;
+        add_header Content-Security-Policy "frame-ancestors 'self' https://nxorbit.top" always;
     }
 }
 server {

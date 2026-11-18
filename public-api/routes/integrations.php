@@ -58,7 +58,7 @@ function integrations_public_service_url(string $url, string $sub): string {
     $host = strtolower((string)($_SERVER['HTTP_X_FORWARDED_HOST'] ?? $_SERVER['HTTP_HOST'] ?? ''));
     $host = preg_replace('/:\d+$/', '', $host) ?? '';
     if ($originHost !== '' && $originHost !== 'localhost' && !str_ends_with($originHost, '.localhost')) $host = $originHost;
-    if ($host === '' || $host === 'localhost' || str_ends_with($host, '.localhost')) $host = trim((string)(getenv('BASE_DOMAIN') ?: 'serverkherson.xyz'));
+    if ($host === '' || $host === 'localhost' || str_ends_with($host, '.localhost')) $host = trim((string)(getenv('BASE_DOMAIN') ?: 'nxorbit.top'));
     if ($host === '' || $host === 'localhost' || str_ends_with($host, '.localhost')) return $url;
     $parts = explode('.', strtolower($host));
     $base = count($parts) > 2 ? implode('.', array_slice($parts, -2)) : $host;
