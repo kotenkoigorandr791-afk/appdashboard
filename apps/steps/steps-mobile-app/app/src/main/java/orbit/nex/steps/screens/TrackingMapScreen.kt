@@ -67,9 +67,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
+import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.tileprovider.tilesource.XYTileSource
 import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.util.MapTileIndex
@@ -78,6 +77,7 @@ import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.TilesOverlay
+import orbit.nex.steps.BuildConfig
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
 import orbit.nex.steps.location.GeoBoundingBox
@@ -129,27 +129,25 @@ private enum class GeoLayer(val key: String, val titleRes: Int) {
     SPEED("speed", R.string.map_layer_speed),
 }
 
-private object CartoLight : XYTileSource(
-    "CartoLight", 0, 20, 256, ".png",
-    arrayOf(
-        "https://a.basemaps.cartocdn.com/light_all/",
-        "https://b.basemaps.cartocdn.com/light_all/",
-        "https://c.basemaps.cartocdn.com/light_all/",
-    ),
-    "© OpenStreetMap contributors © CARTO",
-)
+/**
+ * Street basemap without an API key.
+ *
+ * The OSM Mapnik tiles and the retired CARTO basemaps answered the app with
+ * blank 1x1 images (public rate limiting / withdrawn free endpoints), which is
+ * why the map looked like an empty background. Esri's World Street Map has
+ * z/y/x order like World Imagery and can be colour-inverted for dark mode.
+ */
+private object EsriStreet : OnlineTileSourceBase(
+    "EsriWorldStreetMap", 0, 19, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/"),
+    "Esri, HERE, Garmin, OpenStreetMap contributors",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
 
-private object CartoDark : XYTileSource(
-    "CartoDark", 0, 20, 256, ".png",
-    arrayOf(
-        "https://a.basemaps.cartocdn.com/dark_all/",
-        "https://b.basemaps.cartocdn.com/dark_all/",
-        "https://c.basemaps.cartocdn.com/dark_all/",
-    ),
-    "© OpenStreetMap contributors © CARTO",
-)
-
-/** Esri World Imagery needs z/y/x order, so it cannot use [XYTileSource]. */
+/** Esri imagery uses z/y/x order instead of the usual z/x/y. */
 private object EsriSatellite : OnlineTileSourceBase(
     "EsriWorldImagery", 0, 19, 256, ".jpg",
     arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
@@ -249,6 +247,14 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
     val repository = remember { GeoMapRepository(prefs) }
+    // osmdroid defaults to a generic user agent that the public tile servers
+    // answer with blank 1x1 images, which is why the map looked empty. Identify
+    // the app explicitly before the first tile request.
+    remember {
+        Configuration.getInstance().apply {
+            userAgentValue = "${context.packageName}/${BuildConfig.VERSION_NAME} (NexSteps)"
+        }
+    }
 
     var trackingState by remember { mutableStateOf(manager.state()) }
     var permissionDenied by remember { mutableStateOf(LocationPermissions.state(context) == LocationPermissionState.DENIED) }
@@ -280,7 +286,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     val resolvedStyle = mapStyle
     val mapBackground = when (resolvedStyle) {
         MapStyle.SATELLITE -> Color(0xFF083744)
-        MapStyle.NORMAL -> if (darkTheme) Color(0xFF5C2F1E) else Color(0xFFAED2E6)
+        MapStyle.NORMAL -> if (darkTheme) Color(0xFF12181C) else Color(0xFFE8EDF2)
     }
 
     // Server state is polled so the switch and sync box track the service.
@@ -325,12 +331,35 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
     val mapView = remember {
         val camera = prefs.getMapCamera()
+        // With no saved camera the map used to open on an arbitrary point in the
+        // Sahara at street zoom, so the user saw a featureless beige frame. Start
+        // from the device's last position when it is known, otherwise show the
+        // whole world so the map visibly works.
+        val lastKnown = runCatching {
+            if (LocationPermissions.hasForeground(context)) {
+                val manager = context.getSystemService(LocationManager::class.java)
+                listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+                    .firstNotNullOfOrNull { provider -> runCatching { manager?.getLastKnownLocation(provider) }.getOrNull() }
+            } else null
+        }.getOrNull()
         MapView(context).apply {
             setMultiTouchControls(true)
             setHorizontalMapRepetitionEnabled(false)
             setVerticalMapRepetitionEnabled(false)
-            controller.setZoom(camera?.third ?: 13.0)
-            controller.setCenter(GeoPoint(camera?.first ?: 20.0, camera?.second ?: 0.0))
+            when {
+                camera != null -> {
+                    controller.setZoom(camera.third)
+                    controller.setCenter(GeoPoint(camera.first, camera.second))
+                }
+                lastKnown != null -> {
+                    controller.setZoom(15.0)
+                    controller.setCenter(GeoPoint(lastKnown.latitude, lastKnown.longitude))
+                }
+                else -> {
+                    controller.setZoom(3.0)
+                    controller.setCenter(GeoPoint(20.0, 0.0))
+                }
+            }
         }
     }
     val roadsOverlay = remember {
@@ -351,16 +380,18 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         mapView.setTileSource(
             when (resolvedStyle) {
                 MapStyle.SATELLITE -> EsriSatellite
-                MapStyle.NORMAL -> TileSourceFactory.MAPNIK
+                MapStyle.NORMAL -> EsriStreet
             }
         )
+        // Same street tiles in both themes; dark mode inverts them the way the
+        // OSM basemap used to be inverted.
         mapView.overlayManager.tilesOverlay.setColorFilter(
             if (resolvedStyle == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
         )
         mapView.setBackgroundColor(
             when (resolvedStyle) {
                 MapStyle.SATELLITE -> AndroidColor.rgb(8, 55, 68)
-                MapStyle.NORMAL -> if (darkTheme) AndroidColor.rgb(92, 47, 30) else AndroidColor.rgb(174, 210, 230)
+                MapStyle.NORMAL -> if (darkTheme) AndroidColor.rgb(18, 24, 28) else AndroidColor.rgb(232, 237, 242)
             }
         )
         mapView.invalidate()
@@ -396,11 +427,14 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize().background(mapBackground)) {
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
 
-        // Floating header: what is recording and which day is shown.
-        Row(
-            Modifier.align(Alignment.TopCenter).padding(top = 126.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        // Floating header: what is recording and which day is shown. The Scaffold
+        // already insets the content below the top bar and above the nav bar, so
+        // only a small map margin is needed here (the old 126dp offset pushed the
+        // pills into the middle of the map).
+        Column(
+            Modifier.align(Alignment.TopCenter).padding(top = 12.dp, start = 12.dp, end = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TrackingSwitchPill(
                 tracking = trackingState == TrackingState.RUNNING || trackingState == TrackingState.PAUSED,
@@ -476,12 +510,6 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             )
         }
 
-        if (GeoLayer.SPEED.key in layers) {
-            SpeedLegend(
-                Modifier.align(Alignment.BottomStart).padding(start = 12.dp, bottom = 190.dp),
-            )
-        }
-
         if (data.isEmpty && !loading) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
@@ -496,13 +524,22 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             }
         }
 
-        SyncStatusBox(
-            loading = loading,
-            error = data.error ?: lastError,
-            lastUploadAt = lastUploadAt,
-            pending = pendingUploads,
-            modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 120.dp),
-        )
+        // The legend and the sync state stack together in one bottom corner so
+        // they can never cover each other or float in the middle of the map.
+        Column(
+            Modifier.align(Alignment.BottomStart).padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            if (GeoLayer.SPEED.key in layers) {
+                SpeedLegend()
+            }
+            SyncStatusBox(
+                loading = loading,
+                error = data.error ?: lastError,
+                lastUploadAt = lastUploadAt,
+                pending = pendingUploads,
+            )
+        }
     }
 
     if (showPanels) {

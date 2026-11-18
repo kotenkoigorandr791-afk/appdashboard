@@ -3,23 +3,19 @@ package orbit.nex.steps.screens
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -28,6 +24,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,20 +34,18 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.journeyapps.barcodescanner.ScanContract
 import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import orbit.nex.steps.BuildConfig
 import orbit.nex.steps.HealthDataType
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.R
@@ -60,8 +55,9 @@ import okhttp3.Request
 
 /**
  * Full-screen gate shown while the phone has no paired server. Mirrors the
- * Spends app: no tabs, no counters and no sync controls are reachable until a
- * device token is paired, so a fresh install cannot show stale or empty data.
+ * Spends pairing screen: one centred card with the app's own branding, the QR
+ * scanner, a paste field and a single connect action. No tabs, counters or sync
+ * controls are reachable until a device token is paired.
  */
 @Composable
 fun ConnectionGateScreen(
@@ -117,64 +113,45 @@ fun ConnectionGateScreen(
     Column(
         modifier
             .fillMaxSize()
-            .verticalScroll(rememberScrollState())
             .navigationBarsPadding()
-            .padding(horizontal = 20.dp, vertical = 24.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+            .verticalScroll(rememberScrollState())
+            .padding(20.dp),
+        verticalArrangement = Arrangement.Center,
     ) {
-        // Branding hero: the artwork sits fully inside the frame (Fit, no crop),
-        // matching how the Spends welcome card renders its icon.
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(228.dp)
-                .background(
-                    Brush.linearGradient(
-                        listOf(Color(0xFF022249), Color(0xFF12366A), Color(0xFF3A2470)),
-                    ),
-                    RoundedCornerShape(18.dp),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Image(
-                painterResource(R.drawable.nex_steps_icon),
-                contentDescription = stringResource(R.string.app_name),
-                modifier = Modifier.size(172.dp),
-                contentScale = ContentScale.Fit,
-            )
-        }
-        Text(
-            stringResource(R.string.auth_gate_title),
-            style = MaterialTheme.typography.headlineMedium,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-        )
-        Text(
-            stringResource(R.string.auth_gate_desc),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         Card(
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(
-                        Icons.Filled.CloudOff,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.size(8.dp))
-                    Text(
-                        stringResource(R.string.auth_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+            Column(
+                Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Surface(
+                    modifier = Modifier.size(56.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Image(
+                            painterResource(R.drawable.nex_steps_icon),
+                            contentDescription = stringResource(R.string.app_name),
+                            modifier = Modifier.size(40.dp),
+                            contentScale = ContentScale.Fit,
+                        )
+                    }
                 }
                 Text(
-                    stringResource(R.string.auth_waiting),
+                    stringResource(R.string.auth_gate_title),
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.SemiBold,
+                    textAlign = TextAlign.Center,
+                )
+                Text(
+                    stringResource(R.string.auth_gate_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
                 )
                 Button(
                     onClick = {
@@ -222,16 +199,11 @@ fun ConnectionGateScreen(
                         text,
                         style = MaterialTheme.typography.bodySmall,
                         color = if (failed) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
         }
-        Text(
-            stringResource(R.string.auth_gate_version, BuildConfig.VERSION_NAME),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }
 
