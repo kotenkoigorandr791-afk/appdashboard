@@ -79,7 +79,7 @@ import orbit.nex.finance.ui.DataScreen
 import orbit.nex.finance.ui.Dest
 import orbit.nex.finance.ui.DetailScreen
 import orbit.nex.finance.ui.EditExpenseDialog
-import orbit.nex.finance.ui.ErrorDialog
+import orbit.nex.finance.ui.ErrorToast
 import orbit.nex.finance.ui.ExpenseDetailScreen
 import orbit.nex.finance.ui.GoalsScreen
 import orbit.nex.finance.ui.HomeScreen
@@ -287,7 +287,7 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
 
     if (state.session.token.isBlank()) {
         PairingScreen(pairingLink.orEmpty(), model)
-        ErrorDialog(state.error, model::dismissError)
+        ErrorToast(state.error, model::dismissError)
         return
     }
 
@@ -455,12 +455,12 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
         }
     }
     sheet?.let { kind ->
-        TransactionSheet(kind, { sheet = null },
-            { d, s, a -> model.addExpense(d, s, a, "manual") { sheet = null } },
+        TransactionSheet(kind, state.snapshot.currency.ifBlank { "USD" }, { sheet = null },
+            { d, s, a, c -> model.addExpense(d, s, a, "manual", c) { sheet = null } },
             { d, a -> model.addIncome(d, a) { sheet = null } },
         )
     }
-    ErrorDialog(state.error, model::dismissError)
+    ErrorToast(state.error, model::dismissError)
     if (editingExpense) {
         selectedExpense?.let { expense ->
             EditExpenseDialog(state, expense, model) { editingExpense = false }

@@ -70,4 +70,92 @@ class WalletParserTest {
         assertEquals(1234.56, result!!.amount, 0.001)
         assertEquals("Silpo", result.store)
     }
+
+    @Test
+    fun readsCurrencyCodeNextToAmount() {
+        val result = parse("Payment successful", "You paid 12.34 at Lidl in PLN")
+        assertNotNull(result)
+        assertEquals("PLN", result!!.currency)
+    }
+
+    @Test
+    fun readsCurrencySymbolBeforeAmount() {
+        val result = parse("Payment successful", "€12,34 at Lidl")
+        assertNotNull(result)
+        assertEquals("EUR", result!!.currency)
+    }
+
+    @Test
+    fun readsZlotySuffix() {
+        val result = parse("Payment successful", "Zapłacono 34,99 zł w Biedronka")
+        assertNotNull(result)
+        assertEquals("PLN", result!!.currency)
+    }
+
+    @Test
+    fun readsHryvniaWord() {
+        val result = parse("Оплата", "Списано 250,00 грн в АТБ")
+        assertNotNull(result)
+        assertEquals("UAH", result!!.currency)
+    }
+
+    @Test
+    fun lowercaseCodeIsRecognised() {
+        val result = parse("Payment successful", "Paid 5.00 eur at Silpo")
+        assertNotNull(result)
+        assertEquals("EUR", result!!.currency)
+    }
+
+    @Test
+    fun currencyInsideStoreNameIsNotUsed() {
+        // "Europa" contains the letters EUR; the charge itself is in dollars.
+        val result = parse("Payment successful", "You paid 9.99 USD at Europa Market")
+        assertNotNull(result)
+        assertEquals("USD", result!!.currency)
+    }
+
+    @Test
+    fun currencyAfterMerchantNameIsStillRead() {
+        val result = parse("Payment successful", "You paid 5,00 at Lidl PLN")
+        assertNotNull(result)
+        assertEquals("PLN", result!!.currency)
+    }
+
+    @Test
+    fun storeNamedWithCurrencyKeepsAccountCurrency() {
+        // Unknown shop whose name starts with a currency code.
+        val result = WalletParser.parse("Payment successful", "You paid 5.00 at EUR Store", "USD", stores)
+        assertNotNull(result)
+        assertEquals("USD", result!!.currency)
+    }
+
+    @Test
+    fun currencyCodeInStoreNameFallsBackToAccountCurrency() {
+        val storesWithPlName = stores + Store(id = "9", name = "PLN Market", category = "groceries")
+        val result = WalletParser.parse("Payment successful", "You paid 5.00 at PLN Market", "EUR", storesWithPlName)
+        assertNotNull(result)
+        assertEquals("PLN Market", result!!.store)
+        assertEquals("EUR", result.currency)
+    }
+
+    @Test
+    fun dollarSymbolUsesAccountCurrencyByDefault() {
+        val result = WalletParser.parse("Payment successful", "You paid $5.00 at Lidl", "CAD", stores)
+        assertNotNull(result)
+        assertEquals("CAD", result!!.currency)
+    }
+
+    @Test
+    fun explicitUsDollarWins() {
+        val result = WalletParser.parse("Payment successful", "You paid US$5.00 at Lidl", "CAD", stores)
+        assertNotNull(result)
+        assertEquals("USD", result!!.currency)
+    }
+
+    @Test
+    fun unknownCurrencyFallsBackToAccountCurrency() {
+        val result = parse("Payment successful", "You paid 5.00 at Lidl")
+        assertNotNull(result)
+        assertEquals("USD", result!!.currency)
+    }
 }

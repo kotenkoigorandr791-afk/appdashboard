@@ -23,6 +23,8 @@ import orbit.nex.finance.data.Session
 import orbit.nex.finance.data.SessionStore
 import orbit.nex.finance.data.Snapshot
 import orbit.nex.finance.data.SpendsApi
+import orbit.nex.finance.data.SyncLog
+import orbit.nex.finance.data.CurrencyConversion
 import orbit.nex.finance.data.withOutbox
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -143,11 +145,20 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
             runCatching { OutboxSync.pull(store, api, state.value.snapshot, force = true) }
         }
     }
-    fun addExpense(date: String, storeName: String, amount: String, source: String = "manual", done: () -> Unit = {}) = launch {
+    fun addExpense(
+        date: String,
+        storeName: String,
+        amount: String,
+        source: String = "manual",
+        currency: String = "",
+        done: () -> Unit = {},
+    ) = launch {
         val numeric = amount.replace(',', '.').toDoubleOrNull()
         if (date.isBlank() || storeName.isBlank() || numeric == null || numeric <= 0) return@launch fail("Enter date, merchant, and amount")
+        val base = state.value.snapshot.currency.ifBlank { "USD" }
+        val converted = convertToBase(numeric, currency, base) ?: return@launch
         // Persist first: even if the request below fails the charge is safe.
-        OutboxSync.enqueue(store, OutboxItem(kind = "expense", date = date, store = storeName, amount = numeric, source = source))
+        OutboxSync.enqueue(store, OutboxItem(kind = "expense", date = date, store = storeName, amount = converted, source = source))
         // The outbox overlay already shows the new row, so close the sheet
         // immediately instead of waiting for a possibly slow server round-trip.
         markSaved()
@@ -313,12 +324,44 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         run("Could not contribute") { requireOk(api.form(state.value.session, mapOf("contribute_goal" to id, "amount" to amount))); refresh(); markSaved() }
     }
     fun deleteGoal(id: String) = launch { run("Could not delete goal") { requireOk(api.form(state.value.session, mapOf("delete_goal" to id))); refresh() } }
-    fun addSubscription(storeName: String, amount: String, day: String) = launch {
+    fun addSubscription(storeName: String, amount: String, day: String, currency: String = "") = launch {
+        val numeric = amount.replace(',', '.').toDoubleOrNull()
+        val dayNumber = day.trim().toIntOrNull() ?: 0
+        when {
+            storeName.isBlank() -> return@launch fail("Choose a store for the subscription")
+            numeric == null || numeric <= 0 -> return@launch fail("Enter a positive subscription amount")
+            dayNumber !in 1..31 -> return@launch fail("Charge day must be between 1 and 31")
+        }
+        val base = state.value.snapshot.currency.ifBlank { "USD" }
+        val converted = convertToBase(numeric, currency, base) ?: return@launch
         run("Could not add subscription") {
-            requireOk(api.form(state.value.session, mapOf("add_subscription" to "1", "store" to storeName, "amount" to amount, "frequency" to "monthly", "day_of_month" to day, "start_date" to LocalDate.now().toString())))
+            requireOk(api.form(state.value.session, mapOf(
+                "add_subscription" to "1",
+                "store" to storeName,
+                "amount" to converted.toString(),
+                "frequency" to "monthly",
+                "day_of_month" to dayNumber.toString(),
+                "start_date" to LocalDate.now().toString(),
+            )))
             refresh()
             markSaved()
         }
+    }
+
+    /**
+     * Converts a typed amount into the ledger currency. Returns null (after
+     * surfacing the error) when the rate is unknown, so a foreign charge is never
+     * saved as if it were base currency.
+     */
+    private suspend fun convertToBase(amount: Double, currency: String, base: String): Double? {
+        val code = currency.trim().uppercase()
+        if (code.isBlank() || code == base.trim().uppercase()) return amount
+        val rates = runCatching { api.rates(state.value.session, base).rates }.getOrElse { emptyMap() }
+        val converted = CurrencyConversion.toBase(amount, code, base, rates)
+        if (converted == null) {
+            fail("Could not convert $code to $base: exchange rate unavailable")
+        }
+        return converted
     }
     fun deleteSubscription(id: String) = launch { run("Could not delete") { requireOk(api.form(state.value.session, mapOf("delete_subscription" to id))); refresh() } }
     /** Saves a backup both on the device and on the paired server. */
@@ -384,12 +427,22 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
                 dropped && state.value.session.token.isNotBlank() -> Unit
                 // The unpaired flow still needs a clear connection message.
                 dropped -> error.value = "No internet connection"
-                else -> error.value = failure.message?.takeIf(String::isNotBlank) ?: fallback
+                else -> {
+                    val text = failure.message?.takeIf(String::isNotBlank) ?: fallback
+                    error.value = text
+                    logError(text)
+                }
             }
         }
         if (!quiet) loading.value = false
     }
-    private fun fail(message: String) { error.value = message }
+    private suspend fun logError(message: String) {
+        runCatching { store.addLog(SyncLog(url = "", method = "UI", success = false, errorMessage = message)) }
+    }
+    private suspend fun fail(message: String) {
+        error.value = message
+        logError(message)
+    }
     private fun markSaved() { savedTick.value = System.currentTimeMillis() }
     fun parsePairing(value: String, suppliedToken: String): Pair<String, String>? {
         val source = value.trim()

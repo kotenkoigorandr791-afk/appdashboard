@@ -126,7 +126,32 @@ data class WalletNotification(val store: String, val amount: Double, val currenc
 /** Parses a Google Wallet payment notification on the device. */
 object WalletParser {
     private val amountPattern = Regex("""(\d{1,3}(?:[ .,\u00a0]\d{3})*(?:[.,]\d{2})|\d+(?:[.,]\d{2}))""")
-    private val currencyCodes = setOf("PLN", "EUR", "USD", "UAH", "GBP", "CZK", "CHF", "SEK", "NOK", "BYN", "TRY", "CAD")
+
+    /**
+     * Currency codes are matched as whole tokens only: a store called "Europa"
+     * must not be read as EUR, and "PLN Market" must not turn a dollar charge
+     * into zloty.
+     */
+    private val currencyCodePattern = Regex(
+        """(?<![\p{L}])(PLN|EUR|USD|UAH|GBP|CZK|CHF|SEK|NOK|BYN|TRY|CAD|JPY|RUB|RON|HUF|DKK|ILS|KZT|MDL|GEL|AUD|NZD|SGD|BRL|INR)(?![\p{L}])""",
+        RegexOption.IGNORE_CASE,
+    )
+    private val symbolCurrencies = listOf(
+        "€" to "EUR",
+        "£" to "GBP",
+        "₴" to "UAH",
+        "₽" to "BYN",
+        "₺" to "TRY",
+        "₸" to "KZT",
+        "₪" to "ILS",
+        "₹" to "INR",
+        "zł" to "PLN",
+        "Kč" to "CZK",
+        "грн" to "UAH",
+        "руб" to "BYN",
+        "$" to "$",
+    )
+    private val dollarBases = setOf("USD", "CAD", "AUD", "NZD", "SGD", "HKD", "MXN")
     private val merchantPatterns = listOf(
         Regex("""(?i)\b(?:at|in|to|w|u|в|у|bei|chez|à)\s+([\p{L}\d][\p{L}\d&'.\- ]{2,40})"""),
         Regex("""(?i)\b(?:payment to|paid to|sent to|transfer to|оплата|списание)\s+([\p{L}\d][\p{L}\d&'.\- ]{2,40})"""),
@@ -140,17 +165,6 @@ object WalletParser {
             .map { match -> match.groupValues[1].replace(" ", "").replace('\u00a0', ' ').replace(',', '.').toDoubleOrNull() }
             .filterNotNull()
             .firstOrNull { it > 0 } ?: return null
-        val currency = currencyCodes.firstOrNull { raw.contains(it, ignoreCase = true) }
-            ?: Regex("""[€$£₴₽]""").find(raw)?.value?.let {
-                when (it) {
-                    "€" -> "EUR"
-                    "$" -> "USD"
-                    "£" -> "GBP"
-                    "₴" -> "UAH"
-                    "₽" -> "BYN"
-                    else -> fallbackCurrency
-                }
-            } ?: fallbackCurrency
         // Prefer the merchant captured from the notification body, then the title.
         val merchant = (merchantPatterns.asSequence().mapNotNull { pattern -> pattern.find(text)?.groupValues?.getOrNull(1) }.firstOrNull()
             ?: title.takeIf { it.isNotBlank() && !it.any(Char::isDigit) })
@@ -164,6 +178,62 @@ object WalletParser {
             ?: StoreMatcher.matchInText(text, stores)
             ?: StoreMatcher.matchInText(raw, stores)
         val storeName = matchedStore?.name ?: merchant.ifBlank { "Wallet" }
+        // Store names are removed before reading the currency: "€uro Market" or
+        // "EUR Store" describe the shop, not the money. A code that ends the
+        // merchant ("... at Lidl PLN") is still the charge currency.
+        val currency = merchant.currencySuffix()
+            ?: detectCurrency(raw, listOfNotNull(matchedStore?.name, merchant), fallbackCurrency)
         return WalletNotification(storeName, amount, currency, raw, matchedStore != null)
+    }
+
+    /**
+     * Reads the currency of a charge. The strongest signal is the code or symbol
+     * printed next to the amount; codes and symbols found anywhere else in the
+     * text are only used when nothing sits close to the number.
+     */
+    fun detectCurrency(raw: String, ignoredNames: List<String>, fallback: String): String {
+        val base = CurrencyConversion.normalize(fallback)
+        var text = raw
+        ignoredNames.map { it.trim() }.filter { it.length >= 3 }.forEach { name ->
+            text = text.replace(Regex(Regex.escape(name), RegexOption.IGNORE_CASE), " ")
+        }
+        amountPattern.findAll(text).firstOrNull()?.let { match ->
+            val start = (match.range.first - 6).coerceAtLeast(0)
+            val end = (match.range.last + 7).coerceAtMost(text.length)
+            nearestCurrency(text.substring(start, end), base)?.let { return it }
+        }
+        nearestCurrency(text, base)?.let { return it }
+        return base
+    }
+
+    /** A standalone code at the end of a merchant string belongs to the charge, not to the shop name. */
+    private fun String.currencySuffix(): String? {
+        val parts = trim().split(Regex("\\s+")).filter { it.isNotBlank() }
+        if (parts.size < 2) return null
+        val match = currencyCodePattern.matchEntire(parts.last()) ?: return null
+        return match.groupValues[1].uppercase(Locale.ROOT)
+    }
+
+    private fun nearestCurrency(text: String, base: String): String? {
+        currencyCodePattern.find(text)?.let { return it.groupValues[1].uppercase(Locale.ROOT) }
+        val lowered = text.lowercase(Locale.ROOT)
+        symbolCurrencies.forEach { (symbol, code) ->
+            if (lowered.contains(symbol.lowercase(Locale.ROOT))) {
+                return if (code == "$") dollarCurrency(text, base) else code
+            }
+        }
+        return null
+    }
+
+    /** `$` is used by several currencies; the account currency wins unless the text is explicit. */
+    private fun dollarCurrency(text: String, base: String): String {
+        val upper = text.uppercase(Locale.ROOT)
+        return when {
+            "CA$" in upper -> "CAD"
+            "AU$" in upper || "A$" in upper -> "AUD"
+            "NZ$" in upper -> "NZD"
+            "US$" in upper -> "USD"
+            else -> if (base in dollarBases) base else "USD"
+        }
     }
 }

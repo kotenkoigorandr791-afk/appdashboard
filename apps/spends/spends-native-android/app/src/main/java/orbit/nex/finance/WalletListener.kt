@@ -22,6 +22,8 @@ import orbit.nex.finance.data.OutboxItem
 import orbit.nex.finance.data.OutboxSync
 import orbit.nex.finance.data.SessionStore
 import orbit.nex.finance.data.SpendsApi
+import orbit.nex.finance.data.SyncLog
+import orbit.nex.finance.data.CurrencyConversion
 import orbit.nex.finance.data.WalletNotification
 import orbit.nex.finance.data.WalletParser
 import java.time.LocalDate
@@ -85,12 +87,15 @@ class WalletListener : NotificationListenerService() {
             val snapshot = runCatching { app.store.snapshot.first() }.getOrNull() ?: return@launch
             val parsed = WalletParser.parse(title, text, snapshot.currency.ifBlank { "USD" }, snapshot.stores) ?: return@launch
             val extrasNow = app.store.extrasNow()
-            if (!parsed.matched) {
+            val base = snapshot.currency.ifBlank { "USD" }
+            val session = runCatching { app.store.session.first() }.getOrNull()
+            val converted = baseAmount(app.api, session, parsed, base, app.store)
+            if (!parsed.matched || converted == null) {
                 app.store.saveExtras(
                     extrasNow.copy(
                         disputes = addDispute(
                             extrasNow.disputes,
-                            disputeOf(parsed, snapshot.currency, title, text),
+                            disputeOf(parsed, base, title, text, if (converted == null) "rate_missing" else "store_not_found"),
                         ),
                     ),
                 )
@@ -98,8 +103,8 @@ class WalletListener : NotificationListenerService() {
                 return@launch
             }
             val today = LocalDate.now().toString()
-            val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 } ||
-                extrasNow.outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 }
+            val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - converted) < 0.005 } ||
+                extrasNow.outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - converted) < 0.005 }
             if (!duplicate) {
                 // A matched notification is booked immediately instead of waiting
                 // for confirmation. The write is durable, so it is replayed later
@@ -108,14 +113,14 @@ class WalletListener : NotificationListenerService() {
                     kind = "expense",
                     date = today,
                     store = parsed.store,
-                    amount = parsed.amount,
+                    amount = converted,
                     source = "notification",
                     raw = parsed.raw,
                 )
                 OutboxSync.enqueue(app.store, item)
                 runCatching { OutboxSync.flush(app.store, app.api) }
             }
-            notifyCapture(this@WalletListener, parsed, saved = true)
+            notifyCapture(this@WalletListener, parsed.copy(amount = converted), saved = true)
         }
     }
 
@@ -193,7 +198,13 @@ class WalletListener : NotificationListenerService() {
 }
 
 /** Builds a dispute record from a parsed but unmatched wallet notification. */
-private fun disputeOf(parsed: WalletNotification, fallbackCurrency: String, title: String, text: String): Dispute =
+private fun disputeOf(
+    parsed: WalletNotification,
+    fallbackCurrency: String,
+    title: String,
+    text: String,
+    reason: String = "store_not_found",
+): Dispute =
     Dispute(
         source = "wallet",
         rawName = parsed.store.take(80),
@@ -201,8 +212,38 @@ private fun disputeOf(parsed: WalletNotification, fallbackCurrency: String, titl
         currency = parsed.currency.ifBlank { fallbackCurrency },
         date = LocalDate.now().toString(),
         raw = parsed.raw.ifBlank { listOf(title, text).filter { it.isNotBlank() }.joinToString(" · ") },
-        reason = "store_not_found",
+        reason = reason,
     )
+
+/**
+ * Converts a captured charge into the ledger currency. Returns null when the
+ * notification names a currency whose rate is unknown: booking the number as-is
+ * would silently corrupt the ledger, so the charge is sent to review instead.
+ */
+private suspend fun baseAmount(
+    api: SpendsApi,
+    session: orbit.nex.finance.data.Session?,
+    parsed: WalletNotification,
+    base: String,
+    store: SessionStore,
+): Double? {
+    val currency = parsed.currency.ifBlank { base }
+    if (currency.equals(base, ignoreCase = true)) return parsed.amount
+    if (session == null || session.token.isBlank()) {
+        logWalletError(store, "wallet: cannot convert $currency to $base without a paired session")
+        return null
+    }
+    val rates = runCatching { api.rates(session, base).rates }.getOrElse { emptyMap() }
+    val converted = CurrencyConversion.toBase(parsed.amount, currency, base, rates)
+    if (converted == null) {
+        logWalletError(store, "wallet: no exchange rate for $currency to $base (${parsed.amount} $currency, ${parsed.store})")
+    }
+    return converted
+}
+
+private suspend fun logWalletError(store: SessionStore, message: String) {
+    runCatching { store.addLog(SyncLog(url = "", method = "WALLET", success = false, errorMessage = message)) }
+}
 
 /** Appends a dispute unless an identical one is already waiting for review. */
 internal fun addDispute(list: List<Dispute>, item: Dispute): List<Dispute> =
@@ -247,7 +288,8 @@ object WalletScanner {
             val text = extras.getCharSequence("android.text")?.toString().orEmpty()
             if (title.isBlank() && text.isBlank()) continue
             scanned++
-            val parsed = WalletParser.parse(title, text, snapshot.currency.ifBlank { "USD" }, snapshot.stores)
+            val base = snapshot.currency.ifBlank { "USD" }
+            val parsed = WalletParser.parse(title, text, base, snapshot.stores)
             if (parsed == null) {
                 val raw = listOf(title, text).filter { it.isNotBlank() }.joinToString(" · ")
                 disputes = addDispute(
@@ -266,14 +308,20 @@ object WalletScanner {
                 continue
             }
             if (!parsed.matched) {
-                disputes = addDispute(disputes, disputeOf(parsed, snapshot.currency, title, text))
+                disputes = addDispute(disputes, disputeOf(parsed, base, title, text))
                 conflicts++
                 continue
             }
-            val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 } ||
-                store.extrasNow().outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - parsed.amount) < 0.005 }
+            val converted = baseAmount(api, session, parsed, base, store)
+            if (converted == null) {
+                disputes = addDispute(disputes, disputeOf(parsed, base, title, text, "rate_missing"))
+                conflicts++
+                continue
+            }
+            val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - converted) < 0.005 } ||
+                store.extrasNow().outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - converted) < 0.005 }
             if (!duplicate) {
-                val item = OutboxItem(kind = "expense", date = today, store = parsed.store, amount = parsed.amount, source = "notification", raw = parsed.raw)
+                val item = OutboxItem(kind = "expense", date = today, store = parsed.store, amount = converted, source = "notification", raw = parsed.raw)
                 OutboxSync.enqueue(store, item)
             }
             val stored = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)

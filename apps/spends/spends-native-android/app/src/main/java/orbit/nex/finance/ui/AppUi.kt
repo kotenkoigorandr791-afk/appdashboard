@@ -43,6 +43,7 @@ import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -141,6 +142,7 @@ import orbit.nex.finance.NotificationAccess
 import orbit.nex.finance.R
 import orbit.nex.finance.SpendsViewModel
 import orbit.nex.finance.data.BackupEntry
+import orbit.nex.finance.data.CurrencyConversion
 import orbit.nex.finance.data.Expense
 import orbit.nex.finance.data.Goal
 import orbit.nex.finance.data.NetworkState
@@ -1876,9 +1878,11 @@ fun PaymentTagDialog(state: AppState, expense: Expense, model: SpendsViewModel, 
 @Composable
 fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
     val context = LocalContext.current
+    val base = state.snapshot.currency.ifBlank { "USD" }
     var store by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var day by remember { mutableStateOf("1") }
+    var currency by remember(base) { mutableStateOf(CurrencyConversion.normalize(base)) }
     var adding by remember { mutableStateOf(false) }
     val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
@@ -1908,14 +1912,16 @@ fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
                     }
                     OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.amount_label)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
                     OutlinedTextField(day, { day = it.filter { c -> c.isDigit() }.take(2) }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.subscriptions_day)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
+                    CurrencyChips(base, currency) { currency = it }
+                    // Validation lives in the view model so a missing store, amount
+                    // or day always produces an error toast instead of a dead button.
                     Button(
                         {
-                            model.addSubscription(store, amount.replace(',', '.'), day.ifBlank { "1" })
-                            store = ""; amount = ""; day = "1"; adding = false
+                            model.addSubscription(store, amount.replace(',', '.'), day.ifBlank { "1" }, currency)
+                            store = ""; amount = ""; day = "1"; currency = CurrencyConversion.normalize(base); adding = false
                         },
                         Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        enabled = store.isNotBlank() && amount.toDoubleOrNull() != null,
                     ) { Text(stringResource(R.string.save)) }
                 }
             }
@@ -2350,13 +2356,48 @@ private fun LastSyncCard(timestamp: Long) {
     }
 }
 
+/**
+ * Currency picker for amounts typed by hand. The ledger stores the base
+ * currency, so picking another one converts the amount before it is saved.
+ */
+@Composable
+fun CurrencyChips(base: String, selected: String, onSelect: (String) -> Unit) {
+    val options = remember(base) { CurrencyConversion.options(base) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            stringResource(R.string.currency),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { code ->
+                FilterChip(
+                    selected = code.equals(selected, ignoreCase = true),
+                    onClick = { onSelect(code) },
+                    label = { Text(code) },
+                )
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionSheet(kind: String, onDismiss: () -> Unit, saveExpense: (String, String, String) -> Unit, saveIncome: (String, String) -> Unit) {
+fun TransactionSheet(
+    kind: String,
+    baseCurrency: String,
+    onDismiss: () -> Unit,
+    saveExpense: (String, String, String, String) -> Unit,
+    saveIncome: (String, String) -> Unit,
+) {
     val context = LocalContext.current
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
     var merchant by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var currency by remember(baseCurrency) { mutableStateOf(CurrencyConversion.normalize(baseCurrency)) }
     val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) merchant = result.data?.getStringExtra(orbit.nex.finance.PickStoreActivity.EXTRA_STORE).orEmpty()
     }
@@ -2377,8 +2418,9 @@ fun TransactionSheet(kind: String, onDismiss: () -> Unit, saveExpense: (String, 
                 }
             }
             OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.amount_label)) }, shape = RoundedCornerShape(16.dp), singleLine = true)
+            if (kind != "income") CurrencyChips(baseCurrency, currency) { currency = it }
             Button(
-                { if (kind == "income") saveIncome(date, amount) else saveExpense(date, merchant, amount) },
+                { if (kind == "income") saveIncome(date, amount) else saveExpense(date, merchant, amount, currency) },
                 Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(18.dp),
             ) { Text(stringResource(R.string.save)) }
@@ -2712,47 +2754,52 @@ private fun NavSlot(label: String, icon: ImageVector, selected: Boolean, modifie
     }
 }
 
+/**
+ * Floating error notification. Errors used to be modal dialogs, which blocked
+ * the ledger for every failed upload; the same text is also written to the sync
+ * log so it can be inspected later.
+ */
 @Composable
-fun ErrorDialog(message: String?, dismiss: () -> Unit) {
-    if (message != null) {
-        val network = looksLikeNetworkFailure(message)
-        Dialog(
-            onDismissRequest = dismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false),
+fun ErrorToast(message: String?, dismiss: () -> Unit) {
+    if (message == null) return
+    val network = looksLikeNetworkFailure(message)
+    LaunchedEffect(message) {
+        delay(6_000)
+        dismiss()
+    }
+    Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomCenter) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = if (network) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+            shadowElevation = 8.dp,
         ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).widthIn(max = 480.dp),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Surface(
-                        modifier = Modifier.size(64.dp),
-                        shape = CircleShape,
-                        color = if (network) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
-                    ) {
-                        Icon(
-                            if (network) Icons.Filled.WifiOff else Icons.Outlined.Info,
-                            contentDescription = null,
-                            modifier = Modifier.fillMaxSize().padding(16.dp),
-                            tint = if (network) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                Icon(
+                    if (network) Icons.Filled.WifiOff else Icons.Outlined.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = if (network) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(
                         stringResource(if (network) R.string.offline_title else R.string.something_went_wrong),
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurface,
-                        textAlign = TextAlign.Center,
                     )
                     // Never expose raw OkHttp/socket text to the user.
                     Text(
                         if (network) stringResource(R.string.offline_message) else message,
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = TextAlign.Center,
                     )
-                    TextButton(onClick = dismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.ok)) }
+                }
+                IconButton(dismiss) {
+                    Icon(Icons.Outlined.Close, stringResource(R.string.ok), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
