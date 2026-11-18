@@ -2060,19 +2060,11 @@ $metricButtons = [
                         </div>
                         <div class="ma-qr-actions" id="mobile-app-qr-actions">
                             <button type="button" id="mobile-app-copy-link" class="ma-copy-link-btn">
-<<<<<<< HEAD
                                 <i class="fas fa-copy" style="font-size:14px" aria-hidden="true"></i>
                                 <?php echo htmlspecialchars($translations['mobile_app_copy_link'] ?? 'Copy pairing link'); ?>
                             </button>
                             <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke">
                                 <i class="fas fa-trash-can" style="font-size:14px" aria-hidden="true"></i>
-=======
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-                                <?php echo htmlspecialchars($translations['mobile_app_copy_link'] ?? 'Copy pairing link'); ?>
-                            </button>
-                            <button type="button" id="mobile-app-token-revoke" class="ma-qr-revoke">
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path></svg>
->>>>>>> mobile-spends
                                 <?php echo htmlspecialchars($translations['mobile_app_token_revoke'] ?? 'Revoke Token'); ?>
                             </button>
                         </div>
