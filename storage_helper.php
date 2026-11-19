@@ -66,7 +66,49 @@ function appdata_user_root_dir(string $appKey, string $user, string $rootKey = '
     $sub = appdata_root_subdir($rootKey);
     return $sub === '' ? $base : ($base . '/' . $sub);
 }
+function app_storage_root_path(): string {
+    $root = getenv('STORAGE_ROOT');
+    if (!is_string($root) || trim($root) === '') $root = '/storage';
+    return rtrim($root, '/');
+}
+function app_storage_pool_active(): bool {
+    $root = app_storage_root_path();
+    if (!is_dir($root)) return false;
+    clearstatcache(true, $root . '/.mergerfs');
+    return @stat($root . '/.mergerfs') !== false;
+}
+function app_storage_merged_path(string $relative = ''): string {
+    $rel = appdata_normalize_relpath($relative);
+    $root = app_storage_root_path();
+    return $rel === '' ? $root : ($root . '/' . $rel);
+}
+/**
+ * Refuse application writes while a disk migration owns the pool.
+ * Reads stay available; only write paths call this.
+ */
+function app_storage_write_guard(): void {
+    if (getenv('STORAGE_WRITE_GUARD') === '0') return;
+    $stateDir = getenv('STORAGE_STATE_DIR');
+    if (is_string($stateDir) && trim($stateDir) !== '') {
+        $lockPath = rtrim($stateDir, '/') . '/.write-lock';
+    } else {
+        $base = getenv('APPDATA_DATA_DIR');
+        if (!is_string($base) || trim($base) === '') $base = '/opt/AppDashboard/data';
+        $lockPath = rtrim($base, '/') . '/storage/.write-lock';
+    }
+    if (!is_file($lockPath)) return;
+    $raw = @file_get_contents($lockPath);
+    $lock = is_string($raw) ? json_decode($raw, true) : null;
+    if (!is_array($lock)) return;
+    $heartbeat = (int)($lock['heartbeat'] ?? 0);
+    $pid = (int)($lock['pid'] ?? 0);
+    $alive = false;
+    if ($pid > 0 && function_exists('posix_kill')) $alive = @posix_kill($pid, 0);
+    if ($heartbeat > 0 && (time() - $heartbeat) > 600 && !$alive) return;
+    throw new RuntimeException('storage_maintenance_in_progress');
+}
 function appdata_user_full_path(string $appKey, string $user, string $rootKey, string $relativePath, bool $ensureParent = false): string {
+    if ($ensureParent) app_storage_write_guard();
     $rootDir = appdata_user_root_dir($appKey, $user, $rootKey, true);
     $rel = appdata_root_relative_path($rootKey, $relativePath);
     if ($rel === '') return $rootDir;

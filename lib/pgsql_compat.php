@@ -47,6 +47,9 @@ final class AppDatabaseStatement {
         $this->stmt = $this->pdo->prepare($this->sql);
         return true;
     }
+    public function closeCursor(): bool {
+        return $this->stmt->closeCursor();
+    }
     private function reprepare(): void {
         $this->db->reconnect();
         $this->pdo = $this->db->getPdo();

@@ -130,6 +130,20 @@
                 if(det&&det.classList.contains('c-actions')&&!ok){det.style.display='none';row.classList.remove('expanded');}
             });
         }
+        function loadSystemDfReport(){
+            const report=document.getElementById('systemDfReport');
+            if(!report||report.dataset.loaded==='1'||report.dataset.loading==='1')return;
+            const href=report.getAttribute('data-docker-lazy-url');
+            if(!href)return;
+            report.dataset.loading='1';
+            const url=new URL(href,window.location.origin);
+            url.searchParams.set('_ts',Date.now().toString());
+            fetch(url.toString(),{credentials:'same-origin'})
+                .then(r=>{if(!r.ok)throw new Error('HTTP '+r.status);return r.text();})
+                .then(html=>{report.innerHTML=html;report.dataset.loaded='1';})
+                .catch(()=>{report.innerHTML='<p class="docker-lazy-error">'+t('unavailable')+'</p>';})
+                .finally(()=>{delete report.dataset.loading;});
+        }
         function showSection(section, el) {
             ['stacks','containers','networks','volumes','images','info'].forEach(s => {
                 const n = document.getElementById(s + 'Section');
@@ -145,6 +159,7 @@
             const charts = document.getElementById('chartsSection');
             if (charts && section !== 'containers') charts.style.display = 'none';
             if (charts && section === 'containers' && monitorContainerId) charts.style.display = 'block';
+            if (section === 'info') loadSystemDfReport();
             dockerSaveState();
         }
         function dockerSaveState() {
@@ -267,6 +282,16 @@
                 if (e.key === 'Escape' && dockerRoot()) {
                     closeDockerModal();
                     closeConfirmModal();
+                    return;
+                }
+                if ((e.ctrlKey || e.metaKey) && !e.altKey && String(e.key).toLowerCase() === 's') {
+                    const modal = document.getElementById('dockerModal');
+                    if (!modal || !modal.classList.contains('active')) return;
+                    const form = document.querySelector('#dockerModalBody form');
+                    if (!form) return;
+                    e.preventDefault();
+                    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                    else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                 }
             });
         }

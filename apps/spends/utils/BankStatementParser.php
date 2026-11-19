@@ -63,48 +63,7 @@ final class BankStatementParser
             return $res['body'];
         }
 
-        $outputFile = tempnam(sys_get_temp_dir(), 'bsp_result_');
-        if ($outputFile === false) {
-            throw new RuntimeException('Failed to create temp output file');
-        }
-
-        $cmd = sprintf(
-            '%s %s %s %s 2>&1',
-            escapeshellarg(self::pythonBin()),
-            escapeshellarg(self::PARSER_SCRIPT),
-            escapeshellarg($filePath),
-            escapeshellarg($outputFile)
-        );
-
-        $output = [];
-        exec($cmd, $output, $ret);
-
-        if ($ret !== 0) {
-            @unlink($outputFile);
-            throw new RuntimeException(
-                'Parser failed: ' . implode("\n", array_slice($output, 0, 20))
-            );
-        }
-
-        if (!file_exists($outputFile)) {
-            throw new RuntimeException('Parser did not produce output file');
-        }
-
-        $json = file_get_contents($outputFile);
-        unlink($outputFile);
-
-        if ($json === false) {
-            throw new RuntimeException('Failed to read parser output');
-        }
-
-        $result = json_decode($json, true);
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($result)) {
-            throw new RuntimeException(
-                'Invalid JSON from parser: ' . json_last_error_msg()
-            );
-        }
-
-        return $result;
+        throw new RuntimeException('Bank statement parsing requires py_sidecar to be enabled. No exec() fallback.');
     }
 
     /**

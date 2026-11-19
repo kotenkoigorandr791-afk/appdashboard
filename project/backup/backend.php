@@ -54,6 +54,12 @@ function backupHandleApi(string $api): void {
     try {
         switch ($api) {
             case 'bootstrap':
+                try {
+                    AppDataBackup::syncEnvProfiles();
+                    AppDataBackup::ensureProfile();
+                } catch (Throwable $e) {
+                    // Configuration errors are surfaced on the affected profile.
+                }
                 $cfg = resticLoadConfig();
                 $activeId = backupActiveProfileId($cfg, $input);
                 $repoCfg = resticRepoConfig($cfg, $activeId);
@@ -77,6 +83,7 @@ function backupHandleApi(string $api): void {
 
             case 'config':
                 if ($method === 'GET') {
+                    try { AppDataBackup::syncEnvProfiles(); AppDataBackup::ensureProfile(); } catch (Throwable $e) {}
                     backupJsonResponse(['ok' => true, 'config' => resticPublicConfig(resticLoadConfig()), 'schedule_state' => resticLoadScheduleState()]);
                 }
                 $cfg = resticSaveConfig($input);

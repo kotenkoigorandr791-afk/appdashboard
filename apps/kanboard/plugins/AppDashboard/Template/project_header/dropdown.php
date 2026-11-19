@@ -40,11 +40,9 @@
                 <?= $this->modal->medium('filter', t('Add custom filters'), 'CustomFilterController', 'create', array('project_id' => $project['id'])) ?>
             </li>
         <?php endif ?>
-        <?php if ($project['is_public']): ?>
-            <li>
-                <?= $this->url->icon('share-alt', t('Public link'), 'BoardViewController', 'readonly', array('token' => $project['token']), false, '', '', true) ?>
-            </li>
-        <?php endif ?>
+        <li>
+            <?= $this->url->icon('share-alt', t('Share via SharePoint'), 'SharepointController', 'share', array('plugin' => 'AppDashboard', 'project_id' => $project['id']), false, '', '', true) ?>
+        </li>
         <?= $this->hook->render('template:project:dropdown', array('project' => $project)) ?>
         <?php if ($this->user->hasProjectAccess('AnalyticController', 'taskDistribution', $project['id'])): ?>
             <li>
@@ -66,8 +64,5 @@
                 <?= $this->url->icon('cog', t('Configure this project'), 'ProjectViewController', 'show', array('project_id' => $project['id'])) ?>
             </li>
         <?php endif ?>
-        <li>
-            <?= $this->url->icon('folder', t('Manage projects'), 'ProjectListController', 'show', array(), false, 'js-modal-large') ?>
-        </li>
     </ul>
 </div>

@@ -1063,7 +1063,7 @@ function recipes_ai_create_product($db, string $products_dir, string $name, stri
         return ['ok' => false, 'error' => 'duplicate product'];
     }
     $product_id = uniqid();
-    $product_dir = __DIR__ . '/../' . $products_dir . '/' . $product_id;
+    $product_dir = recipes_fs_dir($products_dir) . '/' . $product_id;
     if (!is_dir($product_dir)) {
         mkdir($product_dir, 0777, true);
     }
@@ -1413,7 +1413,7 @@ function recipes_ai_save_draft(array $draft, string $lang, string $recipes_dir =
         $emitFn('progress', ['done' => $done, 'total' => $total, 'label' => $label]);
     };
     $recipe_id = uniqid();
-    $recipe_dir = __DIR__ . '/../' . $recipes_dir . '/' . $recipe_id;
+    $recipe_dir = recipes_fs_dir($recipes_dir) . '/' . $recipe_id;
     if (!is_dir($recipe_dir)) {
         mkdir($recipe_dir, 0777, true);
     }

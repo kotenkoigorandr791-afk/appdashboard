@@ -7,9 +7,7 @@ $kbIcon = static function (string $name): string {
         'predefined' => '<path d="M8 4h7l3 3v13a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1Z"/><path d="M15 4v3h3"/><path d="M9 12h6"/><path d="M9 16h6"/>',
         'public' => '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><path d="M12 3a14 14 0 0 1 0 18"/><path d="M12 3a14 14 0 0 0 0 18"/>',
         'bell' => '<path d="M6 17h12l-1.2-1.8a6.4 6.4 0 0 1-1-3.4V9a3.8 3.8 0 1 0-7.6 0v2.8c0 1.2-.35 2.4-1 3.4Z"/><path d="M10 17a2 2 0 0 0 4 0"/>',
-        'integrations' => '<path d="M12 3v4"/><path d="M12 17v4"/><path d="M3 12h4"/><path d="M17 12h4"/><circle cx="12" cy="12" r="3"/><path d="m5.6 5.6 2.5 2.5"/><path d="m15.9 15.9 2.5 2.5"/><path d="m18.4 5.6-2.5 2.5"/><path d="m8.1 15.9-2.5 2.5"/>',
         'columns' => '<rect x="4" y="4" width="5" height="16" rx="1"/><rect x="10.5" y="4" width="5" height="16" rx="1"/><rect x="17" y="4" width="3" height="16" rx="1"/>',
-        'swimlanes' => '<path d="M4 7h16"/><path d="M4 12h16"/><path d="M4 17h16"/><circle cx="8" cy="7" r="1.4"/><circle cx="14" cy="12" r="1.4"/><circle cx="10" cy="17" r="1.4"/>',
         'categories' => '<path d="M4 8.5A1.5 1.5 0 0 1 5.5 7H9l2 2h7.5A1.5 1.5 0 0 1 20 10.5v7A1.5 1.5 0 0 1 18.5 19h-13A1.5 1.5 0 0 1 4 17.5v-9Z"/>',
         'tags' => '<path d="M4 11.5V5.8A1.8 1.8 0 0 1 5.8 4H11.5L20 12.5 12.5 20Z"/><circle cx="8.2" cy="8.2" r="1.1"/>',
         'permissions' => '<path d="M16 19v-1.4a3.1 3.1 0 0 0-3.1-3.1H7.1A3.1 3.1 0 0 0 4 17.6V19"/><circle cx="10" cy="8" r="3"/><path d="M19 11v4"/><path d="M17 13h4"/>',
@@ -52,14 +50,8 @@ $kbLink = static function ($helper, string $label, string $controller, string $a
             <li <?= $this->app->checkMenuSelection('ProjectViewController', 'notifications') ?>>
                 <?= $kbLink($this, t('Notifications'), 'ProjectViewController', 'notifications', array('project_id' => $project['id']), 'bell') ?>
             </li>
-            <li <?= $this->app->checkMenuSelection('ProjectViewController', 'integrations') ?>>
-                <?= $kbLink($this, t('Integrations'), 'ProjectViewController', 'integrations', array('project_id' => $project['id']), 'integrations') ?>
-            </li>
             <li <?= $this->app->checkMenuSelection('ColumnController') ?>>
                 <?= $kbLink($this, t('Columns'), 'ColumnController', 'index', array('project_id' => $project['id']), 'columns') ?>
-            </li>
-            <li <?= $this->app->checkMenuSelection('SwimlaneController') ?>>
-                <?= $kbLink($this, t('Swimlanes'), 'SwimlaneController', 'index', array('project_id' => $project['id']), 'swimlanes') ?>
             </li>
             <li <?= $this->app->checkMenuSelection('CategoryController') ?>>
                 <?= $kbLink($this, t('Categories'), 'CategoryController', 'index', array('project_id' => $project['id']), 'categories') ?>

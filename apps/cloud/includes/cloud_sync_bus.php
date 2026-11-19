@@ -5,7 +5,11 @@ require_once __DIR__ . '/cloud_sync_protocol.php';
 const CLOUD_SYNC_BUS_MAX_BYTES = 1048576;
 
 function cloud_sync_bus_dir(): string {
-    $dir = dirname(__DIR__) . '/storage/.sync_bus';
+    // Runtime state must never be written into the code tree: the repository is
+    // a bind mount, so such writes would bypass the APPDATA volume and backups.
+    $base = getenv('APPDATA_BASE_DIR');
+    if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
+    $dir = rtrim($base, '/') . '/cloud_runtime/sync_bus';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
     return $dir;
 }
@@ -49,6 +53,9 @@ function cloud_sync_bus_publish(string $email, string $rootKey, string $kind, st
     $file = cloud_sync_bus_channel($email);
     cloud_sync_bus_rotate_if_needed($file);
     @file_put_contents($file, $line, FILE_APPEND | LOCK_EX);
+    // PHP-FPM (www-data) and root-run workers share this channel; keep it
+    // group-writable so either process can append and rotate it.
+    @chmod($file, 0664);
     $notifyHost = getenv('CLOUD_SYNC_NOTIFY_HOST') ?: '127.0.0.1';
     $notifyPort = (int)(getenv('CLOUD_SYNC_NOTIFY_PORT') ?: 8771);
     $sock = @stream_socket_client("udp://{$notifyHost}:{$notifyPort}", $errno, $errstr, 0.2);

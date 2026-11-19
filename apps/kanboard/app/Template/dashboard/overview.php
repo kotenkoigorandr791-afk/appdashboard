@@ -63,13 +63,13 @@
                 <h2 id="project-tasks-<?= $result['project_id'] ?>"><?= $this->url->link($this->text->e($result['project_name']), 'BoardViewController', 'show', array('project_id' => $result['project_id'])) ?></h2>
             </div>
 
-            <div class="table-list">
+            <div class="table-list kb-issue-list">
                 <?= $this->render('task_list/header', array(
                     'paginator' => $result['paginator'],
                 )) ?>
 
                 <?php foreach ($result['paginator']->getCollection() as $task): ?>
-                    <div class="table-list-row color-<?= $task['color_id'] ?>">
+                    <div class="table-list-row kb-issue-row color-<?= $task['color_id'] ?>">
                         <?= $this->render('task_list/task_title', array(
                             'task' => $task,
                             'redirect' => 'dashboard',

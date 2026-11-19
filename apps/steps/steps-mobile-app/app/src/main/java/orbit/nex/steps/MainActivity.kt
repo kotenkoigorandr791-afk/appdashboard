@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.material3.Icon
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
@@ -47,12 +49,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.CompositingStrategy
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.health.connect.client.PermissionController
+import androidx.lifecycle.lifecycleScope
 import orbit.nex.steps.screens.AboutScreen
 import orbit.nex.steps.screens.ConfigurationScreen
 import orbit.nex.steps.screens.ConnectionGateScreen
+import orbit.nex.steps.screens.TrackingMapScreen
+import orbit.nex.steps.screens.bindDevice
 import orbit.nex.steps.screens.StatisticsScreen
 import orbit.nex.steps.screens.WhatsNewSheet
 import orbit.nex.steps.components.AppBackground
@@ -62,6 +68,8 @@ import orbit.nex.steps.updates.AppUpdateManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -79,6 +87,7 @@ class MainActivity : AppCompatActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         preferencesManager = PreferencesManager(this)
+        orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(this)
         if (preferencesManager.getWebhookConfigs().any { it.isEnabled } && preferencesManager.getEnabledDataTypes().isEmpty()) {
             preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
         }
@@ -99,10 +108,21 @@ class MainActivity : AppCompatActivity() {
         if (uri.scheme !in setOf("nexsteps", "stepmonitor")) return
         val endpoint = uri.getQueryParameter("endpoint").orEmpty()
         val token = uri.getQueryParameter("token").orEmpty()
-        if (endpoint.startsWith("http") && token.isNotBlank()) {
-            preferencesManager.setWebhookConfigs(listOf(WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token"))))
-            preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
-            Toast.makeText(this, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
+        if (!endpoint.startsWith("http") || token.isBlank()) return
+        val config = WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token"))
+        // The link used to be stored unchecked, so a stale or already-claimed
+        // token showed "Connected" and then every sync failed with 401. Verify
+        // the pairing (which also binds the token to this device) before saving.
+        lifecycleScope.launch {
+            val bound = withContext(Dispatchers.IO) { bindDevice(config, preferencesManager) }
+            if (bound) {
+                preferencesManager.setWebhookConfigs(listOf(config))
+                preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
+                preferencesManager.clearAuthError()
+                Toast.makeText(this@MainActivity, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(this@MainActivity, getString(R.string.auth_invalid_link), Toast.LENGTH_LONG).show()
+            }
         }
     }
     @Composable
@@ -127,7 +147,7 @@ class MainActivity : AppCompatActivity() {
         LaunchedEffect(Unit) {
             AppUpdateManager.start(applicationContext)
         }
-        if (showWhatsNew) {
+        if (showWhatsNew && connected) {
             WhatsNewSheet(
                 visible = true,
                 onDismiss = {
@@ -135,6 +155,12 @@ class MainActivity : AppCompatActivity() {
                     preferencesManager.setWhatsNewPending(false)
                 },
             )
+        }
+        if (!connected) {
+            AppBackground {
+                ConnectionGateScreen(onConnected = { connected = true })
+            }
+            return
         }
         var notificationDone by remember {
             mutableStateOf(
@@ -144,11 +170,17 @@ class MainActivity : AppCompatActivity() {
         }
         var notificationRequestStarted by remember { mutableStateOf(false) }
         var healthRequestStarted by remember { mutableStateOf(false) }
+        var healthPermissionRevision by remember { mutableStateOf(0) }
+        var showHistoryOffer by remember { mutableStateOf(false) }
+        var historyRequest by remember { mutableStateOf(0) }
+        val setupPrefs = remember { getSharedPreferences("nexsteps_setup", MODE_PRIVATE) }
+        var pendingHealthPermissions by remember { mutableStateOf<Set<String>>(emptySet()) }
         val notificationPermissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) {
             notificationDone = true
         }
         val healthPermissionLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
             preferencesManager.setKnownGrantedPermissions(granted)
+            healthPermissionRevision++
         }
         LaunchedEffect(Unit) {
             if (!notificationDone && !notificationRequestStarted) {
@@ -164,8 +196,52 @@ class MainActivity : AppCompatActivity() {
             val missingPermissions = requiredPermissions - grantedPermissions
             if (missingPermissions.isNotEmpty()) {
                 healthRequestStarted = true
-                healthPermissionLauncher.launch(requiredPermissions)
+                pendingHealthPermissions = requiredPermissions
             }
+        }
+        if (pendingHealthPermissions.isNotEmpty()) {
+            AlertDialog(
+                onDismissRequest = { pendingHealthPermissions = emptySet() },
+                icon = { Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(48.dp)) },
+                title = { Text(stringResource(R.string.nex_health_intro_title)) },
+                text = { Text(stringResource(R.string.nex_health_intro_message)) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        val permissions = pendingHealthPermissions
+                        pendingHealthPermissions = emptySet()
+                        healthPermissionLauncher.launch(permissions)
+                    }) { Text(stringResource(R.string.nex_auth_continue)) }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingHealthPermissions = emptySet() }) { Text(stringResource(R.string.nex_health_intro_later)) }
+                },
+            )
+        }
+        LaunchedEffect(connected, healthPermissionRevision) {
+            if (!connected || setupPrefs.getBoolean("history_offer_checked", false)) return@LaunchedEffect
+            val hc = HealthConnectManager(this@MainActivity)
+            val granted = runCatching { hc.getGrantedPermissions() }.getOrDefault(emptySet())
+            val types = HealthConnectManager.grantedDataTypes(granted).intersect(preferencesManager.getEnabledDataTypes())
+            if (types.isEmpty()) return@LaunchedEffect
+            val now = java.time.Instant.now()
+            val installed = java.time.Instant.ofEpochMilli(packageManager.getPackageInfo(packageName, 0).firstInstallTime)
+            val end = minOf(installed, now)
+            val start = if ("android.permission.health.READ_HEALTH_DATA_HISTORY" in granted) java.time.Instant.EPOCH else now.minus(java.time.Duration.ofDays(29))
+            if (!start.isBefore(end)) return@LaunchedEffect
+            val result = hc.hasHistoricalRecords(types, start, end)
+            if (result.isSuccess) {
+                setupPrefs.edit().putBoolean("history_offer_checked", true).apply()
+                showHistoryOffer = result.getOrThrow()
+            }
+        }
+        if (showHistoryOffer) {
+            AlertDialog(
+                onDismissRequest = { showHistoryOffer = false },
+                title = { Text(stringResource(R.string.manual_sync_history_offer_title)) },
+                text = { Text(stringResource(R.string.manual_sync_history_offer_message)) },
+                confirmButton = { TextButton(onClick = { showHistoryOffer = false; selected = NavigationScreen.Home; historyRequest++ }) { Text(stringResource(R.string.manual_sync_history_button)) } },
+                dismissButton = { TextButton(onClick = { showHistoryOffer = false }) { Text(stringResource(R.string.nex_health_intro_later)) } },
+            )
         }
         // Auto-resolve if user saved a preference
         LaunchedEffect(pendingConflict) {
@@ -178,12 +254,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-        if (!connected) {
-            AppBackground {
-                ConnectionGateScreen(onConnected = { connected = true })
-            }
-            return
-        }
         // Back from any tab returns to Home first instead of leaving the app.
         // Nested screens (settings, logs) are separate activities and finish one
         // level at a time on their own.
@@ -192,10 +262,7 @@ class MainActivity : AppCompatActivity() {
         }
         Scaffold(
             topBar = {
-                AppTopBar(
-                    showTimer = selected != NavigationScreen.Home,
-                    onProfileClick = { selected = NavigationScreen.About }
-                )
+                AppTopBar(showTimer = selected != NavigationScreen.Home)
             },
             bottomBar = {
             NavigationBar(
@@ -213,7 +280,8 @@ class MainActivity : AppCompatActivity() {
         }) { padding ->
             AppBackground {
                 when (selected) {
-                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding))
+                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
+                    NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
                     NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
                     NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
                 }

@@ -10,12 +10,15 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.serialization.json.Json
 
 private val Context.spendsDataStore by preferencesDataStore("spends_native")
 
 class SessionStore(private val context: Context) {
     private val json = Json { ignoreUnknownKeys = true }
+    /** Serialises read-modify-write cycles on extras (ViewModel + notification service). */
+    private val extrasMutex = Mutex()
     private val sessionKey = stringPreferencesKey("session")
     private val snapshotKey = stringPreferencesKey("snapshot")
     private val extrasKey = stringPreferencesKey("extras")
@@ -40,8 +43,37 @@ class SessionStore(private val context: Context) {
     }
     fun deviceId(): String = secrets.getString(deviceIdKey, null) ?: java.util.UUID.randomUUID().toString().replace("-", "").also { secrets.edit().putString(deviceIdKey, it).apply() }
     suspend fun saveSnapshot(value: Snapshot) = save(snapshotKey, Snapshot.serializer(), value)
-    suspend fun saveExtras(value: LocalExtras) = save(extrasKey, LocalExtras.serializer(), value)
+    suspend fun saveExtras(value: LocalExtras) {
+        extrasMutex.lock()
+        try {
+            save(extrasKey, LocalExtras.serializer(), value)
+        } finally {
+            extrasMutex.unlock()
+        }
+    }
     suspend fun saveAppearance(value: Appearance) = save(appearanceKey, Appearance.serializer(), value)
+
+    /** Atomically transforms extras so concurrent writers cannot overwrite each other. */
+    suspend fun updateExtras(transform: (LocalExtras) -> LocalExtras): LocalExtras {
+        extrasMutex.lock()
+        try {
+            val current = decode(context.spendsDataStore.data.first(), extrasKey, LocalExtras.serializer(), LocalExtras())
+            val next = transform(current)
+            save(extrasKey, LocalExtras.serializer(), next)
+            return next
+        } finally {
+            extrasMutex.unlock()
+        }
+    }
+
+    /** Adds durable writes to the outbox in the order they were captured. */
+    suspend fun enqueueOutbox(items: List<OutboxItem>): LocalExtras = updateExtras { extras ->
+        if (items.isEmpty()) extras else extras.copy(outbox = extras.outbox + items)
+    }
+
+    suspend fun removeOutbox(ids: Set<String>): LocalExtras = updateExtras { extras ->
+        if (ids.isEmpty()) extras else extras.copy(outbox = extras.outbox.filterNot { it.id in ids })
+    }
 
     /** Synchronous mirror of the chosen language, read from attachBaseContext. */
     fun cacheLanguage(language: String) = orbit.nex.finance.AppLocale.store(context, language)

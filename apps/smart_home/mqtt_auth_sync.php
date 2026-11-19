@@ -5,8 +5,10 @@ if (php_sapi_name() !== 'cli') {
 require_once dirname(__DIR__, 2) . '/lib/app_db.php';
 $appDir = __DIR__;
 $dataDir = getenv('APPDATA_DATA_DIR') ?: dirname($appDir, 2) . '/data';
-$passwdFile = getenv('SH_MQTT_PASSWD_FILE') ?: '/etc/mosquitto/smarthome.passwd';
-$aclFile = getenv('SH_MQTT_ACL_FILE') ?: '/etc/mosquitto/smarthome.acl';
+// Credentials/ACL live on the APPDATA volume and must match
+// deploy/mosquitto/smarthome.conf. The container layer is not persistent.
+$passwdFile = getenv('SH_MQTT_PASSWD_FILE') ?: '/opt/ApplicationData/mosquitto/smarthome.passwd';
+$aclFile = getenv('SH_MQTT_ACL_FILE') ?: '/opt/ApplicationData/mosquitto/smarthome.acl';
 $dirtyFile = rtrim($dataDir, '/') . '/smarthome_mqtt_auth_dirty';
 function shma_db(): AppDatabase {
     $db = app_main_db();

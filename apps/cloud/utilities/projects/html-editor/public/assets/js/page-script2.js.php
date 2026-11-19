@@ -112,6 +112,9 @@
             } catch (error) {
                 showStatus(((translations[lang] || translations.en).saveError) + ': ' + error.message, true);
                 if (window.parent && notifyParent) window.parent.postMessage({ type: 'editorSaveResult', ok: false, message: error.message }, '*');
+                // A failed autosave request must not lose the changes: arm the
+                // timer again so it retries while the file stays dirty.
+                if (!notifyParent) startAutoSaveTimer();
                 throw error;
             }
         }

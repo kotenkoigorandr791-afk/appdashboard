@@ -180,7 +180,7 @@ function oauth_cfg_configure_immich(string $issuer, string $immichUrl, string $s
         'enabled' => true,
         'autoLaunch' => true,
         'autoRegister' => true,
-        'buttonText' => 'Login with AppDashboard',
+        'buttonText' => 'Login with Nexorbit',
         'clientId' => 'immich',
         'clientSecret' => $secret,
         'issuerUrl' => $discovery,
@@ -270,6 +270,7 @@ function oauth_configure_services(): int {
         $giteaRedirects[] = $base . '/user/oauth2/appdashboard/callback';
     }
     $immichRedirects = array_map(static fn(string $base): string => $base . '/auth/login', oauth_cfg_app_oauth_bases('immich'));
+    $immichRedirects[] = 'app.immich:///oauth-callback';
     $giteaSecret = oauth_cfg_ensure_client('gitea', 'Gitea', array_values(array_unique($giteaRedirects)));
     $immichSecret = oauth_cfg_ensure_client('immich', 'Immich', array_values(array_unique($immichRedirects)));
     $sentryUrl = rtrim(oauth_external_app_url('sentry'), '/');

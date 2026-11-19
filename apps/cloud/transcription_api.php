@@ -18,7 +18,25 @@ function app_path($relativePath = '') {
     $baseDir = realpath(__DIR__);
     if ($baseDir === false) $baseDir = __DIR__;
     if ($relativePath === '') return $baseDir;
-    return $baseDir . DIRECTORY_SEPARATOR . str_replace(['/', '\\'], DIRECTORY_SEPARATOR, $relativePath);
+    $rel = str_replace('\\', '/', (string)$relativePath);
+    $appdata = getenv('APPDATA_BASE_DIR');
+    if (!is_string($appdata) || trim($appdata) === '') $appdata = '/opt/ApplicationData';
+    $runtime = [
+        'temp' => 'cloud_runtime/temp',
+        'temp_convert' => 'cloud_runtime/temp_convert',
+        'transcription_uploads' => 'cloud_runtime/transcription_uploads',
+        'tts_output' => 'cloud_runtime/tts_output',
+        'upload_sessions' => 'cloud_runtime/upload_sessions',
+    ];
+    $first = explode('/', $rel)[0];
+    if (isset($runtime[$first])) {
+        $rest = substr($rel, strlen($first));
+        return rtrim($appdata, '/') . '/' . $runtime[$first] . $rest;
+    }
+    if ($first === 'storage') {
+        return rtrim($appdata, '/') . '/cloud' . substr($rel, strlen('storage'));
+    }
+    return $baseDir . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $rel);
 }
 
 // PHP CLI binary used to start the background transcription worker. PHP_BINARY

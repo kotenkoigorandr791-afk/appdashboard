@@ -14,14 +14,29 @@
                 data-swimlane-id="<?= $swimlane['id'] ?>"
                 data-task-limit="<?= $column['task_limit'] ?>">
 
-                <?php foreach ($column['tasks'] as $task): ?>
-                    <?= $this->render($not_editable ? 'board/task_public' : 'board/task_private', array(
-                        'project' => $project,
-                        'task' => $task,
-                        'board_highlight_period' => $board_highlight_period,
-                        'not_editable' => $not_editable,
-                    )) ?>
-                <?php endforeach ?>
+                <?= $this->render('board/task_rows', array(
+                    'project' => $project,
+                    'tasks' => $column['tasks'],
+                    'board_highlight_period' => $board_highlight_period,
+                    'not_editable' => $not_editable,
+                )) ?>
+
+                <?php if (! $not_editable && ! empty($column['has_more'])): ?>
+                    <div class="kb-board-more"
+                         data-kb-board-more="1"
+                         data-kb-url="<?= $this->url->href('BoardAjaxController', 'tasks', array(
+                             'project_id' => $project['id'],
+                             'swimlane_id' => $swimlane['id'],
+                             'column_id' => $column['id'],
+                             'offset' => $column['nb_loaded'],
+                             'limit' => 50,
+                             'mode' => 'board',
+                         )) ?>"
+                         data-kb-offset="<?= $column['nb_loaded'] ?>"
+                         data-kb-total="<?= $column['total_tasks'] ?>">
+                        <a href="#"><?= t('Load more tasks') ?></a>
+                    </div>
+                <?php endif ?>
             </div>
 
             <!-- column in collapsed mode (rotated text) -->

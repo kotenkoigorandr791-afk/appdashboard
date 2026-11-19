@@ -642,7 +642,14 @@ function oauth_route_authorize(): void {
     $params = ['code' => $code];
     if ($state !== '') $params['state'] = $state;
     $sep = str_contains($redirectUri, '?') ? '&' : '?';
-    header('Location: ' . $redirectUri . $sep . http_build_query($params));
+    $location = $redirectUri . $sep . http_build_query($params);
+    if ($redirectUri === 'app.immich:///oauth-callback') {
+        header('Content-Type: text/html; charset=utf-8');
+        header('Cache-Control: no-store');
+        echo '<!doctype html><html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body><a id="continue" href="' . htmlspecialchars($location, ENT_QUOTES, 'UTF-8') . '">Continue to Immich</a><script>window.location.replace(document.getElementById("continue").href)</script></body></html>';
+        exit;
+    }
+    header('Location: ' . $location);
     exit;
 }
 

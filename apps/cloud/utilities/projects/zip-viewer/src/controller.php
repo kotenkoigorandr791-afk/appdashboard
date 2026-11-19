@@ -426,7 +426,7 @@ if ($officeView && !$error) {
                 'plugins' => true,
                 'feedback' => true,
                 'comments' => false,
-                'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-dark',
+                'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-night',
                 'logo' => [
                     'image' => '',
                     'imageEmbedded' => '',
@@ -438,7 +438,7 @@ if ($officeView && !$error) {
     
     $docConfig['token'] = jwtEncode($docConfig, $JWT_SECRET);
     
-    $uiTheme = ($theme === 'light') ? 'theme-light' : 'theme-dark';
+    $uiTheme = ($theme === 'light') ? 'theme-light' : 'theme-night';
     
     $currentTheme = [
         'theme' => $uiTheme,

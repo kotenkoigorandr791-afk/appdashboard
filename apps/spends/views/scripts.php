@@ -384,6 +384,54 @@ function getMonthDateRange() {
 }
 
 // ══ Expense save ════════════════════════════════════════════════════════════
+// Safe arithmetic evaluator. The page CSP forbids eval()/Function(), so we
+// parse simple + - * / ( ) expressions ourselves instead of calling eval().
+function safeCalc(expr) {
+    const s = String(expr == null ? '' : expr).replace(/,/g, '.').replace(/\s+/g, '');
+    if (!s) return 0;
+    if (!/^[0-9.+\-*/()]+$/.test(s)) {
+        const n = parseFloat(s);
+        return isFinite(n) ? n : 0;
+    }
+    let i = 0;
+    function parseExpr() {
+        let v = parseTerm();
+        while (i < s.length && (s[i] === '+' || s[i] === '-')) {
+            const op = s[i++];
+            const r = parseTerm();
+            v = op === '+' ? v + r : v - r;
+        }
+        return v;
+    }
+    function parseTerm() {
+        let v = parseFactor();
+        while (i < s.length && (s[i] === '*' || s[i] === '/')) {
+            const op = s[i++];
+            const r = parseFactor();
+            v = op === '*' ? v * r : v / r;
+        }
+        return v;
+    }
+    function parseFactor() {
+        if (s[i] === '+') { i++; return parseFactor(); }
+        if (s[i] === '-') { i++; return -parseFactor(); }
+        if (s[i] === '(') {
+            i++;
+            const v = parseExpr();
+            if (s[i] === ')') i++;
+            return v;
+        }
+        const start = i;
+        while (i < s.length && /[0-9.]/.test(s[i])) i++;
+        const num = parseFloat(s.slice(start, i));
+        return isFinite(num) ? num : 0;
+    }
+    try {
+        const result = parseExpr();
+        return isFinite(result) ? result : 0;
+    } catch (e) { return 0; }
+}
+
 function formatNumberInput(input) {
     let v = input.value.replace(/,/g,'.').replace(/[^\d.\+\-\*\/]/g,'');
     v = v.replace(/[\+\-\*\/]{2,}/g,m=>m[0]);
@@ -403,11 +451,7 @@ function saveExpense(input) {
     const store = input.getAttribute('data-store');
     const isIncome = input.getAttribute('data-income')==='1';
     let   val   = input.value.trim().replace(/,/g,'.');
-    let   amount= 0;
-    try {
-        if (/^[0-9.\+\-\*\/\(\)\s]+$/.test(val)) amount = eval(val)||0;
-        else amount = parseFloat(val)||0;
-    } catch(e) { amount=0; }
+    let   amount= safeCalc(val);
     amount = parseFloat(amount.toFixed(2));
     input.defaultValue = amount!==0?amount.toFixed(2):'';
     input.value = input.defaultValue;
@@ -429,12 +473,7 @@ function saveExpense(input) {
 }
 function parseTableInputAmount(val){
     val=String(val||'').trim().replace(/,/g,'.');
-    let amount=0;
-    try{
-        if(/^[0-9.\+\-\*\/\(\)\s]+$/.test(val))amount=eval(val)||0;
-        else amount=parseFloat(val)||0;
-    }catch(e){amount=0;}
-    return parseFloat(amount.toFixed(6));
+    return parseFloat(safeCalc(val).toFixed(6));
 }
 const INPUT_CURRENCIES=['USD','EUR','PLN','UAH','BYN'];
 let amountRatesCache=null;
@@ -587,7 +626,7 @@ function previewExpression(input) {
     try {
         const clean = expr.replace(/,/g,'.');
         if (!/^[0-9.\+\-\*\/\(\)\s]+$/.test(clean)) throw new Error('invalid');
-        const res = (new Function('return '+clean))();
+        const res = safeCalc(clean);
         if (typeof res==='number'&&!isNaN(res)&&isFinite(res)) {
             const txt = (translations.preview_result||'= {result}').replace('{result}',res.toFixed(2));
             result.textContent=txt; result.style.color='green';
@@ -607,6 +646,8 @@ function hidePreviewTooltip() {
 // ══ Chart ══════════════════════════════════════════════════════════════════
 let exchangeRatesToUSD = {USD:1,EUR:1.1696,PLN:0.275,UAH:0.02416,BYN:0.2942};
 let chartCurrency = userSettings.currency;
+let chartLegendEntries = [];
+let hiddenChartLabels = new Set();
 
 async function switchChartCurrency(cur) {
     chartCurrency = cur;
@@ -678,9 +719,13 @@ function updateChart() {
             else{solid.push(null);dashed.push(vals[i]);}
         }
         const base={tension:.4,pointRadius:0,borderWidth:2,...(opts||{})};
+        const gLabel=(opts&&opts._label)||'';
+        delete base._label;
         const r=[];
-        r.push({...base,label:opts&&opts._label||'',data:solid,borderColor:color,backgroundColor:base.fill?color+'22':'transparent',fill:!!base.fill});
-        r.push({...base,label:'',data:dashed,borderColor:color,backgroundColor:'transparent',borderDash:[6,4],fill:false});
+        r.push({...base,label:gLabel,data:solid,borderColor:color,backgroundColor:base.fill?color+'22':'transparent',fill:!!base.fill});
+        // The dashed projection shares the group label so hover tooltips keep
+        // working there; `_dash` keeps it out of the legend list.
+        r.push({...base,label:gLabel,data:dashed,borderColor:color,backgroundColor:'transparent',borderDash:[6,4],fill:false,_dash:true});
         return r;
     }
     let datasets=[];
@@ -718,23 +763,63 @@ function updateChart() {
             if(s.visible===false)return;
             datasets.push(...splitLine(months.map(m=>(monthly[m][s.name]||0)*conv),storeColors[i%storeColors.length],{_label:s.name}));
         });
-        if(userSettings.show_trend){
-            const trendData=linearRegression(perStoreTotals);
-            datasets.push(...splitLine(trendData,'#f59e0b',{tension:0,_label:t('difference_line','Trend')}));
-        }
+        // Per store view: no difference/trend line, the store curves are enough.
     }
+    // More than five legend entries clutter the canvas, so the legend moves
+    // into a modal and only a button stays next to the chart.
+    datasets.forEach(d=>{if(d&&d.label&&hiddenChartLabels.has(d.label))d.hidden=true;});
+    chartLegendEntries=datasets.filter(d=>d&&d.label&&!d._dash).map(d=>({label:d.label,color:d.borderColor}));
+    const hideChartLegend=chartLegendEntries.length>5;
     chart=new Chart(ctx,{type:'line',data:{labels:months,datasets},options:{responsive:true,maintainAspectRatio:false,
-        interaction:{mode:'index',intersect:false},
+        interaction:{mode:'nearest',intersect:false},
         scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
                x:{title:{display:true,text:t('chart_month','Month'),color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
-        plugins:{legend:{labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>item.text!==''}},
-                 tooltip:{mode:'index',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+        plugins:{legend:{display:!hideChartLegend,labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>{const ds=datasets[item.datasetIndex];return !!ds&&!ds._dash&&ds.label!=='';}}},
+                 tooltip:{mode:'nearest',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+    const chartLegendBtn=document.getElementById('chart-legend-btn');
+    if(chartLegendBtn){
+        chartLegendBtn.style.display=hideChartLegend?'':'none';
+        chartLegendBtn.textContent=`${t('legend','Legend')} (${chartLegendEntries.length})`;
+    }
     document.getElementById('chart-year').textContent=`${translations.year}: ${currentChartYear}`;
-    document.querySelectorAll('.chart-toggle-btn').forEach(btn=>{
+    document.querySelectorAll('.chart-toggle-btn:not(#chart-legend-btn)').forEach(btn=>{
         btn.textContent=chartMode==='total'?translations.per_store_expenses:(chartMode==='stores'?t('chart_by_category','By category'):translations.total_expenses);
     });
     updateYearButtons();
 }
+function renderChartLegend(){
+    const list=document.getElementById('chart-legend-list');
+    if(!list)return;
+    const esc=v=>String(v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+    list.innerHTML=chartLegendEntries.map(e=>{
+        const off=hiddenChartLabels.has(e.label);
+        return `<button type="button" class="chart-legend-item${off?' is-off':''}" data-label="${esc(e.label)}" title="${esc(e.label)}">`
+            +`<i class="chart-legend-swatch" style="background:${esc(e.color)}"></i>`
+            +`<span class="chart-legend-label">${esc(e.label)}</span>`
+            +`<span class="chart-legend-check" aria-hidden="true">${off?'':'✓'}</span></button>`;
+    }).join('');
+    list.querySelectorAll('.chart-legend-item').forEach(btn=>{
+        btn.onclick=()=>{
+            const label=btn.dataset.label;
+            if(hiddenChartLabels.has(label))hiddenChartLabels.delete(label);
+            else hiddenChartLabels.add(label);
+            applyChartLegendVisibility();
+            renderChartLegend();
+        };
+    });
+}
+function applyChartLegendVisibility(){
+    if(!chart||!chart.data||!Array.isArray(chart.data.datasets))return;
+    chart.data.datasets.forEach((d,i)=>{
+        if(d&&d.label)chart.setDatasetVisibility(i,!hiddenChartLabels.has(d.label));
+    });
+    chart.update();
+}
+function openChartLegend(){
+    renderChartLegend();
+    showModal('chart-legend-modal');
+}
+
 function yearHasData(y){return availableYears.includes(Number(y));}
 function updateYearButtons(){
     const prev=document.getElementById('chart-year-prev-btn');
@@ -774,6 +859,13 @@ function changeChartYear(d) {
             }
         })
         .catch(()=>updateChart());
+}
+function changeAnalyticsYear(d){
+    const target=analyticsYear+Number(d);
+    if(!yearHasData(target))return;
+    analyticsYear=target;
+    updateYearButtons();
+    loadOCRAnalytics();
 }
 function toggleChartMode(){chartMode=chartMode==='total'?'stores':(chartMode==='stores'?'categories':'total');updateChart();}
 
@@ -979,10 +1071,6 @@ function manualAddStores(){
     // Hidden stores still accept expenses, so fall back to them when nothing is visible.
     return visible.length ? visible : all;
 }
-function manualAddStorePhoto(name){
-    const fn = String(name || '').replace(/[^a-zA-Z0-9]/g, '_');
-    return `users/${currentUserFolder}/store_${fn}.png`;
-}
 // CSP on the page forbids eval(), so the amount is parsed without it.
 function parseManualAmount(val){
     const s = String(val || '').replace(/\s/g, '').replace(/,/g, '.');
@@ -1011,24 +1099,25 @@ function manualAddFormatDateShort(ymd){
 function manualAddWeekday(ymd){
     return manualAddIntl({ weekday:'short' }, new Date(ymd + 'T00:00:00'), '');
 }
-function manualAddStoreAvatar(name){
+function manualAddStoreAvatar(name, photoUrl){
     const wrap = document.createElement('span');
     wrap.className = 'manual-store-avatar';
     const initials = document.createElement('span');
     initials.className = 'manual-store-initials';
     initials.textContent = (String(name || '').trim().charAt(0) || '?').toUpperCase();
-    const img = document.createElement('img');
-    img.className = 'manual-store-thumb';
-    img.alt = '';
-    img.loading = 'lazy';
-    img.src = manualAddStorePhoto(name);
-    img.onload = () => { initials.style.display = 'none'; };
-    img.onerror = () => {
-        if(img.dataset.jpgTried){ img.remove(); return; }
-        img.dataset.jpgTried = '1';
-        img.src = manualAddStorePhoto(name).replace(/\.png$/, '.jpg');
-    };
-    wrap.append(img, initials);
+    wrap.appendChild(initials);
+    // Only request an image when the server told us a photo exists, otherwise
+    // the browser logs a 404 for every store without one.
+    if (photoUrl) {
+        const img = document.createElement('img');
+        img.className = 'manual-store-thumb';
+        img.alt = '';
+        img.loading = 'lazy';
+        img.onload = () => { initials.style.display = 'none'; };
+        img.onerror = () => { img.remove(); };
+        img.src = photoUrl;
+        wrap.insertBefore(img, initials);
+    }
     return wrap;
 }
 function renderManualStoreGrid(){
@@ -1056,7 +1145,7 @@ function renderManualStoreGrid(){
         label.className = 'manual-store-name';
         label.textContent = s.name;
 
-        btn.append(manualAddStoreAvatar(s.name), label);
+        btn.append(manualAddStoreAvatar(s.name, s.photo_url), label);
         btn.onclick = () => manualAddPickStore(s.name);
         grid.appendChild(btn);
     });
@@ -1805,7 +1894,7 @@ function initSettingsListPagination(){
 }
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',initSettingsListPagination,{once:true});
 else setTimeout(initSettingsListPagination,0);
-window.addEventListener('resize',()=>{updateStoresPagination();renderTagsList();renderGoalsList();});
+window.addEventListener('resize',()=>{updateStoresPagination();renderTagsList();renderGoalsList();if(lastAnalyticsPayload){buildOCRAnalyticsChart(lastAnalyticsPayload,document.getElementById('ocr-analytics-store')?.value||'__all__');}});
 
 // ══ Tags
 let tagsCache=[];
@@ -2038,8 +2127,8 @@ function showAddEditStoreModal(id=null,name='',visible=true,ocrRaw='',category=n
 function previewStorePhoto(input){const file=input.files&&input.files[0];if(!file)return;if(cropper){cropper.destroy();cropper=null;}if(storePhotoObjectUrl)URL.revokeObjectURL(storePhotoObjectUrl);storePhotoFile=file;storePhotoObjectUrl=URL.createObjectURL(file);const p=document.getElementById('store-photo-preview'),card=document.getElementById('store-photo-crop-card'),btn=document.getElementById('crop-store-btn');p.src=storePhotoObjectUrl;p.style.display='block';if(card)card.style.display='flex';if(btn){btn.style.display='inline-flex';btn.innerHTML=cropIconSvg+'<span>'+(translations.crop_photo||'Crop Photo')+'</span>';}}
 function cropStorePhoto(){const p=document.getElementById('store-photo-preview');if(!p||!p.getAttribute('src'))return;currentCropType='pending-store';currentCropId='';const ci=document.getElementById('crop-image');ci.src=p.src;showModal('crop-modal');requestAnimationFrame(()=>{if(cropper)cropper.destroy();cropper=new Cropper(ci,{aspectRatio:1,viewMode:2,autoCropArea:.95,background:false,responsive:true,restore:false,checkOrientation:true,guides:true,center:true,dragMode:'move',cropBoxMovable:true,cropBoxResizable:true,minCropBoxWidth:40,minCropBoxHeight:40});});}
 function rekeyExpensesDataStore(oldN,newN){if(!oldN||oldN===newN)return;Object.keys(expensesData||{}).forEach(d=>{const o=expensesData[d];if(o&&Object.prototype.hasOwnProperty.call(o,oldN)){o[newN]=o[oldN];delete o[oldN];}});}
-function storePhotoUrl(s,withPhoto){if(!withPhoto)return'';return s.photo_url?`${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`:`users/${currentUserFolder}/store_${String(s.name).replace(/[^a-zA-Z0-9]/g,'_')}.png?t=${Date.now()}`;}
-function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(withPhoto){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
+function storePhotoUrl(s,withPhoto){if(!withPhoto||!s||!s.photo_url)return'';return `${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`;}
+function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(photoU){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
 function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
 function confirmDeleteStore(id,name){pendingConfirmAction=null;pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-title').textContent=translations.confirm_delete_store||t('confirm_action_title','Confirm action');document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store_message||`Delete store "${name}"?`;document.getElementById('confirm-delete-action').textContent=t('delete','Delete');showModal('confirm-delete-modal');}
 function executeDelete(){const action=pendingConfirmAction;pendingConfirmAction=null;closeModal('confirm-delete-modal');if(action){action();return;}if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
@@ -2571,26 +2660,68 @@ function expenseGradientStyle(value,min,max){
     const sat1=dark?78:72,sat2=dark?84:78;
     return `background-image:linear-gradient(90deg,hsl(${hue} ${sat1}% ${lightness}%),hsl(${hue2} ${sat2}% ${lightness}%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;`;
 }
-function renderAnalyticsSummaryTable(id,rows,nameKey){
-    const el=document.getElementById(id);
-    if(!el)return;
-    if(!rows||!rows.length){el.textContent=t('no_data','No data');return;}
-    el.innerHTML='';
-    const totals=rows.map(r=>Number(r.total)||0).filter(v=>v>0);
-    const min=totals.length?Math.min(...totals):0,max=totals.length?Math.max(...totals):0;
-    const table=document.createElement('table');
-    table.className='analytics-summary-table';
-    table.innerHTML=`<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
-    const body=document.createElement('tbody');
-    rows.slice(0,12).forEach(row=>{
-        const tr=document.createElement('tr');
-        tr.innerHTML=`<td>${row.label}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.today,min,max)}">${money(row.today)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.year_day_avg,min,max)}">${money(row.year_day_avg)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.total,min,max)}">${money(row.total)}</td>`;
+const analyticsPagination = { store: 0, category: 0 };
+
+function getAnalyticsPageSize() {
+    const modalBody = document.querySelector('#ocr-analytics-modal .modal-body');
+    const bodyHeight = modalBody?.clientHeight || Math.round(window.innerHeight * 0.75);
+    const rowHeight = 44;
+    const reserve = 200;
+    return Math.max(1, Math.floor(Math.max(rowHeight, bodyHeight - reserve) / rowHeight));
+}
+
+function renderAnalyticsSummaryTable(id, rows, nameKey) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (!rows || !rows.length) { el.textContent = t('no_data', 'No data'); return; }
+
+    const kind = id === 'analytics-store-summary' ? 'store' : 'category';
+    const pageSize = getAnalyticsPageSize();
+    const pageCount = Math.ceil(rows.length / pageSize);
+    analyticsPagination[kind] = Math.max(0, Math.min(analyticsPagination[kind], pageCount - 1));
+
+    const paginationEl = document.getElementById(`${kind === 'store' ? 'analytics-store' : 'analytics-category'}-pagination`);
+    if (paginationEl) {
+        paginationEl.hidden = pageCount <= 1;
+        if (pageCount > 1) {
+            paginationEl.replaceChildren();
+            const previous = document.createElement('button');
+            previous.type = 'button'; previous.className = 'settings-page-btn'; previous.textContent = '‹';
+            previous.setAttribute('aria-label', t('settings_previous', 'Previous page'));
+            previous.disabled = analyticsPagination[kind] === 0;
+            previous.onclick = () => { analyticsPagination[kind]--; renderAnalyticsSummaryTable(id, rows, nameKey); };
+            const status = document.createElement('span');
+            status.className = 'settings-page-status'; status.setAttribute('aria-live', 'polite');
+            status.textContent = t('settings_page', '%1$d of %2$d')
+                .replace('%1$d', String(analyticsPagination[kind] + 1)).replace('%2$d', String(pageCount));
+            const next = document.createElement('button');
+            next.type = 'button'; next.className = 'settings-page-btn'; next.textContent = '›';
+            next.setAttribute('aria-label', t('settings_next', 'Next page'));
+            next.disabled = analyticsPagination[kind] === pageCount - 1;
+            next.onclick = () => { analyticsPagination[kind]++; renderAnalyticsSummaryTable(id, rows, nameKey); };
+            paginationEl.append(previous, status, next);
+        }
+    }
+
+    el.innerHTML = '';
+    const totals = rows.map(r => Number(r.total) || 0).filter(v => v > 0);
+    const min = totals.length ? Math.min(...totals) : 0, max = totals.length ? Math.max(...totals) : 0;
+    const table = document.createElement('table');
+    table.className = 'analytics-summary-table';
+    table.innerHTML = `<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
+    const body = document.createElement('tbody');
+    const start = analyticsPagination[kind] * pageSize;
+    rows.slice(start, start + pageSize).forEach(row => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td>${row.label}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.today, min, max)}">${money(row.today)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.year_day_avg, min, max)}">${money(row.year_day_avg)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.total, min, max)}">${money(row.total)}</td>`;
         body.appendChild(tr);
     });
     table.appendChild(body);
     el.appendChild(table);
 }
 function renderAnalyticsSummaries(payload){
+    analyticsPagination.store = 0;
+    analyticsPagination.category = 0;
     const stores=(payload.store_summary||[]).map(r=>({...r,label:r.store}));
     const categories=(payload.category_summary||[]).map(r=>({...r,label:categoryLabel(r.category)})).sort((a,b)=>(b.total||0)-(a.total||0));
     renderAnalyticsSummaryTable('analytics-store-summary',stores,t('store_name','Store'));
@@ -2639,12 +2770,14 @@ function buildOCRAnalyticsChart(payload,selectedStore){
     const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
     ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(239,68,68,.45)',borderColor:'rgba(239,68,68,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:chartTextColor()}},y:{beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
 }
+let lastAnalyticsPayload = null;
 function loadOCRAnalytics(){
     const select=document.getElementById('ocr-analytics-store');
     const store=select?select.value:'__all__';
     fetch(`?get_ocr_stats=1&store=${encodeURIComponent(store)}&year=${encodeURIComponent(analyticsYear)}`).then(r=>r.json()).then(d=>{
         if(d.status!=='success'){showNotification(t('failed_load_analytics','Failed to load analytics'),'error');return;}
         if(select&&select.options.length<=1)(d.stores||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;select.appendChild(o);});
+        lastAnalyticsPayload = d;
         buildOCRAnalyticsChart(d,store);
     }).catch(()=>showNotification(t('failed_load_analytics','Failed to load analytics'),'error'));
 }
@@ -2766,6 +2899,53 @@ loadAvailableYears().then(()=>{updateChart();});
         const el=document.getElementById(id);
         el.addEventListener('wheel',e=>{e.preventDefault();changeDateValue(id.replace('date-',''),e.deltaY>0?-1:1);});
     });
+
+    // Toolbar overflow: add and statistics stay visible, everything else moves
+    // into the profile menu so the bar always fits on one line.
+    (function initProfileMenu(){
+        const menu=document.getElementById('profile-menu');
+        const btn=document.getElementById('profile-menu-btn');
+        if(!menu||!btn)return;
+        const close=function(){
+            menu.classList.remove('open');
+            menu.hidden=true;
+            btn.setAttribute('aria-expanded','false');
+        };
+        ['button[onclick*="settings-modal"]','button[onclick*="backup-modal"]','button[onclick*="showShareModal"]','button[onclick*="exchange-rates-modal"]','#mobile-app-btn'].forEach(function(sel){
+            document.querySelectorAll('.header-buttons '+sel).forEach(function(el){
+                if(el.closest('#profile-menu'))return;
+                const label=el.getAttribute('title')||el.textContent.trim();
+                el.classList.remove('header-btn');
+                el.classList.add('profile-menu-item');
+                el.removeAttribute('title');
+                el.setAttribute('role','menuitem');
+                el.setAttribute('type','button');
+                if(!el.querySelector('.profile-menu-label')){
+                    const span=document.createElement('span');
+                    span.className='profile-menu-label';
+                    span.textContent=label;
+                    el.appendChild(span);
+                }
+                el.addEventListener('click',close);
+                menu.appendChild(el);
+            });
+        });
+        btn.addEventListener('click',function(e){
+            e.stopPropagation();
+            const open=menu.hidden;
+            menu.hidden=!open;
+            menu.classList.toggle('open',open);
+            btn.setAttribute('aria-expanded',open?'true':'false');
+        });
+        document.addEventListener('click',function(e){
+            if(menu.hidden)return;
+            if(menu.contains(e.target)||btn.contains(e.target))return;
+            close();
+        });
+        document.addEventListener('keydown',function(e){
+            if(e.key==='Escape'&&!menu.hidden)close();
+        });
+    })();
 
     renderMonthPagination();
     loadPage();

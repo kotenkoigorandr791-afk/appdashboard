@@ -11,6 +11,23 @@ $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 header('Content-Type: application/json; charset=utf-8');
+$geoEndpoint = strtolower((string)$sub);
+// Mobile geo screens share the same bearer-token surface as the map. Keep this
+// an explicit allowlist: every forwarded endpoint authenticates through
+// public_api_bootstrap() and scopes all queries by the resolved owner.
+$geoEndpoints = [
+    'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
+    'geolocation_achievements', 'geolocation_quality', 'geolocation_matching',
+    'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics',
+    'places', 'geofences', 'devices',
+];
+if (in_array($geoEndpoint, $geoEndpoints, true)) {
+    $geoFile = APP_ROOT . '/apps/steps/api/' . $geoEndpoint . '.php';
+    if (is_file($geoFile)) {
+        require $geoFile;
+        exit;
+    }
+}
 // Release metadata and APK are public: a fresh install must be able to update
 // itself before pairing. They expose only the published build, never user data.
 if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], true)) {
@@ -47,7 +64,16 @@ if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], 
     exit;
 }
 $stepsAppDir = APP_ROOT . '/apps/steps';
-$usersDir = $stepsAppDir . '/users';
+// User data lives on the APPDATA volume (same root the Steps UI reads). Writing
+// under the repository copy left health day files invisible to the app, so only
+// steps that also reached SQL were ever shown.
+// Use the same constant the Steps UI resolves, so a health payload written here
+// is the one the page later reads.
+if (!defined('STEPS_USERS_DIR')) {
+    require_once $stepsAppDir . '/core/bootstrap.php';
+}
+$usersDir = defined('STEPS_USERS_DIR') ? rtrim(STEPS_USERS_DIR, '/') : steps_appdata_dir('');
+if (!$usersDir) $usersDir = $stepsAppDir . '/users';
 $safeUserName = get_current_user_folder();
 $userDir = $usersDir . '/' . $safeUserName;
 checkDirectory($usersDir);

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -78,7 +79,7 @@ import orbit.nex.finance.ui.DataScreen
 import orbit.nex.finance.ui.Dest
 import orbit.nex.finance.ui.DetailScreen
 import orbit.nex.finance.ui.EditExpenseDialog
-import orbit.nex.finance.ui.ErrorDialog
+import orbit.nex.finance.ui.ErrorToast
 import orbit.nex.finance.ui.ExpenseDetailScreen
 import orbit.nex.finance.ui.GoalsScreen
 import orbit.nex.finance.ui.HomeScreen
@@ -86,6 +87,7 @@ import orbit.nex.finance.ui.InsightsScreen
 import orbit.nex.finance.ui.NetWorthScreen
 import orbit.nex.finance.ui.PairingScreen
 import orbit.nex.finance.ui.PendingScreen
+import orbit.nex.finance.ui.OfflineBanner
 import orbit.nex.finance.ui.PrefsScreen
 import orbit.nex.finance.ui.SearchSheet
 import orbit.nex.finance.ui.SettingsHub
@@ -166,7 +168,7 @@ private fun StartupNotice(screen: StartupScreen, onContinue: () -> Unit) {
     val isWelcome = screen == StartupScreen.Welcome
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState())
-            .navigationBarsPadding().padding(horizontal = 24.dp, vertical = 18.dp),
+            .statusBarsPadding().navigationBarsPadding().padding(horizontal = 24.dp, vertical = 18.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp),
     ) {
         Box(
@@ -237,16 +239,10 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
 @Composable private fun SpendsApp(app: SpendsApplication, pairingLink: String?, openPending: Boolean) {
     val context = LocalContext.current
     var startupScreen by remember { mutableStateOf(initialStartupScreen(context)) }
-    if (startupScreen != null) {
-        StartupNotice(startupScreen!!) {
-            completeStartup(context)
-            startupScreen = null
-        }
-        return
-    }
     val model: SpendsViewModel = viewModel { SpendsViewModel(app.store, app.api) }
     val state by model.state.collectAsState()
     val appearance by app.store.appearance.collectAsState(Appearance())
+    val online by orbit.nex.finance.data.NetworkState.online.collectAsState()
     var tab by remember { mutableIntStateOf(0) }
     var dest by remember { mutableStateOf<Dest?>(null) }
     var addOpen by remember { mutableStateOf(false) }
@@ -291,9 +287,21 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
 
     if (state.session.token.isBlank()) {
         PairingScreen(pairingLink.orEmpty(), model)
-        ErrorDialog(state.error, model::dismissError)
+        ErrorToast(state.error, model::dismissError)
         return
     }
+
+    if (startupScreen != null) {
+        StartupNotice(startupScreen!!) {
+            completeStartup(context)
+            startupScreen = null
+        }
+        return
+    }
+
+    // A paired account stays fully usable from local storage when the server is
+    // unreachable. A compact banner (rendered below) replaces the old
+    // full-screen gate, so adding or editing entries never gets blocked.
 
     // Quiet background update check, throttled to once a day.
     LaunchedEffect(state.session.token) {
@@ -313,9 +321,15 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     // Pull fresh data (expenses, incomes and stores) on every app start and keep it
     // in sync with the server while the app is open.
     LaunchedEffect(Unit) { model.refresh() }
-    LaunchedEffect(Unit) {
+    // Replay queued writes the moment the connection comes back.
+    LaunchedEffect(online) {
+        if (online) model.flushOutbox()
+    }
+    // Retry faster while offline so queued writes flush soon after the server
+    // is back; keep a relaxed interval when everything is healthy.
+    LaunchedEffect(online) {
         while (true) {
-            delay(45_000)
+            delay(if (online) 45_000 else 15_000)
             model.refreshQuietly()
         }
     }
@@ -374,6 +388,9 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
                         }
                     }
                 }
+            }
+            if (!online) {
+                OfflineBanner(pending = state.queuedWrites, onRetry = { model.refresh() })
             }
             Box(Modifier.weight(1f).fillMaxWidth().padding(bottom = 8.dp)) {
             // Keeps each screen's scroll position when going back to it.
@@ -438,12 +455,12 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
         }
     }
     sheet?.let { kind ->
-        TransactionSheet(kind, { sheet = null },
-            { d, s, a -> model.addExpense(d, s, a, "manual") { sheet = null } },
+        TransactionSheet(kind, state.snapshot.currency.ifBlank { "USD" }, { sheet = null },
+            { d, s, a, c -> model.addExpense(d, s, a, "manual", c) { sheet = null } },
             { d, a -> model.addIncome(d, a) { sheet = null } },
         )
     }
-    ErrorDialog(state.error, model::dismissError)
+    ErrorToast(state.error, model::dismissError)
     if (editingExpense) {
         selectedExpense?.let { expense ->
             EditExpenseDialog(state, expense, model) { editingExpense = false }

@@ -49,6 +49,7 @@ require_once SHAREPOINT_ROOT . '/handlers/ExpenseChartShareHandler.php';
 require_once SHAREPOINT_ROOT . '/handlers/StepRoutineShareHandler.php';
 require_once SHAREPOINT_ROOT . '/handlers/FilmShareHandler.php';
 require_once SHAREPOINT_ROOT . '/handlers/SmartHomeSceneShareHandler.php';
+require_once SHAREPOINT_ROOT . '/handlers/KanboardBoardShareHandler.php';
 require_once SHAREPOINT_ROOT . '/renderers/base.php';
 require_once SHAREPOINT_ROOT . '/renderers/file.php';
 require_once SHAREPOINT_ROOT . '/renderers/folder.php';
@@ -57,6 +58,7 @@ require_once SHAREPOINT_ROOT . '/renderers/expense_chart.php';
 require_once SHAREPOINT_ROOT . '/renderers/step_routine.php';
 require_once SHAREPOINT_ROOT . '/renderers/film.php';
 require_once SHAREPOINT_ROOT . '/renderers/smart_home_scene.php';
+require_once SHAREPOINT_ROOT . '/renderers/kanboard_board.php';
 
 // ── Default registry ─────────────────────────────────────────────────────────
 ShareRegistry::register('file', new ShareFileHandler());
@@ -67,6 +69,7 @@ ShareRegistry::registerApp(new ExpenseChartShareHandler());
 ShareRegistry::registerApp(new StepRoutineShareHandler());
 ShareRegistry::registerApp(new FilmShareHandler());
 ShareRegistry::registerApp(new SmartHomeSceneShareHandler());
+ShareRegistry::registerApp(new KanboardBoardShareHandler());
 
 // ── Small, dependency-free helpers ───────────────────────────────────────────
 if (!function_exists('sp_h')) {

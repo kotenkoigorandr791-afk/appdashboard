@@ -400,10 +400,16 @@ function monacoInjectSelectionHandlesCSS() {
             border: 0 !important;
             color: inherit !important;
             font: inherit !important;
-            font-size: 18px !important;
+            font-size: 20px !important;
             line-height: 1 !important;
-            padding: 2px 8px !important;
-            border-radius: 6px !important;
+            width: 32px !important;
+            height: 32px !important;
+            min-width: 32px !important;
+            padding: 0 !important;
+            display: inline-flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            border-radius: 999px !important;
             cursor: pointer !important;
         }
         .monaco-spell-modal-close:hover {
@@ -1418,6 +1424,23 @@ function monacoCreateSpellcheckWorker() {
                         word: data.word,
                         suggestions: Array.from(new Set(suggestions)).slice(0, 5)
                     });
+                    return;
+                }
+                if (data.type === 'prefetch') {
+                    const suggestions = {};
+                    const words = data.words || [];
+                    for (let index = 0; index < words.length; index++) {
+                        const word = words[index];
+                        const wordSuggestions = [];
+                        for (const languageId of wordLanguageIds(word, data.languageId)) {
+                            const dictionary = await ensureDictionary(languageId, data.languages[languageId]);
+                            wordSuggestions.push(...dictionary.suggest(word).slice(0, 5));
+                            if (wordSuggestions.length >= 5) break;
+                        }
+                        suggestions[word] = Array.from(new Set(wordSuggestions)).slice(0, 5);
+                        if ((index + 1) % 8 === 0) await new Promise((resolve) => setTimeout(resolve, 0));
+                    }
+                    self.postMessage({ type: 'prefetched', requestId: data.requestId, suggestions });
                 }
             } catch (error) {
                 self.postMessage({ type: 'error', requestId: data.requestId, message: error.message || String(error) });
@@ -1485,6 +1508,15 @@ function monacoHandleSpellcheckMessage(event) {
             monacoRememberSuggestion(state, word, data.suggestions[word]);
         });
         if (state.editor) monacoApplySpellcheckDecorations(state.editor, data.errors || []);
+        monacoPrefetchSpellcheckSuggestions(state, data.errors || []);
+        return;
+    }
+    if (data.type === 'prefetched') {
+        monacoSpellcheckRoutes.delete(data.requestId);
+        Object.keys(data.suggestions || {}).forEach((word) => {
+            monacoRememberSuggestion(state, word, data.suggestions[word]);
+            state.pendingPrefetch.delete(word);
+        });
         return;
     }
     if (data.type === 'suggestions') {
@@ -1499,6 +1531,7 @@ function monacoHandleSpellcheckMessage(event) {
     }
     if (data.type === 'error') {
         monacoSpellcheckRoutes.delete(data.requestId);
+        if (route.kind === 'prefetch') route.words.forEach((word) => state.pendingPrefetch.delete(word));
         console.error('Spellcheck failed:', data.message);
         if (state.statusElement) state.statusElement.textContent = monacoT('monacoSpellcheckUnavailable');
         const pending = state.pendingSuggestions.get(data.requestId);
@@ -1540,6 +1573,23 @@ function monacoRequestSpellcheckSuggestions(state, word) {
             languageId: state.languageId,
             languages: monacoSpellcheckLanguagesPayload()
         });
+    });
+}
+
+function monacoPrefetchSpellcheckSuggestions(state, errors) {
+    if (!state || !state.worker) return;
+    const words = Array.from(new Set(errors.map((error) => error.word)))
+        .filter((word) => !state.suggestionCache.has(word) && !state.pendingPrefetch.has(word));
+    if (!words.length) return;
+    words.forEach((word) => state.pendingPrefetch.add(word));
+    const requestId = monacoNextSpellcheckRequestId();
+    monacoSpellcheckRoutes.set(requestId, { state, kind: 'prefetch', words });
+    monacoGetSpellcheckWorker().postMessage({
+        type: 'prefetch',
+        requestId,
+        words,
+        languageId: state.languageId,
+        languages: monacoSpellcheckLanguagesPayload()
     });
 }
 
@@ -1942,7 +1992,8 @@ async function monacoEnableSpellcheck(editor, container, statusElement, language
         decorationIds: [],
         errors: [],
         suggestionCache: new Map(),
-        pendingSuggestions: new Map()
+        pendingSuggestions: new Map(),
+        pendingPrefetch: new Set()
     };
     monacoSpellcheckStates.set(editor, state);
 
@@ -3666,20 +3717,57 @@ async function monacoGetAiRuntimeConfig() {
     return monacoAiRuntimeConfigPromise;
 }
 
-function monacoBuildAiPrompt(instruction, text) {
-    const safeText = String(text ?? '');
-    const safeInstruction = String(instruction ?? '').trim() || 'Fix spelling, punctuation, and obvious grammar errors.';
+function monacoAiOverlayTheme(overlay, host) {
+    const probe = (host && host.querySelector && host.querySelector('.monaco-editor')) || host || document.body;
+    let bg = getComputedStyle(probe).backgroundColor;
+    let m = bg.match(/rgba?\(([^)]+)\)/);
+    if (!m || (m[1].split(',').length > 3 && parseFloat(m[1].split(',')[3]) === 0)) {
+        m = getComputedStyle(document.body).backgroundColor.match(/rgba?\(([^)]+)\)/);
+    }
+    let dark = false;
+    if (m) {
+        const [r, g, b] = m[1].split(',').map((v) => parseFloat(v));
+        dark = (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+    }
+    const vars = dark
+        ? { '--panel-bg': '#252526', '--border-color': 'rgba(255,255,255,.2)', '--text-color': '#e6e6e6', '--bg-color': '#1e1e1e' }
+        : { '--panel-bg': '#ffffff', '--border-color': 'rgba(0,0,0,.14)', '--text-color': '#222', '--bg-color': '#ffffff' };
+    for (const k in vars) overlay.style.setProperty(k, vars[k]);
+    overlay.style.colorScheme = dark ? 'dark' : 'light';
+}
+
+function monacoAiOverlayContext(editor, range) {
+    const model = editor.getModel();
+    const start = model.getOffsetAt(range.getStartPosition());
+    const end = model.getOffsetAt(range.getEndPosition());
+    const full = model.getValue();
+    return { before: full.slice(Math.max(0, start - 1000), start), after: full.slice(end, end + 1000) };
+}
+
+function monacoBuildAiPrompt(instruction, text, ctx) {
     return [
-        safeInstruction,
-        'Верни только готовый текст для прямой замены выделения.',
-        'Нельзя добавлять пояснения, кавычки, markdown, списки, вводные фразы или комментарии.',
-        'Сохраняй переносы строк, если это не противоречит задаче.',
+        'You are an inline text-editing assistant embedded in a document editor.',
+        'You cannot see the whole document: only a selected fragment plus up to 1000 characters of context before and after it.',
+        'Apply the user instruction ONLY to the SELECTED FRAGMENT. Do not rewrite, continue, repeat or comment on the context.',
+        'Do not guess or invent anything beyond what the instruction and the fragment require.',
+        'Return only the final replacement text for the selected fragment: no explanations, quotes, markdown fences or preambles.',
+        'Preserve the fragment line breaks, indentation and formatting style unless the instruction says otherwise.',
         '',
-        safeText
+        'Instruction: ' + (String(instruction || '').trim() || 'Fix spelling, punctuation, and obvious grammar errors.'),
+        '',
+        '<context_before>',
+        ctx.before,
+        '</context_before>',
+        '<selected_fragment>',
+        String(text || ''),
+        '</selected_fragment>',
+        '<context_after>',
+        ctx.after,
+        '</context_after>'
     ].join('\n');
 }
 
-async function monacoRequestAiReplacement(instruction, text) {
+async function monacoRequestAiReplacement(instruction, text, ctx) {
     const runtime = await monacoGetAiRuntimeConfig();
     const response = await fetch('ai.php', {
         method: 'POST',
@@ -3688,7 +3776,7 @@ async function monacoRequestAiReplacement(instruction, text) {
             action: 'chat',
             role: 'general',
             model: runtime.default_model || '',
-            message: monacoBuildAiPrompt(instruction, text)
+            message: monacoBuildAiPrompt(instruction, text, ctx || { before: '', after: '' })
         })
     });
     const data = await response.json();
@@ -3710,7 +3798,12 @@ function monacoRefreshAiActionOverlayLabels(overlay) {
             : placeholder;
     }
     const applyBtn = overlay.querySelector('[data-role="apply"]');
-    if (applyBtn) applyBtn.textContent = monacoT('apply') || 'Apply';
+    if (applyBtn) {
+        const label = monacoT('apply') || 'Apply';
+        // Icon-only send button: text is only a tooltip/accessible name.
+        applyBtn.setAttribute('aria-label', label);
+        applyBtn.title = label;
+    }
     const undoBtn = overlay.querySelector('[data-role="undo"]');
     if (undoBtn) undoBtn.textContent = monacoT('monacoAiUndo');
 }
@@ -3733,28 +3826,33 @@ function monacoEnsureAiActionOverlay(hostContainer) {
     overlay.style.cssText = [
         'position:absolute',
         'z-index:20000',
-        'width:min(320px,calc(100% - 24px))',
-        'padding:12px',
-        'border:1px solid rgba(255,255,255,0.18)',
-        'border-radius:14px',
+        'width:min(264px,calc(100% - 16px))',
+        'max-width:100%',
+        'box-sizing:border-box',
+        'padding:8px',
+        'border:1px solid var(--border-color,rgba(0,0,0,0.14))',
+        'border-radius:12px',
         'backdrop-filter:blur(14px)',
-        'background:color-mix(in srgb,var(--panel) 78%,transparent)',
-        'box-shadow:0 18px 48px rgba(0,0,0,0.28)',
+        'background:color-mix(in srgb,var(--panel-bg,#ffffff) 92%,transparent)',
+        'color:var(--text-color,#222)',
+        'box-shadow:0 10px 28px rgba(0,0,0,0.16)',
         'display:flex',
         'flex-direction:column',
-        'gap:10px',
+        'gap:6px',
         'touch-action:none'
     ].join(';');
     overlay.innerHTML = `
-        <div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:8px;cursor:move;user-select:none;">
-            <strong data-role="title" style="font-size:13px;"></strong>
-            <button type="button" data-role="close" class="icon-btn" style="width:28px;height:28px;min-width:28px;cursor:pointer;">×</button>
+        <div data-role="drag-handle" style="display:flex;align-items:center;justify-content:space-between;gap:6px;cursor:move;user-select:none;">
+            <strong data-role="title" style="font-size:12px;"></strong>
+            <button type="button" data-role="close" class="icon-btn close-btn" style="flex:0 0 auto;">×</button>
         </div>
-        <textarea data-role="prompt" rows="2" style="width:100%;min-height:52px;max-height:120px;padding:8px 10px;border-radius:10px;border:1px solid var(--border);background:var(--bg);color:var(--fg);resize:vertical;box-sizing:border-box;font:inherit;"></textarea>
-        <div data-role="status" style="min-height:18px;font-size:12px;color:var(--muted);"></div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;">
-            <button type="button" data-role="undo" class="btn secondary small hidden"></button>
-            <button type="button" data-role="apply" class="btn primary small"></button>
+        <div style="display:flex;align-items:flex-end;gap:6px;">
+            <textarea data-role="prompt" rows="2" style="flex:1 1 auto;min-width:0;min-height:38px;max-height:96px;padding:6px 8px;border-radius:10px;border:1px solid var(--border-color,#d0d0d0);background:var(--bg-color,#fff);color:var(--text-color,#222);resize:vertical;box-sizing:border-box;font:inherit;font-size:12px;"></textarea>
+            <button type="button" data-role="apply" class="ai-send-btn" aria-label="Apply" title="Apply" style="width:32px;height:32px;min-width:32px;padding:0;border:none;border-radius:50%;background:var(--accent-color,#007bff);color:#fff;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4Z"/></svg></button>
+        </div>
+        <div data-role="status" style="min-height:0;font-size:11px;line-height:1.3;color:var(--text-color,#666);opacity:.75;"></div>
+        <div style="display:contents;">
+            <button type="button" data-role="undo" class="btn secondary small hidden" style="align-self:flex-end;"></button>
         </div>
     `;
     const mountTarget = hostContainer || document.body;
@@ -3835,6 +3933,7 @@ async function monacoOpenAiActionMenu(editor, container) {
     const containerRect = container.getBoundingClientRect();
     const anchorX = containerRect.left + ((cursorCoords?.left ?? 0) + 12);
     const anchorY = containerRect.top + ((cursorCoords?.top ?? 0) + 28);
+    monacoAiOverlayTheme(overlay, container);
     monacoPositionAiOverlay(overlay, container, anchorX, anchorY);
     statusEl.textContent = '';
     undoBtn.classList.add('hidden');
@@ -3851,6 +3950,12 @@ async function monacoOpenAiActionMenu(editor, container) {
         statusEl.textContent = '';
     };
 
+    promptEl.onkeydown = (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+            event.preventDefault();
+            if (!applyBtn.disabled) applyBtn.click();
+        }
+    };
     applyBtn.onclick = async () => {
         const latestSelection = editor.getSelection();
         if (!latestSelection || latestSelection.isEmpty()) return;
@@ -3859,7 +3964,7 @@ async function monacoOpenAiActionMenu(editor, container) {
         applyBtn.disabled = true;
         statusEl.textContent = monacoT('monacoAiProcessing');
         try {
-            const replacement = await monacoRequestAiReplacement(instruction, originalText);
+            const replacement = await monacoRequestAiReplacement(instruction, originalText, monacoAiOverlayContext(editor, latestSelection));
             editor.pushUndoStop();
             editor.executeEdits('ai-inline-rewrite', [{
                 range: latestSelection,

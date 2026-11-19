@@ -67,6 +67,19 @@ function spendsCacheSet(string $key, string $value, int $ttl): void {
     } catch (Throwable $e) {
     }
 }
+/**
+ * Sliding-window counter rate limit. Returns true when the request is
+ * allowed, false when the bucket is exhausted. Backed by Redis; if Redis
+ * is unavailable the call fails open (returns true) like the chat limiter.
+ */
+function spendsRateLimit(string $bucket, int $limit, int $ttl): bool {
+    $key = 'rl:' . $bucket;
+    $raw = spendsCacheGet($key);
+    $n = $raw === null ? 0 : (int)$raw;
+    if ($n >= $limit) return false;
+    spendsCacheSet($key, (string)($n + 1), $ttl);
+    return true;
+}
 function spendsSlotAcquire(string $name, int $limit, int $ttl): bool {
     $r = app_redis();
     if (!$r) return true;
@@ -176,34 +189,16 @@ function spends_dir_writable(string $dir): bool {
     if ($ok) @unlink($probe);
     return $ok;
 }
-function spends_ensure_web_link(string $linkPath, string $targetPath): void {
-    if ($targetPath === '' || !is_dir($targetPath)) return;
-    if (is_link($linkPath)) {
-        if (@readlink($linkPath) === $targetPath) return;
-        @unlink($linkPath);
-        @symlink($targetPath, $linkPath);
-        return;
-    }
-    if (file_exists($linkPath)) return;
-    @symlink($targetPath, $linkPath);
-}
 function spends_runtime_dir(string $name): string {
-    $legacy = __DIR__ . '/../' . $name;
+    // Runtime data always lives on the APPDATA volume. Web URLs stay
+    // "users/...", served through an nginx alias to this directory.
     $appdata = spends_appdata_subdir($name);
     if ($appdata !== null) {
-        spends_ensure_web_link($legacy, $appdata);
         @chmod($appdata, SPENDS_RUNTIME_DIR_MODE);
         return rtrim($appdata, '/') . '/';
     }
-    if (is_link($legacy)) {
-        $resolved = realpath($legacy) ?: $legacy;
-        if (is_dir($resolved)) {
-            @chmod($resolved, SPENDS_RUNTIME_DIR_MODE);
-            return rtrim($resolved, '/') . '/';
-        }
-    }
     logError("APPDATA unavailable for spends/$name");
-    return rtrim($legacy, '/') . '/';
+    return rtrim(sys_get_temp_dir(), '/') . '/appdashboard_spends_' . $name . '/';
 }
 function checkDirectory($dir) {
     if (!file_exists($dir)) {

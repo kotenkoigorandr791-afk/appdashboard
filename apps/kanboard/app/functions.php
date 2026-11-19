@@ -304,6 +304,41 @@ function n($value)
  * @param  string $path
  * @return string|false
  */
+/**
+ * Collapse insignificant whitespace (newlines + indentation) between HTML tags
+ *
+ * Content of pre, textarea, script and style elements is left untouched.
+ * Running whitespace is replaced by a single space, which is what the browser
+ * would render anyway, so the markup stays visually identical.
+ *
+ * @param  string $html
+ * @return string
+ */
+function minify_html(string $html): string
+{
+    if (strlen($html) < 8192) {
+        return $html;
+    }
+
+    $parts = preg_split(
+        '/(<script\b[^>]*>.*?<\/script>|<pre\b[^>]*>.*?<\/pre>|<textarea\b[^>]*>.*?<\/textarea>|<style\b[^>]*>.*?<\/style>)/is',
+        $html,
+        -1,
+        PREG_SPLIT_DELIM_CAPTURE
+    );
+
+    if ($parts === false) {
+        return $html;
+    }
+
+    $output = '';
+    foreach ($parts as $index => $part) {
+        $output .= $index % 2 === 0 ? preg_replace('/[ \t]*\n[ \t]*/', ' ', $part) : $part;
+    }
+
+    return $output;
+}
+
 function sanitize_path(string $path): string|false
 {
     // Handle empty path

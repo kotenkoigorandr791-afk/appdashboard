@@ -27,8 +27,13 @@ graphify-out/
 **/graphify-out/
 **/.graphify*/
 /backups/
+# Runtime data lives on the APPDATA volume. The repository never stores it and
+# never links to it (no symlinks in the code tree).
+/data
 /data/*
-!/data
+/uploads
+/uploads/*
+/apps/spends/data
 *.log
 *.sqlite3
 *.sqlite
@@ -67,8 +72,7 @@ graphify-out/
 /apps/recipes/recipes/
 /apps/smart_home/data/
 /apps/viewer/history.json
-/uploads/*
-!/uploads
+
 /tmp/
 /.cache/
 /.cursor/
@@ -94,6 +98,7 @@ docs/APP_DEBUG_URLS.md
 APP_DEBUG_URLS.md
 debug_panel.php
 **/.codex/
+/.agents/
 **/AGENTS.md
 **/agents.md
 **/CLAUDE.md
@@ -125,6 +130,12 @@ opencode.json
 appdashboard-mcp/smoke-*-results.txt
 appdashboard-mcp/tmp-*
 appdashboard-mcp/tmp-gitea-wf/
+appdashboard-mcp/benchmarks/results/*-perf.jsonl
+appdashboard-mcp/benchmarks/results/*-server.log
+appdashboard-mcp/benchmarks/results/*.json
+.bench-token
+.bench-device
+.bench-login.json
 apps/kanboard/data/*
 !apps/kanboard/data/.gitkeep
 .aider*
@@ -221,3 +232,14 @@ pnpm-debug.log*
 /apps/spends/spends-native-android/.idea/
 /apps/spends/spends-native-android/**/*.apk
 /apps/spends/spends-native-android/**/*.aab
+
+# Shared local Android toolchain (JDK/Gradle/SDK/emulator, download cache)
+/tools/
+
+.tgrep/
+.tgrep-*/
+
+# Benchmark credentials
+.bench-login.json
+.bench-token
+.bench-device

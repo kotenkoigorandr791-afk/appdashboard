@@ -2448,7 +2448,6 @@ window.filterTable = filterTable;
 function perfHandleAction(action, el, event) {
     switch (action) {
         case 'toggle-autozoom': toggleAutoZoom(); break;
-        case 'toggle-menu': document.getElementById('perf-app').classList.toggle('menu-open'); break;
         case 'refresh': refreshData(); break;
         case 'open-graph': openGraphModal(el.getAttribute('data-metric') || 'cpu'); break;
         case 'cleanup-metric': cleanupMetricData(el.getAttribute('data-metric') || ''); break;
@@ -2549,7 +2548,7 @@ function perfBootMonitor() {
     document.querySelectorAll('#perf-app [data-section-target], body.perf-root [data-section-target]').forEach(button => {
         if (button.dataset.perfBound) return;
         button.dataset.perfBound = '1';
-        button.addEventListener('click', () => { setActiveMonitorSection(button.getAttribute('data-section-target')); const app = document.getElementById('perf-app'); if (app) app.classList.remove('menu-open'); });
+        button.addEventListener('click', () => { setActiveMonitorSection(button.getAttribute('data-section-target')); });
     });
     const monitorChartsPeriodEl = document.getElementById('monitorChartsPeriod');
     if (monitorChartsPeriodEl && !monitorChartsPeriodEl.dataset.perfBound) {

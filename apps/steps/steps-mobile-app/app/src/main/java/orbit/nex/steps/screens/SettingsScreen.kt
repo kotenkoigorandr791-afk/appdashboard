@@ -26,6 +26,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material.icons.filled.AccountCircle
@@ -39,7 +40,9 @@ import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Height
+import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.ManageAccounts
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Save
@@ -208,21 +211,16 @@ fun SettingsScreen(onBack: () -> Unit) {
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
     val connected = configs.any { it.isEnabled }
 
-    // ── Personal data ────────────────────────────────────────────────────────
+    // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
-    var avatarModel by remember {
-        mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
-    }
     // Rendered from the local cache first, so opening settings never flashes
     // empty fields while the server request is in flight.
     var personal by remember { mutableStateOf(parsePersonalCache(prefs)) }
-    var nameField by remember { mutableStateOf(profile.name) }
     var goalField by remember { mutableStateOf(personal[KEY_GOAL].orEmpty()) }
     var heightField by remember { mutableStateOf(personal[KEY_HEIGHT].orEmpty()) }
     var weightField by remember { mutableStateOf(personal[KEY_WEIGHT].orEmpty()) }
     var strideField by remember { mutableStateOf(personal[KEY_STRIDE].orEmpty()) }
     var birthField by remember { mutableStateOf(personal[KEY_BIRTH].orEmpty()) }
-    var nameError by remember { mutableStateOf<String?>(null) }
     var goalError by remember { mutableStateOf<String?>(null) }
     var heightError by remember { mutableStateOf<String?>(null) }
     var weightError by remember { mutableStateOf<String?>(null) }
@@ -241,7 +239,7 @@ fun SettingsScreen(onBack: () -> Unit) {
         }
     }
 
-    // ── App settings ─────────────────────────────────────────────────────────
+    // â”€â”€ App settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
     var permissionsSheetOpen by remember { mutableStateOf(false) }
@@ -296,9 +294,6 @@ fun SettingsScreen(onBack: () -> Unit) {
         if (fetched.error == null) {
             if (fetched.photo.isNotBlank()) downloadAvatarFile(context, fetched.photo)
             profile = fetched
-            avatarModel = localAvatarFile(context).takeIf { it.exists() }?.absolutePath
-                ?: fetched.photo.takeIf { it.isNotBlank() }
-            nameField = fetched.name
         }
         val (values, ok) = loadPersonalSettings(config, prefs)
         personalLoadFailed = !ok
@@ -334,10 +329,6 @@ fun SettingsScreen(onBack: () -> Unit) {
     fun validatePersonal(): Boolean {
         fun intIn(raw: String, min: Int, max: Int): Boolean =
             raw.isNotBlank() && raw.matches(Regex("^\\d+$")) && raw.toIntOrNull() in min..max
-        val name = nameField.trim()
-        nameError = if (name.isEmpty() || name.length > 80) {
-            context.getString(R.string.personal_name_invalid)
-        } else null
         goalError = if (goalField.isBlank() || intIn(goalField, 1000, 200000)) null
         else context.getString(R.string.personal_goal_invalid)
         heightError = if (heightField.isBlank() || intIn(heightField, 50, 260)) null
@@ -352,7 +343,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                 context.getString(R.string.personal_birth_invalid)
             } else null
         }.getOrElse { context.getString(R.string.personal_birth_invalid) }
-        return listOf(nameError, goalError, heightError, weightError, strideError, birthError).all { it == null }
+        return listOf(goalError, heightError, weightError, strideError, birthError).all { it == null }
     }
 
     fun savePersonal() {
@@ -376,7 +367,6 @@ fun SettingsScreen(onBack: () -> Unit) {
             putIfChanged(KEY_WEIGHT, weightField)
             putIfChanged(KEY_STRIDE, strideField)
             putIfChanged(KEY_BIRTH, birthField)
-            val nameChanged = nameField.trim() != profile.name && nameField.trim().isNotBlank()
 
             var failed = false
             var detail = ""
@@ -401,34 +391,9 @@ fun SettingsScreen(onBack: () -> Unit) {
                     if (detail.isBlank()) detail = "HTTP $code"
                 }
             }
-            if (nameChanged && !failed) {
-                val (code, body) = postJson(config, prefs, "/profile", JSONObject().put("name", nameField.trim()))
-                if (code in 200..299) {
-                    val serverProfile = JSONObject(body).optJSONObject("profile")
-                    if (serverProfile != null) {
-                        profile = ServerProfile(
-                            name = serverProfile.optString("name"),
-                            email = serverProfile.optString("email"),
-                            photo = absoluteProfileUrl(config.url, serverProfile.optString("photo")),
-                        )
-                        prefs.setProfileCache(
-                            JSONObject()
-                                .put("name", profile.name)
-                                .put("email", profile.email)
-                                .put("photo", profile.photo)
-                                .toString()
-                        )
-                        nameField = profile.name
-                    }
-                } else {
-                    failed = true
-                    detail = runCatching { JSONObject(body).optString("message") }.getOrDefault("")
-                    if (detail.isBlank()) detail = "HTTP $code"
-                }
-            }
             saveOk = !failed
             saveDetail = detail
-            if (!failed) showSavedToast = true
+            showSavedToast = true
             saving = false
         }
     }
@@ -495,7 +460,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                // ── Personal data ────────────────────────────────────────────
+                // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -526,52 +491,6 @@ fun SettingsScreen(onBack: () -> Unit) {
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                if (connected && avatarModel != null) {
-                                    AsyncImage(
-                                        model = avatarModel,
-                                        contentDescription = null,
-                                        contentScale = ContentScale.Crop,
-                                        modifier = Modifier.size(56.dp).clip(CircleShape),
-                                    )
-                                } else {
-                                    Icon(
-                                        if (connected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
-                                        contentDescription = null,
-                                        modifier = Modifier.size(56.dp),
-                                        tint = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                                Column(Modifier.weight(1f)) {
-                                    Text(
-                                        profile.name.ifBlank { stringResource(R.string.app_name) },
-                                        style = MaterialTheme.typography.titleMedium,
-                                    )
-                                    Text(
-                                        profile.email.ifBlank { profile.error.orEmpty() },
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                }
-                            }
-                            OutlinedTextField(
-                                value = nameField,
-                                onValueChange = {
-                                    nameField = it.take(80)
-                                    nameError = null
-                                },
-                                label = { Text(stringResource(R.string.personal_name)) },
-                                leadingIcon = { Icon(Icons.Filled.Person, contentDescription = null) },
-                                isError = nameError != null,
-                                supportingText = { nameError?.let { message -> Text(message) } },
-                                singleLine = true,
-                                enabled = connected,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
                             OutlinedTextField(
                                 value = profile.email,
                                 onValueChange = {},
@@ -687,7 +606,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Network ──────────────────────────────────────────────────
+                // â”€â”€ Network â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -710,7 +629,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Permissions ──────────────────────────────────────────────
+                // â”€â”€ Permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -738,7 +657,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Sync interval ────────────────────────────────────────────
+                // â”€â”€ Sync interval â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -815,7 +734,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Conflicts ────────────────────────────────────────────────
+                // â”€â”€ Conflicts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -888,151 +807,112 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Personalization ──────────────────────────────────────────
+                // â”€â”€ Location tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                // Recording controls and sampling live on their own screen, the
+                // same one the map links to.
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                context.startActivity(
+                                    Intent(context, orbit.nex.steps.LocationSettingsActivity::class.java)
+                                )
+                            },
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Text(stringResource(R.string.settings_personalization), style = MaterialTheme.typography.titleMedium)
-
-                            Text(stringResource(R.string.about_theme), style = MaterialTheme.typography.titleSmall)
-                            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                                listOf(
-                                    "auto" to R.string.theme_auto,
-                                    "light" to R.string.theme_light,
-                                    "dark" to R.string.theme_dark,
-                                ).forEachIndexed { index, (value, label) ->
-                                    SegmentedButton(
-                                        selected = themeMode == value,
-                                        onClick = {
-                                            themeMode = value
-                                            prefs.setThemeMode(value)
-                                            val nightMode = when (value) {
-                                                "light" -> AppCompatDelegate.MODE_NIGHT_NO
-                                                "dark" -> AppCompatDelegate.MODE_NIGHT_YES
-                                                else -> AppCompatDelegate.MODE_NIGHT_FOLLOW_SYSTEM
-                                            }
-                                            AppCompatDelegate.setDefaultNightMode(nightMode)
-                                            (context as? Activity)?.recreate()
-                                        },
-                                        shape = SegmentedButtonDefaults.itemShape(index, 3),
-                                    ) {
-                                        Text(stringResource(label))
-                                    }
-                                }
-                            }
-
-                            if (themeMode == "dark" || (themeMode == "auto" && isSystemInDarkTheme())) {
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.theme_amoled), modifier = Modifier.weight(1f))
-                                    Switch(
-                                        checked = amoledEnabled,
-                                        onCheckedChange = {
-                                            amoledEnabled = it
-                                            prefs.setAmoledEnabled(it)
-                                            (context as? Activity)?.recreate()
-                                        },
-                                    )
-                                }
-                            }
-
-                            // Same anchored dropdown component as the other settings
-                            // selects, so the color list opens under the field instead
-                            // of being rendered as a detached popup.
-                            ExposedDropdownMenuBox(
-                                expanded = accentExpanded,
-                                onExpandedChange = { accentExpanded = !accentExpanded },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                OutlinedTextField(
-                                    value = stringResource(accentNameRes(accentColor)),
-                                    onValueChange = {},
-                                    readOnly = true,
-                                    label = { Text(stringResource(R.string.about_accent_color)) },
-                                    leadingIcon = {
-                                        Surface(
-                                            color = accentColorValue(accentColor),
-                                            shape = CircleShape,
-                                            modifier = Modifier.size(18.dp),
-                                            content = {},
-                                        )
-                                    },
-                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = accentExpanded) },
-                                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                                    modifier = Modifier.menuAnchor().fillMaxWidth(),
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.LocationOn,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.tracking_settings_title),
+                                    style = MaterialTheme.typography.titleMedium,
                                 )
-                                ExposedDropdownMenu(expanded = accentExpanded, onDismissRequest = { accentExpanded = false }) {
-                                    listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
-                                        DropdownMenuItem(
-                                            text = {
-                                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                                    Surface(
-                                                        color = accentColorValue(value),
-                                                        shape = CircleShape,
-                                                        modifier = Modifier.size(18.dp),
-                                                        content = {},
-                                                    )
-                                                    Spacer(Modifier.size(10.dp))
-                                                    Text(stringResource(accentNameRes(value)))
-                                                }
-                                            },
-                                            onClick = {
-                                                accentExpanded = false
-                                                accentColor = value
-                                                prefs.setAccentColor(value)
-                                                (context as? Activity)?.recreate()
-                                            },
-                                        )
-                                    }
-                                }
-                            }
-
-                            Text(stringResource(R.string.about_language), style = MaterialTheme.typography.titleSmall)
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                                APP_LANGUAGES.forEach { (tag, name) ->
-                                    Row(
-                                        Modifier
-                                            .fillMaxWidth()
-                                            .clickable {
-                                                language = tag
-                                                prefs.setAppLanguage(tag)
-                                                if (tag.isEmpty()) {
-                                                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
-                                                } else {
-                                                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
-                                                }
-                                                showRestartDialog = true
-                                            }
-                                            .padding(vertical = 8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        RadioButton(selected = language == tag, onClick = null)
-                                        Spacer(Modifier.size(12.dp))
-                                        Text(if (tag.isEmpty()) stringResource(R.string.system_default) else name)
-                                    }
-                                }
-                            }
-
-                            Text(stringResource(R.string.about_screen_orientation), style = MaterialTheme.typography.titleSmall)
-                            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.about_portrait_only), modifier = Modifier.weight(1f))
-                                Switch(
-                                    checked = portraitOnly,
-                                    onCheckedChange = {
-                                        portraitOnly = it
-                                        prefs.setPortraitOnly(it)
-                                        (context as? Activity)?.requestedOrientation =
-                                            if (it) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
-                                    },
+                                Text(
+                                    stringResource(R.string.tracking_settings_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier.fillMaxWidth().clickable {
+                            context.startActivity(Intent(context, orbit.nex.steps.PointsActivity::class.java))
+                        },
+                    ) {
+                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.points_title), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.points_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
                         }
                     }
                 }
 
-                // ── Data types ───────────────────────────────────────────────
+                // â”€â”€ Personalization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                // Theme, accent, language and orientation live on their own
+                // activity; this list only links to it.
+                item {
+                    Card(
+                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                context.startActivity(
+                                    Intent(context, orbit.nex.steps.PersonalizationActivity::class.java)
+                                )
+                            },
+                    ) {
+                        Row(
+                            Modifier.fillMaxWidth().padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            Icon(
+                                Icons.Filled.Palette,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Column(Modifier.weight(1f)) {
+                                Text(
+                                    stringResource(R.string.settings_personalization),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    stringResource(R.string.settings_personalization_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Icon(
+                                Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+
+                // â”€â”€ Data types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1077,7 +957,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     }
                 }
 
-                // ── Export ───────────────────────────────────────────────────
+                // â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -1095,8 +975,9 @@ fun SettingsScreen(onBack: () -> Unit) {
             }
             if (showSavedToast) {
                 orbit.nex.steps.components.SavedToast(
-                    stringResource(R.string.saved_toast),
+                    stringResource(if (saveOk == false) R.string.save_failed_toast else R.string.saved_toast),
                     Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    isError = saveOk == false,
                 )
             }
             }
@@ -1235,7 +1116,7 @@ private val intervalOptions = listOf(
     4320 to R.string.sync_interval_72h,
 )
 
-private fun accentNameRes(value: String): Int = when (value) {
+internal fun accentNameRes(value: String): Int = when (value) {
     "teal" -> R.string.accent_teal
     "orange" -> R.string.accent_orange
     "pink" -> R.string.accent_pink
@@ -1244,7 +1125,7 @@ private fun accentNameRes(value: String): Int = when (value) {
     else -> R.string.accent_blue
 }
 
-private fun accentColorValue(value: String): Color = when (value) {
+internal fun accentColorValue(value: String): Color = when (value) {
     "teal" -> Color(0xFF00897B)
     "orange" -> Color(0xFFE8710A)
     "pink" -> Color(0xFFD81B60)

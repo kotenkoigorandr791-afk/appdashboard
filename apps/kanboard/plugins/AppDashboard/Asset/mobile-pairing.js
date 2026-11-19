@@ -14,8 +14,6 @@
     var revokeBtn = document.getElementById('kb-mobile-token-revoke');
     var hintBtn = document.getElementById('kb-mobile-manual-hint');
     var closeBtn = document.getElementById('kb-mobile-app-close');
-    var openBtn = document.getElementById('kb-open-mobile-app');
-    var settingsBtn = document.getElementById('kb-open-settings');
 
     var lanEndpoint = modal.getAttribute('data-endpoint') || '';
     var accountEmail = modal.getAttribute('data-account') || '';
@@ -36,7 +34,11 @@
     var revokeLabel = revokeBtn ? revokeBtn.innerHTML : '';
     var noTokenMsg = modal.getAttribute('data-no-token-msg') || 'Generate a QR code first.';
     var noPhonesMsg = modal.getAttribute('data-no-phones-msg') || 'No phones connected yet';
-    var noPhonesNote = modal.getAttribute('data-no-phones-note') || 'Generate a pairing code to connect the Android app.';
+    var noPhonesNote =
+      modal.getAttribute('data-no-phones-note') || 'Generate a pairing code to connect the Android app.';
+    var qrErrorMsg = modal.getAttribute('data-qr-error-msg') || 'QR code unavailable';
+    var tokenErrorMsg = modal.getAttribute('data-token-error-msg') || 'Token generation failed';
+    var deviceName = modal.getAttribute('data-device-name') || 'Planning Mobile';
 
     function openModal(el) {
       if (!el) return;
@@ -91,8 +93,14 @@
       openModal(hintModal);
     }
 
-    openBtn && openBtn.addEventListener('click', function () { openSettings('mobile'); });
-    settingsBtn && settingsBtn.addEventListener('click', function () { openSettings('profile'); });
+    document.addEventListener('click', function (e) {
+      var t = e.target && e.target.closest ? e.target.closest('[data-kb-open]') : null;
+      if (!t) return;
+      e.preventDefault();
+      var dd = document.getElementById('dropdown');
+      if (dd && dd.parentNode) { try { document.body.click(); } catch (err) {} }
+      openSettings(t.getAttribute('data-kb-open') === 'mobile' ? 'mobile' : 'profile');
+    });
     document.querySelectorAll('.kb-settings-tab').forEach(function (tab) {
       tab.addEventListener('click', function () {
         activateTab(tab.getAttribute('data-kb-settings-tab') || 'profile');
@@ -152,7 +160,7 @@
         hostEl.innerHTML = qr.createSvgTag({ cellSize: 5, margin: 2, scalable: true });
       } catch (error) {
         console.error('Pairing QR error:', error);
-        hostEl.innerHTML = '<p style="color:#121212;padding:12px;">QR code unavailable</p>';
+        hostEl.innerHTML = '<p style="color:#121212;padding:12px;">' + qrErrorMsg + '</p>';
       }
     }
 
@@ -175,7 +183,7 @@
         fd.append('action', 'generate_mcp_token');
         fd.append('generate_mcp_token', '1');
         fd.append('ajax', '1');
-        fd.append('mcp_token_name', 'Planning Mobile');
+        fd.append('mcp_token_name', deviceName);
         fd.append('token_app', 'kanboard');
         var opts = { method: 'POST', body: fd, credentials: 'same-origin' };
         if (csrf) {
@@ -194,7 +202,9 @@
           res = await sendRequest(csrf);
           data = await res.json().catch(function () { return null; });
         }
-        if (!data || !data.success || !data.token) throw new Error((data && data.error) || 'Token generation failed');
+        if (!data || !data.success || !data.token) {
+          throw new Error((data && data.error) || tokenErrorMsg);
+        }
         pairing.token = String(data.token);
         pairing.link =
           'appdashboard-planning://auth?endpoint=' +

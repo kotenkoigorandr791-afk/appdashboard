@@ -18,13 +18,13 @@ class OverviewCalendarController extends BaseController
         $values = $this->request->getJson();
         $taskId = (int) ($values['task_id'] ?? 0);
         if ($taskId <= 0) {
-            $this->response->json(array('ok' => false, 'message' => 'Invalid task'), 400);
+            $this->response->json(array('ok' => false, 'message' => t('Invalid task')), 400);
             return;
         }
 
         $task = $this->taskFinderModel->getById($taskId);
         if (empty($task)) {
-            $this->response->json(array('ok' => false, 'message' => 'Task not found'), 404);
+            $this->response->json(array('ok' => false, 'message' => t('Task not found')), 404);
             return;
         }
 

@@ -455,6 +455,38 @@ html:not(.kb-dark) .kb-ma-btn-danger:hover:not(:disabled) {
   background: rgba(99, 102, 241, 0.22);
   color: #fff;
 }
+/* Inside the header user dropdown: plain menu rows, not sidebar buttons */
+ul.dropdown-submenu-open li > .kb-sidebar-mobile-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1 1 auto;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--kb-text);
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+ul.dropdown-submenu-open li > .kb-sidebar-mobile-btn svg {
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+  color: var(--primary-color, #2563eb);
+}
+ul.dropdown-submenu-open li > .kb-sidebar-mobile-btn span {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+ul.dropdown-submenu-open li > .kb-sidebar-mobile-btn:hover {
+  background: transparent;
+  color: var(--primary-color, #2563eb);
+}
 html:not(.kb-dark) .kb-mobile-app-content,
 html:not(.kb-dark) .kb-manual-pair-content {
   background: #fafafa;

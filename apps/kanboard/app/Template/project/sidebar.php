@@ -22,9 +22,6 @@
             <li <?= $this->app->checkMenuSelection('ProjectViewController', 'notifications') ?>>
                 <?= $this->url->link(t('Notifications'), 'ProjectViewController', 'notifications', array('project_id' => $project['id'])) ?>
             </li>
-            <li <?= $this->app->checkMenuSelection('ProjectViewController', 'integrations') ?>>
-                <?= $this->url->link(t('Integrations'), 'ProjectViewController', 'integrations', array('project_id' => $project['id'])) ?>
-            </li>
             <li <?= $this->app->checkMenuSelection('ColumnController') ?>>
                 <?= $this->url->link(t('Columns'), 'ColumnController', 'index', array('project_id' => $project['id'])) ?>
             </li>

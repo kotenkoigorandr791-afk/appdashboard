@@ -8,6 +8,36 @@ function upsertStep(AppDatabase $db, string $date, int $steps): void {
     $stmt->bindValue(':d', $date, PDO::PARAM_STR);
     $stmt->bindValue(':s', $steps, PDO::PARAM_INT);
     $stmt->execute();
+    steps_achievements_bump($db);
+}
+/**
+ * Steps and location share one achievement ladder, so a step change queues the
+ * same bounded, deduplicated evaluation the track half uses. Failures are
+ * swallowed: saving steps must never depend on the achievements module.
+ */
+function steps_achievements_bump(AppDatabase $db): void {
+    static $ready = null;
+    if ($ready === false) return;
+    if ($ready === null) {
+        try {
+            $file = dirname(__DIR__) . '/core/geolocation_achievements.php';
+            $ready = is_file($file);
+            if ($ready) require_once $file;
+            $ready = $ready && class_exists('StepsGeolocationAchievements', false);
+        } catch (Throwable $e) {
+            $ready = false;
+        }
+    }
+    if (!$ready) return;
+    $owner = steps_user();
+    if ($owner === '' && function_exists('get_current_user_email')) {
+        $owner = strtolower(trim((string)get_current_user_email()));
+    }
+    if ($owner === '') return;
+    try {
+        StepsGeolocationAchievements::enqueueIfEnabled($db->getPdo(), $owner, 'edit');
+    } catch (Throwable $e) {
+    }
 }
 function upsertStepsBatch(AppDatabase $db, array $items): void {
     steps_cache_bump();
@@ -26,6 +56,7 @@ function upsertStepsBatch(AppDatabase $db, array $items): void {
         $pdo->rollBack();
         throw $e;
     }
+    steps_achievements_bump($db);
 }
 function normalizeStoredDate(string $raw): ?string {
     $s = trim($raw);

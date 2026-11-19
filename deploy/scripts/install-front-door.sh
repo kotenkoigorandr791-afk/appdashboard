@@ -2,6 +2,7 @@
 set -eu
 ROOT="${1:-/opt/docker/appdashboard/code}"
 export APP_UPSTREAM="${APP_UPSTREAM:-127.0.0.1:8080}"
+export APP_UPSTREAMS="${APP_UPSTREAMS:-$APP_UPSTREAM}"
 START_FRONT_DOOR="${START_FRONT_DOOR:-1}"
 AVAILABLE="/etc/nginx/sites-available/appdashboard-front-door.conf"
 ENABLED="/etc/nginx/sites-enabled/appdashboard-front-door.conf"

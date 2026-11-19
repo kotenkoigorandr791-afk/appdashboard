@@ -38,11 +38,19 @@ final class ExpenseChartShareHandler extends BaseAppHandler
         }
         $owner = (string)($resource->get('owner_email') ?: $share->owner_email);
         $udb = $this->userDb($owner);
+        require_once dirname(__DIR__, 3) . '/lib/spends_encryption.php';
+        // Settings are stored encrypted (spends:v1:...); the share page must get
+        // the plain values, otherwise the currency renders as the raw token.
+        $userId = '';
+        try {
+            $userId = spends_db_user_id($udb);
+        } catch (Throwable $e) {
+        }
         $settings = [];
         try {
             $result = $udb->query('SELECT key, value FROM settings');
             while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-                $settings[(string)$row['key']] = (string)$row['value'];
+                $settings[(string)$row['key']] = spends_decrypt((string)$row['value'], $userId, 'setting');
             }
         } catch (Throwable $e) {
         }

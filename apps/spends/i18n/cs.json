@@ -427,5 +427,17 @@
   "tags_saved": "Štítek uložen",
   "confirm_action_title": "Potvrdit akci",
   "confirm_delete_store_message": "Smazat tento obchod?",
-  "chart_by_category": "Podle kategorií"
+  "chart_by_category": "Podle kategorií",
+  "mobile_app_connect_title": "Připojit nové zařízení",
+  "mobile_app_connect_desc": "Vytvořte odkaz pro připojení a otevřete jej v telefonu. Aplikace se připojí automaticky.",
+  "mobile_app_connect_button": "Vytvořit odkaz pro připojení",
+  "mobile_app_devices_title": "Připojená zařízení",
+  "mobile_app_devices_refresh": "Obnovit",
+  "mobile_app_devices_empty": "Zatím nejsou připojena žádná zařízení.",
+  "mobile_app_devices_error": "Nepodařilo se načíst zařízení.",
+  "mobile_app_devices_state_active": "Připojeno",
+  "mobile_app_devices_state_pending": "Čeká na telefon",
+  "mobile_app_devices_created": "Přidáno {t}",
+  "mobile_app_devices_last_used": "Naposledy použito {t}",
+  "mobile_app_devices_disconnect": "Odpojit"
 }

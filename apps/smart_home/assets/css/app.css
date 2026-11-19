@@ -320,12 +320,16 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
   word-break:break-word;
 }
 .map-props-empty { padding:20px 14px; color:var(--text-secondary); font-size:13px; }
-.card-controls { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.card-controls { display:flex; flex-wrap:wrap; gap:6px; }
 .card-control-chip {
-  font-size:11px; padding:4px 8px; border-radius:8px; background:var(--surface-2);
-  border:1px solid var(--line); cursor:pointer;
+  display:inline-flex; align-items:center; gap:6px;
+  font-size:12px; padding:6px 10px; border-radius:999px;
+  background:color-mix(in srgb, var(--surface-2) 70%, transparent);
+  border:1px solid var(--line); color:var(--text-secondary); cursor:pointer;
+  transition:background var(--transition), border-color var(--transition), color var(--transition);
 }
-.card-control-chip.on { border-color:var(--success); color:var(--success); }
+.card-control-chip:hover { background:var(--surface-3); }
+.card-control-chip.on { border-color:color-mix(in srgb, var(--primary) 45%, var(--line)); color:var(--text); }
 .drawer-item {
   display:flex;
   align-items:center;
@@ -378,158 +382,174 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
   gap:16px;
 }
 
-/* ─── Device Card (Google Home style) ────────────────────────────────────── */
+/* ─── Device Card (Fluvy style) ─────────────────────────────────────────── */
 .device-card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 18px 18px 16px;
+  border-radius: 22px;
+  padding: 16px;
   cursor: pointer;
-  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition);
   position: relative;
   display: flex;
   flex-direction: column;
-  align-items: stretch;
-  min-height: 228px;
-  overflow: hidden;
+  gap: 10px;
+  min-width: 0;
+  transition: transform var(--transition), box-shadow var(--transition), border-color var(--transition), background var(--transition);
 }
 .device-card:hover {
   transform: translateY(-2px);
   box-shadow: 0 10px 30px var(--shadow);
   border-color: color-mix(in srgb, var(--primary) 35%, var(--line));
 }
-.device-card::before {
-  content: '';
-  position: absolute;
-  inset: 0 0 auto;
-  height: 74px;
-  background: linear-gradient(135deg, color-mix(in srgb, var(--primary) 20%, transparent), transparent 72%);
-  pointer-events: none;
+.device-card.is-on {
+  background: color-mix(in srgb, var(--primary) 7%, var(--surface));
+  border-color: color-mix(in srgb, var(--primary) 30%, var(--line));
 }
+.device-card.is-offline,
+.device-card.is-unknown { border-style: dashed; }
 .device-card-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  margin-bottom: 10px;
 }
 .device-card .device-icon-box {
-  width: 58px;
-  height: 58px;
-  margin: -10px 0 0;
-  border-radius: 18px;
-  background: color-mix(in srgb, var(--surface-2) 88%, var(--primary) 12%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background var(--transition), transform var(--transition);
-  border: 1px solid color-mix(in srgb, var(--line) 75%, transparent);
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
 }
-.device-card:hover .device-icon-box {
-  transform: translateY(-1px);
+.device-card.is-on .device-icon-box {
+  background: color-mix(in srgb, var(--primary) 18%, var(--surface-2));
+  border-color: color-mix(in srgb, var(--primary) 30%, transparent);
+  color: var(--text);
 }
+.device-card.is-offline .device-icon-box,
+.device-card.is-unknown .device-icon-box { background: transparent; border-style: dashed; }
 .device-card .device-icon-box svg {
-  width: 30px;
-  height: 30px;
-  color: var(--primary);
+  width: 22px;
+  height: 22px;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 .device-card-meta {
   min-width: 0;
-  flex: 1;
-  margin-top: 6px;
-  padding-top: 2px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 .device-card .card-title {
   font-size: 15px;
   font-weight: 600;
   color: var(--text);
   line-height: 1.3;
-  margin: 0 0 6px;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .device-card .card-subtitle {
-  font-size: 12px;
-  color: var(--text-secondary);
   display: flex;
   align-items: center;
   gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
 }
-.device-card .card-subtitle::before {
-  content: '';
-  width: 6px;
-  height: 6px;
+.device-card .card-subtitle > span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.status-dot-sm {
+  width: 7px;
+  height: 7px;
   border-radius: 50%;
-  background: color-mix(in srgb, var(--text-secondary) 55%, transparent);
-  flex-shrink: 0;
-}.status-dot-sm.online { background: var(--success); box-shadow: 0 0 6px color-mix(in srgb, var(--success) 50%, transparent); }
+  flex: 0 0 auto;
+  display: inline-block;
+}
+.status-dot-sm.online { background: var(--success); }
 .status-dot-sm.offline { background: var(--danger); }
 .status-dot-sm.unknown { background: var(--text-secondary); }
-.device-card .status-label {
-  font-size: 11px;
+.device-card .card-params {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(78px, 1fr));
+  gap: 8px 16px;
+}
+.device-card .card-param {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.device-card .param-label {
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: .04em;
+  letter-spacing: .06em;
   text-transform: uppercase;
   color: var(--text-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.device-card .card-params {
-  margin-top: 14px;
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-start;
+.device-card .param-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
-.device-card .param-chip {
-  background: color-mix(in srgb, var(--surface-2) 92%, transparent);
+.device-card .param-value .chart-empty-badge {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+.card-power {
+  position: relative;
+  flex: 0 0 auto;
+  width: 46px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--line);
   border-radius: 999px;
-  padding: 5px 10px;
-  font-size: 11px;
-  color: var(--text-secondary);
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  line-height: 1.3;
-  border: 1px solid color-mix(in srgb, var(--line) 80%, transparent);
+  background: var(--surface-3);
+  cursor: pointer;
+  transition: background var(--transition), border-color var(--transition);
 }
-.device-card .param-chip .val { color: var(--text); font-weight: 500; }
+.card-power-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--text-secondary);
+  transition: transform var(--transition), background var(--transition);
+}
+.card-power.on { background: var(--primary); border-color: var(--primary); }
+.card-power.on .card-power-knob { transform: translateX(20px); background: #fff; }
+.card-power:hover { border-color: color-mix(in srgb, var(--primary) 55%, var(--line)); }
+.card-power:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
 .led-status { display:inline-flex; align-items:center; gap:6px; font-weight:600; }
 .led-status span { width:11px; height:11px; border-radius:50%; display:inline-block; box-shadow:inset 0 1px 2px rgba(255,255,255,.45), 0 0 10px rgba(0,0,0,.2); }
 .led-status.on span { background:radial-gradient(circle at 32% 28%, #d9ffe8 0 16%, #54f28a 28%, #0ca34b 72%); box-shadow:0 0 10px rgba(46,232,112,.6), inset 0 1px 2px rgba(255,255,255,.45); }
 .led-status.off span { background:radial-gradient(circle at 32% 28%, #ffd9d9 0 16%, #ff5b5b 30%, #b31818 74%); box-shadow:0 0 10px rgba(255,68,68,.48), inset 0 1px 2px rgba(255,255,255,.4); }
-.device-card .card-footer {
-  margin-top: auto;
-  padding-top: 14px;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-.device-card .card-open {
-  font-size: 12px;
-  color: var(--text-secondary);
-}
-.device-card .card-action {
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  background: color-mix(in srgb, var(--surface-2) 90%, transparent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all var(--transition);
-  cursor: pointer;
-  border: 1px solid var(--line);
-  flex-shrink: 0;
-}
-.device-card .card-action svg { width: 22px; height: 22px; color: var(--text-secondary); }
-.device-card .card-action.active {
-  background: color-mix(in srgb, var(--primary) 20%, var(--surface-2));
-  border-color: color-mix(in srgb, var(--primary) 40%, transparent);
-}
-.device-card .card-action.active svg { color: var(--text); }
-.device-card .card-action:hover { background: var(--surface-3); }
-.device-card .card-action.active:hover { background: color-mix(in srgb, var(--primary) 35%, transparent); }
 
 /* ─── Status dot (used in table & modal) ────────────────────────────────── */
 .status-dot {
@@ -1114,8 +1134,8 @@ body.modal-open #menu-button, body.modal-open .menu-button, body.modal-open .mob
   .ui-dialog-actions { flex-direction:column; }
   .ui-dialog-actions .btn { width:100%; min-width:0; }
   .stats-grid { grid-template-columns:repeat(2,1fr); }
-  .device-card { min-height: 0; }
-  .device-card .card-footer { align-items: flex-end; }
+  .device-card { padding: 14px; }
+  .device-card .param-label { font-size: 9px; letter-spacing: .04em; }
 
   .api-docs-callout { padding:12px 10px; gap:6px; }
   .api-docs-hr { margin:18px 0; }

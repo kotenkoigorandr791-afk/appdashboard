@@ -112,8 +112,9 @@ if ($path === '/oauth/approve') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Authorize Application</title>
-        <link rel="icon" type="image/png" href="/icon.png">
-        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/png" href="/icon.png?v=3">
+        <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
             :root{
                 color-scheme: light dark;
@@ -235,6 +236,7 @@ if ($path === '/client-auth') {
     purgeClientBrowserAuthRequests($db);
     $row = getClientBrowserAuthRequest($db, $requestId);
     $validRequest = $row && clientBrowserAuthMatches($browserToken, (string)($row['browser_token_hash'] ?? '')) && (int)($row['expires_at'] ?? 0) >= time();
+    $mobileAuth = $validRequest && in_array((string)($row['platform'] ?? ''), ['nexsteps', 'nexspends'], true);
     $deviceName = $validRequest ? my_htmlspecialchars((string)($row['device_name'] ?: 'Desktop app')) : 'Desktop app';
     $platformName = $validRequest ? my_htmlspecialchars((string)($row['platform'] ?: 'desktop')) : 'desktop';
     $userEmail = my_htmlspecialchars((string)($_SESSION['user']['email'] ?? ''));
@@ -246,8 +248,9 @@ if ($path === '/client-auth') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Desktop Authorization</title>
-        <link rel="icon" type="image/png" href="/icon.png">
-        <link rel="shortcut icon" type="image/png" href="/icon.png">
+        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/png" href="/icon.png?v=3">
+        <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
             :root{
                 color-scheme: light dark;
@@ -313,13 +316,13 @@ if ($path === '/client-auth') {
     </head>
     <body>
         <div class="card">
-            <div class="pill">ServerKherson Desktop</div>
+            <div class="pill"><?php echo $mobileAuth ? 'Nexorbit' : 'NexOrbit Desktop'; ?></div>
             <?php if (!$validRequest): ?>
                 <h1>Authorization request is invalid or expired</h1>
                 <p>Return to the desktop app and start authorization again.</p>
             <?php else: ?>
-                <h1>Authorize desktop sync</h1>
-                <p>Confirm token generation and cloud synchronization for this device. After confirmation, the browser will return control to the running application.</p>
+                <h1><?php echo $mobileAuth ? 'Sign in to your app' : 'Authorize desktop sync'; ?></h1>
+                <p><?php echo $mobileAuth ? 'Confirm that you want to sign in on this device.' : 'Confirm token generation and cloud synchronization for this device. After confirmation, the browser will return control to the running application.'; ?></p>
                 <div class="meta">
                     <div class="meta-row"><span>Account</span><strong><?php echo $userEmail; ?></strong></div>
                     <div class="meta-row"><span>Device</span><strong><?php echo $deviceName; ?></strong></div>
@@ -565,7 +568,12 @@ if($path==='/login'||$path==='/register'||$path==='/login/oauth/callback'||$path
     // Залогиненным промо-виджеты на home не показываем (флаг читается в home.js).
     $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
     echo '<script>window.__skUserLoggedIn = ' . ($__skHomeLoggedIn ? 'true' : 'false') . ';</script>';
-    include __DIR__ . '/views/home.html';
+    $__homeContent = file_get_contents(__DIR__ . '/views/home.html');
+    if ($__homeContent !== false) {
+        $__appVersion = htmlspecialchars(getenv('APP_VERSION') ?: '1.0.7', ENT_QUOTES, 'UTF-8');
+        $__homeContent = str_replace('id="navVersion">v1.0.7<', 'id="navVersion">v' . $__appVersion . '<', $__homeContent);
+        echo $__homeContent;
+    }
     exit;
 }else{
     $showLogin=false;

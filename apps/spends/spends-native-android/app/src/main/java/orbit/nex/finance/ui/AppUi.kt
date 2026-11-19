@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -35,12 +36,14 @@ import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Autorenew
 import androidx.compose.material.icons.filled.CloudDone
+import androidx.compose.material.icons.filled.WifiOff
 import androidx.compose.material.icons.outlined.Backup
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.CameraAlt
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Category
 import androidx.compose.material.icons.outlined.ChevronRight
+import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Cloud
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
@@ -58,6 +61,7 @@ import androidx.compose.material.icons.outlined.Notifications
 import androidx.compose.material.icons.outlined.Palette
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Smartphone
 import androidx.compose.material.icons.outlined.ShowChart
@@ -84,15 +88,16 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
-import androidx.compose.material3.DatePicker
-import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -102,8 +107,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -127,6 +134,7 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 import java.util.Locale
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import orbit.nex.finance.AppState
 import orbit.nex.finance.BuildConfig
@@ -134,12 +142,15 @@ import orbit.nex.finance.NotificationAccess
 import orbit.nex.finance.R
 import orbit.nex.finance.SpendsViewModel
 import orbit.nex.finance.data.BackupEntry
+import orbit.nex.finance.data.CurrencyConversion
 import orbit.nex.finance.data.Expense
 import orbit.nex.finance.data.Goal
+import orbit.nex.finance.data.NetworkState
 import orbit.nex.finance.data.PendingCapture
 import orbit.nex.finance.data.Store
 import orbit.nex.finance.data.Tag
 import orbit.nex.finance.updates.AppUpdateChecker
+import orbit.nex.finance.updates.ReleaseNotes
 import orbit.nex.finance.updates.UpdateInfo
 import orbit.nex.finance.updates.UpdateOutcome
 
@@ -403,7 +414,7 @@ private val BudgetGreen = Color(0xFF6BCC41)
 private val BudgetAmber = Color(0xFFF2C230)
 private val BudgetRed = Color(0xFFC21919)
 
-/** Compact, consistently sized date picker used by all app date-selection flows. */
+/** Calendar picker drawn entirely from the app theme instead of the platform dialog. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppDatePickerDialog(
@@ -412,34 +423,114 @@ fun AppDatePickerDialog(
     onConfirm: (Long) -> Unit,
     dismissLabel: String,
 ) {
-    val picker = rememberDatePickerState(initialSelectedDateMillis = initialDateMillis)
+    val initial = remember(initialDateMillis) {
+        Instant.ofEpochMilli(initialDateMillis).atZone(ZoneOffset.UTC).toLocalDate()
+    }
+    var selected by remember(initialDateMillis) { mutableStateOf(initial) }
+    var month by remember(initialDateMillis) { mutableStateOf(java.time.YearMonth.from(initial)) }
+    val today = LocalDate.now()
+    val monthLabel = remember(month) {
+        month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
+    }
+    val weekDays = remember {
+        (0..6).map { java.time.DayOfWeek.MONDAY.plus(it.toLong()).getDisplayName(java.time.format.TextStyle.SHORT, Locale.getDefault()) }
+    }
+    val leading = (month.atDay(1).dayOfWeek.value - 1 + 7) % 7
+    val dayCount = month.lengthOfMonth()
+    val rows = (leading + dayCount + 6) / 7
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false),
     ) {
         Surface(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).widthIn(max = 480.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).widthIn(max = 460.dp),
             shape = RoundedCornerShape(28.dp),
             color = MaterialTheme.colorScheme.surface,
             tonalElevation = 6.dp,
         ) {
-            Column(horizontalAlignment = Alignment.End, modifier = Modifier.heightIn(max = 520.dp)) {
-                DatePicker(
-                    picker,
-                    modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 12.dp),
-                    title = null,
-                    headline = null,
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(stringResource(R.string.date_label), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    selected.format(DateTimeFormatter.ofPattern("EEEE, d MMMM yyyy", Locale.getDefault())),
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onSurface,
                 )
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    IconButton({ month = month.minusMonths(1) }) {
+                        Icon(Icons.Outlined.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
+                    }
+                    Text(
+                        monthLabel.replaceFirstChar { it.titlecase(Locale.getDefault()) },
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Center,
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    IconButton({ month = month.plusMonths(1) }) {
+                        Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    weekDays.forEach { label ->
+                        Text(
+                            label,
+                            Modifier.weight(1f),
+                            textAlign = TextAlign.Center,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    repeat(rows) { row ->
+                        Row(Modifier.fillMaxWidth()) {
+                            repeat(7) { column ->
+                                val day = row * 7 + column - leading + 1
+                                if (day in 1..dayCount) {
+                                    val date = month.atDay(day)
+                                    val isSelected = date == selected
+                                    val isToday = date == today
+                                    Box(
+                                        Modifier.weight(1f).padding(2.dp).height(40.dp)
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(
+                                                when {
+                                                    isSelected -> MaterialTheme.colorScheme.primary
+                                                    isToday -> MaterialTheme.colorScheme.primaryContainer
+                                                    else -> Color.Transparent
+                                                },
+                                            )
+                                            .clickable { selected = date },
+                                        contentAlignment = Alignment.Center,
+                                    ) {
+                                        Text(
+                                            day.toString(),
+                                            color = when {
+                                                isSelected -> MaterialTheme.colorScheme.onPrimary
+                                                isToday -> MaterialTheme.colorScheme.onPrimaryContainer
+                                                else -> MaterialTheme.colorScheme.onSurface
+                                            },
+                                            fontWeight = if (isSelected || isToday) FontWeight.SemiBold else FontWeight.Normal,
+                                        )
+                                    }
+                                } else {
+                                    Spacer(Modifier.weight(1f).height(40.dp))
+                                }
+                            }
+                        }
+                    }
+                }
                 Row(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
                     horizontalArrangement = Arrangement.End,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     TextButton(onClick = onDismiss) { Text(dismissLabel) }
-                    TextButton(onClick = { picker.selectedDateMillis?.let(onConfirm); onDismiss() }) {
-                        Text(stringResource(R.string.ok))
-                    }
+                    TextButton(onClick = {
+                        onConfirm(selected.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli())
+                        onDismiss()
+                    }) { Text(stringResource(R.string.ok)) }
                 }
             }
         }
@@ -635,13 +726,58 @@ private fun InsightCard(title: String, value: String, caption: String, accent: C
 
 @Composable
 fun NetWorthScreen(state: AppState) {
-    val incomes = state.snapshot.incomes.sumOf { it.amount }
-    val expenses = state.snapshot.expenses.sumOf { it.amount }
+    val currency = state.snapshot.currency
+    val allIn = state.snapshot.incomes.sumOf { it.amount }
+    val allOut = state.snapshot.expenses.sumOf { it.amount }
+    var month by remember { mutableStateOf(java.time.YearMonth.now()) }
+    val thisMonth = remember { java.time.YearMonth.now() }
+    val monthKey = month.toString()
+    val monthIn = state.snapshot.incomes.filter { it.date.startsWith(monthKey) }.sumOf { it.amount }
+    val monthOut = state.snapshot.expenses.filter { it.date.startsWith(monthKey) }.sumOf { it.amount }
+    val monthLabel = remember(month) {
+        month.atDay(1).format(DateTimeFormatter.ofPattern("LLLL yyyy", Locale.getDefault()))
+            .replaceFirstChar { it.titlecase(Locale.getDefault()) }
+    }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         PageHeading(R.string.net_position)
-        StatCard(stringResource(R.string.incomes), stringResource(R.string.net_in, money(incomes, state.snapshot.currency)), SpendsColors.income())
-        StatCard(stringResource(R.string.expenses), stringResource(R.string.net_out, money(expenses, state.snapshot.currency)), SpendsColors.expense())
-        StatCard(stringResource(R.string.net_position), stringResource(R.string.net_total, money(incomes - expenses, state.snapshot.currency)))
+        // All-time summary keeps the long-term picture visible while the month pager below
+        // lets the user browse recent months without leaving the screen.
+        TableCard(
+            title = stringResource(R.string.all_time),
+            rows = listOf(
+                stringResource(R.string.incomes) to "+${money(allIn, currency)}",
+                stringResource(R.string.expenses) to "−${money(allOut, currency)}",
+                stringResource(R.string.net_position) to money(allIn - allOut, currency),
+            ),
+        )
+        Card(
+            Modifier.fillMaxWidth(),
+            RoundedCornerShape(22.dp),
+            colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+            elevation = CardDefaults.cardElevation(0.dp),
+        ) {
+            Row(
+                Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp)).padding(horizontal = 4.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton({ month = month.minusMonths(1) }) {
+                    Icon(Icons.Outlined.ChevronRight, stringResource(R.string.back), tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.rotate(180f))
+                }
+                Text(
+                    monthLabel,
+                    modifier = Modifier.weight(1f),
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+                IconButton({ month = month.plusMonths(1) }, enabled = month < thisMonth) {
+                    Icon(Icons.Outlined.ChevronRight, stringResource(R.string.next_month), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
+        StatCard(stringResource(R.string.incomes), "+${money(monthIn, currency)}", SpendsColors.income())
+        StatCard(stringResource(R.string.expenses), "−${money(monthOut, currency)}", SpendsColors.expense())
+        StatCard(stringResource(R.string.net_position), money(monthIn - monthOut, currency))
     }
 }
 
@@ -1226,6 +1362,7 @@ fun UpdatesScreen(state: AppState) {
     var checking by remember { mutableStateOf(false) }
     var downloading by remember { mutableStateOf(false) }
     var info by remember { mutableStateOf<UpdateInfo?>(null) }
+    var notes by remember { mutableStateOf<ReleaseNotes?>(null) }
     var status by remember { mutableStateOf<String?>(null) }
     var progress by remember { mutableStateOf(0) }
 
@@ -1235,6 +1372,10 @@ fun UpdatesScreen(state: AppState) {
             status = context.getString(R.string.checking_updates)
             val check = checker.checkForUpdate(state.session.endpoint, state.session.token)
             info = check.info
+            notes = check.releaseNotes
+                ?: check.info?.takeIf { it.release_notes.isNotBlank() }?.let {
+                    ReleaseNotes(version_name = it.version_name, body = it.release_notes)
+                }
             status = when (check.outcome) {
                 UpdateOutcome.UPDATE_AVAILABLE -> context.getString(R.string.update_available, check.info?.version_name.orEmpty())
                 UpdateOutcome.UP_TO_DATE -> context.getString(R.string.update_up_to_date)
@@ -1261,9 +1402,6 @@ fun UpdatesScreen(state: AppState) {
                     color = if (info != null) Color(0xFF16834A) else MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
-                info?.release_notes?.takeIf { it.isNotBlank() }?.let {
-                    Text(it.take(500), color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall, maxLines = 6, overflow = TextOverflow.Ellipsis)
-                }
                 Button(
                     onClick = {
                         val available = info
@@ -1304,6 +1442,19 @@ fun UpdatesScreen(state: AppState) {
                     TextButton(onClick = { info = null; checkUpdates() }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.check_updates))
                     }
+                }
+            }
+        }
+        notes?.takeIf { it.body.isNotBlank() }?.let { releaseNotes ->
+            Card(Modifier.fillMaxWidth(), RoundedCornerShape(20.dp), colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface)) {
+                Column(Modifier.fillMaxWidth().padding(18.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Text(stringResource(R.string.update_release_notes), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary)
+                        releaseNotes.version_name.takeIf { it.isNotBlank() }?.let {
+                            Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    ReleaseNotesBody(releaseNotes.body)
                 }
             }
         }
@@ -1727,9 +1878,11 @@ fun PaymentTagDialog(state: AppState, expense: Expense, model: SpendsViewModel, 
 @Composable
 fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
     val context = LocalContext.current
+    val base = state.snapshot.currency.ifBlank { "USD" }
     var store by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var day by remember { mutableStateOf("1") }
+    var currency by remember(base) { mutableStateOf(CurrencyConversion.normalize(base)) }
     var adding by remember { mutableStateOf(false) }
     val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) {
@@ -1759,14 +1912,16 @@ fun SubscriptionsScreen(state: AppState, model: SpendsViewModel) {
                     }
                     OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.amount_label)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
                     OutlinedTextField(day, { day = it.filter { c -> c.isDigit() }.take(2) }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.subscriptions_day)) }, shape = RoundedCornerShape(14.dp), singleLine = true)
+                    CurrencyChips(base, currency) { currency = it }
+                    // Validation lives in the view model so a missing store, amount
+                    // or day always produces an error toast instead of a dead button.
                     Button(
                         {
-                            model.addSubscription(store, amount.replace(',', '.'), day.ifBlank { "1" })
-                            store = ""; amount = ""; day = "1"; adding = false
+                            model.addSubscription(store, amount.replace(',', '.'), day.ifBlank { "1" }, currency)
+                            store = ""; amount = ""; day = "1"; currency = CurrencyConversion.normalize(base); adding = false
                         },
                         Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        enabled = store.isNotBlank() && amount.toDoubleOrNull() != null,
                     ) { Text(stringResource(R.string.save)) }
                 }
             }
@@ -2144,19 +2299,105 @@ fun SyncScreen(state: AppState, model: SpendsViewModel, onLogs: () -> Unit) {
         PageHeading(R.string.sync_title)
         ConnectionCard(state, model)
         Text(state.session.endpoint, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        val last = if (state.snapshot.syncedAt == 0L) "—" else java.text.DateFormat.getDateTimeInstance().format(java.util.Date(state.snapshot.syncedAt))
-        Text(stringResource(R.string.last_sync, last), color = MaterialTheme.colorScheme.onSurface)
+        LastSyncCard(state.snapshot.syncedAt)
         Button(onLogs, Modifier.fillMaxWidth(), shape = RoundedCornerShape(16.dp)) { Text(stringResource(R.string.logs)) }
+    }
+}
+
+/** Framed "last synchronization" row with a tappable clock that toggles the full timestamp. */
+@Composable
+private fun LastSyncCard(timestamp: Long) {
+    var detailed by remember { mutableStateOf(false) }
+    val short = if (timestamp == 0L) "—" else java.text.DateFormat.getDateTimeInstance(
+        java.text.DateFormat.MEDIUM,
+        java.text.DateFormat.SHORT,
+    ).format(java.util.Date(timestamp))
+    val full = if (timestamp == 0L) "—" else java.text.DateFormat.getDateTimeInstance(
+        java.text.DateFormat.FULL,
+        java.text.DateFormat.FULL,
+    ).format(java.util.Date(timestamp))
+    Card(
+        Modifier.fillMaxWidth(),
+        RoundedCornerShape(22.dp),
+        colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(0.dp),
+    ) {
+        Row(
+            Modifier.fillMaxWidth().border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(22.dp)).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(52.dp),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                IconButton({ detailed = !detailed }) {
+                    Icon(
+                        Icons.Outlined.Schedule,
+                        contentDescription = stringResource(R.string.last_sync_title),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                    )
+                }
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(
+                    stringResource(R.string.last_sync_title),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Text(
+                    if (detailed) full else short,
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Currency picker for amounts typed by hand. The ledger stores the base
+ * currency, so picking another one converts the amount before it is saved.
+ */
+@Composable
+fun CurrencyChips(base: String, selected: String, onSelect: (String) -> Unit) {
+    val options = remember(base) { CurrencyConversion.options(base) }
+    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            stringResource(R.string.currency),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            options.forEach { code ->
+                FilterChip(
+                    selected = code.equals(selected, ignoreCase = true),
+                    onClick = { onSelect(code) },
+                    label = { Text(code) },
+                )
+            }
+        }
     }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TransactionSheet(kind: String, onDismiss: () -> Unit, saveExpense: (String, String, String) -> Unit, saveIncome: (String, String) -> Unit) {
+fun TransactionSheet(
+    kind: String,
+    baseCurrency: String,
+    onDismiss: () -> Unit,
+    saveExpense: (String, String, String, String) -> Unit,
+    saveIncome: (String, String) -> Unit,
+) {
     val context = LocalContext.current
     var date by remember { mutableStateOf(LocalDate.now().toString()) }
     var merchant by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
+    var currency by remember(baseCurrency) { mutableStateOf(CurrencyConversion.normalize(baseCurrency)) }
     val pickStore = androidx.activity.compose.rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) { result ->
         if (result.resultCode == android.app.Activity.RESULT_OK) merchant = result.data?.getStringExtra(orbit.nex.finance.PickStoreActivity.EXTRA_STORE).orEmpty()
     }
@@ -2177,8 +2418,9 @@ fun TransactionSheet(kind: String, onDismiss: () -> Unit, saveExpense: (String, 
                 }
             }
             OutlinedTextField(amount, { amount = it }, Modifier.fillMaxWidth(), label = { Text(stringResource(R.string.amount_label)) }, shape = RoundedCornerShape(16.dp), singleLine = true)
+            if (kind != "income") CurrencyChips(baseCurrency, currency) { currency = it }
             Button(
-                { if (kind == "income") saveIncome(date, amount) else saveExpense(date, merchant, amount) },
+                { if (kind == "income") saveIncome(date, amount) else saveExpense(date, merchant, amount, currency) },
                 Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(18.dp),
             ) { Text(stringResource(R.string.save)) }
@@ -2226,8 +2468,16 @@ fun SearchSheet(state: AppState, onDismiss: () -> Unit, onOpen: (Expense) -> Uni
 }
 
 @Composable
-fun DetailScreen(title: String, onBack: () -> Unit, onEdit: (() -> Unit)? = null, content: @Composable () -> Unit) {
-    Column(Modifier.fillMaxSize().background(canvasBrush())) {
+fun DetailScreen(
+    title: String,
+    onBack: () -> Unit,
+    onEdit: (() -> Unit)? = null,
+    /** Standalone activities have no Scaffold inset; the in-app shell already applies it. */
+    insetTop: Boolean = false,
+    content: @Composable () -> Unit,
+) {
+    val topInset = if (insetTop) Modifier.statusBarsPadding() else Modifier
+    Column(Modifier.fillMaxSize().background(canvasBrush()).then(topInset)) {
         Row(Modifier.fillMaxWidth().padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Button(
                 onClick = onBack,
@@ -2240,7 +2490,13 @@ fun DetailScreen(title: String, onBack: () -> Unit, onEdit: (() -> Unit)? = null
                     Text(stringResource(R.string.back), style = MaterialTheme.typography.labelLarge)
                 }
             }
-            Text(title, style = MaterialTheme.typography.titleLarge, color = MaterialTheme.colorScheme.onBackground, modifier = Modifier.weight(1f))
+            Text(
+                title,
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground,
+                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                textAlign = TextAlign.End,
+            )
             if (onEdit != null) {
                 IconButton(onEdit) { Icon(Icons.Outlined.Edit, stringResource(R.string.edit), tint = MaterialTheme.colorScheme.primary) }
             }
@@ -2308,13 +2564,36 @@ private fun MiniFab(label: String, icon: ImageVector, color: Color, onClick: () 
 @Composable
 fun SpendsNavBar(tab: Int, onTab: (Int) -> Unit, onAdd: () -> Unit) {
     val shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    val online by NetworkState.online.collectAsState()
+    // Red is held while offline; after reconnecting it turns green for a moment
+    // and then fades back into the normal bar colour.
+    var wasOffline by remember { mutableStateOf(!online) }
+    var flashOnline by remember { mutableStateOf(false) }
+    LaunchedEffect(online) {
+        if (!online) {
+            wasOffline = true
+            flashOnline = false
+        } else if (wasOffline) {
+            wasOffline = false
+            flashOnline = true
+            delay(2_800)
+            flashOnline = false
+        }
+    }
+    val base = MaterialTheme.colorScheme.surface
+    val targetBottom = when {
+        !online -> Color(0xFF7F1D1D)
+        flashOnline -> Color(0xFF15803D)
+        else -> base
+    }
+    val bottom by animateColorAsState(targetBottom, tween(700), label = "navConnection")
     Box(Modifier.fillMaxWidth().shadow(16.dp, shape, clip = false)) {
         // Background is painted across the navigation-bar inset too, so the bar
         // reaches the bottom edge instead of leaving a gap above the system keys.
         Box(
             Modifier.fillMaxWidth()
                 .clip(shape)
-                .background(MaterialTheme.colorScheme.surface)
+                .background(Brush.verticalGradient(listOf(base, bottom)))
                 .navigationBarsPadding()
                 .height(80.dp),
         )
@@ -2475,27 +2754,72 @@ private fun NavSlot(label: String, icon: ImageVector, selected: Boolean, modifie
     }
 }
 
+/**
+ * Floating error notification. Errors used to be modal dialogs, which blocked
+ * the ledger for every failed upload; the same text is also written to the sync
+ * log so it can be inspected later.
+ */
 @Composable
-fun ErrorDialog(message: String?, dismiss: () -> Unit) {
-    if (message != null) {
-        Dialog(
-            onDismissRequest = dismiss,
-            properties = DialogProperties(usePlatformDefaultWidth = false),
+fun ErrorToast(message: String?, dismiss: () -> Unit) {
+    if (message == null) return
+    val network = looksLikeNetworkFailure(message)
+    LaunchedEffect(message) {
+        delay(6_000)
+        dismiss()
+    }
+    Box(Modifier.fillMaxSize().padding(16.dp), contentAlignment = Alignment.BottomCenter) {
+        Surface(
+            modifier = Modifier.fillMaxWidth().widthIn(max = 520.dp),
+            shape = RoundedCornerShape(20.dp),
+            color = if (network) MaterialTheme.colorScheme.errorContainer else MaterialTheme.colorScheme.surfaceVariant,
+            shadowElevation = 8.dp,
         ) {
-            Surface(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp).widthIn(max = 480.dp),
-                shape = RoundedCornerShape(28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                tonalElevation = 6.dp,
+            Row(
+                Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Column(Modifier.fillMaxWidth().padding(24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Text(stringResource(R.string.something_went_wrong), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.onSurface)
-                    Text(message, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    TextButton(onClick = dismiss, modifier = Modifier.align(Alignment.End)) { Text(stringResource(R.string.ok)) }
+                Icon(
+                    if (network) Icons.Filled.WifiOff else Icons.Outlined.Info,
+                    contentDescription = null,
+                    modifier = Modifier.size(22.dp),
+                    tint = if (network) MaterialTheme.colorScheme.onErrorContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(
+                        stringResource(if (network) R.string.offline_title else R.string.something_went_wrong),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                    // Never expose raw OkHttp/socket text to the user.
+                    Text(
+                        if (network) stringResource(R.string.offline_message) else message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                IconButton(dismiss) {
+                    Icon(Icons.Outlined.Close, stringResource(R.string.ok), modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
     }
+}
+
+/** True for socket/DNS/stream errors that should be presented as an offline state. */
+private fun looksLikeNetworkFailure(message: String): Boolean {
+    val text = message.lowercase(Locale.getDefault())
+    return listOf(
+        "unexpected end of stream",
+        "connection reset",
+        "broken pipe",
+        "eof",
+        "failed to connect",
+        "resolve host",
+        "timeout",
+        "no internet",
+        "offline",
+    ).any(text::contains)
 }
 
 private fun prettyDate(raw: String): String = try {
@@ -2555,7 +2879,8 @@ private fun SourceBadgeCard(raw: String) {
 
 private fun sourceIcon(raw: String): ImageVector = when (raw.trim().lowercase(Locale.ROOT)) {
     "ocr" -> Icons.Outlined.ReceiptLong
-    "wallet" -> Icons.Outlined.AccountBalanceWallet
+    "notification" -> Icons.Outlined.Notifications
+    "wallet" -> Icons.Outlined.Notifications
     "subscription" -> Icons.Outlined.Autorenew
     "other" -> Icons.Outlined.HelpOutline
     else -> Icons.Outlined.Edit
@@ -2566,7 +2891,7 @@ private fun sourceIcon(raw: String): ImageVector = when (raw.trim().lowercase(Lo
 private fun sourceLabel(raw: String): String = when (raw.trim().lowercase(Locale.ROOT)) {
     "", "manual" -> stringResource(R.string.source_manual)
     "ocr" -> stringResource(R.string.source_ocr)
-    "wallet" -> stringResource(R.string.source_wallet)
+    "notification", "wallet" -> stringResource(R.string.source_notification)
     "subscription" -> stringResource(R.string.source_subscription)
     "other" -> stringResource(R.string.source_other)
     else -> raw.replaceFirstChar { it.titlecase(Locale.getDefault()) }

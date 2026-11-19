@@ -425,17 +425,9 @@ echo dockerAssetLinks();
                     <div><strong><?php echo htmlspecialchars(t('docker_ram_total'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo (is_array($stats['data'] ?? null) && isset($stats['data']['MemTotal'])) ? round($stats['data']['MemTotal'] / 1024 / 1024 / 1024, 2) : 0; ?> GB</div>
                 </div>
                 <h3 style="margin-top: 22px;"><?php echo htmlspecialchars(t('docker_disk_usage'), ENT_QUOTES, 'UTF-8'); ?> (system df)</h3>
-                <?php if ($systemDfData['code'] === 200 && is_array($systemDfData['data'])): ?>
-                <?php $sdf = $systemDfData['data']; ?>
-                <div class="info-grid">
-                    <div><strong><?php echo htmlspecialchars(t('layers_size'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo isset($sdf['LayersSize']) ? round($sdf['LayersSize'] / 1024 / 1024 / 1024, 2) : 0; ?> GB</div>
-                    <div><strong><?php echo htmlspecialchars(t('images_in_report'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo isset($sdf['Images']) && is_array($sdf['Images']) ? count($sdf['Images']) : 0; ?></div>
-                    <div><strong><?php echo htmlspecialchars(t('containers_in_report'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo isset($sdf['Containers']) && is_array($sdf['Containers']) ? count($sdf['Containers']) : 0; ?></div>
-                    <div><strong><?php echo htmlspecialchars(t('volumes_in_report'), ENT_QUOTES, 'UTF-8'); ?>:</strong> <?php echo isset($sdf['Volumes']) && is_array($sdf['Volumes']) ? count($sdf['Volumes']) : 0; ?></div>
+                <div id="systemDfReport" class="docker-lazy-report" data-docker-lazy-url="<?php echo htmlspecialchars(dockerUrl(['view' => 'system_df', 'action' => null, 'id' => null, 'embed' => '1']), ENT_QUOTES, 'UTF-8'); ?>">
+                    <p style="color: var(--muted); font-size: 14px;"><?php echo htmlspecialchars(t('loading'), ENT_QUOTES, 'UTF-8'); ?></p>
                 </div>
-                <?php else: ?>
-                <p style="color: var(--muted); font-size: 14px;"><?php echo htmlspecialchars(t('unavailable'), ENT_QUOTES, 'UTF-8'); ?> (HTTP <?php echo (int)($systemDfData['code'] ?? 0); ?>)</p>
-                <?php endif; ?>
                 <?php if (isset($systemInfo['data']['URL'])): ?>
                 <h3 style="margin-top: 22px;"><?php echo htmlspecialchars(t('docker_endpoint'), ENT_QUOTES, 'UTF-8'); ?> #<?php echo (int)$epId; ?></h3>
                 <div class="info-grid">

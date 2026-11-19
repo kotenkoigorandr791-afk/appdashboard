@@ -1536,7 +1536,10 @@ ul.dropdown-submenu-open a .fa-fw {
 #modal-content #file-list li,
 #file-list li {
   display: flex !important;
+  flex-wrap: nowrap !important;
   align-items: center !important;
+  white-space: nowrap;
+  overflow: hidden;
   gap: 10px;
   margin: 0 !important;
   padding: 10px 12px !important;
@@ -1578,6 +1581,54 @@ ul.dropdown-submenu-open a .fa-fw {
   font-size: 0.75rem !important;
   font-weight: 650 !important;
 }
+/* Upload row stays on one line: name truncates, bar and percent never wrap */
+#modal-content #file-list li > span,
+#file-list li > span {
+  flex: 0 0 auto;
+  white-space: nowrap !important;
+}
+#modal-content #file-list li > .kb-file-name,
+#file-list li > .kb-file-name {
+  order: 1;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap !important;
+}
+#modal-content #file-list li > progress,
+#file-list li > progress,
+#modal-content #file-list li > [id^="file-progress-"],
+#file-list li > [id^="file-progress-"] {
+  order: 2;
+  flex: 0 0 84px !important;
+  width: 84px !important;
+  min-width: 84px !important;
+}
+#modal-content [id^="file-percentage-"],
+[id^="file-percentage-"] {
+  order: 3;
+  flex: 0 0 auto !important;
+  margin-left: 2px;
+  white-space: nowrap !important;
+  font-size: 0.75rem !important;
+  font-weight: 600 !important;
+  color: var(--kb-muted) !important;
+}
+#modal-content #file-list li > span[id^="file-delete-"],
+#file-list li > span[id^="file-delete-"] {
+  order: 4;
+}
+#modal-content #file-list li:has(> .file-error),
+#file-list li:has(> .file-error) {
+  flex-wrap: wrap !important;
+  white-space: normal;
+}
+#modal-content #file-list li > .file-error,
+#file-list li > .file-error {
+  flex: 1 1 100%;
+}
 #modal-content progress,
 #modal-content [id^="file-progress-"] {
   width: 100% !important;
@@ -1610,7 +1661,51 @@ ul.dropdown-submenu-open a .fa-fw {
 }
 #modal-content:has(#file-dropzone) .form-actions,
 #modal-content.kb-upload-content .form-actions {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: center !important;
+  gap: 10px !important;
   margin-top: 2px !important;
+}
+/* Upload / cancel must share one size — the cancel link has no .btn class */
+#modal-content:has(#file-dropzone) .form-actions > .btn,
+#modal-content:has(#file-dropzone) .form-actions > button,
+#modal-content:has(#file-dropzone) .form-actions > a,
+#modal-content.kb-upload-content .form-actions > .btn,
+#modal-content.kb-upload-content .form-actions > button,
+#modal-content.kb-upload-content .form-actions > a {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  min-width: 104px;
+  min-height: 38px !important;
+  height: 38px !important;
+  margin: 0 !important;
+  padding: 0 16px !important;
+  border: 1px solid var(--kb-border) !important;
+  border-radius: 9px !important;
+  background: var(--kb-panel) !important;
+  color: var(--kb-text) !important;
+  font-size: 0.875rem !important;
+  font-weight: 650 !important;
+  line-height: 1 !important;
+  text-decoration: none !important;
+  box-sizing: border-box !important;
+}
+#modal-content:has(#file-dropzone) .form-actions > .btn,
+#modal-content:has(#file-dropzone) .form-actions > button,
+#modal-content.kb-upload-content .form-actions > .btn,
+#modal-content.kb-upload-content .form-actions > button {
+  border-color: transparent !important;
+  background: var(--primary-color, #2563eb) !important;
+  color: #fff !important;
+}
+#modal-content:has(#file-dropzone) .form-actions > .btn:disabled,
+#modal-content:has(#file-dropzone) .form-actions > button:disabled,
+#modal-content.kb-upload-content .form-actions > .btn:disabled,
+#modal-content.kb-upload-content .form-actions > button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 #modal-content .kb-upload-hint,
 .kb-upload-hint {
@@ -2423,18 +2518,18 @@ ul.dropdown-submenu-open a .fa-fw {
 }
 #modal-content .task-form-container .accordion-title::before,
 .task-form-container .accordion-title::before {
-  content: "+";
+  content: "";
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 22px;
-  height: 22px;
-  border-radius: 7px;
-  background: color-mix(in srgb, var(--primary-color, #2563eb) 12%, transparent);
-  color: var(--primary-color, #2563eb);
-  font-size: 16px;
-  font-weight: 700;
-  line-height: 1;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  border-radius: 0;
+  background-color: var(--primary-color, #2563eb);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 3.5 4.5 4.5L6 12.5'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 3.5 4.5 4.5L6 12.5'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  transition: transform 0.16s ease;
 }
 #modal-content .task-form-container .accordion-section[open] > .accordion-title,
 .task-form-container .accordion-section[open] > .accordion-title {
@@ -2443,7 +2538,7 @@ ul.dropdown-submenu-open a .fa-fw {
 }
 #modal-content .task-form-container .accordion-section[open] > .accordion-title::before,
 .task-form-container .accordion-section[open] > .accordion-title::before {
-  content: "−";
+  transform: rotate(90deg);
 }
 #modal-content .task-form-container .accordion-title:hover,
 .task-form-container .accordion-title:hover {
@@ -2859,6 +2954,67 @@ div.tooltip-container {
 }
 .ui-timepicker-div .ui_tpicker_time_label {
   margin-bottom: 6px !important;
+}
+/* Time picker: drop the second / millisecond / microsecond / time zone rows
+   (both the caption and its control) and keep time + hour + minute on one line. */
+.ui-timepicker-div dl dt.ui_tpicker_sec_label,
+.ui-timepicker-div dl dd.ui_tpicker_sec,
+.ui-timepicker-div dl dt.ui_tpicker_millisec_label,
+.ui-timepicker-div dl dd.ui_tpicker_millisec,
+.ui-timepicker-div dl dt.ui_tpicker_microsec_label,
+.ui-timepicker-div dl dd.ui_tpicker_microsec,
+.ui-timepicker-div dl dt.ui_tpicker_timezone_label,
+.ui-timepicker-div dl dd.ui_tpicker_timezone {
+  display: none !important;
+}
+.ui-timepicker-div dl {
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+.ui-timepicker-div dl dt {
+  display: inline-block !important;
+  flex: 0 0 auto !important;
+  margin: 0 !important;
+  font-size: 0.5625rem !important;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+.ui-timepicker-div dl dt.ui_tpicker_time_label {
+  margin: 0 !important;
+}
+.ui-timepicker-div dl dd {
+  flex: 0 1 auto !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  text-align: left !important;
+}
+.ui-timepicker-div dl dd > div {
+  display: inline-block !important;
+  width: auto !important;
+  margin: 0 !important;
+}
+.ui-timepicker-div .ui-timepicker-select {
+  width: auto !important;
+  max-width: 74px !important;
+  min-height: 30px !important;
+  padding: 2px 6px !important;
+  border: 1px solid var(--kb-border) !important;
+  border-radius: 8px !important;
+  background: var(--kb-panel) !important;
+  color: var(--kb-text) !important;
+  font-size: 0.8125rem !important;
+}
+.ui-timepicker-div .ui_tpicker_time {
+  flex: 0 0 auto !important;
+}
+.ui-timepicker-div .ui_tpicker_time .ui_tpicker_time_input {
+  width: auto !important;
+  min-width: 62px !important;
+  max-width: 96px !important;
+  min-height: 30px !important;
+  padding: 4px 8px !important;
 }
 .ui-timepicker-div .ui_tpicker_time .ui_tpicker_time_input {
   width: 100% !important;
@@ -4175,6 +4331,24 @@ body > .page > .panel .fa {
 .accordion-title::-webkit-details-marker {
   display: none;
 }
+/* SVG chevron: points right when collapsed, down when expanded */
+.accordion-title::before {
+  content: "";
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 18px;
+  height: 18px;
+  color: var(--primary-color, #2563eb);
+  background-color: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 3.5 4.5 4.5L6 12.5'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='%23000' stroke-width='1.7' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 3.5 4.5 4.5L6 12.5'/%3E%3C/svg%3E") center / 16px 16px no-repeat;
+  transition: transform 0.16s ease;
+}
+.accordion-section[open] > .accordion-title::before {
+  transform: rotate(90deg);
+}
 .accordion-content {
   padding: 12px 14px 14px !important;
   border-top: 1px solid var(--kb-border);
@@ -5271,6 +5445,19 @@ table.kb-data-table tbody tr:last-child td,
   text-align: center;
   color: var(--primary-color, #2563eb);
 }
+.kb-menu-item-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  color: var(--kb-muted);
+}
+.kb-menu-item-icon svg { width: 15px; height: 15px; }
+.kb-menu-item-text { flex: 1 1 auto; min-width: 0; }
+.kb-menu-item.kb-menu-selected .kb-menu-item-icon { color: var(--primary-color, #2563eb); }
+.kb-crumb-menu { min-width: 200px; }
 .kb-menu-empty {
   padding: 10px 12px;
   color: var(--kb-muted);
@@ -5600,4 +5787,26 @@ input[type="radio"]:not([class*="df-"]):checked {
     gap: 12px;
   }
   #modal-box:has(.task-form-container) .task-form-bottom { order: 4; }
+}
+#modal-content .js-file-upload-rendered > div:has(> .alert-success) {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+#modal-content .js-file-upload-rendered > div:has(> .alert-success) > .btn {
+  align-self: flex-end;
+  min-width: 104px;
+  height: 38px;
+  padding: 0 16px;
+  border: 0;
+  border-radius: 9px;
+  background: var(--primary-color, #2563eb);
+  color: #fff;
+  font-size: 0.875rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+#modal-content #file-list progress {
+  transition: none;
 }

@@ -37,7 +37,9 @@ if ($action === 'config') {
 $lang = isset($input['lang']) && in_array($input['lang'], ['en', 'uk', 'ru', 'be'], true)
     ? $input['lang'] : 'en';
 $model = isset($input['model']) ? trim((string)$input['model']) : null;
-$products_dir = 'products';
+// Absolute volume paths: the AI agent writes products/recipes, and relative
+// names would resolve inside the bind-mounted code tree.
+$products_dir = recipes_data_base() . '/products';
 
 if ($action === 'generate_stream' || $action === 'edit_stream') {
     $prompt = trim((string)($input['prompt'] ?? ''));
@@ -116,7 +118,7 @@ if ($action === 'save' || $action === 'save_stream') {
     if ($action === 'save_stream') {
         recipes_ai_stream_headers();
         try {
-            $result = recipes_ai_save_draft($draft, $lang, 'recipes', static function (string $event, array $data) {
+            $result = recipes_ai_save_draft($draft, $lang, recipes_data_base() . '/recipes', static function (string $event, array $data) {
                 recipes_ai_stream_event($event, $data);
             });
             recipes_ai_stream_event('done', $result);
@@ -127,7 +129,7 @@ if ($action === 'save' || $action === 'save_stream') {
         exit;
     }
     try {
-        $result = recipes_ai_save_draft($draft, $lang, 'recipes');
+        $result = recipes_ai_save_draft($draft, $lang, recipes_data_base() . '/recipes');
         recipes_ai_json_out($result);
     } catch (Throwable $e) {
         recipes_ai_json_out(['success' => false, 'message' => $e->getMessage()], 500);

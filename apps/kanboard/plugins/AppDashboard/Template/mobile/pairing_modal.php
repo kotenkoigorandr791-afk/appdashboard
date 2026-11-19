@@ -49,7 +49,10 @@ $tokens = $this->MobilePairingHelper->tokens();
      data-account="<?= $this->text->e($accountEmail) ?>"
      data-no-token-msg="<?= $this->text->e(t('Generate a QR code first.')) ?>"
      data-no-phones-msg="<?= $this->text->e(t('No phones connected yet')) ?>"
-     data-no-phones-note="<?= $this->text->e(t('Generate a pairing code to connect the Android app.')) ?>">
+     data-no-phones-note="<?= $this->text->e(t('Generate a pairing code to connect the Android app.')) ?>"
+     data-qr-error-msg="<?= $this->text->e(t('QR code unavailable')) ?>"
+     data-token-error-msg="<?= $this->text->e(t('Token generation failed')) ?>"
+     data-device-name="<?= $this->text->e(t('Planning Mobile')) ?>">
     <div class="kb-settings-content">
         <button type="button" class="kb-mobile-close" id="kb-mobile-app-close" aria-label="<?= t('Close') ?>">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
@@ -81,35 +84,6 @@ $tokens = $this->MobilePairingHelper->tokens();
                     <span><?= $this->text->e($accountEmail) ?></span>
                     <span class="kb-settings-role"><?= $this->text->e($roleLabel) ?></span>
                 </div>
-            </div>
-            <div class="kb-settings-cards">
-                <a class="kb-settings-card" href="<?= $this->url->href('DashboardController', 'tasks', ['user_id' => $this->user->getId()]) ?>">
-                    <span class="kb-settings-card-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="8"></circle><path d="m9.2 12.2 1.9 1.9 3.8-4"></path></svg>
-                    </span>
-                    <span class="kb-settings-card-text">
-                        <strong><?= t('My tasks') ?></strong>
-                        <small><?= t('Everything assigned to you') ?></small>
-                    </span>
-                </a>
-                <a class="kb-settings-card" href="<?= $this->url->href('DashboardController', 'projects', ['user_id' => $this->user->getId()]) ?>">
-                    <span class="kb-settings-card-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8.2A1.7 1.7 0 0 1 5.7 6.5H10l1.8 2H18.3A1.7 1.7 0 0 1 20 10.2v7.1A1.7 1.7 0 0 1 18.3 19H5.7A1.7 1.7 0 0 1 4 17.3Z"></path></svg>
-                    </span>
-                    <span class="kb-settings-card-text">
-                        <strong><?= t('Projects') ?></strong>
-                        <small><?= t('Browse every board in this workspace') ?></small>
-                    </span>
-                </a>
-                <button type="button" class="kb-settings-card" data-kb-open-tab="connection">
-                    <span class="kb-settings-card-icon">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"></rect><path d="M12 18h.01"></path></svg>
-                    </span>
-                    <span class="kb-settings-card-text">
-                        <strong><?= t('Phone connection') ?></strong>
-                        <small><?= count($tokens) > 0 ? t('Linked devices') . ': ' . count($tokens) : t('Connect the Android app') ?></small>
-                    </span>
-                </button>
             </div>
             <p class="kb-settings-note"><?= t('Appearance and language follow the dashboard shell. Use the header controls to switch theme or language.') ?></p>
         </div>

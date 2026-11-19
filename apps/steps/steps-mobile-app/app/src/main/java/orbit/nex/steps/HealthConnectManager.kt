@@ -7,6 +7,7 @@ import androidx.health.connect.client.permission.HealthPermission
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import androidx.health.connect.client.records.*
+import androidx.health.connect.client.records.Record
 import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.request.AggregateRequest
 import androidx.health.connect.client.request.ReadRecordsRequest
@@ -470,6 +471,28 @@ class HealthConnectManager(private val context: Context) {
         }
     }
 
+    @Suppress("UNCHECKED_CAST")
+    suspend fun hasHistoricalRecords(types: Set<HealthDataType>, start: Instant, end: Instant): Result<Boolean> = runCatching {
+        var successfulReads = 0
+        for (type in types) {
+            try {
+                val request = ReadRecordsRequest(
+                    recordType = type.recordClass as kotlin.reflect.KClass<Record>,
+                    timeRangeFilter = TimeRangeFilter.between(start, end),
+                    pageSize = 1,
+                )
+                val records = healthConnectClient.readRecords(request).records
+                successfulReads++
+                if (records.isNotEmpty()) return@runCatching true
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+            }
+        }
+        check(successfulReads > 0)
+        false
+    }
+
     suspend fun readHealthData(
         enabledTypes: Set<HealthDataType>,
         lastSyncTimestamps: Map<HealthDataType, Instant?>,
@@ -483,7 +506,7 @@ class HealthConnectManager(private val context: Context) {
             val startTime = when {
                 start != null -> start
                 timeRangeDays != null -> endTime.minus(timeRangeDays.toLong(), ChronoUnit.DAYS)
-                else -> endTime.minus(LOOKBACK_HOURS, ChronoUnit.HOURS)
+                else -> endTime.atZone(ZoneId.systemDefault()).toLocalDate().atStartOfDay(ZoneId.systemDefault()).toInstant()
             }
 
             if (startTime.isAfter(endTime)) {
@@ -2061,7 +2084,6 @@ class HealthConnectManager(private val context: Context) {
     }
 
     companion object {
-        private const val LOOKBACK_HOURS = 48L
 
         private const val RATE_LIMIT_MAX_ATTEMPTS = 4
         private const val RATE_LIMIT_INITIAL_DELAY_MS = 1_000L

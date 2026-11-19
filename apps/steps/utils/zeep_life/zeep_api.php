@@ -24,9 +24,11 @@ function zeep_notify_job_once(AppDatabase $db, string $jobId, array $state): arr
 steps_require_auth_json();
 
 $safeName = get_current_user_folder();
-define('ZEEP_USER_DIR', __DIR__ . '/../../users/' . $safeName);
+$__stepsUsers = defined('STEPS_USERS_DIR') ? STEPS_USERS_DIR
+    : (function_exists('appdata_app_base_dir') ? rtrim(appdata_app_base_dir('steps'), '/') : rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/users');
+define('ZEEP_USER_DIR', rtrim($__stepsUsers, '/') . '/' . $safeName);
 define('ZEEP_JOBS_DIR', ZEEP_USER_DIR . '/zeep_jobs/');
-define('ZEEP_UPLOAD_SESSIONS_DIR', __DIR__ . '/../../upload_sessions');
+define('ZEEP_UPLOAD_SESSIONS_DIR', defined('UPLOAD_SESSIONS_DIR') ? UPLOAD_SESSIONS_DIR : rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/upload_sessions');
 if (!is_dir(ZEEP_JOBS_DIR)) {
     @mkdir(ZEEP_JOBS_DIR, 0777, true);
 }

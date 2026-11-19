@@ -12,15 +12,16 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
 import androidx.compose.material.icons.filled.LinkOff
 import androidx.compose.material.icons.filled.PersonOff
-import androidx.compose.material.icons.filled.QrCodeScanner
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.Button
@@ -50,7 +51,9 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import orbit.nex.steps.HCWebhookApplication
@@ -66,8 +69,6 @@ import orbit.nex.steps.components.downloadAvatarFile
 import orbit.nex.steps.components.localAvatarFile
 import orbit.nex.steps.updates.AppUpdateChecker
 import orbit.nex.steps.updates.CheckOutcome
-import com.journeyapps.barcodescanner.ScanContract
-import com.journeyapps.barcodescanner.ScanOptions
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -86,7 +87,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
     var configs by remember { mutableStateOf(prefs.getWebhookConfigs()) }
-    var link by remember { mutableStateOf("") }
     var status by remember {
         mutableStateOf(if (prefs.isUserConnected()) context.getString(R.string.auth_connected) else context.getString(R.string.auth_waiting))
     }
@@ -100,26 +100,6 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
     var profilePhotoModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
-    }
-
-    fun connect(value: String) {
-        runCatching {
-            val uri = Uri.parse(value.trim())
-            val endpoint = uri.getQueryParameter("endpoint").orEmpty()
-            val token = uri.getQueryParameter("token").orEmpty()
-            require(endpoint.startsWith("http") && token.isNotBlank())
-            configs = listOf(WebhookConfig(endpoint, "NexSteps", mapOf("Authorization" to "Bearer $token")))
-            prefs.setWebhookConfigs(configs)
-            prefs.setEnabledDataTypes(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() })
-            status = context.getString(R.string.auth_connected)
-            link = ""
-        }.onFailure {
-            status = context.getString(R.string.auth_invalid_link)
-        }
-    }
-
-    val scanner = rememberLauncherForActivityResult(ScanContract()) { result ->
-        result.contents?.takeIf { it.isNotBlank() }?.let { connect(it) }
     }
 
     LaunchedEffect(configs) {
@@ -140,35 +120,35 @@ fun AboutScreen(modifier: Modifier = Modifier) {
 
     LazyColumn(modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         item { Spacer(Modifier.height(12.dp)) }
+        // Branding plate, matching the one on the Spends settings tab.
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        if (prefs.isUserConnected() && profilePhotoModel != null) {
-                            key(profilePhotoModel) {
-                                AsyncImage(
-                                    model = profilePhotoModel,
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Crop,
-                                    modifier = Modifier.size(56.dp).clip(CircleShape)
-                                )
-                            }
-                        } else {
-                            val connected = prefs.isUserConnected()
-                            Icon(
-                                if (connected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
-                                contentDescription = null,
-                                modifier = Modifier.size(56.dp).clip(CircleShape),
-                                tint = if (connected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(profile.name.ifBlank { stringResource(R.string.app_name) }, style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                profile.email.ifBlank { profile.error ?: status },
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+            Card(
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Row(
+                    Modifier.fillMaxWidth().padding(18.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(14.dp),
+                ) {
+                    Image(
+                        painter = painterResource(R.drawable.nex_steps_icon),
+                        contentDescription = stringResource(R.string.app_name),
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            stringResource(R.string.app_name),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
+                        Text(
+                            stringResource(R.string.app_version_short, BuildConfig.VERSION_NAME),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer,
+                        )
                     }
                 }
             }
@@ -219,45 +199,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             Icon(Icons.Filled.LinkOff, contentDescription = null)
                             Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = 8.dp))
                         }
-                    } else {
-                        Column(
-                            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            Surface(
-                                modifier = Modifier.size(56.dp),
-                                shape = CircleShape,
-                                color = MaterialTheme.colorScheme.errorContainer
-                            ) {
-                                Icon(
-                                    Icons.Filled.CloudOff,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(12.dp),
-                                    tint = Color(0xFFFFC107)
-                                )
-                            }
-                            Button(onClick = {
-                                scanner.launch(ScanOptions().apply {
-                                    setDesiredBarcodeFormats(ScanOptions.QR_CODE)
-                                    setPrompt(context.getString(R.string.auth_scan_qr))
-                                    setBeepEnabled(false)
-                                    setOrientationLocked(true)
-                                })
-                            }, modifier = Modifier.fillMaxWidth()) {
-                                Icon(Icons.Filled.QrCodeScanner, contentDescription = null)
-                                Text(stringResource(R.string.auth_scan_qr), modifier = Modifier.padding(start = 8.dp))
-                            }
-                            OutlinedTextField(
-                                value = link,
-                                onValueChange = { link = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                label = { Text(stringResource(R.string.auth_link_label)) }
-                            )
-                            Button(onClick = { connect(link) }, modifier = Modifier.fillMaxWidth()) {
-                                Text(stringResource(R.string.auth_connect))
-                            }
-                        }
+
                     }
                 }
             }

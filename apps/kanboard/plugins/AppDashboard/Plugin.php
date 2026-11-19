@@ -6,9 +6,11 @@ use Kanboard\Core\Plugin\Base;
 use Kanboard\Core\Security\AuthenticationManager;
 use Kanboard\Core\Security\Role;
 use Kanboard\Model\ColumnModel;
+use Kanboard\Model\TaskModel;
 use Kanboard\Notification\WebNotification;
 use Kanboard\Plugin\AppDashboard\Auth\DashboardAuth;
 use Kanboard\Plugin\AppDashboard\Notification\ShellNotification;
+use Kanboard\Plugin\AppDashboard\Notification\TaskCreatedNotifier;
 use Kanboard\Plugin\AppDashboard\User\Avatar\ShellAvatarProvider;
 use Kanboard\Plugin\AppDashboard\User\ShellDirectoryBackendUserProvider;
 
@@ -21,7 +23,7 @@ class Plugin extends Base
             'script-src' => "'self' 'unsafe-inline' https://browser.sentry-cdn.com",
             'style-src' => "'self' 'unsafe-inline'",
             'img-src' => "* data:",
-            'connect-src' => "'self' https://sentry.serverkherson.xyz https://browser.sentry-cdn.com",
+            'connect-src' => "'self' https://sentry.nxorbit.top https://browser.sentry-cdn.com",
         ]);
         $this->authenticationManager->register(new DashboardAuth($this->container));
         $this->avatarManager->register(new ShellAvatarProvider($this->container));
@@ -32,6 +34,12 @@ class Plugin extends Base
             ShellNotification::class,
             true
         );
+
+        // New tasks must surface in the shell bell even when nobody is assigned yet.
+        $taskCreatedNotifier = new TaskCreatedNotifier($this->container);
+        $this->dispatcher->addListener(TaskModel::EVENT_CREATE, function ($event) use ($taskCreatedNotifier) {
+            $taskCreatedNotifier->handleEvent($event);
+        });
 
         $this->template->setTemplateOverride('layout', 'appDashboard:layout');
         $this->template->setTemplateOverride('header/title', 'appDashboard:header/title');
@@ -52,12 +60,16 @@ class Plugin extends Base
         $this->template->setTemplateOverride('app/filters_helper', 'appDashboard:app/filters_helper');
         $this->template->setTemplateOverride('project_creation/create', 'appDashboard:project_creation/create');
         $this->template->setTemplateOverride('project_view/show', 'appDashboard:project_view/show');
+        $this->template->setTemplateOverride('project_view/share', 'appDashboard:project_view/share');
         $this->template->setTemplateOverride('project/sidebar', 'appDashboard:project/sidebar');
         $this->template->setTemplateOverride('project_overview/show', 'appDashboard:project_overview/show');
         $this->template->setTemplateOverride('task_list/task_title', 'appDashboard:task_list/task_title');
         $this->template->setTemplateOverride('task_list/task_details', 'appDashboard:task_list/task_details');
         $this->template->setTemplateOverride('board/view_private', 'appDashboard:board/view_private');
         $this->template->setTemplateOverride('task_creation/show', 'appDashboard:task_creation/show');
+        $this->template->setTemplateOverride('task_modification/show', 'appDashboard:task_modification/show');
+        $this->template->setTemplateOverride('task_comments/show', 'appDashboard:task_comments/show');
+        $this->template->setTemplateOverride('comment/show', 'appDashboard:comment/show');
         $this->template->setTemplateOverride('task/show', 'appDashboard:task/show');
         $this->template->setTemplateOverride('task/sidebar', 'appDashboard:task/sidebar');
         $this->template->setTemplateOverride('project_permission/index', 'appDashboard:project_permission/index');
@@ -66,6 +78,7 @@ class Plugin extends Base
         $this->template->setTemplateOverride('analytic/cfd', 'appDashboard:analytic/cfd');
         $this->template->setTemplateOverride('analytic/lead_cycle_time', 'appDashboard:analytic/lead_cycle_time');
         $this->template->setTemplateOverride('analytic/task_distribution', 'appDashboard:analytic/task_distribution');
+        $this->template->setTemplateOverride('analytic/sidebar', 'appDashboard:analytic/sidebar');
         $this->template->setTemplateOverride('search/index', 'appDashboard:search/index');
         $this->template->setTemplateOverride('search/activity', 'appDashboard:search/activity');
         $this->template->setTemplateOverride('activity/user', 'appDashboard:activity/user');
@@ -76,6 +89,9 @@ class Plugin extends Base
         $this->hook->on('template:layout:css', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.css']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/shell.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/circle-cycle.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/md-live.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/lazy-load.js']);
+        $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/board-menu.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/qr-generator.js']);
         $this->hook->on('template:layout:js', ['template' => 'plugins/AppDashboard/Asset/mobile-pairing.js']);
         $this->hook->on('template:layout:head', ['template' => 'appDashboard:layout/head']);
@@ -83,6 +99,7 @@ class Plugin extends Base
 
         $this->projectAccessMap->add('OverviewCalendarController', 'updateDates', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('TaskQuickUpdateController', 'updateField', Role::PROJECT_MEMBER);
+        $this->projectAccessMap->add('SharepointController', 'share', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('ProjectMemberController', 'searchAssignable', Role::PROJECT_MEMBER);
         $this->projectAccessMap->add('ProjectMemberController', 'add', Role::PROJECT_MANAGER);
         $this->applicationAccessMap->add('ProjectMemberController', 'search', Role::APP_USER);
@@ -212,7 +229,7 @@ class Plugin extends Base
         if ($this->configModel->get('appdashboard_todo_column_migrated') === '1') {
             return;
         }
-        $titles = array('Ready', 'Согласованные', 'Відібрані', 'Připraveno', 'Gotowe');
+        $titles = array('Ready', 'Согласованные', 'Відібрані', 'Připraveno', 'Gotowe', 'Гатовыя');
         try {
             foreach ($titles as $title) {
                 $this->db->table(ColumnModel::TABLE)->eq('title', $title)->update(array('title' => 'todo'));
@@ -224,7 +241,7 @@ class Plugin extends Base
 
     private function ensurePerformanceIndexes(): void
     {
-        if ($this->configModel->get('appdashboard_perf_indexes_v2') === '1') {
+        if ($this->configModel->get('appdashboard_perf_indexes_v4') === '1') {
             return;
         }
         $statements = [
@@ -234,12 +251,31 @@ class Plugin extends Base
             'CREATE INDEX IF NOT EXISTS tasks_column_active_idx ON kanboard.tasks (column_id, is_active)',
             'CREATE INDEX IF NOT EXISTS tasks_swimlane_column_idx ON kanboard.tasks (swimlane_id, column_id)',
             'CREATE INDEX IF NOT EXISTS project_has_users_project_role_idx ON kanboard.project_has_users (project_id, role)',
+            'CREATE INDEX IF NOT EXISTS tasks_project_active_position_idx ON kanboard.tasks (project_id, is_active, position)',
+            'CREATE INDEX IF NOT EXISTS task_has_tags_task_idx ON kanboard.task_has_tags (task_id)',
+            'CREATE INDEX IF NOT EXISTS task_has_external_links_task_idx ON kanboard.task_has_external_links (task_id)',
+            'CREATE INDEX IF NOT EXISTS project_activities_project_idx ON kanboard.project_activities (project_id, id DESC)',
+            'CREATE INDEX IF NOT EXISTS project_activities_task_idx ON kanboard.project_activities (task_id, id DESC)',
+            // Board windows rank tasks per column (and per swimlane+column); these
+            // composites let Postgres read rows already in window order instead of
+            // sorting the whole project on every board render.
+            'CREATE INDEX IF NOT EXISTS tasks_project_column_position_idx ON kanboard.tasks (project_id, column_id, position, id)',
+            'CREATE INDEX IF NOT EXISTS tasks_project_swimlane_column_position_idx ON kanboard.tasks (project_id, swimlane_id, column_id, position, id)',
+            // Board cards show comment/file/subtask/link counters for one page of tasks.
+            'CREATE INDEX IF NOT EXISTS comments_task_idx ON kanboard.comments (task_id)',
+            'CREATE INDEX IF NOT EXISTS task_has_files_task_idx ON kanboard.task_has_files (task_id)',
+            'CREATE INDEX IF NOT EXISTS subtasks_task_idx ON kanboard.subtasks (task_id)',
+            'CREATE INDEX IF NOT EXISTS task_has_links_task_idx ON kanboard.task_has_links (task_id)',
         ];
         try {
             foreach ($statements as $sql) {
                 $this->db->getConnection()->exec($sql);
             }
-            $this->configModel->save(['appdashboard_perf_indexes_v2' => '1']);
+            $this->configModel->save([
+                'appdashboard_perf_indexes_v2' => '1',
+                'appdashboard_perf_indexes_v3' => '1',
+                'appdashboard_perf_indexes_v4' => '1',
+            ]);
         } catch (\Throwable $e) {
         }
     }

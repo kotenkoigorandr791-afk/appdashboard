@@ -47,6 +47,8 @@ class TaskListController extends BaseController
         $order = $this->request->getStringParam('order', $order);
         $this->userSession->setListOrder($project['id'], $order, $direction);
 
+        $this->taskFinderModel->withLightQuery();
+
         $paginator = $this->paginator
             ->setUrl('TaskListController', 'show', array('project_id' => $project['id'], 'csrf_token' => $this->token->getReusableCSRFToken()))
             ->setMax(30)

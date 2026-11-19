@@ -69,7 +69,13 @@ header('X-Content-Type-Options: nosniff');
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 }
 
-const STORAGE_DIR = __DIR__ . '/storage';
+// Cloud storage root lives on the APPDATA volume; the code tree is a bind mount.
+if (!defined('STORAGE_DIR')) {
+    $__cloudStorageBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($__cloudStorageBase) || trim($__cloudStorageBase) === '') $__cloudStorageBase = '/opt/ApplicationData';
+    define('STORAGE_DIR', rtrim($__cloudStorageBase, '/') . '/cloud');
+    unset($__cloudStorageBase);
+}
 const MAX_UPLOAD_BYTES = 500 * 1024 * 1024; // 500MB per request hard cap
 $blockedExtensions = ['php','php3','php4','php5','php7','php8','phtml','phar','phps','pht','phtm','inc','cgi','pl','py','rb','exe','sh','bat','cmd','com','dll','jsp','asp','aspx','war','htaccess','htpasswd'];
 
@@ -163,8 +169,11 @@ function ensure_cloud_encryption_consents_table_impl(): void {
 
 // api.php - add after constants
 
-// Active upload sessions storage
-const UPLOAD_SESSIONS_DIR = __DIR__ . '/upload_sessions';
+// Runtime data lives on the APPDATA volume; no repository symlinks.
+$cloudAppDataBase = getenv('APPDATA_BASE_DIR');
+if (!is_string($cloudAppDataBase) || trim($cloudAppDataBase) === '') $cloudAppDataBase = '/opt/ApplicationData';
+define('CLOUD_RUNTIME_DIR', rtrim($cloudAppDataBase, '/') . '/cloud_runtime');
+define('UPLOAD_SESSIONS_DIR', CLOUD_RUNTIME_DIR . '/upload_sessions');
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
 
 function upload_sessions_dir() {
@@ -863,7 +872,7 @@ function cloud_sync_logs_prune(AppDatabase $db, string $email, int $max = 1000):
     if (!$probe->execute() || $probe->fetch() === false) {
         return;
     }
-    $probe->closeCursor();
+    $probe->reset();
     $stmt = $db->prepare("DELETE FROM cloud_sync_logs WHERE email = :e AND id NOT IN (SELECT id FROM cloud_sync_logs WHERE email = :e2 ORDER BY ts DESC, id DESC LIMIT :lim)");
     $stmt->bindValue(':e', $email, PDO::PARAM_STR);
     $stmt->bindValue(':e2', $email, PDO::PARAM_STR);
@@ -2711,14 +2720,15 @@ function convertDocument($inputFile, $outputFile, $from, $to) {
         throw new Exception("LibreOffice not found. Please install LibreOffice for document conversion.");
     }
 
-    $tempDir = '/opt/ApplicationData/cloud_temp_convert';
+    $tempDir = CLOUD_RUNTIME_DIR . '/temp_convert';
     if (!is_dir($tempDir)) {
-        @mkdir($tempDir, 0777, true);
+        @mkdir($tempDir, 0775, true);
     }
     if (!is_dir($tempDir) || !is_writable($tempDir)) {
-        $tempDir = __DIR__ . '/temp_convert';
+        // Never fall back to the code tree: it is a bind mount on the host.
+        $tempDir = rtrim(sys_get_temp_dir(), '/') . '/cloud_temp_convert';
         if (!is_dir($tempDir)) {
-            @mkdir($tempDir, 0777, true);
+            @mkdir($tempDir, 0775, true);
         }
     }
     $loHome = cloud_libreoffice_home();
@@ -3312,13 +3322,9 @@ function resolve_cloud_user_email_from_legacy_name(AppDatabase $db, string $name
 }
 
 function migrate_legacy_users_json(): void {
+    // Legacy file is only ever read; never delete or create paths in the code tree.
     $legacyFile = __DIR__ . '/data/users.json';
     if (!is_file($legacyFile)) {
-        $dataDir = __DIR__ . '/data';
-        if (is_dir($dataDir)) {
-            $left = array_diff(scandir($dataDir) ?: [], ['.', '..']);
-            if (!$left) @rmdir($dataDir);
-        }
         return;
     }
     $raw = @file_get_contents($legacyFile);
@@ -3631,29 +3637,18 @@ function patch_file_tree_cache_rename(string $email, string $oldPath, string $ne
 }
 
 /**
- * Scan the disk and save the full tree to DB, marking it valid.
+ * Rebuild the flat tree cache from the central index.
+ *
+ * This deliberately does not scan the disk: the index is the source of
+ * truth for structure and metadata.
  */
 function rebuild_file_tree(string $email, string $user): void {
     $db = getDB();
     if (!$db) return;
-    $base  = user_root($user);
-    $items = scan_full_tree($base, $base);
-    $json  = json_encode($items, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    $hash  = md5((string)$json);
     try {
         ensure_file_tree_table($db);
-        $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $check->bindValue(':e', $email, PDO::PARAM_STR);
-        $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
-        if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_hash, tree_valid, updated_at) VALUES (:e, '[]', :j, :h, 1, extract(epoch from now())::bigint)");
-        } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_hash = :h, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
-        }
-        $s->bindValue(':e', $email, PDO::PARAM_STR);
-        $s->bindValue(':j', $json, PDO::PARAM_STR);
-        $s->bindValue(':h', $hash, PDO::PARAM_STR);
-        $s->execute();
+        require_once __DIR__ . '/includes/cloud_file_index.php';
+        cloud_index_tree_cache($db, $email, $user, 'main');
     } catch (Exception $e) {
         cloud_safe_error_log("rebuild_file_tree failed: " . $e->getMessage());
     }
@@ -3740,6 +3735,16 @@ function scan_folder_usage_recursive(string $full, string $base, int $depth = 0)
 }
 
 function build_storage_usage_data(string $user): array {
+    // Prefer the central index: user requests must not scan directories.
+    require_once __DIR__ . '/includes/cloud_file_index.php';
+    if (cloud_index_enabled()) {
+        try {
+            return cloud_index_usage($user);
+        } catch (Throwable $e) {
+            cloud_safe_error_log('cloud_index_usage failed: ' . $e->getMessage());
+        }
+    }
+
     $base = user_root($user);
     [$rootSize, $rootFiles, $rootSubfolders, $folders] = scan_folder_usage_recursive($base, $base, 0);
 

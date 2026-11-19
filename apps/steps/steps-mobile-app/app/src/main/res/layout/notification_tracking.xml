@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Expanded tracking notification.
+
+    It stays a single short row: location tile, today's route chip, unsynced
+    chip and an icon-only stop action. The two chips share the remaining width
+    (weight 1) and scale with the notification, while the stop button matches the
+    row height. Backgrounds and text colours are applied at runtime from the
+    notification palette so the card follows the app theme.
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/notif_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:padding="2dp">
+
+    <LinearLayout
+        android:id="@+id/notif_card"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@drawable/notif_card_bg"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="7dp"
+        android:paddingTop="5dp"
+        android:paddingEnd="6dp"
+        android:paddingBottom="5dp">
+
+        <FrameLayout
+            android:id="@+id/notif_icon_wrap"
+            android:layout_width="30dp"
+            android:layout_height="30dp"
+            android:background="@drawable/notif_icon_bg">
+
+            <ImageView
+                android:layout_width="14dp"
+                android:layout_height="14dp"
+                android:layout_gravity="center"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_notif_location" />
+        </FrameLayout>
+
+        <!-- Today's route -->
+        <LinearLayout
+            android:id="@+id/notif_route_chip"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="6dp"
+            android:layout_weight="1"
+            android:background="@drawable/notif_chip_bg"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp">
+
+            <TextView
+                android:id="@+id/notif_route_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/tracking_notification_route_label"
+                android:textColor="@color/notif_night_label"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/notif_route"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/notif_night_value"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Unsynced measurements -->
+        <LinearLayout
+            android:id="@+id/notif_pending_chip"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="5dp"
+            android:layout_weight="1"
+            android:background="@drawable/notif_chip_bg"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingStart="6dp"
+            android:paddingTop="2dp"
+            android:paddingEnd="6dp"
+            android:paddingBottom="2dp">
+
+            <TextView
+                android:id="@+id/notif_pending_label"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:text="@string/tracking_notification_pending_label"
+                android:textColor="@color/notif_night_label"
+                android:textSize="8sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/notif_pending"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:gravity="center_horizontal"
+                android:includeFontPadding="false"
+                android:maxLines="1"
+                android:textColor="@color/notif_night_pending"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+        </LinearLayout>
+
+        <!-- Icon-only stop action: no label, just the vector square. -->
+        <ImageView
+            android:id="@+id/notif_stop"
+            android:layout_width="36dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="5dp"
+            android:background="@drawable/notif_stop_bg"
+            android:contentDescription="@string/tracking_action_stop"
+            android:padding="8dp"
+            android:scaleType="fitCenter"
+            android:src="@drawable/ic_notif_stop" />
+    </LinearLayout>
+</FrameLayout>

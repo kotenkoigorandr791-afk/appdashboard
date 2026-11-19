@@ -75,11 +75,82 @@ class TaskFinderModel extends Base
      * @access public
      * @return \PicoDb\Table
      */
+    protected $light = false;
+
+    public function withLightQuery($light = true)
+    {
+        $this->light = (bool) $light;
+        return $this;
+    }
+
+    public function getBoardCounters(array $taskIds)
+    {
+        $counters = array();
+        if (empty($taskIds)) {
+            return $counters;
+        }
+        $keys = array('nb_comments', 'nb_files', 'nb_subtasks', 'nb_completed_subtasks', 'nb_links', 'nb_external_links', 'is_milestone');
+        foreach ($taskIds as $id) {
+            $counters[$id] = array_fill_keys($keys, 0);
+            $counters[$id]['is_milestone'] = null;
+        }
+        $taskIds = array_values(array_map('intval', $taskIds));
+        $idList = implode(',', $taskIds);
+        $anyIds = "task_id = ANY(string_to_array(?, ',')::int[])";
+
+        // One aggregate per counter table, all addressed through a single array
+        // parameter. The previous version repeated an IN (...) list per counter
+        // (~8 bind values per task) and joined seven subqueries, so planning and
+        // execution grew quickly with the number of cards on the page.
+        $sql = "SELECT 'comment' AS kind, task_id, COUNT(*) AS nb FROM ".CommentModel::TABLE." WHERE ".$anyIds." GROUP BY task_id"
+            ." UNION ALL SELECT 'file', task_id, COUNT(*) FROM ".TaskFileModel::TABLE." WHERE ".$anyIds." GROUP BY task_id"
+            ." UNION ALL SELECT 'subtask', task_id, COUNT(*) FROM ".SubtaskModel::TABLE." WHERE ".$anyIds." GROUP BY task_id"
+            ." UNION ALL SELECT 'subtask_done', task_id, COUNT(*) FROM ".SubtaskModel::TABLE." WHERE status = ? AND ".$anyIds." GROUP BY task_id"
+            ." UNION ALL SELECT 'link', task_id, COUNT(*) FROM ".TaskLinkModel::TABLE." WHERE ".$anyIds." GROUP BY task_id"
+            ." UNION ALL SELECT 'external_link', task_id, COUNT(*) FROM ".TaskExternalLinkModel::TABLE." WHERE ".$anyIds." GROUP BY task_id"
+            ." UNION ALL SELECT 'milestone', tl.task_id, COUNT(*) FROM ".TaskLinkModel::TABLE." tl JOIN ".LinkModel::TABLE." lk ON lk.id = tl.link_id"
+            ." WHERE lk.label = ? AND tl.task_id = ANY(string_to_array(?, ',')::int[]) GROUP BY tl.task_id";
+
+        $bind = array($idList, $idList, $idList, SubtaskModel::STATUS_DONE, $idList, $idList, $idList, 'is a milestone of', $idList);
+
+        try {
+            $stmt = $this->db->getConnection()->prepare($sql);
+            $stmt->execute($bind);
+            $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        } catch (\Throwable $e) {
+            return $counters;
+        }
+
+        $kinds = array(
+            'comment' => 'nb_comments',
+            'file' => 'nb_files',
+            'subtask' => 'nb_subtasks',
+            'subtask_done' => 'nb_completed_subtasks',
+            'link' => 'nb_links',
+            'external_link' => 'nb_external_links',
+            'milestone' => 'is_milestone',
+        );
+
+        foreach ($rows as $row) {
+            $id = (int) $row['task_id'];
+            $kind = (string) $row['kind'];
+
+            if (! isset($counters[$id]) || ! isset($kinds[$kind])) {
+                continue;
+            }
+
+            $key = $kinds[$kind];
+            $counters[$id][$key] = $key === 'is_milestone' ? ((int) $row['nb'] > 0 ? 1 : null) : (int) $row['nb'];
+        }
+
+        return $counters;
+    }
+
     public function getExtendedQuery()
     {
-        return $this->db
-            ->table(TaskModel::TABLE)
-            ->columns(
+        $light = $this->light;
+        $this->light = false;
+        $counts = $light ? array() : array(
                 '(SELECT COUNT(*) FROM '.CommentModel::TABLE.' WHERE task_id=tasks.id) AS nb_comments',
                 '(SELECT COUNT(*) FROM '.TaskFileModel::TABLE.' WHERE task_id=tasks.id) AS nb_files',
                 '(SELECT COUNT(*) FROM '.SubtaskModel::TABLE.' WHERE '.SubtaskModel::TABLE.'.task_id=tasks.id) AS nb_subtasks',
@@ -87,10 +158,18 @@ class TaskFinderModel extends Base
                 '(SELECT COUNT(*) FROM '.TaskLinkModel::TABLE.' WHERE '.TaskLinkModel::TABLE.'.task_id = tasks.id) AS nb_links',
                 '(SELECT COUNT(*) FROM '.TaskExternalLinkModel::TABLE.' WHERE '.TaskExternalLinkModel::TABLE.'.task_id = tasks.id) AS nb_external_links',
                 '(SELECT DISTINCT 1 FROM '.TaskLinkModel::TABLE.' tl JOIN '.LinkModel::TABLE.' l ON tl.link_id = l.id WHERE tl.task_id = tasks.id AND l.label = '."'is a milestone of') AS is_milestone",
+        );
+        $description = $light
+            ? "CASE WHEN tasks.description <> '' THEN '1' ELSE '' END AS description"
+            : TaskModel::TABLE.'.description';
+        return $this->db
+            ->table(TaskModel::TABLE)
+            ->columns(
+                ...array_merge($counts, array(
                 TaskModel::TABLE.'.id',
                 TaskModel::TABLE.'.reference',
                 TaskModel::TABLE.'.title',
-                TaskModel::TABLE.'.description',
+                $description,
                 TaskModel::TABLE.'.date_creation',
                 TaskModel::TABLE.'.date_modification',
                 TaskModel::TABLE.'.date_completed',
@@ -129,6 +208,7 @@ class TaskFinderModel extends Base
                 ColumnModel::TABLE.'.position AS column_position',
                 SwimlaneModel::TABLE.'.name AS swimlane_name',
                 ProjectModel::TABLE.'.name AS project_name'
+                ))
             )
             ->join(UserModel::TABLE, 'id', 'owner_id', TaskModel::TABLE)
             ->left(UserModel::TABLE, 'uc', 'id', TaskModel::TABLE, 'creator_id')

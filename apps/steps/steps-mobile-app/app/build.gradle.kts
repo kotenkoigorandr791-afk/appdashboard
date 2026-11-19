@@ -5,11 +5,9 @@ plugins {
     alias(libs.plugins.protobuf)
 }
 
-val appVersionMajor = 1
-val appVersionMinor = 10
-val appVersionPatch = 3
-val appVersionCode = (appVersionMajor * 10000) + (appVersionMinor * 100) + appVersionPatch
-val appVersionName = "$appVersionMajor.$appVersionMinor.$appVersionPatch"
+val appVersionName = rootProject.file("../../../VERSION").readText().trim().removePrefix("v")
+val appVersionParts = appVersionName.split('.').map { it.toInt() }
+val appVersionCode = appVersionParts[0] * 10000 + appVersionParts[1] * 100 + appVersionParts.getOrElse(2) { 0 }
 
 android {
     namespace = "orbit.nex.steps"
@@ -135,6 +133,7 @@ dependencies {
     implementation(libs.androidx.material.icons.extended)
     implementation(libs.androidx.health.connect)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.play.services.location)
     implementation(libs.androidx.core.splashscreen)
     implementation(libs.okhttp)
     implementation(libs.kotlinx.serialization.json)
@@ -145,12 +144,13 @@ dependencies {
     implementation(libs.protobuf.javalite)
     implementation(libs.javax.annotation)
     implementation("io.coil-kt:coil-compose:2.7.0")
-    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
+    implementation(libs.osmdroid.android)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockwebserver)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
+    androidTestImplementation(libs.mockwebserver)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)

@@ -27,6 +27,8 @@
             '.rz-tools button{display:flex;align-items:center;justify-content:center;width:18px;height:18px;max-height:18px;padding:0;border:none!important;border-radius:9px!important;background:transparent;color:var(--text-color,#ccc);cursor:pointer;pointer-events:auto;overflow:hidden;transition:opacity .22s ease,max-height .22s ease,max-width .22s ease,transform .22s ease,margin .22s ease}',
             '.rz-tools button:hover{background:var(--btn-bg,#3a3d41)}',
             '.rz-tools button.rz-collapsed{opacity:0;max-height:0;height:0;margin:0;pointer-events:none;transform:scale(.85)}',
+            '.rz-group.rz-sync{transition:opacity .3s ease,transform .3s ease}',
+            '.rz-group.rz-sync.rz-sync-idle{opacity:0;transform:scale(.85);pointer-events:none}',
             'body.pane-editor .rz-tools{transform:translate(-100%,-50%);left:100%}',
             'body.pane-preview .rz-tools,body.pane-pdf .rz-tools{transform:translate(0,-50%);left:0}',
             'body.pane-editor .rz-sync,body.pane-preview .rz-sync,body.pane-pdf .rz-sync{display:none!important}',
@@ -101,6 +103,9 @@
                 : ((state.opts && state.opts.expandPreviewTip) || t.expandPreview);
         }
     }
+    function setSyncReady(ready) {
+        if (state && state.syncGroup) state.syncGroup.classList.toggle('rz-sync-idle', !ready);
+    }
     function setPane(mode) {
         if (mode === 'pdf') mode = 'preview';
         document.body.classList.toggle('pane-editor', mode === 'editor');
@@ -132,7 +137,10 @@
         const tools = document.createElement('div');
         tools.className = 'rz-tools';
         const sync = document.createElement('div');
-        sync.className = 'rz-group rz-sync';
+        // Editors whose preview appears later (LaTeX) pass syncReady:false and call
+        // setSyncReady(true) once a document is rendered; others keep the arrows.
+        const syncStartsHidden = !!(opts && opts.syncReady === false);
+        sync.className = 'rz-group rz-sync' + (syncStartsHidden ? ' rz-sync-idle' : '');
         if (state.hasSync) {
             sync.append(
                 btn(ICONS.right, (opts && opts.toPreviewTip) || t.toPreviewTip, () => { if (paneMode() !== 'split') return; if (state.onToPreview) state.onToPreview(); }),
@@ -161,5 +169,5 @@
         updatePaneButtons();
         return state;
     }
-    window.cloudEditorPanes = { enable, setPane, paneMode, getEditor, t, ICONS, updateStackMode };
+    window.cloudEditorPanes = { enable, setPane, setSyncReady, paneMode, getEditor, t, ICONS, updateStackMode };
 })();

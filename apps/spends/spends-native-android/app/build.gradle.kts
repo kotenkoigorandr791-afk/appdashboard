@@ -6,6 +6,10 @@ plugins {
     id("com.google.devtools.ksp")
 }
 
+val appVersionName = rootProject.file("../../../VERSION").readText().trim().removePrefix("v")
+val appVersionParts = appVersionName.split('.').map { it.toInt() }
+val appVersionCode = appVersionParts[0] * 10000 + appVersionParts[1] * 100 + appVersionParts.getOrElse(2) { 0 }
+
 android {
     namespace = "orbit.nex.finance"
     compileSdk = 35
@@ -13,8 +17,8 @@ android {
         applicationId = "orbit.nex.finance"
         minSdk = 26
         targetSdk = 35
-        versionCode = 7
-        versionName = "1.0.4"
+        versionCode = appVersionCode
+        versionName = appVersionName
     }
     buildFeatures {
         buildConfig = true
@@ -70,6 +74,6 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.appcompat:appcompat:1.7.0")
-    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     debugImplementation("androidx.compose.ui:ui-tooling")
+    testImplementation("junit:junit:4.13.2")
 }

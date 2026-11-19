@@ -4,13 +4,13 @@
 <?php if ($paginator->isEmpty()): ?>
     <p class="alert"><?= t('There is nothing assigned to you.') ?></p>
 <?php else: ?>
-    <div class="table-list">
+    <div class="table-list kb-issue-list">
         <?= $this->render('task_list/header', array(
             'paginator' => $paginator,
         )) ?>
 
         <?php foreach ($paginator->getCollection() as $task): ?>
-            <div class="table-list-row color-<?= $task['color_id'] ?>">
+            <div class="table-list-row kb-issue-row color-<?= $task['color_id'] ?>">
                 <?= $this->render('task_list/task_title', array(
                     'task' => $task,
                     'redirect' => 'dashboard-tasks',

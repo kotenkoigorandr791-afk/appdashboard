@@ -475,9 +475,16 @@
     const css = function (name) {
       return getComputedStyle(document.documentElement).getPropertyValue(name).trim() || '#6750a4';
     };
+    // Series and category colours come from the MD3 tokens so both the chart
+    // and the category bars stay readable in light and dark themes.
     const palette = function () {
       return [css('--md-sys-color-primary'), css('--md-sys-color-tertiary'), css('--md-sys-color-secondary'),
         css('--md-sys-color-primary-container'), css('--md-sys-color-tertiary-container'), css('--md-sys-color-secondary-container')];
+    };
+    const colors = palette();
+    const colorAt = function (index) {
+      if (!colors.length) return '#6750a4';
+      return colors[index % colors.length] || '#6750a4';
     };
 
     function draw() {
@@ -498,7 +505,6 @@
         const cy = height / 2;
         const radius = Math.min(width, height) * 0.34;
         let angle = -Math.PI / 2;
-        const colors = palette();
         items.forEach(function (item, index) {
           const slice = total ? Number(item.total || 0) / total * Math.PI * 2 : 0;
           ctx.beginPath();
@@ -518,7 +524,7 @@
         ctx.font = '700 22px Roboto, system-ui';
         ctx.fillText((data.currency || '') + ' ' + Number(total).toLocaleString(), cx, cy + 8);
         legend(items.map(function (item, index) {
-          return { label: item.category, color: colors[index % colors.length] };
+          return { label: item.category, color: colorAt(index) };
         }));
         return;
       }
@@ -549,7 +555,7 @@
           const barH = plotH * value / max;
           const x = left + slot * index + (slot - barW) / 2;
           const y = top + plotH - barH;
-          ctx.fillStyle = color;
+          ctx.fillStyle = colorAt(index);
           const radius = Math.min(8, barW / 2);
           ctx.beginPath();
           ctx.moveTo(x, y + radius);
@@ -590,8 +596,8 @@
           : left + plotW * (rows.length === 1 ? 0.5 : index / (rows.length - 1));
         ctx.fillText(String(row.month || '').slice(2), x, height - 22);
       });
-      legend(rows.map(function (row) {
-        return { label: row.month + ' · ' + Number(row.total).toLocaleString(), color: color };
+      legend(rows.map(function (row, index) {
+        return { label: row.month + ' · ' + Number(row.total).toLocaleString(), color: kind === 'bar' ? colorAt(index) : color };
       }).slice(-3));
     }
 
@@ -607,10 +613,11 @@
       const node = $('[data-sp-category-list]');
       if (!node) return;
       const max = Math.max.apply(null, categories.map(function (item) { return Number(item.total || 0); }).concat([1]));
-      node.innerHTML = categories.map(function (item) {
+      node.innerHTML = categories.map(function (item, index) {
         const pct = Math.round(Number(item.total || 0) / max * 100);
-        return '<div class="sp-bar-list__row"><span class="md3-typescale-body-medium">' + String(item.category) +
-          '</span><span class="sp-bar-list__track"><span class="sp-bar-list__fill" style="width:' + pct + '%"></span></span>' +
+        const fill = colorAt(index);
+        return '<div class="sp-bar-list__row"><span class="md3-typescale-body-medium"><i class="sp-bar-list__dot" style="background:' + fill + '"></i>' + String(item.category) +
+          '</span><span class="sp-bar-list__track"><span class="sp-bar-list__fill" style="width:' + pct + '%;background:' + fill + '"></span></span>' +
           '<span class="md3-typescale-body-small">' + (data.currency || '') + ' ' + Number(item.total || 0).toFixed(2) + '</span></div>';
       }).join('');
     }

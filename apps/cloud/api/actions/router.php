@@ -7,6 +7,8 @@ require_once dirname(__DIR__, 2) . '/includes/cloud_storage_requests.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_config_store.php';
 require_once dirname(__DIR__, 2) . '/includes/ai_proxy.php';
 require_once dirname(__DIR__, 2) . '/includes/cloud_hardening.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_file_index.php';
+require_once dirname(__DIR__, 2) . '/includes/cloud_reviews.php';
 if (!in_array($action, cloud_public_api_actions(), true)) {
     cloud_require_api_auth_unless_public($action);
     cloud_require_cookie_csrf();
@@ -206,6 +208,7 @@ if ($action === 'move') {
   if (!rename($source_full, $target_full)) {
     json_out(['error' => 'move failed'], 500);
   }
+  cloud_index_touch_move($user, $rootKey, $source_path, ($target_dir === '' ? basename($source_path) : $target_dir . '/' . basename($source_path)), $target_root_key);
 
   $email = get_session_email();
   if ($email && $rootKey === 'main') invalidate_file_tree($email);
@@ -281,6 +284,7 @@ if ($action === 'copy') {
   if (!$copyRecursive($source_full, $target_full)) {
     json_out(['error' => 'copy failed'], 500);
   }
+  cloud_index_queue_copied_tree($user, $target_root_key, ($target_dir === '' ? basename($source_path) : $target_dir . '/' . basename($source_path)));
 
   $email = get_session_email();
   if ($email && ($rootKey === 'main' || $target_root_key === 'main')) invalidate_file_tree($email);
@@ -299,6 +303,10 @@ if ($action === 'move_to_trash') {
 
   try {
     $meta = move_path_to_trash($user, $rootKey, $path);
+    cloud_reviews_delete_path((string)get_session_email(), $rootKey, $path);
+    cloud_index_touch_delete($user, $rootKey, $path, 'deleted');
+    $trashPath = (string)($meta['id'] ?? '');
+    if ($trashPath !== '') cloud_index_touch_restore($user, 'trash', $trashPath);
   } catch (RuntimeException $e) {
     $message = $e->getMessage();
     $status = $message === 'not found' ? 404 : ($message === 'Item is already in trash' ? 409 : 500);
@@ -345,6 +353,8 @@ if ($action === 'restore_from_trash') {
   if (!@rename($sourceFull, $targetFull)) {
     json_out(['error' => 'restore failed'], 500);
   }
+  cloud_index_touch_delete($user, 'trash', $id, 'deleted');
+  cloud_index_touch_restore($user, $targetRoot, $targetPath);
 
   unset($meta[$id]);
   save_trash_metadata($user, $meta);
@@ -369,6 +379,7 @@ if ($action === 'empty_trash') {
     $target = $trashBase . '/' . $id;
     if (file_exists($target)) {
       remove_path_recursive($target);
+      cloud_index_touch_delete($user, 'trash', (string)$id, 'deleted');
       $removed++;
     }
   }
@@ -1053,6 +1064,7 @@ if ($action === 'rename') {
   if (!file_exists($old_full)) json_out(['error'=>'not found'], 404);
   if (file_exists($new_full)) json_out(['error'=>'exists'], 409);
   if (!rename($old_full, $new_full)) json_out(['error'=>'rename failed'], 500);
+  cloud_index_touch_move($user, $rootKey, $old_path, $new_path);
   $email = get_session_email();
   if ($email && $rootKey === 'main') {
     patch_file_tree_cache_rename($email, $old_path, $new_path, $new_name);
@@ -1151,6 +1163,7 @@ if ($action === 'create_file') {
   if (!cloud_create_initial_file($full, $ext)) {
     json_out(['error'=>'create failed'], 500);
   }
+  cloud_index_touch_file($user, $rootKey, $path);
 
   $email = get_session_email();
   // Only invalidate cache for main root, not for hidden roots
@@ -1166,7 +1179,9 @@ function cloud_video_jobs_dir(): string {
     return $dir;
 }
 function cloud_video_tmp_dir(): string {
-    $base = is_dir('/opt/ApplicationData') && is_writable('/opt/ApplicationData') ? '/opt/ApplicationData' : upload_sessions_dir();
+    $appdataBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($appdataBase) || trim($appdataBase) === '') $appdataBase = '/opt/ApplicationData';
+    $base = is_dir($appdataBase) && is_writable($appdataBase) ? rtrim($appdataBase, '/') : upload_sessions_dir();
     $dir = $base . '/cloud_video_tmp';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
     return $dir;
@@ -1965,6 +1980,7 @@ if ($action === 'save_file') {
   if ($result === false) {
     json_out(['error'=>'save failed'], 500);
   }
+  cloud_index_touch_file($user, $rootKey, $path);
 
   // No tree structure change on save (file already exists), skip invalidation
   $email = get_session_email();
@@ -2041,31 +2057,24 @@ if ($action === 'list') {
     json_out(['error'=>'not found'], 404);
   }
   
-  $items = [];
-  foreach (scandir($dir) as $it) {
-    if ($it === '.' || $it === '..') continue;
-    if ($rootKey === 'main' && str_starts_with($it, '.')) continue;
-    if (preg_match('/\.zip\.[A-Za-z0-9]{6,}$/', $it)) continue;
-    $full = $dir . '/' . $it;
-    $isDir = is_dir($full);
-
-    $rel = $path ? $path . '/' . $it : $it;
-    if (cloud_is_group_root($rootKey) && cloud_is_hidden_group_tree_path($rel)) continue;
-    $items[] = [
-      'name' => $it,
-      'path' => $rel,
-      'type' => $isDir ? 'dir' : 'file',
-      'size' => $isDir ? null : filesize($full),
-      'mtime' => filemtime($full)
-    ];
+  if (!cloud_index_enabled()) {
+    json_out(['error' => 'file index disabled'], 503);
   }
-  
-  
-  usort($items, function($a,$b){
-    if ($a['type'] !== $b['type']) return $a['type']==='dir' ? -1 : 1;
-    return strcasecmp($a['name'], $b['name']);
-  });
-  json_out(['items'=>$items]);
+  $limit = (int)($_GET['limit'] ?? $_POST['limit'] ?? 200);
+  $afterName = isset($_GET['after']) ? (string)$_GET['after'] : null;
+  $afterId = isset($_GET['after_id']) ? (int)$_GET['after_id'] : 0;
+  try {
+    $listing = cloud_index_list($user, $rootKey, $path, $limit, $afterName, $afterId);
+  } catch (Throwable $e) {
+    cloud_index_log('list failed: ' . $e->getMessage());
+    json_out(['error' => 'index unavailable'], 503);
+  }
+  json_out([
+    'items' => $listing['items'],
+    'has_more' => $listing['has_more'],
+    'next' => $listing['next'],
+    'indexing' => $listing['indexing'],
+  ]);
 }
 
 if ($action === 'mkdir') {
@@ -2099,6 +2108,7 @@ if ($action === 'mkdir') {
   if (!@mkdir($dir, 0775, true)) {
     json_out(['error'=>'create failed'], 500);
   }
+  cloud_index_touch_dir($user, $rootKey, $path);
 
   $email = get_session_email();
   // Only invalidate cache for main root, not for hidden roots
@@ -2258,6 +2268,9 @@ if ($action === 'upload') {
             if ($chunk == $chunks - 1 && $mtimeFromClientTime > 0) {
                 @touch($dest, $mtimeFromClientTime);
             }
+            if ($chunk == $chunks - 1) {
+                cloud_index_touch_file($user, $rootKey, $final_target_path);
+            }
 
             // For upload, do not invalidate the tree cache:
             // the structure will be updated incrementally via patch_file_tree.
@@ -2288,6 +2301,8 @@ if ($action === 'upload') {
             @touch($dest, $mtimeFromClientTime);
         }
         
+        cloud_index_touch_file($user, $rootKey, $final_target_path);
+
         // Delete the session after completion
         if ($upload_id) {
             delete_upload_session($upload_id);
@@ -2317,6 +2332,8 @@ if ($action === 'delete') {
   if (!file_exists($target)) json_out(['error'=>'not found'], 404);
   $wasDir = is_dir($target);
   remove_path_recursive($target);
+  cloud_reviews_delete_path((string)get_session_email(), $rootKey, $path);
+  cloud_index_touch_delete($user, $rootKey, $path, 'deleted');
   if ($rootKey === 'trash') {
     $meta = load_trash_metadata($user);
     if (isset($meta[$path])) {
@@ -2618,52 +2635,14 @@ if ($action === 'get_folder_properties') {
         json_out(['error' => 'Path is not a directory'], 400);
     }
     
-    // Gather info about the folder contents
-    $totalSize = 0;
-    $fileCount = 0;
-    $folderCount = 0;
-    $items = [];
-    
-    $iterator = new RecursiveIteratorIterator(
-        new RecursiveDirectoryIterator($fullPath, FilesystemIterator::SKIP_DOTS),
-        RecursiveIteratorIterator::SELF_FIRST
-    );
-    
-    foreach ($iterator as $item) {
-        if ($item->isFile()) {
-            $totalSize += $item->getSize();
-            $fileCount++;
-        } elseif ($item->isDir()) {
-            $folderCount++;
-        }
-        
-        // Keep the first 100 items for preview (optional)
-        if (count($items) < 100) {
-            $items[] = [
-                'name' => $item->getFilename(),
-                'path' => str_replace($base . '/', '', $item->getPathname()),
-                'type' => $item->isDir() ? 'dir' : 'file',
-                'size' => $item->isFile() ? $item->getSize() : null,
-                'modified' => $item->getMTime()
-            ];
-        }
-    }
-    
+    // Folder statistics come from the index, never from a directory scan.
+    $properties = cloud_index_folder_properties($user, get_requested_root_key(), $path);
+    if ($properties === null) json_out(['error' => 'Folder is not indexed yet'], 409);
     $stat = stat($fullPath);
-    
-    $properties = [
-        'type' => 'directory',
-        'size' => $totalSize,
-        'items' => $fileCount + $folderCount,
-        'files' => $fileCount,
-        'folders' => $folderCount,
-        'created' => date('c', $stat['ctime']),
-        'modified' => date('c', $stat['mtime']),
-        'accessed' => date('c', $stat['atime']),
-        'attributes' => getFileAttributes($fullPath),
-        'items_preview' => $items // optional
-    ];
-    
+    if (is_array($stat)) {
+        $properties['accessed'] = date('c', (int)$stat['atime']);
+    }
+    $properties['attributes'] = getFileAttributes($fullPath);
     json_out($properties);
 }
 
@@ -2777,6 +2756,26 @@ function cloud_archive_write_job(string $jobId, array $data): void {
     if (@file_put_contents($file, json_encode(array_merge($current, $data), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE)) === false) {
         throw new RuntimeException('Archive job storage is not writable');
     }
+}
+function cloud_archive_find_active_folder_job(string $user, string $rootKey, string $folderPath): ?string {
+    foreach (glob(cloud_archive_jobs_dir() . '/*.json') ?: [] as $file) {
+        $job = json_decode((string)@file_get_contents($file), true) ?: [];
+        if (($job['type'] ?? '') !== 'archive_folder') continue;
+        if (!in_array(($job['status'] ?? ''), ['queued', 'running'], true)) continue;
+        $payload = $job['payload'] ?? [];
+        if ((string)($payload['user'] ?? '') !== $user || (string)($payload['root'] ?? '') !== $rootKey) continue;
+        if (safe_path((string)($payload['folder_path'] ?? '')) === $folderPath) return (string)($job['id'] ?? '');
+    }
+    return null;
+}
+function cloud_archive_verify_folder_contents(string $archivePath, string $format, string $folderName, string $password = ''): void {
+    $entries = cloud_archive_list_paths($archivePath, $format, $password);
+    $prefix = rtrim(str_replace('\\', '/', $folderName), '/') . '/';
+    foreach ($entries as $entry) {
+        $entry = ltrim(str_replace('\\', '/', (string)$entry), './');
+        if ($entry === $folderName || str_starts_with($entry, $prefix)) return;
+    }
+    throw new RuntimeException('Archive verification failed: folder contents are missing');
 }
 function cloud_archive_start_job(string $type, array $payload, callable $runner): void {
     $jobId = bin2hex(random_bytes(16));
@@ -3088,6 +3087,7 @@ function cloud_archive_create_selected_job(string $jobId, array $payload): void 
         }
         if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
         if (!file_exists($archive_path) || filesize($archive_path) <= 0) throw new RuntimeException('Failed to create archive');
+        if (!$temporary) cloud_index_touch_file($user, $rootKey, $archive_name);
         $email = get_session_email();
         if (!$temporary && $email && $rootKey === 'main') invalidate_file_tree($email);
         if (!$temporary && $email) append_sync_log($email, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
@@ -3125,20 +3125,27 @@ function cloud_archive_folder_job(string $jobId, array $payload): void {
         $total = 1;
         $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.' . cloud_archive_format_extension($format);
         cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 20, 'processed' => 0, 'total' => $total]);
+        // Archive the folder from its parent so entries are rooted at the
+        // folder itself (folder_name/...). Using the full path produced
+        // "parent/folder/..." entries, which failed the contents check below.
         $parent = dirname($folder_path);
-        $folderItem = ($parent === '.' || $parent === '') ? basename($folder_path) : $folder_path;
-        $added = cloud_archive_create_file($base, [$folderItem], $tmp_path, $format, $password);
+        $parent = ($parent === '.' || $parent === '') ? '' : $parent;
+        $parent_base = $parent === '' ? $base : $base . '/' . $parent;
+        $added = cloud_archive_create_file($parent_base, [$folder_name], $tmp_path, $format, $password);
         cloud_archive_write_job($jobId, ['status' => 'running', 'progress' => 99, 'processed' => $total, 'total' => $total]);
         if (cloud_archive_job_cancelled($jobId)) {
             cloud_archive_cancelled_job($jobId, $tmp_path);
             return;
         }
+        if (!is_file($tmp_path) || filesize($tmp_path) <= 0) throw new RuntimeException('Failed to create archive file');
+        cloud_archive_verify_folder_contents($tmp_path, $format, $folder_name, $password);
         if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
         if (!file_exists($archive_path) || filesize($archive_path) <= 0) throw new RuntimeException('Failed to create archive file');
+        $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
+        cloud_index_touch_file($user, $rootKey, $result_path);
         $email = get_session_email();
         if ($email && $rootKey === 'main') invalidate_file_tree($email);
         if ($email) append_sync_log($email, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
-        $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
         cloud_archive_write_job($jobId, ['status' => 'done', 'progress' => 100, 'archive_path' => $result_path, 'archive_name' => $archive_name, 'size' => filesize($archive_path), 'files_count' => $added, 'payload' => [], 'worker_token' => '']);
         cloud_archive_notify_job($jobId, $payload, 'success', 'Cloud folder archive finished', $result_path);
     } catch (Throwable $e) {
@@ -3266,8 +3273,48 @@ if ($action === 'create_archive') {
     } catch (Throwable $e) {
         json_out(['error' => $e->getMessage()], 400);
     }
+    $temporary = (string)($_POST['temporary'] ?? '') === '1';
+    if ($temporary) {
+        // Direct download: build the archive in this request and hand back a
+        // one-time download URL. No background worker and no modal round-trip.
+        $jobId = bin2hex(random_bytes(16));
+        $tmp_path = cloud_archive_tmp_dir() . '/' . $jobId . '.' . cloud_archive_format_extension($format);
+        try {
+            $added_count = cloud_archive_create_file($base, $items, $tmp_path, $format, $password);
+            if (!is_file($tmp_path) || filesize($tmp_path) <= 0) throw new RuntimeException('Failed to create archive');
+        } catch (Throwable $e) {
+            @unlink($tmp_path);
+            json_out(['error' => $e->getMessage()], 500);
+        }
+        $downloadToken = bin2hex(random_bytes(16));
+        $downloadUrl = 'api.php?action=archive_job_download&job_id=' . rawurlencode($jobId) . '&token=' . rawurlencode($downloadToken);
+        cloud_archive_write_job($jobId, [
+            'id' => $jobId,
+            'type' => 'create_archive',
+            'status' => 'done',
+            'progress' => 100,
+            'archive_name' => $archive_name,
+            'items_count' => $added_count,
+            'size' => filesize($tmp_path),
+            'temporary' => true,
+            'temp_file' => basename($tmp_path),
+            'download_token' => $downloadToken,
+            'download_url' => $downloadUrl,
+            'payload' => [],
+            'worker_token' => '',
+        ]);
+        json_out([
+            'success' => true,
+            'temporary' => true,
+            'job_id' => $jobId,
+            'archive_name' => $archive_name,
+            'download_url' => $downloadUrl,
+            'items_count' => $added_count,
+            'size' => filesize($tmp_path),
+        ]);
+    }
     if ((string)($_POST['async'] ?? '') === '1') {
-        cloud_archive_start_job('create_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name, 'format' => $format, 'password' => $password, 'temporary' => (string)($_POST['temporary'] ?? '') === '1', 'type' => 'create_archive'], 'cloud_archive_create_selected_job');
+        cloud_archive_start_job('create_archive', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'items' => $items, 'archive_name' => $archive_name, 'format' => $format, 'password' => $password, 'temporary' => false, 'type' => 'create_archive'], 'cloud_archive_create_selected_job');
     }
     $archive_path = $base . '/' . $archive_name;
     if (file_exists($archive_path)) json_out(['error' => 'exists'], 409);
@@ -3279,6 +3326,7 @@ if ($action === 'create_archive') {
         @unlink($tmp_path);
         json_out(['error' => $e->getMessage()], 500);
     }
+    cloud_index_touch_file($user, $rootKey, $archive_name);
     $emailArch = get_session_email();
     if ($emailArch && $rootKey === 'main') invalidate_file_tree($emailArch);
     if ($emailArch) append_sync_log($emailArch, $rootKey, 'create_archive', $archive_name, 'INFO', 'Archive created');
@@ -3660,6 +3708,10 @@ if ($action === 'archive_folder') {
         json_out(['error' => 'folder_path is required'], 400);
     }
     if ((string)($_POST['async'] ?? '') === '1') {
+        $activeJobId = cloud_archive_find_active_folder_job($user, $rootKey, $folder_path);
+        if ($activeJobId !== null) {
+            json_out(['error' => 'An archive for this folder is already in progress', 'job_id' => $activeJobId], 409);
+        }
         cloud_archive_start_job('archive_folder', ['user' => $user, 'email' => get_session_email(), 'root' => $rootKey, 'folder_path' => $folder_path, 'format' => $format, 'password' => $password, 'archive_name' => (string)($_POST['archive_name'] ?? ''), 'type' => 'archive_folder'], 'cloud_archive_folder_job');
     }
     
@@ -3678,7 +3730,10 @@ if ($action === 'archive_folder') {
     if (file_exists($archive_path)) json_out(['error' => 'Archive already exists'], 409);
     $tmp_path = cloud_archive_tmp_dir() . '/' . bin2hex(random_bytes(8)) . '.' . cloud_archive_format_extension($format);
     try {
-        $added_count = cloud_archive_create_file($base, [$folder_path], $tmp_path, $format, $password);
+        $parent = dirname($folder_path);
+        $parent = ($parent === '.' || $parent === '') ? '' : $parent;
+        $parent_base = $parent === '' ? $base : $base . '/' . $parent;
+        $added_count = cloud_archive_create_file($parent_base, [$folder_name], $tmp_path, $format, $password);
         if (!@rename($tmp_path, $archive_path)) throw new RuntimeException('Failed to move archive into place');
     } catch (Throwable $e) {
         @unlink($tmp_path);
@@ -3688,6 +3743,7 @@ if ($action === 'archive_folder') {
     if ($emailArch2 && $rootKey === 'main') invalidate_file_tree($emailArch2);
     if ($emailArch2) append_sync_log($emailArch2, $rootKey, 'archive_folder', $folder_path, 'INFO', 'Folder archived');
     $result_path = trim(dirname($folder_path) . '/' . $archive_name, './');
+    cloud_index_touch_file($user, $rootKey, $result_path);
     json_out([
         'success' => true,
         'archive_path' => $result_path,
@@ -4139,29 +4195,12 @@ if ($action === 'get_file_tree') {
                 json_out(['ok' => true, 'unchanged' => true, 'hash' => $clientHash]);
             }
         }
-        $stmt = $db->prepare("SELECT tree_json, tree_hash, tree_valid FROM cloud_folder_state WHERE email = :e");
-        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-
-        if ($row && $row['tree_valid'] == 1 && !empty($row['tree_json'])) {
-            $treeHash = (string)($row['tree_hash'] ?? '');
-            if ($treeHash === '') $treeHash = md5((string)$row['tree_json']);
-            if ($clientHash !== '' && $clientHash === $treeHash) {
-                json_out(['ok' => true, 'unchanged' => true, 'hash' => $treeHash]);
-            }
-            $items = json_decode($row['tree_json'], true) ?? [];
-            $items = cloud_dedupe_tree_items($items);
-            json_out(['ok' => true, 'items' => $items, 'from_cache' => true, 'hash' => $treeHash]);
-        } else {
-            rebuild_file_tree($email, $user);
-            $stmt2 = $db->prepare("SELECT tree_json, tree_hash FROM cloud_folder_state WHERE email = :e");
-            $stmt2->bindValue(':e', $email, PDO::PARAM_STR);
-            $row2 = $stmt2->execute()->fetch(PDO::FETCH_ASSOC);
-            $items = $row2 ? (json_decode($row2['tree_json'], true) ?? []) : [];
-            $items = cloud_dedupe_tree_items($items);
-            $outHash = $row2 ? ((string)($row2['tree_hash'] ?? '') ?: md5((string)$row2['tree_json'])) : '';
-            json_out(['ok' => true, 'items' => $items, 'from_cache' => false, 'hash' => $outHash]);
+        // The tree is built from PostgreSQL; no directory is ever scanned here.
+        $built = cloud_index_tree_cache($db, $email, $user, 'main');
+        if ($clientHash !== '' && $clientHash === $built['hash']) {
+            json_out(['ok' => true, 'unchanged' => true, 'hash' => $built['hash']]);
         }
+        json_out(['ok' => true, 'items' => $built['items'], 'from_cache' => false, 'hash' => $built['hash']]);
     } catch (Exception $e) {
         cloud_safe_error_log("get_file_tree failed: " . $e->getMessage());
         json_out(['ok' => false, 'error' => $e->getMessage()]);
@@ -4464,92 +4503,47 @@ if ($action === 'patch_file_tree') {
 
     try {
         ensure_file_tree_table($db);
-
-        $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
-        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-
-        // If cache is missing/invalid, build it once from disk,
-        // then apply patch ops (add/remove/rename) without full UI refresh.
-        if (!$row || $row['tree_valid'] != 1 || empty($row['tree_json'])) {
-            $user = get_current_user_from_sessions();
-            if ($user) {
-                rebuild_file_tree($email, $user);
-                $stmtReload = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e");
-                $stmtReload->bindValue(':e', $email, PDO::PARAM_STR);
-                $row = $stmtReload->execute()->fetch(PDO::FETCH_ASSOC);
-            }
-        }
-
-        if (!$row || $row['tree_valid'] != 1) {
-            json_out(['ok' => false, 'error' => 'tree cache unavailable']);
-        }
-
-        $items = cloud_dedupe_tree_items(json_decode($row['tree_json'], true) ?? []);
-
-        foreach ($ops as $op) {
-            $opType = $op['op'] ?? '';
-            if ($opType === 'add' && isset($op['item'])) {
-                $newItem = $op['item'];
-                if (cloud_is_hidden_main_tree_path((string)($newItem['path'] ?? ''))) continue;
-                $exists = false;
-                foreach ($items as $it) { if ($it['path'] === $newItem['path']) { $exists = true; break; } }
-                if (!$exists) $items[] = $newItem;
-
-            } elseif ($opType === 'remove' && isset($op['path'])) {
-                $removePath = $op['path'];
-                $items = array_values(array_filter($items, function($item) use ($removePath) {
-                    return $item['path'] !== $removePath
-                        && strpos($item['path'], $removePath . '/') !== 0;
-                }));
-
-            } elseif (($opType === 'rename' || $opType === 'move') && isset($op['old_path'], $op['new_path'])) {
-                $oldPath = $op['old_path'];
-                $newPath = $op['new_path'];
-                $newName = $op['new_name'] ?? basename($newPath);
-                $items = array_map(function($item) use ($oldPath, $newPath, $newName) {
-                    if ($item['path'] === $oldPath) {
-                        $item['path'] = $newPath;
-                        $item['name'] = $newName;
-                    } elseif (strpos($item['path'], $oldPath . '/') === 0) {
-                        $item['path'] = $newPath . '/' . substr($item['path'], strlen($oldPath) + 1);
-                    }
-                    return $item;
-                }, $items);
-            }
-        }
-
-        $items = cloud_dedupe_tree_items($items);
-        $json = json_encode(array_values($items), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-        $hash = md5((string)$json);
-
-        $check = $db->prepare("SELECT COUNT(*) as cnt FROM cloud_folder_state WHERE email = :e");
-        $check->bindValue(':e', $email, PDO::PARAM_STR);
-        $cnt = $check->execute()->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0;
-        if ($cnt == 0) {
-            $s = $db->prepare("INSERT INTO cloud_folder_state (email, folder_json, tree_json, tree_hash, tree_valid, updated_at) VALUES (:e, '[]', :j, :h, 1, extract(epoch from now())::bigint)");
-        } else {
-            $s = $db->prepare("UPDATE cloud_folder_state SET tree_json = :j, tree_hash = :h, tree_valid = 1, updated_at = extract(epoch from now())::bigint WHERE email = :e");
-        }
-        $s->bindValue(':e', $email, PDO::PARAM_STR);
-        $s->bindValue(':j', $json, PDO::PARAM_STR);
-        $s->bindValue(':h', $hash, PDO::PARAM_STR);
-        $s->execute();
-
-        json_out(['ok' => true, 'count' => count($items), 'hash' => $hash]);
+        // Operations already updated the index, so rebuild the cache from it
+        // instead of applying a divergent patch.
+        $user = get_current_user_from_sessions();
+        $built = $user ? cloud_index_tree_cache($db, $email, $user, get_requested_root_key()) : ['items' => [], 'hash' => ''];
+        json_out(['ok' => true, 'count' => count($built['items']), 'hash' => $built['hash']]);
     } catch (Exception $e) {
         cloud_safe_error_log("patch_file_tree failed: " . $e->getMessage());
         json_out(['ok' => false, 'error' => $e->getMessage()]);
     }
 }
 
+
 if ($action === 'monaco_collab_ticket') {
     $email = cloud_api_email();
+    // Tickets must live on the APPDATA volume shared by PHP-FPM and the
+    // WebSocket service. Never write them into the code tree (bind mount) or
+    // the container temp layer.
+    $appdataBase = getenv('APPDATA_BASE_DIR');
+    if (!is_string($appdataBase) || trim($appdataBase) === '') $appdataBase = '/opt/ApplicationData';
+    $ticketDirs = [
+        rtrim($appdataBase, '/') . '/cloud_runtime/monaco_collab_tickets',
+        sys_get_temp_dir() . '/cloud_monaco_tickets',
+    ];
     $ticket = bin2hex(random_bytes(16));
-    $dir = sys_get_temp_dir() . '/cloud_monaco_tickets';
-    if (!is_dir($dir)) @mkdir($dir, 0700, true);
     $payload = json_encode(['email' => $email, 'exp' => time() + 3600], JSON_UNESCAPED_UNICODE);
-    @file_put_contents($dir . '/' . $ticket . '.json', $payload);
+    if ($payload === false) {
+        json_out(['ok' => false, 'error' => 'Unable to create collaboration ticket'], 500);
+    }
+    $written = false;
+    foreach (array_unique($ticketDirs) as $dir) {
+        // PHP-FPM and the WebSocket service may use different users, so the
+        // directory has to be traversable/readable by both.
+        if (!is_dir($dir) && !@mkdir($dir, 0777, true) && !is_dir($dir)) continue;
+        @chmod($dir, 0777);
+        if (!is_writable($dir)) continue;
+        $file = $dir . '/' . $ticket . '.json';
+        if (@file_put_contents($file, $payload, LOCK_EX) === false) continue;
+        @chmod($file, 0644);
+        $written = true;
+    }
+    if (!$written) json_out(['ok' => false, 'error' => 'Unable to create collaboration ticket'], 500);
     json_out(['ok' => true, 'ticket' => $ticket, 'expires_in' => 3600]);
 }
 
@@ -4560,30 +4554,13 @@ if ($action === 'search_tree') {
     $q = trim((string)($_GET['q'] ?? $_POST['q'] ?? ''));
     if ($q === '' || mb_strlen($q) < 2) json_out(['ok' => true, 'items' => []]);
     $limit = min(500, max(1, (int)($_GET['limit'] ?? $_POST['limit'] ?? 200)));
-    $db = getDB();
-    if (!$db) json_out(['ok' => false, 'error' => 'db unavailable'], 500);
-    ensure_file_tree_table($db);
-    $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e LIMIT 1");
-    $stmt->bindValue(':e', $email, PDO::PARAM_STR);
-    $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    if (!$row || (int)($row['tree_valid'] ?? 0) !== 1 || empty($row['tree_json'])) {
-        rebuild_file_tree($email, $user);
-        $stmt = $db->prepare("SELECT tree_json, tree_valid FROM cloud_folder_state WHERE email = :e LIMIT 1");
-        $stmt->bindValue(':e', $email, PDO::PARAM_STR);
-        $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    }
-    $items = $row ? (json_decode((string)$row['tree_json'], true) ?? []) : [];
-    $needle = mb_strtolower($q);
-    $out = [];
-    foreach ($items as $item) {
-        if (!is_array($item)) continue;
-        $name = mb_strtolower((string)($item['name'] ?? ''));
-        $path = mb_strtolower((string)($item['path'] ?? ''));
-        if ($name === '' && $path === '') continue;
-        if (mb_strpos($name, $needle) !== false || mb_strpos($path, $needle) !== false) {
-            $out[] = $item;
-            if (count($out) >= $limit) break;
-        }
+    if (!cloud_index_enabled()) json_out(['ok' => false, 'error' => 'file index disabled'], 503);
+    try {
+        $rootKey = get_requested_root_key();
+        $out = cloud_index_search($user, $rootKey, $q, $limit);
+    } catch (Throwable $e) {
+        cloud_index_log('search failed: ' . $e->getMessage());
+        json_out(['ok' => false, 'error' => 'index unavailable'], 503);
     }
     json_out(['ok' => true, 'items' => $out, 'count' => count($out)]);
 }

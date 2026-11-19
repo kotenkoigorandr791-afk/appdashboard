@@ -112,16 +112,19 @@ function spends_mobile_ledger_put(
 function spends_mobile_snapshot_revision(string $email): string
 {
     $key = 'mobile_snapshot_revision:' . hash('sha256', $email);
+    // Time bucket keeps the revision moving even when Redis is unavailable, so
+    // clients are never stuck on a permanent "not_modified" answer.
+    $bucket = (string)floor(time() / 15);
     $redis = app_redis();
-    if (!$redis) return '1';
+    if (!$redis) return '1-' . $bucket;
     try {
         $fullKey = app_redis_key('spends:' . $key);
         $revision = $redis->get($fullKey);
-        if (is_string($revision) && $revision !== '') return $revision . '-' . (string)floor(time() / 15);
+        if (is_string($revision) && $revision !== '') return $revision . '-' . $bucket;
         $redis->set($fullKey, '1');
     } catch (Throwable $e) {
     }
-    return '1-' . (string)floor(time() / 15);
+    return '1-' . $bucket;
 }
 
 function spends_mobile_sync_is_current(string $knownRevision): bool
@@ -138,7 +141,11 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
         return ['status' => 'not_modified', 'revision' => $revision, 'server_time' => time()];
     }
     $cacheKey = 'mobile_snapshot:' . hash('sha256', $email) . ':' . $revision;
-    if ($cached = spendsCacheGet($cacheKey)) {
+    // A caller without a revision explicitly asks for a full, fresh snapshot
+    // (for example right after OCR or an offline replay). Never serve it from
+    // the short-lived revision cache, otherwise a write that did not bump the
+    // revision would stay invisible until the cache expires.
+    if ($knownRevision !== '' && ($cached = spendsCacheGet($cacheKey))) {
         $decoded = json_decode(spends_decrypt($cached, $email, 'snapshot-cache'), true);
         if (is_array($decoded) && ($decoded['status'] ?? '') === 'success') return $decoded;
     }
@@ -275,12 +282,30 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             continue;
         }
         $amount = round((float)$amount, 2);
-        $signature = trim((string)($row['signature'] ?? ''));
+        $signatureProvided = trim((string)($row['signature'] ?? ''));
+        $signature = $signatureProvided;
         if ($signature === '') {
             $signature = spends_mobile_signature($date, $store, $amount, $raw);
         }
-        if ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
+        // A supplied signature identifies one queued device write. Seeing it in
+        // the ledger means this exact write already landed (for example the app
+        // was killed before clearing its outbox), so it must not be repeated.
+        if ($signatureProvided !== '') {
+            if (spends_mobile_ledger_has($udb, $signature)) {
+                $skipped++;
+                continue;
+            }
+        } elseif ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
             $skipped++;
+            continue;
+        }
+        if ($mode === 'delete' || $amount < 0.005) {
+            $del = $udb->prepare('DELETE FROM expenses WHERE date = :d AND store = :s');
+            $del->bindValue(':d', $date);
+            $del->bindValue(':s', $store);
+            $del->execute();
+            spends_mobile_ledger_put($udb, $signature, $date, $store, 0.0, 'delete', 'mobile:delete');
+            $updated++;
             continue;
         }
         spends_mobile_ensure_store($udb, $store, (string)($row['category'] ?? 'other'));
@@ -288,32 +313,34 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
         $exists->bindValue(':d', $date);
         $exists->bindValue(':s', $store);
         $prev = $exists->execute()->fetch(PDO::FETCH_ASSOC);
-        if ($amount < 0.005) {
-            $del = $udb->prepare('DELETE FROM expenses WHERE date = :d AND store = :s');
-            $del->bindValue(':d', $date);
-            $del->bindValue(':s', $store);
-            $del->execute();
-            $updated++;
+        // Notification captures (Google Wallet) are their own entry source;
+        // only real receipt scans may be labelled as OCR.
+        $entrySource = match ($source) {
+            'ocr' => 'ocr',
+            'notification', 'wallet' => 'notification',
+            'subscription' => 'subscription',
+            default => 'manual',
+        };
+        if ($mode === 'add') {
+            // Multiple captures at the same store on the same day must accumulate,
+            // otherwise every new payment would overwrite the previous one.
+            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:e,:r)
+                ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2), entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
         } else {
-            $entrySource = match ($source) {
-                'ocr', 'wallet' => 'ocr',
-                'subscription' => 'subscription',
-                default => 'manual',
-            };
             $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:e,:r)
                 ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount, entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
-            $st->bindValue(':d', $date);
-            $st->bindValue(':s', $store);
-            $st->bindValue(':a', $amount, PDO::PARAM_STR);
-            $st->bindValue(':e', $entrySource);
-            if ($raw === '') {
-                $st->bindValue(':r', null, PDO::PARAM_NULL);
-            } else {
-                $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
-            }
-            $st->execute();
-            $prev ? $updated++ : $created++;
         }
+        $st->bindValue(':d', $date);
+        $st->bindValue(':s', $store);
+        $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        $st->bindValue(':e', $entrySource);
+        if ($raw === '') {
+            $st->bindValue(':r', null, PDO::PARAM_NULL);
+        } else {
+            $st->bindValue(':r', spends_encrypt($raw, spends_db_user_id($udb), 'ocr'));
+        }
+        $st->execute();
+        $prev ? $updated++ : $created++;
         spends_mobile_ledger_put($udb, $signature, $date, $store, $amount, $raw !== '' ? $raw : $source, 'mobile:' . $source);
     }
 
@@ -329,24 +356,36 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             continue;
         }
         $amount = round((float)$amount, 2);
-        $signature = trim((string)($row['signature'] ?? ''));
+        $signatureProvided = trim((string)($row['signature'] ?? ''));
+        $signature = $signatureProvided;
         if ($signature === '') {
             $signature = spends_mobile_signature($date, '__income__', $amount);
         }
-        if ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
+        if ($signatureProvided !== '') {
+            if (spends_mobile_ledger_has($udb, $signature)) {
+                $skipped++;
+                continue;
+            }
+        } elseif ($mode !== 'force' && spends_mobile_ledger_has($udb, $signature)) {
             $skipped++;
             continue;
         }
-        if ($amount < 0.005) {
+        if ($mode === 'delete' || $amount < 0.005) {
             $del = $udb->prepare('DELETE FROM incomes WHERE date = :d');
             $del->bindValue(':d', $date);
             $del->execute();
+            spends_mobile_ledger_put($udb, $signature, $date, '__income__', 0.0, 'delete', 'mobile:income-delete');
+            $updated++;
+            continue;
+        }
+        if ($mode === 'add') {
+            $st = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=ROUND((incomes.amount+excluded.amount)::numeric,2)');
         } else {
             $st = $udb->prepare('INSERT INTO incomes(date,amount) VALUES(:d,:a) ON CONFLICT (user_id,date) DO UPDATE SET amount=excluded.amount');
-            $st->bindValue(':d', $date);
-            $st->bindValue(':a', $amount, PDO::PARAM_STR);
-            $st->execute();
         }
+        $st->bindValue(':d', $date);
+        $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        $st->execute();
         spends_mobile_ledger_put($udb, $signature, $date, '__income__', $amount, 'income', 'mobile:income');
         $updated++;
     }
@@ -441,6 +480,12 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
                 spendsTagUpsert($udb, $tagRow);
             }
         }
+    }
+
+    if ($created + $updated > 0) {
+        // Bump the snapshot revision so the next pull actually returns the new
+        // ledger instead of a stale "not_modified" answer.
+        spends_mobile_invalidate_snapshot();
     }
 
     return [

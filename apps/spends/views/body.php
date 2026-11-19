@@ -90,6 +90,15 @@
     </div>
 </div>
 
+<!-- Chart legend (shown when the legend has too many entries for the chart) -->
+<div id="chart-legend-modal" class="modal">
+    <div class="modal-content" style="max-width:min(460px,calc(100vw - 32px));">
+        <button class="modal-close" onclick="closeModal('chart-legend-modal')">×</button>
+        <h3 style="margin-top:0;"><?= htmlspecialchars($translations['legend'] ?? 'Legend') ?></h3>
+        <div id="chart-legend-list" class="chart-legend-list"></div>
+    </div>
+</div>
+
 <div class="app-expenses">
     <div class="header">
         <h2><?= htmlspecialchars($translations['expense_tracker_title']) ?></h2>
@@ -126,7 +135,8 @@
             <button class="header-btn" id="mobile-app-btn" type="button" onclick="openMobileAppModal()" title="<?= htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile app') ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
             </button>
-            <button class="header-btn profile-avatar-btn" type="button" title="<?= htmlspecialchars($translations['user_management']) ?>">
+            <div id="profile-menu" class="profile-dropdown" role="menu" aria-label="<?= htmlspecialchars($translations['user_management']) ?>" hidden></div>
+            <button class="header-btn profile-avatar-btn" id="profile-menu-btn" type="button" aria-haspopup="true" aria-expanded="false" title="<?= htmlspecialchars($translations['user_management']) ?>">
                 <img src="<?= $profilePhoto ?>" class="user-icon" alt="<?= htmlspecialchars($translations['user_profile']) ?>">
             </button>
         </div>
@@ -161,6 +171,7 @@
         </div>
         <div class="chart-controls-actions">
             <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
+            <button class="chart-toggle-btn" id="chart-legend-btn" type="button" style="display:none;" onclick="openChartLegend()"><?= htmlspecialchars($translations['legend'] ?? 'Legend') ?></button>
         </div>
         <div class="chart-year" id="chart-year2"></div>
     </div>
@@ -185,13 +196,14 @@
                     <tr>
                         <th><?= htmlspecialchars($translations['date']) ?></th>
                         <?php foreach ($visibleStores as $store):
-                            $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
-                            $safe = getSafeFolderName($currentUser);
-                            $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.png") ? "users/$safe/store_$fn.png" : (file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null);
+                            // photo_url is resolved server-side and is only set when
+                            // the file exists (png/jpg/jpeg/webp), so the browser
+                            // never requests a missing store_<name>.png.
+                            $storePhoto = (string)($store['photo_url'] ?? '');
                         ?>
                             <th>
                                 <div class="store-header">
-                                    <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
+                                    <?php if ($storePhoto): ?><img src="<?= htmlspecialchars($storePhoto) ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>" onerror="this.remove()"><?php endif; ?>
                                     <?= htmlspecialchars($store['name']) ?>
                                 </div>
                             </th>
@@ -252,10 +264,12 @@
             <section>
                 <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
                 <div id="analytics-store-summary"></div>
+                <div class="list-pagination" id="analytics-store-pagination" hidden></div>
             </section>
             <section>
                 <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
                 <div id="analytics-category-summary"></div>
+                <div class="list-pagination" id="analytics-category-pagination" hidden></div>
             </section>
         </div>
         <div class="rate-chart-container"><canvas id="ocr-analytics-chart"></canvas></div>
@@ -431,12 +445,10 @@
             </div>
             <div class="store-list" id="store-list">
                 <?php foreach ($userSettings['stores'] as $store):
-                    $fn = preg_replace('/[^a-zA-Z0-9]/', '_', $store['name']);
-                    $safe = getSafeFolderName($currentUser);
-                    $storePhoto = file_exists(APPS_DATA_DIR . "$safe/store_$fn.png") ? "users/$safe/store_$fn.png" : (file_exists(APPS_DATA_DIR . "$safe/store_$fn.jpg") ? "users/$safe/store_$fn.jpg" : null);
+                    $storePhoto = (string)($store['photo_url'] ?? '');
                 ?>
                     <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>">
-                        <?php if ($storePhoto): ?><img src="<?= $storePhoto ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>"><?php endif; ?>
+                        <?php if ($storePhoto): ?><img src="<?= htmlspecialchars($storePhoto) ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>" onerror="this.remove()"><?php endif; ?>
                         <span style="flex:1;"><?= htmlspecialchars($store['name']) ?></span>
                         <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)" title="<?= htmlspecialchars($translations['visible'] ?? 'Visible') ?>">
                             <?php if ($store['visible']): ?>
@@ -775,12 +787,11 @@
         <h4><?= htmlspecialchars($translations['existing_backups_for']) ?> <?= htmlspecialchars($displayName) ?></h4>
         <div id="backup-list" style="max-height:300px;overflow-y:auto;">
             <?php
-            $userBackupDir = getUserBackupDir($currentUser);
-            $backups = glob("$userBackupDir/*.csv") ?: [];
+            $backups = spends_list_backups($currentUser);
             foreach ($backups as $backup):
-                $filename = basename($backup);
-                $fileSize = round(filesize($backup)/1024, 2) . ' KB';
-                $fileDate = date('Y-m-d H:i:s', filemtime($backup));
+                $filename = $backup['name'];
+                $fileSize = round($backup['size']/1024, 2) . ' KB';
+                $fileDate = date('Y-m-d H:i:s', $backup['mtime']);
             ?>
                 <div class="backup-item">
                     <div style="flex:1;margin-right:20px;">

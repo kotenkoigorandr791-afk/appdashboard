@@ -5,24 +5,32 @@ $docColor = preg_match('/^#[0-9a-fA-F]{6}$/', (string)($config['color'] ?? '')) 
 $docsDir = dirname(__DIR__, 3) . '/docs';
 $docsFiles = [];
 if (is_dir($docsDir)) {
-    foreach (scandir($docsDir) ?: [] as $file) {
-        if (!preg_match('/^\d+_[a-z0-9_]+\.md$/i', $file)) continue;
-        $filePath = $docsDir . '/' . $file;
+    $iterator = new RecursiveIteratorIterator(
+        new RecursiveDirectoryIterator($docsDir, RecursiveDirectoryIterator::SKIP_DOTS),
+        RecursiveIteratorIterator::SELF_FIRST
+    );
+    foreach ($iterator as $file) {
+        if (!$file->isFile() || $file->getExtension() !== 'md') continue;
+        $filePath = $file->getRealPath();
         $content = @file_get_contents($filePath);
         if (!is_string($content)) continue;
-        $title = $file;
+        $relativePath = str_replace($docsDir . DIRECTORY_SEPARATOR, '', $filePath);
+        $relativePath = str_replace('\\', '/', $relativePath);
+        $title = basename($relativePath, '.md');
         if (preg_match('/^#\s+(.+)$/m', $content, $m)) $title = trim($m[1]);
         $description = '';
-        if (preg_match('/^##\s+(.+)$/m', $content, $m)) $description = trim($m[1]);
+        if (preg_match('/^(?:##|>\s*)(.+)$/m', $content, $m)) $description = trim($m[1]);
+        $category = dirname($relativePath) !== '.' ? dirname($relativePath) : 'General';
         $docsFiles[] = [
-            'filename' => $file,
+            'filename' => $relativePath,
             'title' => $title,
             'description' => $description,
-            'modified' => @filemtime($filePath) ?: time(),
+            'category' => $category,
+            'modified' => $file->getMTime(),
             'readTime' => (int)ceil(max(1, str_word_count($content)) / 200),
         ];
     }
-    usort($docsFiles, static fn($a, $b) => strcmp($a['filename'], $b['filename']));
+    usort($docsFiles, static fn($a, $b) => strcmp($a['category'], $b['category']) ?: strcmp($a['filename'], $b['filename']));
 }
 $docT = static function (string $key, string $default = '') use ($translations): string {
     return (string)($translations[$key] ?? $default);
@@ -142,9 +150,21 @@ $docAccentHover = sprintf('#%02x%02x%02x', $r, $g, $b);
         <div id="docsGrid" class="docs-grid">
             <?php if (!$docsFiles): ?>
                 <div class="doc-empty"><?php echo htmlspecialchars($docT('no_docs_found', 'No documentation files found')); ?></div>
-            <?php else: foreach ($docsFiles as $index => $doc): ?>
+            <?php else:
+                $grouped = [];
+                foreach ($docsFiles as $doc) {
+                    $cat = $doc['category'] ?? 'General';
+                    if (!isset($grouped[$cat])) $grouped[$cat] = [];
+                    $grouped[$cat][] = $doc;
+                }
+                foreach ($grouped as $category => $docs):
+            ?>
+                <div class="doc-category-section" style="grid-column:1/-1">
+                    <h2 class="doc-category-title" style="font-size:14px;font-weight:600;color:var(--text-secondary);margin:16px 0 12px;text-transform:uppercase;letter-spacing:0.5px"><?php echo htmlspecialchars(ucwords(str_replace(['-', '_', '/'], ' ', $category))); ?></h2>
+                </div>
+                <?php foreach ($docs as $index => $doc): ?>
                 <button type="button" class="doc-tile" data-doc-action="open" data-filename="<?php echo htmlspecialchars($doc['filename'], ENT_QUOTES, 'UTF-8'); ?>">
-                    <?php if ($index < 3): ?><span class="doc-tile-badge">Popular</span><?php endif; ?>
+                    <?php if ($category === 'General' && $index < 3): ?><span class="doc-tile-badge">Popular</span><?php endif; ?>
                     <div class="doc-tile-icon" aria-hidden="true">
                         <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
                     </div>
@@ -152,7 +172,7 @@ $docAccentHover = sprintf('#%02x%02x%02x', $r, $g, $b);
                     <div class="doc-tile-desc"><?php echo htmlspecialchars($doc['description']); ?></div>
                     <div class="doc-tile-meta"><?php echo (int)$doc['readTime']; ?> <?php echo htmlspecialchars($docT('minutes', 'min')); ?> · <?php echo date('M d, Y', (int)$doc['modified']); ?></div>
                 </button>
-            <?php endforeach; endif; ?>
+                <?php endforeach; endforeach; endif; ?>
         </div>
         <div id="docView" class="doc-view is-hidden">
             <div class="doc-view-header">

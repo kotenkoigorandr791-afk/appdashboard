@@ -181,11 +181,13 @@
             state.snapshots = data.snapshots || [];
             state.repoOk = true;
             renderSnapshots();
+            renderOverview();
             updateStatus();
         }).catch(function (err) {
             state.snapshots = [];
             state.repoOk = false;
             renderSnapshots();
+            renderOverview();
             updateStatus();
             setAlert('warn', err.message);
         });
@@ -246,22 +248,21 @@
 
     function renderBackups() {
         var root = state.root;
-        var body = el(root, '#bdp-backups-body');
+        var body = el(root, '#bdp-backups-grid');
         var empty = el(root, '#bdp-backups-empty');
         if (!body) return;
         var list = state.backups || [];
         if (!list.length) {
-            body.innerHTML = '<tr><td colspan="7"><div class="bdp-empty">' + esc(t('no_backups')) + '</div></td></tr>';
+            body.innerHTML = '<div class="bdp-empty">' + esc(t('no_backups')) + '</div>';
             if (empty) empty.hidden = false;
+            renderOverview();
             return;
         }
         if (empty) empty.hidden = true;
         body.innerHTML = list.map(function (p) {
-            var sources = (p.sources || []).slice(0, 2).map(function (s) {
-                return '<span class="bdp-mono">' + esc(s) + '</span>';
-            }).join('<br>');
-            var more = (p.sources || []).length > 2
-                ? '<div class="bdp-muted">+' + ((p.sources || []).length - 2) + '</div>' : '';
+            var sources = (p.sources || []).map(function (s) {
+                return '<span class="bdp-chip bdp-mono">' + esc(s) + '</span>';
+            }).join('');
             var job = profileStatus(p.id || '');
             var status = '<span class="bdp-badge queued">—</span>';
             var lastRun = t('never_run');
@@ -270,21 +271,101 @@
                 if (job.finished_at) lastRun = fmtDate(job.finished_at);
             }
             var nextRun = p.enabled ? (profileNextRun(p) ? fmtDate(profileNextRun(p)) : '—') : t('manual');
-            return '<tr data-bdp-profile="' + esc(p.id) + '">'
-                + '<td data-label="' + esc(t('name')) + '"><strong>' + esc(p.name || '') + '</strong>'
-                + (p.description ? '<div class="bdp-muted">' + esc(p.description) + '</div>' : '')
-                + (p.enabled ? '' : '<div class="bdp-muted">' + esc(t('manual')) + '</div>') + '</td>'
-                + '<td class="bdp-paths" data-label="' + esc(t('sources')) + '">' + (sources || '<span class="bdp-muted">—</span>') + more + '</td>'
-                + '<td data-label="' + esc(t('schedule')) + '">' + esc(scheduleSummary(p.schedule)) + '<div class="bdp-muted">' + esc(retentionSummary(p.retention)) + '</div></td>'
-                + '<td data-label="' + esc(t('job_status')) + '">' + status + '</td>'
-                + '<td class="bdp-muted" data-label="' + esc(t('last_run')) + '">' + esc(lastRun) + '</td>'
-                + '<td class="bdp-muted" data-label="' + esc(t('next_run')) + '">' + esc(nextRun) + '</td>'
-                + '<td data-label="' + esc(t('actions')) + '"><div class="bdp-actions">'
+            var repo = p.repository || t('repo_not_configured');
+            return '<article class="bdp-backup-card' + (p.mandatory ? ' is-protected' : '') + '" data-bdp-profile="' + esc(p.id) + '">'
+                + '<div class="bdp-backup-head"><div class="bdp-backup-ident">'
+                + '<div class="bdp-backup-name">' + esc(p.name || '') + (p.mandatory ? '<span class="bdp-badge success">Required</span>' : '') + '</div>'
+                + '<div class="bdp-backup-repo bdp-mono" title="' + esc(repo) + '">' + esc(repo) + '</div></div>'
+                + status + '</div>'
+                + '<div class="bdp-backup-meta">'
+                + '<div><span>' + esc(t('schedule')) + '</span><strong>' + esc(scheduleSummary(p.schedule)) + '</strong><small>' + esc(retentionSummary(p.retention)) + '</small></div>'
+                + '<div><span>' + esc(t('last_run')) + '</span><strong>' + esc(lastRun) + '</strong><small>' + esc(t('next_run')) + ': ' + esc(nextRun) + '</small></div>'
+                + '</div>'
+                + '<div class="bdp-source-chips">' + (sources || '<span class="bdp-muted">—</span>') + '</div>'
+                + '<div class="bdp-backup-actions">'
                 + '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-primary" data-bdp-action="run_backup" data-profile="' + esc(p.id) + '">' + esc(t('run_now')) + '</button>'
                 + '<button type="button" class="bdp-btn bdp-btn-sm" data-bdp-action="edit_backup" data-profile="' + esc(p.id) + '">' + esc(t('edit')) + '</button>'
-                + '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-danger" data-bdp-action="delete_backup" data-profile="' + esc(p.id) + '">' + esc(t('delete')) + '</button>'
-                + '</div></td>'
-                + '</tr>';
+                + (p.mandatory
+                    ? '<span class="bdp-lock" title="Required backup of this application\'s user data">Protected</span>'
+                    : '<button type="button" class="bdp-btn bdp-btn-sm bdp-btn-danger" data-bdp-action="delete_backup" data-profile="' + esc(p.id) + '">' + esc(t('delete')) + '</button>')
+                + '</div></article>';
+        }).join('');
+        renderOverview();
+    }
+
+    function renderOverview() {
+        var root = state.root;
+        if (!root) return;
+        var list = state.backups || [];
+        var configured = list.filter(function (p) { return p.repository && p.has_password !== false; }).length;
+        var mandatory = list.filter(function (p) { return p.mandatory; })[0] || null;
+        var active = activeRepoProfile();
+        var snapshots = state.snapshots || [];
+        var last = snapshots[0] ? snapshots[0].time : '';
+        var next = active && active.enabled ? profileNextRun(active) : (state.nextRun || 0);
+        var healthy = !!(mandatory && mandatory.repository && last);
+        var pct = healthy ? 100 : (configured > 0 ? 55 : 0);
+        var ring = el(root, '#bdp-ring');
+        if (ring) ring.style.setProperty('--pct', pct);
+        function set(id, value) { var node = el(root, id); if (node) node.textContent = value; }
+        set('#bdp-ring-value', healthy ? '100%' : (pct ? pct + '%' : '—'));
+        var ringLabel = el(root, '#bdp-ring-label');
+        if (ringLabel) ringLabel.textContent = healthy ? t('ring_protected') : t('ring_label');
+        set('#bdp-kpi-backups', String(list.length));
+        set('#bdp-kpi-snapshots', String(snapshots.length));
+        set('#bdp-kpi-last', last ? fmtDate(last) : '—');
+        set('#bdp-kpi-next', next ? fmtDate(next) : '—');
+        var title = el(root, '#bdp-hero-title');
+        var sub = el(root, '#bdp-hero-sub');
+        if (title) title.textContent = healthy ? t('hero_protected') : (configured ? t('hero_attention') : t('hero_setup'));
+        if (sub) sub.textContent = healthy
+            ? t('hero_protected_sub')
+            : (configured ? t('hero_attention_sub') : t('hero_setup_sub'));
+        var run = el(root, '#bdp-run-active');
+        if (run) run.setAttribute('data-profile', state.activeRepo || ((list[0] || {}).id || ''));
+        var countBackups = el(root, '#bdp-tab-count-backups');
+        if (countBackups) countBackups.textContent = String(list.length);
+        var countSnapshots = el(root, '#bdp-tab-count-snapshots');
+        if (countSnapshots) countSnapshots.textContent = String(snapshots.length);
+        var countJobs = el(root, '#bdp-tab-count-jobs');
+        if (countJobs) countJobs.textContent = String((state.jobs || []).length);
+        renderProtectionChart(root, snapshots);
+        renderProtectionHealth(root, list, snapshots, mandatory, configured);
+    }
+
+    function renderProtectionChart(root, snapshots) {
+        var box = el(root, '#bdp-chart-bars');
+        if (!box) return;
+        var list = (snapshots || []).slice(0, 10).reverse();
+        if (!list.length) {
+            box.innerHTML = '<div class="bdp-empty">' + esc(t('no_snapshots_chart')) + '</div>';
+            return;
+        }
+        var values = list.map(function (s) { return Math.max(1, Number(s.files) || Number(s.size) || 1); });
+        var max = Math.max.apply(Math, values);
+        box.innerHTML = '<div class="bdp-spark">' + list.map(function (s, i) {
+            var h = Math.max(8, Math.round(values[i] / max * 100));
+            var when = s.time ? String(s.time).slice(0, 10) : '';
+            return '<div class="bdp-spark-col" title="' + esc(when) + ' · ' + esc(fmtSize(s.size)) + ' · ' + (s.files || 0) + ' files">'
+                + '<span style="height:' + h + '%"></span><small>' + esc(when.slice(5)) + '</small></div>';
+        }).join('') + '</div>';
+    }
+
+    function renderProtectionHealth(root, list, snapshots, mandatory, configured) {
+        var box = el(root, '#bdp-health-list');
+        if (!box) return;
+        var snap = (snapshots || [])[0] || null;
+        var running = (state.jobs || []).filter(function (j) { return j.status === 'running' || j.status === 'queued'; }).length;
+        var rows = [
+            { label: t('health_repo'), value: configured ? t('health_configured') : t('not_configured'), ok: configured > 0, detail: state.repoOk ? t('health_connection_ok') : t('health_check_repo') },
+            { label: t('health_app_data'), value: mandatory ? t('health_required_profile') : t('health_missing_profile'), ok: !!mandatory, detail: mandatory ? t('health_policy_ok') : t('health_create_mandatory') },
+            { label: t('health_latest_snapshot'), value: snap ? fmtDate(snap.time) : t('never'), ok: !!snap, detail: snap ? t('health_files_size', { files: snap.files || 0, size: fmtSize(snap.size) }) : t('health_no_recovery') },
+            { label: t('health_running_jobs'), value: running ? String(running) : t('health_idle'), ok: running === 0, detail: running ? t('health_in_progress') : t('health_nothing_running') }
+        ];
+        box.innerHTML = rows.map(function (row) {
+            return '<div class="bdp-health-row"><span class="bdp-health-dot ' + (row.ok ? 'ok' : 'warn') + '"></span>'
+                + '<div><strong>' + esc(row.label) + '</strong><small>' + esc(row.detail) + '</small></div>'
+                + '<span>' + esc(row.value) + '</span></div>';
         }).join('');
     }
 
@@ -306,6 +387,8 @@
             body.innerHTML = '<tr><td colspan="6"><div class="bdp-empty">' + esc(t('no_snapshots')) + '</div></td></tr>';
             return;
         }
+        var countSnapshots = el(root, '#bdp-tab-count-snapshots');
+        if (countSnapshots) countSnapshots.textContent = String((state.snapshots || []).length);
         body.innerHTML = state.snapshots.map(function (snap) {
             var paths = (snap.paths || []).map(function (p) { return esc(p); }).join('<br>');
             var tags = (snap.tags || []).map(function (tg) { return '<span class="bdp-badge">' + esc(tg) + '</span>'; }).join(' ');
@@ -334,6 +417,8 @@
         var meta = el(root, '#bdp-job-meta');
         if (!body) return;
         var jobs = state.jobs || [];
+        var countJobs = el(root, '#bdp-tab-count-jobs');
+        if (countJobs) countJobs.textContent = String(jobs.length);
         if (meta) meta.textContent = jobs.length ? (jobs.length + ' ' + t('total')) : '';
         if (!jobs.length) {
             body.innerHTML = '<tr><td colspan="6"><div class="bdp-empty">' + esc(t('no_jobs')) + '</div></td></tr>';
@@ -1064,9 +1149,38 @@
         }
     }
 
+    function showTab(name, persist) {
+        var valid = ['overview', 'backups', 'snapshots', 'maintenance', 'jobs'];
+        if (valid.indexOf(name) === -1) name = 'overview';
+        Array.prototype.forEach.call(state.root.querySelectorAll('[data-bdp-tab]'), function (tab) {
+            var active = tab.getAttribute('data-bdp-tab') === name;
+            tab.classList.toggle('active', active);
+            tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        });
+        Array.prototype.forEach.call(state.root.querySelectorAll('[data-bdp-panel]'), function (panel) {
+            var active = panel.getAttribute('data-bdp-panel') === name;
+            panel.classList.toggle('active', active);
+            panel.hidden = !active;
+        });
+        if (persist !== false) { try { localStorage.setItem('bdp.activeTab', name); } catch (e) {} }
+    }
+
     function bind(root) {
         if (root._bdpBound) return;
         root.addEventListener('click', function (event) {
+            var tip = event.target.closest('.bdp-tip');
+            if (tip && root.contains(tip)) {
+                event.preventDefault();
+                var open = tip.classList.contains('is-open');
+                Array.prototype.forEach.call(root.querySelectorAll('.bdp-tip.is-open'), function (n) { n.classList.remove('is-open'); });
+                if (!open) tip.classList.add('is-open');
+                return;
+            }
+            var tab = event.target.closest('[data-bdp-tab]');
+            if (tab && root.contains(tab)) {
+                showTab(tab.getAttribute('data-bdp-tab'));
+                return;
+            }
             var target = event.target.closest('[data-bdp-action]');
             if (target && root.contains(target)) {
                 event.preventDefault();
@@ -1163,6 +1277,18 @@
         var wizardModal = el(root, '#bdp-wizard');
         if (wizardModal) wizardModal.addEventListener('click', function (event) { if (event.target === wizardModal) closeWizard(); });
         document.addEventListener('keydown', function (event) {
+            if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 's') {
+                if (state.wizard && state.wizard.open) {
+                    event.preventDefault();
+                    if (state.wizard.step === WIZARD_STEPS - 1) {
+                        wizardSubmit();
+                    } else {
+                        var nextBtn = el(state.root, '#bdp-wz-next');
+                        if (nextBtn && !nextBtn.hidden) nextBtn.click();
+                    }
+                }
+                return;
+            }
             if (event.key !== 'Escape') return;
             if (modal && !modal.hidden) closeModal();
             if (wizardModal && !wizardModal.hidden) closeWizard();
@@ -1182,6 +1308,9 @@
         root._bdpI18n = JSON.parse(root.getAttribute('data-bdp-i18n') || '{}');
         applyI18n(root);
         bind(root);
+        var saved = 'overview';
+        try { saved = localStorage.getItem('bdp.activeTab') || 'overview'; } catch (e) {}
+        showTab(saved, false);
         loadAll(true);
         setInterval(function () {
             if (!document.body.contains(root)) return;
@@ -1200,6 +1329,13 @@
         Array.prototype.forEach.call(root.querySelectorAll('[data-bdp-i18n-ph]'), function (node) {
             var key = node.getAttribute('data-bdp-i18n-ph');
             if (dict[key]) node.setAttribute('placeholder', dict[key]);
+        });
+        Array.prototype.forEach.call(root.querySelectorAll('[data-bdp-tip]'), function (node) {
+            var key = node.getAttribute('data-bdp-tip');
+            if (!dict[key]) return;
+            node.setAttribute('data-tip', dict[key]);
+            var ariaKey = node.getAttribute('data-bdp-tip-aria');
+            if (ariaKey && dict[ariaKey]) node.setAttribute('aria-label', dict[ariaKey]);
         });
     }
 

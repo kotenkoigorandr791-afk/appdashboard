@@ -20,6 +20,8 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import orbit.nex.steps.location.LocationUploader
+import orbit.nex.steps.location.UploadReport
 import org.json.JSONObject
 import java.time.Instant
 import java.util.UUID
@@ -109,17 +111,79 @@ class SyncManager(private val context: Context) {
     }
 
     suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> {
+        // Coordinates wait in their own outbox and are not part of the health read,
+        // so a manual "sync now" has to drain them explicitly; otherwise points
+        // stay pending until the periodic upload worker happens to run.
+        val locationPending = flushLocationOutbox(targetWebhooks)
         if (!syncMutex.tryLock()) {
             return Result.success(SyncResult.AlreadyRunning)
         }
         return try {
-            performSyncInternal(timeRangeDays, start, end, syncType, targetWebhooks, autoResolveConflict)
+            val result = performSyncInternal(
+                timeRangeDays, start, end, syncType, targetWebhooks, autoResolveConflict, locationPending,
+            )
+            // Health data may be empty while coordinates were just uploaded, so
+            // "no data" would wrongly report that nothing happened.
+            val uploaded = (locationPending?.accepted ?: 0) + (locationPending?.duplicate ?: 0)
+            val outcome = result.getOrNull()
+            if (outcome is SyncResult.NoData || outcome is SyncResult.NoMatchingData) {
+                // No webhook POST carried the points, so this run gets its own row.
+                logLocationOnlySync(syncType, locationPending, uploaded)
+                if (uploaded > 0 && outcome is SyncResult.NoData) {
+                    Result.success(SyncResult.Success(emptyMap()))
+                } else {
+                    result
+                }
+            } else {
+                result
+            }
         } finally {
             syncMutex.unlock()
         }
     }
 
-    private suspend fun performSyncInternal(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> = withContext(Dispatchers.IO) {
+    /**
+     * Uploads whatever sits in the location outbox and returns the report, or null
+     * when tracking is off or nothing was queued.
+     */
+    private suspend fun flushLocationOutbox(targetWebhooks: List<WebhookConfig>?): UploadReport? {
+        // Already recorded points stay queued after the user switches tracking off,
+        // so the manual sync must still be able to deliver them.
+        if (preferencesManager.isWifiOnly() && !isWifiConnected()) return null
+        val config = (targetWebhooks?.filter { it.isEnabled } ?: preferencesManager.getWebhookConfigs())
+            .firstOrNull { it.isEnabled } ?: return null
+        return runCatching { LocationUploader(context).uploadPending(config, preferencesManager) }.getOrNull()
+    }
+
+    /**
+     * One row for a sync run that only delivered coordinates, so the log never
+     * shows a sync with nothing behind it.
+     */
+    private fun logLocationOnlySync(syncType: String, report: UploadReport?, uploaded: Int) {
+        if (report == null) return
+        if (uploaded == 0 && report.error == null) return
+        val config = preferencesManager.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return
+        val message = when {
+            report.error != null -> "Sync failed: ${report.error}"
+            else -> "Sync: $uploaded location points"
+        }
+        preferencesManager.addWebhookLog(
+            WebhookLog(
+                id = UUID.randomUUID().toString(),
+                timestamp = System.currentTimeMillis(),
+                url = config.url,
+                statusCode = if (report.error == null) 200 else null,
+                success = report.error == null,
+                errorMessage = message,
+                dataType = "all",
+                recordCount = uploaded,
+                syncType = syncType,
+                deliveryFormat = WebhookLog.FORMAT_JSON,
+            )
+        )
+    }
+
+    private suspend fun performSyncInternal(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false, locationReport: UploadReport? = null): Result<SyncResult> = withContext(Dispatchers.IO) {
         /*
         Supports two modes:
         - timeRangeDays: the amount of days in the past to sync.
@@ -143,6 +207,11 @@ class SyncManager(private val context: Context) {
             if (enabledTypes.isEmpty()) {
                 return@withContext Result.failure(Exception("No data types enabled"))
             }
+
+            // Coordinates already uploaded by this run are reported in the same
+            // log row as the health payload.
+            val locationUploaded = (locationReport?.accepted ?: 0) + (locationReport?.duplicate ?: 0)
+            val locationNote = if (locationUploaded > 0) "$locationUploaded location points" else null
 
             // Keep incremental sync only for default mode.
             // Explicit ranges (start/end or timeRangeDays) always perform a full read of that window.
@@ -237,7 +306,9 @@ class SyncManager(private val context: Context) {
                                 dataType = "all",
                                 recordCount = totalRecords,
                                 syncType = syncType,
-                                payload = payload
+                                payload = payload,
+                                extraRecordCount = locationUploaded,
+                                extraNote = locationNote,
                             )
                             manager.postData(payload)
                         }
@@ -261,7 +332,7 @@ class SyncManager(private val context: Context) {
                                 payload = grpcPayload,
                                 context = context,
                                 dataType = "all",
-                                recordCount = totalRecords,
+                                recordCount = totalRecords + locationUploaded,
                                 syncType = syncType,
                                 logPayload = logJson
                             )
@@ -402,10 +473,12 @@ class SyncManager(private val context: Context) {
             }
             val body = JSONObject()
                 .put("action", action)
+                .put("id", obj.optString("id"))
                 .toString()
                 .toRequestBody("application/json; charset=utf-8".toMediaType())
             val builder = Request.Builder().url(url).post(body)
             config.headers.forEach { (key, value) -> builder.addHeader(key, value) }
+            builder.header("X-Device-Id", preferencesManager.getDeviceId())
             OkHttpClient().newCall(builder.build()).execute().use { response ->
                 val success = response.isSuccessful
                 preferencesManager.addWebhookLog(

@@ -10,4 +10,33 @@
     <!-- NexSteps brand background, matches the launcher icon artwork. -->
     <color name="splash_background">#FF031A3C</color>
     <color name="launcher_background">#FF031A3C</color>
+
+    <!--
+        Tracking notification palette. The service picks the day or night set at
+        runtime (see LocationTrackingService.notificationPalette) because the app
+        can force a theme that differs from the system night mode, and RemoteViews
+        are inflated by the system process with the system configuration.
+    -->
+    <color name="notif_day_card_start">#FFFFFFFF</color>
+    <color name="notif_day_card_end">#FFF1F5FB</color>
+    <color name="notif_day_card_stroke">#1F0F172A</color>
+    <color name="notif_day_chip_fill">#FFEDF2FA</color>
+    <color name="notif_day_chip_stroke">#220F172A</color>
+    <color name="notif_day_label">#FF56657C</color>
+    <color name="notif_day_value">#FF0B4F6C</color>
+    <color name="notif_day_pending">#FF8A5200</color>
+    <color name="notif_day_icon_bg">#FFDCE9F7</color>
+    <color name="notif_day_stop_fill">#FFFDECEC</color>
+    <color name="notif_day_stop_stroke">#33B91C1C</color>
+    <color name="notif_night_card_start">#FF031A3C</color>
+    <color name="notif_night_card_end">#FF0A2C57</color>
+    <color name="notif_night_card_stroke">#332C5B93</color>
+    <color name="notif_night_chip_fill">#1AFFFFFF</color>
+    <color name="notif_night_chip_stroke">#26FFFFFF</color>
+    <color name="notif_night_label">#FF7FA3D1</color>
+    <color name="notif_night_value">#FF5FC8FF</color>
+    <color name="notif_night_pending">#FFFFC24B</color>
+    <color name="notif_night_icon_bg">#FF144A85</color>
+    <color name="notif_night_stop_fill">#FF3A1B22</color>
+    <color name="notif_night_stop_stroke">#337F1D2D</color>
 </resources>

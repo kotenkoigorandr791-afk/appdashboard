@@ -186,7 +186,7 @@
 
   function showAppLoading(app) {
     hideAppLoading();
-    var title = i18n.shell_application || 'ServerKherson';
+    var title = i18n.shell_application || 'NexOrbit';
     var sub = i18n.opening_app || 'Opening…';
     if (app && (app.name || app.folder)) {
       sub = (i18n.opening_app_named || 'Opening {name}…').replace('{name}', app.name || app.folder);
@@ -288,9 +288,12 @@
       }
     }
     currentFolder = folder;
+    // Update document title to reflect current app
+    var appTitle = (i18n.app || 'App') + ' | ' + (app.name || folder);
+    document.title = appTitle;
     var url = new URL(app.href, window.location.origin);
     if (push !== false) {
-      history.pushState({ shellApp: folder }, app.name || folder, url.pathname + url.search);
+      history.pushState({ shellApp: folder }, appTitle, url.pathname + url.search);
     }
     try {
       fetch('/main?app=' + encodeURIComponent(folder) + '&_visit=1', { method: 'GET', credentials: 'same-origin', keepalive: true }).catch(function () {});
@@ -325,12 +328,15 @@
     setMenuVars(null);
     try { window.__SHELL_ON_HOME = true; } catch (_) {}
     currentFolder = null;
+    // Update document title for home/dashboard
+    var homeTitle = i18n.shell_application || 'NexOrbit';
+    document.title = homeTitle;
     if (push !== false) {
       var url = new URL('/main', window.location.origin);
       url.searchParams.set('lang', lang);
       url.searchParams.set('theme', theme);
       if (color) url.searchParams.set('color', color);
-      history.pushState({ shellApp: null }, 'Shell', url.pathname + url.search);
+      history.pushState({ shellApp: null }, homeTitle, url.pathname + url.search);
     }
   }
 

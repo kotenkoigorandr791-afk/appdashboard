@@ -43,6 +43,9 @@ class WebhookManager(
     private val recordCount: Int? = null,
     private val syncType: String? = null,
     private val payload: String? = null,
+    /** Coordinates uploaded by the same sync run, folded into its single log row. */
+    private val extraRecordCount: Int = 0,
+    private val extraNote: String? = null,
     /** Optional overrides used by tests; production derives both from [context]. */
     private val deviceIdOverride: String? = null,
     private val userAgentOverride: String? = null
@@ -246,9 +249,9 @@ class WebhookManager(
                 url = url.redactSensitiveUrl(),
                 statusCode = statusCode,
                 success = success,
-                errorMessage = errorMessage?.redactSensitiveUrl(),
+                errorMessage = listOfNotNull(errorMessage, extraNote).joinToString(" · ").ifBlank { null }?.redactSensitiveUrl(),
                 dataType = dataType,
-                recordCount = recordCount,
+                recordCount = recordCount?.let { it + extraRecordCount },
                 responseTimeMs = responseTimeMs,
                 syncType = syncType,
                 payload = payload?.take(MAX_PAYLOAD_CHARS),

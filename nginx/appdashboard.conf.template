@@ -53,11 +53,19 @@ server {
     listen 8080 default_server;
     server_name _;
     server_tokens off;
+    port_in_redirect off;
 
     root /var/www/AppDashboard;
+    # Request bodies and proxied responses must be buffered on a volume, never
+    # in the container write layer. Directories are created by docker-entrypoint.sh.
+    client_body_temp_path __APPDATA_BASE_DIR__/nginx/client_body;
+    proxy_temp_path __APPDATA_BASE_DIR__/nginx/proxy;
+    fastcgi_temp_path __APPDATA_BASE_DIR__/nginx/fastcgi;
+    uwsgi_temp_path __APPDATA_BASE_DIR__/nginx/uwsgi;
+    scgi_temp_path __APPDATA_BASE_DIR__/nginx/scgi;
     index index.php index.html;
 
-    client_max_body_size 8m;
+    client_max_body_size 64m;
 
     brotli on;
     brotli_static on;
@@ -90,6 +98,34 @@ server {
     }
 
     location = /google7cb515c0a41e4548.html { }
+
+    # Runtime data lives on the APPDATA volume. The repository deliberately
+    # contains no symlinks, so the historical data URL prefixes are served
+    # straight from the volume (the same files the old links pointed at).
+    location ^~ /uploads/ {
+        alias /opt/ApplicationData/dashboard/uploads/;
+        location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
+    }
+    location ^~ /apps/films/uploads/ {
+        alias /opt/ApplicationData/films/uploads/;
+        location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
+    }
+    location ^~ /apps/recipes/products/ {
+        alias /opt/ApplicationData/recipes/products/;
+        location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
+    }
+    location ^~ /apps/recipes/recipes/ {
+        alias /opt/ApplicationData/recipes/recipes/;
+        location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
+    }
+    location ^~ /apps/steps/users/ {
+        alias /opt/ApplicationData/steps/;
+        location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
+    }
+    location ^~ /apps/smart_home/data/ {
+        alias /opt/ApplicationData/smart_home/data/;
+        location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
+    }
 
     location ~ ^/(uploads|apps/cloud/storage|apps/cloud/temp|apps/cloud/temp_convert|apps/cloud/transcription_uploads|apps/cloud/tts_output|apps/cloud/upload_sessions|apps/cloud/data|apps/map/uploads|apps/map/location_photos|apps/map/user_data|apps/films/comments|apps/spends/backups|apps/steps/users|apps/spends/users|apps/kanboard/data)/.*\.(php|php3|php4|php5|php7|php8|phtml|phar|phps|pht|phtm|inc|cgi|pl|py|rb|jsp|asp|aspx)$ {
         return 403;
@@ -571,6 +607,7 @@ server {
         if ($arg_download != "") { set $deny_protected 0; }
         if ($arg_display != "") { set $deny_protected 0; }
         if ($deny_protected = 1) { return 403; }
+        alias /opt/ApplicationData/films/comments/;
         try_files $uri =404;
     }
 
@@ -607,6 +644,20 @@ server {
         expires 1h;
     }
 
+
+    # Steps location API: bounded uploads, rate limits and a long import timeout.
+    location ^~ /apps/steps/api/ {
+        client_max_body_size 260m;
+        limit_req zone=appdashboard_api burst=240 nodelay;
+        fastcgi_request_buffering off;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php-fpm.sock;
+        fastcgi_read_timeout 300;
+        fastcgi_send_timeout 300;
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        fastcgi_param HTTP_AUTHORIZATION $http_authorization;
+        fastcgi_hide_header X-Powered-By;
+    }
     location ~ ^/apps/steps/(steps-mobile-app|upload_sessions)(/|$) {
         return 404;
     }
@@ -650,7 +701,7 @@ server {
     # Internal PHP includes under /project/ must never be requested directly:
     # they rely on the bootstrap chain and would leak paths via fatal errors.
     # Legitimate public API endpoints under /project/ are allow-listed.
-    location ~ ^/project/(?!weather_settings\.php$)(?!sharepoint/share_i18n\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$)(?!backup/index\.php$).*\.php$ {
+    location ~ ^/project/(?!weather_settings\.php$)(?!sharepoint/share_i18n\.php$)(?!performance/(index|server_monitor|monitor_stats)\.php$)(?!docker/index\.php$)(?!backup/index\.php$)(?!storage/index\.php$).*\.php$ {
         return 404;
     }
 

@@ -510,19 +510,30 @@ loadPDF();
 function updateZoomSelect(newScale) {
     const percent = Math.round(newScale * 100);
     let found = false;
+    let value = newScale.toFixed(2);
     for (let i = 0; i < zoomSelect.options.length; i++) {
         if (Math.abs(parseFloat(zoomSelect.options[i].value) - newScale) < 0.01) {
             zoomSelect.selectedIndex = i;
+            value = zoomSelect.options[i].value;
             found = true;
             break;
         }
     }
     if (!found) {
         const option = document.createElement('option');
-        option.value = newScale.toFixed(2);
+        option.value = value;
         option.text = percent + '%';
         option.selected = true;
         zoomSelect.add(option, zoomSelect.options[0]);
+    }
+    zoomSelect.value = value;
+    const wrapper = zoomSelect.closest('.ui-select');
+    if (wrapper) {
+        const selected = zoomSelect.options[zoomSelect.selectedIndex];
+        wrapper.querySelector('.ui-select-label').textContent = selected ? selected.textContent.trim() : '';
+        wrapper.querySelectorAll('.ui-select-item').forEach(item => {
+            item.setAttribute('aria-selected', item.dataset.value === zoomSelect.value ? 'true' : 'false');
+        });
     }
 }
 
@@ -530,8 +541,7 @@ function setViewerPreviewScale(nextScale, immediate = false) {
     if (!viewer || !Number.isFinite(nextScale) || !Number.isFinite(renderedScale) || renderedScale <= 0) return;
     const ratio = nextScale / renderedScale;
     viewer.classList.add('is-zooming');
-    // Disable transition to prevent horizontal scrollbar flicker
-    viewer.style.transition = 'none';
+    viewer.style.transition = immediate ? 'none' : 'transform 160ms ease-out';
     viewer.style.transformOrigin = 'top center';
     viewer.style.transform = `scale(${ratio})`;
 }
@@ -539,7 +549,6 @@ function setViewerPreviewScale(nextScale, immediate = false) {
 function clearViewerPreviewScale() {
     if (!viewer) return;
     viewer.classList.remove('is-zooming');
-    // Immediately reset scale without transition
     viewer.style.transition = 'none';
     viewer.style.transform = 'scale(1)';
 }
@@ -613,7 +622,7 @@ async function renderLineTextLayer(page, viewport, container) {
         for (const item of line.items) {
             if (previousEnd !== null) {
                 const gap = item.x - previousEnd;
-                if (gap > item.fontHeight * 0.15 && !text.endsWith(' ') && !item.str.startsWith(' ')) {
+                if (gap > item.fontHeight * 0.08 && !text.endsWith(' ') && !item.str.startsWith(' ')) {
                     text += ' ';
                 }
             }
@@ -631,6 +640,7 @@ async function renderLineTextLayer(page, viewport, container) {
         span.style.fontSize = fontSize.toFixed(2) + 'px';
         span.style.fontFamily = 'sans-serif';
         span.style.lineHeight = '1';
+        span.dataset.b = line.baseline.toFixed(1);
 
         measureCtx.font = `${fontSize}px sans-serif`;
         const naturalWidth = measureCtx.measureText(text).width;
@@ -655,6 +665,7 @@ async function buildRenderedPage(num, renderId) {
     const viewport = page.getViewport({scale, rotation});
     const wrapper = document.createElement('div');
     wrapper.className = 'page-wrapper';
+    wrapper.dataset.page = String(num);
     wrapper.style.width = viewport.width + 'px';
     wrapper.style.height = viewport.height + 'px';
     wrapper.style.margin = '0 auto 10px auto';
@@ -700,6 +711,10 @@ async function buildRenderedPage(num, renderId) {
     const textLayerDiv = document.createElement('div');
     textLayerDiv.className = 'text-layer';
     if (isDrawingMode) textLayerDiv.classList.add('no-select');
+    const endOfContent = document.createElement('div');
+    endOfContent.className = 'end-of-content';
+    textLayerDiv.appendChild(endOfContent);
+    textLayerDiv.addEventListener('mousedown', () => textLayerDiv.classList.add('selecting'));
     canvasContainer.appendChild(textLayerDiv);
     
     // Yield before text content
@@ -746,6 +761,77 @@ async function buildRenderedPage(num, renderId) {
     return { num, wrapper };
 }
 
+const joinedPages = new Set();
+
+function applyJoinedPages() {
+    const wrappers = viewer.querySelectorAll('.page-wrapper');
+    wrappers.forEach((w, idx) => {
+        const n = parseInt(w.dataset.page, 10);
+        w.classList.toggle('joined-next', joinedPages.has(n) && idx < wrappers.length - 1);
+        w.classList.toggle('joined-prev', idx > 0 && joinedPages.has(n - 1));
+    });
+}
+
+function toggleJoinAtPoint(clientY) {
+    const wrappers = Array.from(viewer.querySelectorAll('.page-wrapper'));
+    for (let i = 0; i < wrappers.length - 1; i++) {
+        const a = wrappers[i].getBoundingClientRect();
+        const b = wrappers[i + 1].getBoundingClientRect();
+        const n = parseInt(wrappers[i].dataset.page, 10);
+        const joined = joinedPages.has(n);
+        const hit = joined ? Math.abs(clientY - a.bottom) <= 4 : (clientY >= a.bottom && clientY <= b.top);
+        if (hit) {
+            if (joined) joinedPages.delete(n); else joinedPages.add(n);
+            applyJoinedPages();
+            return true;
+        }
+    }
+    return false;
+}
+
+let joinMouseDown = null;
+viewerContainer.addEventListener('mousedown', (e) => { joinMouseDown = { x: e.clientX, y: e.clientY }; });
+viewerContainer.addEventListener('click', (e) => {
+    if (typeof isDrawingMode !== 'undefined' && isDrawingMode) return;
+    if (!joinMouseDown || Math.hypot(e.clientX - joinMouseDown.x, e.clientY - joinMouseDown.y) > 3) return;
+    const sel = window.getSelection();
+    if (sel && !sel.isCollapsed) return;
+    toggleJoinAtPoint(e.clientY);
+});
+document.addEventListener('mouseup', () => {
+    document.querySelectorAll('.text-layer.selecting').forEach((el) => el.classList.remove('selecting'));
+});
+
+document.addEventListener('copy', (e) => {
+    const sel = window.getSelection();
+    if (!sel || sel.isCollapsed || !sel.rangeCount) return;
+    const range = sel.getRangeAt(0);
+    const spans = Array.from(document.querySelectorAll('.text-layer span')).filter((sp) => sp.firstChild && range.intersectsNode(sp));
+    if (!spans.length) return;
+    let out = '';
+    let prev = null;
+    for (const sp of spans) {
+        const node = sp.firstChild;
+        let t = node.textContent;
+        const start = range.startContainer === node ? range.startOffset : 0;
+        const end = range.endContainer === node ? range.endOffset : t.length;
+        t = t.slice(start, end);
+        if (!t) continue;
+        if (prev) {
+            if (prev.parentNode === sp.parentNode && prev.dataset.b === sp.dataset.b) {
+                if (!/\s$/.test(out) && !/^\s/.test(t)) out += ' ';
+            } else {
+                out += prev.parentNode === sp.parentNode ? '\n' : '\n\n';
+            }
+        }
+        out += t;
+        prev = sp;
+    }
+    if (!out) return;
+    e.clipboardData.setData('text/plain', out);
+    e.preventDefault();
+});
+
 async function renderAllPages() {
     if (!pdfDoc) return;
     
@@ -781,6 +867,7 @@ async function renderAllPages() {
             renderedPages++;
             nextPages[result.num] = result.wrapper;
             viewer.appendChild(result.wrapper);
+            applyJoinedPages();
             fileProgress.set(PDF_DOWNLOAD_WEIGHT + (renderedPages / totalPages) * renderSpan);
             
             // Small yield every page to keep UI responsive
@@ -825,15 +912,10 @@ function updateScale(newScale, immediate = true) {
     renderAborted = true;
     currentRenderId++;
     
-    // Hide scrollbar during scale transition to prevent flicker
-    viewerContainer.style.overflow = 'hidden';
-    
-    setViewerPreviewScale(newScale, !immediate);
+    setViewerPreviewScale(newScale, false);
     pendingRender = requestAnimationFrame(async () => {
         await renderAllPages();
         pendingRender = null;
-        // Restore overflow after render completes
-        viewerContainer.style.overflow = 'auto';
         requestAnimationFrame(() => {
             viewerContainer.scrollTop = scrollTop * (scale / oldScale);
             viewerContainer.scrollLeft = scrollLeft * (scale / oldScale);

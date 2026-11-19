@@ -87,6 +87,136 @@
     panel.append(head, list, form);
     document.body.appendChild(panel);
 
+    const resizeGrip = el('div', 'crv-resize-grip');
+    resizeGrip.title = 'Resize';
+    resizeGrip.setAttribute('aria-hidden', 'true');
+    resizeGrip.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" aria-hidden="true"><path d="M11 1 1 11M11 5 5 11M11 9 9 11" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>';
+    panel.appendChild(resizeGrip);
+
+    /* ---- make panel draggable by header + remember position ---- */
+    const POS_KEY = 'cloudReviewPanelPos';
+    const MIN_W = 300;
+    const MIN_H = 220;
+    const topLimit = () => 8 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--topbar-height')) || 56);
+    const bottomLimit = () => 8 + (parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--statusbar-height')) || 28);
+
+    function loadPos() {
+        try {
+            const p = JSON.parse(localStorage.getItem(POS_KEY) || 'null');
+            if (!p || !Number.isFinite(+p.left) || !Number.isFinite(+p.top)) return null;
+            return { left: +p.left, top: +p.top, width: +p.width || 0, height: +p.height || 0 };
+        } catch (_) { return null; }
+    }
+    function savePos(r) {
+        try {
+            localStorage.setItem(POS_KEY, JSON.stringify({
+                left: Math.round(r.left), top: Math.round(r.top),
+                width: Math.round(r.width), height: Math.round(r.height)
+            }));
+        } catch (_) {}
+    }
+    function applyPos(pos) {
+        if (!pos) {
+            panel.style.left = panel.style.top = panel.style.right = panel.style.bottom = '';
+            panel.style.width = panel.style.height = '';
+            panel.classList.remove('crv-dragged');
+            return;
+        }
+        const maxW = Math.max(160, window.innerWidth - 24);
+        const width = Math.min(maxW, Math.max(Math.min(MIN_W, maxW), pos.width || 390));
+        const maxH = Math.max(160, window.innerHeight - topLimit() - bottomLimit());
+        const height = Math.min(maxH, Math.max(Math.min(MIN_H, maxH), pos.height || maxH));
+        const left = Math.min(Math.max(8, pos.left), Math.max(8, window.innerWidth - width - 8));
+        const top = Math.min(Math.max(topLimit(), pos.top), Math.max(topLimit(), window.innerHeight - height - bottomLimit()));
+        panel.style.left = left + 'px';
+        panel.style.top = top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        panel.style.width = width + 'px';
+        panel.style.height = height + 'px';
+        panel.classList.add('crv-dragged');
+    }
+
+    head.addEventListener('mousedown', (e) => {
+        if (e.target.closest('button')) return; // don't drag when clicking buttons
+        if (e.button !== 0) return;
+        e.preventDefault();
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const rect = panel.getBoundingClientRect();
+        const origX = rect.left;
+        const origY = rect.top;
+        // Freeze the current size: the default layout stretches the panel between
+        // `top` and `bottom`, so removing `bottom` alone would collapse it.
+        panel.style.width = rect.width + 'px';
+        panel.style.height = rect.height + 'px';
+        panel.style.left = origX + 'px';
+        panel.style.top = origY + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        panel.classList.add('crv-dragged');
+        const onMove = (ev) => {
+            const left = Math.max(8, Math.min(window.innerWidth - rect.width - 8, origX + ev.clientX - startX));
+            const top = Math.max(topLimit(), Math.min(window.innerHeight - rect.height - bottomLimit(), origY + ev.clientY - startY));
+            panel.style.left = left + 'px';
+            panel.style.top = top + 'px';
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.userSelect = '';
+            savePos(panel.getBoundingClientRect());
+        };
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+    // Double-click the header restores the default docked position.
+    head.addEventListener('dblclick', (e) => {
+        if (e.target.closest('button')) return;
+        try { localStorage.removeItem(POS_KEY); } catch (_) {}
+        applyPos(null);
+    });
+    head.style.cursor = 'move';
+
+    /* ---- visible bottom-right resize grip ---- */
+    resizeGrip.addEventListener('mousedown', (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        e.stopPropagation();
+        const rect = panel.getBoundingClientRect();
+        // Switch from the default right/bottom anchoring to a fixed box so the
+        // panel grows from the grabbed corner instead of reflowing.
+        panel.style.left = rect.left + 'px';
+        panel.style.top = rect.top + 'px';
+        panel.style.right = 'auto';
+        panel.style.bottom = 'auto';
+        panel.style.width = rect.width + 'px';
+        panel.style.height = rect.height + 'px';
+        panel.classList.add('crv-dragged');
+        const startX = e.clientX;
+        const startY = e.clientY;
+        const startW = rect.width;
+        const startH = rect.height;
+        const onMove = (ev) => {
+            const maxW = Math.max(160, window.innerWidth - rect.left - 8);
+            const maxH = Math.max(160, window.innerHeight - rect.top - bottomLimit());
+            const w = Math.min(maxW, Math.max(MIN_W, startW + ev.clientX - startX));
+            const h = Math.min(maxH, Math.max(MIN_H, startH + ev.clientY - startY));
+            panel.style.width = w + 'px';
+            panel.style.height = h + 'px';
+        };
+        const onUp = () => {
+            document.removeEventListener('mousemove', onMove);
+            document.removeEventListener('mouseup', onUp);
+            document.body.style.userSelect = '';
+            savePos(panel.getBoundingClientRect());
+        };
+        document.body.style.userSelect = 'none';
+        document.addEventListener('mousemove', onMove);
+        document.addEventListener('mouseup', onUp);
+    });
+
     const toast = el('div', 'crv-toast');
     toast.hidden = true;
     panel.appendChild(toast);
@@ -101,6 +231,10 @@
 
     function setOpen(open) {
         state.open = !!open;
+        if (state.open) {
+            // Restore the last dragged position (and size) if there is one.
+            applyPos(loadPos());
+        }
         panel.hidden = !state.open;
         document.getElementById('btn-review')?.classList.toggle('active', state.open);
         document.body.classList.toggle('crv-panel-open', state.open);
@@ -214,6 +348,7 @@
     /* ----------------------------------------------- parent Monaco markers */
 
     const parentMarkers = new WeakMap();
+    const parentClickBound = new WeakSet();
 
     function clearParentMarkers(ed) {
         const entry = parentMarkers.get(ed);
@@ -240,31 +375,34 @@
         const decorations = [];
         byLine.forEach((group, line) => {
             const endLine = Math.max(line, Math.min(model.getLineCount(), Number(group[0].end_line) || line));
+            // Inline comment chip: rendered in the line flow after the last
+            // character, so it never floats over / hides the source text.
             decorations.push({
                 range: new window.monaco.Range(line, 1, endLine, 1),
-                options: { isWholeLine: true, className: 'rv-line' }
+                options: {
+                    isWholeLine: true,
+                    className: 'rv-line',
+                    after: {
+                        content: '💬 ' + (((group[0].author ? group[0].author + ': ' : '') + (group[0].comment || group[0].suggestion || '')).slice(0, 90) || 'Review'),
+                        inlineClassName: 'rv-annot-inline',
+                        cursorStops: window.monaco.editor.InjectedTextCursorStops.None
+                    },
+                    hoverMessage: { value: group.map((i) => (i.author ? i.author + ': ' : '') + (i.comment || i.suggestion || '')).join('\n\n') }
+                }
             });
-            const node = el('div', 'rv-annot');
-            const dot = el('span', 'rv-annot-dot', group.length > 1 ? String(group.length) : '💬');
-            const text = el('span', 'rv-annot-text', ((group[0].author ? group[0].author + ': ' : '') + (group[0].comment || group[0].suggestion || '')).slice(0, 90) || 'Review');
-            node.title = group.map((i) => (i.author ? i.author + ': ' : '') + (i.comment || i.suggestion || '')).join('\n');
-            node.append(dot, text);
-            node.addEventListener('click', () => {
-                setOpen(true);
-                focusCard(group[0].id);
-                revealLine(line);
-            });
-            const widget = {
-                getId: () => 'rv-annot-' + state.tabId + '-' + line,
-                getDomNode: () => node,
-                getPosition: () => ({
-                    position: { lineNumber: line, column: model.getLineMaxColumn(line) },
-                    preference: [window.monaco.editor.ContentWidgetPositionPreference.EXACT]
-                })
-            };
-            ed.addContentWidget(widget);
-            widgets.push(widget);
         });
+        if (!parentClickBound.has(ed)) {
+            parentClickBound.add(ed);
+            ed.onMouseDown((ev) => {
+                const target = ev && ev.target && ev.target.element;
+                if (!target || !target.classList || !target.classList.contains('rv-annot-inline')) return;
+                const lineNo = ev.target.position && ev.target.position.lineNumber;
+                const item = (state.items || []).find((i) => i.status === 'open' && Number(i.start_line) === lineNo);
+                setOpen(true);
+                if (item) focusCard(item.id);
+                if (lineNo) revealLine(lineNo);
+            });
+        }
         const deco = ed.createDecorationsCollection(decorations);
         parentMarkers.set(ed, { widgets, deco });
     }

@@ -7,7 +7,8 @@ map $http_x_forwarded_proto $pass_proto {
     "" $scheme;
 }
 upstream appdashboard_backend {
-    server __APP_UPSTREAM__;
+    least_conn;
+__APP_UPSTREAM_SERVERS__
     keepalive 32;
 }
 server {
@@ -195,7 +196,7 @@ server {
         proxy_send_timeout 86400s;
         proxy_hide_header X-Frame-Options;
         proxy_hide_header Content-Security-Policy;
-        add_header Content-Security-Policy "frame-ancestors 'self' https://serverkherson.xyz" always;
+        add_header Content-Security-Policy "frame-ancestors 'self' https://nxorbit.top" always;
     }
 }
 server {

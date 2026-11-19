@@ -1,3 +1,4 @@
+﻿#bdp-app > * { flex-shrink: 0; }
 /* Backup Manager — scoped to #bdp-app so it can live inside the Admin Panel. */
 
 #bdp-app {
@@ -29,6 +30,16 @@
 }
 
 /* Standalone page palette (admin panel supplies the same variables). */
+
+/* Light theme override */
+#bdp-app[data-theme="light"] {
+    --bdp-bg: var(--bg-color, #f5f7fa);
+    --bdp-surface: color-mix(in srgb, var(--bg-color, #f5f7fa) 90%, var(--text-color, #1a2332) 10%);
+    --bdp-surface-2: color-mix(in srgb, var(--bg-color, #f5f7fa) 82%, var(--text-color, #1a2332) 18%);
+    --bdp-text: var(--text-color, #1a2332);
+    --bdp-muted: color-mix(in srgb, var(--text-color, #1a2332) 50%, transparent);
+    --bdp-border: var(--border-color, rgba(0, 0, 0, .12));
+}
 .bdp-body {
     margin: 0;
     padding: 0;
@@ -708,3 +719,313 @@
     #bdp-app .bdp-ml-auto { margin-left: 0; }
     #bdp-app .bdp-row .bdp-btn { white-space: normal; text-align: center; max-width: 100%; }
 }
+
+/* ---- friendly overview + backup cards ------------------------------- */
+#bdp-app .bdp-overview { display: flex; flex-direction: column; gap: 12px; }
+#bdp-app .bdp-hero {
+    display: flex; align-items: center; gap: 18px; flex-wrap: wrap;
+    padding: 20px; border-radius: 16px; border: 1px solid var(--bdp-border);
+    background: linear-gradient(135deg, color-mix(in srgb, var(--bdp-accent) 18%, var(--bdp-surface)), var(--bdp-surface));
+}
+#bdp-app .bdp-ring {
+    --pct: 0; width: 96px; height: 96px; flex: 0 0 96px; border-radius: 50%;
+    background: conic-gradient(var(--bdp-ok) calc(var(--pct) * 1%), color-mix(in srgb, var(--bdp-text) 12%, transparent) 0);
+    display: grid; place-items: center; position: relative;
+}
+#bdp-app .bdp-ring::before { content: ""; position: absolute; inset: 8px; border-radius: 50%; background: var(--bdp-surface); }
+#bdp-app .bdp-ring > div { position: relative; text-align: center; display: flex; flex-direction: column; }
+#bdp-app .bdp-ring strong { font-size: 20px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+#bdp-app .bdp-ring span { font-size: 9px; text-transform: uppercase; letter-spacing: .08em; color: var(--bdp-muted); }
+#bdp-app .bdp-hero-copy { flex: 1; min-width: 220px; }
+#bdp-app .bdp-eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--bdp-accent); }
+#bdp-app .bdp-hero-copy h2 { margin: 4px 0; font-size: 21px; line-height: 1.2; }
+#bdp-app .bdp-hero-copy p { margin: 0; color: var(--bdp-muted); font-size: 12px; max-width: 62ch; }
+#bdp-app .bdp-hero-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+#bdp-app .bdp-kpi-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; }
+#bdp-app .bdp-kpi { border: 1px solid var(--bdp-border); border-radius: 12px; background: var(--bdp-surface); padding: 11px 13px; display: flex; flex-direction: column; gap: 2px; }
+#bdp-app .bdp-kpi span { font-size: 10px; text-transform: uppercase; letter-spacing: .07em; color: var(--bdp-muted); }
+#bdp-app .bdp-kpi strong { font-size: 18px; font-variant-numeric: tabular-nums; }
+#bdp-app .bdp-kpi small { color: var(--bdp-muted); font-size: 10px; }
+#bdp-app .bdp-backup-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px; }
+#bdp-app .bdp-backup-card { border: 1px solid var(--bdp-border); border-radius: 13px; background: var(--bdp-surface-2); padding: 14px; display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+#bdp-app .bdp-backup-card.is-protected { border-color: color-mix(in srgb, var(--bdp-ok) 55%, var(--bdp-border)); box-shadow: inset 3px 0 0 var(--bdp-ok); }
+#bdp-app .bdp-backup-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+#bdp-app .bdp-backup-ident { min-width: 0; }
+#bdp-app .bdp-backup-name { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; font-size: 14px; font-weight: 700; }
+#bdp-app .bdp-backup-repo { color: var(--bdp-muted); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100%; }
+#bdp-app .bdp-backup-meta { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+#bdp-app .bdp-backup-meta > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+#bdp-app .bdp-backup-meta span { color: var(--bdp-muted); font-size: 9.5px; text-transform: uppercase; letter-spacing: .06em; }
+#bdp-app .bdp-backup-meta strong { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bdp-app .bdp-backup-meta small { color: var(--bdp-muted); font-size: 10px; }
+#bdp-app .bdp-source-chips { display: flex; flex-wrap: wrap; gap: 5px; max-height: 70px; overflow: hidden; }
+#bdp-app .bdp-chip { background: var(--bdp-surface); border: 1px solid var(--bdp-border); border-radius: 999px; padding: 3px 8px; font-size: 10px; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bdp-app .bdp-backup-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: auto; }
+#bdp-app .bdp-lock { font-size: 10px; color: var(--bdp-ok); border: 1px solid color-mix(in srgb, var(--bdp-ok) 55%, transparent); border-radius: 999px; padding: 3px 8px; font-weight: 700; }
+@media (max-width: 640px) {
+    #bdp-app .bdp-hero { padding: 14px; gap: 12px; }
+    #bdp-app .bdp-ring { width: 78px; height: 78px; flex-basis: 78px; }
+    #bdp-app .bdp-hero-copy h2 { font-size: 18px; }
+    #bdp-app .bdp-backup-meta { grid-template-columns: 1fr; }
+}
+
+/* ---------------------------------------------------------------------
+   Docker Manager visual system
+   The Backup panel intentionally reuses Docker Manager tokens, top bar,
+   stat cards, section headers, tables and buttons so both admin screens
+   feel like one product.
+   --------------------------------------------------------------------- */
+#bdp-app {
+    --bdp-bg: #0f1419;
+    --bdp-surface: #121820;
+    --bdp-surface-2: #1c2531;
+    --bdp-text: #f4f7fb;
+    --bdp-muted: rgba(255, 255, 255, .42);
+    --bdp-border: rgba(255, 255, 255, .14);
+    --bdp-accent: #007bff;
+    --bdp-ok: #4ade80;
+    --bdp-warn: #fbbf24;
+    --bdp-danger: #f87171;
+    --bdp-accent-muted: rgba(0, 123, 255, .14);
+    --bdp-ok-bg: rgba(74, 222, 128, .12);
+    --bdp-warn-bg: rgba(251, 191, 36, .12);
+    --bdp-danger-bg: rgba(248, 113, 113, .12);
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 13px;
+    gap: 16px;
+}
+#bdp-app .bdp-header {
+    align-items: center;
+    background: var(--bdp-surface);
+    border: 1px solid var(--bdp-border);
+    border-radius: 12px;
+    padding: 16px 24px;
+}
+#bdp-app .bdp-title { font-size: 22px; font-weight: 600; }
+#bdp-app .bdp-title svg { color: var(--bdp-accent); }
+#bdp-app .bdp-subtitle { font-size: 12px; margin-top: 3px; }
+#bdp-app .bdp-pill { padding: 6px 12px; border-radius: 20px; border-color: rgba(34, 211, 238, .25); background: var(--bdp-accent-muted); color: var(--bdp-accent); font-size: 12px; font-weight: 500; }
+#bdp-app .bdp-pill.ok { background: var(--bdp-ok-bg); color: var(--bdp-ok); border-color: rgba(74, 222, 128, .3); }
+#bdp-app .bdp-pill.error { background: var(--bdp-danger-bg); color: var(--bdp-danger); border-color: rgba(248, 113, 113, .35); }
+#bdp-app .bdp-pill.running { background: var(--bdp-warn-bg); color: var(--bdp-warn); border-color: rgba(251, 191, 36, .35); }
+
+/* tabs */
+#bdp-app .bdp-tabs {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px;
+    border: 1px solid var(--bdp-border);
+    border-radius: 12px;
+    background: var(--bdp-surface);
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+}
+#bdp-app .bdp-tabs::-webkit-scrollbar { display: none; }
+#bdp-app .bdp-tab {
+    appearance: none;
+    border: 0;
+    border-left: 3px solid transparent;
+    background: transparent;
+    color: var(--bdp-muted);
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 9px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    white-space: nowrap;
+    transition: background .2s, color .2s, border-color .2s;
+}
+#bdp-app .bdp-tab:hover { color: var(--bdp-text); background: var(--bdp-surface-2); }
+#bdp-app .bdp-tab.active { color: var(--bdp-accent); background: var(--bdp-accent-muted); border-left-color: var(--bdp-accent); font-weight: 600; }
+#bdp-app .bdp-tab-count { display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: rgba(255,255,255,.1); font-size: 10px; font-weight: 600; }
+#bdp-app .bdp-tab.active .bdp-tab-count { background: var(--bdp-accent); color: #fff; }
+
+/* sections */
+#bdp-app .bdp-card {
+    background: var(--bdp-surface);
+    border: 1px solid var(--bdp-border);
+    border-radius: 12px;
+    padding: 20px;
+    gap: 14px;
+}
+#bdp-app .bdp-card-head {
+    padding-bottom: 12px;
+    border-bottom: 1px solid var(--bdp-border);
+}
+#bdp-app .bdp-card-title {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 17px;
+    font-weight: 600;
+    text-transform: none;
+    letter-spacing: 0;
+}
+#bdp-app .bdp-card-title svg { color: var(--bdp-accent); }
+#bdp-app .bdp-muted { color: var(--bdp-muted); font-size: 12px; }
+
+/* overview */
+#bdp-app .bdp-overview { gap: 16px; }
+#bdp-app .bdp-hero {
+    background: var(--bdp-surface);
+    border: 1px solid var(--bdp-border);
+    border-radius: 12px;
+    padding: 20px;
+    gap: 18px;
+}
+#bdp-app .bdp-ring { width: 104px; height: 104px; flex-basis: 104px; }
+#bdp-app .bdp-ring::before { background: var(--bdp-surface); }
+#bdp-app .bdp-ring strong { font-size: 24px; }
+#bdp-app .bdp-hero-copy h2 { font-size: 22px; font-weight: 600; }
+#bdp-app .bdp-hero-copy p { font-size: 12px; color: var(--bdp-muted); }
+#bdp-app .bdp-eyebrow { color: var(--bdp-accent); font-weight: 600; }
+#bdp-app .bdp-kpi-grid { gap: 16px; }
+#bdp-app .bdp-kpi {
+    background: var(--bdp-surface);
+    border: 1px solid var(--bdp-border);
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    align-items: center;
+    justify-content: center;
+    transition: border-color .2s;
+}
+#bdp-app .bdp-kpi:hover { border-color: rgba(34, 211, 238, .35); }
+#bdp-app .bdp-kpi-icon { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center; color: var(--bdp-accent); background: var(--bdp-accent-muted); margin-bottom: 3px; }
+#bdp-app .bdp-kpi-icon.is-ok { color: var(--bdp-ok); background: var(--bdp-ok-bg); }
+#bdp-app .bdp-kpi-icon.is-warn { color: var(--bdp-warn); background: var(--bdp-warn-bg); }
+#bdp-app .bdp-kpi span:not(.bdp-kpi-icon), #bdp-app .bdp-kpi small { color: var(--bdp-muted); font-size: 13px; text-transform: none; letter-spacing: 0; }
+#bdp-app .bdp-kpi strong { font-size: 28px; font-weight: 700; line-height: 1.15; }
+#bdp-app .bdp-kpi small { font-size: 11px; }
+
+#bdp-app .bdp-overview-charts { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; }
+#bdp-app .bdp-mini-card { background: var(--bdp-surface); border: 1px solid var(--bdp-border); border-radius: 12px; padding: 18px; min-width: 0; }
+#bdp-app .bdp-mini-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 1px solid var(--bdp-border); }
+#bdp-app .bdp-mini-head strong { font-size: 14px; font-weight: 600; }
+#bdp-app .bdp-chart-bars { min-height: 76px; display: flex; align-items: flex-end; }
+#bdp-app .bdp-spark { display: flex; align-items: flex-end; gap: 6px; width: 100%; height: 86px; padding-top: 8px; }
+#bdp-app .bdp-spark-col { flex: 1; min-width: 8px; height: 100%; display: flex; flex-direction: column; justify-content: flex-end; align-items: center; gap: 5px; }
+#bdp-app .bdp-spark-col span { width: 100%; max-width: 34px; border-radius: 4px 4px 2px 2px; background: linear-gradient(180deg, var(--bdp-accent), rgba(0,123,255,.35)); transition: height .3s ease; }
+#bdp-app .bdp-spark-col:hover span { filter: brightness(1.2); }
+#bdp-app .bdp-spark-col small { font-size: 9px; color: var(--bdp-muted); white-space: nowrap; }
+#bdp-app .bdp-health-list { display: flex; flex-direction: column; }
+#bdp-app .bdp-health-row { display: grid; grid-template-columns: 10px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 9px 0; border-bottom: 1px solid var(--bdp-border); }
+#bdp-app .bdp-health-row:last-child { border-bottom: 0; }
+#bdp-app .bdp-health-dot { width: 8px; height: 8px; border-radius: 50%; }
+#bdp-app .bdp-health-dot.ok { background: var(--bdp-ok); }
+#bdp-app .bdp-health-dot.warn { background: var(--bdp-warn); }
+#bdp-app .bdp-health-row > div { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+#bdp-app .bdp-health-row strong { font-size: 12px; font-weight: 600; }
+#bdp-app .bdp-health-row small { color: var(--bdp-muted); font-size: 10.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#bdp-app .bdp-health-row > span:last-child { color: var(--bdp-muted); font-size: 11px; text-align: right; }
+
+/* backup cards */
+#bdp-app .bdp-backup-grid { gap: 14px; }
+#bdp-app .bdp-backup-card { background: var(--bdp-surface-2); border: 1px solid var(--bdp-border); border-radius: 10px; padding: 16px; }
+#bdp-app .bdp-backup-card.is-protected { border-color: rgba(74, 222, 128, .45); box-shadow: none; }
+#bdp-app .bdp-backup-name { font-size: 15px; font-weight: 600; }
+#bdp-app .bdp-backup-repo { font-size: 11px; }
+#bdp-app .bdp-backup-meta span { font-size: 10px; color: var(--bdp-muted); }
+#bdp-app .bdp-backup-meta strong { font-size: 12.5px; font-weight: 500; }
+#bdp-app .bdp-chip { background: var(--bdp-surface); border: 1px solid var(--bdp-border); border-radius: 5px; padding: 3px 7px; }
+
+/* buttons */
+#bdp-app .bdp-btn {
+    padding: 7px 11px;
+    border: 1px solid transparent;
+    border-radius: 8px;
+    background: #475569;
+    color: #fff;
+    font-size: 11.5px;
+    font-weight: 500;
+    transition: filter .15s, background .15s;
+}
+#bdp-app .bdp-btn:hover { filter: brightness(1.08); background: #475569; }
+#bdp-app .bdp-btn-primary { background: #2563eb; border-color: #2563eb; }
+#bdp-app .bdp-btn-primary:hover { background: #2563eb; }
+#bdp-app .bdp-btn-danger { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+#bdp-app .bdp-btn-danger:hover { background: #b91c1c; }
+#bdp-app .bdp-btn-ghost { background: var(--bdp-surface-2); color: var(--bdp-text); border-color: var(--bdp-border); }
+#bdp-app .bdp-btn-ghost:hover { background: var(--bdp-surface-2); color: var(--bdp-accent); border-color: rgba(34,211,238,.4); filter: none; }
+#bdp-app .bdp-btn-sm { padding: 5px 9px; font-size: 10.5px; }
+
+/* tables */
+#bdp-app .bdp-table-wrap { border: 1px solid var(--bdp-border); border-radius: 10px; }
+#bdp-app table.bdp-table { font-size: 13px; }
+#bdp-app table.bdp-table th { background: rgba(34, 211, 238, .06); color: var(--bdp-muted); font-size: 12px; font-weight: 600; letter-spacing: .04em; padding: 10px 12px; }
+#bdp-app table.bdp-table td { padding: 10px 12px; border-bottom: 1px solid var(--bdp-border); }
+#bdp-app table.bdp-table tr:hover td { background: rgba(255,255,255,.02); }
+#bdp-app .bdp-badge { padding: 4px 10px; border-radius: 20px; font-size: 11px; font-weight: 500; text-transform: none; letter-spacing: 0; }
+#bdp-app .bdp-badge.success { background: var(--bdp-ok-bg); color: var(--bdp-ok); border-color: transparent; }
+#bdp-app .bdp-badge.error { background: var(--bdp-danger-bg); color: var(--bdp-danger); border-color: transparent; }
+#bdp-app .bdp-badge.running { background: var(--bdp-warn-bg); color: var(--bdp-warn); border-color: transparent; }
+#bdp-app .bdp-progress { background: rgba(0,0,0,.22); border-color: var(--bdp-border); }
+#bdp-app .bdp-progress > span { background: var(--bdp-accent); }
+
+/* tooltips */
+#bdp-app .bdp-tip {
+    width: 18px; height: 18px; border-radius: 50%;
+    border: 1px solid var(--bdp-border); background: var(--bdp-surface-2);
+    color: var(--bdp-muted); font: 600 10px/1 inherit; cursor: pointer;
+    display: inline-grid; place-items: center; position: relative; padding: 0; flex: 0 0 auto;
+}
+#bdp-app .bdp-tip:hover, #bdp-app .bdp-tip:focus-visible { color: var(--bdp-accent); border-color: rgba(34,211,238,.4); outline: none; }
+#bdp-app .bdp-tip::after {
+    content: attr(data-tip); position: absolute; left: 50%; bottom: calc(100% + 9px);
+    transform: translateX(-50%) translateY(3px); width: max-content; max-width: 270px;
+    padding: 9px 11px; border-radius: 8px; background: #0b1017; color: #e8eefb;
+    border: 1px solid var(--bdp-border); box-shadow: 0 12px 30px rgba(0,0,0,.4);
+    font: 400 11.5px/1.5 -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    text-align: left; white-space: normal; opacity: 0; pointer-events: none;
+    transition: opacity .14s, transform .14s; z-index: 30;
+}
+#bdp-app .bdp-tip:hover::after, #bdp-app .bdp-tip:focus-visible::after, #bdp-app .bdp-tip.is-open::after { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* notes and empty states */
+#bdp-app .bdp-note { background: rgba(255,255,255,.03); border-color: var(--bdp-border); font-size: 12px; }
+#bdp-app .bdp-empty { color: var(--bdp-muted); font-size: 12px; }
+#bdp-app .bdp-stat { background: var(--bdp-surface-2); border-color: var(--bdp-border); border-radius: 9px; }
+
+@media (max-width: 900px) {
+    #bdp-app .bdp-overview-charts { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) {
+    #bdp-app { padding: 16px; gap: 14px; }
+    #bdp-app .bdp-header { padding: 16px; }
+    #bdp-app .bdp-title { font-size: 19px; }
+    #bdp-app .bdp-tab { padding: 9px 10px; font-size: 11.5px; }
+    #bdp-app .bdp-tab span:not(.bdp-tab-count) { display: none; }
+    #bdp-app .bdp-tab svg { width: 17px; height: 17px; }
+    #bdp-app .bdp-kpi { padding: 14px 10px; }
+    #bdp-app .bdp-kpi strong { font-size: 22px; }
+    #bdp-app .bdp-card { padding: 16px; }
+    #bdp-app .bdp-hero { padding: 16px; }
+}
+
+/* Light theme follows the same palette swap as Docker Manager. */
+.bdp-body.bdp-theme-light #bdp-app {
+    --bdp-bg: #f3f6fb;
+    --bdp-surface: #ffffff;
+    --bdp-surface-2: #eef3fb;
+    --bdp-text: #0f172a;
+    --bdp-muted: #64748b;
+    --bdp-border: #d7deeb;
+    --bdp-accent: #007bff;
+    --bdp-accent-muted: rgba(0, 123, 255, .10);
+    --bdp-ok: #16a34a;
+    --bdp-ok-bg: rgba(22, 163, 74, .10);
+    --bdp-warn: #b45309;
+    --bdp-warn-bg: rgba(180, 83, 9, .10);
+    --bdp-danger: #dc2626;
+    --bdp-danger-bg: rgba(220, 38, 38, .10);
+}
+.bdp-body.bdp-theme-light #bdp-app .bdp-tip::after { background: #ffffff; color: #0f172a; }

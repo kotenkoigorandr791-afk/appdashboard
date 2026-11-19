@@ -27,6 +27,22 @@ function docker_normalize_path(string $path): string {
     }
     return '/' . ltrim((string)$path, '/');
 }
+function docker_result_from_response(string $response): array {
+    if ($response === '') {
+        return ['code' => 0, 'data' => ['message' => 'docker_empty_response'], 'raw' => ''];
+    }
+    $parts = explode("\r\n\r\n", $response, 2);
+    $headers = $parts[0] ?? '';
+    $raw = $parts[1] ?? '';
+    preg_match('#^HTTP/\S+\s+(\d+)#', $headers, $m);
+    $code = isset($m[1]) ? (int)$m[1] : 0;
+    if (stripos($headers, "Transfer-Encoding: chunked") !== false) {
+        $raw = docker_decode_chunked($raw);
+    }
+    $decoded = json_decode($raw, true);
+    return ['code' => $code, 'data' => $decoded !== null ? $decoded : $raw, 'raw' => $raw];
+}
+
 function docker_call(string $path, string $method = 'GET', $data = null, int $timeout = 120): array {
     $body = '';
     if ($data !== null && $data !== '') {
@@ -44,19 +60,71 @@ function docker_call(string $path, string $method = 'GET', $data = null, int $ti
     fwrite($socket, $request . "\r\n" . $body);
     $response = stream_get_contents($socket);
     fclose($socket);
-    if (!is_string($response) || $response === '') {
-        return ['code' => 0, 'data' => ['message' => 'docker_empty_response'], 'raw' => ''];
+    return docker_result_from_response(is_string($response) ? $response : '');
+}
+
+/**
+ * Fetch independent read-only Docker Engine endpoints concurrently.
+ * The manager's initial view used to wait for each endpoint in sequence;
+ * multiplexing Unix sockets makes its wait time close to the slowest endpoint.
+ *
+ * @param array<string, string> $paths Result key => Docker Engine path
+ * @return array<string, array{code:int,data:mixed,raw:string}>
+ */
+function docker_call_many(array $paths, int $timeout = 30): array {
+    $results = [];
+    $pending = [];
+    $deadline = microtime(true) + max(1, $timeout);
+    foreach ($paths as $key => $path) {
+        $socket = @stream_socket_client('unix://' . docker_socket_path(), $errno, $errstr, 1, STREAM_CLIENT_CONNECT | STREAM_CLIENT_ASYNC_CONNECT);
+        if (!is_resource($socket)) {
+            $results[$key] = ['code' => 0, 'data' => ['message' => 'docker_unreachable'], 'raw' => ''];
+            continue;
+        }
+        stream_set_blocking($socket, false);
+        $request = 'GET ' . docker_normalize_path((string)$path) . " HTTP/1.1\r\nHost: docker\r\nConnection: close\r\n\r\n";
+        $pending[(int)$socket] = ['socket' => $socket, 'request' => $request, 'written' => 0, 'response' => '', 'key' => $key];
     }
-    $parts = explode("\r\n\r\n", $response, 2);
-    $headers = $parts[0] ?? '';
-    $raw = $parts[1] ?? '';
-    preg_match('#^HTTP/\S+\s+(\d+)#', $headers, $m);
-    $code = isset($m[1]) ? (int)$m[1] : 0;
-    if (stripos($headers, "Transfer-Encoding: chunked") !== false) {
-        $raw = docker_decode_chunked($raw);
+    while ($pending !== [] && microtime(true) < $deadline) {
+        $read = [];
+        $write = [];
+        foreach ($pending as $item) {
+            $read[] = $item['socket'];
+            if ($item['written'] < strlen($item['request'])) $write[] = $item['socket'];
+        }
+        $except = null;
+        $remaining = max(0, $deadline - microtime(true));
+        $ready = @stream_select($read, $write, $except, (int)$remaining, (int)(($remaining - floor($remaining)) * 1000000));
+        if ($ready === false || $ready === 0) continue;
+        foreach ($write as $socket) {
+            $id = (int)$socket;
+            if (!isset($pending[$id])) continue;
+            $item =& $pending[$id];
+            $bytes = @fwrite($socket, substr($item['request'], $item['written']));
+            if ($bytes !== false && $bytes > 0) $item['written'] += $bytes;
+            unset($item);
+        }
+        foreach ($read as $socket) {
+            $id = (int)$socket;
+            if (!isset($pending[$id])) continue;
+            $chunk = @fread($socket, 8192);
+            if (is_string($chunk) && $chunk !== '') $pending[$id]['response'] .= $chunk;
+            if (feof($socket)) {
+                $item = $pending[$id];
+                fclose($socket);
+                $results[$item['key']] = docker_result_from_response($item['response']);
+                unset($pending[$id]);
+            }
+        }
     }
-    $decoded = json_decode($raw, true);
-    return ['code' => $code, 'data' => $decoded !== null ? $decoded : $raw, 'raw' => $raw];
+    foreach ($pending as $item) {
+        fclose($item['socket']);
+        $results[$item['key']] = ['code' => 0, 'data' => ['message' => 'docker_timeout'], 'raw' => ''];
+    }
+    foreach ($paths as $key => $_path) {
+        if (!isset($results[$key])) $results[$key] = ['code' => 0, 'data' => ['message' => 'docker_unreachable'], 'raw' => ''];
+    }
+    return $results;
 }
 function docker_decode_chunked(string $raw): string {
     $out = '';

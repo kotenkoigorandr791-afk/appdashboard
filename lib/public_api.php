@@ -27,6 +27,20 @@ function public_api_is_emulator_http(): bool {
     $emulatorHost = implode('.', ['10', '0', '2', '2']);
     return $host === $emulatorHost && (preg_match('/^10\./', $ip) || preg_match('/^192\.168\./', $ip) || preg_match('/^172\.(1[6-9]|2\d|3[0-1])\./', $ip));
 }
+function public_api_is_lan_http(): bool {
+    // The mobile apps pair over the LAN, and the pairing link they scan or paste is
+    // http://<lan-ip>:<port>/api/... because a home server has no certificate.
+    // Without this, pairing answered 403 https_required in both apps. Plain HTTP is
+    // accepted only when the requested host and the caller are both private, so a
+    // public host still has to use TLS.
+    $host = strtolower((string)preg_replace('/:\d+$/', '', (string)($_SERVER['HTTP_HOST'] ?? '')));
+    $ip = (string)($_SERVER['REMOTE_ADDR'] ?? '');
+    $isPrivate = static function (string $value): bool {
+        if ($value === 'localhost' || $value === '::1' || $value === '[::1]') return true;
+        return (bool)preg_match('/^(10\.|127\.|192\.168\.|172\.(1[6-9]|2\d|3[0-1])\.)/', $value);
+    };
+    return $isPrivate($host) && $isPrivate($ip);
+}
 function public_api_cors(): void {
     if (headers_sent()) return;
     header('Access-Control-Allow-Methods: GET, POST, PUT, PATCH, DELETE, OPTIONS');
@@ -47,7 +61,10 @@ function public_api_cors(): void {
 }
 function public_api_bootstrap(): void {
     $auth = (string)($_SERVER['HTTP_AUTHORIZATION'] ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION'] ?? '');
-    if ($auth === '' && PHP_SESSION_NONE === session_status() && !headers_sent()) {
+    // Steps API keys use X-API-Key, not Authorization. Do not create a PHP
+    // session for them: a fresh Redis session per read was pure overhead.
+    $apiKey = trim((string)($_SERVER['HTTP_X_API_KEY'] ?? ''));
+    if ($auth === '' && $apiKey === '' && PHP_SESSION_NONE === session_status() && !headers_sent()) {
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
         session_set_cookie_params(['lifetime' => 0, 'path' => '/', 'secure' => public_api_is_https(), 'httponly' => true, 'samesite' => 'Strict']);
@@ -62,7 +79,7 @@ function public_api_bootstrap(): void {
         if (!headers_sent()) http_response_code(204);
         exit;
     }
-    if (((string)getenv('PUBLIC_API_REQUIRE_HTTPS') === '1' || (getenv('APP_ENV') === 'production' && getenv('PUBLIC_API_REQUIRE_HTTPS') !== '0')) && !public_api_is_https() && !public_api_is_emulator_http()) {
+    if (((string)getenv('PUBLIC_API_REQUIRE_HTTPS') === '1' || (getenv('APP_ENV') === 'production' && getenv('PUBLIC_API_REQUIRE_HTTPS') !== '0')) && !public_api_is_https() && !public_api_is_emulator_http() && !public_api_is_lan_http()) {
         public_api_json(['ok' => false, 'error' => 'https_required'], 403);
     }
 }

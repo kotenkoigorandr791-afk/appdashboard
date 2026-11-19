@@ -42,7 +42,7 @@ class MobilePairingHelper extends Base
             $platform = trim((string) ($row['platform'] ?? ''));
             $device = trim((string) ($row['device_name'] ?? ''));
             $out[] = array(
-                'label' => $device !== '' ? $device : ($platform !== '' ? $platform : 'Android phone'),
+                'label' => $device !== '' ? $device : ($platform !== '' ? $platform : t('Android phone')),
                 'platform' => $platform,
                 'created_at' => (int) ($row['created_at'] ?? 0),
                 'last_used_at' => (int) ($row['last_used_at'] ?? 0),

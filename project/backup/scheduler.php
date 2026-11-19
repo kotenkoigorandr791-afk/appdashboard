@@ -12,6 +12,9 @@ $root = dirname(__DIR__, 2);
 if (!defined('APP_ROOT')) define('APP_ROOT', $root);
 require_once $root . '/db.php';
 require_once $root . '/smart_log.php';
+if (is_file($root . '/lib/Storage/bootstrap.php')) {
+    require_once $root . '/lib/Storage/bootstrap.php';
+}
 require_once __DIR__ . '/i18n.php';
 backup_boot_i18n('en');
 require_once __DIR__ . '/api.php';

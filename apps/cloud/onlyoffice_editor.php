@@ -424,7 +424,7 @@ $docConfig = [
             'goback' => [
                 'url' => 'javascript:window.parent.postMessage({type: "closeOnlyOfficeEditor"}, "*")'
             ],
-            'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-dark',
+            'uiTheme' => ($theme === 'light') ? 'theme-light' : 'theme-night',
             'accentColor' => $color,
             'autosave' => true,
             'plugins' => true,
@@ -435,7 +435,7 @@ $docConfig = [
                 'showReviewChanges' => false
             ],
             'theme' => [
-                'id' => $theme,
+                'id' => $theme === 'light' ? 'theme-light' : 'theme-night',
                 'name' => $theme === 'light' ? 'Light' : 'Dark'
             ]
         ]

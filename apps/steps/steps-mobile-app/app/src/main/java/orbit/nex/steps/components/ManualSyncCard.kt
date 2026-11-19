@@ -1,7 +1,11 @@
 package orbit.nex.steps.components
 
 import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.health.connect.client.PermissionController
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -29,7 +33,7 @@ import orbit.nex.steps.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
+fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val preferencesManager = remember { PreferencesManager(context) }
@@ -54,12 +58,21 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
         save = { it?.toString() ?: "" },
         restore = { if (it.isEmpty()) null else LocalDate.parse(it) }
     )
-    var expanded by remember { mutableStateOf(false) }
+    var showHistorySheet by remember { mutableStateOf(false) }
     var selectedOptionIndex by rememberSaveable { mutableStateOf(0) }
+    LaunchedEffect(historyRequest) { if (historyRequest > 0) { selectedOptionIndex = 3; showHistorySheet = true } }
     var startDate by rememberSaveable(stateSaver = localDateSaver) { mutableStateOf(null) }
     var endDate by rememberSaveable(stateSaver = localDateSaver) { mutableStateOf(null) }
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
+    val historyPermissionLauncher = rememberLauncherForActivityResult(PermissionController.createRequestPermissionResultContract()) { granted ->
+        if ("android.permission.health.READ_HEALTH_DATA_HISTORY" in granted) {
+            showHistorySheet = false
+            showConfirmSheet = true
+        } else {
+            syncMessage = context.getString(R.string.manual_sync_history_permission_required)
+        }
+    }
 
     // ── Confirmation Bottom Sheet ──────────────────────────────────────────────
     if (showConfirmSheet) {
@@ -235,43 +248,37 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
         }
     }
 
-    // ── Card UI ───────────────────────────────────────────────────────────────
     Card {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Text(stringResource(R.string.manual_sync_title), style = MaterialTheme.typography.titleSmall)
-            Spacer(modifier = Modifier.height(12.dp))
-
-            ExposedDropdownMenuBox(
-                expanded = expanded,
-                onExpandedChange = { expanded = !expanded },
+        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Button(
+                onClick = { selectedOptionIndex = 0; showConfirmSheet = true },
+                enabled = !isSyncing && (webhookConfigs.isNotEmpty() || localTcpEnabled),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                OutlinedTextField(
-                    value = timeRangeOptions[selectedOptionIndex].first,
-                    onValueChange = {},
-                    readOnly = true,
-                    label = { Text(stringResource(R.string.manual_sync_time_range)) },
-                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                    colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
-                    modifier = Modifier.menuAnchor().fillMaxWidth()
-                )
-                ExposedDropdownMenu(
-                    expanded = expanded,
-                    onDismissRequest = { expanded = false }
-                ) {
-                    timeRangeOptions.forEachIndexed { index, option ->
-                        DropdownMenuItem(
-                            text = { Text(option.first) },
-                            onClick = {
-                                selectedOptionIndex = index
-                                expanded = false
-                            }
-                        )
+                if (isSyncing) {
+                    CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
+                    Spacer(Modifier.width(8.dp))
+                }
+                Text(stringResource(if (isSyncing) R.string.manual_sync_syncing else R.string.manual_sync_btn))
+            }
+            OutlinedButton(onClick = { selectedOptionIndex = 3; showHistorySheet = true }, enabled = !isSyncing, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.manual_sync_history_button))
+            }
+            syncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        }
+    }
+    if (showHistorySheet) {
+        ModalBottomSheet(onDismissRequest = { showHistorySheet = false }) {
+            Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp).heightIn(max = 600.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(stringResource(R.string.manual_sync_history_button), style = MaterialTheme.typography.titleLarge)
+                timeRangeOptions.forEachIndexed { index, option ->
+                    if (index > 0) {
+                        Row(Modifier.fillMaxWidth().clickable { selectedOptionIndex = index }, verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = selectedOptionIndex == index, onClick = { selectedOptionIndex = index })
+                            Text(option.first)
+                        }
                     }
                 }
-            }
-            Spacer(modifier = Modifier.height(16.dp))
-
             if (selectedOptionIndex == timeRangeOptions.indexOfFirst { it.second == -1 }) {
                 val today = LocalDate.now()
                 val todayMillis = remember(today) {
@@ -433,36 +440,26 @@ fun ManualSyncCard(onSyncCompleted: () -> Unit = {}) {
                     !selectedEnd.isAfter(today)
                 )
 
-            Button(
-                onClick = { showConfirmSheet = true },
-                enabled = !isSyncing &&
-                    (webhookConfigs.isNotEmpty() || localTcpEnabled) &&
-                    customRangeValid,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                if (isSyncing) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(stringResource(R.string.manual_sync_syncing))
+            Button(onClick = {
+                val needsHistory = isCustomRange && selectedStart != null && selectedStart.isBefore(today.minusDays(30))
+                if (needsHistory) {
+                    scope.launch {
+                        val permissions = HealthConnectManager.getPermissionsForTypes(preferencesManager.getEnabledDataTypes(), includeBackgroundPermission = false, includeHistoryPermission = true, includeStepsCadence = false)
+                        if (HealthConnectManager(context).hasPermissions(permissions)) {
+                            showHistorySheet = false
+                            showConfirmSheet = true
+                        } else {
+                            historyPermissionLauncher.launch(permissions)
+                        }
+                    }
                 } else {
-                    Text(stringResource(R.string.manual_sync_btn))
+                    showHistorySheet = false
+                    showConfirmSheet = true
                 }
+            }, enabled = !isSyncing && (webhookConfigs.isNotEmpty() || localTcpEnabled) && customRangeValid, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.manual_sync_btn))
             }
-
-            syncMessage?.let { message ->
-                Spacer(modifier = Modifier.height(8.dp))
-                Text(
-                    message,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (message.contains("failed", ignoreCase = true))
-                        MaterialTheme.colorScheme.error
-                    else
-                        MaterialTheme.colorScheme.primary
-                )
+            syncMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
             }
         }
     }

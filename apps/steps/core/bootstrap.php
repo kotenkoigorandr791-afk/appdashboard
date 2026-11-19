@@ -23,15 +23,23 @@ if (!defined('UPLOAD_SESSIONS_DIR')) {
         }
     }
     if ($stepsUpload === null) {
-        $link = __DIR__ . '/../upload_sessions';
-        $stepsUpload = (is_link($link) && realpath($link)) ? realpath($link) : $link;
+        // Never fall back to the code tree (host bind mount).
+        $stepsUpload = rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/upload_sessions';
     }
     define('UPLOAD_SESSIONS_DIR', $stepsUpload);
 }
 if (!defined('TABLE_PAGE_SIZE')) define('TABLE_PAGE_SIZE', 50);
 
+// Data lives on the APPDATA volume; the repository never contains symlinks.
+// The old apps/steps/users link pointed at the appdata steps directory, so the
+// users live directly under appdata_app_base_dir('steps').
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
-$stepsUploadLink = __DIR__ . '/../upload_sessions';
-if (!file_exists($stepsUploadLink) && is_dir(UPLOAD_SESSIONS_DIR)) {
-    @symlink(UPLOAD_SESSIONS_DIR, $stepsUploadLink);
+if (!defined('STEPS_USERS_DIR')) {
+    $stepsUsersDir = null;
+    if (function_exists('appdata_app_base_dir')) {
+        try { $stepsUsersDir = rtrim(appdata_app_base_dir('steps'), '/'); } catch (Throwable $e) { $stepsUsersDir = null; }
+    }
+    if ($stepsUsersDir === null) $stepsUsersDir = rtrim(sys_get_temp_dir(), '/') . '/appdashboard_steps/users';
+    define('STEPS_USERS_DIR', $stepsUsersDir);
 }
+@mkdir(STEPS_USERS_DIR, 0775, true);

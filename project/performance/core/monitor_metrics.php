@@ -1118,7 +1118,12 @@ function monitorGetDbSafe() {
     }
 }
 
-function monitorTableColumns($db, string $table): array {
+function monitorTableColumns($db, string $table, bool $fresh = false): array {
+    // Column lists do not change during a collector run; cache them per process
+    // instead of asking information_schema for every table and cycle.
+    if (!$fresh && isset($GLOBALS['monitor_table_columns_cache'][$table])) {
+        return $GLOBALS['monitor_table_columns_cache'][$table];
+    }
     $columns = [];
     $stmt = $db->prepare("SELECT column_name AS name FROM information_schema.columns WHERE table_schema='public' AND table_name = :table");
     $stmt->bindValue(':table', $table, PDO::PARAM_STR);
@@ -1126,7 +1131,8 @@ function monitorTableColumns($db, string $table): array {
     while ($row = $res->fetch(PDO::FETCH_ASSOC)) {
         $columns[(string)$row['name']] = true;
     }
-    return $columns;
+
+    return $GLOBALS['monitor_table_columns_cache'][$table] = $columns;
 }
 
 function monitorEnsureColumn($db, string $table, string $column, string $definition): void {
@@ -1137,6 +1143,7 @@ function monitorEnsureColumnImpl($db, string $table, string $column, string $def
     $columns = monitorTableColumns($db, $table);
     if (!isset($columns[$column])) {
         $db->exec("ALTER TABLE $table ADD COLUMN $column $definition");
+        monitorTableColumns($db, $table, true);
     }
 }
 
@@ -1910,17 +1917,43 @@ function monitorRunUptimeChecks(array $containers): void {
             $containersById[(string)$container['id']] = $container;
         }
     }
-    foreach (monitorReadUptimeChecks(true) as $check) {
-        $interval = max(10, (int)($check['interval_sec'] ?? 60));
-        $db = monitorGetDbSafe();
-        if (!$db) continue;
-        $last = (int)$db->querySingle('SELECT checked_at FROM monitor_uptime_results WHERE check_id = ' . (int)$check['id'] . ' ORDER BY checked_at DESC LIMIT 1');
-        if ($last > 0 && (time() - $last) < $interval) continue;
-        $startedAt = time();
-        $result = monitorRunOneUptimeCheck($check, $containersById);
-        $finishedAt = time();
-        monitorStoreUptimeResult((int)$check['id'], $result);
-        monitorStoreUptimeLog($check, $result, $startedAt, $finishedAt);
+    $db = monitorGetDbSafe();
+    $inTx = false;
+    if ($db) {
+        // Batch the whole poll cycle into one transaction: with many checks the
+        // per-INSERT fsync dominates the loop on slow disks.
+        try {
+            $db->beginTransaction();
+            $inTx = true;
+        } catch (Throwable $e) {
+            $db = null;
+        }
+    }
+
+    try {
+        foreach (monitorReadUptimeChecks(true) as $check) {
+            $interval = max(10, (int)($check['interval_sec'] ?? 60));
+            $db = monitorGetDbSafe();
+            if (!$db) continue;
+            $last = (int)$db->querySingle('SELECT checked_at FROM monitor_uptime_results WHERE check_id = ' . (int)$check['id'] . ' ORDER BY checked_at DESC LIMIT 1');
+            if ($last > 0 && (time() - $last) < $interval) continue;
+            $startedAt = time();
+            $result = monitorRunOneUptimeCheck($check, $containersById);
+            $finishedAt = time();
+            monitorStoreUptimeResult((int)$check['id'], $result);
+            monitorStoreUptimeLog($check, $result, $startedAt, $finishedAt);
+        }
+        if ($db && $inTx) {
+            $db->commit();
+            $inTx = false;
+        }
+    } catch (Throwable $e) {
+        if ($db && $inTx) {
+            try {
+                $db->rollBack();
+            } catch (Throwable $ignored) {
+            }
+        }
     }
 }
 
@@ -1932,6 +1965,12 @@ function monitorStoreDockerSnapshots(array $containers): void {
         (created_at, container_id, container_name, image, state, health, cpu_percent, memory_percent, memory_text, network_io, block_io, pids)
         VALUES(:created_at, :container_id, :container_name, :image, :state, :health, :cpu_percent, :memory_percent, :memory_text, :network_io, :block_io, :pids)");
     $now = time();
+    $inTx = false;
+    try {
+        $db->beginTransaction();
+        $inTx = true;
+    } catch (Throwable $e) {
+    }
     foreach ($containers as $container) {
         if (!is_array($container)) continue;
         $stats = is_array($container['stats'] ?? null) ? $container['stats'] : [];
@@ -1948,6 +1987,12 @@ function monitorStoreDockerSnapshots(array $containers): void {
         $stmt->bindValue(':block_io', (string)($stats['block_io'] ?? ''), PDO::PARAM_STR);
         $stmt->bindValue(':pids', (int)($stats['pids'] ?? 0), PDO::PARAM_INT);
         $stmt->execute();
+    }
+    if ($inTx) {
+        try {
+            $db->commit();
+        } catch (Throwable $e) {
+        }
     }
 }
 
