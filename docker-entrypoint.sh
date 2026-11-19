@@ -89,7 +89,11 @@ fi
 if [ -f /etc/nginx/nginx.conf ]; then
   sed -i 's/^worker_processes .*/worker_processes auto;/' /etc/nginx/nginx.conf
   sed -i 's/^\s*worker_connections .*/    worker_connections '"${NGINX_WORKER_CONNECTIONS:-16384}"';/' /etc/nginx/nginx.conf
-  grep -q '^worker_rlimit_nofile' /etc/nginx/nginx.conf || sed -i '1i worker_rlimit_nofile 65535;' /etc/nginx/nginx.conf
+  # Each proxied request holds a client socket plus an upstream socket, and static
+  # files add more; with worker_connections 16384 the old 65535 limit let a busy
+  # worker run out of descriptors (nginx then answers 500 with "Too many open files").
+  sed -i 's/^\s*worker_rlimit_nofile .*/worker_rlimit_nofile '"${NGINX_WORKER_RLIMIT_NOFILE:-200000}"';/' /etc/nginx/nginx.conf
+  grep -q '^worker_rlimit_nofile' /etc/nginx/nginx.conf || sed -i '1i worker_rlimit_nofile '"${NGINX_WORKER_RLIMIT_NOFILE:-200000}"';' /etc/nginx/nginx.conf
 fi
 {
   printf 'max_execution_time=%s\n' "${PHP_MAX_EXECUTION_TIME:-30}"
