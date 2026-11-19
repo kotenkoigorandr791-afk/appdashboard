@@ -160,6 +160,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
                     <div class="mcp-setup-cmd"><pre id="mcp-http-endpoint"><?php echo my_htmlspecialchars($mcpHttpEndpoint); ?></pre><button type="button" class="mcp-setup-copy" id="mcp-copy-endpoint"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button></div>
                 </div>
                 <div class="mcp-token-controls">
+                    <?php echo apSecCsrfField(); ?>
                     <input type="text" id="mcp-token-name" value="<?php echo my_htmlspecialchars($mcpT['token_default_name']); ?>" maxlength="80" aria-label="<?php echo my_htmlspecialchars($mcpT['token_name']); ?>">
                     <button type="button" id="mcp-generate-token"><?php echo my_htmlspecialchars($mcpT['token_generate']); ?></button>
                 </div>
@@ -170,7 +171,7 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
                     <button type="button" class="mcp-setup-copy" id="mcp-copy-token"></button>
                 </div>
                 <?php if($mcpGeneratedToken!==''): ?>
-                <div class="mcp-token-output" style="display:grid;">
+                <div class="mcp-token-output" id="mcp-generated-token-box" style="display:grid;">
                     <strong><?php echo my_htmlspecialchars($mcpT['token_copy_now']); ?></strong>
                     <code><?php echo my_htmlspecialchars($mcpGeneratedToken); ?></code>
                     <button type="button" class="mcp-setup-copy" id="mcp-copy-generated-token"><?php echo my_htmlspecialchars($mcpT['copy']); ?></button>
@@ -178,11 +179,11 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
                 <?php endif; ?>
                 <table class="mcp-token-table">
                     <thead><tr><th><?php echo my_htmlspecialchars($translations['mcp_token_device']); ?></th><th><?php echo my_htmlspecialchars($translations['created']); ?></th><th><?php echo my_htmlspecialchars($translations['last_activity']); ?></th><th><?php echo my_htmlspecialchars($translations['expires']); ?></th><th></th></tr></thead>
-                    <tbody>
+                    <tbody id="mcp-token-tbody">
                     <?php if(empty($mcpTokens)): ?>
                     <tr><td colspan="5"><?php echo my_htmlspecialchars($translations['no_tokens']); ?></td></tr>
                     <?php else: foreach($mcpTokens as $mcpToken): $mcpDeviceLabel=trim(($mcpToken['device_name']??'').' / '.($mcpToken['platform']??''),' /'); if(stripos($mcpDeviceLabel,'agora')!==false)$mcpDeviceLabel=$mcpT['token_default_name']; ?>
-                    <tr>
+                    <tr data-token-hash="<?php echo my_htmlspecialchars($mcpToken['token_hash']??''); ?>">
                         <td><?php echo my_htmlspecialchars($mcpDeviceLabel); ?></td>
                         <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['created_at'])); ?></td>
                         <td><?php echo my_htmlspecialchars(date('Y-m-d H:i',(int)$mcpToken['last_used_at'])); ?></td>
@@ -451,12 +452,74 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
             setCopied(copyGeneratedTokenBtn);
         });
     }
+    const tokenTbody=document.getElementById('mcp-token-tbody');
+    const revokeLabel=<?php echo json_encode($translations['revoke'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    const noTokensLabel=<?php echo json_encode($translations['no_tokens'], JSON_UNESCAPED_UNICODE | JSON_HEX_TAG); ?>;
+    function fmtDate(ts){
+        const d=new Date(ts*1000),p=function(n){return String(n).padStart(2,'0');};
+        return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+' '+p(d.getHours())+':'+p(d.getMinutes());
+    }
+    function fadeIn(tr){
+        tr.style.opacity='0';
+        tr.style.transition='opacity .3s';
+        requestAnimationFrame(function(){requestAnimationFrame(function(){tr.style.opacity='1';});});
+    }
+    function addTokenRow(data){
+        if(!tokenTbody)return;
+        const empty=tokenTbody.querySelector('td[colspan]');
+        if(empty)empty.parentElement.remove();
+        const tr=document.createElement('tr');
+        tr.dataset.tokenHash=data.token_hash;
+        const cells=[data.name,fmtDate(data.created_at),fmtDate(data.created_at),fmtDate(data.expires_at)];
+        cells.forEach(function(t){const td=document.createElement('td');td.textContent=t;tr.appendChild(td);});
+        const td=document.createElement('td');
+        const form=document.createElement('form');
+        form.method='post';form.action='/main';form.style.margin='0';
+        form.innerHTML=data.csrf_field_html+'<input type="hidden" name="action" value="revoke_mcp_token"><input type="hidden" name="token_hash"><button type="submit" name="revoke_mcp_token" class="mcp-token-revoke"></button>';
+        form.querySelector('[name=token_hash]').value=data.token_hash;
+        form.querySelector('button').textContent=revokeLabel;
+        td.appendChild(form);tr.appendChild(td);
+        tokenTbody.insertBefore(tr,tokenTbody.firstChild);
+        fadeIn(tr);
+    }
+    if(tokenTbody) tokenTbody.addEventListener('submit',async function(e){
+        const form=e.target.closest('form');
+        if(!form)return;
+        e.preventDefault();
+        const tr=form.closest('tr');
+        const btn=form.querySelector('button');
+        if(btn)btn.disabled=true;
+        try{
+            const fd=new FormData(form);
+            fd.append('ajax','1');
+            const res=await fetch('/main',{method:'POST',body:fd,credentials:'same-origin'});
+            const data=await res.json();
+            if(!data.success)throw new Error(data.error||tokenFailed);
+            tr.style.transition='opacity .3s';
+            tr.style.opacity='0';
+            setTimeout(function(){
+                tr.remove();
+                if(!tokenTbody.querySelector('tr')){
+                    const r=document.createElement('tr');
+                    r.innerHTML='<td colspan="5"></td>';
+                    r.firstChild.textContent=noTokensLabel;
+                    tokenTbody.appendChild(r);
+                }
+            },300);
+        }catch(err){
+            if(btn)btn.disabled=false;
+            tokenErr.textContent=String(err&&err.message?err.message:err);
+            tokenErr.style.display='block';
+        }
+    });
     if(tokenBtn) tokenBtn.addEventListener('click',async function(){
         tokenErr.style.display='none';
         tokenOut.style.display='none';
         tokenBtn.disabled=true;
         try{
             const fd=new FormData();
+            const csrfEl=tokenBtn.parentElement.querySelector('[name=_csrf]');
+            if(csrfEl)fd.append('_csrf',csrfEl.value);
             fd.append('action','generate_mcp_token');
             fd.append('generate_mcp_token','1');
             fd.append('ajax','1');
@@ -467,6 +530,9 @@ body.dark-theme .mcp-agent-menu{background:#18202b;}
             if(!data.success||!data.token) throw new Error(data.error||tokenFailed);
             tokenValue.textContent=data.token;
             tokenOut.style.display='grid';
+            const oldBox=document.getElementById('mcp-generated-token-box');
+            if(oldBox)oldBox.style.display='none';
+            addTokenRow(data);
             try{await navigator.clipboard.writeText(data.token);}catch(e){}
         }catch(e){
             tokenErr.textContent=String(e&&e.message?e.message:e);

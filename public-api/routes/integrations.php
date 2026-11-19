@@ -4,7 +4,8 @@ require_once APP_ROOT . '/project/oauth.php';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 $parts = public_api_parse_path();
 $service = strtolower((string)($parts[1] ?? ''));
-$email = (string)($_SESSION['user']['email'] ?? '');
+$apiUser = $_SESSION['user'] ?? ($GLOBALS['public_api_user'] ?? []);
+$email = (string)($apiUser['email'] ?? '');
 $refresh = (string)($_GET['refresh'] ?? '') === '1';
 if ($email === '') {
     public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -66,7 +67,7 @@ function integrations_public_service_url(string $url, string $sub): string {
 }
 
 function integrations_immich_url(): string {
-    $url = trim((string)(getenv('IMMICH_MCP_URL') ?: getenv('IMMICH_INTERNAL_URL') ?: getenv('IMMICH_PUBLIC_URL') ?: ''));
+    $url = trim((string)(getenv('IMMICH_MCP_URL') ?: getenv('IMMICH_PUBLIC_URL') ?: ''));
     if ($url === '' && function_exists('app_public_url')) $url = app_public_url('photo');
     $url = integrations_public_service_url($url, 'photo');
     return rtrim($url, '/');
@@ -137,7 +138,7 @@ function integrations_immich_credentials(string $email, bool $refresh = false): 
     $url = integrations_immich_url();
     $metaKey = 'mcp_immich_api_key:' . strtolower($email);
     $stored = trim(integrations_meta_get($metaKey));
-    oauth_ensure_immich_user($email, (string)($_SESSION['user']['name'] ?? $email), ((int)($_SESSION['user']['role'] ?? 0)) >= 2);
+    oauth_ensure_immich_user($email, (string)($apiUser['name'] ?? $email), ((int)($apiUser['role'] ?? 0)) >= 2);
     $pdo = oauth_immich_db();
     if (!$pdo) {
         return ['ok' => false, 'error' => 'immich_unavailable'];
@@ -312,7 +313,7 @@ function integrations_gitea_credentials(string $email, bool $refresh = false): a
     $url = integrations_gitea_url();
     $metaKey = 'mcp_gitea_access_token:' . strtolower($email);
     $stored = trim(integrations_meta_get($metaKey));
-    $user = $_SESSION['user'] ?? [];
+    $user = $_SESSION['user'] ?? ($GLOBALS['public_api_user'] ?? []);
     oauth_ensure_gitea_user(
         $email,
         (string)($user['name'] ?? $email),
