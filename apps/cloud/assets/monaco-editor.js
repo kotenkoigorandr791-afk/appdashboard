@@ -3717,20 +3717,57 @@ async function monacoGetAiRuntimeConfig() {
     return monacoAiRuntimeConfigPromise;
 }
 
-function monacoBuildAiPrompt(instruction, text) {
-    const safeText = String(text ?? '');
-    const safeInstruction = String(instruction ?? '').trim() || 'Fix spelling, punctuation, and obvious grammar errors.';
+function monacoAiOverlayTheme(overlay, host) {
+    const probe = (host && host.querySelector && host.querySelector('.monaco-editor')) || host || document.body;
+    let bg = getComputedStyle(probe).backgroundColor;
+    let m = bg.match(/rgba?\(([^)]+)\)/);
+    if (!m || (m[1].split(',').length > 3 && parseFloat(m[1].split(',')[3]) === 0)) {
+        m = getComputedStyle(document.body).backgroundColor.match(/rgba?\(([^)]+)\)/);
+    }
+    let dark = false;
+    if (m) {
+        const [r, g, b] = m[1].split(',').map((v) => parseFloat(v));
+        dark = (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+    }
+    const vars = dark
+        ? { '--panel-bg': '#252526', '--border-color': 'rgba(255,255,255,.2)', '--text-color': '#e6e6e6', '--bg-color': '#1e1e1e' }
+        : { '--panel-bg': '#ffffff', '--border-color': 'rgba(0,0,0,.14)', '--text-color': '#222', '--bg-color': '#ffffff' };
+    for (const k in vars) overlay.style.setProperty(k, vars[k]);
+    overlay.style.colorScheme = dark ? 'dark' : 'light';
+}
+
+function monacoAiOverlayContext(editor, range) {
+    const model = editor.getModel();
+    const start = model.getOffsetAt(range.getStartPosition());
+    const end = model.getOffsetAt(range.getEndPosition());
+    const full = model.getValue();
+    return { before: full.slice(Math.max(0, start - 1000), start), after: full.slice(end, end + 1000) };
+}
+
+function monacoBuildAiPrompt(instruction, text, ctx) {
     return [
-        safeInstruction,
-        'Верни только готовый текст для прямой замены выделения.',
-        'Нельзя добавлять пояснения, кавычки, markdown, списки, вводные фразы или комментарии.',
-        'Сохраняй переносы строк, если это не противоречит задаче.',
+        'You are an inline text-editing assistant embedded in a document editor.',
+        'You cannot see the whole document: only a selected fragment plus up to 1000 characters of context before and after it.',
+        'Apply the user instruction ONLY to the SELECTED FRAGMENT. Do not rewrite, continue, repeat or comment on the context.',
+        'Do not guess or invent anything beyond what the instruction and the fragment require.',
+        'Return only the final replacement text for the selected fragment: no explanations, quotes, markdown fences or preambles.',
+        'Preserve the fragment line breaks, indentation and formatting style unless the instruction says otherwise.',
         '',
-        safeText
+        'Instruction: ' + (String(instruction || '').trim() || 'Fix spelling, punctuation, and obvious grammar errors.'),
+        '',
+        '<context_before>',
+        ctx.before,
+        '</context_before>',
+        '<selected_fragment>',
+        String(text || ''),
+        '</selected_fragment>',
+        '<context_after>',
+        ctx.after,
+        '</context_after>'
     ].join('\n');
 }
 
-async function monacoRequestAiReplacement(instruction, text) {
+async function monacoRequestAiReplacement(instruction, text, ctx) {
     const runtime = await monacoGetAiRuntimeConfig();
     const response = await fetch('ai.php', {
         method: 'POST',
@@ -3739,7 +3776,7 @@ async function monacoRequestAiReplacement(instruction, text) {
             action: 'chat',
             role: 'general',
             model: runtime.default_model || '',
-            message: monacoBuildAiPrompt(instruction, text)
+            message: monacoBuildAiPrompt(instruction, text, ctx || { before: '', after: '' })
         })
     });
     const data = await response.json();
@@ -3896,6 +3933,7 @@ async function monacoOpenAiActionMenu(editor, container) {
     const containerRect = container.getBoundingClientRect();
     const anchorX = containerRect.left + ((cursorCoords?.left ?? 0) + 12);
     const anchorY = containerRect.top + ((cursorCoords?.top ?? 0) + 28);
+    monacoAiOverlayTheme(overlay, container);
     monacoPositionAiOverlay(overlay, container, anchorX, anchorY);
     statusEl.textContent = '';
     undoBtn.classList.add('hidden');
@@ -3912,6 +3950,12 @@ async function monacoOpenAiActionMenu(editor, container) {
         statusEl.textContent = '';
     };
 
+    promptEl.onkeydown = (event) => {
+        if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+            event.preventDefault();
+            if (!applyBtn.disabled) applyBtn.click();
+        }
+    };
     applyBtn.onclick = async () => {
         const latestSelection = editor.getSelection();
         if (!latestSelection || latestSelection.isEmpty()) return;
@@ -3920,7 +3964,7 @@ async function monacoOpenAiActionMenu(editor, container) {
         applyBtn.disabled = true;
         statusEl.textContent = monacoT('monacoAiProcessing');
         try {
-            const replacement = await monacoRequestAiReplacement(instruction, originalText);
+            const replacement = await monacoRequestAiReplacement(instruction, originalText, monacoAiOverlayContext(editor, latestSelection));
             editor.pushUndoStop();
             editor.executeEdits('ai-inline-rewrite', [{
                 range: latestSelection,

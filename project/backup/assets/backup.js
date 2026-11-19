@@ -1277,6 +1277,18 @@
         var wizardModal = el(root, '#bdp-wizard');
         if (wizardModal) wizardModal.addEventListener('click', function (event) { if (event.target === wizardModal) closeWizard(); });
         document.addEventListener('keydown', function (event) {
+            if ((event.ctrlKey || event.metaKey) && !event.altKey && String(event.key).toLowerCase() === 's') {
+                if (state.wizard && state.wizard.open) {
+                    event.preventDefault();
+                    if (state.wizard.step === WIZARD_STEPS - 1) {
+                        wizardSubmit();
+                    } else {
+                        var nextBtn = el(state.root, '#bdp-wz-next');
+                        if (nextBtn && !nextBtn.hidden) nextBtn.click();
+                    }
+                }
+                return;
+            }
             if (event.key !== 'Escape') return;
             if (modal && !modal.hidden) closeModal();
             if (wizardModal && !wizardModal.hidden) closeWizard();

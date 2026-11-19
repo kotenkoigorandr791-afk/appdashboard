@@ -876,6 +876,12 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     width: 100%;
     max-width: 520px;
 }
+#ap-settings .ap-field select,
+#ap-settings .ap-field .ap-model-select {
+    width: 100%;
+    max-width: 520px;
+    box-sizing: border-box;
+}
 #ap-settings .ap-field input[type="text"],
 #ap-settings .ap-field input[type="password"],
 #ap-settings .ap-field input[type="number"],
@@ -910,14 +916,15 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 38px;
+    min-height: 33px;
+    box-sizing: border-box;
     padding: 8px 38px 8px 12px;
     border: 1px solid color-mix(in srgb, var(--border-color) 86%, var(--primary-color));
-    border-radius: 12px;
+    border-radius: 6px;
     background: var(--bg-color);
     color: var(--text-color);
-    font-family: monospace;
-    font-size: 12px;
+    font-family: 'Courier New', monospace;
+    font-size: 13px;
     cursor: pointer;
     transition: border-color .2s ease, box-shadow .2s ease;
     user-select: none;
@@ -957,7 +964,7 @@ input[type="date"]::-webkit-calendar-picker-indicator:hover {
     overflow-y: auto;
     background: var(--bg-color);
     border: 1px solid var(--primary-color);
-    border-radius: 12px;
+    border-radius: 6px;
     box-shadow: 0 8px 24px rgba(0,0,0,.15);
     z-index: 1000;
     opacity: 0;
@@ -1294,6 +1301,8 @@ body.light-theme .ap-user-menu-dropdown { background: #f7fafd; }
 }
 @media (max-width: 768px) {
     #ap-settings .ap-field,
+    #ap-settings .ap-field select,
+    #ap-settings .ap-field .ap-model-select,
     #ap-settings .ap-field input[type="text"],
     #ap-settings .ap-field input[type="password"],
     #ap-settings .ap-field input[type="number"],

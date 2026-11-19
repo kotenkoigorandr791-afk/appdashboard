@@ -282,6 +282,16 @@
                 if (e.key === 'Escape' && dockerRoot()) {
                     closeDockerModal();
                     closeConfirmModal();
+                    return;
+                }
+                if ((e.ctrlKey || e.metaKey) && !e.altKey && String(e.key).toLowerCase() === 's') {
+                    const modal = document.getElementById('dockerModal');
+                    if (!modal || !modal.classList.contains('active')) return;
+                    const form = document.querySelector('#dockerModalBody form');
+                    if (!form) return;
+                    e.preventDefault();
+                    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                    else form.dispatchEvent(new Event('submit', { cancelable: true, bubbles: true }));
                 }
             });
         }

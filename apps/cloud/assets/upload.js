@@ -1386,7 +1386,7 @@ async function initUploadHandlers(modal, basePath) {
     let successCount = 0;
     let skippedCount = 0;
     let errorCount = 0;
-    const totalFiles = files.length;
+    let totalFiles = files.length;
     const treeOps = [];
     const pendingDirAdds = new Set();
     const pendingFileAdds = new Set();
@@ -1424,6 +1424,26 @@ async function initUploadHandlers(modal, basePath) {
       }
     } catch (err) {
       console.warn('Failed to pre-check existing files before upload:', err);
+    }
+
+    if (overwriteDecisions.size > 0) {
+      const toUpload = [];
+      for (const f of files) {
+        if (overwriteDecisions.get(resolveUploadPath(f, isFolderUpload, basePath)) === 'skip') {
+          skippedCount++;
+          addUploadResult(resultsSection, f.name, true, window.i18n?.uploadSkippedDuplicate || 'Skipped (file already exists)');
+        } else {
+          toUpload.push(f);
+        }
+      }
+      if (skippedCount > 0) {
+        files = toUpload;
+        totalFiles = files.length;
+        uploadState.totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+        const floatItem = uploadFloatingState.items.get(totalUploadId);
+        if (floatItem) floatItem.totalSize = uploadState.totalBytes;
+        if (files.length === 0 && totalUploadId) removeUploadItem(totalUploadId);
+      }
     }
 
     function animate() {
@@ -1655,10 +1675,10 @@ async function initUploadHandlers(modal, basePath) {
       }
     }
 
-    showUploadResults(resultsSection, successCount, errorCount, totalFiles, skippedCount);
+    showUploadResults(resultsSection, successCount, errorCount, totalFiles + skippedCount, skippedCount);
 
     // After all uploads complete
-    if (processedCount === totalFiles) {
+    if (processedCount === totalFiles && totalFiles > 0) {
       const uploadId = Array.from(uploadFloatingState.items.keys())[0];
       if (uploadId) {
         completeUpload(uploadId);

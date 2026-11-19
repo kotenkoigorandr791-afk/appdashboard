@@ -625,3 +625,6 @@ html { background: var(--md-sys-color-background); }
   .sp-kb-column { scroll-snap-align: start; }
   .sp-kb-task__assignee { max-width: 40vw; }
 }
+.sp-brand-link{display:inline-flex;flex:0 0 auto}
+.sp-brand-logo{display:block;border-radius:8px;flex:0 0 auto}
+.sp-footer__brand .sp-brand-logo{width:18px;height:18px;border-radius:4px}

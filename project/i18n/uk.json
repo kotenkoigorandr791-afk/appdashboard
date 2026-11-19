@@ -1141,5 +1141,22 @@
   "backup_ring_label": "захищено",
   "backup_sections_aria": "Розділи резервного копіювання",
   "backup_tip_recovery_aria": "Про хронологію відновлення",
-  "backup_tip_protection_aria": "Про статус захисту"
+  "backup_tip_protection_aria": "Про статус захисту",
+  "keyboard_shortcuts": "Гарячі клавіші",
+  "keyboard_shortcuts_action": "Дія",
+  "keyboard_shortcuts_desc": "Комбінації клавіш, доступні на головному екрані з плитками застосунків.",
+  "keyboard_shortcuts_hint": "Показати гарячі клавіші",
+  "keyboard_shortcuts_key": "Клавіша",
+  "keyboard_shortcuts_open": "Відкрити довідку про гарячі клавіші",
+  "shortcut_admin_panel": "Відкрити адмін-панель",
+  "shortcut_arrows": "Переміщення між плитками",
+  "shortcut_enter": "Відкрити вибраний застосунок",
+  "shortcut_profile": "Відкрити профіль",
+  "shortcut_search": "Фокус на пошук застосунків",
+  "shortcut_sessions": "Відкрити керування сесіями",
+  "shortcut_shared_files": "Відкрити спільні файли",
+  "shortcut_shortcuts": "Відкрити гарячі клавіші",
+  "shortcut_stats": "Відкрити статистику",
+  "shortcut_support_chat": "Відкрити чат підтримки",
+  "admin_only": "лише для адмінів"
 }

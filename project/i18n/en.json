@@ -1154,5 +1154,21 @@
   "backup_ring_label": "protected",
   "backup_sections_aria": "Backup sections",
   "backup_tip_recovery_aria": "About recovery timeline",
-  "backup_tip_protection_aria": "About protection status"
+  "backup_tip_protection_aria": "About protection status",
+  "keyboard_shortcuts": "Keyboard Shortcuts",
+  "keyboard_shortcuts_action": "Action",
+  "keyboard_shortcuts_desc": "Hotkeys available on the home screen with app tiles.",
+  "keyboard_shortcuts_hint": "Show shortcuts",
+  "keyboard_shortcuts_key": "Key",
+  "keyboard_shortcuts_open": "Open shortcuts help",
+  "shortcut_admin_panel": "Open Admin Panel",
+  "shortcut_arrows": "Move between app tiles",
+  "shortcut_enter": "Open selected app",
+  "shortcut_profile": "Open Profile",
+  "shortcut_search": "Focus app search",
+  "shortcut_sessions": "Open Session Management",
+  "shortcut_shared_files": "Open Shared Files",
+  "shortcut_shortcuts": "Open keyboard shortcuts",
+  "shortcut_stats": "Open Statistics",
+  "shortcut_support_chat": "Open Support Chat"
 }

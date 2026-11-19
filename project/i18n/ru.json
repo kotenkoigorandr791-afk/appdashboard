@@ -1165,5 +1165,22 @@
   "backup_ring_label": "защищено",
   "backup_sections_aria": "Разделы резервного копирования",
   "backup_tip_recovery_aria": "О хронологии восстановления",
-  "backup_tip_protection_aria": "О статусе защиты"
+  "backup_tip_protection_aria": "О статусе защиты",
+  "keyboard_shortcuts": "Горячие клавиши",
+  "keyboard_shortcuts_action": "Действие",
+  "keyboard_shortcuts_desc": "Сочетания клавиш, доступные на главном экране с плитками приложений.",
+  "keyboard_shortcuts_hint": "Показать горячие клавиши",
+  "keyboard_shortcuts_key": "Клавиша",
+  "keyboard_shortcuts_open": "Открыть справку по горячим клавишам",
+  "shortcut_admin_panel": "Открыть админ-панель",
+  "shortcut_arrows": "Перемещение между плитками",
+  "shortcut_enter": "Открыть выбранное приложение",
+  "shortcut_profile": "Открыть профиль",
+  "shortcut_search": "Фокус на поиск приложений",
+  "shortcut_sessions": "Открыть управление сессиями",
+  "shortcut_shared_files": "Открыть общие файлы",
+  "shortcut_shortcuts": "Открыть горячие клавиши",
+  "shortcut_stats": "Открыть статистику",
+  "shortcut_support_chat": "Открыть чат поддержки",
+  "admin_only": "только для админов"
 }

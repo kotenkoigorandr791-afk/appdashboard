@@ -38,11 +38,12 @@ if (!function_exists('sp_public_shell')) {
 <body class="sp-body sp-status-body">
 <main class="sp-status-main">
   <div class="sp-status-brand">
+    <img class="sp-brand-logo" src="' . sp_h(sp_asset('icon.svg')) . '" alt="SharePoint" width="32" height="32">
     <span class="sp-app-badge material-symbols-outlined">' . sp_h($appIcon) . '</span>
     <span class="md3-typescale-title-medium">' . sp_h($appName) . '</span>
   </div>
   ' . $body . '
-  <footer class="sp-footer"><span class="sp-footer__brand"><span class="material-symbols-outlined">hub</span>SharePoint</span>' . sp_footer_version_html() . '</footer>
+  <footer class="sp-footer"><span class="sp-footer__brand"><img class="sp-brand-logo" src="' . sp_h(sp_asset('icon.svg')) . '" alt="" width="20" height="20">SharePoint</span>' . sp_footer_version_html() . '</footer>
 </main>
 <script src="' . sp_h(sp_asset('js/md3-components.js')) . '" defer></script>
 </body>

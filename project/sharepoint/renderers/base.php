@@ -89,6 +89,7 @@ abstract class BaseRenderer
         return '
 <header class="md3-top-app-bar sp-top-bar" role="banner">
   <div class="sp-top-bar__lead">
+    <a class="sp-brand-link" href="/" title="SharePoint" aria-label="SharePoint"><img class="sp-brand-logo" src="' . sp_h(sp_asset('icon.svg')) . '" alt="SharePoint" width="32" height="32"></a>
     <span class="sp-app-badge material-symbols-outlined" aria-hidden="true">' . sp_h($this->appIcon()) . '</span>
     <div class="sp-top-bar__titles">
       <h1 class="md3-top-app-bar__title">' . sp_h($this->pageTitle()) . '</h1>
@@ -168,6 +169,11 @@ abstract class BaseRenderer
 <meta name="sp-csrf" content="' . sp_h(sp_csrf_token()) . '">
 <title>' . sp_h($title) . ' · SharePoint</title>
 <link rel="icon" type="image/svg+xml" href="' . sp_h(sp_asset('icon.svg')) . '">
+<link rel="apple-touch-icon" href="' . sp_h(sp_asset('icon.svg')) . '">
+<meta name="application-name" content="SharePoint">
+<meta property="og:site_name" content="SharePoint">
+<meta property="og:title" content="' . sp_h($title) . '">
+<meta property="og:image" content="' . sp_h(sp_asset('icon.svg')) . '">
 <meta name="description" content="' . sp_h($description) . '">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -186,7 +192,7 @@ abstract class BaseRenderer
 ' . $content . '
 </main>
 <footer class="sp-footer">
-  <span class="sp-footer__brand"><span class="material-symbols-outlined">hub</span>SharePoint</span>
+  <span class="sp-footer__brand"><img class="sp-brand-logo" src="' . sp_h(sp_asset('icon.svg')) . '" alt="" width="20" height="20">SharePoint</span>
   ' . sp_footer_version_html() . '
   <span class="sp-footer__meta">' . sp_h(sp_t('shared_link')) . ' · ' . sp_h(sp_t('created')) . ' ' . sp_h(sp_time_ago($this->share->created_at)) . '</span>
 </footer>

@@ -577,6 +577,56 @@
         return model.getValueInRange(sel);
     }
 
+    function aiOverlayTheme(overlay, host) {
+        const probe = (host && host.querySelector && host.querySelector('.monaco-editor')) || host || document.body;
+        let bg = getComputedStyle(probe).backgroundColor;
+        let m = bg.match(/rgba?\(([^)]+)\)/);
+        if (!m || (m[1].split(',').length > 3 && parseFloat(m[1].split(',')[3]) === 0)) {
+            m = getComputedStyle(document.body).backgroundColor.match(/rgba?\(([^)]+)\)/);
+        }
+        let dark = false;
+        if (m) {
+            const [r, g, b] = m[1].split(',').map((v) => parseFloat(v));
+            dark = (0.2126 * r + 0.7152 * g + 0.0722 * b) < 128;
+        }
+        const vars = dark
+            ? { '--panel-bg': '#252526', '--border-color': 'rgba(255,255,255,.2)', '--text-color': '#e6e6e6', '--bg-color': '#1e1e1e' }
+            : { '--panel-bg': '#ffffff', '--border-color': 'rgba(0,0,0,.14)', '--text-color': '#222', '--bg-color': '#ffffff' };
+        for (const k in vars) overlay.style.setProperty(k, vars[k]);
+        overlay.style.colorScheme = dark ? 'dark' : 'light';
+    }
+
+    function aiOverlayContext(editor, range) {
+        const model = editor.getModel();
+        const start = model.getOffsetAt(range.getStartPosition());
+        const end = model.getOffsetAt(range.getEndPosition());
+        const full = model.getValue();
+        return { before: full.slice(Math.max(0, start - 1000), start), after: full.slice(end, end + 1000) };
+    }
+
+    function aiOverlayPrompt(instruction, text, ctx) {
+        return [
+            'You are an inline text-editing assistant embedded in a document editor.',
+            'You cannot see the whole document: only a selected fragment plus up to 1000 characters of context before and after it.',
+            'Apply the user instruction ONLY to the SELECTED FRAGMENT. Do not rewrite, continue, repeat or comment on the context.',
+            'Do not guess or invent anything beyond what the instruction and the fragment require.',
+            'Return only the final replacement text for the selected fragment: no explanations, quotes, markdown fences or preambles.',
+            'Preserve the fragment line breaks, indentation and formatting style unless the instruction says otherwise.',
+            '',
+            'Instruction: ' + (String(instruction || '').trim() || 'Fix spelling, punctuation, and obvious grammar errors.'),
+            '',
+            '<context_before>',
+            ctx.before,
+            '</context_before>',
+            '<selected_fragment>',
+            String(text || ''),
+            '</selected_fragment>',
+            '<context_after>',
+            ctx.after,
+            '</context_after>'
+        ].join('\n');
+    }
+
     function ensureAiOverlay(hostContainer, labels) {
         let overlay = hostContainer && hostContainer.querySelector('.monaco-ai-action-overlay');
         if (overlay) return overlay;
@@ -647,7 +697,7 @@
         }
     }
 
-    async function requestAiReplacement(aiEndpoint, instruction, text) {
+    async function requestAiReplacement(aiEndpoint, instruction, text, ctx) {
         const response = await fetch(aiEndpoint, {
             method: 'POST',
             headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
@@ -655,14 +705,7 @@
                 action: 'chat',
                 role: 'general',
                 model: '',
-                message: [
-                    'You are a code editing assistant.',
-                    'Rewrite only the provided selection according to the instruction.',
-                    'Return only the replacement text, with no markdown fences and no explanations.',
-                    'Instruction: ' + String(instruction || 'Improve this code.'),
-                    'Selection:',
-                    String(text || '')
-                ].join('\n')
+                message: aiOverlayPrompt(instruction, text, ctx || { before: '', after: '' })
             })
         });
         const data = await response.json().catch(() => ({}));
@@ -684,6 +727,7 @@
         if (!selection || selection.isEmpty()) return;
         const coords = editor.getScrolledVisiblePosition(selection.getStartPosition());
         const rect = container.getBoundingClientRect();
+        aiOverlayTheme(overlay, container);
         overlay.classList.remove('hidden');
         overlay.style.left = '0px';
         overlay.style.top = '0px';
@@ -706,6 +750,12 @@
             statusEl.textContent = '';
             notifyUndoRedo(editor);
         };
+        promptEl.onkeydown = (ev) => {
+            if (ev.key === 'Enter' && !ev.shiftKey && !ev.isComposing) {
+                ev.preventDefault();
+                if (!applyBtn.disabled) applyBtn.click();
+            }
+        };
         applyBtn.onclick = async () => {
             const latest = editor.getSelection();
             if (!latest || latest.isEmpty()) return;
@@ -714,7 +764,7 @@
             applyBtn.disabled = true;
             statusEl.textContent = tKey('monacoAiProcessing', 'Processing…');
             try {
-                const replacement = await requestAiReplacement(opts.aiEndpoint, instruction, original);
+                const replacement = await requestAiReplacement(opts.aiEndpoint, instruction, original, aiOverlayContext(editor, latest));
                 editor.pushUndoStop();
                 editor.executeEdits('ai-inline-rewrite', [{ range: latest, text: replacement, forceMoveMarkers: true }]);
                 editor.pushUndoStop();

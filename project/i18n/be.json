@@ -1141,5 +1141,22 @@
   "backup_ring_label": "абаронена",
   "backup_sections_aria": "Раздзелы рэзервнага капіравання",
   "backup_tip_recovery_aria": "Пра хроналогію аднаўлення",
-  "backup_tip_protection_aria": "Пра статус абароны"
+  "backup_tip_protection_aria": "Пра статус абароны",
+  "keyboard_shortcuts": "Гарачыя клавішы",
+  "keyboard_shortcuts_action": "Дзеянне",
+  "keyboard_shortcuts_desc": "Спалучэнні клавіш, даступныя на галоўным экране з плітамі праграм.",
+  "keyboard_shortcuts_hint": "Паказаць гарачыя клавішы",
+  "keyboard_shortcuts_key": "Клавіша",
+  "keyboard_shortcuts_open": "Адкрыць даведку па гарачых клавішах",
+  "shortcut_admin_panel": "Адкрыць адмін-панэль",
+  "shortcut_arrows": "Перамяшчэнне паміж плітамі",
+  "shortcut_enter": "Адкрыць выбраную праграму",
+  "shortcut_profile": "Адкрыць профіль",
+  "shortcut_search": "Фокус на пошук праграм",
+  "shortcut_sessions": "Адкрыць кіраванне сесіямі",
+  "shortcut_shared_files": "Адкрыць агульныя файлы",
+  "shortcut_shortcuts": "Адкрыць гарачыя клавішы",
+  "shortcut_stats": "Адкрыць статыстыку",
+  "shortcut_support_chat": "Адкрыць чат падтрымкі",
+  "admin_only": "толькі для адмінаў"
 }

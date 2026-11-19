@@ -4307,6 +4307,10 @@ if ($versionLabel !== '') {
                 <tr><td><code>Enter</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_enter'] ?? 'Open selected app'); ?></td></tr>
                 <tr><td><code>/</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_search'] ?? 'Focus app search'); ?></td></tr>
                 <tr><td><code>I</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_shortcuts'] ?? 'Open keyboard shortcuts'); ?></td></tr>
+                <tr><td><code>Ctrl</code> + <code>S</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_save'] ?? 'Save changes in the open dialog'); ?></td></tr>
+                <tr><td><code>Esc</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_close_modal'] ?? 'Close the current dialog'); ?></td></tr>
+                <tr><td><code>?</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_shortcuts'] ?? 'Open keyboard shortcuts'); ?></td></tr>
+                <tr><td><code>G</code></td><td><?php echo my_htmlspecialchars($translations['shortcut_home'] ?? 'Go to the dashboard'); ?></td></tr>
             </tbody>
         </table>
         <div class="info-warning" role="note">
@@ -4339,9 +4343,11 @@ window.__SHELL_I18N=<?php echo json_encode([
     'shell_application' => $translations['shell_application'] ?? 'NexOrbit',
     'opening_app' => $translations['opening_app'] ?? 'Opening…',
     'opening_app_named' => $translations['opening_app_named'] ?? 'Opening {name}…',
+    'app' => $translations['app'] ?? 'App',
 ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<script src="/project/assets/shell-app-nav.js?v=8" defer></script>
+<?php $__shellNavFile = APP_ROOT . '/project/assets/shell-app-nav.js'; $__shellNavVersion = is_file($__shellNavFile) ? (string)filemtime($__shellNavFile) : '8'; ?>
+<script src="/project/assets/shell-app-nav.js?v=<?php echo my_htmlspecialchars($__shellNavVersion); ?>" defer></script>
 <?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($path==='/main'): ?>
@@ -7306,6 +7312,25 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
         }
         document.addEventListener('keydown', function(e){
             const code = e.code || '';
+            if((e.ctrlKey || e.metaKey) && !e.altKey && (e.code === 'KeyS' || String(e.key).toLowerCase() === 's')){
+                var smEl = document.getElementById('settings-modal');
+                var sfEl = document.getElementById('settings-form');
+                if(smEl && smEl.style.display === 'flex' && sfEl){
+                    e.preventDefault();
+                    if(typeof sfEl.requestSubmit === 'function'){ sfEl.requestSubmit(); } else { sfEl.submit(); }
+                    return;
+                }
+                var apOverlay = document.getElementById('admin-panel-overlay');
+                if(apOverlay && apOverlay.classList.contains('active')){
+                    var apCards = Array.prototype.slice.call(apOverlay.querySelectorAll('.ap-settings-card.active'));
+                    var apSaveBtn = null;
+                    for(var api = 0; api < apCards.length && !apSaveBtn; api++){
+                        apSaveBtn = apCards[api].querySelector('.ap-btn-primary');
+                    }
+                    if(apSaveBtn){ e.preventDefault(); apSaveBtn.click(); return; }
+                }
+                return;
+            }
             if(code === 'Escape'){
                 let handled = false;
                 if(sidebar && sidebar.classList.contains('open') && searchBar && searchBar.value.trim() !== ''){
@@ -7358,7 +7383,7 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
                     return;
                 }
             }
-                if(code === 'Slash'){
+                if(code === 'Slash' && !e.shiftKey){
                     e.preventDefault();
                     if(sidebar && !sidebar.classList.contains('open')){
                         openSidebarMenu();
@@ -7404,6 +7429,16 @@ rows += '<tr data-filename="' + sharedFileText(fname) + '" data-filepath="' + sh
             if(code === 'KeyI'){
                 e.preventDefault();
                 openShortcutsModal();
+            }
+            if(e.key === '?' || (code === 'Slash' && e.shiftKey)){
+                e.preventDefault();
+                openShortcutsModal();
+                return;
+            }
+            if(code === 'KeyG'){
+                var homeLink = document.querySelector('.shell-home-link');
+                if(homeLink){ e.preventDefault(); homeLink.click(); }
+                return;
             }
         });
         if(appGrid){
