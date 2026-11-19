@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Map
@@ -150,22 +151,6 @@ private fun PointsScreen(onBack: () -> Unit) {
             ) {
                 item {
                     AppSectionCard(title = stringResource(R.string.points_filter_title), icon = Icons.Filled.Search) {
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            OutlinedTextField(
-                                from,
-                                { from = it; page = 0 },
-                                label = { Text(stringResource(R.string.points_filter_from)) },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                            OutlinedTextField(
-                                to,
-                                { to = it; page = 0 },
-                                label = { Text(stringResource(R.string.points_filter_to)) },
-                                singleLine = true,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
                         Row(
                             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                             horizontalArrangement = Arrangement.spacedBy(6.dp),

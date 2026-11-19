@@ -17,6 +17,7 @@ import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -189,20 +190,21 @@ class MainActivity : AppCompatActivity() {
             }
         }
         LaunchedEffect(notificationDone) {
-            if (!notificationDone || healthRequestStarted) return@LaunchedEffect
+            if (!notificationDone || healthRequestStarted || setupPrefs.getBoolean("health_intro_shown", false)) return@LaunchedEffect
             val enabledTypes = preferencesManager.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }
             val requiredPermissions = HealthConnectManager.getPermissionsForTypes(enabledTypes)
             val grantedPermissions = HealthConnectManager(this@MainActivity).getGrantedPermissions()
             val missingPermissions = requiredPermissions - grantedPermissions
             if (missingPermissions.isNotEmpty()) {
                 healthRequestStarted = true
+                setupPrefs.edit().putBoolean("health_intro_shown", true).apply()
                 pendingHealthPermissions = requiredPermissions
             }
         }
         if (pendingHealthPermissions.isNotEmpty()) {
             AlertDialog(
                 onDismissRequest = { pendingHealthPermissions = emptySet() },
-                icon = { Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(48.dp)) },
+                icon = { Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))) },
                 title = { Text(stringResource(R.string.nex_health_intro_title)) },
                 text = { Text(stringResource(R.string.nex_health_intro_message)) },
                 confirmButton = {
@@ -219,6 +221,7 @@ class MainActivity : AppCompatActivity() {
         }
         LaunchedEffect(connected, healthPermissionRevision) {
             if (!connected || setupPrefs.getBoolean("history_offer_checked", false)) return@LaunchedEffect
+            if (preferencesManager.getEffectiveLastSyncAnchor() != null) { setupPrefs.edit().putBoolean("history_offer_checked", true).apply(); return@LaunchedEffect }
             val hc = HealthConnectManager(this@MainActivity)
             val granted = runCatching { hc.getGrantedPermissions() }.getOrDefault(emptySet())
             val types = HealthConnectManager.grantedDataTypes(granted).intersect(preferencesManager.getEnabledDataTypes())
@@ -279,11 +282,17 @@ class MainActivity : AppCompatActivity() {
             }
         }) { padding ->
             AppBackground {
-                when (selected) {
+                androidx.compose.animation.AnimatedContent(targetState = selected, transitionSpec = {
+                    val direction = if (bottomNavItems.indexOf(targetState) > bottomNavItems.indexOf(initialState)) 1 else -1
+                    (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(350)) { it * direction } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(350))) togetherWith
+                        (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(350)) { -it * direction } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(350)))
+                }, label = "tabs") { screen ->
+                when (screen) {
                     NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
                     NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
                     NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
                     NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+                }
                 }
             }
         }

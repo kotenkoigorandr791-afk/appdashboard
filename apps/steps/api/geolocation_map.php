@@ -49,7 +49,19 @@ if ($bbox === null && !$wantsExtent && trim((string)($_GET['bbox'] ?? '')) === '
     // No viewport yet: start from the owner's own data extent.
     $bbox = StepsGeolocationMap::dataBbox($pdo, $viewer, $from, $to);
 }
-if ($bbox === null && !$wantsExtent) public_api_json(['ok' => false, 'error' => 'invalid_bbox'], 400);
+if ($bbox === null && !$wantsExtent) {
+    if (trim((string)($_GET['bbox'] ?? '')) === '') {
+        public_api_json([
+            'ok' => true,
+            'geojson' => ['type' => 'FeatureCollection', 'features' => []],
+            'bbox' => null,
+            'range' => ['from' => gmdate('c', strtotime($from)), 'to' => gmdate('c', strtotime($to))],
+            'meta' => ['counts' => [], 'bounded' => true],
+            'config' => $mapConfig,
+        ]);
+    }
+    public_api_json(['ok' => false, 'error' => 'invalid_bbox'], 400);
+}
 if (strtotime($from) === false || strtotime($to) === false || strtotime($from) >= strtotime($to)) {
     public_api_json(['ok' => false, 'error' => 'invalid_range'], 400);
 }

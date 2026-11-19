@@ -31,6 +31,8 @@ import java.time.ZoneOffset
 import androidx.compose.ui.res.stringResource
 import orbit.nex.steps.R
 
+private var handledHistoryRequest = 0
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
@@ -60,7 +62,7 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
     )
     var showHistorySheet by remember { mutableStateOf(false) }
     var selectedOptionIndex by rememberSaveable { mutableStateOf(0) }
-    LaunchedEffect(historyRequest) { if (historyRequest > 0) { selectedOptionIndex = 3; showHistorySheet = true } }
+    LaunchedEffect(historyRequest) { if (historyRequest > handledHistoryRequest) { handledHistoryRequest = historyRequest; selectedOptionIndex = 3; showHistorySheet = true } }
     var startDate by rememberSaveable(stateSaver = localDateSaver) { mutableStateOf(null) }
     var endDate by rememberSaveable(stateSaver = localDateSaver) { mutableStateOf(null) }
     var showStartDatePicker by remember { mutableStateOf(false) }
@@ -171,6 +173,7 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
                                     includeStepsCadence = false
                                 )
                                 if (requiredPermissions.isNotEmpty() && !healthConnectManager.hasPermissions(requiredPermissions)) {
+                                    SyncManager(context).flushLocationOutbox(null)
                                     syncMessage = context.getString(R.string.err_permissions_required)
                                     isSyncing = false
                                     return@launch
@@ -286,121 +289,16 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
                 }
 
                 if (showStartDatePicker) {
-                    val startPickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = startDate
-                            ?.atStartOfDay(ZoneOffset.UTC)
-                            ?.toInstant()
-                            ?.toEpochMilli()
-                            ?: todayMillis,
-                        selectableDates = object : SelectableDates {
-                            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                                return utcTimeMillis <= todayMillis
-                            }
-
-                            override fun isSelectableYear(year: Int): Boolean {
-                                return year <= today.year
-                            }
-                        }
-                    )
-                    DatePickerDialog(
-                        onDismissRequest = { showStartDatePicker = false },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                val selectedMillis = startPickerState.selectedDateMillis
-                                startDate = selectedMillis?.let {
-                                    Instant.ofEpochMilli(it)
-                                        .atZone(ZoneOffset.UTC)
-                                        .toLocalDate()
-                                }
-                                showStartDatePicker = false
-                            }) {
-                                Text(stringResource(R.string.action_ok))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showStartDatePicker = false }) {
-                                Text(stringResource(R.string.action_cancel))
-                            }
-                        }
-                    ) {
-                        DatePicker(state = startPickerState)
-                    }
+                    AppDatePickerDialog(startDate, null, today, { showStartDatePicker = false }) { startDate = it; showStartDatePicker = false }
                 }
-
                 if (showEndDatePicker) {
-                    val currentEndDate = endDate
-                    val minEndDateMillis = startDate
-                        ?.atStartOfDay(ZoneOffset.UTC)
-                        ?.toInstant()
-                        ?.toEpochMilli()
-                    val minEndYear = startDate?.year
-                    val endPickerState = rememberDatePickerState(
-                        initialSelectedDateMillis = when {
-                            currentEndDate != null && minEndDateMillis != null -> {
-                                val endDateMillis = currentEndDate
-                                    .atStartOfDay(ZoneOffset.UTC)
-                                    .toInstant()
-                                    .toEpochMilli()
-                                maxOf(endDateMillis, minEndDateMillis)
-                            }
-                            currentEndDate != null -> currentEndDate
-                                .atStartOfDay(ZoneOffset.UTC)
-                                .toInstant()
-                                .toEpochMilli()
-                            minEndDateMillis != null -> minEndDateMillis
-                            else -> todayMillis
-                        },
-                        selectableDates = object : SelectableDates {
-                            override fun isSelectableDate(utcTimeMillis: Long): Boolean {
-                                return utcTimeMillis <= todayMillis &&
-                                    (minEndDateMillis == null || utcTimeMillis >= minEndDateMillis)
-                            }
-
-                            override fun isSelectableYear(year: Int): Boolean {
-                                return year <= today.year && (minEndYear == null || year >= minEndYear)
-                            }
-                        }
-                    )
-                    DatePickerDialog(
-                        onDismissRequest = { showEndDatePicker = false },
-                        confirmButton = {
-                            TextButton(onClick = {
-                                val selectedMillis = endPickerState.selectedDateMillis
-                                endDate = selectedMillis?.let {
-                                    Instant.ofEpochMilli(it)
-                                        .atZone(ZoneOffset.UTC)
-                                        .toLocalDate()
-                                }
-                                showEndDatePicker = false
-                            }) {
-                                Text(stringResource(R.string.action_ok))
-                            }
-                        },
-                        dismissButton = {
-                            TextButton(onClick = { showEndDatePicker = false }) {
-                                Text(stringResource(R.string.action_cancel))
-                            }
-                        }
-                    ) {
-                        DatePicker(state = endPickerState)
-                    }
+                    AppDatePickerDialog(endDate, startDate, today, { showEndDatePicker = false }) { endDate = it; showEndDatePicker = false }
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedButton(
-                        onClick = { showStartDatePicker = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(startDate?.let { context.getString(R.string.manual_sync_start_label, it.toString()) } ?: stringResource(R.string.manual_sync_start_date))
-                    }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedButton(
-                        onClick = { showEndDatePicker = true },
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Text(endDate?.let { context.getString(R.string.manual_sync_end_label, it.toString()) } ?: stringResource(R.string.manual_sync_end_date))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        AppDateField(stringResource(R.string.date_from), startDate, { showStartDatePicker = true }, Modifier.weight(1f))
+                        AppDateField(stringResource(R.string.date_to), endDate, { showEndDatePicker = true }, Modifier.weight(1f))
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))

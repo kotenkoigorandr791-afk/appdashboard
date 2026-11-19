@@ -25,10 +25,7 @@ class HCWebhookApplication : Application() {
         NetworkState.start(this)
 
         // Location work is only resumed when the user previously enabled it.
-        if (preferencesManager.isLocationTrackingEnabled() || orbit.nex.steps.location.LocationTrackingManager.pendingCount(this) > 0) {
-            orbit.nex.steps.location.LocationUploadWorker.ensurePeriodic(this)
-            orbit.nex.steps.location.LocationUploadWorker.enqueue(this)
-        }
+        orbit.nex.steps.location.LocationUploadWorker.cancelPeriodic(this)
 
         // Schedule syncs based on the selected sync mode
         when (preferencesManager.getSyncMode()) {

@@ -38,6 +38,8 @@ import androidx.compose.material.icons.filled.Satellite
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TravelExplore
 import androidx.compose.material3.Checkbox
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -90,6 +92,7 @@ import orbit.nex.steps.location.GeoHeatLine
 import orbit.nex.steps.location.GeoLatLon
 import orbit.nex.steps.location.GeoMapData
 import orbit.nex.steps.location.GeoMapRepository
+import orbit.nex.steps.location.GeoTrip
 import orbit.nex.steps.location.GeoPointFeature
 import orbit.nex.steps.location.GeoSpeedSegment
 import orbit.nex.steps.location.StoredLocationEvent
@@ -103,7 +106,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import org.json.JSONObject
 
-private enum class MapStyle(val key: String, val titleRes: Int) {
+internal enum class MapStyle(val key: String, val titleRes: Int) {
     NORMAL("normal", R.string.map_style_standard),
     SATELLITE("satellite", R.string.map_style_satellite),
     ;
@@ -142,7 +145,7 @@ private enum class GeoLayer(val key: String, val titleRes: Int) {
  * why the map looked like an empty background. Esri's World Street Map has
  * z/y/x order like World Imagery and can be colour-inverted for dark mode.
  */
-private object EsriStreet : OnlineTileSourceBase(
+internal object EsriStreet : OnlineTileSourceBase(
     "EsriWorldStreetMap", 0, 19, 256, ".png",
     arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/"),
     "Esri, HERE, Garmin, OpenStreetMap contributors",
@@ -153,7 +156,7 @@ private object EsriStreet : OnlineTileSourceBase(
 }
 
 /** Esri imagery uses z/y/x order instead of the usual z/x/y. */
-private object EsriSatellite : OnlineTileSourceBase(
+internal object EsriSatellite : OnlineTileSourceBase(
     "EsriWorldImagery", 0, 19, 256, ".jpg",
     arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
     "Esri, Maxar, Earthstar Geographics",
@@ -221,12 +224,12 @@ private class HeatmapOverlay(
 
 /** Slowest to fastest buckets returned by the server `speed` layer. */
 private val SPEED_BUCKET_COLORS = intArrayOf(
-    AndroidColor.rgb(140, 146, 158),
-    AndroidColor.rgb(56, 148, 224),
-    AndroidColor.rgb(52, 190, 122),
-    AndroidColor.rgb(232, 194, 62),
-    AndroidColor.rgb(240, 132, 48),
-    AndroidColor.rgb(226, 68, 58),
+    AndroidColor.rgb(56, 189, 248),
+    AndroidColor.rgb(34, 197, 94),
+    AndroidColor.rgb(234, 179, 8),
+    AndroidColor.rgb(249, 115, 22),
+    AndroidColor.rgb(239, 68, 68),
+    AndroidColor.rgb(168, 85, 247),
 )
 
 private fun dot(color: Int, border: Int, sizeDp: Int): GradientDrawable =
@@ -251,13 +254,20 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
-    val repository = remember { GeoMapRepository(prefs) }
+    val repository = remember { GeoMapRepository(prefs, cacheDir = context.cacheDir) }
     // osmdroid defaults to a generic user agent that the public tile servers
     // answer with blank 1x1 images, which is why the map looked empty. Identify
     // the app explicitly before the first tile request.
     remember {
         Configuration.getInstance().apply {
             userAgentValue = "${context.packageName}/${BuildConfig.VERSION_NAME} (NexSteps)"
+            osmdroidBasePath = java.io.File(context.filesDir, "osmdroid")
+            osmdroidTileCache = java.io.File(context.filesDir, "osmdroid/tiles")
+            tileFileSystemCacheMaxBytes = 1024L * 1024 * 1024
+            tileFileSystemCacheTrimBytes = 800L * 1024 * 1024
+            expirationOverrideDuration = 90L * 24 * 3600 * 1000
+            expirationExtendedDuration = 90L * 24 * 3600 * 1000
+            tileDownloadThreads = 4
         }
     }
 
@@ -283,6 +293,9 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
     var layers by remember { mutableStateOf(prefs.getMapLayers()) }
     var showLayers by remember { mutableStateOf(false) }
+    var myLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    var hintVisible by remember { mutableStateOf(true) }
+    LaunchedEffect(selectedDay) { hintVisible = true; delay(3_000); hintVisible = false }
     var showPanels by remember { mutableStateOf(false) }
     var fittedDay by remember { mutableStateOf<LocalDate?>(null) }
     var restoringCamera by remember { mutableStateOf(prefs.getMapCamera() != null) }
@@ -315,11 +328,13 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     LaunchedEffect(selectedDay, config) {
         localEvents = runCatching { LocationEventStore(context).eventsForDay(selectedDay) }.getOrDefault(localEvents)
         val cached = TrackingMapCache.get(config?.url, selectedDay)
+        if (cached == null) remoteData = GeoMapData()
         if (cached != null) {
             remoteData = cached
             loading = false
             return@LaunchedEffect
         }
+        config?.let { repository.cached(it, selectedDay) }?.let { remoteData = it }
         loading = config != null
         val remote = config?.let { repository.loadDay(it, selectedDay) } ?: GeoMapData()
         TrackingMapCache.put(config?.url, selectedDay, remote)
@@ -349,6 +364,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         }.getOrNull()
         MapView(context).apply {
             setMultiTouchControls(true)
+            zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
             setHorizontalMapRepetitionEnabled(false)
             setVerticalMapRepetitionEnabled(false)
             when {
@@ -403,8 +419,8 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     }
 
     // Overlays are rebuilt only when the day data or the enabled layers change.
-    LaunchedEffect(data, layers, resolvedStyle) {
-        rebuildOverlays(mapView, data, layers)
+    LaunchedEffect(data, layers, resolvedStyle, myLocation) {
+        rebuildOverlays(mapView, data, layers, myLocation)
         mapView.overlays.remove(roadsOverlay)
         if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
         val box = data.bbox
@@ -412,6 +428,28 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             fittedDay = selectedDay
             fitBoundingBox(mapView, box)
         }
+    }
+
+    @android.annotation.SuppressLint("MissingPermission")
+    fun locate() {
+        val client = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
+        fun show(location: android.location.Location?) {
+            if (location == null) return
+            val point = GeoPoint(location.latitude, location.longitude)
+            myLocation = point
+            mapView.controller.setZoom(16.0)
+            mapView.controller.animateTo(point)
+            restoringCamera = false
+        }
+        client.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
+            .addOnSuccessListener { location ->
+                if (location != null) show(location) else client.lastLocation.addOnSuccessListener { show(it) }
+            }
+            .addOnFailureListener { client.lastLocation.addOnSuccessListener { show(it) } }
+    }
+
+    val locateLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        if (LocationPermissions.hasForeground(context)) locate()
     }
 
     fun fitToData() {
@@ -477,6 +515,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                     selectedDay = selectedDay,
                     compact = compact,
                     modifier = pillModifier,
+                    onPick = { selectedDay = it; fittedDay = null; restoringCamera = false },
                     onPrevious = {
                         selectedDay = selectedDay.minusDays(1)
                         fittedDay = null
@@ -523,37 +562,18 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 onClick = { showLayers = true },
             )
             MapControlButton(
-                icon = Icons.Filled.LocalFireDepartment,
-                contentDescription = stringResource(R.string.map_layer_heatmap),
-                size = controlSize,
-                iconSize = controlIconSize,
-                active = GeoLayer.HEATMAP.key in layers,
-                onClick = {
-                    layers = if (GeoLayer.HEATMAP.key in layers) layers - GeoLayer.HEATMAP.key else layers + GeoLayer.HEATMAP.key
-                    prefs.setMapLayers(layers)
-                },
-            )
-            MapControlButton(
-                icon = Icons.Filled.Speed,
-                contentDescription = stringResource(R.string.map_layer_speed),
-                size = controlSize,
-                iconSize = controlIconSize,
-                active = GeoLayer.SPEED.key in layers,
-                onClick = {
-                    layers = if (GeoLayer.SPEED.key in layers) layers - GeoLayer.SPEED.key else layers + GeoLayer.SPEED.key
-                    prefs.setMapLayers(layers)
-                },
-            )
-            MapControlButton(
                 icon = Icons.Filled.MyLocation,
                 contentDescription = stringResource(R.string.map_locate),
                 size = controlSize,
                 iconSize = controlIconSize,
-                onClick = { fitToData() },
+                onClick = {
+                    if (LocationPermissions.hasForeground(context)) locate()
+                    else locateLauncher.launch(LocationPermissions.foregroundPermissions())
+                },
             )
         }
 
-        if (data.isEmpty && !loading) {
+        if (data.isEmpty && !loading && data.error == null && hintVisible) {
             Surface(
                 shape = RoundedCornerShape(16.dp),
                 color = MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
@@ -596,7 +616,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
     if (showLayers) {
         ModalBottomSheet(onDismissRequest = { showLayers = false }) {
-            Column(Modifier.padding(horizontal = 18.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 18.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(stringResource(R.string.map_style_title), style = MaterialTheme.typography.titleMedium)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     MapStyle.entries.forEachIndexed { index, style ->
@@ -628,14 +648,14 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                         Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Checkbox(
+                        Text(stringResource(layer.titleRes), modifier = Modifier.weight(1f))
+                        Switch(
                             checked = layer.key in layers,
                             onCheckedChange = { checked ->
                                 layers = if (checked) layers + layer.key else layers - layer.key
                                 prefs.setMapLayers(layers)
                             },
                         )
-                        Text(stringResource(layer.titleRes))
                     }
                 }
             }
@@ -710,13 +730,16 @@ private fun TrackingSwitchPill(
 }
 
 @Composable
-private fun DayPill(
+internal fun DayPill(
     selectedDay: LocalDate,
     compact: Boolean,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     modifier: Modifier = Modifier,
+    onPick: ((LocalDate) -> Unit)? = null,
 ) {
+    var picking by remember { mutableStateOf(false) }
+    if (picking && onPick != null) orbit.nex.steps.components.AppDatePickerDialog(selectedDay, null, LocalDate.now(), { picking = false }) { onPick(it); picking = false }
     val today = LocalDate.now()
     val formatter = remember { DateTimeFormatter.ofPattern("d MMM, EEE", Locale.getDefault()) }
     val label = when (selectedDay) {
@@ -740,7 +763,7 @@ private fun DayPill(
             Text(
                 label,
                 style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                modifier = Modifier.weight(1f).padding(horizontal = 2.dp),
+                modifier = Modifier.weight(1f).padding(horizontal = 2.dp).clickable(enabled = onPick != null) { picking = true },
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -870,8 +893,55 @@ private fun SyncStatusBox(
 }
 
 /** Replaces every overlay, so a reload never stacks duplicate lines or dots. */
-private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>) {
-    mapView.overlays.clear()
+internal interface KeepOverlay
+
+internal class StyledInfoWindow(mapView: MapView) : org.osmdroid.views.overlay.infowindow.InfoWindow(R.layout.map_info_window, mapView) {
+    override fun onOpen(item: Any?) {
+        val marker = item as? Marker
+        mView.findViewById<android.widget.TextView>(R.id.info_title).text = marker?.title.orEmpty()
+        mView.findViewById<android.widget.TextView>(R.id.info_snippet).apply {
+            text = marker?.snippet.orEmpty()
+            visibility = if (marker?.snippet.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
+        }
+        mView.setOnClickListener { close() }
+    }
+
+    override fun onClose() {}
+}
+
+internal fun styleMarker(marker: Marker, mapView: MapView) {
+    if (marker.title.isNullOrBlank()) marker.setInfoWindow(null) else marker.setInfoWindow(StyledInfoWindow(mapView))
+}
+
+internal fun configureOsm(context: android.content.Context) {
+    Configuration.getInstance().apply {
+        userAgentValue = "${context.packageName}/${BuildConfig.VERSION_NAME} (NexSteps)"
+        osmdroidBasePath = java.io.File(context.filesDir, "osmdroid")
+        osmdroidTileCache = java.io.File(context.filesDir, "osmdroid/tiles")
+        tileFileSystemCacheMaxBytes = 1024L * 1024 * 1024
+        tileFileSystemCacheTrimBytes = 800L * 1024 * 1024
+        expirationOverrideDuration = 90L * 24 * 3600 * 1000
+        expirationExtendedDuration = 90L * 24 * 3600 * 1000
+        tileDownloadThreads = 4
+    }
+}
+
+internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean) {
+    mapView.setTileSource(if (style == MapStyle.SATELLITE) EsriSatellite else EsriStreet)
+    mapView.overlayManager.tilesOverlay.setColorFilter(
+        if (style == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
+    )
+    mapView.setBackgroundColor(
+        when (style) {
+            MapStyle.SATELLITE -> AndroidColor.rgb(8, 55, 68)
+            MapStyle.NORMAL -> if (darkTheme) AndroidColor.rgb(18, 24, 28) else AndroidColor.rgb(232, 237, 242)
+        }
+    )
+    mapView.invalidate()
+}
+
+internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>, myLocation: GeoPoint? = null) {
+    mapView.overlays.removeAll { it !is KeepOverlay }
     val resources = mapView.resources
     val density = resources.displayMetrics.density
     val tripColor = AndroidColor.rgb(46, 125, 255)
@@ -882,27 +952,32 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
     val pendingPointColor = AndroidColor.argb(220, 232, 132, 20)
     val speedOn = GeoLayer.SPEED.key in layers && data.speed.isNotEmpty()
 
-    fun addPolyline(path: List<GeoLatLon>, color: Int, widthDp: Float) {
+    fun addPolyline(path: List<GeoLatLon>, color: Int, widthDp: Float, dashed: Boolean = false) {
         val line = Polyline(mapView)
         path.forEach { line.addPoint(GeoPoint(it.lat, it.lon)) }
         line.outlinePaint.color = color
         line.outlinePaint.strokeWidth = widthDp * density
         line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
         line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
+        if (dashed) line.outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(14f * density, 10f * density), 0f)
         mapView.overlays.add(line)
     }
 
     // A speed-coloured track replaces the plain trip line: drawing both would
     // simply hide the colour scale under the solid stroke.
     if (speedOn) {
+        if (GeoLayer.TRIPS.key in layers) data.trips.filter { !it.pending && it.kind == "trip" }.forEach { trip -> addPolyline(trip.path, AndroidColor.argb(170, 148, 163, 184), 3.5f) }
         data.speed.forEach { segment ->
             val casing = AndroidColor.argb(90, 0, 0, 0)
             addPolyline(segment.path, casing, 7.5f)
             addPolyline(segment.path, SPEED_BUCKET_COLORS[segment.bucket.coerceIn(0, 5)], 5.5f)
         }
     } else if (GeoLayer.TRIPS.key in layers) {
-        data.trips.forEach { trip -> addPolyline(trip.path, tripColor, 5f) }
+        data.trips.filter { !it.pending && it.kind == "trip" }.forEach { trip -> addPolyline(trip.path, tripColor, 5f) }
     }
+    data.trips.filter { it.kind == "smooth" }.forEach { trip -> addPolyline(trip.path, AndroidColor.rgb(52, 211, 153), 4f) }
+    data.trips.filter { it.kind == "matched" }.forEach { trip -> addPolyline(trip.path, AndroidColor.rgb(167, 139, 250), 4f, dashed = true) }
+    data.trips.filter { it.pending }.forEach { trip -> addPolyline(trip.path, pendingPointColor, 4f, dashed = true) }
 
     // Only repeatedly travelled streets are returned by the server, and the
     // overlay goes on top of the track so the hotspots stay readable.
@@ -918,6 +993,7 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             marker.icon = dot(color, border, (sizeDp * density).toInt())
             title(feature)?.let { marker.title = it }
+            styleMarker(marker, mapView)
             mapView.overlays.add(marker)
         }
     }
@@ -935,6 +1011,7 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             marker.icon = dot(pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
+            styleMarker(marker, mapView)
             mapView.overlays.add(marker)
         }
     }
@@ -945,7 +1022,17 @@ private fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Stri
         marker.position = GeoPoint(feature.lat, feature.lon)
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
         marker.icon = dot(pendingPointColor, AndroidColor.WHITE, (9 * density).toInt())
-        // No label to show, so an empty info bubble would only get in the way.
+        marker.setInfoWindow(null)
+        marker.setOnMarkerClickListener { _, _ -> true }
+        mapView.overlays.add(marker)
+    }
+    myLocation?.let { point ->
+        val marker = Marker(mapView)
+        marker.position = point
+        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+        marker.icon = dot(AndroidColor.rgb(33, 150, 243), AndroidColor.WHITE, (16 * density).toInt())
+        marker.setInfoWindow(null)
+        marker.setInfoWindow(null)
         marker.setOnMarkerClickListener { _, _ -> true }
         mapView.overlays.add(marker)
     }
@@ -987,7 +1074,7 @@ private val SPEED_LEGEND_LABELS = listOf("0–3", "3–6", "6–12", "12–25", 
 private fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoMapData {
     // Only measurements the server has not confirmed yet: accepted rows stay in
     // the outbox for a few days and would otherwise duplicate server points.
-    val local = events.filter { it.isPending }.mapNotNull { event ->
+    val local = events.filter { it.isPending }.sortedBy { it.deviceSequence }.mapNotNull { event ->
         runCatching { JSONObject(event.payload) }.getOrNull()?.let { payload ->
             val lat = payload.optDouble("latitude", Double.NaN)
             val lon = payload.optDouble("longitude", Double.NaN)
@@ -995,10 +1082,13 @@ private fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoMa
         }
     }
     if (local.isEmpty()) return this
+    val localPath = local.map { GeoLatLon(it.lat, it.lon) }
+    val anchor = (trips.filter { !it.pending }.lastOrNull()?.path?.lastOrNull() ?: speed.lastOrNull()?.path?.lastOrNull())
+    val connector = GeoTrip("local", "", listOfNotNull(anchor) + localPath, 0.0, pending = true)
     val coordinates = points + local
     val localBox = GeoBoundingBox(coordinates.maxOf { it.lat }, coordinates.minOf { it.lat }, coordinates.maxOf { it.lon }, coordinates.minOf { it.lon })
     val merged = bbox?.let { GeoBoundingBox(maxOf(it.north, localBox.north), minOf(it.south, localBox.south), maxOf(it.east, localBox.east), minOf(it.west, localBox.west)) } ?: localBox
-    return copy(points = coordinates, bbox = merged)
+    return copy(points = coordinates, trips = if (connector.path.size >= 2) trips + connector else trips, bbox = merged)
 }
 
 private fun fitBoundingBox(mapView: MapView, bbox: GeoBoundingBox) {

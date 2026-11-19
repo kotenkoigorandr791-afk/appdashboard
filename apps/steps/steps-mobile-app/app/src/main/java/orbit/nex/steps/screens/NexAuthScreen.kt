@@ -12,6 +12,11 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -88,7 +93,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Card(Modifier.fillMaxWidth().animateContentSize(tween(300)), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
             Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(64.dp))
+                Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(18.dp)))
                 Text("NexSteps", style = MaterialTheme.typography.headlineSmall)
                 if (origin.isEmpty()) {
                     AnimatedContent(targetState = page, transitionSpec = {
@@ -105,12 +110,14 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                             Text(features[index], textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
-                        TextButton(onClick = { page = (page - 1).coerceAtLeast(0) }, enabled = page > 0) { Text("‹") }
-                        Text("${page + 1} / 4")
-                        TextButton(onClick = { page = (page + 1).coerceAtMost(3) }, enabled = page < 3) { Text("›") }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        repeat(4) { i ->
+                            val width by animateDpAsState(if (i == page) 22.dp else 8.dp, tween(300), label = "dotWidth")
+                            val dot by animateColorAsState(if (i == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, tween(300), label = "dotColor")
+                            Box(Modifier.height(8.dp).width(width).clip(CircleShape).background(dot).clickable { page = i })
+                        }
                     }
-                    OutlinedTextField(domain, { domain = it; domainPreferences.edit().putString("domain", it).apply(); error = null }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_server)) }, placeholder = { Text("nxorbit.top") }, singleLine = true)
+                    OutlinedTextField(domain, { domain = it; domainPreferences.edit().putString("domain", it).apply(); error = null }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Language, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_server)) }, placeholder = { Text("nxorbit.top") }, singleLine = true)
                     Button(onClick = { val result = authOrigin(domain); if (result == null) error = context.getString(R.string.nex_auth_invalid_domain) else { origin = result; error = null } }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nex_auth_continue)) }
                 } else {
                     Text(origin, style = MaterialTheme.typography.bodySmall)
@@ -138,8 +145,8 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                     OutlinedButton(onClick = { showPassword = !showPassword }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nex_auth_password_login)) }
                     AnimatedVisibility(visible = showPassword) {
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_email)) }, singleLine = true)
-                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
+                        OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Email, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_email)) }, singleLine = true)
+                        OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Lock, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
                         Button(onClick = {
                             busy = true; error = null
                             authJob = scope.launch {

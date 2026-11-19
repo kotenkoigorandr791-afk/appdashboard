@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="map_info_bg">#F21E2126</color>
+    <color name="map_info_stroke">#33FFFFFF</color>
+    <color name="map_info_text">#F1F3F4</color>
+    <color name="map_info_text_secondary">#A8ADB3</color>
+</resources>

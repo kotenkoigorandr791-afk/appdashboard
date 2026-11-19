@@ -146,13 +146,29 @@ class SyncManager(private val context: Context) {
      * Uploads whatever sits in the location outbox and returns the report, or null
      * when tracking is off or nothing was queued.
      */
-    private suspend fun flushLocationOutbox(targetWebhooks: List<WebhookConfig>?): UploadReport? {
+    suspend fun flushLocationOutbox(targetWebhooks: List<WebhookConfig>?): UploadReport? {
         // Already recorded points stay queued after the user switches tracking off,
         // so the manual sync must still be able to deliver them.
         if (preferencesManager.isWifiOnly() && !isWifiConnected()) return null
         val config = (targetWebhooks?.filter { it.isEnabled } ?: preferencesManager.getWebhookConfigs())
             .firstOrNull { it.isEnabled } ?: return null
-        return runCatching { LocationUploader(context).uploadPending(config, preferencesManager) }.getOrNull()
+        return runCatching {
+            val uploader = LocationUploader(context)
+            var total = UploadReport()
+            while (true) {
+                val report = uploader.uploadPending(config, preferencesManager)
+                total = total.copy(
+                    accepted = total.accepted + report.accepted,
+                    duplicate = total.duplicate + report.duplicate,
+                    rejected = total.rejected + report.rejected,
+                    pending = report.pending,
+                    error = report.error,
+                    retryable = report.retryable,
+                )
+                if (report.error != null || report.pending == 0 || report.accepted + report.duplicate + report.rejected == 0) break
+            }
+            total
+        }.getOrNull()
     }
 
     /**

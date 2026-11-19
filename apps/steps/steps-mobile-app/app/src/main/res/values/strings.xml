@@ -743,7 +743,7 @@
     <string name="points_open_map">Open on map</string>
     <string name="points_correction_points">%1$d points affected</string>
     <string name="points_no_connection">Connect to your server to manage points.</string>
-    <string name="points_draw_hint">Drag on the map to draw a selection.</string>
+    <string name="points_draw_hint">Hold and drag on the map to draw a selection.</string>
     <string name="points_draw_enable">Area actions are paused.</string>
     <string name="points_selected_count">%1$d points selected</string>
     <string name="points_draw_disable">Pause drawing</string>
@@ -929,4 +929,6 @@
 <string name="manual_sync_history_permission_required">Allow access to older health data to sync this period.</string>
     <string name="changelog_installed">Installed</string>
     <string name="nex_auth_failed">Sign-in failed</string>
+    <string name="date_from">From</string>
+    <string name="date_to">To</string>
 </resources>

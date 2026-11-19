@@ -17,9 +17,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -57,6 +62,17 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Overlay
+import orbit.nex.steps.screens.KeepOverlay
+import orbit.nex.steps.screens.MapStyle
+import orbit.nex.steps.screens.StyledInfoWindow
+import orbit.nex.steps.screens.applyBasemap
+import orbit.nex.steps.screens.configureOsm
+import orbit.nex.steps.screens.rebuildOverlays
+import orbit.nex.steps.location.GeoMapData
+import orbit.nex.steps.location.GeoMapRepository
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.foundation.shape.RoundedCornerShape
 import orbit.nex.steps.components.AppStatusPill
 import orbit.nex.steps.location.GeoBoundingBox
 import orbit.nex.steps.location.ManagedPoint
@@ -97,19 +113,24 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
     val repository = remember { PointManagementRepository(prefs) }
     val scope = rememberCoroutineScope()
     val config = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
+    remember { configureOsm(context) }
+    val darkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val geoRepository = remember { GeoMapRepository(prefs, cacheDir = context.cacheDir) }
     val primary = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
-    var drawMode by remember { mutableStateOf(true) }
+    var drawMode by remember { mutableStateOf(false) }
     var selection by remember { mutableStateOf<SelectionBox?>(null) }
     var count by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
-    var undoId by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
-    var showExclude by remember { mutableStateOf(false) }
     var showDelete by remember { mutableStateOf(false) }
-    var deleteWord by remember { mutableStateOf("") }
     var mapView by remember { mutableStateOf<MapView?>(null) }
+    var loadedBox by remember { mutableStateOf<SelectionBox?>(null) }
+    var day by remember { mutableStateOf<java.time.LocalDate?>(null) }
+    val zone = remember { java.time.ZoneId.systemDefault() }
+    val dayFrom = day?.atStartOfDay(zone)?.toInstant()?.toString()
+    val dayTo = day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString()
 
     suspend fun idsInSelection(limit: Int = 1000): List<String> {
         val active = config ?: return emptyList()
@@ -117,7 +138,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
         val ids = mutableListOf<String>()
         var offset = 0
         while (ids.size < limit) {
-            val page = repository.loadPage(active, offset / 100, null, null, null, box.query)
+            val page = repository.loadPage(active, offset / 100, day?.atStartOfDay(zone)?.toInstant()?.toString(), day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString(), null, box.query)
             if (page.error != null) { error = page.error; break }
             ids += page.points.map { it.id }
             offset += 100
@@ -141,19 +162,40 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
         map.invalidate()
     }
 
-    fun refreshSelection() {
+    fun refreshSelection(zoom: Boolean = false) {
         val map = mapView ?: return
-        val box = selection ?: return
+        val box = selection
+        if (box == null && day == null) {
+            count = 0
+            loadedBox = null
+            rebuildOverlays(map, GeoMapData(), prefs.getMapLayers())
+            return
+        }
         loading = true
         error = null
+        val dayNow = day
+        val dayFrom = dayNow?.atStartOfDay(zone)?.toInstant()?.toString()
+        val dayTo = dayNow?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString()
         scope.launch {
             val active = config
             if (active != null) {
-                val page = repository.loadPage(active, 0, null, null, null, box.query)
-                count = page.total
-                error = page.error
-                map.overlays.removeAll { it is Marker }
-                page.points.forEach { point ->
+                val all = mutableListOf<orbit.nex.steps.location.ManagedPoint>()
+                var pageIndex = 0
+                var total = 0
+                while (all.size < 1000) {
+                    val page = repository.loadPage(active, pageIndex, dayFrom, dayTo, null, box?.query)
+                    if (page.error != null) { error = page.error; break }
+                    total = page.total
+                    all += page.points
+                    pageIndex++
+                    if (all.size >= page.total || page.points.isEmpty()) break
+                }
+                count = total
+                val dayData = if (dayNow != null) geoRepository.loadDay(active, dayNow) else GeoMapData()
+                rebuildOverlays(map, dayData, prefs.getMapLayers())
+                if (box != null) drawSelection(map)
+                loadedBox = if (all.isEmpty()) null else SelectionBox(all.minOf { it.lon } - 0.00001, all.minOf { it.lat } - 0.00001, all.maxOf { it.lon } + 0.00001, all.maxOf { it.lat } + 0.00001)
+                all.forEach { point ->
                     map.overlays.add(Marker(map).apply {
                         position = GeoPoint(point.lat, point.lon)
                         icon = GradientDrawable().apply {
@@ -163,7 +205,20 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                             setSize(14, 14)
                         }
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                        title = point.sourceAt.replace('T', ' ').substringBefore('+').substringBefore('.')
+                        snippet = "%.5f, %.5f".format(point.lat, point.lon)
+                        setInfoWindow(StyledInfoWindow(map))
                     })
+                }
+                if (zoom && all.isNotEmpty()) {
+                    val north = all.maxOf { it.lat }; val south = all.minOf { it.lat }
+                    val east = all.maxOf { it.lon }; val west = all.minOf { it.lon }
+                    if (north > south || east > west) {
+                        runCatching { map.zoomToBoundingBox(org.osmdroid.util.BoundingBox(north, east, south, west), true, 96) }
+                    } else {
+                        map.controller.setZoom(17.0)
+                        map.controller.animateTo(GeoPoint(north, east))
+                    }
                 }
                 map.invalidate()
             }
@@ -186,8 +241,9 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                 AndroidView(
                     factory = { ctx ->
                         MapView(ctx).apply {
-                            setTileSource(TileSourceFactory.MAPNIK)
                             setMultiTouchControls(true)
+                            applyBasemap(this, MapStyle.fromKey(prefs.getMapBasemap()), darkTheme)
+                            zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
                             controller.setZoom(if (focus != null) 16.0 else 5.0)
                             controller.setCenter(focus ?: GeoPoint(20.0, 0.0))
                             overlays.add(RectangleDrawOverlay(
@@ -207,6 +263,21 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
+                Row(Modifier.align(Alignment.BottomCenter).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    orbit.nex.steps.screens.DayPill(
+                        selectedDay = day ?: java.time.LocalDate.now(),
+                        compact = false,
+                        modifier = Modifier.width(220.dp),
+                        onPrevious = { day = (day ?: java.time.LocalDate.now()).minusDays(1); refreshSelection(true) },
+                        onNext = { val d = day ?: java.time.LocalDate.now(); if (d.isBefore(java.time.LocalDate.now())) { day = d.plusDays(1); refreshSelection(true) } },
+                        onPick = { day = it; refreshSelection(true) },
+                    )
+                    if (day != null) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shadowElevation = 4.dp, onClick = { day = null; refreshSelection() }) {
+                            Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.padding(10.dp).size(20.dp))
+                        }
+                    }
+                }
                 Surface(
                     Modifier.align(Alignment.TopCenter).padding(12.dp),
                     shape = MaterialTheme.shapes.medium,
@@ -224,42 +295,35 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         AppStatusPill(stringResource(R.string.points_selected_count, count), highlighted = count > 0)
                         Spacer(Modifier.weight(1f))
-                        TextButton(onClick = { drawMode = !drawMode }) {
-                            Text(if (drawMode) stringResource(R.string.points_draw_disable) else stringResource(R.string.points_draw_area))
+                        IconButton(onClick = { drawMode = !drawMode }) {
+                            Icon(
+                                if (drawMode) Icons.Filled.Close else Icons.Filled.Edit,
+                                contentDescription = stringResource(if (drawMode) R.string.points_draw_disable else R.string.points_draw_area),
+                                tint = if (drawMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    notice?.let {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text(it, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                            undoId?.let { id ->
-                                TextButton(onClick = {
-                                    val active = config ?: return@TextButton
-                                    scope.launch {
-                                        repository.undoCorrection(active, id)
-                                            .onSuccess { notice = context.getString(R.string.points_undo_done); undoId = null; refreshSelection() }
-                                            .onFailure { error = it.message }
-                                    }
-                                }) { Text(stringResource(R.string.library_undo)) }
-                            }
-                        }
-                    }
+                    notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         OutlinedButton(
-                            enabled = count > 0 && !loading && config != null,
-                            onClick = { showExclude = true },
-                            modifier = Modifier.weight(1f),
+                            enabled = loadedBox != null && !loading && config != null,
+                            onClick = {
+                                selection = loadedBox
+                                mapView?.let { map ->
+                                    map.overlays.removeAll { it is org.osmdroid.views.overlay.Polygon }
+                                    drawSelection(map)
+                                }
+                                refreshSelection()
+                            },
                         ) {
-                            Icon(Icons.Filled.VisibilityOff, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text(stringResource(R.string.points_exclude), modifier = Modifier.padding(start = 6.dp))
+                            Icon(Icons.Filled.SelectAll, contentDescription = stringResource(R.string.points_select_on_map), modifier = Modifier.size(20.dp))
                         }
                         Button(
                             enabled = count > 0 && !loading && config != null,
-                            onClick = { deleteWord = ""; showDelete = true },
-                            modifier = Modifier.weight(1f),
+                            onClick = { showDelete = true },
                         ) {
-                            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text(stringResource(R.string.points_delete_forever), modifier = Modifier.padding(start = 6.dp))
+                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_forever), modifier = Modifier.size(20.dp))
                         }
                     }
                     if (config == null) Text(stringResource(R.string.points_no_connection), color = MaterialTheme.colorScheme.error)
@@ -268,65 +332,37 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
         }
     }
 
-    if (showExclude) {
-        AlertDialog(
-            onDismissRequest = { showExclude = false },
-            title = { Text(stringResource(R.string.points_exclude_confirm_title)) },
-            text = { Text(stringResource(R.string.points_exclude_confirm_text, count)) },
-            confirmButton = {
-                TextButton(onClick = {
-                    showExclude = false
-                    val active = config
-                    if (active != null) scope.launch {
-                        loading = true
-                        val ids = idsInSelection().toSet()
-                        loading = false
-                        if (ids.isEmpty()) return@launch
-                        repository.exclude(active, ids)
-                            .onSuccess {
-                                undoId = it
-                                notice = context.getString(R.string.points_excluded, ids.size)
-                                refreshSelection()
-                            }
-                            .onFailure { error = it.message }
-                    }
-                }) { Text(stringResource(R.string.points_exclude)) }
-            },
-            dismissButton = { TextButton(onClick = { showExclude = false }) { Text(stringResource(R.string.library_cancel)) } },
-        )
-    }
-
     if (showDelete) {
         AlertDialog(
             onDismissRequest = { showDelete = false },
-            title = { Text(stringResource(R.string.points_delete_irreversible)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.points_delete_confirm_text, count))
-                    Text(stringResource(R.string.points_type_delete))
-                    OutlinedTextField(deleteWord, { deleteWord = it.uppercase() }, singleLine = true)
-                }
-            },
+            shape = RoundedCornerShape(24.dp),
+            icon = { Icon(Icons.Filled.Delete, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text(stringResource(R.string.points_delete_confirm_title)) },
+            text = { Text(stringResource(R.string.points_delete_confirm_text, count)) },
             confirmButton = {
-                TextButton(enabled = deleteWord == "DELETE", onClick = {
-                    showDelete = false
-                    val active = config
-                    val box = selection
-                    if (active != null && box != null) scope.launch {
-                        loading = true
-                        repository.deleteBbox(active, box.query)
-                            .onSuccess {
-                                notice = context.getString(R.string.points_deleted, count)
-                                undoId = null
+                Button(
+                    onClick = {
+                        showDelete = false
+                        val active = config
+                        if (active != null) scope.launch {
+                            loading = true
+                            val ids = idsInSelection(100_000).toSet()
+                            var failure: Throwable? = null
+                            ids.chunked(500).forEach { chunk ->
+                                if (failure == null) repository.deleteIds(active, chunk.toSet()).onFailure { failure = it }
+                            }
+                            if (failure == null) {
+                                notice = context.getString(R.string.points_deleted, ids.size)
                                 selection = null
                                 count = 0
-                                mapView?.overlays?.removeAll { it is Marker || it is org.osmdroid.views.overlay.Polygon }
-                                mapView?.invalidate()
-                            }
-                            .onFailure { error = it.message }
-                        loading = false
-                    }
-                }) { Text(stringResource(R.string.points_delete_forever)) }
+                                refreshSelection()
+                            } else error = failure?.message
+                            loading = false
+                        }
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error, contentColor = MaterialTheme.colorScheme.onError),
+                    shape = RoundedCornerShape(16.dp),
+                ) { Text(stringResource(R.string.points_delete_forever)) }
             },
             dismissButton = { TextButton(onClick = { showDelete = false }) { Text(stringResource(R.string.library_cancel)) } },
         )
@@ -342,7 +378,7 @@ private class RectangleDrawOverlay(
     private val paintColor: Int,
     private val shouldDraw: () -> Boolean,
     private val onBox: (SelectionBox) -> Unit,
-) : Overlay() {
+) : Overlay(), KeepOverlay {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = paintColor
         style = Paint.Style.FILL
@@ -367,22 +403,47 @@ private class RectangleDrawOverlay(
         canvas.drawRect(left, top, maxOf(startX, endX), maxOf(startY, endY), stroke)
     }
 
+    private var downX = 0f
+    private var downY = 0f
+    private var pressing = false
+    private var holdTask: Runnable? = null
+
+    private fun cancelHold(mapView: MapView) {
+        holdTask?.let { mapView.removeCallbacks(it) }
+        holdTask = null
+        pressing = false
+    }
+
     override fun onTouchEvent(event: android.view.MotionEvent, mapView: MapView): Boolean {
         if (!shouldDraw()) return false
         when (event.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
-                startX = event.x; startY = event.y; endX = event.x; endY = event.y; drawing = true
-                mapView.parent.requestDisallowInterceptTouchEvent(true)
-                mapView.invalidate()
-                return true
+                cancelHold(mapView)
+                downX = event.x; downY = event.y; pressing = true
+                val task = Runnable {
+                    if (pressing) {
+                        pressing = false
+                        startX = downX; startY = downY; endX = downX; endY = downY; drawing = true
+                        mapView.parent.requestDisallowInterceptTouchEvent(true)
+                        mapView.performHapticFeedback(android.view.HapticFeedbackConstants.LONG_PRESS)
+                        mapView.invalidate()
+                    }
+                }
+                holdTask = task
+                mapView.postDelayed(task, 350L)
+                return false
             }
             android.view.MotionEvent.ACTION_MOVE -> {
-                if (!drawing) return false
-                endX = event.x; endY = event.y
-                mapView.invalidate()
-                return true
+                if (drawing) {
+                    endX = event.x; endY = event.y
+                    mapView.invalidate()
+                    return true
+                }
+                if (pressing && (kotlin.math.abs(event.x - downX) > 16f || kotlin.math.abs(event.y - downY) > 16f)) cancelHold(mapView)
+                return false
             }
             android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+                cancelHold(mapView)
                 if (!drawing) return false
                 endX = event.x; endY = event.y
                 drawing = false

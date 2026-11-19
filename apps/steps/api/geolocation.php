@@ -53,10 +53,14 @@ if ($action === 'delete') {
 $points = $action === 'batch' ? ($body['points'] ?? []) : [$body];
 if (!is_array($points) || count($points) === 0 || count($points) > 500) public_api_json(['ok' => false, 'error' => 'invalid_batch'], 400);
 $results = [];
-foreach ($points as $point) $results[] = is_array($point) ? geo_api_point($pdo, $owner, $point) : ['status' => 'rejected', 'error' => 'invalid_point'];
+foreach ($points as $point) {
+    if (!is_array($point)) { $results[] = ['status' => 'rejected', 'error' => 'invalid_point']; continue; }
+    try { $results[] = geo_api_point($pdo, $owner, $point); }
+    catch (Throwable $e) { error_log('geolocation point: ' . $e->getMessage()); $results[] = ['status' => 'error', 'error' => 'server_error']; }
+}
 // Only a durable marker: the existing app worker path performs the quality pass.
 if (in_array('accepted', array_column($results, 'status'), true)) {
     try { StepsGeolocationQuality::enqueue($pdo, $owner); } catch (Throwable $e) { error_log('geolocation quality enqueue: ' . $e->getMessage()); }
-    StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'edit');
+    try { StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'edit'); } catch (Throwable $e) { error_log('geolocation achievements enqueue: ' . $e->getMessage()); }
 }
 public_api_json(['ok' => true, 'results' => $results]);

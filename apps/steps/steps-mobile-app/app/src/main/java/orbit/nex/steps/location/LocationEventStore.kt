@@ -275,7 +275,7 @@ class LocationEventStore(context: Context) {
     }
 
     companion object {
-        const val DEFAULT_BATCH = 200
+        const val DEFAULT_BATCH = 50
         private const val MAX_SETTLED_ROWS = 5_000
         private const val RETENTION_DAYS = 7L
         private const val RETENTION_MS = RETENTION_DAYS * 24 * 60 * 60 * 1000

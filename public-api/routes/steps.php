@@ -18,7 +18,7 @@ $geoEndpoint = strtolower((string)$sub);
 $geoEndpoints = [
     'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
     'geolocation_achievements', 'geolocation_quality', 'geolocation_matching',
-    'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics',
+    'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics', 'geolocation_points',
     'places', 'geofences', 'devices',
 ];
 if (in_array($geoEndpoint, $geoEndpoints, true)) {

@@ -91,6 +91,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     var lastUploadAt by remember { mutableStateOf<Long?>(prefs.getLocationUploadOkAt()) }
     var lastError by remember { mutableStateOf<String?>(prefs.getLocationUploadError()) }
     var permissionLost by remember { mutableStateOf(prefs.isLocationPermissionLost()) }
+    var intervalSec by remember { mutableStateOf(prefs.getLocationIntervalSec()) }
     var accuracy by remember { mutableStateOf(prefs.getLocationAccuracy()) }
     var actionMessage by remember { mutableStateOf<String?>(null) }
 
@@ -390,6 +391,25 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                             ) {
                                 Text(stringResource(accuracyRes(option)), maxLines = 1)
                             }
+                        }
+                    }
+                    Text(
+                        stringResource(R.string.tracking_interval_title),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
+                    val intervals = listOf(5, 10, 20, 30, 60, 120, 300)
+                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                        intervals.forEachIndexed { index, sec ->
+                            SegmentedButton(
+                                selected = intervalSec == sec,
+                                onClick = {
+                                    intervalSec = sec
+                                    prefs.setLocationIntervalSec(sec)
+                                },
+                                shape = SegmentedButtonDefaults.itemShape(index, intervals.size),
+                                label = { Text(if (sec < 60) "${sec}s" else "${sec / 60}m", maxLines = 1, style = MaterialTheme.typography.labelSmall) },
+                                icon = {},
+                            )
                         }
                     }
                 }

@@ -81,6 +81,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCATION_TRACKING_PAUSED = "location_tracking_paused"
         private const val KEY_LOCATION_INTERVAL_MINUTES = "location_interval_minutes"
         private const val KEY_LOCATION_ACCURACY = "location_accuracy"
+        private const val KEY_LOCATION_INTERVAL = "location_interval_sec"
         private const val KEY_LOCATION_SEQUENCE = "location_sequence"
         private const val KEY_LOCATION_DEVICE_ID = "location_device_id"
         private const val KEY_LOCATION_PERMISSION_LOST = "location_permission_lost"
@@ -768,6 +769,12 @@ class PreferencesManager(context: Context) {
 
     fun getLocationAccuracy(): LocationAccuracy =
         LocationAccuracy.fromStorage(prefs.getString(KEY_LOCATION_ACCURACY, null))
+
+    fun getLocationIntervalSec(): Int = prefs.getInt(KEY_LOCATION_INTERVAL, 20)
+
+    fun setLocationIntervalSec(seconds: Int) {
+        prefs.edit().putInt(KEY_LOCATION_INTERVAL, seconds).apply()
+    }
 
     fun setLocationAccuracy(accuracy: LocationAccuracy) {
         prefs.edit().putString(KEY_LOCATION_ACCURACY, accuracy.storageValue).apply()
