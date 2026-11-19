@@ -1,5 +1,6 @@
 package orbit.nex.steps
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -146,7 +147,7 @@ private fun PointsScreen(onBack: () -> Unit) {
     }) { padding ->
         orbit.nex.steps.components.AppBackground {
             LazyColumn(
-                Modifier.fillMaxSize().padding(padding).padding(horizontal = 12.dp),
+                Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 item {
@@ -168,7 +169,7 @@ private fun PointsScreen(onBack: () -> Unit) {
                     }
                 }
                 item {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         OutlinedButton(
                             onClick = {
                                 context.startActivity(Intent(context, PointSelectionActivity::class.java))
@@ -193,7 +194,7 @@ private fun PointsScreen(onBack: () -> Unit) {
                             Icon(Icons.Filled.Restore, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text(
                                 stringResource(R.string.points_undo_last, undoable.pointCount),
-                                modifier = Modifier.padding(start = 8.dp),
+                                modifier = Modifier.padding(start = Spacing.sm),
                             )
                         }
                     }
@@ -327,7 +328,7 @@ private fun PointRow(point: ManagedPoint, checked: Boolean, onChecked: (Boolean)
         color = MaterialTheme.colorScheme.surfaceVariant,
         modifier = Modifier.fillMaxWidth().clickable { onChecked(!checked) },
     ) {
-        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Checkbox(checked, onCheckedChange = onChecked)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(
@@ -358,7 +359,7 @@ private fun CorrectionRow(correction: QualityCorrection, onUndo: () -> Unit) {
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = if (active) 1f else 0.55f),
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     stringResource(R.string.points_correction_points, correction.pointCount),

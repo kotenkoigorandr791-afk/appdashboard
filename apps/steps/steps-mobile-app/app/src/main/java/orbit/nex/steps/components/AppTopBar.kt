@@ -1,5 +1,7 @@
 package orbit.nex.steps.components
 
+import orbit.nex.steps.ui.theme.Spacing
+import orbit.nex.steps.ui.theme.semantic
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -95,15 +97,14 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
     )
 
     Surface(
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        // Only the bottom edge is rounded so the bar reads as a floating header.
-        shape = RoundedCornerShape(bottomStart = 18.dp, bottomEnd = 18.dp),
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = orbit.nex.steps.ui.theme.Elevation.raised,
         modifier = modifier.fillMaxWidth()
     ) {
         Row(
             modifier = Modifier
                 .statusBarsPadding()
-                .padding(horizontal = CONTENT_EDGE_PADDING, vertical = 12.dp)
+                .padding(horizontal = CONTENT_EDGE_PADDING, vertical = Spacing.md)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
@@ -121,18 +122,20 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
                     contentDescription = stringResource(R.string.account_title),
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(orbit.nex.steps.ui.theme.ComponentHeight.minTouchTarget)
                         .clip(CircleShape)
                         .clickable(onClick = { showAccount = true })
+                        .padding(7.dp)
                 )
             } else {
                 Icon(
                     if (isConnected) Icons.Filled.AccountCircle else Icons.Filled.PersonOff,
                     contentDescription = stringResource(R.string.account_title),
                     modifier = Modifier
-                        .size(34.dp)
+                        .size(orbit.nex.steps.ui.theme.ComponentHeight.minTouchTarget)
                         .clip(CircleShape)
-                        .clickable(onClick = { showAccount = true }),
+                        .clickable(onClick = { showAccount = true })
+                        .padding(7.dp),
                     tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -207,7 +210,7 @@ private fun AccountDialog(
     serverUrl: String,
     onDismiss: () -> Unit
 ) {
-    val accent = if (connected) Color(0xFF1B8A3A) else MaterialTheme.colorScheme.error
+    val accent = if (connected) MaterialTheme.semantic.success else MaterialTheme.colorScheme.error
     Dialog(onDismissRequest = onDismiss) {
         Surface(
             shape = RoundedCornerShape(24.dp),
@@ -216,10 +219,10 @@ private fun AccountDialog(
             shadowElevation = 14.dp,
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     Box(
                         Modifier

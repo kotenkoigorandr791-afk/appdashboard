@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.content.Intent
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,8 +45,8 @@ fun PermissionsBottomSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp)
+                .padding(horizontal = Spacing.lg)
+                .padding(bottom = Spacing.xxl)
         ) {
             // Header
             Row(
@@ -91,7 +92,7 @@ fun PermissionsBottomSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 480.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.xs)
             ) {
                 items(HealthDataType.entries) { dataType ->
                     val isGranted = HealthPermission.getReadPermission(dataType.recordClass) in grantedPermissionsSet
@@ -140,14 +141,14 @@ private fun PermissionRow(dataType: HealthDataType, isGranted: Boolean) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = Spacing.sm),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Row(
-            modifier = Modifier.weight(1f).padding(end = 12.dp),
+            modifier = Modifier.weight(1f).padding(end = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.md)
         ) {
             Icon(
                 imageVector = iconForDataType(dataType),
@@ -192,7 +193,7 @@ private fun BottomSheetDefragHandle() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp),
+            .padding(top = Spacing.md, bottom = Spacing.xs),
         contentAlignment = Alignment.Center
     ) {
         Surface(

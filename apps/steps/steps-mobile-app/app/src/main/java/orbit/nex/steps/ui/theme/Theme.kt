@@ -29,7 +29,7 @@ import orbit.nex.steps.PreferencesManager
  * menus, dialogs, sheets and buttons all resolve to the same 18 dp rounding,
  * so no screen mixes pill fields with square boxes any more.
  */
-val AppCornerRadius = 22.dp
+val AppCornerRadius = Radius.lg
 
 /**
  * Bumped whenever a personalization value changes. [HCWebhookTheme] reads it,
@@ -38,6 +38,16 @@ val AppCornerRadius = 22.dp
  * it was created with. Otherwise a change made on the personalization screen
  * would only be visible on that screen.
  */
+@androidx.compose.runtime.Immutable
+data class SemanticColors(val success: Color, val warning: Color)
+
+val LocalSemanticColors = androidx.compose.runtime.staticCompositionLocalOf {
+    SemanticColors(SuccessLight, WarningLight)
+}
+
+val MaterialTheme.semantic: SemanticColors
+    @Composable get() = LocalSemanticColors.current
+
 object AppThemeRevision {
     var value by mutableStateOf(0)
         private set
@@ -87,9 +97,10 @@ fun HCWebhookTheme(
     }
     val accent = accentColor(prefs.getAccentColor(), resolvedDarkTheme)
     val amoledEnabled = prefs.isAmoledEnabled()
-    val colorScheme = remember(revision, resolvedDarkTheme, dynamicColor) {
+    val useDynamic = dynamicColor || prefs.getAccentColor() == "dynamic"
+    val colorScheme = remember(revision, resolvedDarkTheme, useDynamic) {
         when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
+        useDynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             if (resolvedDarkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
@@ -132,12 +143,16 @@ fun HCWebhookTheme(
         }
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = Typography,
-        shapes = AppShapes,
-        content = content
-    )
+    androidx.compose.runtime.CompositionLocalProvider(
+        LocalSemanticColors provides if (resolvedDarkTheme) SemanticColors(SuccessDark, WarningDark) else SemanticColors(SuccessLight, WarningLight)
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = Typography,
+            shapes = AppShapes,
+            content = content
+        )
+    }
 }
 private fun accentColor(name: String, dark: Boolean) = when (name) {
     "teal" -> if (dark) androidx.compose.ui.graphics.Color(0xFF78D9C4) else androidx.compose.ui.graphics.Color(0xFF00897B)

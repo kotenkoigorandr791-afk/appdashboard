@@ -646,7 +646,7 @@ class PreferencesManager(context: Context) {
     fun setAmoledEnabled(value: Boolean) {
         prefs.edit().putBoolean(KEY_AMOLED_ENABLED, value).apply()
     }
-    fun getAccentColor(): String = prefs.getString(KEY_ACCENT_COLOR, "blue") ?: "blue"
+    fun getAccentColor(): String = prefs.getString(KEY_ACCENT_COLOR, null) ?: if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) "dynamic" else "blue"
     fun setAccentColor(value: String) {
         prefs.edit().putString(KEY_ACCENT_COLOR, value).apply()
     }

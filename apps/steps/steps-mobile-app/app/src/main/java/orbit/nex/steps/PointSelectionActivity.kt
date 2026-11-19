@@ -1,5 +1,6 @@
 package orbit.nex.steps
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.graphics.Paint
@@ -263,7 +264,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     modifier = Modifier.fillMaxSize(),
                 )
                 if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
-                Row(Modifier.align(Alignment.BottomCenter).padding(12.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.align(Alignment.BottomCenter).padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     orbit.nex.steps.screens.DayPill(
                         selectedDay = day ?: java.time.LocalDate.now(),
                         compact = false,
@@ -279,20 +280,20 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     }
                 }
                 Surface(
-                    Modifier.align(Alignment.TopCenter).padding(12.dp),
+                    Modifier.align(Alignment.TopCenter).padding(Spacing.md),
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
                 ) {
                     Text(
                         if (drawMode) stringResource(R.string.points_draw_hint) else stringResource(R.string.points_draw_enable),
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                        modifier = Modifier.padding(horizontal = Spacing.md, vertical = Spacing.sm),
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
             }
             Surface(tonalElevation = 3.dp) {
-                Column(Modifier.fillMaxWidth().padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.fillMaxWidth().padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                         AppStatusPill(stringResource(R.string.points_selected_count, count), highlighted = count > 0)
                         Spacer(Modifier.weight(1f))
                         IconButton(onClick = { drawMode = !drawMode }) {
@@ -305,7 +306,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
                     notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         OutlinedButton(
                             enabled = loadedBox != null && !loading && config != null,
                             onClick = {

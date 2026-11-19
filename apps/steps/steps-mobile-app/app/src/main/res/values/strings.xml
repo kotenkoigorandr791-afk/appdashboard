@@ -494,6 +494,7 @@
     <string name="accent_pink">Pink</string>
     <string name="accent_purple">Purple</string>
     <string name="accent_gray">Gray</string>
+    <string name="accent_dynamic">System (Material You)</string>
     <string name="conflict_title">Sync conflict</string>
     <string name="conflict_message">Different step values were found for %1$d day(s). Choose which data to keep.</string>
     <string name="conflict_skip">Skip phone</string>
@@ -931,4 +932,10 @@
     <string name="nex_auth_failed">Sign-in failed</string>
     <string name="date_from">From</string>
     <string name="date_to">To</string>
+    <string name="a11y_expand">Expand</string>
+    <string name="a11y_collapse">Collapse</string>
+    <string name="a11y_more_options">More options</string>
+    <string name="settings_group_sync">Synchronization</string>
+    <string name="settings_group_data">Data and export</string>
+    <string name="settings_group_location">Location recording</string>
 </resources>

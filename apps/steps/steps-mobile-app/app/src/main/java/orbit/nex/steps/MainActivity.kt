@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -263,36 +264,50 @@ class MainActivity : AppCompatActivity() {
         androidx.activity.compose.BackHandler(enabled = selected != NavigationScreen.Home) {
             selected = NavigationScreen.Home
         }
+        val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp >= orbit.nex.steps.ui.theme.Layout.wideBreakpoint
         Scaffold(
             topBar = {
                 AppTopBar(showTimer = selected != NavigationScreen.Home)
             },
             bottomBar = {
-            NavigationBar(
-                modifier = Modifier.clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            ) {
-                bottomNavItems.forEach { screen ->
-                    NavigationBarItem(
-                        selected = selected == screen,
-                        onClick = { selected = screen },
-                        icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
-                        label = { NavLabel(screen.titleResId) }
-                    )
+                if (!wide) {
+                    NavigationBar {
+                        bottomNavItems.forEach { screen ->
+                            NavigationBarItem(
+                                selected = selected == screen,
+                                onClick = { selected = screen },
+                                icon = { Icon(screen.icon, contentDescription = null) },
+                                label = { NavLabel(screen.titleResId) }
+                            )
+                        }
+                    }
                 }
-            }
-        }) { padding ->
-            AppBackground {
-                androidx.compose.animation.AnimatedContent(targetState = selected, transitionSpec = {
-                    val direction = if (bottomNavItems.indexOf(targetState) > bottomNavItems.indexOf(initialState)) 1 else -1
-                    (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(350)) { it * direction } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(350))) togetherWith
-                        (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(350)) { -it * direction } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(350)))
-                }, label = "tabs") { screen ->
-                when (screen) {
-                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
-                    NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
-                    NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
-                    NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+            }) { padding ->
+            Row(Modifier.fillMaxSize()) {
+                if (wide) {
+                    androidx.compose.material3.NavigationRail(Modifier.padding(top = padding.calculateTopPadding())) {
+                        bottomNavItems.forEach { screen ->
+                            androidx.compose.material3.NavigationRailItem(
+                                selected = selected == screen,
+                                onClick = { selected = screen },
+                                icon = { Icon(screen.icon, contentDescription = null) },
+                                label = { NavLabel(screen.titleResId) }
+                            )
+                        }
+                    }
                 }
+                AppBackground(Modifier.weight(1f)) {
+                    androidx.compose.animation.AnimatedContent(targetState = selected, transitionSpec = {
+                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) togetherWith
+                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200))
+                    }, label = "tabs") { screen ->
+                        when (screen) {
+                            NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
+                            NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
+                            NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
+                            NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+                        }
+                    }
                 }
             }
         }

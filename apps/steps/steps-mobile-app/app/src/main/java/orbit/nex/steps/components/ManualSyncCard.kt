@@ -1,5 +1,6 @@
 package orbit.nex.steps.components
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.health.connect.client.PermissionController
@@ -84,9 +85,9 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 24.dp, end = 24.dp, bottom = 32.dp),
+                    .padding(start = Spacing.xl, end = Spacing.xl, bottom = Spacing.xxl),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 Text(stringResource(R.string.manual_sync_confirm_title), style = MaterialTheme.typography.titleLarge)
                 Text(
@@ -97,7 +98,7 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
                 if (enabledWebhooks.size >= 2) {
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                        verticalArrangement = Arrangement.spacedBy(Spacing.xxs)
                     ) {
                         Text(
                             stringResource(R.string.manual_sync_send_to),
@@ -252,7 +253,7 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
     }
 
     Card {
-        Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Button(
                 onClick = { selectedOptionIndex = 0; showConfirmSheet = true },
                 enabled = !isSyncing && (webhookConfigs.isNotEmpty() || localTcpEnabled),
@@ -272,7 +273,7 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
     }
     if (showHistorySheet) {
         ModalBottomSheet(onDismissRequest = { showHistorySheet = false }) {
-            Column(Modifier.fillMaxWidth().padding(start = 24.dp, end = 24.dp, bottom = 32.dp).heightIn(max = 600.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(Modifier.fillMaxWidth().padding(start = Spacing.xl, end = Spacing.xl, bottom = Spacing.xxl).heightIn(max = 600.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                 Text(stringResource(R.string.manual_sync_history_button), style = MaterialTheme.typography.titleLarge)
                 timeRangeOptions.forEachIndexed { index, option ->
                     if (index > 0) {
@@ -296,7 +297,7 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
                 }
 
                 Column(modifier = Modifier.fillMaxWidth()) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         AppDateField(stringResource(R.string.date_from), startDate, { showStartDatePicker = true }, Modifier.weight(1f))
                         AppDateField(stringResource(R.string.date_to), endDate, { showEndDatePicker = true }, Modifier.weight(1f))
                     }

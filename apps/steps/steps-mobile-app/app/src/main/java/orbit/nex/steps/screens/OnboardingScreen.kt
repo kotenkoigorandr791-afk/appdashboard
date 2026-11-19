@@ -1,5 +1,7 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
+import orbit.nex.steps.ui.theme.semantic
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -83,7 +85,7 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = Spacing.lg, vertical = Spacing.sm)
                     .statusBarsPadding(),
                 horizontalArrangement = Arrangement.End
             ) {
@@ -94,12 +96,12 @@ fun OnboardingScreen(onFinish: () -> Unit) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 24.dp)
-                    .padding(bottom = 32.dp, top = 16.dp),
+                    .padding(horizontal = Spacing.xl)
+                    .padding(bottom = Spacing.xxl, top = Spacing.lg),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     repeat(pageCount) { index ->
                         val color by animateColorAsState(
                             targetValue = if (pagerState.currentPage == index)
@@ -160,7 +162,7 @@ private fun DisclaimerPage() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp)
+            .padding(horizontal = Spacing.xxl)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -169,7 +171,7 @@ private fun DisclaimerPage() {
             imageVector = Icons.Filled.Warning,
             contentDescription = null,
             modifier = Modifier.size(72.dp),
-            tint = Color(0xFFFFB300)
+            tint = MaterialTheme.semantic.warning
         )
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -193,7 +195,7 @@ private fun WelcomePage() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp)
+            .padding(horizontal = Spacing.xxl)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -245,8 +247,8 @@ private fun DataTypesPage() {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp)
-            .padding(bottom = 24.dp)
+            .padding(horizontal = Spacing.xl)
+            .padding(bottom = Spacing.xl)
     ) {
         Spacer(modifier = Modifier.height(24.dp))
         Text(
@@ -320,14 +322,14 @@ private fun DataTypesPage() {
             types.forEach { type ->
                 Row(
                     modifier = Modifier.padding(bottom = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                     verticalAlignment = Alignment.Top
                 ) {
                     Icon(
                         imageVector = iconForDataType(type),
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.size(18.dp).padding(top = 2.dp)
+                        modifier = Modifier.size(18.dp).padding(top = Spacing.xxs)
                     )
                     Column {
                         Text(
@@ -344,7 +346,7 @@ private fun DataTypesPage() {
                 }
             }
             HorizontalDivider(
-                modifier = Modifier.padding(vertical = 8.dp),
+                modifier = Modifier.padding(vertical = Spacing.sm),
                 color = MaterialTheme.colorScheme.outlineVariant
             )
         }
@@ -357,7 +359,7 @@ private fun PrivacyPage() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp)
+            .padding(horizontal = Spacing.xxl)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -396,8 +398,8 @@ private fun PrivacyPage() {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(bottom = Spacing.md),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md)
             ) {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
@@ -405,7 +407,7 @@ private fun PrivacyPage() {
                     tint = MaterialTheme.colorScheme.primary,
                     modifier = Modifier
                         .size(20.dp)
-                        .padding(top = 2.dp)
+                        .padding(top = Spacing.xxs)
                 )
                 Text(
                     text = point,
@@ -429,17 +431,17 @@ private fun PrivacyPage() {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer)
             ) {
                 Row(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    modifier = Modifier.padding(Spacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(Spacing.md),
                     verticalAlignment = Alignment.Top
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Warning,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.onErrorContainer,
-                        modifier = Modifier.size(20.dp).padding(top = 2.dp)
+                        modifier = Modifier.size(20.dp).padding(top = Spacing.xxs)
                     )
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                         Text(
                             text = stringResource(R.string.onboarding_privacy_warning_title),
                             style = MaterialTheme.typography.bodyMedium,
@@ -463,7 +465,7 @@ private fun ThankYouPage() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 32.dp)
+            .padding(horizontal = Spacing.xxl)
             .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -530,7 +532,7 @@ fun iconForDataType(type: HealthDataType): ImageVector = when (type) {
 private fun FeatureRow(icon: ImageVector, title: String, description: String) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.lg),
         verticalAlignment = Alignment.Top
     ) {
         Icon(
@@ -539,7 +541,7 @@ private fun FeatureRow(icon: ImageVector, title: String, description: String) {
             tint = MaterialTheme.colorScheme.primary,
             modifier = Modifier
                 .size(24.dp)
-                .padding(top = 2.dp)
+                .padding(top = Spacing.xxs)
         )
         Column {
             Text(text = title, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)

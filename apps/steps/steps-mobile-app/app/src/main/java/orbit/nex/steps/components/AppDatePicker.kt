@@ -1,5 +1,6 @@
 package orbit.nex.steps.components
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -67,10 +68,10 @@ fun AppDatePickerDialog(
         },
     )
     Dialog(onDismissRequest = onDismiss, properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
-        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
+        androidx.compose.foundation.layout.BoxWithConstraints(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg)) {
         val factor = (maxWidth / 360.dp).coerceAtMost(1f)
         Surface(shape = RoundedCornerShape(28.dp), color = MaterialTheme.colorScheme.surface, tonalElevation = 6.dp, modifier = Modifier.align(Alignment.Center)) {
-            Column(Modifier.padding(bottom = 12.dp).layout { measurable, constraints ->
+            Column(Modifier.padding(bottom = Spacing.md).layout { measurable, constraints ->
                 val placeable = measurable.measure(androidx.compose.ui.unit.Constraints(minWidth = 360.dp.roundToPx(), maxWidth = 360.dp.roundToPx()))
                 layout((placeable.width * factor).toInt(), (placeable.height * factor).toInt()) {
                     placeable.placeWithLayer(0, 0) { scaleX = factor; scaleY = factor; transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0f) }
@@ -88,7 +89,7 @@ fun AppDatePickerDialog(
                         todayContentColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
-                Row(Modifier.fillMaxWidth().padding(horizontal = 16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
+                Row(Modifier.fillMaxWidth().padding(horizontal = Spacing.lg), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
                     TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
                     Button(
                         enabled = state.selectedDateMillis != null,
@@ -112,7 +113,7 @@ fun AppDateField(label: String, value: LocalDate?, onClick: () -> Unit, modifier
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = modifier.clickable(onClick = onClick),
     ) {
-        Row(Modifier.padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(Modifier.padding(horizontal = Spacing.md, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
             Icon(Icons.Filled.CalendarMonth, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.primary)
             Text(
                 value?.toString() ?: label,

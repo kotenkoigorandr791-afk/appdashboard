@@ -1,5 +1,6 @@
 package orbit.nex.steps.components
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
@@ -34,7 +35,7 @@ fun Modifier.accentDotGrid(spacing: Dp = 26.dp, dotRadius: Dp = 2.dp, alpha: Flo
 
 @Composable
 fun AppBackground(modifier: Modifier = Modifier, content: @Composable BoxScope.() -> Unit) {
-    Box(modifier.fillMaxSize().then(Modifier.accentDotGrid())) {
+    Box(modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         content()
     }
 }

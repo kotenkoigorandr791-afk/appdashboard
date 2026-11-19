@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -44,6 +45,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import orbit.nex.steps.ui.theme.IconSize
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.Tune
+import androidx.compose.material.icons.filled.GpsFixed
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -70,7 +76,7 @@ import orbit.nex.steps.location.TrackingState
  * never starts tracking on its own: every state change comes from a button tap
  * and is mirrored in the ongoing notification.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun LocationSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
@@ -156,7 +162,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
         orbit.nex.steps.components.AppBackground {
             LazyColumn(
                 Modifier.fillMaxSize().padding(padding).padding(horizontal = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
         item { Spacer(Modifier.size(6.dp)) }
 
@@ -166,7 +172,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
                             if (state == TrackingState.RUNNING) Icons.Filled.LocationOn else Icons.Filled.LocationOff,
@@ -246,7 +252,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                     when (state) {
                         TrackingState.RUNNING -> Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             OutlinedButton(
                                 onClick = { manager.pause(); refresh() },
@@ -263,7 +269,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                         }
                         TrackingState.PAUSED -> Row(
                             Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             Button(
                                 onClick = { manager.resume(); refresh() },
@@ -317,7 +323,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
                         stringResource(R.string.perms_title),
                         style = MaterialTheme.typography.titleMedium,
@@ -374,44 +380,36 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        stringResource(R.string.tracking_accuracy_title),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        LocationAccuracy.entries.forEachIndexed { index, option ->
-                            SegmentedButton(
-                                selected = accuracy == option,
-                                onClick = {
-                                    accuracy = option
-                                    prefs.setLocationAccuracy(option)
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index, LocationAccuracy.entries.size),
-                            ) {
-                                Text(stringResource(accuracyRes(option)), maxLines = 1)
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    IconDropdown(
+                        label = stringResource(R.string.tracking_accuracy_title),
+                        options = LocationAccuracy.entries.toList(),
+                        selected = accuracy,
+                        optionLabel = { stringResource(accuracyRes(it)) },
+                        optionIcon = {
+                            when (it) {
+                                LocationAccuracy.HIGH -> Icons.Filled.GpsFixed
+                                LocationAccuracy.BALANCED -> Icons.Filled.Tune
+                                else -> Icons.Filled.BatteryChargingFull
                             }
-                        }
-                    }
-                    Text(
-                        stringResource(R.string.tracking_interval_title),
-                        style = MaterialTheme.typography.titleMedium,
+                        },
+                        onSelect = {
+                            accuracy = it
+                            prefs.setLocationAccuracy(it)
+                        },
                     )
                     val intervals = listOf(5, 10, 20, 30, 60, 120, 300)
-                    SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-                        intervals.forEachIndexed { index, sec ->
-                            SegmentedButton(
-                                selected = intervalSec == sec,
-                                onClick = {
-                                    intervalSec = sec
-                                    prefs.setLocationIntervalSec(sec)
-                                },
-                                shape = SegmentedButtonDefaults.itemShape(index, intervals.size),
-                                label = { Text(if (sec < 60) "${sec}s" else "${sec / 60}m", maxLines = 1, style = MaterialTheme.typography.labelSmall) },
-                                icon = {},
-                            )
-                        }
-                    }
+                    IconDropdown(
+                        label = stringResource(R.string.tracking_interval_title),
+                        options = intervals,
+                        selected = intervalSec,
+                        optionLabel = { if (it < 60) "$it s" else "${it / 60} min" },
+                        optionIcon = { Icons.Filled.Timer },
+                        onSelect = {
+                            intervalSec = it
+                            prefs.setLocationIntervalSec(it)
+                        },
+                    )
                 }
             }
         }
@@ -422,7 +420,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                 colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.matching_title), style = MaterialTheme.typography.titleMedium)
                     Text(
                         stringResource(R.string.matching_hint),
@@ -495,7 +493,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                     stringResource(R.string.tracking_privacy),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(16.dp),
+                    modifier = Modifier.padding(Spacing.lg),
                 )
             }
         }
@@ -548,3 +546,36 @@ private fun accuracyRes(accuracy: LocationAccuracy): Int = when (accuracy) {
 private fun asTimeText(epochMs: Long?): String? =
     epochMs?.let { orbit.nex.steps.location.formatLocationUploadTime(it) }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun <T> IconDropdown(
+    label: String,
+    options: List<T>,
+    selected: T,
+    optionLabel: @Composable (T) -> String,
+    optionIcon: (T) -> androidx.compose.ui.graphics.vector.ImageVector,
+    onSelect: (T) -> Unit,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    androidx.compose.material3.ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
+        androidx.compose.material3.OutlinedTextField(
+            value = optionLabel(selected),
+            onValueChange = {},
+            readOnly = true,
+            label = { Text(label) },
+            leadingIcon = { Icon(optionIcon(selected), contentDescription = null) },
+            trailingIcon = { androidx.compose.material3.ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
+            modifier = Modifier.menuAnchor().fillMaxWidth(),
+        )
+        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { option ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text(optionLabel(option)) },
+                    leadingIcon = { Icon(optionIcon(option), contentDescription = null) },
+                    onClick = { onSelect(option); expanded = false },
+                )
+            }
+        }
+    }
+}

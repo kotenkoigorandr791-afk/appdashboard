@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -201,9 +202,16 @@ private fun <K, V> Map<K, V>.toJSONObject(): JSONObject {
  * Holds the user's personal data plus every app setting, so the profile tab
  * stays a light overview and this one screen is the single settings surface.
  */
+enum class SettingsSection(val titleRes: Int) {
+    PROFILE(R.string.personal_title),
+    SYNC(R.string.settings_group_sync),
+    PERMISSIONS(R.string.perms_title),
+    DATA(R.string.settings_group_data),
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit) {
+fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSection.PROFILE) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val scope = rememberCoroutineScope()
@@ -437,7 +445,7 @@ fun SettingsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(stringResource(R.string.advanced_settings_title)) },
+                title = { Text(stringResource(section.titleRes)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
@@ -458,9 +466,10 @@ fun SettingsScreen(onBack: () -> Unit) {
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(horizontal = 10.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.PROFILE) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
@@ -468,7 +477,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                             .fillMaxWidth()
                             .padding(top = 6.dp),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     Icons.Filled.ManageAccounts,
@@ -605,14 +614,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                }
 
                 // â”€â”€ Network â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.SYNC) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.settings_network), style = MaterialTheme.typography.titleMedium)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Text(stringResource(R.string.settings_wifi_only), modifier = Modifier.weight(1f))
@@ -628,14 +639,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                }
 
                 // â”€â”€ Permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.PERMISSIONS) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.perms_title), style = MaterialTheme.typography.titleMedium)
                             val grantedCount = HealthDataType.entries.count { type ->
                                 HealthPermission.getReadPermission(type.recordClass) in grantedPermissions
@@ -656,14 +669,16 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                }
 
                 // â”€â”€ Sync interval â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.SYNC) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.settings_sync_interval), style = MaterialTheme.typography.titleMedium)
                             val currentLabel = if (syncMode == SyncMode.SCHEDULED) {
                                 stringResource(R.string.config_sync_mode_scheduled)
@@ -707,18 +722,19 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                }
 
-                if (syncMode == SyncMode.SCHEDULED) {
+                if (section == SettingsSection.SYNC && syncMode == SyncMode.SCHEDULED) {
                     item {
                         Card(
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                 Text(stringResource(R.string.settings_sync_time), style = MaterialTheme.typography.titleMedium)
                                 scheduledSyncs.forEach { schedule ->
                                     Row(
-                                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                                        Modifier.fillMaxWidth().padding(vertical = Spacing.xs),
                                         horizontalArrangement = Arrangement.SpaceBetween,
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
@@ -735,12 +751,13 @@ fun SettingsScreen(onBack: () -> Unit) {
                 }
 
                 // â”€â”€ Conflicts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.SYNC) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.settings_conflict_title), style = MaterialTheme.typography.titleMedium)
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Column(Modifier.weight(1f)) {
@@ -806,119 +823,24 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                }
 
                 // â”€â”€ Location tracking â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 // Recording controls and sampling live on their own screen, the
                 // same one the map links to.
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                context.startActivity(
-                                    Intent(context, orbit.nex.steps.LocationSettingsActivity::class.java)
-                                )
-                            },
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.LocationOn,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.tracking_settings_title),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    stringResource(R.string.tracking_settings_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth().clickable {
-                            context.startActivity(Intent(context, orbit.nex.steps.PointsActivity::class.java))
-                        },
-                    ) {
-                        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            Icon(Icons.Filled.LocationOn, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.points_title), style = MaterialTheme.typography.titleMedium)
-                                Text(stringResource(R.string.points_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = null)
-                        }
-                    }
-                }
 
                 // â”€â”€ Personalization â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 // Theme, accent, language and orientation live on their own
                 // activity; this list only links to it.
-                item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                context.startActivity(
-                                    Intent(context, orbit.nex.steps.PersonalizationActivity::class.java)
-                                )
-                            },
-                    ) {
-                        Row(
-                            Modifier.fillMaxWidth().padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        ) {
-                            Icon(
-                                Icons.Filled.Palette,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Column(Modifier.weight(1f)) {
-                                Text(
-                                    stringResource(R.string.settings_personalization),
-                                    style = MaterialTheme.typography.titleMedium,
-                                )
-                                Text(
-                                    stringResource(R.string.settings_personalization_desc),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                            Icon(
-                                Icons.AutoMirrored.Filled.ArrowForward,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
-                }
 
                 // â”€â”€ Data types â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.DATA) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                             Row(
                                 Modifier.fillMaxWidth().clickable { metricsExpanded = !metricsExpanded },
                                 verticalAlignment = Alignment.CenterVertically,
@@ -935,7 +857,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                                 IconButton(onClick = { metricsExpanded = !metricsExpanded }) {
                                     Icon(
                                         if (metricsExpanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                        contentDescription = null,
+                                        contentDescription = stringResource(if (metricsExpanded) R.string.a11y_collapse else R.string.a11y_expand),
                                     )
                                 }
                             }
@@ -956,27 +878,30 @@ fun SettingsScreen(onBack: () -> Unit) {
                         }
                     }
                 }
+                }
 
                 // â”€â”€ Export â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+                if (section == SettingsSection.DATA) {
                 item {
                     Card(
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.health_export_title), style = MaterialTheme.typography.titleMedium)
                             Button(onClick = { showExportSheet = true }, modifier = Modifier.fillMaxWidth()) {
                                 Icon(Icons.Filled.Download, contentDescription = null)
-                                Text(stringResource(R.string.health_export_title), modifier = Modifier.padding(start = 8.dp))
+                                Text(stringResource(R.string.health_export_title), modifier = Modifier.padding(start = Spacing.sm))
                             }
                         }
                     }
+                }
                 }
             }
             if (showSavedToast) {
                 orbit.nex.steps.components.SavedToast(
                     stringResource(if (saveOk == false) R.string.save_failed_toast else R.string.saved_toast),
-                    Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                    Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.xl),
                     isError = saveOk == false,
                 )
             }
@@ -996,9 +921,9 @@ fun SettingsScreen(onBack: () -> Unit) {
         ModalBottomSheet(onDismissRequest = { showExportSheet = false }, sheetState = sheetState) {
             Column(
                 modifier = Modifier
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
+                    .padding(horizontal = Spacing.xl, vertical = Spacing.lg)
                     .verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg),
             ) {
                 Text(stringResource(R.string.health_export_title), style = MaterialTheme.typography.titleLarge)
 
@@ -1007,7 +932,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     modifier = Modifier.fillMaxWidth(),
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
                 ) {
-                    Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         HealthDataType.values().forEach { type ->
                             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                 Checkbox(
@@ -1061,7 +986,7 @@ fun SettingsScreen(onBack: () -> Unit) {
                     enabled = exportSelectedTypes.isNotEmpty(),
                 ) {
                     Icon(Icons.Filled.Download, contentDescription = null)
-                    Text(stringResource(R.string.export_confirm), modifier = Modifier.padding(start = 8.dp))
+                    Text(stringResource(R.string.export_confirm), modifier = Modifier.padding(start = Spacing.sm))
                 }
                 Spacer(Modifier.heightIn(min = 16.dp))
             }
@@ -1117,6 +1042,7 @@ private val intervalOptions = listOf(
 )
 
 internal fun accentNameRes(value: String): Int = when (value) {
+    "dynamic" -> R.string.accent_dynamic
     "teal" -> R.string.accent_teal
     "orange" -> R.string.accent_orange
     "pink" -> R.string.accent_pink

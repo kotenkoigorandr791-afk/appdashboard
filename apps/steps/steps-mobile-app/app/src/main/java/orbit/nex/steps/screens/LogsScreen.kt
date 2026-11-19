@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -121,7 +122,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
         CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.onSurface) {
         Column(
             modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.md),
         ) {
             // Title, search and actions share one row; the search field is compact
             // until it is focused and then grows into the free space.
@@ -146,7 +147,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                     softWrap = false,
                     modifier = Modifier
                         .weight(1f)
-                        .padding(start = 4.dp),
+                        .padding(start = Spacing.xs),
                 )
                 IconButton(onClick = {
                     newestFirst = !newestFirst
@@ -171,7 +172,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                 }
                 Box {
                     IconButton(onClick = { menuOpen = true }) {
-                        Icon(Icons.Filled.MoreVert, contentDescription = null)
+                        Icon(Icons.Filled.MoreVert, contentDescription = stringResource(R.string.a11y_more_options))
                     }
                     DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                         DropdownMenuItem(
@@ -238,7 +239,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                     )
                 }
             } else {
-                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                LazyColumn(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     items(logs, key = { it.id }) { log ->
                         val expanded = expandedId == log.id
                         val blockText = listOfNotNull(prettyJson(log.errorMessage), prettyJson(log.payload))
@@ -249,7 +250,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                                 else MaterialTheme.colorScheme.errorContainer,
                             ),
                         ) {
-                            Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(Modifier.padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                 Row(Modifier.fillMaxWidth()) {
                                     Text(
                                         localizedLogLabel(log.dataType, log.syncType) ?: stringResource(R.string.home_logs_title),
@@ -259,7 +260,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                                     IconButton(onClick = { expandedId = if (expanded) null else log.id }) {
                                         Icon(
                                             if (expanded) Icons.Filled.ExpandLess else Icons.Filled.ExpandMore,
-                                            contentDescription = null,
+                                            contentDescription = stringResource(if (expanded) R.string.a11y_collapse else R.string.a11y_expand),
                                         )
                                     }
                                 }
@@ -281,7 +282,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
                                             ) {
                                                 Text(
                                                     text = blockText.joinToString("\n"),
-                                                    modifier = Modifier.padding(8.dp),
+                                                    modifier = Modifier.padding(Spacing.sm),
                                                     fontFamily = FontFamily.Monospace,
                                                     fontSize = 12.sp,
                                                     color = MaterialTheme.colorScheme.onSurface,
@@ -312,7 +313,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
         toast?.let { message ->
             SavedToast(
                 message,
-                Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.xl),
             )
         }
     }

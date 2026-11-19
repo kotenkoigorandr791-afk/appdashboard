@@ -1,4 +1,6 @@
 package orbit.nex.steps.screens
+import orbit.nex.steps.ui.theme.Spacing
+import orbit.nex.steps.ui.theme.semantic
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.EnterTransition
 import androidx.compose.animation.core.tween
@@ -79,6 +81,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.nativeCanvas
@@ -258,13 +261,13 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     }
 
     LazyColumn(
-        modifier.fillMaxSize().padding(horizontal = 12.dp),
+        modifier.fillMaxSize().padding(horizontal = Spacing.md),
         verticalArrangement = Arrangement.spacedBy(14.dp),
-        contentPadding = PaddingValues(top = 12.dp, bottom = 22.dp),
+        contentPadding = PaddingValues(top = Spacing.md, bottom = 22.dp),
     ) {
         item {
             AppHeroSurface {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                     Text(
                         stringResource(R.string.stats_private_eyebrow).uppercase(),
                         style = MaterialTheme.typography.labelSmall,
@@ -281,7 +284,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                         Text(
                             number.format(daySteps),
                             style = MaterialTheme.typography.headlineLarge,
@@ -572,7 +575,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
 
     selectedStatsDate?.let { date ->
         ModalBottomSheet(onDismissRequest = { selectedStatsDate = null }) {
-            Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(formatTooltipDate(date), style = MaterialTheme.typography.titleLarge)
                 Text("${number.format(monthSteps[date] ?: 0L)} ${stringResource(R.string.stats_steps)}", style = MaterialTheme.typography.headlineSmall)
                 state.byDay[date].orEmpty().forEach { metric ->
@@ -593,7 +596,7 @@ private fun OverviewMetric(label: String, value: String, hint: String, modifier:
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.surfaceVariant,
     ) {
-        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
             Text(
                 label.uppercase(),
                 style = MaterialTheme.typography.labelSmall,
@@ -611,7 +614,7 @@ private fun OverviewMetric(label: String, value: String, hint: String, modifier:
 @Composable
 private fun LoadingCard(text: String) {
     Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surfaceVariant, modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.padding(22.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.padding(22.dp), horizontalArrangement = Arrangement.spacedBy(Spacing.md), verticalAlignment = Alignment.CenterVertically) {
             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
             Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
@@ -628,14 +631,14 @@ private fun WeeklyRhythm(rows: List<WeekdayMovement>) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
         labels.forEachIndexed { index, labelRes ->
             val trips = rows.getOrNull(index)?.trips ?: 0
-            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                 Text(trips.toString(), style = MaterialTheme.typography.labelSmall)
                 Box(
                     Modifier
                         .fillMaxWidth()
                         .height((8 + 54 * (trips.toFloat() / max)).dp)
                         .background(
-                            Brush.verticalGradient(listOf(MaterialTheme.colorScheme.primary, MaterialTheme.colorScheme.primary.copy(alpha = 0.35f))),
+                            SolidColor(MaterialTheme.colorScheme.primary),
                             MaterialTheme.shapes.small,
                         )
                 )
@@ -728,14 +731,15 @@ private fun achievementIcon(card: AchievementCard): ImageVector = when {
     else -> Icons.Filled.EmojiEvents
 }
 
+@Composable
 private fun achievementTone(card: AchievementCard): Color = when {
-    card.id.startsWith("coverage_") -> Color(0xFF16A34A)
-    card.id.startsWith("distance_") -> Color(0xFF2563EB)
-    card.id.startsWith("places_") -> Color(0xFFD97706)
-    card.id.startsWith("cities_") -> Color(0xFF7C3AED)
-    card.id.startsWith("regions_") -> Color(0xFF0891B2)
-    card.id.startsWith("countries_") -> Color(0xFFDB2777)
-    else -> Color(0xFF7C3AED)
+    card.id.startsWith("coverage_") -> MaterialTheme.semantic.success
+    card.id.startsWith("distance_") -> MaterialTheme.colorScheme.primary
+    card.id.startsWith("places_") -> MaterialTheme.semantic.warning
+    card.id.startsWith("cities_") -> MaterialTheme.colorScheme.tertiary
+    card.id.startsWith("regions_") -> MaterialTheme.colorScheme.secondary
+    card.id.startsWith("countries_") -> MaterialTheme.colorScheme.error
+    else -> MaterialTheme.colorScheme.tertiary
 }
 
 private fun achievementTitleRes(key: String): Int = when (key) {
@@ -776,10 +780,9 @@ private fun formatDuration(seconds: Long): String {
 @Composable
 private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int = 0, onDayClick: (LocalDate) -> Unit) {
     val barTop = MaterialTheme.colorScheme.primary
-    val barBottom = MaterialTheme.colorScheme.tertiary
     val axisColor = MaterialTheme.colorScheme.onSurfaceVariant
     val gridColor = MaterialTheme.colorScheme.outlineVariant
-    val goalColor = Color(0xFFE53935)
+    val goalColor = MaterialTheme.colorScheme.error
     val goalLabelBg = MaterialTheme.colorScheme.surface
     val goalLabel = stringResource(R.string.stats_goal, NumberFormat.getIntegerInstance(Locale.getDefault()).format(goal))
     val days = remember(steps, month) {
@@ -858,14 +861,8 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
                 val x = leftPad + index * barWidth + gap / 2f
                 val barWidthPx = (barWidth - gap).coerceAtLeast(1f)
                 if (count > 0L) {
-                    // Colourful like the Spends charts: a vertical gradient that
-                    // shifts from the accent to the secondary accent over the bar.
                     drawRoundRect(
-                        brush = Brush.verticalGradient(
-                            listOf(barTop, barBottom.copy(alpha = 0.75f)),
-                            startY = baseY - h,
-                            endY = baseY,
-                        ),
+                        color = barTop,
                         topLeft = Offset(x, baseY - h),
                         size = Size(barWidthPx, h.coerceAtLeast(2f)),
                         cornerRadius = barRadius,
@@ -937,7 +934,7 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
                     text = "${formatTooltipDate(tip.date)}: ${NumberFormat.getIntegerInstance(Locale.getDefault()).format(tip.count)} ${stringResource(R.string.stats_tooltip_steps)}",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.inverseOnSurface,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = Spacing.sm, vertical = Spacing.xs)
                 )
             }
         }
@@ -946,7 +943,7 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
 @Composable
 private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int, onDayClick: (LocalDate) -> Unit) {
     // Gold marks the days the daily step goal was reached.
-    val goalGold = Color(0xFFD4A017)
+    val goalGold = MaterialTheme.semantic.warning
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
@@ -957,9 +954,9 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: In
     val leading = month.atDay(1).dayOfWeek.value - 1
     val cells: List<LocalDate?> = List(leading) { null } + days
     val rows = cells.chunked(7)
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
         rows.forEach { week ->
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.xs), modifier = Modifier.fillMaxWidth()) {
                 week.forEach { date ->
                     if (date == null) {
                         Spacer(Modifier.weight(1f).aspectRatio(1f))

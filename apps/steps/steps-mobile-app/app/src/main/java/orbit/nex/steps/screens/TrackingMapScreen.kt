@@ -1,5 +1,7 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
+import orbit.nex.steps.ui.theme.semantic
 import android.graphics.Canvas
 import android.graphics.Color as AndroidColor
 import android.location.LocationManager
@@ -532,7 +534,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             }
             Row(
                 Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 switchPill(Modifier.weight(1f))
@@ -582,7 +584,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 Text(
                     stringResource(R.string.map_no_data),
                     style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 12.dp),
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = Spacing.md),
                 )
             }
         }
@@ -595,7 +597,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
                 .padding(start = edge, end = edge, bottom = edge),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             if (GeoLayer.SPEED.key in layers) {
                 SpeedLegend()
@@ -616,7 +618,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
     if (showLayers) {
         ModalBottomSheet(onDismissRequest = { showLayers = false }) {
-            Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 18.dp).padding(bottom = 24.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()).navigationBarsPadding().padding(horizontal = 18.dp).padding(bottom = Spacing.xl), verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(stringResource(R.string.map_style_title), style = MaterialTheme.typography.titleMedium)
                 SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
                     MapStyle.entries.forEachIndexed { index, style ->
@@ -628,7 +630,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                             },
                             shape = SegmentedButtonDefaults.itemShape(index, MapStyle.entries.size),
                         ) {
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                                 Icon(
                                     imageVector = when (style) {
                                         MapStyle.NORMAL -> Icons.Filled.Map
@@ -683,8 +685,8 @@ private fun TrackingSwitchPill(
                 .padding(
                     start = if (compact) 10.dp else 14.dp,
                     end = if (compact) 4.dp else 6.dp,
-                    top = 2.dp,
-                    bottom = 2.dp,
+                    top = Spacing.xxs,
+                    bottom = Spacing.xxs,
                 ),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(if (compact) 6.dp else 8.dp),
@@ -695,8 +697,8 @@ private fun TrackingSwitchPill(
                     .clip(CircleShape)
                     .background(
                         when {
-                            tracking && !paused -> Color(0xFF4C8DFF)
-                            tracking -> Color(0xFFE0A100)
+                            tracking && !paused -> MaterialTheme.colorScheme.primary
+                            tracking -> MaterialTheme.semantic.warning
                             else -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                         }
                     )
@@ -763,7 +765,7 @@ internal fun DayPill(
             Text(
                 label,
                 style = if (compact) MaterialTheme.typography.labelMedium else MaterialTheme.typography.labelLarge,
-                modifier = Modifier.weight(1f).padding(horizontal = 2.dp).clickable(enabled = onPick != null) { picking = true },
+                modifier = Modifier.weight(1f).padding(horizontal = Spacing.xxs).clickable(enabled = onPick != null) { picking = true },
                 textAlign = TextAlign.Center,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -853,9 +855,9 @@ private fun SyncStatusBox(
         modifier = modifier,
     ) {
         Row(
-            Modifier.padding(horizontal = 14.dp, vertical = 8.dp),
+            Modifier.padding(horizontal = 14.dp, vertical = Spacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             if (loading) {
                 CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp)
@@ -1047,7 +1049,7 @@ private fun SpeedLegend(modifier: Modifier = Modifier) {
         shadowElevation = 4.dp,
         modifier = modifier,
     ) {
-        Column(Modifier.padding(horizontal = 10.dp, vertical = 8.dp)) {
+        Column(Modifier.padding(horizontal = 10.dp, vertical = Spacing.sm)) {
             Text(
                 stringResource(R.string.map_speed_legend_title),
                 style = MaterialTheme.typography.labelSmall,

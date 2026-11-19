@@ -1,5 +1,7 @@
 package orbit.nex.steps.components
 
+import orbit.nex.steps.ui.theme.Spacing
+import orbit.nex.steps.ui.theme.semantic
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
@@ -39,13 +41,13 @@ fun SavedToast(text: String, modifier: Modifier = Modifier, isError: Boolean = f
         Row(
             Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             Icon(
                 if (isError) Icons.Filled.ErrorOutline else Icons.Filled.CheckCircle,
                 contentDescription = null,
                 modifier = Modifier.size(18.dp),
-                tint = if (isError) MaterialTheme.colorScheme.error else Color(0xFF1B8A3A)
+                tint = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.semantic.success
             )
             Text(text, fontWeight = FontWeight.SemiBold)
         }

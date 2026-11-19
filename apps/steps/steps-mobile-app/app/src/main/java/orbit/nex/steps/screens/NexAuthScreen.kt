@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.animation.AnimatedContent
@@ -92,7 +93,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
     val icons = listOf(Icons.Default.DirectionsWalk, Icons.Default.EmojiEvents, Icons.Default.Map, Icons.Default.CloudSync)
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).imePadding().navigationBarsPadding().padding(20.dp), verticalArrangement = Arrangement.Center, horizontalAlignment = Alignment.CenterHorizontally) {
         Card(Modifier.fillMaxWidth().animateContentSize(tween(300)), colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)) {
-            Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(Modifier.fillMaxWidth().padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                 Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(72.dp).clip(RoundedCornerShape(18.dp)))
                 Text("NexSteps", style = MaterialTheme.typography.headlineSmall)
                 if (origin.isEmpty()) {
@@ -110,7 +111,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                             Text(features[index], textAlign = TextAlign.Center, style = MaterialTheme.typography.bodyMedium)
                         }
                     }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                         repeat(4) { i ->
                             val width by animateDpAsState(if (i == page) 22.dp else 8.dp, tween(300), label = "dotWidth")
                             val dot by animateColorAsState(if (i == page) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant, tween(300), label = "dotColor")
@@ -144,7 +145,7 @@ fun NexAuthScreen(deviceId: String, onToken: (String, String) -> Unit) {
                     }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nex_auth_nexorbit)) }
                     OutlinedButton(onClick = { showPassword = !showPassword }, enabled = !busy, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.nex_auth_password_login)) }
                     AnimatedVisibility(visible = showPassword) {
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Column(verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                         OutlinedTextField(email, { email = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Email, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_email)) }, singleLine = true)
                         OutlinedTextField(password, { password = it }, Modifier.fillMaxWidth(), leadingIcon = { Icon(Icons.Default.Lock, null) }, shape = RoundedCornerShape(20.dp), label = { Text(stringResource(R.string.nex_auth_password)) }, singleLine = true, visualTransformation = PasswordVisualTransformation())
                         Button(onClick = {

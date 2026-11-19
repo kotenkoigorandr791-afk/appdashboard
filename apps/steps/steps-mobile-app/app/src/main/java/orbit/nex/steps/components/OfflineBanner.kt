@@ -1,5 +1,6 @@
 package orbit.nex.steps.components
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -46,7 +47,7 @@ fun OfflineBanner(onRetry: () -> Unit, modifier: Modifier = Modifier) {
                 tint = MaterialTheme.colorScheme.onErrorContainer,
                 modifier = Modifier.size(22.dp),
             )
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(Spacing.xxs)) {
                 Text(
                     stringResource(R.string.offline_banner_title),
                     style = MaterialTheme.typography.titleSmall,

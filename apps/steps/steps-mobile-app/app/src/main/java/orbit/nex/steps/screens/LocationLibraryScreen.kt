@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -114,7 +115,7 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
 
     Column(modifier.fillMaxSize()) {
         Row(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 12.dp),
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
@@ -134,8 +135,8 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
         }
 
         FlowRow(
-            Modifier.fillMaxWidth().padding(horizontal = 16.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            Modifier.fillMaxWidth().padding(horizontal = Spacing.lg),
+            horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             LibraryTab.entries.forEach { candidate ->
@@ -156,7 +157,7 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
                 onValueChange = { searchQuery = it },
                 singleLine = true,
                 label = { Text(stringResource(R.string.library_search_label)) },
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                modifier = Modifier.fillMaxWidth().padding(horizontal = Spacing.lg, vertical = Spacing.sm),
             )
         }
 
@@ -170,7 +171,7 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
             snapshot.error != null -> LibraryMessage(stringResource(R.string.library_error, snapshot.error.orEmpty()), isError = true)
             snapshot.entries.isEmpty() -> LibraryMessage(stringResource(R.string.library_empty))
             else -> LazyColumn(
-                Modifier.fillMaxSize().padding(horizontal = 12.dp),
+                Modifier.fillMaxSize().padding(horizontal = Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 if (snapshot.summary.isNotBlank()) {
@@ -248,7 +249,7 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
 
 @Composable
 private fun LibraryMessage(message: String, isError: Boolean = false) {
-    Box(Modifier.fillMaxSize().padding(24.dp), contentAlignment = Alignment.Center) {
+    Box(Modifier.fillMaxSize().padding(Spacing.xl), contentAlignment = Alignment.Center) {
         Text(
             message,
             color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -282,7 +283,7 @@ private fun LibraryCard(entry: LibraryEntry, enabled: Boolean, onAction: (Librar
                                 else MaterialTheme.colorScheme.surface.copy(alpha = 0.7f),
                                 RoundedCornerShape(20.dp),
                             )
-                            .padding(horizontal = 8.dp, vertical = 3.dp),
+                            .padding(horizontal = Spacing.sm, vertical = 3.dp),
                     ) {
                         Text(
                             statusLabel(entry.status),
