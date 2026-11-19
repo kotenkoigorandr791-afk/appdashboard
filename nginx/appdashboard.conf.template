@@ -122,6 +122,9 @@ server {
         alias /opt/ApplicationData/steps/;
         location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
     }
+    location /apps/spends/users/ {
+        alias /opt/ApplicationData/spends/users/;
+    }
     location ^~ /apps/smart_home/data/ {
         alias /opt/ApplicationData/smart_home/data/;
         location ~* \.(php[0-9]?|phtml|phar|phps|inc|cgi|pl|py|rb|jsp|asp|aspx|sh)$ { return 403; }
