@@ -1311,7 +1311,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             body.rail-autohide{--rail-full-w:48px;--rail-peek:4px;--rail-slide:0px;}
             body.rail-autohide #content.has-app-rail #app-iframe{transition:left .28s ease,width .28s ease;}
             body.rail-autohide #content.has-app-rail #app-icon-rail{width:var(--rail-full-w);transform:translateX(var(--rail-slide));transition:transform .28s ease,background-color .35s ease,border-color .35s ease,color .35s ease;will-change:transform;}
-            body.rail-autohide #content.has-app-rail #app-icon-rail::before{content:'';position:absolute;top:0;right:0;width:calc(var(--rail-full-w) / 3);height:100%;background:linear-gradient(90deg,transparent 0%,color-mix(in srgb,var(--primary-color) 55%,transparent) 100%);pointer-events:none;z-index:2;}
+            body.rail-autohide #content.has-app-rail #app-icon-rail::before{content:'';position:absolute;top:0;right:0;width:100%;height:100%;background:linear-gradient(90deg,transparent 0%,color-mix(in srgb,var(--primary-color) 25%,transparent) 100%);pointer-events:none;z-index:2;}
             body.rail-autohide #menu-button{transition:opacity .25s ease,visibility .25s ease,transform .2s,box-shadow .2s,background .2s;}
             body.rail-autohide #content.has-app-rail.rail-collapsed{--rail-w:var(--rail-peek);}
             body.rail-autohide.rail-collapsed{--rail-slide:calc(var(--rail-peek) - var(--rail-full-w));}
