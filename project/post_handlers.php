@@ -826,7 +826,7 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                 if(isset($_POST['ajax'])){
                     while(ob_get_level()>1)ob_end_clean();
                     header('Content-Type: application/json');
-                    echo json_encode(['success'=>true,'token'=>(string)$tokenData['token'],'expires_at'=>$tokenData['expires_at']??null]);
+                    echo json_encode(['success'=>true,'token'=>(string)$tokenData['token'],'token_hash'=>hash('sha256',(string)$tokenData['token']),'name'=>$tokenName,'created_at'=>time(),'expires_at'=>$tokenData['expires_at']??null,'csrf_field_html'=>apSecCsrfField()]);
                     exit;
                 }
             }catch(Throwable $e){

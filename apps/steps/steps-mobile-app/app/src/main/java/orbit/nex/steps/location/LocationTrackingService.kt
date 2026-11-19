@@ -58,9 +58,7 @@ class LocationTrackingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var fusedClient: FusedLocationProviderClient
     private lateinit var prefs: PreferencesManager
-    private var uploadLoop: Job? = null
     private var active = false
-    private var lastUploadAtMs = 0L
     private var powerReceiver: BroadcastReceiver? = null
 
     override fun onBind(intent: Intent?): IBinder? = null
@@ -131,8 +129,6 @@ class LocationTrackingService : Service() {
         active = true
         applyRequest()
         registerPowerReceiver()
-        startUploadLoop()
-        LocationUploadWorker.ensurePeriodic(this)
         updateNotification()
     }
 
@@ -142,8 +138,6 @@ class LocationTrackingService : Service() {
             runCatching { fusedClient.removeLocationUpdates(locationCallback) }
             active = false
         }
-        uploadLoop?.cancel()
-        uploadLoop = null
         unregisterPowerReceiver()
     }
 
@@ -154,7 +148,8 @@ class LocationTrackingService : Service() {
         val powerSaver = (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
         // Sampling cadence is the location setting, not the health data sync
         // interval: sharing the two made recording follow the webhook schedule.
-        val intervalMs = prefs.getLocationIntervalMinutes().coerceAtLeast(1) * 60_000L
+        val accuracy = prefs.getLocationAccuracy()
+        val intervalMs = prefs.getLocationIntervalSec() * 1000L
         val priority = when {
             powerSaver -> Priority.PRIORITY_LOW_POWER
             else -> when (prefs.getLocationAccuracy()) {
@@ -166,8 +161,9 @@ class LocationTrackingService : Service() {
         // Battery saver doubles the interval instead of silently dropping updates.
         val effectiveInterval = if (powerSaver) intervalMs * 2 else intervalMs
         val request = LocationRequest.Builder(priority, effectiveInterval)
-            .setMinUpdateIntervalMillis(effectiveInterval / 2)
-            .setMinUpdateDistanceMeters(0f)
+            .setMinUpdateIntervalMillis(effectiveInterval)
+            .setMinUpdateDistanceMeters(MIN_DISTANCE_M)
+            .setWaitForAccurateLocation(false)
             .build()
         runCatching {
             fusedClient.removeLocationUpdates(locationCallback)
@@ -188,10 +184,7 @@ class LocationTrackingService : Service() {
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
             result.locations.forEach { persist(it) }
-            val pending = pendingCount()
             updateNotification()
-            // Small batches keep the outbox short without uploading on every fix.
-            if (pending >= UPLOAD_EVERY) requestUpload()
         }
     }
 
@@ -215,25 +208,6 @@ class LocationTrackingService : Service() {
         val stored = LocationEventStore(this).insert(prefs.getLocationDeviceId(), event)
         if (!stored) Log.w(TAG, "Duplicate location event ignored")
         return event.takeIf { stored }
-    }
-
-    private fun startUploadLoop() {
-        uploadLoop?.cancel()
-        uploadLoop = scope.launch {
-            while (isActive) {
-                delay(UPLOAD_INTERVAL_MS)
-                if (System.currentTimeMillis() - lastUploadAtMs >= UPLOAD_INTERVAL_MS) requestUpload()
-                // Uploads may have settled in the background; keep the shade in
-                // sync with the real pending count.
-                updateNotification()
-            }
-        }
-    }
-
-    /** Queue a durable upload; WorkManager owns connectivity and retries. */
-    private fun requestUpload() {
-        lastUploadAtMs = System.currentTimeMillis()
-        LocationUploadWorker.enqueue(this)
     }
 
     private fun pendingCount(): Int = runCatching { LocationEventStore(this).pendingCount() }.getOrDefault(0)
@@ -456,8 +430,7 @@ class LocationTrackingService : Service() {
             private set
         private const val TAG = "LocationTrackingService"
         private const val NOTIFICATION_ID = 2003
-        private const val UPLOAD_EVERY = 20
-        private const val UPLOAD_INTERVAL_MS = 5L * 60 * 1000
+        private const val MIN_DISTANCE_M = 20f
         const val CHANNEL_ID = "location_tracking"
         const val ACTION_START = "orbit.nex.steps.location.START"
         const val ACTION_STOP = "orbit.nex.steps.location.STOP"

@@ -228,7 +228,7 @@ class SpendsApi(private val deviceId: String, private val onLog: (SyncLog) -> Un
                     }
                 } catch (e: Exception) {
                     lastError = e
-                    if (attempt < 2 && method == "GET") Thread.sleep(200L * (attempt + 1))
+                    if (attempt < 2 && method == "GET") Thread.sleep(1000L * (attempt + 1))
                 }
             }
             throw (lastError ?: IllegalStateException("Server error"))

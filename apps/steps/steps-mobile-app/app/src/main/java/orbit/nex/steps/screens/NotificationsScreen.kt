@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.widget.Toast
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -83,11 +84,11 @@ fun NotificationsScreen(onBack: () -> Unit) {
                     .fillMaxSize()
                     .padding(padding),
                 contentPadding = PaddingValues(16.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
+                verticalArrangement = Arrangement.spacedBy(Spacing.lg)
             ) {
                 items(notificationConfigs) { config ->
                     Card(modifier = Modifier.fillMaxWidth()) {
-                        Column(modifier = Modifier.padding(16.dp)) {
+                        Column(modifier = Modifier.padding(Spacing.lg)) {
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -131,12 +132,12 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(bottom = 32.dp)
+                        .padding(bottom = Spacing.xxl)
                 ) {
                     Text(
                         text = stringResource(R.string.notifications_select_provider),
                         style = MaterialTheme.typography.titleMedium,
-                        modifier = Modifier.padding(16.dp)
+                        modifier = Modifier.padding(Spacing.lg)
                     )
                     val sortedProviders = listOf(NotificationProviderType.LOCAL_PUSH) +
                         NotificationProviderType.values().filter { it != NotificationProviderType.LOCAL_PUSH }
@@ -173,10 +174,10 @@ fun NotificationsScreen(onBack: () -> Unit) {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 20.dp, vertical = 16.dp)
-                        .padding(bottom = 32.dp)
+                        .padding(horizontal = 20.dp, vertical = Spacing.lg)
+                        .padding(bottom = Spacing.xxl)
                         .verticalScroll(rememberScrollState()),
-                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                    verticalArrangement = Arrangement.spacedBy(Spacing.lg)
                 ) {
                     Text(
                         text = stringResource(
@@ -266,7 +267,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                                 modifier = Modifier.fillMaxWidth(),
                                 minLines = 3
                             )
-                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                                 listOf("{title}", "{message}", "{status}").forEach { v ->
                                     FilterChip(
                                         selected = false,
@@ -305,7 +306,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
                             }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                             ) {
                             OutlinedTextField(
                                 value = newHeaderKey,
@@ -348,7 +349,7 @@ fun NotificationsScreen(onBack: () -> Unit) {
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                     ) {
                         OutlinedButton(
                             onClick = {

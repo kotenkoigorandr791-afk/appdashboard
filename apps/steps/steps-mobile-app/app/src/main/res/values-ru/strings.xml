@@ -773,7 +773,7 @@
     <string name="points_draw_area">Нарисовать область</string>
     <string name="points_draw_disable">Приостановить рисование</string>
     <string name="points_draw_enable">Действия с областью приостановлены.</string>
-    <string name="points_draw_hint">Проведите по карте, чтобы нарисовать выделение.</string>
+    <string name="points_draw_hint">Удерживайте и ведите пальцем по карте, чтобы выделить область.</string>
     <string name="points_empty">Ни одна точка не соответствует этим фильтрам.</string>
     <string name="points_exclude">Исключить</string>
     <string name="points_exclude_confirm_text">Исключить %1$d точек из производных видов и аналитики? Исходные данные сохранятся, и это можно отменить.</string>
@@ -923,4 +923,6 @@
     <string name="tracking_notification_text">%1$d измерений ожидают загрузки</string>
     <string name="changelog_installed">Установлено</string>
     <string name="nex_auth_failed">Не удалось войти</string>
+    <string name="date_from">С</string>
+    <string name="date_to">По</string>
 </resources>

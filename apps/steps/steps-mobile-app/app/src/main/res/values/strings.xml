@@ -494,6 +494,7 @@
     <string name="accent_pink">Pink</string>
     <string name="accent_purple">Purple</string>
     <string name="accent_gray">Gray</string>
+    <string name="accent_dynamic">System (Material You)</string>
     <string name="conflict_title">Sync conflict</string>
     <string name="conflict_message">Different step values were found for %1$d day(s). Choose which data to keep.</string>
     <string name="conflict_skip">Skip phone</string>
@@ -743,7 +744,7 @@
     <string name="points_open_map">Open on map</string>
     <string name="points_correction_points">%1$d points affected</string>
     <string name="points_no_connection">Connect to your server to manage points.</string>
-    <string name="points_draw_hint">Drag on the map to draw a selection.</string>
+    <string name="points_draw_hint">Hold and drag on the map to draw a selection.</string>
     <string name="points_draw_enable">Area actions are paused.</string>
     <string name="points_selected_count">%1$d points selected</string>
     <string name="points_draw_disable">Pause drawing</string>
@@ -929,4 +930,12 @@
 <string name="manual_sync_history_permission_required">Allow access to older health data to sync this period.</string>
     <string name="changelog_installed">Installed</string>
     <string name="nex_auth_failed">Sign-in failed</string>
+    <string name="date_from">From</string>
+    <string name="date_to">To</string>
+    <string name="a11y_expand">Expand</string>
+    <string name="a11y_collapse">Collapse</string>
+    <string name="a11y_more_options">More options</string>
+    <string name="settings_group_sync">Synchronization</string>
+    <string name="settings_group_data">Data and export</string>
+    <string name="settings_group_location">Location recording</string>
 </resources>

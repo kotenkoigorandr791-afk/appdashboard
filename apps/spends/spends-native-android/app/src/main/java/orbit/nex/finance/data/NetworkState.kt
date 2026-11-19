@@ -31,9 +31,7 @@ object NetworkState {
             manager.registerDefaultNetworkCallback(object : ConnectivityManager.NetworkCallback() {
                 // Losing the network is immediately visible; regaining it only
                 // clears the indicator once the server answers a real request.
-                override fun onLost(network: Network) { markUnreachable() }
-
-                override fun onUnavailable() { markUnreachable() }
+                override fun onLost(network: Network) {}
             })
         }
     }

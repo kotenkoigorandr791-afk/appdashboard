@@ -162,19 +162,26 @@ class PointManagementRepository(
         request(config, path, null).let { response ->
             val body = response.first
             val code = response.second
-            val root = runCatching { JSONObject(body) }.getOrElse { JSONObject() }
+            val root = parseJson(body)
             if (code !in 200..299 || !root.optBoolean("ok", false)) {
                 error(root.optString("error").ifBlank { "HTTP $code" })
             }
             root
         }
 
+    private fun parseJson(text: String): JSONObject {
+        val start = text.indexOf('{')
+        val end = text.lastIndexOf('}')
+        val candidate = if (start >= 0 && end > start) text.substring(start, end + 1) else text
+        return runCatching { JSONObject(candidate) }.getOrElse { JSONObject() }
+    }
+
     private fun post(config: WebhookConfig, path: String, body: JSONObject): Result<Unit> =
         runCatching { postJson(config, path, body); Unit }
 
     private fun postJson(config: WebhookConfig, path: String, body: JSONObject): JSONObject {
         val (text, code) = request(config, path, body.toString())
-        val root = runCatching { JSONObject(text) }.getOrElse { JSONObject() }
+        val root = parseJson(text)
         if (code !in 200..299 || !root.optBoolean("ok", false)) {
             error(root.optString("error").ifBlank { "HTTP $code" })
         }

@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -228,7 +229,7 @@ fun DashboardScreen(
                                 text = dashboardUpdatedText(currentSnapshot.fetchedAt),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(top = 24.dp, bottom = 16.dp),
+                                    .padding(top = Spacing.xl, bottom = Spacing.lg),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 textAlign = TextAlign.Center,
@@ -258,13 +259,13 @@ private fun DashboardMetricGrid(cards: List<DashboardMetricCard>) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 8.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+            .padding(top = Spacing.sm),
+        verticalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         cards.chunked(2).forEach { rowCards ->
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(Spacing.md),
             ) {
                 rowCards.forEach { card ->
                     DashboardMetricCardView(
@@ -292,7 +293,7 @@ private fun DashboardMetricCardView(
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
         ),
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(modifier = Modifier.padding(Spacing.lg)) {
             Box(
                 modifier = Modifier
                     .size(40.dp)

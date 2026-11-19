@@ -775,7 +775,7 @@
     <string name="points_correction_points">Заторкнуто точок: %1$d</string>
     <string name="points_no_connection">Підключіться до сервера, щоб керувати точками.</string>
     <string name="points_select_title">Карта вибору точок</string>
-    <string name="points_draw_hint">Проведіть по карті, щоб намалювати виділення.</string>
+    <string name="points_draw_hint">Утримуйте й ведіть пальцем по карті, щоб виділити область.</string>
     <string name="points_draw_enable">Дії з областю призупинено.</string>
     <string name="points_selected_count">Вибрано точок: %1$d</string>
     <string name="points_draw_disable">Призупинити малювання</string>
@@ -925,4 +925,6 @@
     <string name="update_install_now">Оновити зараз</string>
     <string name="changelog_installed">Встановлено</string>
     <string name="nex_auth_failed">Не вдалося увійти</string>
+    <string name="date_from">Від</string>
+    <string name="date_to">До</string>
 </resources>

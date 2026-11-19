@@ -24,3 +24,8 @@ val IconTintCyan = Color(0xFF087EA4)
 val IconTintOrange = Color(0xFFE37400)
 val IconTintPurple = Color(0xFF7627BB)
 val IconTintMagenta = Color(0xFFBE185D)
+
+val SuccessLight = Color(0xFF1B7F3B)
+val SuccessDark = Color(0xFF7FD99A)
+val WarningLight = Color(0xFF9A6200)
+val WarningDark = Color(0xFFFFC857)

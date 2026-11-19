@@ -23,6 +23,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import orbit.nex.steps.ui.theme.AppCornerRadius
+import orbit.nex.steps.ui.theme.Layout
+import orbit.nex.steps.ui.theme.Spacing
 
 /**
  * The shared premium surface vocabulary. Statistics, map panels and settings
@@ -43,7 +45,7 @@ fun AppSectionCard(
         shape = MaterialTheme.shapes.large,
         modifier = modifier.fillMaxWidth(),
     ) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Column(Modifier.padding(Layout.cardPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     if (kicker != null) {
@@ -54,7 +56,7 @@ fun AppSectionCard(
                             fontWeight = FontWeight.Bold,
                         )
                     }
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                         if (icon != null) {
                             Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
                         }
@@ -70,23 +72,15 @@ fun AppSectionCard(
 
 @Composable
 fun AppHeroSurface(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Box(
-        modifier
-            .fillMaxWidth()
-            .background(
-                Brush.linearGradient(
-                    listOf(
-                        scheme.primary.copy(alpha = 0.30f),
-                        scheme.surfaceVariant,
-                        scheme.tertiary.copy(alpha = 0.24f),
-                    )
-                ),
-                MaterialTheme.shapes.large,
-            )
-            .padding(18.dp),
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = MaterialTheme.colorScheme.onSurface,
+        shape = MaterialTheme.shapes.large,
+        modifier = modifier.fillMaxWidth(),
     ) {
-        content()
+        Box(Modifier.padding(Layout.cardPadding)) {
+            content()
+        }
     }
 }
 
@@ -136,7 +130,7 @@ fun AppSettingRow(
             .fillMaxWidth()
             .padding(vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(Spacing.md),
     ) {
         Column(Modifier.weight(1f)) {
             Text(title, style = MaterialTheme.typography.bodyLarge)

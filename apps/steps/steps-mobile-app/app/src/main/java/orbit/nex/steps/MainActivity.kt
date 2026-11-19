@@ -17,7 +17,9 @@ import androidx.core.os.LocaleListCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -189,20 +191,21 @@ class MainActivity : AppCompatActivity() {
             }
         }
         LaunchedEffect(notificationDone) {
-            if (!notificationDone || healthRequestStarted) return@LaunchedEffect
+            if (!notificationDone || healthRequestStarted || setupPrefs.getBoolean("health_intro_shown", false)) return@LaunchedEffect
             val enabledTypes = preferencesManager.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }
             val requiredPermissions = HealthConnectManager.getPermissionsForTypes(enabledTypes)
             val grantedPermissions = HealthConnectManager(this@MainActivity).getGrantedPermissions()
             val missingPermissions = requiredPermissions - grantedPermissions
             if (missingPermissions.isNotEmpty()) {
                 healthRequestStarted = true
+                setupPrefs.edit().putBoolean("health_intro_shown", true).apply()
                 pendingHealthPermissions = requiredPermissions
             }
         }
         if (pendingHealthPermissions.isNotEmpty()) {
             AlertDialog(
                 onDismissRequest = { pendingHealthPermissions = emptySet() },
-                icon = { Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(48.dp)) },
+                icon = { Image(painterResource(R.drawable.nex_steps_icon), contentDescription = null, modifier = Modifier.size(48.dp).clip(RoundedCornerShape(12.dp))) },
                 title = { Text(stringResource(R.string.nex_health_intro_title)) },
                 text = { Text(stringResource(R.string.nex_health_intro_message)) },
                 confirmButton = {
@@ -219,6 +222,7 @@ class MainActivity : AppCompatActivity() {
         }
         LaunchedEffect(connected, healthPermissionRevision) {
             if (!connected || setupPrefs.getBoolean("history_offer_checked", false)) return@LaunchedEffect
+            if (preferencesManager.getEffectiveLastSyncAnchor() != null) { setupPrefs.edit().putBoolean("history_offer_checked", true).apply(); return@LaunchedEffect }
             val hc = HealthConnectManager(this@MainActivity)
             val granted = runCatching { hc.getGrantedPermissions() }.getOrDefault(emptySet())
             val types = HealthConnectManager.grantedDataTypes(granted).intersect(preferencesManager.getEnabledDataTypes())
@@ -260,30 +264,50 @@ class MainActivity : AppCompatActivity() {
         androidx.activity.compose.BackHandler(enabled = selected != NavigationScreen.Home) {
             selected = NavigationScreen.Home
         }
+        val wide = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp.dp >= orbit.nex.steps.ui.theme.Layout.wideBreakpoint
         Scaffold(
             topBar = {
                 AppTopBar(showTimer = selected != NavigationScreen.Home)
             },
             bottomBar = {
-            NavigationBar(
-                modifier = Modifier.clip(RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp))
-            ) {
-                bottomNavItems.forEach { screen ->
-                    NavigationBarItem(
-                        selected = selected == screen,
-                        onClick = { selected = screen },
-                        icon = { Icon(screen.icon, contentDescription = stringResource(screen.titleResId)) },
-                        label = { NavLabel(screen.titleResId) }
-                    )
+                if (!wide) {
+                    NavigationBar {
+                        bottomNavItems.forEach { screen ->
+                            NavigationBarItem(
+                                selected = selected == screen,
+                                onClick = { selected = screen },
+                                icon = { Icon(screen.icon, contentDescription = null) },
+                                label = { NavLabel(screen.titleResId) }
+                            )
+                        }
+                    }
                 }
-            }
-        }) { padding ->
-            AppBackground {
-                when (selected) {
-                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
-                    NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
-                    NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
-                    NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+            }) { padding ->
+            Row(Modifier.fillMaxSize()) {
+                if (wide) {
+                    androidx.compose.material3.NavigationRail(Modifier.padding(top = padding.calculateTopPadding())) {
+                        bottomNavItems.forEach { screen ->
+                            androidx.compose.material3.NavigationRailItem(
+                                selected = selected == screen,
+                                onClick = { selected = screen },
+                                icon = { Icon(screen.icon, contentDescription = null) },
+                                label = { NavLabel(screen.titleResId) }
+                            )
+                        }
+                    }
+                }
+                AppBackground(Modifier.weight(1f)) {
+                    androidx.compose.animation.AnimatedContent(targetState = selected, transitionSpec = {
+                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) togetherWith
+                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200))
+                    }, label = "tabs") { screen ->
+                        when (screen) {
+                            NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
+                            NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
+                            NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
+                            NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+                        }
+                    }
                 }
             }
         }

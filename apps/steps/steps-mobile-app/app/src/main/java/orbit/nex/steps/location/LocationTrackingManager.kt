@@ -56,7 +56,6 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingPaused(false)
         prefs.setLocationPermissionLost(false)
         LocationTrackingService.start(appContext)
-        LocationUploadWorker.ensurePeriodic(appContext)
         return true
     }
 
@@ -74,12 +73,7 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingEnabled(false)
         prefs.setLocationTrackingPaused(false)
         LocationTrackingService.stop(appContext)
-        if (pendingCount(appContext) > 0) {
-            LocationUploadWorker.enqueue(appContext)
-            LocationUploadWorker.ensurePeriodic(appContext)
-        } else {
-            LocationUploadWorker.cancelPeriodic(appContext)
-        }
+        LocationUploadWorker.cancelPeriodic(appContext)
     }
 
     /**
@@ -112,7 +106,6 @@ class LocationTrackingManager(private val context: Context) {
             }
             runCatching {
                 LocationTrackingService.start(context.applicationContext)
-                LocationUploadWorker.ensurePeriodic(context.applicationContext)
             }.onFailure { Log.w(TAG, "Could not auto-resume tracking: ${it.message}") }
         }
 

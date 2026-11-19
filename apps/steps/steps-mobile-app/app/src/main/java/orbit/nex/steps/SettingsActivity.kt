@@ -23,7 +23,10 @@ class SettingsActivity : ComponentActivity() {
 
         setContent {
             HCWebhookTheme {
-                SettingsScreen(onBack = { finish() })
+                SettingsScreen(
+                    onBack = { finish() },
+                    section = runCatching { orbit.nex.steps.screens.SettingsSection.valueOf(intent.getStringExtra("section").orEmpty()) }.getOrDefault(orbit.nex.steps.screens.SettingsSection.PROFILE),
+                )
             }
         }
     }

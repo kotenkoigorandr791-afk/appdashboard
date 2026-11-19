@@ -1,5 +1,7 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
+import orbit.nex.steps.ui.theme.semantic
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -56,6 +58,24 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ListAlt
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import orbit.nex.steps.ui.theme.ComponentHeight
+import orbit.nex.steps.ui.theme.IconSize
+import orbit.nex.steps.ui.theme.Layout
 import orbit.nex.steps.HCWebhookApplication
 import orbit.nex.steps.BuildConfig
 import orbit.nex.steps.HealthConnectManager
@@ -118,44 +138,70 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LazyColumn(modifier.fillMaxSize().padding(horizontal = 10.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        item { Spacer(Modifier.height(12.dp)) }
-        // Branding plate, matching the one on the Spends settings tab.
-        item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
-                modifier = Modifier.fillMaxWidth(),
+    var open by rememberSaveable { mutableStateOf<String?>(null) }
+    val entries = listOf(
+        Triple("account", Icons.Filled.AccountCircle, R.string.auth_title),
+        Triple("profile", Icons.Filled.ManageAccounts, R.string.personal_title),
+        Triple("sync", Icons.Filled.Sync, R.string.settings_group_sync),
+        Triple("data", Icons.Filled.Storage, R.string.settings_group_data),
+        Triple("perms", Icons.Filled.Security, R.string.perms_title),
+        Triple("location", Icons.Filled.LocationOn, R.string.settings_group_location),
+        Triple("points", Icons.Filled.Place, R.string.points_title),
+        Triple("look", Icons.Filled.Palette, R.string.settings_personalization),
+        Triple("updates", Icons.Filled.Update, R.string.settings_update_title),
+        Triple("logs", Icons.AutoMirrored.Filled.ListAlt, R.string.settings_logs_title),
+    )
+    LazyColumn(modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+        item { Spacer(Modifier.height(Spacing.sm)) }
+        items(entries.size) { index ->
+            val (key, icon, title) = entries[index]
+            FilledTonalButton(
+                onClick = { open = key },
+                modifier = Modifier.fillMaxWidth().heightIn(min = ComponentHeight.listRow),
+                shape = MaterialTheme.shapes.medium,
+                contentPadding = PaddingValues(horizontal = Spacing.lg),
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(18.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.nex_steps_icon),
-                        contentDescription = stringResource(R.string.app_name),
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.size(52.dp).clip(RoundedCornerShape(14.dp)),
-                    )
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            stringResource(R.string.app_name),
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                        Text(
-                            stringResource(R.string.app_version_short, BuildConfig.VERSION_NAME),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                        )
-                    }
-                }
+                Icon(icon, contentDescription = null, modifier = Modifier.size(IconSize.md))
+                Spacer(Modifier.width(Spacing.lg))
+                Text(stringResource(title), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f), textAlign = TextAlign.Start)
             }
         }
+        item { Spacer(Modifier.height(Spacing.sm)) }
+    }
+    val current = open
+    val windowed = mapOf(
+        "profile" to Intent(context, SettingsActivity::class.java).putExtra("section", SettingsSection.PROFILE.name),
+        "data" to Intent(context, SettingsActivity::class.java).putExtra("section", SettingsSection.DATA.name),
+        "location" to Intent(context, orbit.nex.steps.LocationSettingsActivity::class.java),
+        "look" to Intent(context, orbit.nex.steps.PersonalizationActivity::class.java),
+        "logs" to Intent(context, orbit.nex.steps.LogsActivity::class.java),
+        "points" to Intent(context, orbit.nex.steps.PointsActivity::class.java),
+    )
+    if (current != null && windowed.containsKey(current)) {
+        LaunchedEffect(current) { context.startActivity(windowed.getValue(current)); open = null }
+    } else if (current != null) {
+        val dismiss = { open = null }
+        Dialog(onDismissRequest = dismiss, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+            Surface(
+                shape = MaterialTheme.shapes.large,
+                color = MaterialTheme.colorScheme.background,
+                modifier = Modifier.fillMaxWidth(0.96f).fillMaxHeight(0.92f),
+            ) {
+                when (current) {
+                    "sync" -> SettingsScreen(onBack = dismiss, section = SettingsSection.SYNC)
+                    "perms" -> SettingsScreen(onBack = dismiss, section = SettingsSection.PERMISSIONS)
+                    else -> Column {
+                        Row(Modifier.fillMaxWidth().padding(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = dismiss) {
+                                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd))
+                            }
+                            Text(stringResource(if (current == "account") R.string.auth_title else R.string.settings_update_title), style = MaterialTheme.typography.titleLarge)
+                        }
+                        LazyColumn(Modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                            if (current == "account") {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.titleMedium)
                     Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     if (configs.any { it.isEnabled }) {
@@ -171,8 +217,8 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             enabled = !testingConn,
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = when (connResult) {
-                                    true -> Color(0xFF66BB6A)
-                                    false -> Color(0xFF9B1C31)
+                                    true -> MaterialTheme.semantic.success
+                                    false -> MaterialTheme.colorScheme.error
                                     null -> MaterialTheme.colorScheme.primary
                                 }
                             ),
@@ -184,7 +230,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                                 Text(stringResource(R.string.settings_test_connection_progress))
                             } else {
                                 Icon(Icons.Filled.CloudDone, contentDescription = null)
-                                Text(stringResource(R.string.settings_test_connection), modifier = Modifier.padding(start = 8.dp))
+                                Text(stringResource(R.string.settings_test_connection), modifier = Modifier.padding(start = Spacing.sm))
                             }
                         }
                         OutlinedButton(onClick = {
@@ -197,16 +243,17 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             profilePhotoModel = null
                         }, modifier = Modifier.fillMaxWidth()) {
                             Icon(Icons.Filled.LinkOff, contentDescription = null)
-                            Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = 8.dp))
+                            Text(stringResource(R.string.auth_disconnect), modifier = Modifier.padding(start = Spacing.sm))
                         }
 
                     }
                 }
             }
         }
+                            } else {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(stringResource(R.string.settings_update_title), style = MaterialTheme.typography.titleMedium)
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
@@ -282,31 +329,10 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                 }
             }
         }
-        item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.settings_logs_title), style = MaterialTheme.typography.titleMedium)
-                    Text(
-                        stringResource(R.string.settings_logs_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Button(
-                        onClick = { context.startActivity(Intent(context, orbit.nex.steps.LogsActivity::class.java)) },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(stringResource(R.string.settings_logs_title))
+                            }
+                        }
                     }
                 }
-            }
-        }
-        item {
-            OutlinedButton(
-                onClick = { context.startActivity(Intent(context, SettingsActivity::class.java)) },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(Icons.Filled.Settings, contentDescription = null)
-                Text(stringResource(R.string.settings_open_advanced), modifier = Modifier.padding(start = 8.dp))
             }
         }
     }

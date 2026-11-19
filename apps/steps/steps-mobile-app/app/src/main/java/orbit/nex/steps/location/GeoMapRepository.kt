@@ -20,6 +20,8 @@ data class GeoTrip(
     val title: String,
     val path: List<GeoLatLon>,
     val distanceM: Double,
+    val pending: Boolean = false,
+    val kind: String = "trip",
 )
 
 /**
@@ -82,7 +84,15 @@ data class GeoMapData(
 class GeoMapRepository(
     private val prefs: PreferencesManager,
     private val client: OkHttpClient = OkHttpClient(),
+    private val cacheDir: java.io.File? = null,
 ) {
+
+    private fun cacheFile(config: WebhookConfig, day: LocalDate): java.io.File? =
+        cacheDir?.let { java.io.File(it, "geomap_${(config.url + prefs.getDeviceId()).hashCode()}_$day.json") }
+
+    fun cached(config: WebhookConfig, day: LocalDate): GeoMapData? = runCatching {
+        cacheFile(config, day)?.takeIf { it.exists() }?.let { parse(JSONObject(it.readText())) }
+    }.getOrNull()
 
     suspend fun loadDay(config: WebhookConfig, day: LocalDate): GeoMapData = withContext(Dispatchers.IO) {
         // A bare date would be parsed by the server as UTC midnight, which drops
@@ -96,7 +106,7 @@ class GeoMapRepository(
             append("/geolocation_map?from=").append(from)
             append("&to=").append(to)
             append("&zoom=").append(MAP_ZOOM)
-            append("&layers=trips,stops,places,visits,points,heatmap,speed")
+            append("&layers=trips,improved,stops,places,visits,points,heatmap,speed")
         }
         val request = Request.Builder()
             .url(url)
@@ -111,15 +121,20 @@ class GeoMapRepository(
                 if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
                 val body = response.body?.string().orEmpty()
                 if (!response.isSuccessful) {
+                    if (response.code == 404) return@use GeoMapData()
                     if (response.code == 400 && JSONObject(body).optString("error") == "invalid_bbox") {
                         return@use GeoMapData()
                     }
                     return@use GeoMapData(error = "HTTP ${response.code}")
                 }
-                parse(JSONObject(body))
+                val parsed = parse(JSONObject(body))
+                if (parsed.error == null) runCatching { cacheFile(config, day)?.writeText(body) }
+                parsed
             }
         }.getOrElse { error ->
             GeoMapData(error = error.message ?: "network")
+        }.let { result ->
+            if (result.error != null) cached(config, day)?.copy(error = result.error) ?: result else result
         }
     }
 
@@ -154,6 +169,7 @@ class GeoMapRepository(
                         kmh = properties.optDouble("kmh", 0.0),
                     )
                     else -> trips += GeoTrip(
+                        kind = if (layer == "matched" || layer == "smooth") layer else "trip",
                         id = properties.optString("id"),
                         title = properties.optString("title"),
                         path = path,

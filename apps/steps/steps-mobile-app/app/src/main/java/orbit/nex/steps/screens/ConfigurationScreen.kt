@@ -1,4 +1,5 @@
 package orbit.nex.steps.screens
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material3.Switch
@@ -85,7 +86,7 @@ fun ConfigurationScreen(modifier: Modifier = Modifier, historyRequest: Int = 0) 
             .fillMaxSize()
             .padding(horizontal = 10.dp)
             .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+        verticalArrangement = Arrangement.spacedBy(Spacing.md)
     ) {
         Spacer(Modifier.height(12.dp))
         LocationTrackingCard()
@@ -112,7 +113,7 @@ private fun LocationTrackingCard() {
         state = manager.state()
     }
     Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-        Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.fillMaxWidth().padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(stringResource(R.string.tracking_title), style = MaterialTheme.typography.titleMedium)
                 Text(stringResource(when (state) {
@@ -159,9 +160,9 @@ private fun NextSyncCard(prefs: PreferencesManager) {
         modifier = Modifier.fillMaxWidth()
     ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier.padding(Spacing.lg),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
+            horizontalArrangement = Arrangement.spacedBy(Spacing.lg)
         ) {
             Box(contentAlignment = Alignment.Center, modifier = Modifier.size(64.dp)) {
                 CircularProgressIndicator(

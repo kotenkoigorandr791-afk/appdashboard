@@ -497,7 +497,7 @@ final class StepsGeolocationMap
                     SELECT grp, ST_MakeLine(prev_pos, position) AS line,
                            ST_SnapToGrid(ST_LineInterpolatePoint(ST_MakeLine(prev_pos, position), 0.5), $densityCell) AS cell
                       FROM segs
-                     WHERE prev_pos IS NOT NULL AND position <> prev_pos
+                     WHERE prev_pos IS NOT NULL AND NOT ST_Equals(position, prev_pos)
                 ), visible AS (
                     SELECT * FROM lines WHERE line && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
                 ), wt AS (
@@ -549,7 +549,7 @@ final class StepsGeolocationMap
                 ), spd AS (
                     SELECT grp, source_at, prev_pos, position,
                            ST_Distance(position::geography, prev_pos::geography) / GREATEST(EXTRACT(EPOCH FROM (source_at - prev_at)), 1) AS v
-                      FROM segs WHERE prev_pos IS NOT NULL AND position <> prev_pos
+                      FROM segs WHERE prev_pos IS NOT NULL AND NOT ST_Equals(position, prev_pos)
                 ), sm AS (
                     SELECT *, AVG(v) OVER (PARTITION BY grp ORDER BY source_at ROWS BETWEEN 2 PRECEDING AND 2 FOLLOWING) * 3.6 AS kmh FROM spd
                 ), bk AS (

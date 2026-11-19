@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -56,7 +57,7 @@ fun ChangelogScreen(onBack: () -> Unit) {
                 .fillMaxSize()
                 .padding(padding)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp, vertical = 8.dp),
+                .padding(horizontal = Spacing.lg, vertical = Spacing.sm),
         ) {
             Text(
                 text = stringResource(R.string.changelog_label),
@@ -93,9 +94,9 @@ fun ChangelogScreen(onBack: () -> Unit) {
                             release.tagName == currentVersion
                         if (isInstalled) {
                             Row(
-                                modifier = Modifier.padding(bottom = 8.dp),
+                                modifier = Modifier.padding(bottom = Spacing.sm),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                horizontalArrangement = Arrangement.spacedBy(Spacing.sm)
                             ) {
                                 Surface(
                                     shape = MaterialTheme.shapes.extraSmall,
@@ -105,7 +106,7 @@ fun ChangelogScreen(onBack: () -> Unit) {
                                         text = stringResource(R.string.changelog_installed),
                                         style = MaterialTheme.typography.labelSmall,
                                         color = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                        modifier = Modifier.padding(horizontal = Spacing.sm, vertical = 3.dp)
                                     )
                                 }
                             }

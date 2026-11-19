@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -76,8 +77,8 @@ fun WhatsNewSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(bottom = 32.dp),
+                .padding(horizontal = Spacing.lg)
+                .padding(bottom = Spacing.xxl),
         ) {
             Text(
                 text = stringResource(R.string.whats_new_label),
@@ -138,7 +139,7 @@ private fun WhatsNewSheetDragHandle() {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 12.dp, bottom = 4.dp),
+            .padding(top = Spacing.md, bottom = Spacing.xs),
         contentAlignment = Alignment.Center,
     ) {
         Surface(

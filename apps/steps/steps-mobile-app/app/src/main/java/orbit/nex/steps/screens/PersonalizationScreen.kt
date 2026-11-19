@@ -1,5 +1,6 @@
 package orbit.nex.steps.screens
 
+import orbit.nex.steps.ui.theme.Spacing
 import android.app.Activity
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -99,7 +100,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
             Box(Modifier.fillMaxSize().padding(padding)) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize().padding(horizontal = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalArrangement = Arrangement.spacedBy(Spacing.md),
                 ) {
                     item { Spacer(Modifier.size(6.dp)) }
                     item {
@@ -107,7 +108,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(Icons.Filled.Palette, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                                     Spacer(Modifier.size(8.dp))
@@ -179,9 +180,9 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                 Text(stringResource(R.string.about_accent_color), style = MaterialTheme.typography.titleMedium)
-                                listOf("blue", "teal", "orange", "pink", "purple", "gray").forEach { value ->
+                                (if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) listOf("dynamic") else emptyList<String>()).plus(listOf("blue", "teal", "orange", "pink", "purple", "gray")).forEach { value ->
                                     Row(
                                         Modifier
                                             .fillMaxWidth()
@@ -190,13 +191,13 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                                 prefs.setAccentColor(value)
                                                 AppThemeRevision.bump()
                                             }
-                                            .padding(vertical = 8.dp),
+                                            .padding(vertical = Spacing.sm),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         RadioButton(selected = accentColor == value, onClick = null)
                                         Spacer(Modifier.size(12.dp))
                                         Surface(
-                                            color = accentColorValue(value),
+                                            color = if (value == "dynamic") MaterialTheme.colorScheme.primary else accentColorValue(value),
                                             shape = CircleShape,
                                             modifier = Modifier.size(18.dp),
                                             content = {},
@@ -214,7 +215,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.xs)) {
                                 Text(stringResource(R.string.about_language), style = MaterialTheme.typography.titleMedium)
                                 APP_LANGUAGES.forEach { (tag, name) ->
                                     Row(
@@ -230,7 +231,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                                 }
                                                 showRestartDialog = true
                                             }
-                                            .padding(vertical = 8.dp),
+                                            .padding(vertical = Spacing.sm),
                                         verticalAlignment = Alignment.CenterVertically,
                                     ) {
                                         RadioButton(selected = language == tag, onClick = null)
@@ -247,7 +248,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                             modifier = Modifier.fillMaxWidth(),
                         ) {
-                            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                                 Text(stringResource(R.string.about_screen_orientation), style = MaterialTheme.typography.titleMedium)
                                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                                     Text(stringResource(R.string.about_portrait_only), modifier = Modifier.weight(1f))

@@ -121,6 +121,7 @@ configurations.all {
 }
 
 dependencies {
+    implementation("io.sentry:sentry-android:7.20.0")
     implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
