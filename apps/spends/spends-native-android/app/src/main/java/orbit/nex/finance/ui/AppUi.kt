@@ -188,7 +188,9 @@ fun HomeScreen(state: AppState, model: SpendsViewModel, onOpen: (Expense) -> Uni
                     )
                 }
                 items(rows, key = { "${it.date}-${it.store}-${it.amount}-${it.signature}" }) { row ->
-                    ExpenseRow(row, state.snapshot.currency, state.snapshot.stores.firstOrNull { it.name == row.store }?.photoUrl.orEmpty()) { onOpen(row) }
+                    Box(Modifier.animateItem()) {
+                        ExpenseRow(row, state.snapshot.currency, state.snapshot.stores.firstOrNull { it.name == row.store }?.photoUrl.orEmpty()) { onOpen(row) }
+                    }
                 }
             }
             item { Spacer(Modifier.height(120.dp)) }
@@ -920,7 +922,7 @@ fun StoresScreen(state: AppState, model: SpendsViewModel, onStore: (Store) -> Un
                 }
                 items(stores, key = { it.id.ifBlank { it.name } }) { store ->
                     Card(
-                        Modifier.fillMaxWidth().clickable { onStore(store) },
+                        Modifier.fillMaxWidth().animateItem().clickable { onStore(store) },
                         RoundedCornerShape(22.dp),
                         colors = CardDefaults.cardColors(MaterialTheme.colorScheme.surface),
                     ) {

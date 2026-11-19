@@ -329,7 +329,7 @@ private fun StartupFeature(icon: androidx.compose.ui.graphics.vector.ImageVector
     // is back; keep a relaxed interval when everything is healthy.
     LaunchedEffect(online) {
         while (true) {
-            delay(if (online) 45_000 else 15_000)
+            delay(if (online) 180_000 else 60_000)
             model.refreshQuietly()
         }
     }
