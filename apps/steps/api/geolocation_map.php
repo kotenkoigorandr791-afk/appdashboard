@@ -7,6 +7,7 @@ require_once dirname(__DIR__) . '/core/geolocation_permissions.php';
 require_once dirname(__DIR__) . '/core/geolocation_immich.php';
 require_once dirname(__DIR__) . '/core/geolocation_features.php';
 require_once dirname(__DIR__) . '/core/geolocation_observability.php';
+require_once dirname(__DIR__) . '/core/geolocation_smoothing.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -119,6 +120,15 @@ if (!$cacheHit) {
 StepsGeolocationObservability::increment('geo_map_requests_total', 1, ['cache' => $cacheHit ? 'hit' : 'miss']);
 StepsGeolocationObservability::timing('geo_map_query_ms', (microtime(true) - $queryStarted) * 1000, ['cache' => $cacheHit ? 'hit' : 'miss']);
 
+// Smoothed zones replace their raw point cloud with the derived routes. This is
+// applied after the cached chunk so the raw cache stays reusable.
+$smoothZones = StepsGeolocationSmoothing::viewport($pdo, $target, $bbox, $fromIso, $toIso);
+$result = StepsGeolocationSmoothing::applyToViewport($result, $smoothZones);
+// The raw chunk is cached, so a conditional request would otherwise answer 304
+// right after a smoothing pass and the browser would keep drawing the old cloud.
+$smoothStamp = StepsGeolocationSmoothing::signature($smoothZones);
+$smoothPaths = count($smoothZones);
+
 if ($scope !== null && (float)$scope['precision_m'] > 0) {
     $result = StepsGeolocationPermissions::applyPrecision($result, (float)$scope['precision_m']);
 }
@@ -143,6 +153,8 @@ $chunkMeta = [
     'range' => ['from' => $fromIso, 'to' => $toIso],
     'precision_m' => $scope !== null ? (float)$scope['precision_m'] : 0,
     'generation' => $scope['generation'] ?? 0,
+    'smooth' => $smoothStamp,
+    'smooth_paths' => $smoothPaths,
     'ttl' => 20,
 ];
 $etag = '"' . substr(hash('sha256', $cacheKey . '|' . json_encode($chunkMeta)), 0, 32) . '"';

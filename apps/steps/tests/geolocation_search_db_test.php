@@ -33,7 +33,14 @@ try {
     $place = $uuid();
     $pdo->prepare("INSERT INTO geo_places(id, user_email, name, tag, position, radius_m, timezone) VALUES(:id, :owner, 'Workplace', 'work', ST_SetSRID(ST_MakePoint(30.5, 50.45), 4326), 120, 'UTC')")->execute([':id' => $place, ':owner' => $owner]);
     $trip = $uuid();
-    $pdo->prepare("INSERT INTO geo_trips(id, user_email, started_at, ended_at, geometry, distance_m, duration_s, title, notes, state, processor_version) VALUES(:id, :owner, now() - interval '2 hours', now() - interval '1 hour', ST_SetSRID(ST_GeomFromText('LINESTRING(30.5 50.45,30.502 50.451)'), 4326), 230, 3600, 'Weekend trip', 'private note', 'ready', 'trips-1')")->execute([':id' => $trip, ':owner' => $owner]);
+    // The analytics range below is one UTC day, so the trip is anchored to a
+    // known instant and that same day is queried: using "two hours ago" broke
+    // the test whenever the suite ran just after midnight.
+    $tripStart = gmdate('c', time() - 300);
+    $tripEnd = gmdate('c', time() - 120);
+    $tripDay = substr($tripStart, 0, 10);
+    $pdo->prepare("INSERT INTO geo_trips(id, user_email, started_at, ended_at, geometry, distance_m, duration_s, title, notes, state, processor_version) VALUES(:id, :owner, :started, :ended, ST_SetSRID(ST_GeomFromText('LINESTRING(30.5 50.45,30.502 50.451)'), 4326), 230, 3600, 'Weekend trip', 'private note', 'ready', 'trips-1')")
+        ->execute([':id' => $trip, ':owner' => $owner, ':started' => $tripStart, ':ended' => $tripEnd]);
     for ($i = 0; $i < 6; $i++) {
         $pdo->prepare("INSERT INTO geo_location_points(id, user_email, device_id, source_type, source_at, position, accuracy_m, quality_state) VALUES(:id, :owner, :device, 'mobile', now() - interval '3 hours' + (:i || ' minutes')::interval, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), 12, :state)")
             ->execute([':id' => $uuid(), ':owner' => $owner, ':device' => $device, ':i' => $i * 20, ':lon' => 30.5 + $i * 0.0003, ':lat' => 50.45, ':state' => $i === 5 ? 'flagged' : 'accepted']);
@@ -59,7 +66,7 @@ try {
     $list = StepsGeolocationSavedViews::list($pdo, $owner);
     geo_s35_assert(count($list['views']) === 1 && count($list['templates']) >= 8, 'saved view list/templates wrong');
 
-    $analytics = StepsGeolocationAnalytics::summary($pdo, $owner, ['from' => gmdate('Y-m-d'), 'to' => gmdate('Y-m-d'), 'timezone' => 'UTC', 'compare' => true]);
+    $analytics = StepsGeolocationAnalytics::summary($pdo, $owner, ['from' => $tripDay, 'to' => $tripDay, 'timezone' => 'UTC', 'compare' => true]);
     geo_s35_assert($analytics['metrics']['trip_count'] === 1, 'analytics trip count wrong');
     geo_s35_assert($analytics['coverage']['quality_percent'] > 0, 'analytics coverage missing');
     geo_s35_assert($analytics['policy']['transport_classification'] === false, 'analytics classified transport');

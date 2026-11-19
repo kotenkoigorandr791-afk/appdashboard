@@ -175,11 +175,21 @@ $metricButtons = [
                             </button>
                         </div>
                         <div class="map-panel">
-                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['points_area_title'] ?? 'Delete points'); ?></span>
+                            <span class="map-panel-title"><?php echo htmlspecialchars($translations['points_area_title'] ?? 'Area tools'); ?></span>
                             <div class="map-area-tools">
-                                <button type="button" id="ma-area-toggle" class="map-day-btn" title="<?php echo htmlspecialchars($translations['points_area'] ?? 'Select area to delete points'); ?>"><i class="fas fa-vector-square" aria-hidden="true"></i></button>
+                                <button type="button" id="ma-area-toggle" class="map-day-btn" title="<?php echo htmlspecialchars($translations['points_area'] ?? 'Select an area on the map'); ?>"><i class="fas fa-vector-square" aria-hidden="true"></i></button>
                                 <span id="ma-area-info" hidden></span>
-                                <button type="button" id="ma-area-delete" class="trip-btn trip-btn-primary" hidden><i class="fas fa-trash"></i></button>
+                                <button type="button" id="ma-area-smooth" class="trip-btn" hidden title="<?php echo htmlspecialchars($translations['points_smooth'] ?? 'Smooth the selected area into routes'); ?>"><i class="fas fa-wand-magic-sparkles"></i></button>
+                                <label id="ma-area-tolerance-wrap" class="map-area-tolerance" hidden title="<?php echo htmlspecialchars($translations['points_tolerance'] ?? 'Smoothing tolerance'); ?>">
+                                    <select id="ma-area-tolerance" aria-label="<?php echo htmlspecialchars($translations['points_tolerance'] ?? 'Smoothing tolerance'); ?>">
+                                        <option value="10">10 m</option>
+                                        <option value="25" selected>25 m</option>
+                                        <option value="50">50 m</option>
+                                        <option value="100">100 m</option>
+                                        <option value="250">250 m</option>
+                                    </select>
+                                </label>
+                                <button type="button" id="ma-area-delete" class="trip-btn trip-btn-primary" hidden title="<?php echo htmlspecialchars($translations['points_delete'] ?? 'Delete'); ?>"><i class="fas fa-trash"></i></button>
                                 <button type="button" id="ma-area-cancel" class="trip-btn" hidden><i class="fas fa-xmark"></i></button>
                             </div>
                         </div>
@@ -511,6 +521,11 @@ $metricButtons = [
                                 if(hl) L.geoJSON(feature,{pane:'routesGlow',style:{color:hl,weight:routeWidth*6,opacity:0.38,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 else L.geoJSON(feature,{pane:'routesGlow',style:{color:'#38bdf8',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 L.geoJSON(feature,{pane:'routes',style:{color:hl||'#60a5fa',weight:hl?routeWidth+2:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}}).bindPopup(popup).addTo(layerGroup);
+                            } else if(p.layer==='smooth'){
+                                L.geoJSON(feature,{pane:'routesGlow',style:{color:'#34d399',weight:routeWidth*3.2,opacity:0.18,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
+                                L.geoJSON(feature,{pane:'routes',style:{color:'#34d399',weight:routeWidth,opacity:0.95,lineCap:'round',lineJoin:'round'}})
+                                    .bindPopup(popupHtml(tr('map_smooth_title','Smoothed route'),[(p.point_count||0)+' '+tr('points_unit','points'),p.started_at||'']))
+                                    .addTo(layerGroup);
                             } else if(p.layer==='matched'){
                                 L.geoJSON(feature,{pane:'routesGlow',style:{color:'#a78bfa',weight:routeWidth*3.2,opacity:0.16,lineCap:'round',lineJoin:'round'},interactive:false}).addTo(layerGroup);
                                 L.geoJSON(feature,{pane:'routes',style:{color:'#a78bfa',weight:routeWidth,opacity:0.85,dashArray:'6 5',lineCap:'round',lineJoin:'round'}}).bindPopup(popupHtml(tr('map_matched_title','Improved display')+' · '+Math.round((p.confidence||0)*100)+'%',[p.explanation||''])).addTo(layerGroup);
@@ -918,6 +933,10 @@ $metricButtons = [
                         if(!providerSel.options.length) renderProviders();
                         render(data.geojson.features);
                         const server=Object.assign({},(data.meta&&data.meta.counts)||{});
+                        // Points inside a smoothed zone are not drawn, so they must not
+                        // inflate the summary either.
+                        const hiddenPoints=Number(server.smoothed_points_hidden)||0;
+                        if(hiddenPoints>0&&Number(server.points)>0) server.points=Math.max(0,Number(server.points)-hiddenPoints);
                         const derived=countLayers(data.geojson.features);
                         const count=key=>{
                             const fromServer=Number(server[key]);
@@ -993,7 +1012,7 @@ $metricButtons = [
                         const started=performance.now();
                         const prefetchParams=new URLSearchParams(item.params); prefetchParams.set('prefetch','1');
                         fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+prefetchParams.toString(),{
-                            credentials:'same-origin',signal:controller.signal,priority:'low',headers:{'X-Steps-Prefetch':'1'}
+                            credentials:'same-origin',signal:controller.signal,priority:'low',cache:'no-store',headers:{'X-Steps-Prefetch':'1'}
                         }).then(res=>res.ok?res.json():Promise.reject(new Error('prefetch_http'))).then(data=>{
                             if(data&&data.ok){
                                 const bytes=JSON.stringify(data).length;
@@ -1045,7 +1064,12 @@ $metricButtons = [
                                 schedulePrefetch(opts&&opts.dir,{params:makeParams});
                                 return;
                             }
-                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin',signal:viewportAbort.signal,headers:{'X-Steps-Prefetch':'0'}});
+                            // no-store keeps the browser from answering with a body-less 304:
+                            // the chunk is already cached in JS, and a revalidation would
+                            // silently keep drawing features that the server just changed
+                            // (for example raw points replaced by a smoothed zone).
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_map&'+params.toString(),{credentials:'same-origin',signal:viewportAbort.signal,cache:'no-store',headers:{'X-Steps-Prefetch':'0'}});
+                            if(res.status===304){ return; }
                             const data=await res.json();
                             if(seq!==viewportSeq) return;
                             if(data&&(data.error==='invalid_bbox'||data.error==='invalid_range')){
@@ -1138,13 +1162,15 @@ $metricButtons = [
                         return window.confirm(message);
                     }
                     const areaBtn=document.getElementById('ma-area-toggle'), areaInfo=document.getElementById('ma-area-info'),
-                          areaDel=document.getElementById('ma-area-delete'), areaCancel=document.getElementById('ma-area-cancel');
+                          areaDel=document.getElementById('ma-area-delete'), areaCancel=document.getElementById('ma-area-cancel'),
+                          areaSmooth=document.getElementById('ma-area-smooth'), areaToleranceWrap=document.getElementById('ma-area-tolerance-wrap'),
+                          areaTolerance=document.getElementById('ma-area-tolerance');
                     let areaMode=false, areaRect=null, areaStart=null, areaBox=null, areaBound=false;
                     function areaRange(){ return {from:fromInput.value+'T00:00:00Z',to:toInput.value+'T23:59:59Z'}; }
                     function areaClear(){
                         if(areaRect&&map) map.removeLayer(areaRect);
                         areaRect=null; areaStart=null; areaBox=null;
-                        [areaInfo,areaDel,areaCancel].forEach(el=>{ if(el) el.hidden=true; });
+                        [areaInfo,areaDel,areaCancel,areaSmooth,areaToleranceWrap].forEach(el=>{ if(el) el.hidden=true; });
                     }
                     function setAreaMode(on){
                         areaMode=on;
@@ -1180,6 +1206,7 @@ $metricButtons = [
                                     const data=await pointsRequest(Object.assign({action:'count',bbox:areaBox},areaRange()));
                                     areaInfo.textContent=data.count+' '+tr('points_unit','points');
                                     areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
+                                    areaSmooth.hidden=data.count<2; areaToleranceWrap.hidden=data.count<2;
                                     areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
                                     areaDel.disabled=data.count===0;
                                 }catch(err){ showError((err&&err.message)||t.error); }
@@ -1188,12 +1215,29 @@ $metricButtons = [
                     }
                     areaBtn?.addEventListener('click',()=>setAreaMode(!areaMode));
                     areaCancel?.addEventListener('click',areaClear);
+                    // Smoothing keeps one simplified line per pass through the box, so a
+                    // chaotic 250 m cloud becomes one or two readable routes.
+                    areaSmooth?.addEventListener('click',async()=>{
+                        if(!areaBox) return;
+                        const tolerance=Number(areaTolerance&&areaTolerance.value)||25;
+                        areaSmooth.disabled=true;
+                        try{
+                            const data=await pointsRequest(Object.assign({action:'smooth',bbox:areaBox,tolerance_m:tolerance},areaRange()));
+                            showError('');
+                            areaInfo.textContent=(tr('points_smoothed','{routes} routes').replace('{routes}',String(data.paths||0)))+' · '+(data.points||0)+' → '+(data.paths||0);
+                            areaDel.hidden=true; areaSmooth.hidden=true; areaToleranceWrap.hidden=true;
+                            // The chunk fetched a moment ago still holds the raw cloud.
+                            chunkCache.clear();
+                            await fetchViewport(); loadTrips();
+                        }catch(err){ showError((err&&err.message)||t.error); }
+                        finally{ areaSmooth.disabled=false; }
+                    });
                     areaDel?.addEventListener('click',async()=>{
                         if(!areaBox) return;
                         if(!await confirmDelete(tr('points_confirm','Delete these points permanently?')+' ('+areaInfo.textContent+')')) return;
                         try{
                             await pointsRequest(Object.assign({action:'delete',bbox:areaBox},areaRange()));
-                            areaClear(); await fetchViewport(); loadTrips();
+                            areaClear(); chunkCache.clear(); await fetchViewport(); loadTrips();
                         }catch(err){ showError((err&&err.message)||t.error); }
                     });
                     const ptEl=id=>document.getElementById(id);
@@ -2288,8 +2332,16 @@ $metricButtons = [
                                 <h4><?php echo htmlspecialchars($translations['location_saved_views'] ?? 'Saved views'); ?></h4>
                                 <div class="location-tool-row">
                                     <input type="text" id="location-view-name" maxlength="80" placeholder="<?php echo htmlspecialchars($translations['location_view_name'] ?? 'View name'); ?>">
-                                    <select id="location-view-context"><option value="dashboard">Dashboard</option><option value="map">Map</option><option value="timeline">Timeline</option><option value="trips">Trips</option><option value="places">Places</option><option value="quality">Quality</option><option value="jobs">Jobs</option><option value="analytics">Analytics</option></select>
-                                    <select id="location-view-period"><option value="today">Today</option><option value="last_7_days">Last 7 days</option><option value="last_30_days" selected>Last 30 days</option><option value="last_90_days">Last 90 days</option><option value="this_month">This month</option><option value="last_month">Last month</option></select>
+                                    <select id="location-view-context">
+                                        <?php foreach (['dashboard' => 'nav_dashboard', 'map' => 'nav_map', 'timeline' => 'nav_timeline', 'trips' => 'nav_trips', 'places' => 'nav_places', 'quality' => 'nav_quality', 'jobs' => 'nav_jobs', 'analytics' => 'nav_analytics'] as $contextValue => $contextKey): ?>
+                                            <option value="<?php echo $contextValue; ?>"><?php echo htmlspecialchars($translations[$contextKey] ?? ucfirst($contextValue)); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
+                                    <select id="location-view-period">
+                                        <?php foreach (['today' => 'period_today', 'last_7_days' => 'period_last_7_days', 'last_30_days' => 'period_last_30_days', 'last_90_days' => 'period_last_90_days', 'this_month' => 'period_this_month', 'last_month' => 'period_last_month'] as $periodValue => $periodKey): ?>
+                                            <option value="<?php echo $periodValue; ?>"<?php echo $periodValue === 'last_30_days' ? ' selected' : ''; ?>><?php echo htmlspecialchars($translations[$periodKey] ?? $periodValue); ?></option>
+                                        <?php endforeach; ?>
+                                    </select>
                                     <button type="button" id="location-view-save" class="excel-btn"><i class="fas fa-bookmark"></i> <?php echo htmlspecialchars($translations['location_view_save'] ?? 'Save view'); ?></button>
                                 </div>
                                 <div id="location-saved-views" class="location-import-history"></div>

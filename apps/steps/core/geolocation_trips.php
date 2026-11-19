@@ -139,7 +139,12 @@ final class StepsGeolocationTrips
                 $reason = 'user_boundary';
             } elseif ($gap > $t['max_gap_s']) {
                 $reason = 'long_inactivity';
-            } elseif ($gap > 0 && $gap <= $t['jump_window_s']) {
+            } elseif ($gap > 0) {
+                // Evaluate every gap, not only the shortest one: a 1-minute
+                // sampling rhythm drifts to 80-120 s, so a fixed 60 s window
+                // let teleports between cities stitch into one trip and inflate
+                // its distance by thousands of kilometres. A split still
+                // requires both an implausible jump and an implausible speed.
                 $distance = StepsGeolocationQuality::haversineMeters(
                     (float)$previous['latitude'], (float)$previous['longitude'],
                     (float)$point['latitude'], (float)$point['longitude']

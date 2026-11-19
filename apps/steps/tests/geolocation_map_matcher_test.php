@@ -60,6 +60,16 @@ $road = geo_match_network('road-1', 'road', geo_match_line($lon, $lat, 90, 1000)
 $r = StepsGeolocationMapMatcher::match($urban, [$road]);
 geo_match_assert($r['segments'][0]['state'] === 'matched' && $r['segments'][0]['mode'] === 'road', 'urban road not matched');
 geo_match_assert($r['segments'][0]['raw_geometry'] === array_map(static fn($p) => [$p['longitude'], $p['latitude']], $urban), 'raw geometry changed');
+// The derived line must actually lie on the road, not just be labelled as one.
+$snapped = $r['segments'][0]['matched_geometry'];
+$maxOffset = 0.0;
+foreach ($snapped as $coordinate) $maxOffset = max($maxOffset, abs(((float)$coordinate[1]) - $lat) * 111320.0);
+geo_match_assert($maxOffset < 1.0, 'snapped line drifted from the road by ' . round($maxOffset, 2) . ' m');
+$snappedLength = 0.0;
+for ($i = 1; $i < count($snapped); $i++) {
+    $snappedLength += StepsGeolocationQuality::haversineMeters((float)$snapped[$i - 1][1], (float)$snapped[$i - 1][0], (float)$snapped[$i][1], (float)$snapped[$i][0]);
+}
+geo_match_assert($snappedLength > 800 && $snappedLength < 1000, 'snapped length does not follow the sampled 900 m: ' . round($snappedLength));
 
 // 2. Lawn/building crossing with a connected road within accuracy.
 $lawn = geo_match_track($lon, $lat, 90, 500, 10, 18, 4);
@@ -68,6 +78,9 @@ unset($lawnPoint);
 $r = StepsGeolocationMapMatcher::match($lawn, [$road]);
 geo_match_assert($r['segments'][0]['state'] === 'matched', 'supported lawn crossing not corrected');
 geo_match_assert(count($r['segments'][0]['matched_geometry']) >= 2, 'matched shape missing');
+$lawnOffset = 0.0;
+foreach ($r['segments'][0]['matched_geometry'] as $coordinate) $lawnOffset = max($lawnOffset, abs(((float)$coordinate[1]) - $lat) * 111320.0);
+geo_match_assert($lawnOffset < 1.0, 'a lawn crossing was not pulled onto the road: ' . round($lawnOffset, 2) . ' m');
 
 // 3. Two parallel roads with equal evidence: abstain.
 $parallel = geo_match_track($lon, $lat, 90, 500, 10, 0, 2);

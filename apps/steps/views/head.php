@@ -4855,6 +4855,10 @@ iframe.render-preview-media { height: 60vh; }
 .map-area-tools [hidden] { display: none; }
 /* Icon-only buttons in the map panel stay square, not stretched rectangles. */
 .map-area-tools .trip-btn { width: 40px; padding: 0; }
+/* Tolerance picker sits between the smooth and delete buttons, so it stays
+   compact enough for the same single row on a phone. */
+.map-area-tolerance { display: inline-flex; align-items: center; }
+.map-area-tolerance select { width: auto; min-width: 72px; height: 40px; padding: 0 6px; font-size: 12px; border-radius: 10px; }
 #ma-area-toggle.active { background: #ef4444; color: #fff; border-color: #ef4444; }
 @media (max-width: 820px) {
     .points-row { flex-wrap: wrap; }
@@ -4862,6 +4866,7 @@ iframe.render-preview-media { height: 60vh; }
     /* Touch-sized but still square icon buttons. */
     .map-day-btn { width: 34px; height: 34px; font-size: 12px; }
     .map-area-tools .trip-btn { width: 44px; }
+    .map-area-tolerance select { height: 44px; }
 }
 
 /* --- Unified modal top bars and fullscreen settings --- */

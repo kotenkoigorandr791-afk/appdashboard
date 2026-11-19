@@ -82,7 +82,18 @@ function steps_matching_pass(PDO $pdo, string $user = '', int $limit = 200): arr
                 $lons = array_column($points, 'longitude');
                 $lats = array_column($points, 'latitude');
                 $bbox = "ST_MakeEnvelope(" . min($lons) . ',' . min($lats) . ',' . max($lons) . ',' . max($lats) . ",4326)";
-                $networkStmt = $pdo->query("SELECT id, kind, name, access, source, version, ST_AsGeoJSON(geometry) AS geometry FROM geo_match_networks WHERE ST_Intersects(geometry, $bbox) LIMIT 500");
+                // Read the closest candidates to the trace start, not an
+                // arbitrary database order: a dense city bbox can hold far more
+                // ways than the bounded limit, and truncating by insertion
+                // order dropped the roads the samples actually follow.
+                $networkStmt = $pdo->prepare(
+                    "SELECT id, kind, name, access, source, version, ST_AsGeoJSON(geometry) AS geometry
+                       FROM geo_match_networks
+                      WHERE ST_Intersects(geometry, $bbox)
+                   ORDER BY ST_Distance(geometry, ST_SetSRID(ST_MakePoint(:lon0, :lat0), 4326))
+                      LIMIT 1000"
+                );
+                $networkStmt->execute([':lon0' => (float)$points[0]['longitude'], ':lat0' => (float)$points[0]['latitude']]);
                 $networks = [];
                 foreach ($networkStmt->fetchAll(PDO::FETCH_ASSOC) as $network) {
                     $geometry = json_decode((string)$network['geometry'], true);

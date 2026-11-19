@@ -83,6 +83,8 @@ try {
     $byId = [];
     foreach ($progress['achievements'] as $row) $byId[$row['id']] = $row;
     geo_ach_db_assert($byId['countries_1']['earned'] === true, 'country achievement not earned');
+    geo_ach_db_assert(str_starts_with((string)$byId['countries_1']['first_earned_at'], '2026-02-01'), 'country achievement must be dated to the first visit, got ' . (string)$byId['countries_1']['first_earned_at']);
+    geo_ach_db_assert($byId['distance_100']['earned'] === false && $byId['distance_100']['first_earned_at'] === null, 'an unearned distance milestone must not carry a date');
     geo_ach_db_assert($byId['regions_1']['earned'] === true, 'region achievement not earned');
     geo_ach_db_assert($byId['cities_1']['earned'] === true, 'city achievement not earned');
     geo_ach_db_assert($byId['places_1']['earned'] === true, 'place achievement not earned');

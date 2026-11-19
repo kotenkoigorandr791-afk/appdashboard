@@ -5,6 +5,7 @@ require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_achievements.php';
 require_once dirname(__DIR__) . '/core/geolocation_features.php';
 require_once dirname(__DIR__) . '/core/geolocation_observability.php';
+require_once dirname(__DIR__) . '/core/geolocation_smoothing.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
@@ -75,6 +76,53 @@ if ($action === 'count') {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM geo_location_points WHERE $where");
     $stmt->execute($params);
     public_api_json(['ok' => true, 'count' => (int)$stmt->fetchColumn()]);
+}
+// Zone smoothing: keep one simplified line per pass through a dense area. Raw
+// points are not deleted, so statistics and exports stay canonical.
+if ($action === 'smooth' || $action === 'unsmooth') {
+    if (!isset($params[':bbox']) && !isset($params[':minLon'])) {
+        public_api_json(['ok' => false, 'error' => 'bbox_required'], 400);
+    }
+    $bboxValues = null;
+    $rawBbox = $body['bbox'] ?? null;
+    if (is_string($rawBbox)) $rawBbox = array_map('trim', explode(',', $rawBbox));
+    if (is_array($rawBbox) && count($rawBbox) === 4 && count(array_filter($rawBbox, 'is_numeric')) === 4) {
+        $values = array_map('floatval', array_values($rawBbox));
+        $bboxValues = [
+            'minLon' => min($values[0], $values[2]), 'minLat' => min($values[1], $values[3]),
+            'maxLon' => max($values[0], $values[2]), 'maxLat' => max($values[1], $values[3]),
+        ];
+    }
+    if ($bboxValues === null) public_api_json(['ok' => false, 'error' => 'bbox_required'], 400);
+    try {
+        if ($action === 'unsmooth') {
+            $removed = StepsGeolocationSmoothing::remove($pdo, $owner, $bboxValues);
+            $pdo->prepare('INSERT INTO geo_audit_events(id, user_email, actor_email, event_type, context_json) VALUES(:id, :o, :o, :e, :c)')
+                ->execute([':id' => geo_points_uuid(), ':o' => $owner, ':e' => 'points.unsmoothed', ':c' => json_encode(['zones' => $removed])]);
+            StepsGeolocationObservability::invalidateOwner($owner);
+            public_api_json(['ok' => true, 'removed' => $removed]);
+        }
+        $fromValue = trim((string)($body['from'] ?? ''));
+        $toValue = trim((string)($body['to'] ?? ''));
+        if ($fromValue === '' || strtotime($fromValue) === false) $fromValue = gmdate('c', time() - 90 * 86400);
+        if ($toValue === '' || strtotime($toValue) === false) $toValue = gmdate('c');
+        $result = StepsGeolocationSmoothing::smooth(
+            $pdo,
+            $owner,
+            $bboxValues,
+            gmdate('c', strtotime($fromValue)),
+            gmdate('c', strtotime($toValue)),
+            (float)($body['tolerance_m'] ?? 0),
+            (int)($body['min_gap_s'] ?? 0)
+        );
+        $pdo->prepare('INSERT INTO geo_audit_events(id, user_email, actor_email, event_type, context_json) VALUES(:id, :o, :o, :e, :c)')
+            ->execute([':id' => geo_points_uuid(), ':o' => $owner, ':e' => 'points.smoothed', ':c' => json_encode(['zone_id' => $result['zone_id'], 'paths' => $result['paths'], 'points' => $result['points'], 'tolerance_m' => $result['tolerance_m']])]);
+        StepsGeolocationObservability::invalidateOwner($owner);
+        public_api_json(['ok' => true] + $result);
+    } catch (Throwable $e) {
+        error_log('geolocation points smooth: ' . $e->getMessage());
+        public_api_json(['ok' => false, 'error' => 'smooth_failed'], 500);
+    }
 }
 if ($action !== 'delete') public_api_json(['ok' => false, 'error' => 'invalid_action'], 400);
 

@@ -48,11 +48,71 @@ final class StepsGeolocationStatistics
      * an explicitly versioned dataset, so we bundle one and import it lazily.
      */
     public const BUNDLED_COUNTRY_BOUNDARIES = [
-        'version' => 'natural-earth-5.1.2',
-        'file' => 'ne_110m_admin_0_countries.geojson',
+        // 1:10m borders keep a crossing near a 1-2 km tolerance, while the
+        // former 1:110m file could put a village on the wrong side of a
+        // border by kilometres. The file is gzipped to keep the image small.
+        'version' => 'natural-earth-10m-5.1.2',
+        'file' => 'ne_10m_admin_0_countries.geojson.gz',
         'code_property' => 'ISO_A2',
         'name_property' => 'NAME',
     ];
+
+    /** Earlier bundled datasets that are upgraded automatically. */
+    public const LEGACY_BUNDLED_COUNTRY_VERSIONS = ['natural-earth-5.1.2'];
+
+    /**
+     * Stream the features of a GeoJSON FeatureCollection without decoding the
+     * whole file. A 1:10m country file is ~13 MB and would otherwise exceed the
+     * default PHP memory limit of a request. Gzipped input is decompressed
+     * in memory (a few MB) and parsed feature by feature.
+     *
+     * @return \Generator<int,array<string,mixed>>
+     */
+    public static function readGeoJsonFeatures(string $path): \Generator
+    {
+        $raw = @file_get_contents($path);
+        if (!is_string($raw) || $raw === '') return;
+        if (str_ends_with(strtolower($path), '.gz')) {
+            $decoded = @gzdecode($raw);
+            if ($decoded === false || $decoded === '') return;
+            $raw = $decoded;
+            unset($decoded);
+        }
+        $start = strpos($raw, '"features"');
+        if ($start === false) return;
+        $cursor = strpos($raw, '[', $start);
+        if ($cursor === false) return;
+        $length = strlen($raw);
+        $cursor++;
+        while ($cursor < $length) {
+            $char = $raw[$cursor];
+            if ($char === ']') return;
+            if ($char !== '{') { $cursor++; continue; }
+            $depth = 0;
+            $inString = false;
+            $escaped = false;
+            $end = null;
+            for ($i = $cursor; $i < $length; $i++) {
+                $c = $raw[$i];
+                if ($inString) {
+                    if ($escaped) { $escaped = false; continue; }
+                    if ($c === '\\') { $escaped = true; continue; }
+                    if ($c === '"') $inString = false;
+                    continue;
+                }
+                if ($c === '"') { $inString = true; continue; }
+                if ($c === '{' || $c === '[') { $depth++; continue; }
+                if ($c === '}' || $c === ']') {
+                    $depth--;
+                    if ($depth === 0) { $end = $i; break; }
+                }
+            }
+            if ($end === null) return;
+            $feature = json_decode(substr($raw, $cursor, $end - $cursor + 1), true);
+            if (is_array($feature)) yield $feature;
+            $cursor = $end + 1;
+        }
+    }
 
     /**
      * Import the bundled country boundaries once, if no dataset exists yet.
@@ -62,36 +122,30 @@ final class StepsGeolocationStatistics
     public static function ensureBundledBoundaries(PDO $pdo): ?array
     {
         $existing = self::boundaryDataset($pdo, 'country');
-        if ($existing !== null) return $existing;
+        if ($existing !== null && !in_array((string)$existing['version'], self::LEGACY_BUNDLED_COUNTRY_VERSIONS, true)) {
+            return $existing;
+        }
 
         $file = self::BUNDLED_COUNTRY_BOUNDARIES['file'];
         $path = dirname(__DIR__) . '/resources/boundaries/' . $file;
         if (!is_file($path)) {
             error_log('boundaries: bundled dataset missing at ' . $path);
-            return null;
+            return $existing;
         }
 
         // A render/refresh may already be inside a transaction; importing then
         // would break the caller's unit of work, so defer to the next refresh.
-        if ($pdo->inTransaction()) return null;
+        if ($pdo->inTransaction()) return $existing;
 
         $version = self::BUNDLED_COUNTRY_BOUNDARIES['version'];
         $kind = 'country';
         try {
-            $raw = @file_get_contents($path);
-            $data = is_string($raw) ? json_decode($raw, true) : null;
-            $features = is_array($data) && ($data['type'] ?? '') === 'FeatureCollection' ? ($data['features'] ?? []) : [];
-            if (!is_array($features) || $features === []) {
-                error_log('boundaries: bundled dataset has no features');
-                return null;
-            }
-
             $pdo->beginTransaction();
             $pdo->prepare(
                 "INSERT INTO geo_boundary_datasets(version, kind, source, feature_count, imported_at)
                  VALUES(:version, :kind, :source, :count, now())
                  ON CONFLICT (version, kind) DO UPDATE SET source = EXCLUDED.source, imported_at = now()"
-            )->execute([':version' => $version, ':kind' => $kind, ':source' => $file, ':count' => count($features)]);
+            )->execute([':version' => $version, ':kind' => $kind, ':source' => $file, ':count' => 0]);
 
             $pdo->prepare('DELETE FROM geo_boundary_areas WHERE dataset_version = :version AND kind = :kind')
                 ->execute([':version' => $version, ':kind' => $kind]);
@@ -104,7 +158,7 @@ final class StepsGeolocationStatistics
             $imported = 0;
             $codeProperty = self::BUNDLED_COUNTRY_BOUNDARIES['code_property'];
             $nameProperty = self::BUNDLED_COUNTRY_BOUNDARIES['name_property'];
-            foreach ($features as $feature) {
+            foreach (self::readGeoJsonFeatures($path) as $feature) {
                 $props = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
                 $code = trim((string)($props[$codeProperty] ?? $props['code'] ?? $props['id'] ?? ''));
                 $name = trim((string)($props[$nameProperty] ?? $props['name'] ?? ''));
@@ -121,8 +175,20 @@ final class StepsGeolocationStatistics
                     error_log('boundaries: feature skipped: ' . $e->getMessage());
                 }
             }
+            if ($imported === 0) {
+                $pdo->rollBack();
+                error_log('boundaries: bundled dataset has no usable features');
+                return $existing;
+            }
             $pdo->prepare('UPDATE geo_boundary_datasets SET feature_count = :count WHERE version = :version AND kind = :kind')
                 ->execute([':count' => $imported, ':version' => $version, ':kind' => $kind]);
+            foreach (self::LEGACY_BUNDLED_COUNTRY_VERSIONS as $legacy) {
+                if ($legacy === $version) continue;
+                $pdo->prepare('DELETE FROM geo_boundary_areas WHERE dataset_version = :version AND kind = :kind')
+                    ->execute([':version' => $legacy, ':kind' => $kind]);
+                $pdo->prepare('DELETE FROM geo_boundary_datasets WHERE version = :version AND kind = :kind')
+                    ->execute([':version' => $legacy, ':kind' => $kind]);
+            }
             $pdo->commit();
             error_log('boundaries: imported ' . $imported . ' bundled country feature(s) as ' . $version);
             // The new dataset changes every owner's country results.
@@ -136,7 +202,7 @@ final class StepsGeolocationStatistics
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('boundaries: bundled import failed: ' . $e->getMessage());
-            return null;
+            return $existing;
         }
 
         return self::boundaryDataset($pdo, 'country');
@@ -214,10 +280,19 @@ final class StepsGeolocationStatistics
         }
 
         $countryByDay = [];
+        $countryListByDay = [];
         foreach ($countries as $row) {
             $day = (string)$row['day'];
             if (!isset($countryByDay[$day]) || (int)$row['count'] > (int)$countryByDay[$day]['count']) $countryByDay[$day] = $row;
+            // A day can touch more than one country (a border crossing, a short
+            // visit). Keep every country so metrics never drop a whole country
+            // just because another one dominated that day.
+            $countryListByDay[$day][] = ['code' => (string)$row['code'], 'name' => (string)$row['name'], 'points' => (int)$row['count']];
         }
+        foreach ($countryListByDay as &$list) {
+            usort($list, static fn(array $a, array $b): int => $b['points'] <=> $a['points']);
+        }
+        unset($list);
         $cityByDay = [];
         foreach ($cities as $row) {
             $day = (string)$row['day'];
@@ -226,6 +301,7 @@ final class StepsGeolocationStatistics
         foreach ($days as &$day) {
             $day['country_code'] = $countryByDay[$day['day']]['code'] ?? null;
             $day['country_name'] = $countryByDay[$day['day']]['name'] ?? null;
+            $day['countries'] = $countryListByDay[$day['day']] ?? [];
             $day['city_name'] = $cityByDay[$day['day']]['name'] ?? null;
             $day['accuracy_avg'] = $day['accuracy_count'] > 0 ? round($day['accuracy_sum'] / $day['accuracy_count'], 2) : null;
             unset($day['accuracy_sum'], $day['accuracy_count']);
@@ -319,9 +395,9 @@ final class StepsGeolocationStatistics
     private static function dailyInsert(PDO $pdo, string $owner, string $timezone, array $day, string $boundaryVersion): void
     {
         $stmt = $pdo->prepare(
-            "INSERT INTO geo_statistics_daily(user_email, day, timezone, processor_version, boundary_version, point_count, accepted_count, flagged_count, rejected_count, distance_m, active_seconds, first_at, last_at, accuracy_avg, accuracy_json, sources_json, country_code, country_name, city_name, updated_at)
-             VALUES(:owner, :day, :tz, :version, :boundary, :points, :accepted, :flagged, :rejected, :distance, :active, :first, :last, :accuracy_avg, :accuracy, :sources, :country_code, :country_name, :city, now())
-             ON CONFLICT (user_email, day, timezone) DO UPDATE SET processor_version = EXCLUDED.processor_version, boundary_version = EXCLUDED.boundary_version, point_count = EXCLUDED.point_count, accepted_count = EXCLUDED.accepted_count, flagged_count = EXCLUDED.flagged_count, rejected_count = EXCLUDED.rejected_count, distance_m = EXCLUDED.distance_m, active_seconds = EXCLUDED.active_seconds, first_at = EXCLUDED.first_at, last_at = EXCLUDED.last_at, accuracy_avg = EXCLUDED.accuracy_avg, accuracy_json = EXCLUDED.accuracy_json, sources_json = EXCLUDED.sources_json, country_code = EXCLUDED.country_code, country_name = EXCLUDED.country_name, city_name = EXCLUDED.city_name, updated_at = now()"
+            "INSERT INTO geo_statistics_daily(user_email, day, timezone, processor_version, boundary_version, point_count, accepted_count, flagged_count, rejected_count, distance_m, active_seconds, first_at, last_at, accuracy_avg, accuracy_json, sources_json, country_code, country_name, city_name, countries_json, updated_at)
+             VALUES(:owner, :day, :tz, :version, :boundary, :points, :accepted, :flagged, :rejected, :distance, :active, :first, :last, :accuracy_avg, :accuracy, :sources, :country_code, :country_name, :city, :countries, now())
+             ON CONFLICT (user_email, day, timezone) DO UPDATE SET processor_version = EXCLUDED.processor_version, boundary_version = EXCLUDED.boundary_version, point_count = EXCLUDED.point_count, accepted_count = EXCLUDED.accepted_count, flagged_count = EXCLUDED.flagged_count, rejected_count = EXCLUDED.rejected_count, distance_m = EXCLUDED.distance_m, active_seconds = EXCLUDED.active_seconds, first_at = EXCLUDED.first_at, last_at = EXCLUDED.last_at, accuracy_avg = EXCLUDED.accuracy_avg, accuracy_json = EXCLUDED.accuracy_json, sources_json = EXCLUDED.sources_json, country_code = EXCLUDED.country_code, country_name = EXCLUDED.country_name, city_name = EXCLUDED.city_name, countries_json = EXCLUDED.countries_json, updated_at = now()"
         );
         $stmt->execute([
             ':owner' => $owner, ':day' => $day['day'], ':tz' => $timezone, ':version' => self::PROCESSOR_VERSION,
@@ -332,6 +408,7 @@ final class StepsGeolocationStatistics
             ':accuracy' => json_encode($day['accuracy'], JSON_UNESCAPED_SLASHES),
             ':sources' => json_encode($day['sources'], JSON_UNESCAPED_SLASHES),
             ':country_code' => $day['country_code'], ':country_name' => $day['country_name'], ':city' => $day['city_name'],
+            ':countries' => json_encode($day['countries'] ?? [], JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         ]);
     }
 
@@ -443,6 +520,7 @@ final class StepsGeolocationStatistics
             $row['active_seconds'] = (int)$row['active_seconds'];
             $row['accuracy_json'] = json_decode((string)$row['accuracy_json'], true) ?: [];
             $row['sources_json'] = json_decode((string)$row['sources_json'], true) ?: [];
+            $row['countries_json'] = json_decode((string)($row['countries_json'] ?? '[]'), true) ?: [];
             $rows[] = $row;
         }
         return $rows;
@@ -635,7 +713,7 @@ final class StepsGeolocationStatistics
             ],
             'assumptions' => [
                 'Days are grouped in the requested IANA timezone: ' . $timezone . '.',
-                'Country and city names come only from explicitly imported boundary dataset versions and are matched by the dominant point count per day.',
+                'Country and city names come only from explicitly imported boundary dataset versions. A day is summarised by its dominant country, while every country touched that day (a border crossing or a short visit) still counts in the visited-country metrics.',
                 'Distance uses consecutive accepted samples within the same local day; cross-midnight segments are counted on the following day only when both samples share that day.',
                 'No statistic uses or infers a mode of transport.',
             ],
@@ -659,7 +737,14 @@ final class StepsGeolocationStatistics
             $metrics['route_distance_m'] += (float)$row['distance_m'];
             $metrics['active_seconds'] += (int)$row['active_seconds'];
             if ((int)$row['point_count'] > 0) $metrics['active_days']++;
-            if (!empty($row['country_code'])) $countries[(string)$row['country_code']] = (string)$row['country_name'];
+            $dayCountries = (array)($row['countries_json'] ?? $row['countries'] ?? []);
+            if ($dayCountries === [] && !empty($row['country_code'])) {
+                $dayCountries = [['code' => (string)$row['country_code'], 'name' => (string)$row['country_name']]];
+            }
+            foreach ($dayCountries as $country) {
+                $code = (string)($country['code'] ?? '');
+                if ($code !== '') $countries[$code] = (string)($country['name'] ?? '');
+            }
             if (!empty($row['city_name'])) $cities[(string)$row['city_name']] = true;
         }
         $metrics['route_distance_m'] = round($metrics['route_distance_m'], 2);

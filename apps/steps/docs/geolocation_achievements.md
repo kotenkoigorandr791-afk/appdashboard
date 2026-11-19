@@ -7,7 +7,7 @@ public location link, and no transport-specific achievement.
 ## Rules and determinism
 
 - Rules live in `core/geolocation_achievements.php` under a versioned id
-  (`achievements-2`). Each definition has a family, metric, target, unit and
+  (`achievements-3`). Each definition has a family, metric, target, unit and
   themed collection.
 - Metrics are computed in PostgreSQL/PostGIS from `geo_statistics_daily`,
   `geo_visits`/`geo_places`, accepted points (1° coverage cells) and the
@@ -29,8 +29,14 @@ new step total is reflected on the next bounded pass.
 - `progress()` also returns `highlights`, a coordinate-free snapshot (steps
 counted, goal streak, goal days with track, tracked route distance) that the
 settings panel renders as the bridge between both halves.
-- The `achievements-2` rule version is a new key, so old stored rows stay intact
+- The `achievements-3` rule version is a new key, so old stored rows stay intact
 and are rebuilt deterministically on first read.
+- `earned_at` is the day the milestone was actually reached: the evaluator walks
+  the owner's own daily history (countries, cities, distance, coverage, region,
+  place and step ladders) and stores that date in `first_earned_at`. A milestone
+  with no recoverable history stays undated rather than borrowing the moment of
+  the recalculation, so a first import can no longer make a dozen achievements
+  look earned on one afternoon.
 - `geo_achievements` stores `rule_version`, `input_watermark`, `progress`,
   `earned`, `first_earned_at`, `recalculated_at` and `reason` for every row, so
   the same input always rebuilds the same result and the first-earned time is

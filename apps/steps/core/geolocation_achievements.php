@@ -17,7 +17,7 @@ require_once __DIR__ . '/geolocation_statistics.php';
 
 final class StepsGeolocationAchievements
 {
-    public const RULES_VERSION = 'achievements-2';
+    public const RULES_VERSION = 'achievements-3';
     public const DEFAULT_TIMEZONE = 'UTC';
     /** Achievements never leave the owner's account. */
     public const PUBLIC = false;
@@ -288,8 +288,7 @@ final class StepsGeolocationAchievements
     {
         $owner = strtolower(trim($owner));
         $daily = $pdo->prepare(
-            "SELECT COUNT(DISTINCT NULLIF(country_code, '')) AS countries,
-                    COUNT(DISTINCT NULLIF(city_name, '')) AS cities,
+            "SELECT COUNT(DISTINCT NULLIF(city_name, '')) AS cities,
                     COUNT(*) FILTER (WHERE point_count > 0) AS coverage_days,
                     COALESCE(SUM(distance_m), 0) AS distance_m
                FROM geo_statistics_daily
@@ -297,6 +296,22 @@ final class StepsGeolocationAchievements
         );
         $daily->execute([':owner' => $owner]);
         $row = $daily->fetch(PDO::FETCH_ASSOC) ?: [];
+        // Every country a day touched counts: a border crossing or a short
+        // visit must not be hidden by the dominant country of that day.
+        $countries = $pdo->prepare(
+            "SELECT COUNT(DISTINCT code) FROM (
+                SELECT c->>'code' AS code
+                  FROM geo_statistics_daily d,
+                       jsonb_array_elements(
+                           CASE WHEN jsonb_array_length(d.countries_json) > 0
+                                THEN d.countries_json
+                                ELSE jsonb_build_array(jsonb_build_object('code', d.country_code))
+                           END) c
+                 WHERE d.user_email = :owner AND COALESCE(c->>'code', '') <> ''
+             ) visited"
+        );
+        $countries->execute([':owner' => $owner]);
+        $row['countries'] = (int)$countries->fetchColumn();
 
         $places = $pdo->prepare(
             'SELECT COUNT(DISTINCT v.place_id)
@@ -416,6 +431,155 @@ final class StepsGeolocationAchievements
     }
 
     /**
+     * The day each target was actually reached, derived from the owner's own
+     * history. A recalculation used to stamp every newly earned row with "now",
+     * so a first import made a dozen achievements look earned on one afternoon.
+     * Walking a cumulative history gives each milestone its real date instead.
+     *
+     * @return array<string,string> achievement id => ISO 8601 instant
+     */
+    public static function earnedTimeline(PDO $pdo, string $owner): array
+    {
+        $owner = strtolower(trim($owner));
+        $timeline = [];
+        $byMetric = [];
+        foreach (self::definitions() as $definition) $byMetric[$definition['metric']][] = $definition;
+        $mark = static function (string $metric, float $value, string $day) use (&$timeline, $byMetric): void {
+            foreach ($byMetric[$metric] ?? [] as $definition) {
+                $id = (string)$definition['id'];
+                if (isset($timeline[$id])) continue;
+                if ($value + 1e-9 >= (float)$definition['target']) $timeline[$id] = $day . 'T00:00:00Z';
+            }
+        };
+
+        $daily = $pdo->prepare(
+            'SELECT day::text AS day, distance_m, point_count, countries_json, country_code, city_name
+               FROM geo_statistics_daily WHERE user_email = :owner ORDER BY day ASC'
+        );
+        $daily->execute([':owner' => $owner]);
+        $countries = [];
+        $cities = [];
+        $distance = 0.0;
+        $daysWithData = 0;
+        foreach ($daily->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $day = (string)$row['day'];
+            $dayCountries = json_decode((string)($row['countries_json'] ?? '[]'), true) ?: [];
+            if ($dayCountries === [] && (string)($row['country_code'] ?? '') !== '') {
+                $dayCountries = [['code' => (string)$row['country_code']]];
+            }
+            foreach ($dayCountries as $country) {
+                $code = (string)($country['code'] ?? '');
+                if ($code !== '') $countries[$code] = true;
+            }
+            if ((string)($row['city_name'] ?? '') !== '') $cities[(string)$row['city_name']] = true;
+            $distance += (float)$row['distance_m'];
+            if ((int)$row['point_count'] > 0) $daysWithData++;
+            $mark('countries', count($countries), $day);
+            $mark('cities', count($cities), $day);
+            $mark('distance_m', $distance, $day);
+            $mark('coverage_days', $daysWithData, $day);
+        }
+
+        // 1-degree coverage cells accumulate across the raw history.
+        $cells = $pdo->prepare(
+            "SELECT (source_at AT TIME ZONE 'UTC')::date::text AS day,
+                    FLOOR(ST_Y(position) + 90)::int AS gy, FLOOR(ST_X(position) + 180)::int AS gx
+               FROM geo_location_points
+              WHERE user_email = :owner AND quality_state <> 'rejected'
+           GROUP BY day, gy, gx ORDER BY day ASC"
+        );
+        $cells->execute([':owner' => $owner]);
+        $seenCells = [];
+        foreach ($cells->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $seenCells[$row['gy'] . '|' . $row['gx']] = true;
+            $mark('coverage_cells', count($seenCells), (string)$row['day']);
+        }
+
+        // Regions follow the explicitly imported region dataset when one exists.
+        $regionDataset = StepsGeolocationStatistics::boundaryDataset($pdo, 'region');
+        if ($regionDataset !== null) {
+            $regions = $pdo->prepare(
+                "SELECT (p.source_at AT TIME ZONE 'UTC')::date::text AS day, a.code
+                   FROM geo_location_points p
+                   JOIN geo_boundary_areas a ON a.dataset_version = :version AND a.kind = 'region' AND ST_Covers(a.geometry, p.position)
+                  WHERE p.user_email = :owner AND p.quality_state <> 'rejected'
+               GROUP BY day, a.code ORDER BY day ASC"
+            );
+            $regions->execute([':version' => $regionDataset['version'], ':owner' => $owner]);
+            $seenRegions = [];
+            foreach ($regions->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                $seenRegions[(string)$row['code']] = true;
+                $mark('regions', count($seenRegions), (string)$row['day']);
+            }
+        }
+
+        // Places are earned when the Nth distinct place is first visited.
+        $places = $pdo->prepare(
+            'SELECT v.place_id, MIN(v.arrived_at) AS first_at
+               FROM geo_visits v JOIN geo_places p ON p.id = v.place_id AND p.deleted_at IS NULL
+              WHERE v.user_email = :owner AND v.place_id IS NOT NULL
+           GROUP BY v.place_id ORDER BY first_at ASC'
+        );
+        $places->execute([':owner' => $owner]);
+        $placeCount = 0;
+        foreach ($places->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $placeCount++;
+            $mark('places', $placeCount, gmdate('Y-m-d', strtotime((string)$row['first_at'])));
+        }
+
+        // Step-counter milestones, walked day by day like the track milestones.
+        if (!self::tableExists($pdo, 'steps_days')) return $timeline;
+        $goal = 10000;
+        $strideCm = 70;
+        if (self::tableExists($pdo, 'steps_settings')) {
+            $settings = $pdo->prepare('SELECT key, value FROM steps_settings WHERE user_email = :owner');
+            $settings->execute([':owner' => $owner]);
+            foreach ($settings->fetchAll(PDO::FETCH_ASSOC) as $row) {
+                if ($row['key'] === 'goal_steps' && (int)$row['value'] > 0) $goal = (int)$row['value'];
+                if ($row['key'] === 'stride_length' && (int)$row['value'] > 0) $strideCm = (int)$row['value'];
+            }
+        }
+        $steps = $pdo->prepare(
+            'SELECT s.date, s.steps, (g.accepted_count IS NOT NULL AND g.accepted_count > 0) AS has_track
+               FROM steps_days s
+          LEFT JOIN geo_statistics_daily g ON g.user_email = s.user_email AND g.day = s.date::date
+              WHERE s.user_email = :owner ORDER BY s.date ASC'
+        );
+        $steps->execute([':owner' => $owner]);
+        $stepsTotal = 0;
+        $goalDays = 0;
+        $trailDays = 0;
+        $streak = 0;
+        $previousActive = null;
+        foreach ($steps->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $day = (string)$row['date'];
+            if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $day)) continue;
+            $value = (int)$row['steps'];
+            $stepsTotal += $value;
+            if ($value > 0) {
+                $streak = ($previousActive !== null && (strtotime($day) - $previousActive) === 86400) ? $streak + 1 : 1;
+                $previousActive = strtotime($day);
+            } else {
+                $streak = 0;
+                $previousActive = null;
+            }
+            $mark('steps_total', $stepsTotal, $day);
+            $mark('steps_best_day', $value, $day);
+            $mark('steps_streak', $streak, $day);
+            $mark('steps_distance_m', $stepsTotal * ($strideCm / 100), $day);
+            if ($value >= $goal) {
+                $goalDays++;
+                $mark('steps_goal_days', $goalDays, $day);
+                if ((bool)$row['has_track']) {
+                    $trailDays++;
+                    $mark('steps_trail_days', $trailDays, $day);
+                }
+            }
+        }
+        return $timeline;
+    }
+
+    /**
      * Recompute and persist progress. When the module is disabled this is a no-op
      * so no new evaluation happens and existing rows stay frozen.
      *
@@ -436,6 +600,7 @@ final class StepsGeolocationAchievements
         StepsGeolocationStatistics::refresh($pdo, $owner, self::DEFAULT_TIMEZONE);
         $metrics = self::metrics($pdo, $owner);
         $evaluated = self::evaluate($metrics);
+        $timeline = self::earnedTimeline($pdo, $owner);
 
         $pdo->beginTransaction();
         try {
@@ -448,7 +613,11 @@ final class StepsGeolocationAchievements
                      target = EXCLUDED.target,
                      progress = EXCLUDED.progress,
                      earned = EXCLUDED.earned,
-                     first_earned_at = COALESCE(geo_achievements.first_earned_at, EXCLUDED.first_earned_at),
+                     first_earned_at = CASE
+                         WHEN EXCLUDED.first_earned_at IS NULL THEN geo_achievements.first_earned_at
+                         WHEN geo_achievements.first_earned_at IS NULL THEN EXCLUDED.first_earned_at
+                         ELSE LEAST(geo_achievements.first_earned_at, EXCLUDED.first_earned_at)
+                     END,
                      input_watermark = EXCLUDED.input_watermark,
                      reason = EXCLUDED.reason,
                      details_json = EXCLUDED.details_json,
@@ -483,7 +652,9 @@ final class StepsGeolocationAchievements
                     ':target' => $row['target'],
                     ':progress' => $row['progress'],
                     ':earned' => $row['earned'] ? 'true' : 'false',
-                    ':first_earned_at' => $row['earned'] ? gmdate('c') : null,
+                    // A row without a historical date stays undated instead of
+                    // borrowing "now", which used to stamp a whole import on one day.
+                    ':first_earned_at' => $row['earned'] ? ($timeline[$row['achievement_id']] ?? null) : null,
                     ':watermark' => $metrics['input_watermark'],
                     ':reason' => $reason,
                     ':details' => $details,

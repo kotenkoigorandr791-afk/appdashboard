@@ -63,6 +63,19 @@ $jump = StepsGeolocationTrips::segment($impossible, $t);
 geo_trips_assert($jump['trips'][0]['boundary_reason'] === 'first_point', 'first trip reason changed');
 geo_trips_assert(count($jump['trips']) === 2 && $jump['trips'][1]['boundary_reason'] === 'impossible_discontinuity', 'impossible discontinuity not split');
 
+// A teleport sampled with a wider than one-minute gap (real uploads drift to
+// 80-120 s) must still split and must not inflate the trip distance.
+$drifted = [
+    $make(0, 50.0, 30.0),
+    $make(10, 50.0002, 30.0),
+    $make(98, 49.5, 30.0),
+    $make(108, 49.5002, 30.0),
+];
+$driftResult = StepsGeolocationTrips::segment($drifted, $t);
+geo_trips_assert(count($driftResult['trips']) === 2, 'drifted teleport not split');
+geo_trips_assert($driftResult['trips'][1]['boundary_reason'] === 'impossible_discontinuity', 'missing drifted discontinuity reason');
+geo_trips_assert($driftResult['trips'][0]['distance_m'] < 1000, 'teleport inflated the trip distance: ' . $driftResult['trips'][0]['distance_m']);
+
 // Explicit user boundary starts a new trip at the chosen sample.
 $userBoundary = StepsGeolocationTrips::segment($journey, $t, [$base + 600]);
 geo_trips_assert(count($userBoundary['trips']) === 2, 'user boundary ignored');

@@ -4,7 +4,7 @@
  *
  *   php apps/steps/bin/geolocation_boundaries_import.php \
  *       --file=/path/ne_10m_admin_0_countries.geojson \
- *       --kind=country --version=natural-earth-5.1.2 \
+ *       --kind=country --version=natural-earth-10m-5.1.2 \
  *       --code-property=ISO_A2 --name-property=NAME
  *
  *   php apps/steps/bin/geolocation_boundaries_import.php \
@@ -30,11 +30,12 @@ if ($file === '' || !is_file($file)) { fwrite(STDERR, "boundaries: file not foun
 if (!in_array($kind, ['country', 'region', 'city'], true)) { fwrite(STDERR, "boundaries: kind must be country, region or city\n"); exit(2); }
 if ($version === '' || !preg_match('/^[A-Za-z0-9._:-]{1,80}$/', $version)) { fwrite(STDERR, "boundaries: invalid version\n"); exit(2); }
 
-$raw = file_get_contents($file);
-$data = is_string($raw) ? json_decode($raw, true) : null;
-if (!is_array($data)) { fwrite(STDERR, "boundaries: invalid GeoJSON\n"); exit(2); }
-$features = ($data['type'] ?? '') === 'FeatureCollection' ? ($data['features'] ?? []) : (($data['type'] ?? '') === 'Feature' ? [$data] : []);
-if (!is_array($features) || $features === []) { fwrite(STDERR, "boundaries: no features\n"); exit(2); }
+// Features are streamed: a 1:10m country file is larger than the default PHP
+// memory limit, and importing must not depend on decoding it in one piece.
+// Gzipped input (.geojson.gz) is accepted as well.
+$features = static function () use ($file): \Generator {
+    yield from StepsGeolocationStatistics::readGeoJsonFeatures($file);
+};
 
 $db = app_main_db();
 steps_geolocation_migrate($db);
@@ -43,7 +44,7 @@ $pdo->beginTransaction();
 try {
     $pdo->prepare("INSERT INTO geo_boundary_datasets(version, kind, source, feature_count, imported_at) VALUES(:version, :kind, :source, :count, now())
                    ON CONFLICT (version, kind) DO UPDATE SET source = EXCLUDED.source, feature_count = EXCLUDED.feature_count, imported_at = now()")
-        ->execute([':version' => $version, ':kind' => $kind, ':source' => basename($file), ':count' => count($features)]);
+        ->execute([':version' => $version, ':kind' => $kind, ':source' => basename($file), ':count' => 0]);
     $pdo->prepare('DELETE FROM geo_boundary_areas WHERE dataset_version = :version AND kind = :kind')->execute([':version' => $version, ':kind' => $kind]);
     $insert = $pdo->prepare(
         "INSERT INTO geo_boundary_areas(dataset_version, kind, code, name, parent_code, geometry)
@@ -51,7 +52,7 @@ try {
          ON CONFLICT (dataset_version, kind, code) DO UPDATE SET name = EXCLUDED.name, parent_code = EXCLUDED.parent_code, geometry = EXCLUDED.geometry"
     );
     $imported = 0;
-    foreach ($features as $feature) {
+    foreach ($features() as $feature) {
         $props = is_array($feature['properties'] ?? null) ? $feature['properties'] : [];
         $code = trim((string)($props[$codeProperty] ?? $props['code'] ?? $props['id'] ?? ''));
         $name = trim((string)($props[$nameProperty] ?? $props['name'] ?? ''));
@@ -66,6 +67,7 @@ try {
             error_log('boundary feature skipped: ' . $e->getMessage());
         }
     }
+    if ($imported === 0) throw new RuntimeException('no usable features');
     $pdo->prepare("UPDATE geo_boundary_datasets SET feature_count = :count WHERE version = :version AND kind = :kind")
         ->execute([':count' => $imported, ':version' => $version, ':kind' => $kind]);
     $pdo->commit();

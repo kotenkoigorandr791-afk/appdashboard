@@ -29,6 +29,19 @@ geo_stats_assert($daily['2026-01-01']['sources']['import'] === 2, 'source counts
 geo_stats_assert($daily['2026-01-01']['accuracy'][4] === 1, 'accuracy bucket <=200 wrong');
 geo_stats_assert($daily['2026-01-01']['accuracy'][6] === 1, 'missing accuracy bucket wrong');
 
+// A day that touches two countries keeps both; the dominant one stays the
+// daily summary and the short visit still counts as a visited country.
+$mixed = StepsGeolocationStatistics::groupDaily($points, 'UTC', [
+    ['day' => '2026-01-01', 'code' => 'UA', 'name' => 'Ukraine', 'count' => 3],
+    ['day' => '2026-01-01', 'code' => 'PE', 'name' => 'Peru', 'count' => 1],
+]);
+geo_stats_assert(count($mixed['2026-01-01']['countries']) === 2, 'short country visit dropped');
+geo_stats_assert($mixed['2026-01-01']['countries'][0]['code'] === 'UA', 'dominant country must come first');
+geo_stats_assert($mixed['2026-01-01']['country_code'] === 'UA', 'daily summary must stay the dominant country');
+$mixedMetrics = StepsGeolocationStatistics::aggregate([$mixed['2026-01-01']]);
+geo_stats_assert(count($mixedMetrics['countries']) === 2, 'visited countries must include the short visit');
+geo_stats_assert(in_array('PE', array_column($mixedMetrics['countries'], 'code'), true), 'Peru missing from visited countries');
+
 // A GPS teleport must not be stitched into the daily route distance.
 $jump = [
     ['source_at' => '2026-03-01T08:00:00Z', 'latitude' => 50.4500, 'longitude' => 30.5200, 'quality_state' => 'accepted', 'source_type' => 'import'],

@@ -132,6 +132,22 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v20_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '020']);
         }
+        // 021: every country a day touched. The dominant country stays in
+        // country_code for the daily summary, while countries_json keeps a
+        // short visit (a border crossing or a few hours) visible in metrics.
+        $applied->execute([':version' => '021']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v21_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '021']);
+        }
+        // 022: zone smoothing. A dense cloud of samples in one small area is
+        // replaced on the map by one simplified line per pass through it; raw
+        // points stay canonical for statistics, exports and privacy rules.
+        $applied->execute([':version' => '022']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v22_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '022']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -392,6 +408,24 @@ function steps_geolocation_schema_v19_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_owner_time_idx ON geo_matched_segments(user_email, started_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_geometry_idx ON geo_matched_segments USING GIST(matched_geometry)",
         "ANALYZE geo_location_points",
+    ];
+}
+function steps_geolocation_schema_v22_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_smooth_zones (id UUID PRIMARY KEY, user_email TEXT NOT NULL, area geometry(Polygon,4326) NOT NULL, tolerance_m DOUBLE PRECISION NOT NULL DEFAULT 25, min_gap_s INTEGER NOT NULL DEFAULT 600, path_count INTEGER NOT NULL DEFAULT 0, point_count INTEGER NOT NULL DEFAULT 0, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_smooth_zones_area_idx ON geo_smooth_zones USING GIST(area)",
+        "CREATE INDEX IF NOT EXISTS geo_smooth_zones_owner_idx ON geo_smooth_zones(user_email, updated_at DESC)",
+        "CREATE TABLE IF NOT EXISTS geo_smooth_paths (id UUID PRIMARY KEY, zone_id UUID NOT NULL REFERENCES geo_smooth_zones(id) ON DELETE CASCADE, user_email TEXT NOT NULL, started_at TIMESTAMPTZ NOT NULL, ended_at TIMESTAMPTZ NOT NULL, point_count INTEGER NOT NULL DEFAULT 0, geometry geometry(LineString,4326) NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE INDEX IF NOT EXISTS geo_smooth_paths_zone_idx ON geo_smooth_paths(zone_id)",
+        "CREATE INDEX IF NOT EXISTS geo_smooth_paths_owner_idx ON geo_smooth_paths(user_email, started_at DESC)",
+        "CREATE INDEX IF NOT EXISTS geo_smooth_paths_geometry_idx ON geo_smooth_paths USING GIST(geometry)",
+    ];
+}
+function steps_geolocation_schema_v21_sql(): array
+{
+    return [
+        "ALTER TABLE geo_statistics_daily ADD COLUMN IF NOT EXISTS countries_json JSONB NOT NULL DEFAULT '[]'::jsonb",
     ];
 }
 function steps_geolocation_schema_v20_sql(): array
