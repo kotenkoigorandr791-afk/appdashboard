@@ -497,11 +497,21 @@ if (isset($_GET['get_expenses_page'])) {
     if ($sort === 'date_desc') {
         $allDays = array_reverse($allDays);
     }
+    // Page the day rows instead of materialising the whole window: every request
+    // only queries the dates the user actually sees.
+    $perPage   = max(10, min(200, (int)($_GET['per_page'] ?? 20)));
+    $totalDays = count($allDays);
+    if ($search !== '') $perPage = max($perPage, $totalDays ?: 1);
+    $totalPages = max(1, (int)ceil($totalDays / max(1, $perPage)));
+    $page       = min($totalPages, max(1, (int)($_GET['page'] ?? 1)));
+    $pageDays   = $allDays ? array_slice($allDays, ($page - 1) * $perPage, $perPage) : [];
+    $queryStart = $pageDays ? min($pageDays) : $rangeStart;
+    $queryEnd   = $pageDays ? max($pageDays) : $rangeEnd;
     $rows = [];
     $incomes = [];
-    if (!empty($allDays)) {
+    if (!empty($pageDays)) {
         $expWhere = "date >= :ra AND date <= :rb";
-        $expParams = [':ra' => $rangeStart, ':rb' => $rangeEnd];
+        $expParams = [':ra' => $queryStart, ':rb' => $queryEnd];
         if ($search !== '') {
             $expWhere .= " AND (date LIKE :s OR store LIKE :s2 OR CAST(amount AS TEXT) LIKE :s3)";
             $expParams[':s']  = "%$search%";
@@ -514,7 +524,7 @@ if (isset($_GET['get_expenses_page'])) {
         while ($r = $expRes->fetch(PDO::FETCH_ASSOC)) $rows[] = $r;
 
         $incWhere = "date >= :ra AND date <= :rb";
-        $incParams = [':ra' => $rangeStart, ':rb' => $rangeEnd];
+        $incParams = [':ra' => $queryStart, ':rb' => $queryEnd];
         if ($search !== '') {
             $incWhere .= " AND (date LIKE :s OR CAST(amount AS TEXT) LIKE :s2)";
             $incParams[':s']  = "%$search%";
@@ -535,9 +545,11 @@ if (isset($_GET['get_expenses_page'])) {
         'status'     => 'success',
         'rows'       => $rows,
         'incomes'    => $incomes,
-        'dates'      => $allDays,
-        'total'      => count($allDays),
-        'totalPages' => 1,
+        'dates'      => $search !== '' ? $allDays : $pageDays,
+        'total'      => $search !== '' ? count($allDays) : $totalDays,
+        'page'       => $page,
+        'perPage'    => $perPage,
+        'totalPages' => $search !== '' ? 1 : $totalPages,
     ]));
 }
 
@@ -1428,24 +1440,34 @@ if ($startDateForTable !== '' && strcmp($startDateForTable, $rangeStart) > 0) {
 }
 $firstPageRows = [];
 $totalRows = 0;
+$tablePerPage = 20;
+$tablePage = 1;
+$tableTotalPages = 1;
 if (strcmp($rangeStart, $rangeEnd) <= 0) {
     $allTableDays = listCalendarDaysInclusive($rangeStart, $rangeEnd);
     if ($tableSettings['sort_by'] === 'date_desc') {
         $allTableDays = array_reverse($allTableDays);
     }
     $totalRows = count($allTableDays);
+    // Render one page of days and query only those dates, so a long history no
+    // longer turns into a single unbounded SELECT on every page load.
+    $tableTotalPages = max(1, (int)ceil($totalRows / $tablePerPage));
+    $tablePage = min($tableTotalPages, max(1, (int)($_GET['table_page'] ?? 1)));
+    $pageDays = array_slice($allTableDays, ($tablePage - 1) * $tablePerPage, $tablePerPage);
+    $pageStart = $pageDays ? min($pageDays) : $rangeStart;
+    $pageEnd   = $pageDays ? max($pageDays) : $rangeEnd;
     $tableAmounts = [];
     if (!empty($visibleStoreNames)) {
         $tableSt = $udb->prepare('SELECT date, store, amount FROM expenses WHERE date >= :a AND date <= :b');
-        $tableSt->bindValue(':a', $rangeStart);
-        $tableSt->bindValue(':b', $rangeEnd);
+        $tableSt->bindValue(':a', $pageStart);
+        $tableSt->bindValue(':b', $pageEnd);
         $tableRes = $tableSt->execute();
         $visibleSet = array_flip($visibleStoreNames);
         while ($r = $tableRes->fetch(PDO::FETCH_ASSOC)) {
             if (isset($visibleSet[$r['store']])) $tableAmounts[$r['date']][$r['store']] = (float)$r['amount'];
         }
     }
-    foreach ($allTableDays as $d) {
+    foreach ($pageDays as $d) {
         $rowData = [];
         foreach ($visibleStoreNames as $sn) $rowData[$sn] = $tableAmounts[$d][$sn] ?? 0;
         $firstPageRows[$d] = $rowData;

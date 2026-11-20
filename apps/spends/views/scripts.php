@@ -30,6 +30,7 @@ let pendingDelete = { type:'', id:'', name:'' };
 let pendingConfirmAction=null;
 let inputPromptResolver=null;
 let totalRowsDB   = <?= (int)$totalRows ?>;
+let tablePageInfo = { page: <?= (int)($tablePage ?? 1) ?>, perPage: <?= (int)($tablePerPage ?? 20) ?>, total: <?= (int)($totalRows ?? 0) ?>, totalPages: <?= (int)($tableTotalPages ?? 1) ?> };
 const tableYearMin = <?= (int)($tableMinYear ?? date('Y')) ?>;
 const tableYearMax = <?= (int)($tableMaxYear ?? date('Y')) ?>;
 let pendingScrollDate = null;
@@ -100,14 +101,16 @@ function showNotification(message, type='info') {
 }
 
 // ══ Server-side table data ════════════════════════════════════════════════════
-function loadPage() {
+function loadPage(page) {
     const monthRange = getMonthDateRange();
     const params = new URLSearchParams({
         get_expenses_page: 1,
         months_window: 0,
         sort: 'date_asc',
         start_date: monthRange.start_date,
-        end_date: monthRange.end_date
+        end_date: monthRange.end_date,
+        page: String(page || 1),
+        per_page: String(tablePageInfo.perPage || 20)
     });
 
     fetch('?' + params.toString())
@@ -180,6 +183,12 @@ function loadPage() {
         });
 
         totalRowsDB = data.total;
+        tablePageInfo = {
+            page: data.page || 1,
+            perPage: data.perPage || tablePageInfo.perPage || 20,
+            total: data.total || 0,
+            totalPages: data.totalPages || 1
+        };
         renderPagination();
         highlightCurrentDate();
         if (pendingScrollDate) { scrollToTableRow(pendingScrollDate); pendingScrollDate = null; }
@@ -193,7 +202,36 @@ function loadPage() {
 
 function renderPagination() {
     const p = document.getElementById('pagination');
-    if (p) { p.innerHTML = ''; p.style.display = 'none'; }
+    if (!p) return;
+    p.innerHTML = '';
+    const page = tablePageInfo.page || 1;
+    const totalPages = tablePageInfo.totalPages || 1;
+    if (totalPages <= 1) { p.style.display = 'none'; return; }
+    p.style.display = 'flex';
+    const addButton = (label, target, opts = {}) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        if (opts.title) b.title = opts.title;
+        if (target === page) {
+            b.classList.add('active');
+            b.setAttribute('aria-current', 'page');
+        } else if (opts.disabled) {
+            b.disabled = true;
+        } else {
+            b.onclick = () => loadPage(target);
+        }
+        p.appendChild(b);
+    };
+    const pushPage = n => addButton(String(n), n);
+    addButton('‹', page - 1, { disabled: page <= 1, title: t('prev_page', 'Previous page') });
+    const span = 2;
+    if (totalPages > 1) pushPage(1);
+    if (page - span > 2) p.appendChild(document.createTextNode('…'));
+    for (let n = Math.max(2, page - span); n <= Math.min(totalPages - 1, page + span); n++) pushPage(n);
+    if (page + span < totalPages - 1) p.appendChild(document.createTextNode('…'));
+    if (totalPages > 1) pushPage(totalPages);
+    addButton('›', page + 1, { disabled: page >= totalPages, title: t('next_page', 'Next page') });
 }
 
 // ══ Month pagination ═══════════════════════════════════════════════════════
@@ -274,6 +312,7 @@ function renderMonthPagination() {
     const pop = buildMonthPickerPopup(month, year);
     container.appendChild(pop);
     calBtn.onclick = (e) => { e.stopPropagation(); pop.classList.toggle('open'); };
+    renderPagination();
 }
 
 let calReopen = false;
@@ -286,61 +325,81 @@ function buildMonthPickerPopup(month, year) {
     title.textContent = t('select_date_label','Select Date:');
     pop.appendChild(title);
 
-    const grid = document.createElement('div');
-    grid.className = 'table-cal-grid';
+    // Two steps with a short slide: pick the year first (any year back to 1900),
+    // then the month.
+    const today = new Date();
+    const newestYear = Math.max(today.getFullYear(), tableYearMax, year, tableYearMin);
+    const OLDEST_YEAR = 1900;
+    let pickedYear = year;
 
-    const yearSel = document.createElement('select');
-    yearSel.setAttribute('data-cal-year','1');
-    yearSel.setAttribute('aria-label', t('year_label','Year'));
-    // Any past year must stay reachable: months without data still render empty cells.
-    const minYear = Math.min(2000, tableYearMin);
-    const maxYear = Math.max(tableYearMax, year, (new Date()).getFullYear());
-    for (let y = minYear; y <= maxYear; y++) {
-        const o = document.createElement('option');
-        o.value = y; o.textContent = y;
-        if (y === year) o.selected = true;
-        yearSel.appendChild(o);
+    const yearsPanel = document.createElement('div');
+    yearsPanel.className = 'table-cal-panel table-cal-years';
+    for (let y = newestYear; y >= OLDEST_YEAR; y--) {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'table-cal-cell';
+        cell.textContent = String(y);
+        if (y === pickedYear) cell.classList.add('is-active');
+        cell.onclick = () => { pickedYear = y; showMonths(); };
+        yearsPanel.appendChild(cell);
     }
 
-    const monthSel = document.createElement('select');
-    monthSel.setAttribute('data-cal-month','1');
-    monthSel.setAttribute('aria-label', t('month_label','Month'));
-    monthNames.forEach((m,i)=>{
-        const o = document.createElement('option');
-        o.value = i; o.textContent = m;
-        if (i === month) o.selected = true;
-        monthSel.appendChild(o);
+    const monthsPanel = document.createElement('div');
+    monthsPanel.className = 'table-cal-panel table-cal-months';
+    monthsPanel.hidden = true;
+
+    const monthsHead = document.createElement('div');
+    monthsHead.className = 'table-cal-head';
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'table-cal-back';
+    backBtn.textContent = '‹ ' + t('year_label', 'Year');
+    backBtn.onclick = () => showYears();
+    const pickedLabel = document.createElement('strong');
+    pickedLabel.textContent = String(pickedYear);
+    monthsHead.appendChild(backBtn);
+    monthsHead.appendChild(pickedLabel);
+    monthsPanel.appendChild(monthsHead);
+
+    monthNames.forEach((name, i) => {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'table-cal-cell';
+        cell.textContent = name;
+        if (i === month) cell.classList.add('is-active');
+        cell.onclick = () => {
+            currentYear = pickedYear;
+            currentMonth = i;
+            calReopen = true;
+            loadPageWithMonth();
+        };
+        monthsPanel.appendChild(cell);
     });
 
-    const yearField = document.createElement('label');
-    yearField.className = 'table-cal-field';
-    const yearCap = document.createElement('span');
-    yearCap.textContent = t('year_label','Year');
-    yearField.appendChild(yearCap);
-    yearField.appendChild(yearSel);
+    function replayAnimation(el) {
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = '';
+    }
+    function showMonths() {
+        pickedLabel.textContent = String(pickedYear);
+        yearsPanel.hidden = true;
+        monthsPanel.hidden = false;
+        replayAnimation(monthsPanel);
+    }
+    function showYears() {
+        monthsPanel.hidden = true;
+        yearsPanel.hidden = false;
+        replayAnimation(yearsPanel);
+        setTimeout(() => {
+            const active = yearsPanel.querySelector('.is-active');
+            if (active) yearsPanel.scrollTop = Math.max(0, active.offsetTop - yearsPanel.clientHeight / 2);
+        }, 0);
+    }
 
-    const monthField = document.createElement('label');
-    monthField.className = 'table-cal-field';
-    const monthCap = document.createElement('span');
-    monthCap.textContent = t('month_label','Month');
-    monthField.appendChild(monthCap);
-    monthField.appendChild(monthSel);
-
-    grid.appendChild(yearField);
-    grid.appendChild(monthField);
-    pop.appendChild(grid);
-
-    const apply = () => {
-        const y = parseInt(yearSel.value,10);
-        const m = parseInt(monthSel.value,10);
-        if (isNaN(y) || isNaN(m)) return;
-        currentYear = y;
-        currentMonth = m;
-        calReopen = true;
-        loadPageWithMonth();
-    };
-    yearSel.onchange = apply;
-    monthSel.onchange = apply;
+    pop.appendChild(yearsPanel);
+    pop.appendChild(monthsPanel);
+    setTimeout(showYears, 0);
     return pop;
 }
 
@@ -368,7 +427,7 @@ function loadPageWithMonth() {
         if (pop) pop.classList.add('open');
         calReopen = false;
     }
-    loadPage();
+    loadPage(1);
 }
 
 function getMonthDateRange() {
@@ -2121,8 +2180,9 @@ function saveGoalEditor(){
 let currentStoreId=null,storePhotoFile=null,pendingOCRStoreRaw='',storePhotoObjectUrl='';
 const cropIconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>';
 const storeCategoryIcons={food:'M4 10h16M6 10l1 10h10l1-10M8 10V6a4 4 0 0 1 8 0v4',groceries:'M4 10h16M6 10l1 10h10l1-10M9 10V7a3 3 0 0 1 6 0v3',cafes:'M5 8h12v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V8Zm12 2h2a2 2 0 0 1 0 4h-2M6 4h10',clothes:'M16 4l4 4-3 3v9H7v-9L4 8l4-4 2 2h4l2-2Z',shoes:'M4 15c4 0 7-1 10-5l6 5v3H4v-3Z',home:'M3 11l9-7 9 7v9H5v-9Zm6 9v-6h6v6',apartment:'M6 21V3h12v18M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2',utilities:'M13 2 5 14h6l-1 8 8-12h-6l1-8Z',transport:'M6 17h12l1-6-2-5H7l-2 5 1 6Zm1 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',car:'M5 16h14l-1-5-2-4H8l-2 4-1 5Zm2 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',travel:'M3 11l18-8-8 18-2-8-8-2Z',health:'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Zm0-9v4m-2-2h4',pharmacy:'M10 3h4v6h6v4h-6v8h-4v-8H4V9h6V3Z',beauty:'M12 3c4 4 4 8 0 12-4-4-4-8 0-12Zm-6 18h12',children:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0',pets:'M5 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-7 2c3 0 6 3 6 6H6c0-3 3-6 6-6Z',build:'M4 20h16M7 20V9l5-5 5 5v11M9 12h6M9 16h6',education:'M3 7l9-4 9 4-9 4-9-4Zm4 4v5c3 2 7 2 10 0v-5',sports:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-6-9h12M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',electronics:'M4 5h16v11H4V5Zm6 15h4',subscriptions:'M7 7h10M7 12h10M7 17h6M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z',entertainment:'M7 4v16l10-8L7 4Z',gifts:'M20 12v8H4v-8M2 7h20v5H2V7Zm10 0v13M12 7C9 7 8 3 10 3s2 4 2 4Zm0 0c3 0 4-4 2-4s-2 4-2 4Z',services:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-13v3m0 14v3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M2 12h3m14 0h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',finance:'M4 7h16M6 7a6 6 0 0 1 12 0M6 7v13h12V7M9 12h6M9 16h6',taxes:'M6 2h9l5 5v15H6V2Zm8 0v6h6M9 13h6M9 17h4',insurance:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z',charity:'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z',other:'M12 3l9 5-9 5-9-5 9-5Zm-7 9 7 4 7-4M5 16l7 4 7-4'};
-const visEyeSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
-const visEyeOffSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>';
+// Material 3 outlined visibility / visibility_off.
+const visEyeSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.75 12 5.75 21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.25"/></svg>';
+const visEyeOffSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.75 12 5.75 21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.25"/><path d="M3.5 3.5 20.5 20.5"/></svg>';
 function storeCategoryIcon(key){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${storeCategoryIcons[key]||storeCategoryIcons.other}"/></svg>`;}
 function closeAddEditStoreModal(){pendingOCRStoreRaw='';closeModal('add-edit-store-modal');}
 function selectedStoreCategories(){return new Set((userSettings.stores||[]).filter(s=>String(s.id)!==String(currentStoreId)).map(s=>s.category||'other'));}
@@ -2132,13 +2192,13 @@ function previewStorePhoto(input){const file=input.files&&input.files[0];if(!fil
 function cropStorePhoto(){const p=document.getElementById('store-photo-preview');if(!p||!p.getAttribute('src'))return;currentCropType='pending-store';currentCropId='';const ci=document.getElementById('crop-image');ci.src=p.src;showModal('crop-modal');requestAnimationFrame(()=>{if(cropper)cropper.destroy();cropper=new Cropper(ci,{aspectRatio:1,viewMode:2,autoCropArea:.95,background:false,responsive:true,restore:false,checkOrientation:true,guides:true,center:true,dragMode:'move',cropBoxMovable:true,cropBoxResizable:true,minCropBoxWidth:40,minCropBoxHeight:40});});}
 function rekeyExpensesDataStore(oldN,newN){if(!oldN||oldN===newN)return;Object.keys(expensesData||{}).forEach(d=>{const o=expensesData[d];if(o&&Object.prototype.hasOwnProperty.call(o,oldN)){o[newN]=o[oldN];delete o[oldN];}});}
 function storePhotoUrl(s,withPhoto){if(!withPhoto||!s||!s.photo_url)return'';return `${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`;}
-function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(photoU){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
+function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.setAttribute('data-visible',s.visible!==false?'true':'false');row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(photoU){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
 function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
 function confirmDeleteStore(id,name){pendingConfirmAction=null;pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-title').textContent=translations.confirm_delete_store||t('confirm_action_title','Confirm action');document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store_message||`Delete store "${name}"?`;document.getElementById('confirm-delete-action').textContent=t('delete','Delete');showModal('confirm-delete-modal');}
 function executeDelete(){const action=pendingConfirmAction;pendingConfirmAction=null;closeModal('confirm-delete-modal');if(action){action();return;}if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
 function removeDataTableStoreColumnByName(storeName){const ths=document.querySelectorAll('#data-table thead th');let col=-1;ths.forEach((th,idx)=>{if(idx>0&&th.textContent.trim()===storeName)col=idx;});if(col<0)return;document.querySelectorAll('#data-table tr').forEach(tr=>{const c=tr.children[col];if(c)c.remove();});if(typeof updateChart==='function')updateChart();}
 function deleteStore(id,name){const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}const idS=String(id);userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name))delete expensesData[dt][name];});document.querySelector(`#store-list .store-item[data-store-id="${CSS.escape(idS)}"]`)?.remove();document.querySelector(`.store-visibility-table .visibility-toggle[data-store-id="${CSS.escape(idS)}"]`)?.closest('tr')?.remove();removeDataTableStoreColumnByName(name);refreshCategoryPicker();showNotification(translations.delete_store_ok||'Store deleted','success');closeModal('confirm-delete-modal');}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
-function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;scheduleSaveTableSettings();}
+function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;const row=btn.closest('.store-item');if(row)row.setAttribute('data-visible',nv?'true':'false');scheduleSaveTableSettings();}
 
 // ══ Crop modal ═════════════════════════════════════════════════════════════
 function closeCropModal(){closeModal('crop-modal');if(cropper){cropper.destroy();cropper=null;}}

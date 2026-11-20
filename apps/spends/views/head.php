@@ -984,6 +984,39 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         #manual-add-modal .manual-cal-select { min-height:0; padding:8px 26px 8px 10px; border-radius:8px; }
         .table-cal-pop select { min-height:0; padding:9px 30px 9px 10px; }
         .date-scroll select, .date-scroll select:not([multiple]) { min-height:0; padding:6px 26px 6px 8px; }
+
+        /* ── Settings panes stay narrower than the window ─────────────────── */
+        #settings-modal .modal-body, #add-edit-store-modal .modal-body { width:100%; max-width:920px; margin-inline:auto; }
+        @media (max-width:1000px) { #settings-modal .modal-body, #add-edit-store-modal .modal-body { max-width:100%; } }
+
+        /* ── Store categories: chips wrap instead of overlapping ───────────── */
+        .store-category-picker { grid-template-columns:repeat(auto-fit,minmax(152px,1fr)); }
+        .store-category-option { align-items:flex-start; min-height:44px; height:auto; }
+        .store-category-option span { flex:1 1 auto; min-width:0; white-space:normal; overflow-wrap:anywhere; line-height:1.25; font-size:13px; }
+
+        /* ── Native file inputs look like the rest of the app ──────────────── */
+        input[type="file"] { max-width:100%; box-sizing:border-box; padding:8px; background:var(--group-block-bg); color:var(--text-color); border:1px dashed var(--border-color); border-radius:10px; font-family:inherit; font-size:13px; cursor:pointer; }
+        input[type="file"]::file-selector-button { margin-inline-end:10px; padding:8px 14px; border:0; border-radius:999px; background:var(--primary-color); color:#fff; font-family:inherit; font-weight:700; font-size:13px; cursor:pointer; transition:filter .15s ease; }
+        input[type="file"]::file-selector-button:hover { filter:brightness(1.08); }
+
+        /* ── Hidden stores read as disabled ────────────────────────────────── */
+        .store-item { transition:opacity .18s ease, filter .18s ease; }
+        .store-item[data-visible="false"] { opacity:.5; filter:saturate(.35); }
+
+        /* ── Table calendar: pick a year, then a month ─────────────────────── */
+        .table-cal-panel { display:grid; gap:6px; animation:tableCalIn .16s ease both; }
+        .table-cal-panel[hidden] { display:none; }
+        .table-cal-years { grid-template-columns:repeat(4,minmax(0,1fr)); max-height:220px; overflow:auto; padding-right:2px; }
+        .table-cal-months { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        .table-cal-cell { padding:8px 4px; border:1px solid var(--border-color); border-radius:8px; background:var(--group-block-bg); color:var(--text-color); font-family:inherit; font-size:13px; font-weight:700; cursor:pointer; transition:background .14s ease, border-color .14s ease, transform .14s ease; }
+        .table-cal-cell:hover { background:rgba(var(--primary-color-rgb),.16); border-color:rgba(var(--primary-color-rgb),.55); }
+        .table-cal-cell:active { transform:scale(.97); }
+        .table-cal-cell.is-active { background:rgba(var(--primary-color-rgb),.2); border-color:var(--primary-color); color:var(--primary-color); }
+        .table-cal-head { grid-column:1/-1; display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:12px; font-weight:800; color:var(--muted-text); }
+        .table-cal-back { border:0; background:transparent; color:var(--primary-color); font-family:inherit; font-size:12px; font-weight:800; cursor:pointer; padding:3px 7px; border-radius:7px; }
+        .table-cal-back:hover { background:rgba(var(--primary-color-rgb),.14); }
+        @keyframes tableCalIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
+        #pagination button { min-width:34px; height:32px; padding:0 9px; border-radius:9px; font-family:inherit; font-size:13px; font-weight:700; }
 </style>
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
