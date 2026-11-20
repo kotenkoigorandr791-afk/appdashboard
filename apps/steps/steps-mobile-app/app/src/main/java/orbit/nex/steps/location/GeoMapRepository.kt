@@ -147,9 +147,6 @@ class GeoMapRepository(
     }.getOrNull()
 
     suspend fun loadDay(config: WebhookConfig, day: LocalDate): GeoMapData = withContext(Dispatchers.IO) {
-        // A bare date would be parsed by the server as UTC midnight, which drops
-        // the local first hours of the day. Send the local day as explicit
-        // instants: [local 00:00, local next 00:00).
         val generation = GeoMapChanges.revision.value
         val zone = java.time.ZoneId.systemDefault()
         val from = day.atStartOfDay(zone).toInstant().toString()
@@ -182,7 +179,7 @@ class GeoMapRepository(
                 }
                 val parsed = parse(JSONObject(body))
                 if (parsed.error == null && generation == GeoMapChanges.revision.value) runCatching { cacheFile(config, day)?.writeText(body) }
-                parsed
+                mergeVisitWindow(config, day, parsed)
             }
         }.getOrElse { error ->
             GeoMapData(error = error.message ?: "network")
@@ -248,7 +245,7 @@ class GeoMapRepository(
                         lon = lon,
                         label = when (layer) {
                             "place" -> properties.optString("name").ifBlank { null }
-                            "visit" -> properties.optString("place_name").ifBlank { null }
+                            "visit" -> properties.optString("place_name").ifBlank { properties.optString("category") }.ifBlank { properties.optString("detection_status") }.ifBlank { null }
                             else -> null
                         },
                         count = properties.optInt("count", 1),
@@ -269,6 +266,28 @@ class GeoMapRepository(
             heat.asSequence().flatMap { line -> line.path.asSequence().map { it.lat to it.lon } } +
             speed.asSequence().flatMap { segment -> segment.path.asSequence().map { it.lat to it.lon } })
         return GeoMapData(trips = trips, points = points, heat = heat, speed = speed, bbox = bbox)
+    }
+
+
+    private fun mergeVisitWindow(config: WebhookConfig, day: LocalDate, base: GeoMapData): GeoMapData {
+        if (base.error != null) return base
+        return runCatching {
+            val zone = java.time.ZoneId.systemDefault()
+            val from = day.minusDays(29).atStartOfDay(zone).toInstant().toString()
+            val to = day.plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1).toString()
+            val url = apiBase(config) + "/geolocation_map?from=$from&to=$to&zoom=$MAP_ZOOM&layers=visits"
+            val request = Request.Builder().url(url)
+                .apply { config.headers.forEach { (k, v) -> addHeader(k, v) }; addHeader("X-Device-Id", prefs.getDeviceId()); addHeader("Accept", "application/json") }
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use base
+                val extra = parse(JSONObject(response.body?.string().orEmpty()))
+                if (extra.error != null) return@use base
+                val existing = base.points.filter { it.layer == "visit" }.map { "${it.lat}:${it.lon}:${it.label}" }.toSet()
+                val mergedVisits = extra.points.filter { it.layer == "visit" && "${it.lat}:${it.lon}:${it.label}" !in existing }
+                base.copy(points = base.points + mergedVisits, bbox = base.bbox ?: extra.bbox)
+            }
+        }.getOrDefault(base)
     }
 
     private fun readLine(coordinates: JSONArray?): List<GeoLatLon> {

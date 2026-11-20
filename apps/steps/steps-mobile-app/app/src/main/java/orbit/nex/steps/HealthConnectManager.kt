@@ -1667,6 +1667,166 @@ class HealthConnectManager(private val context: Context) {
         val max: Double? = null
     )
 
+    data class DailyMetricPoint(val date: java.time.LocalDate, val value: Double)
+    data class MetricSeries(
+        val points: List<DailyMetricPoint>,
+        val todayValue: Double?,
+        val todayLabel: String,
+        val unitLabel: String,
+        val average: Double,
+        val peak: Double,
+        val records: Int,
+    )
+
+    suspend fun readMetricSeries(type: HealthDataType, days: Long = 30): Result<MetricSeries> = runCatching {
+        val zone = ZoneId.systemDefault()
+        val today = LocalDate.now(zone)
+        val startDay = today.minusDays(days - 1)
+        val points = mutableListOf<DailyMetricPoint>()
+        var day = startDay
+        while (!day.isAfter(today)) {
+            val start = day.atStartOfDay(zone).toInstant()
+            val end = day.plusDays(1).atStartOfDay(zone).toInstant()
+            val value = dailyMetricValue(type, start, end)
+            if (value != null && value > 0.0) points += DailyMetricPoint(day, value)
+            day = day.plusDays(1)
+        }
+        val todayValue = points.lastOrNull { it.date == today }?.value
+            ?: dailyMetricValue(type, today.atStartOfDay(zone).toInstant(), Instant.now())
+        val values = points.map { it.value }
+        MetricSeries(
+            points = points,
+            todayValue = todayValue,
+            todayLabel = formatMetricValue(type, todayValue),
+            unitLabel = metricUnit(type),
+            average = if (values.isEmpty()) 0.0 else values.average(),
+            peak = values.maxOrNull() ?: 0.0,
+            records = points.size,
+        )
+    }
+
+    enum class MetricStatus { READY, EMPTY, DENIED, ERROR }
+
+    data class MetricProbe(
+        val status: MetricStatus,
+        val todayLabel: String,
+        val hasChart: Boolean,
+        val records30d: Int = 0,
+    )
+
+    suspend fun probeMetric(type: HealthDataType, granted: Boolean, days: Long = 30): MetricProbe {
+        if (!granted) {
+            return MetricProbe(MetricStatus.DENIED, DashboardFormatter.NO_DATA, hasChart = false)
+        }
+        return runCatching {
+            val zone = ZoneId.systemDefault()
+            val today = LocalDate.now(zone)
+            val rangeStart = today.minusDays(days - 1).atStartOfDay(zone).toInstant()
+            val now = Instant.now()
+            val todayStart = today.atStartOfDay(zone).toInstant()
+            val todayValue = dailyMetricValue(type, todayStart, now)
+            val hasRange = hasAnyData(type, rangeStart, now)
+            val label = formatMetricValue(type, todayValue)
+            when {
+                hasRange -> MetricProbe(MetricStatus.READY, label, hasChart = true, records30d = if (todayValue != null) 1 else days.toInt())
+                else -> MetricProbe(MetricStatus.EMPTY, DashboardFormatter.NO_DATA, hasChart = false, records30d = 0)
+            }
+        }.getOrElse {
+            MetricProbe(MetricStatus.ERROR, DashboardFormatter.NO_DATA, hasChart = false)
+        }
+    }
+
+    suspend fun readMetricLiveLabel(type: HealthDataType): String = runCatching {
+        val zone = ZoneId.systemDefault()
+        val start = LocalDate.now(zone).atStartOfDay(zone).toInstant()
+        formatMetricValue(type, dailyMetricValue(type, start, Instant.now()))
+    }.getOrDefault(DashboardFormatter.NO_DATA)
+
+    private suspend fun hasAnyData(type: HealthDataType, start: Instant, end: Instant): Boolean =
+        dailyMetricValue(type, start, end) != null
+
+    private suspend fun dailyMetricValue(type: HealthDataType, start: Instant, end: Instant): Double? = try {
+        when (type) {
+            HealthDataType.STEPS -> aggregateSteps(start, end).toDouble().takeIf { it > 0 }
+            HealthDataType.DISTANCE -> aggregateDistanceMeters(start, end).takeIf { it > 0 }
+            HealthDataType.ACTIVE_CALORIES -> aggregateActiveCalories(start, end).takeIf { it > 0 }
+            HealthDataType.TOTAL_CALORIES -> aggregateTotalCalories(start, end).takeIf { it > 0 }
+            HealthDataType.SLEEP -> {
+                val minutes = DashboardFormatter.sumDurationsMinutes(
+                    readSleepSessionsInRange(start, end).map { java.time.Duration.between(it.startTime, it.endTime) },
+                )
+                minutes.toDouble().takeIf { it > 0 }
+            }
+            HealthDataType.HEART_RATE -> averageHeartRateBpm(start, end)
+            HealthDataType.HEART_RATE_VARIABILITY -> averageHeartRateVariabilityMs(start, end)
+            HealthDataType.RESPIRATORY_RATE -> averageRespiratoryRate(start, end)
+            HealthDataType.WEIGHT -> readWeightData(start, end, null).maxByOrNull { it.time }?.kilograms
+            HealthDataType.HEIGHT -> readHeightData(start, end, null).maxByOrNull { it.time }?.meters?.times(100.0)
+            HealthDataType.RESTING_HEART_RATE -> readRestingHeartRateData(start, end, null).map { it.bpm.toDouble() }.average().takeIf { !it.isNaN() && it > 0 }
+            HealthDataType.OXYGEN_SATURATION -> readOxygenSaturationData(start, end, null).mapNotNull { it.percentage }.average().takeIf { !it.isNaN() }
+            HealthDataType.BODY_TEMPERATURE -> readBodyTemperatureData(start, end, null).mapNotNull { it.celsius }.average().takeIf { !it.isNaN() }
+            HealthDataType.HYDRATION -> readHydrationData(start, end, null).sumOf { it.liters }.takeIf { it > 0 }
+            HealthDataType.BODY_FAT -> readBodyFatData(start, end, null).maxByOrNull { it.time }?.percentage
+            HealthDataType.VO2_MAX -> readVo2MaxData(start, end, null).maxByOrNull { it.time }?.mlPerKgPerMin
+            HealthDataType.EXERCISE -> readExerciseData(start, end, null, includeDistance = false, includeSteps = false).sumOf { it.duration.toMinutes().toDouble() }.takeIf { it > 0 }
+            HealthDataType.BLOOD_PRESSURE -> readBloodPressureData(start, end, null).maxByOrNull { it.time }?.let { it.systolic }
+            HealthDataType.BLOOD_GLUCOSE -> readBloodGlucoseData(start, end, null).maxByOrNull { it.time }?.mmolPerLiter
+            HealthDataType.SKIN_TEMPERATURE -> readSkinTemperatureData(start, end, null).maxByOrNull { it.time }?.deltaCelsius
+            HealthDataType.NUTRITION -> readNutritionData(start, end, null).mapNotNull { it.calories }.sum().takeIf { it > 0 }
+            HealthDataType.BASAL_METABOLIC_RATE -> readBasalMetabolicRateData(start, end, null).maxByOrNull { it.time }?.watts
+            HealthDataType.LEAN_BODY_MASS -> readLeanBodyMassData(start, end, null).maxByOrNull { it.time }?.kilograms
+            HealthDataType.BODY_WATER_MASS -> readBodyWaterMassData(start, end, null).maxByOrNull { it.time }?.kilograms
+            HealthDataType.BONE_MASS -> readBoneMassData(start, end, null).maxByOrNull { it.time }?.kilograms
+            HealthDataType.MENSTRUATION_FLOW -> readMenstruationFlowData(start, end, null).size.toDouble().takeIf { it > 0 }
+            HealthDataType.MENSTRUATION_PERIOD -> readMenstruationPeriodData(start, end, null).size.toDouble().takeIf { it > 0 }
+            HealthDataType.INTERMENSTRUAL_BLEEDING -> readIntermenstrualBleedingData(start, end, null).size.toDouble().takeIf { it > 0 }
+            HealthDataType.OVULATION_TEST -> readOvulationTestData(start, end, null).size.toDouble().takeIf { it > 0 }
+            HealthDataType.CERVICAL_MUCUS -> readCervicalMucusData(start, end, null).size.toDouble().takeIf { it > 0 }
+            HealthDataType.SEXUAL_ACTIVITY -> readSexualActivityData(start, end, null).size.toDouble().takeIf { it > 0 }
+            HealthDataType.BASAL_BODY_TEMPERATURE -> readBasalBodyTemperatureData(start, end, null).maxByOrNull { it.time }?.celsius
+        }
+    } catch (_: Exception) { null }
+
+    private fun formatMetricValue(type: HealthDataType, value: Double?): String {
+        if (value == null) return DashboardFormatter.NO_DATA
+        return when (type) {
+            HealthDataType.STEPS -> DashboardFormatter.formatSteps(value.toLong())
+            HealthDataType.DISTANCE -> DashboardFormatter.formatDistanceKm(value)
+            HealthDataType.ACTIVE_CALORIES, HealthDataType.TOTAL_CALORIES -> DashboardFormatter.formatCalories(value)
+            HealthDataType.SLEEP, HealthDataType.EXERCISE -> {
+                val hours = value / 60.0
+                if (hours >= 1) "%.1f hrs".format(hours) else DashboardFormatter.formatDurationMinutes(value.toLong())
+            }
+            HealthDataType.HEART_RATE, HealthDataType.RESTING_HEART_RATE -> DashboardFormatter.formatAverageBpm(value)
+            HealthDataType.HEART_RATE_VARIABILITY -> DashboardFormatter.formatHeartRateVariabilityMs(value)
+            HealthDataType.WEIGHT -> DashboardFormatter.formatWeightKg(value)
+            HealthDataType.HEIGHT -> "%.0f".format(value)
+            HealthDataType.OXYGEN_SATURATION, HealthDataType.BODY_FAT -> DashboardFormatter.formatPercentage(value)
+            HealthDataType.BODY_TEMPERATURE, HealthDataType.SKIN_TEMPERATURE, HealthDataType.BASAL_BODY_TEMPERATURE -> DashboardFormatter.formatCelsius(value)
+            HealthDataType.RESPIRATORY_RATE -> DashboardFormatter.formatRespiratoryRate(value)
+            HealthDataType.HYDRATION -> DashboardFormatter.formatLiters(value)
+            HealthDataType.VO2_MAX -> DashboardFormatter.formatVo2Max(value)
+            HealthDataType.BLOOD_PRESSURE -> "%.0f".format(value)
+            HealthDataType.BLOOD_GLUCOSE -> DashboardFormatter.formatBloodGlucose(value)
+            HealthDataType.NUTRITION, HealthDataType.BASAL_METABOLIC_RATE -> "%.0f".format(value)
+            HealthDataType.LEAN_BODY_MASS, HealthDataType.BODY_WATER_MASS, HealthDataType.BONE_MASS -> DashboardFormatter.formatWeightKg(value)
+            else -> "%.1f".format(value)
+        }
+    }
+
+    private fun metricUnit(type: HealthDataType): String = when (type) {
+        HealthDataType.STEPS -> "steps"
+        HealthDataType.DISTANCE -> "km"
+        HealthDataType.ACTIVE_CALORIES, HealthDataType.TOTAL_CALORIES -> "kcal"
+        HealthDataType.SLEEP, HealthDataType.EXERCISE -> "hrs"
+        HealthDataType.HEART_RATE, HealthDataType.RESTING_HEART_RATE -> "bpm"
+        HealthDataType.HEART_RATE_VARIABILITY -> "ms"
+        HealthDataType.WEIGHT -> "kg"
+        HealthDataType.HEIGHT -> "cm"
+        HealthDataType.HYDRATION -> "L"
+        else -> ""
+    }
+
     private suspend fun aggregateSteps(startTime: Instant, endTime: Instant): Long {
         val request = AggregateRequest(
             metrics = setOf(StepsRecord.COUNT_TOTAL),
@@ -2070,9 +2230,9 @@ class HealthConnectManager(private val context: Context) {
 
     suspend fun getGrantedPermissions(): Set<String> {
         if (!isHealthConnectAvailable()) return emptySet()
-        return healthConnectClient.permissionController.getGrantedPermissions() + ALL_PERMISSIONS.filter { permission ->
-            context.packageManager.checkPermission(permission, context.packageName) == PackageManager.PERMISSION_GRANTED
-        }
+        // Use Health Connect's own permission controller so revoked/pending grants
+        // are not papered over by PackageManager install-time declarations.
+        return healthConnectClient.permissionController.getGrantedPermissions()
     }
 
     suspend fun requestPermissions(permissions: Set<String>): android.content.Intent {

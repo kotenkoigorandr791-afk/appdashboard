@@ -1215,9 +1215,9 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
         mapView.overlays.add(HeatmapOverlay(data.heat))
     }
 
-    fun addPoints(layerKey: String, color: Int, border: Int, sizeDp: Int, title: (GeoPointFeature) -> String?) {
-        if (layerKey !in layers) return
-        data.points.filter { it.layer == layerKey }.forEach { feature ->
+    fun addPoints(featureLayer: String, toggleKey: String, color: Int, border: Int, sizeDp: Int, title: (GeoPointFeature) -> String?) {
+        if (toggleKey !in layers) return
+        data.points.filter { it.layer == featureLayer }.forEach { feature ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
@@ -1228,12 +1228,12 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
         }
     }
 
-    if (GeoLayer.POINTS.key in layers) {
-        addPoints("stop", stopColor, AndroidColor.WHITE, 14) { feature ->
-            if (feature.count > 1) feature.count.toString() else null
-        }
-        addPoints("place", placeColor, AndroidColor.WHITE, 16) { it.label }
-        addPoints("visit", visitColor, AndroidColor.WHITE, 12) { it.label }
+    addPoints("stop", GeoLayer.STOPS.key, stopColor, AndroidColor.WHITE, 14) { feature ->
+        if (feature.count > 1) feature.count.toString() else null
+    }
+    addPoints("place", GeoLayer.PLACES.key, placeColor, AndroidColor.WHITE, 16) { it.label }
+    addPoints("visit", GeoLayer.VISITS.key, visitColor, AndroidColor.WHITE, 14) { feature ->
+        feature.label ?: mapView.context.getString(R.string.visit_unidentified)
     }
     // Raw points and aggregated clusters are decoration: dense days would be
     // unreadable as markers, so only clustered positions are drawn.

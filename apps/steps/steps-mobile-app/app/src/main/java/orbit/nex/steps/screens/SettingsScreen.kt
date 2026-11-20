@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -255,7 +256,6 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
     // â”€â”€ App settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
-    var permissionsSheetOpen by remember { mutableStateOf(false) }
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
     var autoUpdate by remember { mutableStateOf(prefs.isAutoUpdateEnabled()) }
     var syncMode by remember { mutableStateOf(prefs.getSyncMode()) }
@@ -671,30 +671,11 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 // â”€â”€ Permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (section == SettingsSection.PERMISSIONS) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(stringResource(R.string.perms_title), style = MaterialTheme.typography.titleMedium)
-                            val grantedCount = HealthDataType.entries.count { type ->
-                                HealthPermission.getReadPermission(type.recordClass) in grantedPermissions
-                            }
-                            Text(
-                                stringResource(R.string.perms_granted_summary, grantedCount, HealthDataType.entries.size),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Button(
-                                onClick = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.action_grant_permissions), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                            }
-                            OutlinedButton(onClick = { permissionsSheetOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text(stringResource(R.string.config_action_view_perms))
-                            }
-                        }
-                    }
+                    HealthPermissionsScreen(
+                        grantedPermissionsSet = grantedPermissions,
+                        onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
+                        modifier = Modifier.fillMaxWidth().height(780.dp),
+                    )
                 }
                 }
 
@@ -950,13 +931,6 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
             }
             }
         }
-    }
-
-    if (permissionsSheetOpen) {
-        PermissionsBottomSheet(
-            grantedPermissionsSet = grantedPermissions,
-            onDismiss = { permissionsSheetOpen = false },
-        )
     }
 
     if (showExportSheet) {

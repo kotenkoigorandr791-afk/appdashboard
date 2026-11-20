@@ -349,7 +349,7 @@ class LocationLibraryRepository(
             val confidence = if (row.isNull("confidence")) "" else "${(row.optDouble("confidence") * 100).toInt()}%"
             entries += LibraryEntry(
                 id = row.optString("id"),
-                title = row.optString("place_name"),
+                title = row.optString("place_name").ifBlank { row.optString("display_name") }.ifBlank { row.optString("category") }.ifBlank { "—" },
                 subtitle = listOf(formatTimestamp(arrived), formatTimestamp(departed))
                     .filter { it.isNotBlank() }.joinToString(" — ") + row.optLong("duration_s").takeIf { it > 0 }?.let { " · " + duration(it) }.orEmpty(),
                 meta = listOf(row.optString("category"), row.optString("place_tag"), confidence, row.optString("address"))
