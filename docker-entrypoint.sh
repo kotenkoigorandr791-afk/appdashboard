@@ -78,10 +78,10 @@ chmod 0770 "$APPDATA_TMP_DIR" "$APPDATA_NGINX_TMP_DIR" 2>/dev/null || true
 sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf 2>/dev/null || true
 if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   sed -i 's/^pm = .*/pm = dynamic/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-200}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-30}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-20}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-60}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-48}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-24}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-16}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-32}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   sed -i 's/^;\?pm.max_requests = .*/pm.max_requests = '"${PHP_FPM_MAX_REQUESTS:-500}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   grep -q '^pm.max_requests' /usr/local/etc/php-fpm.d/www.conf || printf '\npm.max_requests = %s\n' "${PHP_FPM_MAX_REQUESTS:-500}" >> /usr/local/etc/php-fpm.d/www.conf
   sed -i 's/^;\?listen.backlog = .*/listen.backlog = 4096/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true

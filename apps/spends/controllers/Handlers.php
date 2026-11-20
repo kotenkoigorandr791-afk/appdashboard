@@ -8,6 +8,7 @@ require_once __DIR__ . '/../core/goals.php';
 require_once __DIR__ . '/../core/rates.php';
 require_once __DIR__ . '/../core/tags.php';
 require_once __DIR__ . '/../core/mobile_sync.php';
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') register_shutdown_function('spends_mobile_invalidate_snapshot');
 require_once __DIR__ . '/../core/file_index.php';
 
 // Mobile companion: profile probe used after QR pairing.

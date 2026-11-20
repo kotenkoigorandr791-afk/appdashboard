@@ -163,6 +163,10 @@ function isUserRoot() {
     return false;
 }
 define('SPENDS_RUNTIME_DIR_MODE', 02775);
+function spends_chmod_if_needed(string $dir): void {
+    $perms = @fileperms($dir);
+    if ($perms === false || ($perms & 07777) !== SPENDS_RUNTIME_DIR_MODE) @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
+}
 function logError($message) { error_log("[ExpenseApp] $message"); }
 function spends_storage_helper_path(): string {
     return dirname(__DIR__, 3) . '/storage_helper.php';
@@ -178,7 +182,7 @@ function spends_appdata_subdir(string $name): ?string {
     }
     $dir = $name === '' ? rtrim($base, '/') : (rtrim($base, '/') . '/' . $name);
     if (!is_dir($dir)) @mkdir($dir, SPENDS_RUNTIME_DIR_MODE, true);
-    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
+    spends_chmod_if_needed($dir);
     return is_dir($dir) ? $dir : null;
 }
 function spends_dir_writable(string $dir): bool {
@@ -194,7 +198,6 @@ function spends_runtime_dir(string $name): string {
     // "users/...", served through an nginx alias to this directory.
     $appdata = spends_appdata_subdir($name);
     if ($appdata !== null) {
-        @chmod($appdata, SPENDS_RUNTIME_DIR_MODE);
         return rtrim($appdata, '/') . '/';
     }
     logError("APPDATA unavailable for spends/$name");
@@ -207,7 +210,7 @@ function checkDirectory($dir) {
             return false;
         }
     }
-    @chmod($dir, SPENDS_RUNTIME_DIR_MODE);
+    spends_chmod_if_needed($dir);
     if (!spends_dir_writable($dir)) {
         logError("Directory $dir is not writable");
         return false;

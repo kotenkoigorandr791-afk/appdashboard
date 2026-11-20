@@ -43,7 +43,7 @@ test.describe('spends — mobile sync API', () => {
             headers: {
               ...(i?.headers || {}),
               Authorization: `Bearer ${tok}`,
-              'X-Device-Id': 'e2e-playwright',
+              'X-Device-Id': 'e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0',
               Accept: 'application/json',
             },
           });

@@ -41,7 +41,9 @@ function getDB(): AppDatabase {
         // contents on every request: hash_file() opened two extra descriptors per
         // getDB() call, which contributed to "Too many open files" under load.
         $schemaKey = app_db_schema_fingerprint(__FILE__) . ':' . app_db_schema_fingerprint(__DIR__ . '/lib/pg_foreign_keys.php');
-        if (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey || !app_db_schema_ready($db)) {
+        $readyMarker = sys_get_temp_dir() . '/appdash_schema_ready_' . md5($schemaKey);
+        $fresh = is_file($readyMarker) && (time() - (int)@filemtime($readyMarker)) < 60;
+        if (!$fresh && (!is_file($schemaStamp) || trim((string)@file_get_contents($schemaStamp)) !== $schemaKey || !app_db_schema_ready($db))) {
             // Bootstrap (or bootstrap after a restore) ran: every schema_once stamp
             // refers to a schema that may not match the DB, so drop them and let all
             // ensure* gates run again for this version.
@@ -50,6 +52,7 @@ function getDB(): AppDatabase {
             initDB($db);
             @file_put_contents($schemaStamp, $schemaKey, LOCK_EX);
         }
+        if (!$fresh) @touch($readyMarker);
     }
     return $db;
 }
@@ -3279,12 +3282,14 @@ function verifyAndConsumeOTP(string $pin): ?string {
  * lock_type: 'otp' | 'login' | 'register' | 'reset_email' | 'admin_gate'
  */
 function getLockout(string $ip, string $lockType): array {
+    $memoKey = $ip . '|' . $lockType;
+    if (isset($GLOBALS['__lockout_memo'][$memoKey])) return $GLOBALS['__lockout_memo'][$memoKey];
     $db   = getDB();
     $stmt = $db->prepare("SELECT * FROM ip_lockouts WHERE ip=:ip AND lock_type=:t LIMIT 1");
     $stmt->bindValue(':ip', $ip);
     $stmt->bindValue(':t',  $lockType);
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
-    return $row ?: [
+    return $GLOBALS['__lockout_memo'][$memoKey] = $row ?: [
         'ip'           => $ip,
         'lock_type'    => $lockType,
         'attempts'     => 0,
@@ -3305,6 +3310,7 @@ function getLockout(string $ip, string $lockType): array {
 function recordFailedAttempt(string $ip, string $lockType): void {
     $db      = getDB();
     $lockout = getLockout($ip, $lockType);
+    unset($GLOBALS['__lockout_memo'][$ip . '|' . $lockType]);
     $now     = time();
 
     // If old lockout has already expired — reset counter
@@ -3348,6 +3354,9 @@ function recordFailedAttempt(string $ip, string $lockType): void {
  * Resets failed attempts counter after successful login.
  */
 function resetFailedAttempts(string $ip, string $lockType): void {
+    $known = $GLOBALS['__lockout_memo'][$ip . '|' . $lockType] ?? null;
+    if ($known !== null && (int)($known['attempts'] ?? 0) === 0 && empty($known['locked_until'])) return;
+    unset($GLOBALS['__lockout_memo'][$ip . '|' . $lockType]);
     $db   = getDB();
     $stmt = $db->prepare("DELETE FROM ip_lockouts WHERE ip=:ip AND lock_type=:t");
     $stmt->bindValue(':ip', $ip);

@@ -4,7 +4,9 @@ import { login } from '../helpers/shell';
 type ShareApiResult = { status: number; json: any };
 
 async function shareApi(page: Page, payload: Record<string, unknown>): Promise<ShareApiResult> {
+  const csrf = await page.evaluate(() => String((window as any).SHAREPOINT_CSRF || ''));
   const res = await page.request.post('/apps/spends/api/share.php', {
+    headers: { 'X-SharePoint-CSRF': csrf },
     data: payload,
     failOnStatusCode: false,
   });
@@ -36,7 +38,8 @@ async function revokeChartLinks(page: Page): Promise<void> {
 }
 
 async function openShareModal(page: Page) {
-  await page.locator('.header-buttons .header-btn[onclick="showShareModal()"]').click();
+  await page.locator('#profile-menu-btn').click();
+  await page.locator('#profile-menu [onclick="showShareModal()"]').click();
   const modal = page.locator('.sp-share-modal');
   await expect(modal).toBeVisible();
   return modal;

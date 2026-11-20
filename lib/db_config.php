@@ -101,18 +101,23 @@ function app_db_is_transient_connection_error(Throwable $e): bool {
     }
     return false;
 }
-function app_pdo_open(array $c): PDO {
+function app_pdo_open(array $c, string $persistTag = ''): PDO {
     $timeout = max(1, (int)$c['connect_timeout']);
     $host = app_db_normalize_host((string)$c['host']);
     if ($host === '') {
         throw new PDOException('Database host is not configured');
     }
     $dsn = sprintf('pgsql:host=%s;port=%s;dbname=%s;sslmode=%s;connect_timeout=%d', $host, $c['port'], $c['name'], $c['sslmode'], $timeout);
-    $pdo = new PDO($dsn, $c['user'], $c['password'], [
+    $opts = [
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES => true,
-    ]);
+    ];
+    if ($persistTag !== '' && getenv('APP_DB_PERSISTENT') !== '0') {
+        $dsn .= ';application_name=appdash_' . preg_replace('/[^a-z0-9_]/', '', $persistTag);
+        $opts[PDO::ATTR_PERSISTENT] = true;
+    }
+    $pdo = new PDO($dsn, $c['user'], $c['password'], $opts);
     if (!app_db_skip_session_init()) {
         $pdo->exec("SET client_encoding TO 'UTF8'");
         $pdo->exec("SET timezone TO 'UTC'");
@@ -121,7 +126,7 @@ function app_pdo_open(array $c): PDO {
     foreach ((array)($GLOBALS['app_db_extra_session_sql'] ?? []) as $q) $pdo->exec((string)$q);
     return $pdo;
 }
-function app_pdo_connect(bool $fresh = false): PDO {
+function app_pdo_connect(bool $fresh = false, string $persistTag = ''): PDO {
     static $pdo = null;
     if (!$fresh && $pdo instanceof PDO) {
         try {
@@ -141,7 +146,7 @@ function app_pdo_connect(bool $fresh = false): PDO {
     $last = null;
     for ($attempt = 1; $attempt <= $retries; $attempt++) {
         try {
-            $new = app_pdo_open($c);
+            $new = app_pdo_open($c, $persistTag);
             if (!$fresh) $pdo = $new;
             return $new;
         } catch (PDOException $e) {

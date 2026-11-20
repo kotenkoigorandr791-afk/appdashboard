@@ -5,8 +5,10 @@ $currentUserFolder = getSafeFolderName($currentUserEmail);
 $currentUser = $currentUserEmail;
 
 $userDir = APPS_DATA_DIR . $currentUserFolder;
-if (!file_exists($userDir)) mkdir($userDir, SPENDS_RUNTIME_DIR_MODE, true);
-@chmod($userDir, SPENDS_RUNTIME_DIR_MODE);
+if (!is_dir($userDir)) {
+    mkdir($userDir, SPENDS_RUNTIME_DIR_MODE, true);
+    @chmod($userDir, SPENDS_RUNTIME_DIR_MODE);
+}
 
 $udb = getUserSQLite($currentUserEmail);
 spendsSubscriptionsSync($udb);
