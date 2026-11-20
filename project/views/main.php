@@ -977,8 +977,10 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:62px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
-        .notifications-actions{display:flex;gap:8px;align-items:center;}
-        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;position:relative;overflow:visible;}
+        /* stretch keeps both header buttons at one height even when a longer
+           translation wraps to a second line, at any font scale. */
+        .notifications-actions{display:flex;gap:8px;align-items:stretch;min-width:0;}
+        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;position:relative;overflow:visible;min-height:32px;line-height:1.2;text-align:center;}
         .notifications-actions button svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
         .notifications-actions button.mark-read-done{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3);}
