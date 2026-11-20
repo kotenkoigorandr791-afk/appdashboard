@@ -112,6 +112,10 @@ ensure_data "$ROOT/apps/recipes/recipes" "$APPDATA_BASE/recipes/recipes" dir
 
 # steps
 ensure_dir "$APPDATA_BASE/steps"
+ensure_dir "$APPDATA_BASE/steps/place-photos"
+ensure_dir "$APPDATA_BASE/steps/place-photos/node"
+ensure_dir "$APPDATA_BASE/steps/place-photos/way"
+ensure_dir "$APPDATA_BASE/steps/place-photos/relation"
 ensure_data "$ROOT/apps/steps/users" "$APPDATA_BASE/steps" dir
 ensure_data "$ROOT/apps/steps/upload_sessions" "$APPDATA_BASE/steps/upload_sessions" dir
 

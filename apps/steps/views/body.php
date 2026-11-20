@@ -435,11 +435,20 @@ $metricButtons = [
                     function selectProvider(key){
                         const p=providers[key]||providers.osm;
                         if(!map||!p) return;
-                        if(map._tileLayer) map.removeLayer(map._tileLayer);
-                        // Tiles go through the app's disk cache, so repeated pans and
-                        // revisits do not re-download the same images from upstream.
-                        const tileUrl='/apps/steps/api/map_tiles.php?provider='+encodeURIComponent(key)+'&z={z}&x={x}&y={y}';
-                        map._tileLayer=window.L.tileLayer(tileUrl,{attribution:p.attribution,maxZoom:p.max_zoom||19,keepBuffer:4,updateWhenIdle:false,crossOrigin:true,className:'map-tiles'}).addTo(map);
+                        if(map._tileLayer){ map.removeLayer(map._tileLayer); map._tileLayer=null; }
+                        // Browser loads upstream tiles directly (avoids proxy 502 noise when
+                        // the container has no egress). CDN + keepBuffer keep day flips warm.
+                        const tileUrl=String(p.url||'');
+                        if(!tileUrl) return;
+                        map._tileLayer=window.L.tileLayer(tileUrl,{
+                            attribution:p.attribution,
+                            maxZoom:p.max_zoom||19,
+                            keepBuffer:8,
+                            updateWhenIdle:true,
+                            updateWhenZooming:false,
+                            crossOrigin:true,
+                            className:'map-tiles',
+                        }).addTo(map);
                         canvas.dataset.provider=key;
                     }
                     function makeMap(L){
@@ -563,7 +572,15 @@ $metricButtons = [
                                 photoMarker.bindPopup(photoPopup);
                             } else if(p.layer==='visit'){
                                 const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
-                                const vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#ffffff',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
+                                const [vlon,vlat]=feature.geometry.coordinates;
+                                let vm;
+                                if(p.photo_url){
+                                    const size=Math.max(28, baseRadius*4+16);
+                                    const photoSrc=String(p.photo_url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+                                    vm=L.marker([vlat,vlon],{keyboard:false,icon:L.divIcon({className:'map-place-photo',html:'<span class="map-place-photo-ring" style="border-color:'+vc+'"><img src="'+photoSrc+'" alt="" loading="lazy" decoding="async"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                } else {
+                                    vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#ffffff',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
+                                }
                                 vm.unbindPopup(); vm.bindPopup(()=>visitPopup(p));
                                 vm.on('contextmenu',ev=>{ window.L.DomEvent.stop(ev); openMapMenu(ev.latlng,ev.originalEvent,p); });
                             } else if(p.layer==='point'){
@@ -1321,10 +1338,15 @@ $metricButtons = [
                     }
                     function visitPopup(p){
                         const div=document.createElement('div');
+                        if(p.photo_url){
+                            const av=document.createElement('div'); av.className='visit-pop-photo';
+                            const img=document.createElement('img'); img.src=p.photo_url; img.alt=''; img.loading='lazy'; av.appendChild(img); div.appendChild(av);
+                        }
                         const head=document.createElement('div'); head.className='visit-pop-head';
                         const strong=document.createElement('strong'); strong.textContent=p.place_name||tr('visit_unidentified','Unidentified place'); head.appendChild(strong); head.appendChild(chip(p.detection_status)); div.appendChild(head);
                         const lines=[p.category,[fmtAt(p.arrived_at),fmtAt(p.departed_at)].filter(Boolean).join(' → '),tr('visit_duration','Duration')+': '+fmtDur(p.dwell_s),p.confidence!=null?tr('visit_confidence','Confidence')+': '+Math.round(p.confidence*100)+'%':'',p.address,p.visit_count>1?tr('visit_count','Visits')+': '+p.visit_count:''].filter(Boolean);
                         lines.forEach(l=>{ const d=document.createElement('div'); d.textContent=l; d.style.cssText='font-size:11px;opacity:.85'; div.appendChild(d); });
+                        if(p.photo_attribution){ const attr=document.createElement('div'); attr.className='visit-photo-attr'; attr.textContent=p.photo_attribution; div.appendChild(attr); }
                         const ids=Array.isArray(p.visit_ids)?p.visit_ids:[];
                         if(ids.length){
                             const b=document.createElement('button'); b.type='button'; b.className='trip-btn'; b.style.marginTop='6px'; b.textContent=tr('visit_edit','Edit place');
@@ -1394,11 +1416,17 @@ $metricButtons = [
                             if(!res.ok||!v) throw new Error('not_found');
                         }catch(e){ body.textContent=(e&&e.message)||'error'; return; }
                         body.textContent='';
+                        if(v.photo_url){
+                            const av=document.createElement('div'); av.className='visit-editor-photo';
+                            const img=document.createElement('img'); img.src=v.photo_url; img.alt=''; img.loading='lazy'; av.appendChild(img);
+                            body.appendChild(av);
+                        }
                         const top=document.createElement('div'); top.className='visit-pop-head';
                         const nm=document.createElement('strong'); nm.textContent=v.place_name||tr('visit_unidentified','Unidentified place'); top.appendChild(nm); top.appendChild(chip(v.detection_status)); body.appendChild(top);
                         const meta=document.createElement('div'); meta.className='visit-meta';
                         meta.textContent=[v.category,[fmtAt(v.arrived_at),fmtAt(v.departed_at)].filter(Boolean).join(' → '),fmtDur(v.duration_s),v.confidence!=null?Math.round(v.confidence*100)+'%':'',v.address].filter(Boolean).join(' · ');
                         body.appendChild(meta);
+                        if(v.photo_attribution){ const attr=document.createElement('div'); attr.className='visit-photo-attr'; attr.textContent=v.photo_attribution; body.appendChild(attr); }
                         const msg=document.createElement('div'); msg.className='visit-msg';
                         const done=async fn=>{ try{ msg.textContent=''; await fn(); m.close(); chunkCache.clear(); fetchViewport(); loadVisits(); }catch(e){ msg.textContent=(e&&e.message)||'error'; } };
                         const cands=v.candidates||[];
@@ -1423,6 +1451,7 @@ $metricButtons = [
                         btn(tr('visit_save','Save'),'trip-btn-primary',()=>done(()=>visitsRequest({action:'assign',id:v.id,name:nameIn.value,category:catIn.value,tag:tagIn.value})));
                         btn(tr('visit_retry','Detect again'),'',()=>done(()=>visitsRequest({action:'retry',id:v.id})));
                         if(v.osm_id) btn(tr('visit_block','Never suggest this place'),'',()=>done(()=>visitsRequest({action:'block',id:v.id})));
+                        if(v.osm_id) btn(tr('visit_refresh_photo','Refresh photo'),'',()=>done(()=>visitsRequest({action:'refresh_photo',id:v.id,osm_type:v.osm_type,osm_id:v.osm_id})));
                         body.appendChild(row); body.appendChild(msg);
                         nameIn.focus();
                     }
@@ -1462,7 +1491,12 @@ $metricButtons = [
                             if(!rows.length){ const e=document.createElement('span'); e.className='trip-empty'; e.textContent=tr('visit_none','No visits in this range'); host.appendChild(e); return; }
                             rows.forEach(v=>{
                                 const b=document.createElement('button'); b.type='button'; b.className='visit-row';
-                                const dot=document.createElement('i'); dot.className='visit-dot'; dot.style.background=VISIT_COLORS[v.detection_status]||VISIT_COLORS.unidentified; b.appendChild(dot);
+                                if(v.photo_url){
+                                    const av=document.createElement('span'); av.className='visit-row-photo';
+                                    const img=document.createElement('img'); img.src=v.photo_url; img.alt=''; img.loading='lazy'; av.appendChild(img); b.appendChild(av);
+                                } else {
+                                    const dot=document.createElement('i'); dot.className='visit-dot'; dot.style.background=VISIT_COLORS[v.detection_status]||VISIT_COLORS.unidentified; b.appendChild(dot);
+                                }
                                 const txt=document.createElement('span'); txt.className='visit-row-text';
                                 const a=document.createElement('strong'); a.textContent=v.place_name||tr('visit_unidentified','Unidentified place'); txt.appendChild(a);
                                 const sub=document.createElement('small'); sub.textContent=[fmtAt(v.arrived_at),fmtDur(v.duration_s),v.category].filter(Boolean).join(' · '); txt.appendChild(sub);

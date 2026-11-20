@@ -65,12 +65,20 @@ final class StepsGeolocationStops
         }
         if ($current !== null) $clusters[] = $current;
 
+        // Longer tracks need denser dwells: adaptive = max(min_points, ceil(sqrt(N)*factor)).
+        $routePoints = count($usable);
+        $adaptiveMin = (int)max(
+            (int)$t['min_points'],
+            min((int)$t['max_adaptive_points'], (int)ceil(sqrt(max(1, $routePoints)) * (float)$t['density_factor']))
+        );
+
         $stops = [];
         foreach ($clusters as $cluster) {
             $count = count($cluster['point_ids']);
             $duration = $cluster['last_at'] - $cluster['start_at'];
-            if ($count < (int)$t['min_points'] || $duration < $t['min_duration_s']) continue;
+            if ($count < $adaptiveMin || $duration < $t['min_duration_s']) continue;
             [$centerLat, $centerLon, $medianAccuracy] = self::center($cluster['obs'], (float)$t['preferred_accuracy_m']);
+            $share = $routePoints > 0 ? $count / $routePoints : 0.0;
             $stops[] = [
                 'started_at' => $cluster['started_at'],
                 'ended_at' => $cluster['ended_at'],
@@ -81,7 +89,9 @@ final class StepsGeolocationStops
                 'point_ids' => $cluster['point_ids'],
                 'median_accuracy_m' => $medianAccuracy,
                 'provisional' => $now - $cluster['last_at'] < (float)$t['confirm_after_s'],
-                'confidence' => round(min(1.0, 0.5 + 0.05 * $count), 2),
+                'confidence' => round(min(1.0, 0.4 + 0.35 * min(1.0, $count / max(1, $adaptiveMin)) + 0.25 * min(1.0, $share * 8.0)), 2),
+                'adaptive_min_points' => $adaptiveMin,
+                'route_points' => $routePoints,
             ];
         }
 

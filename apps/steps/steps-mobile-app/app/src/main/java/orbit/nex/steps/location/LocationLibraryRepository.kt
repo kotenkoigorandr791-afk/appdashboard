@@ -57,6 +57,9 @@ data class LibraryEntry(
     val actions: List<LibraryAction> = emptyList(),
     val query: String = "",
     val isTrip: Boolean = false,
+    val photoUrl: String? = null,
+    val osmType: String? = null,
+    val osmId: Long? = null,
 )
 
 data class LibrarySnapshot(
@@ -76,6 +79,10 @@ data class VisitDetail(
     val tag: String,
     val candidates: List<VisitCandidate>,
     val canBlock: Boolean,
+    val photoUrl: String? = null,
+    val photoAttribution: String? = null,
+    val osmType: String? = null,
+    val osmId: Long? = null,
 )
 
 /**
@@ -161,15 +168,25 @@ class LocationLibraryRepository(
                     ).filter { it.isNotBlank() }.joinToString(" · "),
                 )
             }
+            val osmType = visit.optString("osm_type").ifBlank { null }
+            val osmId = visit.optLong("osm_id").takeIf { !visit.isNull("osm_id") && it > 0L }
             VisitDetail(
                 id = id,
                 name = visit.optString("display_name").ifBlank { visit.optString("place_name") },
                 category = visit.optString("category"),
                 tag = visit.optString("place_tag"),
                 candidates = candidates,
-                canBlock = !visit.isNull("osm_id"),
+                canBlock = osmId != null,
+                photoUrl = visit.optString("photo_url").ifBlank { null },
+                photoAttribution = visit.optString("photo_attribution").ifBlank { null },
+                osmType = osmType,
+                osmId = osmId,
             )
         }
+    }
+
+    suspend fun refreshVisitPhoto(config: WebhookConfig, id: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { post(config, "geolocation_stops", JSONObject().put("action", "refresh_photo").put("id", id)) }
     }
 
     suspend fun selectCandidate(config: WebhookConfig, id: String, candidateId: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -357,6 +374,9 @@ class LocationLibraryRepository(
                 status = status,
                 active = status == "confirmed" || status == "manual",
                 actions = listOf(LibraryAction.CORRECT, LibraryAction.CONFIRM, LibraryAction.REJECT),
+                photoUrl = row.optString("photo_url").ifBlank { null },
+                osmType = row.optString("osm_type").ifBlank { null },
+                osmId = row.optLong("osm_id").takeIf { !row.isNull("osm_id") && it > 0L },
             )
         }
         return LibrarySnapshot(entries = entries)

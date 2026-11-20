@@ -5,11 +5,14 @@ require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_stops.php';
 require_once dirname(__DIR__) . '/core/geolocation_place_resolver.php';
 require_once dirname(__DIR__) . '/core/geolocation_observability.php';
+require_once dirname(__DIR__) . '/core/geolocation_place_photos.php';
+require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 public_api_bootstrap();
 $owner = get_current_user_email();
 if (!$owner) public_api_json(['ok' => false, 'error' => 'unauthorized'], 401);
 $owner = StepsGeolocationDomain::normalizeOwner($owner);
 public_api_rate_limit('geolocation_stops', 120, 60);
+steps_geolocation_migrate(app_main_db());
 $pdo = app_main_db()->getPdo();
 
 function geo_stops_audit(PDO $pdo, string $owner, string $event, array $context): void
@@ -34,11 +37,13 @@ if ($method === 'GET') {
         "SELECT v.id, v.place_id, v.stop_id, v.arrived_at, v.departed_at, v.confidence, v.state, v.override_json,
                 v.osm_type, v.osm_id, v.display_name, v.category, v.address, v.detection_status, v.detection_method, v.resolved_at,
                 p.name AS place_name, p.tag AS place_tag, p.color AS place_color,
+                ph.status AS photo_status, ph.attribution AS photo_attribution, ph.license_name AS photo_license,
                 ST_Y(s.position) AS latitude, ST_X(s.position) AS longitude, s.radius_m, s.confidence AS stop_confidence,
                 GREATEST(0, EXTRACT(EPOCH FROM (COALESCE(v.departed_at, v.arrived_at) - v.arrived_at))::int) AS duration_s
            FROM geo_visits v
       LEFT JOIN geo_places p ON p.id = v.place_id
       LEFT JOIN geo_stops s ON s.id = v.stop_id
+      LEFT JOIN geo_osm_place_photos ph ON ph.osm_type = v.osm_type AND ph.osm_id = v.osm_id
           WHERE $where
        ORDER BY v.arrived_at DESC
           LIMIT $limit"
@@ -61,6 +66,14 @@ if ($method === 'GET') {
         $row['place_name'] = $row['display_name'] !== '' ? $row['display_name'] : $row['place_name'];
         $row['candidates'] = $byVisit[$row['id']] ?? [];
         $row['duration_s'] = (int)$row['duration_s'];
+        $row['photo_url'] = null;
+        if (($row['photo_status'] ?? '') === 'ready' && $row['osm_type'] && $row['osm_id'] !== null) {
+            // Cookie session (web) needs session_gateway; Bearer clients still
+            // accept the same path via gateway when opened in WebView with cookies,
+            // and Android loads bytes through the authenticated API client separately.
+            $row['photo_url'] = StepsGeolocationPlacePhotos::publicUrl((string)$row['osm_type'], (int)$row['osm_id']);
+            $row['photo_api_url'] = StepsGeolocationPlacePhotos::apiUrl((string)$row['osm_type'], (int)$row['osm_id']);
+        }
     }
     unset($row);
     public_api_json(['ok' => true, 'visits' => $rows, 'profile' => StepsGeolocationPlaceResolver::profile($pdo, $owner)]);
@@ -70,6 +83,22 @@ if ($method !== 'POST') public_api_json(['ok' => false, 'error' => 'method_not_a
 $body = public_api_body();
 $action = strtolower(trim((string)($body['action'] ?? '')));
 $id = trim((string)($body['id'] ?? ''));
+if ($action === 'refresh_photo') {
+    $osmType = strtolower(trim((string)($body['osm_type'] ?? '')));
+    $osmId = (int)($body['osm_id'] ?? 0);
+    if ($osmType === '' || $osmId <= 0) {
+        if (!StepsGeolocationDomain::isUuid($id)) public_api_json(['ok' => false, 'error' => 'invalid_id'], 400);
+        $look = $pdo->prepare('SELECT osm_type, osm_id FROM geo_visits WHERE user_email = :owner AND id = :id');
+        $look->execute([':owner' => $owner, ':id' => $id]);
+        $v = $look->fetch(PDO::FETCH_ASSOC);
+        if ($v === false || $v['osm_id'] === null) public_api_json(['ok' => false, 'error' => 'no_osm'], 404);
+        $osmType = (string)$v['osm_type'];
+        $osmId = (int)$v['osm_id'];
+    }
+    StepsGeolocationPlacePhotos::requestRefresh($pdo, $osmType, $osmId);
+    geo_stops_audit($pdo, $owner, 'place.photo_refresh', ['osm_type' => $osmType, 'osm_id' => $osmId]);
+    public_api_json(['ok' => true, 'status' => 'queued', 'osm_type' => $osmType, 'osm_id' => $osmId]);
+}
 if (!in_array($action, ['confirm', 'reject', 'delete', 'correct', 'select_candidate', 'assign', 'block', 'retry'], true)) public_api_json(['ok' => false, 'error' => 'invalid_action'], 400);
 if (!StepsGeolocationDomain::isUuid($id)) public_api_json(['ok' => false, 'error' => 'invalid_id'], 400);
 

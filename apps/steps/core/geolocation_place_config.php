@@ -21,6 +21,9 @@ final class StepsGeolocationPlaceConfig
             'radius_m' => self::env('GEO_STOP_RADIUS_M', 50.0, 10.0, 2000.0),
             'min_duration_s' => self::env('GEO_STOP_MIN_DURATION_S', 300.0, 60.0, 86400.0),
             'min_points' => self::env('GEO_STOP_MIN_POINTS', 3.0, 2.0, 100.0),
+            // Scales min cluster size with track length: ceil(sqrt(N) * factor).
+            'density_factor' => self::env('GEO_STOP_DENSITY_FACTOR', 0.85, 0.2, 3.0),
+            'max_adaptive_points' => self::env('GEO_STOP_MAX_ADAPTIVE_POINTS', 40.0, 5.0, 200.0),
             'preferred_accuracy_m' => self::env('GEO_STOP_PREFERRED_ACCURACY_M', 50.0, 5.0, 5000.0),
             'max_accuracy_m' => self::env('GEO_STOP_MAX_ACCURACY_M', 200.0, 5.0, 5000.0),
             'max_gap_s' => self::env('GEO_STOP_MAX_GAP_S', 900.0, 60.0, 86400.0),

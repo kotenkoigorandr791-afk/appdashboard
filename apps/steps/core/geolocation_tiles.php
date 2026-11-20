@@ -12,7 +12,7 @@ require_once __DIR__ . '/geolocation_map.php';
 
 final class StepsGeolocationTiles
 {
-    public const DEFAULT_TTL = 2592000; // 30 days
+    public const DEFAULT_TTL = 259200; // 3 days — short enough to refresh, long enough for day flips
     public const MAX_BYTES = 2097152;   // 2 MB per tile
 
     public static function cacheDir(): string
@@ -126,23 +126,28 @@ final class StepsGeolocationTiles
         $status = 0;
         if (function_exists('curl_init')) {
             $ch = curl_init($url);
-            curl_setopt_array($ch, [
+            $opts = [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_CONNECTTIMEOUT => 4,
-                CURLOPT_TIMEOUT => 8,
-                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_CONNECTTIMEOUT => 6,
+                CURLOPT_TIMEOUT => 15,
+                CURLOPT_FOLLOWLOCATION => true,
+                CURLOPT_MAXREDIRS => 3,
                 CURLOPT_HTTPHEADER => $headers,
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
                 CURLOPT_PROTOCOLS => CURLPROTO_HTTPS,
-            ]);
+                CURLOPT_REDIR_PROTOCOLS => CURLPROTO_HTTPS,
+            ];
+            // Prefer IPv4: some Docker setups resolve AAAA but cannot route IPv6.
+            if (defined('CURL_IPRESOLVE_V4')) $opts[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V4;
+            curl_setopt_array($ch, $opts);
             $raw = curl_exec($ch);
             $status = (int)curl_getinfo($ch, CURLINFO_RESPONSE_CODE);
             $mime = (string)curl_getinfo($ch, CURLINFO_CONTENT_TYPE);
             if (is_string($raw)) $body = $raw;
         } else {
             $context = stream_context_create([
-                'http' => ['method' => 'GET', 'header' => implode("\r\n", $headers), 'timeout' => 8, 'follow_location' => 0],
+                'http' => ['method' => 'GET', 'header' => implode("\r\n", $headers), 'timeout' => 15, 'follow_location' => 1],
                 'ssl' => ['verify_peer' => true, 'verify_peer_name' => true],
             ]);
             $raw = @file_get_contents($url, false, $context);

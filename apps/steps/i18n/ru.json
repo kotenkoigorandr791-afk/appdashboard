@@ -919,6 +919,7 @@
   "visit_save": "Сохранить",
   "visit_retry": "Определить заново",
   "visit_block": "Больше не предлагать это место",
+  "visit_refresh_photo": "Обновить фото",
   "visit_name_required": "Введите название",
   "visit_none": "Нет посещений за период",
   "ctx_add_place": "Добавить место здесь…",

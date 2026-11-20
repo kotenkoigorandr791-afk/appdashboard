@@ -52,3 +52,7 @@ Worker `steps-geolocation-osm` (supervisord) or `php apps/steps/bin/geolocation_
 
 ## Limitations
 Overpass data quality and public-server availability vary; unnamed buildings stay generic. Indoor multi-business buildings are never resolved to one business automatically. Visits are not re-resolved when OSM data changes unless retried or the cache expires. Android offline mode is read-only and limited to the last loaded visit list.
+
+
+## Place photos
+Background worker `steps-geolocation-place-photos` (`bin/geolocation_place_photos_run.php`) downloads images for `geo_osm_places` into `/opt/ApplicationData/steps/place-photos/{osm_type}/{osm_id}.webp` (lossy WebP ≤256px). Metadata and attribution live in `geo_osm_place_photos` (schema 024). Sources in order: OSM tags (`wikimedia_commons` / `image` / `panoramax` / Wikidata P18), Wikimedia Commons geosearch, Panoramax. Map visit features and `geolocation_stops` expose `photo_url` when `status=ready`. Manual refresh: `POST geolocation_stops` action `refresh_photo`, or `POST geolocation_place_photo`.

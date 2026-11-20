@@ -156,6 +156,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v23_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '023']);
         }
+        // 024: local place photos for OSM objects (WebP on appdata volume).
+        $applied->execute([':version' => '024']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v24_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '024']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -416,6 +422,42 @@ function steps_geolocation_schema_v19_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_owner_time_idx ON geo_matched_segments(user_email, started_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_geometry_idx ON geo_matched_segments USING GIST(matched_geometry)",
         "ANALYZE geo_location_points",
+    ];
+}
+
+function steps_geolocation_schema_v24_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_osm_place_photos (
+            osm_type TEXT NOT NULL CHECK (osm_type IN ('node','way','relation')),
+            osm_id BIGINT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','ready','missing','failed','refresh')),
+            local_path TEXT NOT NULL DEFAULT '',
+            source_provider TEXT NOT NULL DEFAULT '',
+            source_url TEXT NOT NULL DEFAULT '',
+            source_page_url TEXT NOT NULL DEFAULT '',
+            author TEXT NOT NULL DEFAULT '',
+            license_name TEXT NOT NULL DEFAULT '',
+            license_url TEXT NOT NULL DEFAULT '',
+            attribution TEXT NOT NULL DEFAULT '',
+            fetched_at TIMESTAMPTZ,
+            width_px INTEGER,
+            height_px INTEGER,
+            file_bytes INTEGER,
+            checksum TEXT NOT NULL DEFAULT '',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            retry_after TIMESTAMPTZ,
+            last_error TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (osm_type, osm_id),
+            FOREIGN KEY (osm_type, osm_id) REFERENCES geo_osm_places(osm_type, osm_id) ON DELETE CASCADE
+        )",
+        "CREATE INDEX IF NOT EXISTS geo_osm_place_photos_pending_idx ON geo_osm_place_photos(status, retry_after) WHERE status IN ('pending','failed','refresh')",
+        "CREATE INDEX IF NOT EXISTS geo_osm_place_photos_checksum_idx ON geo_osm_place_photos(checksum) WHERE checksum <> ''",
+        "INSERT INTO geo_osm_place_photos(osm_type, osm_id, status)
+            SELECT osm_type, osm_id, 'pending' FROM geo_osm_places
+            ON CONFLICT DO NOTHING",
     ];
 }
 function steps_geolocation_schema_v23_sql(): array

@@ -1,5 +1,5 @@
 <?php
-$stepsWorkerLongRunning = ['geolocation_import_run', 'geolocation_export_run', 'geolocation_immich_run', 'geolocation_maintenance_run', 'geolocation_privacy_run', 'geolocation_render_run', 'geolocation_boundaries_import', 'geolocation_migrate'];
+$stepsWorkerLongRunning = ['geolocation_import_run', 'geolocation_export_run', 'geolocation_immich_run', 'geolocation_maintenance_run', 'geolocation_privacy_run', 'geolocation_render_run', 'geolocation_boundaries_import', 'geolocation_migrate', 'geolocation_place_photos_run'];
 $stepsWorkerName = pathinfo((string)($_SERVER['SCRIPT_FILENAME'] ?? ''), PATHINFO_FILENAME);
 $stepsWorkerTimeoutMs = in_array($stepsWorkerName, $stepsWorkerLongRunning, true) ? 900000 : 120000;
 $GLOBALS['app_db_extra_session_sql'] = [

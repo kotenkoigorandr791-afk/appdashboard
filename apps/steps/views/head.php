@@ -1111,6 +1111,14 @@
         .immich-card img { width: 100%; height: 105px; object-fit: cover; background: rgba(127,127,127,.12); }
         .immich-card span { font-size: 10px; padding: 0 6px; color: var(--muted-text); }
         .map-photo-marker { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #f59e0b; color: #111; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+        .map-place-photo { background: transparent !important; border: 0 !important; }
+        .map-place-photo-ring { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #22c55e; box-shadow: 0 2px 8px rgba(0,0,0,.45); background: #1f2937; }
+        .map-place-photo-ring img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .visit-pop-photo, .visit-editor-photo { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; margin: 0 0 8px; border: 2px solid rgba(255,255,255,.35); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
+        .visit-pop-photo img, .visit-editor-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .visit-photo-attr { font-size: 10px; opacity: .7; margin-top: 4px; line-height: 1.3; }
+        .visit-row-photo { width: 28px; height: 28px; border-radius: 50%; overflow: hidden; flex: 0 0 28px; border: 2px solid rgba(255,255,255,.25); }
+        .visit-row-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .family-token { font-family: monospace; font-size: 11px; overflow-wrap: anywhere; background: rgba(127,127,127,.12); padding: 6px; border-radius: 6px; }
         .import-error { font-size: 11px; color: #ef4444; }
         #settings-panel-chart .settings-chart-type-intro {

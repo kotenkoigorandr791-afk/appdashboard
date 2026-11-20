@@ -109,6 +109,7 @@ import orbit.nex.steps.location.LocationTrackingManager
 import orbit.nex.steps.location.TrackingState
 import orbit.nex.steps.location.LiveLocationProvider
 import orbit.nex.steps.location.LiveLocationState
+import orbit.nex.steps.location.PlacePhotoCache
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -616,7 +617,13 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
     }
 
     // Overlays are rebuilt only when the day data or the enabled layers change.
-    LaunchedEffect(data, layers, resolvedStyle, darkTheme) {
+    LaunchedEffect(data, layers, resolvedStyle, darkTheme, config?.url) {
+        val active = config
+        if (active != null && GeoLayer.VISITS.key in layers) {
+            data.points.filter { it.layer == "visit" && it.osmType != null && it.osmId != null }.forEach { feature ->
+                PlacePhotoCache.ensure(context, prefs, active, feature.osmType!!, feature.osmId!!)
+            }
+        }
         rebuildOverlays(mapView, data, layers, darkTheme)
         mapView.overlays.remove(roadsOverlay)
         mapView.overlays.remove(labelsOverlay)
@@ -1221,9 +1228,23 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            marker.icon = dot(color, border, (sizeDp * density).toInt())
+            val photo = if (featureLayer == "visit" && feature.osmType != null && feature.osmId != null) {
+                PlacePhotoCache.memoryGet(PlacePhotoCache.key(feature.osmType, feature.osmId))
+            } else null
+            marker.icon = if (photo != null) {
+                val size = (sizeDp * density * 2.2f).toInt().coerceIn(36, 72)
+                android.graphics.drawable.BitmapDrawable(
+                    resources,
+                    PlacePhotoCache.circularIcon(photo, size, border, 2.5f * density),
+                )
+            } else {
+                dot(color, border, (sizeDp * density).toInt())
+            }
             title(feature)?.let { marker.title = it }
             styleMarker(marker, mapView, dark)
+            if (!feature.photoAttribution.isNullOrBlank()) {
+                marker.snippet = listOfNotNull(marker.snippet, feature.photoAttribution).joinToString("\n")
+            }
             mapView.overlays.add(marker)
         }
     }

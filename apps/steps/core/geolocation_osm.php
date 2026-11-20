@@ -298,6 +298,7 @@ final class StepsGeolocationOsm
     /** @param list<array<string,mixed>> $elements */
     private function storeElements(array $elements): void
     {
+        require_once __DIR__ . '/geolocation_place_photos.php';
         $stmt = $this->pdo->prepare(
             "INSERT INTO geo_osm_places(osm_type, osm_id, name, category, subcategory, address, position, geometry, tags_json, fetched_at)
              VALUES(:t, :i, :n, :c, :s, :a, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), CASE WHEN CAST(:g AS text) IS NULL THEN NULL ELSE ST_SetSRID(ST_GeomFromGeoJSON(CAST(:g2 AS text)), 4326) END, CAST(:tags AS jsonb), now())
@@ -309,6 +310,7 @@ final class StepsGeolocationOsm
                 ':t' => $e['osm_type'], ':i' => $e['osm_id'], ':n' => $e['name'], ':c' => $e['category'], ':s' => $e['subcategory'], ':a' => $e['address'],
                 ':lon' => $e['lon'], ':lat' => $e['lat'], ':g' => $g, ':g2' => $g, ':tags' => json_encode($e['tags'], JSON_UNESCAPED_UNICODE),
             ]);
+            StepsGeolocationPlacePhotos::ensurePending($this->pdo, (string)$e['osm_type'], (int)$e['osm_id']);
         }
     }
 

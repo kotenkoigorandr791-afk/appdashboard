@@ -60,6 +60,10 @@ data class GeoPointFeature(
     val count: Int,
     val intensity: Float,
     val pending: Boolean = false,
+    val photoUrl: String? = null,
+    val osmType: String? = null,
+    val osmId: Long? = null,
+    val photoAttribution: String? = null,
 )
 
 /** Data extent of the response, used to frame the map after loading a day. */
@@ -239,6 +243,9 @@ class GeoMapRepository(
                     val lon = coordinates.optDouble(0)
                     val lat = coordinates.optDouble(1)
                     if (!isCoordinate(lat, lon)) continue
+                    val osmType = properties.optString("osm_type").ifBlank { null }
+                    val osmId = properties.optLong("osm_id").takeIf { properties.has("osm_id") && !properties.isNull("osm_id") && it > 0L }
+                    val photoUrl = properties.optString("photo_url").ifBlank { null }
                     points += GeoPointFeature(
                         layer = layer,
                         lat = lat,
@@ -250,6 +257,10 @@ class GeoMapRepository(
                         },
                         count = properties.optInt("count", 1),
                         intensity = properties.optDouble("intensity", 0.5).toFloat(),
+                        photoUrl = photoUrl,
+                        osmType = osmType,
+                        osmId = osmId,
+                        photoAttribution = properties.optString("photo_attribution").ifBlank { null },
                     )
                 }
             }

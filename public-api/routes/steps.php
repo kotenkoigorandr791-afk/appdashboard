@@ -19,6 +19,7 @@ $geoEndpoints = [
     'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
     'geolocation_achievements', 'geolocation_statistics', 'geolocation_quality', 'geolocation_matching',
     'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics', 'geolocation_points', 'geolocation_place_prefs',
+    'geolocation_place_photo',
     'geolocation_exports', 'geolocation_export_download',
     'places', 'geofences', 'devices',
 ];

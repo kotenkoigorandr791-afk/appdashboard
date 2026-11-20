@@ -181,13 +181,22 @@ $limit = isset($options['limit']) && is_numeric($options['limit']) ? max(1, min(
 $user = isset($options['user']) && is_string($options['user']) ? strtolower(trim($options['user'])) : '';
 $loop = isset($options['loop']);
 $thresholds = StepsGeolocationStops::thresholds();
+$db = app_main_db();
 
 do {
     try {
-        $result = steps_stops_pass(app_main_db()->getPdo(), $user, $limit, $thresholds);
+        $result = steps_stops_pass($db->getPdo(), $user, $limit, $thresholds);
     } catch (Throwable $e) {
-        error_log('geolocation stops worker: ' . $e->getMessage());
+        $msg = $e->getMessage();
+        error_log('geolocation stops worker: ' . $msg);
         $result = ['processed' => 0, 'stops' => 0, 'visits' => 0, 'failed' => 1];
+        if (stripos($msg, 'no connection') !== false
+            || stripos($msg, 'server closed') !== false
+            || stripos($msg, 'broken pipe') !== false
+            || stripos($msg, 'SQLSTATE') !== false) {
+            try { $db->reconnect(); } catch (Throwable $ignored) {}
+            sleep(5);
+        }
     }
     if (!$loop) {
         fwrite(STDOUT, "stops: {$result['processed']} point(s), {$result['stops']} stop(s), {$result['visits']} visit(s), {$result['failed']} run(s) failed\n");

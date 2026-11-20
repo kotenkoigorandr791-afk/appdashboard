@@ -391,15 +391,18 @@ final class StepsGeolocationMap
             }
 
             if (in_array('visits', $layers, true)) {
+                require_once __DIR__ . '/geolocation_place_photos.php';
                 $stmt = $pdo->prepare(
                     "SELECT v.id, v.arrived_at, v.departed_at, v.confidence, v.place_id, v.osm_type, v.osm_id, v.display_name, v.category, v.address, v.detection_status,
                             p.name AS place_name, p.tag AS place_tag,
+                            ph.status AS photo_status, ph.attribution AS photo_attribution,
                             round(ST_Y(COALESCE(op.position, s.position))::numeric, $precision) AS lat,
                             round(ST_X(COALESCE(op.position, s.position))::numeric, $precision) AS lon
                        FROM geo_visits v
                        LEFT JOIN geo_places p ON p.id = v.place_id
                        LEFT JOIN geo_stops s ON s.id = v.stop_id
                        LEFT JOIN geo_osm_places op ON op.osm_type = v.osm_type AND op.osm_id = v.osm_id
+                       LEFT JOIN geo_osm_place_photos ph ON ph.osm_type = v.osm_type AND ph.osm_id = v.osm_id
                       WHERE v.user_email = :owner AND s.position IS NOT NULL
                         AND COALESCE(op.position, s.position) && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
                         AND v.arrived_at BETWEEN :from AND :to
@@ -420,6 +423,10 @@ final class StepsGeolocationMap
                 }
                 foreach ($groups as $key => $row) {
                     $name = (string)($row['display_name'] !== '' ? $row['display_name'] : ($row['place_name'] ?? ''));
+                    $photoUrl = null;
+                    if (($row['photo_status'] ?? '') === 'ready' && $row['osm_id'] !== null && $row['osm_type']) {
+                        $photoUrl = StepsGeolocationPlacePhotos::publicUrl((string)$row['osm_type'], (int)$row['osm_id']);
+                    }
                     $features[] = [
                         'type' => 'Feature',
                         'geometry' => ['type' => 'Point', 'coordinates' => [(float)$row['lon'], (float)$row['lat']]],
@@ -438,6 +445,10 @@ final class StepsGeolocationMap
                             'arrived_at' => $row['arrived_at'],
                             'departed_at' => $row['departed_at'],
                             'confidence' => $row['confidence'] !== null ? (float)$row['confidence'] : null,
+                            'osm_type' => $row['osm_type'],
+                            'osm_id' => $row['osm_id'] !== null ? (int)$row['osm_id'] : null,
+                            'photo_url' => $photoUrl,
+                            'photo_attribution' => (string)($row['photo_attribution'] ?? ''),
                         ],
                     ];
                 }

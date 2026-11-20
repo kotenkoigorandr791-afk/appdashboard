@@ -21,9 +21,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -50,6 +52,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
@@ -63,8 +67,10 @@ import orbit.nex.steps.location.LibraryEntry
 import orbit.nex.steps.location.LibrarySnapshot
 import orbit.nex.steps.location.LibraryTab
 import orbit.nex.steps.location.LocationLibraryRepository
+import orbit.nex.steps.location.PlacePhotoCache
 import orbit.nex.steps.location.VisitDetail
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.Image
 
 private data class PendingLibraryAction(val entry: LibraryEntry, val action: LibraryAction)
 
@@ -316,13 +322,38 @@ private fun LibraryMessage(message: String, isError: Boolean = false) {
 
 @Composable
 private fun LibraryCard(entry: LibraryEntry, enabled: Boolean, onAction: (LibraryAction) -> Unit, onOpen: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { PreferencesManager(context) }
+    val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
+    var photoBitmap by remember(entry.id, entry.osmId) { mutableStateOf<android.graphics.Bitmap?>(null) }
+    LaunchedEffect(entry.osmType, entry.osmId, config?.url) {
+        val type = entry.osmType
+        val id = entry.osmId
+        val active = config
+        if (type != null && id != null && active != null) {
+            photoBitmap = PlacePhotoCache.ensure(context, prefs, active, type, id)
+        }
+    }
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         shape = RoundedCornerShape(16.dp),
         modifier = Modifier.fillMaxWidth().then(if (entry.isTrip) Modifier.clickable(enabled = enabled, onClick = onOpen) else Modifier),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                val bmp = photoBitmap
+                if (bmp != null) {
+                    Image(
+                        bitmap = bmp.asImageBitmap(),
+                        contentDescription = null,
+                        modifier = Modifier.size(36.dp).clip(CircleShape),
+                    )
+                } else if (entry.osmId != null) {
+                    Box(
+                        Modifier.size(36.dp).clip(CircleShape).background(MaterialTheme.colorScheme.surface),
+                        contentAlignment = Alignment.Center,
+                    ) { Icon(Icons.Filled.Place, null, modifier = Modifier.size(18.dp)) }
+                }
                 Text(
                     entry.title.ifBlank { stringResource(R.string.visit_unidentified) },
                     style = MaterialTheme.typography.titleMedium,
@@ -447,17 +478,25 @@ private fun VisitEditorDialog(
     onDone: (Boolean) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val prefs = remember { PreferencesManager(context) }
     var detail by remember { mutableStateOf<VisitDetail?>(null) }
     var name by remember { mutableStateOf("") }
     var category by remember { mutableStateOf("") }
     var tag by remember { mutableStateOf("") }
     var busy by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
+    var photoBitmap by remember { mutableStateOf<android.graphics.Bitmap?>(null) }
     LaunchedEffect(entry.id) {
         repository.visitDetail(config, entry.id)
             .onSuccess { detail = it; name = it.name; category = it.category; tag = it.tag }
             .onFailure { error = it.message }
         busy = false
+    }
+    LaunchedEffect(detail?.osmType, detail?.osmId) {
+        val type = detail?.osmType
+        val id = detail?.osmId
+        if (type != null && id != null) photoBitmap = PlacePhotoCache.ensure(context, prefs, config, type, id)
     }
     fun run(block: suspend () -> Result<Unit>) {
         busy = true
@@ -473,6 +512,12 @@ private fun VisitEditorDialog(
             Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (busy && detail == null) CircularProgressIndicator()
                 detail?.let { d ->
+                    photoBitmap?.let { bmp ->
+                        Image(bitmap = bmp.asImageBitmap(), contentDescription = null, modifier = Modifier.size(72.dp).clip(CircleShape).align(Alignment.CenterHorizontally))
+                    }
+                    d.photoAttribution?.takeIf { it.isNotBlank() }?.let {
+                        Text(it, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                     if (d.candidates.isNotEmpty()) {
                         Text(stringResource(R.string.visit_candidates), style = MaterialTheme.typography.labelLarge)
                         d.candidates.forEach { c ->
@@ -494,6 +539,7 @@ private fun VisitEditorDialog(
                     Row(Modifier.horizontalScroll(rememberScrollState())) {
                         TextButton(enabled = !busy, onClick = { run { repository.visitAction(config, d.id, "retry") } }) { Text(stringResource(R.string.visit_retry)) }
                         if (d.canBlock) TextButton(enabled = !busy, onClick = { run { repository.visitAction(config, d.id, "block") } }) { Text(stringResource(R.string.visit_block)) }
+                        if (d.osmId != null) TextButton(enabled = !busy, onClick = { run { repository.refreshVisitPhoto(config, d.id) } }) { Text(stringResource(R.string.visit_refresh_photo)) }
                     }
                 }
                 error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }

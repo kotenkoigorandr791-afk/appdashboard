@@ -965,6 +965,7 @@
     <string name="visit_category">Категория</string>
     <string name="visit_retry">Определить заново</string>
     <string name="visit_block">Больше не предлагать это место</string>
+    <string name="visit_refresh_photo">Обновить фото</string>
     <string name="visit_save">Сохранить</string>
     <string name="visit_offline">Офлайн: показаны сохранённые визиты</string>
     <string name="visit_status_confirmed">Подтверждено</string>

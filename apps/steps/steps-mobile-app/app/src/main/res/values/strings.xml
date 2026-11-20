@@ -1020,6 +1020,7 @@
     <string name="visit_category">Category</string>
     <string name="visit_retry">Detect again</string>
     <string name="visit_block">Never suggest this place</string>
+    <string name="visit_refresh_photo">Refresh photo</string>
     <string name="visit_save">Save</string>
     <string name="visit_offline">Offline: showing saved visits</string>
     <string name="visit_status_confirmed">Confirmed</string>

@@ -31,7 +31,9 @@ if (StepsGeolocationTiles::provider($provider) === null) $fail(400, 'invalid_pro
 
 $tile = StepsGeolocationTiles::get($provider, $coords['z'], $coords['x'], $coords['y']);
 if ($tile === null) {
-    header('Cache-Control: public, max-age=60');
+    // Brief negative cache so Leaflet day-flips do not stampede a dead upstream.
+    header('Cache-Control: private, max-age=30');
+    header('X-Tile-Cache: miss');
     $fail(502, 'tile_unavailable');
 }
 
@@ -40,10 +42,10 @@ header('Content-Type: ' . $tile['mime']);
 header('X-Content-Type-Options: nosniff');
 header('ETag: ' . $etag);
 header('X-Tile-Cache: ' . ($tile['cached'] ? ($tile['stale'] ? 'stale' : 'hit') : 'miss'));
-header('Cache-Control: public, max-age=604800, immutable');
+// ~3 days in the browser: same map place across day navigation stays warm.
+header('Cache-Control: private, max-age=259200, stale-while-revalidate=86400');
 if ($tile['stale']) {
-    // Serve the last good tile, but let the browser retry the upstream soon.
-    header('Cache-Control: public, max-age=300, stale-while-revalidate=86400');
+    header('Cache-Control: private, max-age=300, stale-while-revalidate=86400');
     header('Warning: 110 - "Response is stale"');
 }
 $ifNoneMatch = trim((string)($_SERVER['HTTP_IF_NONE_MATCH'] ?? ''));

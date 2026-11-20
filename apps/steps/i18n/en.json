@@ -919,6 +919,7 @@
   "visit_save": "Save",
   "visit_retry": "Detect again",
   "visit_block": "Never suggest this place",
+  "visit_refresh_photo": "Refresh photo",
   "visit_name_required": "Enter a name",
   "visit_none": "No visits in this range",
   "ctx_add_place": "Add place here…",
