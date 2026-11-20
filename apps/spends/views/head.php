@@ -130,11 +130,16 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         #bg-layer::after { content:""; position:fixed; inset:0; background:<?= $theme==='dark'?'linear-gradient(135deg,rgba(17,20,22,.94),rgba(17,20,22,.82) 45%,rgba(47,143,131,.22))':'linear-gradient(135deg,rgba(244,247,242,.94),rgba(244,247,242,.78) 45%,rgba(217,151,76,.2))' ?>; }
         #bg-layer.ready { opacity:1; }
         .app-expenses { max-width:1440px; width:100%; margin:0 auto; position:relative; box-sizing:border-box; padding:calc(var(--top-bar-height) + 16px) clamp(12px,2.4vw,28px) 22px; }
-        .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; position:fixed; top:0; left:0; right:0; z-index:900; min-height:var(--top-bar-height); margin:0; padding:10px clamp(12px,2vw,24px) 10px calc(var(--menu-safe-width) + 10px); box-sizing:border-box; background:<?= $theme==='dark'?'rgba(17,20,22,.78)':'rgba(244,247,242,.78)' ?>; border-bottom:1px solid var(--border-color); backdrop-filter:blur(var(--glass-blur)) saturate(1.1); -webkit-backdrop-filter:blur(var(--glass-blur)) saturate(1.1); }
-        .header h2 { margin:0; white-space:nowrap; font-size:1.5em; line-height:1.2; font-weight:760; letter-spacing:0; min-width:0; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto; }
-        .header-buttons { display:flex; gap:8px; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; position:relative; }
-        .header-btn { background:var(--group-block-bg); border:1px solid var(--border-color); cursor:pointer; font-size:20px; color:var(--text-color); padding:0; border-radius:var(--radius-sm); transition:background .2s,color .2s,transform .2s,border-color .2s; display:flex; align-items:center; justify-content:center; overflow:visible; width:40px; height:40px; backdrop-filter:blur(var(--glass-blur)); -webkit-backdrop-filter:blur(var(--glass-blur)); }
-        .header-btn:hover { background:var(--primary-color); color:#fff; border-color:var(--primary-color); transform:translateY(-1px); }
+        /* Material 3 top app bar: solid surface with a light elevation shadow and
+           circular tonal icon buttons instead of the old blurred glass strip. */
+        .header { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; position:fixed; top:0; left:0; right:0; z-index:900; min-height:var(--top-bar-height); margin:0; padding:0 clamp(10px,1.6vw,20px) 0 calc(var(--menu-safe-width) + 8px); box-sizing:border-box; background:var(--surface-solid); border-bottom:1px solid color-mix(in srgb,var(--border-color) 70%,transparent); box-shadow:0 2px 6px rgba(0,0,0,.16); }
+        .header h2 { margin:0; white-space:nowrap; font-size:1.35em; line-height:1.2; font-weight:600; letter-spacing:.005em; min-width:0; overflow:hidden; text-overflow:ellipsis; flex:1 1 auto; }
+        .header-buttons { display:flex; gap:2px; align-items:center; flex-shrink:0; flex-wrap:wrap; justify-content:flex-end; position:relative; }
+        .header-btn { background:transparent; border:none; cursor:pointer; font-size:20px; color:var(--text-color); padding:0; border-radius:999px; width:44px; height:44px; transition:background .18s,color .18s; display:flex; align-items:center; justify-content:center; overflow:visible; }
+        .header-btn:hover { background:rgba(var(--primary-color-rgb),.14); color:var(--text-color); transform:none; }
+        .header-btn:active { background:rgba(var(--primary-color-rgb),.22); }
+        .header-btn.add-btn { background:rgba(var(--primary-color-rgb),.16); color:var(--text-color); }
+        .header-btn.add-btn:hover { background:rgba(var(--primary-color-rgb),.26); }
         .add-menu-wrap { position:relative; display:inline-block; }
         .import-dropdown { display:none; position:absolute; top:100%; right:0; margin-top:4px; min-width:min(96vw,320px); background:var(--surface-solid); border:1px solid var(--border-color); border-radius:10px; box-shadow:0 8px 24px rgba(0,0,0,.22); z-index:3000; padding:6px 0; }
         .import-dropdown button { display:block; width:100%; text-align:left; padding:10px 14px; border:none; background:transparent; color:var(--text-color); cursor:pointer; font-size:14px; }
@@ -409,11 +414,12 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .form-row label { margin-bottom:5px; font-weight:bold; }
         .notification-container { position:fixed; bottom:20px; right:20px; z-index:2000; }
         /* Above the table modal (z 10000) and the fixed top bar so the picker is never covered. */
-        .amount-currency-popover { position:fixed; z-index:100000; background:var(--group-block-bg); border:1px solid var(--border-color); border-radius:6px; box-shadow:0 4px 14px rgba(0,0,0,.18); padding:4px 6px; font-size:11px; color:var(--text-color); max-width:min(100vw - 16px,200px); }
-        .amount-currency-popover-title { font-weight:600; margin-bottom:4px; opacity:.9; font-size:11px; line-height:1.2; }
-        .amount-currency-popover-btns { display:flex; flex-wrap:wrap; gap:4px; }
-        .amount-currency-popover-btns button { padding:3px 7px; border:1px solid var(--border-color); border-radius:4px; background:var(--bg-color); color:var(--text-color); cursor:pointer; font-weight:600; font-size:11px; line-height:1.2; min-width:0; }
-        .amount-currency-popover-btns button:hover { background:rgba(var(--primary-color-rgb),.2); border-color:rgba(var(--primary-color-rgb),.5); }
+        /* Cell currency picker: opaque card, one row of compact chips. */
+        .amount-currency-popover { position:fixed; z-index:100000; background:var(--surface-solid); border:1px solid var(--border-color); border-radius:14px; box-shadow:0 14px 32px rgba(0,0,0,.42); padding:8px 10px 9px; color:var(--text-color); max-width:max-content; }
+        .amount-currency-popover-title { font-weight:600; margin:0 0 6px; font-size:11.5px; line-height:1.2; color:var(--muted-text); }
+        .amount-currency-popover-btns { display:flex; flex-wrap:nowrap; gap:6px; }
+        .amount-currency-popover-btns button { padding:5px 9px; border:1px solid var(--border-color); border-radius:999px; background:var(--group-block-bg); color:var(--text-color); cursor:pointer; font-family:inherit; font-weight:700; font-size:11.5px; line-height:1.2; min-width:42px; transition:background .15s,border-color .15s; }
+        .amount-currency-popover-btns button:hover { background:rgba(var(--primary-color-rgb),.18); border-color:rgba(var(--primary-color-rgb),.55); }
         .notification { background:var(--modal-bg); color:var(--text-color); padding:15px; margin:10px 0; border-radius:5px; box-shadow:0 2px 10px rgba(0,0,0,.2); display:flex; justify-content:space-between; align-items:center; min-width:300px; }
         .notification.error { border-left:4px solid #ff4757; }
         .notification.success { border-left:4px solid #2ed573; }
@@ -852,6 +858,9 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .modal-body{flex:1 1 auto;min-height:0;width:100%;overflow:auto;padding:clamp(16px,2.2vw,24px);box-sizing:border-box;}
         #import-modal .modal-body{display:flex;flex-direction:column;padding:0;overflow:hidden;}
         #import-modal .ocrw-shell{flex:1 1 auto;min-height:0;padding-top:0!important;}
+        /* Keep the wizard cards clear of the modal's 52px top bar instead of
+           letting the first card sit right against it. */
+        #import-modal .ocrw-stack{padding-top:16px;}
         #bank-csv-import-modal .modal-body{display:flex;flex-direction:column;padding:12px 12px 14px;}
         .table-modal .modal-body{display:flex;flex-direction:column;}
         #ocr-analytics-modal .modal-body{padding:10px;}
@@ -948,6 +957,33 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .goal-editor-modal-content .manual-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}
         .goal-editor-modal-content .manual-actions button{min-width:0;width:100%;}
     }
+
+        /* ── Native controls follow the app theme ────────────────────────────
+           color-scheme makes the browser render native popups, calendar icons
+           and spinners for the current theme instead of always-light chrome. */
+        html[data-theme="dark"]{ color-scheme: dark; }
+        html[data-theme="light"]{ color-scheme: light; }
+        input[type="date"], input[type="datetime-local"], input[type="time"] { color-scheme: inherit; }
+
+        /* ── One custom look for every <select> in the app ─────────────────── */
+        select:not([multiple]) {
+            appearance:none; -webkit-appearance:none; -moz-appearance:none;
+            padding:10px 34px 10px 12px; min-height:40px; box-sizing:border-box;
+            border:1px solid var(--border-color); border-radius:10px;
+            background-color:var(--surface-solid);
+            background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='<?= $theme === 'dark' ? '%23c7ccd1' : '%23555b60' ?>' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 9 12 15 18 9'/></svg>");
+            background-repeat:no-repeat; background-position:right 11px center; background-size:12px 12px;
+            color:var(--text-color); font-family:inherit; font-size:14px; line-height:1.3;
+            cursor:pointer; text-overflow:ellipsis;
+            transition:border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+        }
+        select:not([multiple]):hover { border-color:rgba(var(--primary-color-rgb),.55); }
+        select:not([multiple]):focus { outline:none; border-color:var(--primary-color); box-shadow:0 0 0 3px rgba(var(--primary-color-rgb),.22); }
+        select:not([multiple]) option { background:var(--surface-solid); color:var(--text-color); }
+        /* Compact selects keep their tighter metrics after the global restyle. */
+        #manual-add-modal .manual-cal-select { min-height:0; padding:8px 26px 8px 10px; border-radius:8px; }
+        .table-cal-pop select { min-height:0; padding:9px 30px 9px 10px; }
+        .date-scroll select, .date-scroll select:not([multiple]) { min-height:0; padding:6px 26px 6px 8px; }
 </style>
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}

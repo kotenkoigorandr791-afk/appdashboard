@@ -613,7 +613,11 @@ function attachAmountCurrencyPicker(input){
     };
     input.addEventListener('input',maybeShow);
     input.addEventListener('focus',maybeShow);
-    input.addEventListener('blur',()=>setTimeout(hideAmountCurrencyPopover,220));
+    // Clicking a cell that already holds a number used to open the picker and
+    // close it again in the same gesture; a plain click always re-opens it now.
+    input.addEventListener('click',maybeShow);
+    input.addEventListener('mouseup',maybeShow);
+    input.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==input) hideAmountCurrencyPopover(); },220));
 }
 
 function previewExpression(input) {
