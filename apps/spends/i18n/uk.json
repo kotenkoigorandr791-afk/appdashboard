@@ -439,5 +439,6 @@
   "mobile_app_devices_state_pending": "Очікує телефон",
   "mobile_app_devices_created": "Додано {t}",
   "mobile_app_devices_last_used": "Останнє використання {t}",
-  "mobile_app_devices_disconnect": "Відключити"
+  "mobile_app_devices_disconnect": "Відключити",
+  "table_edit_hint": "Натисніть на будь-яку комірку, щоб швидко відредагувати суму"
 }

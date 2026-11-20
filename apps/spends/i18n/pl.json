@@ -439,5 +439,6 @@
   "mobile_app_devices_state_pending": "Oczekuje na telefon",
   "mobile_app_devices_created": "Dodano {t}",
   "mobile_app_devices_last_used": "Ostatnio użyto {t}",
-  "mobile_app_devices_disconnect": "Odłącz"
+  "mobile_app_devices_disconnect": "Odłącz",
+  "table_edit_hint": "Kliknij dowolną komórkę, aby szybko edytować kwotę"
 }

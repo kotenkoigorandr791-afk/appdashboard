@@ -439,5 +439,6 @@
   "mobile_app_devices_state_pending": "Čeká na telefon",
   "mobile_app_devices_created": "Přidáno {t}",
   "mobile_app_devices_last_used": "Naposledy použito {t}",
-  "mobile_app_devices_disconnect": "Odpojit"
+  "mobile_app_devices_disconnect": "Odpojit",
+  "table_edit_hint": "Klikněte na libovolnou buňku pro rychlou úpravu částky"
 }

@@ -1354,6 +1354,76 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         /* ── Exchange rates / share / small dialogs ─────────────────────── */
         html[data-theme="dark"] .currency-select { background:#1E211E; border:1px solid var(--border-color); border-radius:12px; }
         html[data-theme="dark"] .modal-body h3 { color:#fff; }
+        html[data-theme="dark"] #expenses-table-modal .table-modal-hint { color:#9CA3AF; font-size:12px; }
+        html[data-theme="dark"] #expenses-table-modal .table-modal-actions { justify-content:space-between; }
+        /* Concept accent values for the statistics tables */
+        html[data-theme="dark"] .analytics-num.is-ok { color:#38D66B; }
+        html[data-theme="dark"] .analytics-num.is-warm { color:#EAB308; }
+        html[data-theme="dark"] .analytics-num.is-hot { color:#E53935; }
+
+        /* ── Statistics window, rebuilt to the concept layout ───────────── */
+        html[data-theme="dark"] #ocr-analytics-modal .modal-content {
+            width:min(1100px,96vw) !important; height:auto !important;
+            max-height:88vh !important; border-radius:16px !important;
+        }
+        html[data-theme="dark"] #ocr-analytics-modal .chart-nav-bottom {
+            display:flex; justify-content:center; align-items:center; gap:8px; margin:0 0 16px;
+        }
+        html[data-theme="dark"] #ocr-analytics-modal .chart-year-framed {
+            height:auto; min-width:0; padding:6px 16px; border-radius:12px;
+            background:#1E211E; border:1px solid var(--border-color);
+            color:#fff; font-size:12px; font-weight:700;
+        }
+        html[data-theme="dark"] #ocr-analytics-modal .chart-nav-btn {
+            width:32px; height:32px; border-radius:8px;
+            background:#1E211E; border:1px solid var(--border-color); color:#9CA3AF;
+        }
+        html[data-theme="dark"] #ocr-analytics-modal .chart-nav-btn:hover { background:#282B28; color:#fff; }
+        html[data-theme="dark"] #ocr-analytics-modal .form-row {
+            flex-direction:column; align-items:stretch; gap:6px; margin:0 0 16px;
+        }
+        html[data-theme="dark"] #ocr-analytics-modal .form-row > label { font-size:12px; font-weight:600; color:#D1D5DB; }
+        html[data-theme="dark"] #ocr-analytics-modal .analytics-summary-grid { display:none; }
+        html[data-theme="dark"] #ocr-analytics-modal .rate-chart-container { display:none; }
+
+        .analytics-grid { display:grid; grid-template-columns:1fr; gap:16px; margin:0 0 16px; }
+        @media (min-width:1024px) { .analytics-grid { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+        .analytics-card {
+            background:var(--surface-solid); border:1px solid var(--border-color);
+            border-radius:16px; padding:16px; min-width:0; overflow:hidden;
+        }
+        .analytics-card h4 { margin:0 0 12px; font-size:12px; font-weight:700; color:var(--text-color); }
+        .analytics-table { width:100%; border-collapse:collapse; font-size:12px; }
+        .analytics-table th {
+            padding:0 0 6px; font-size:11px; font-weight:500; color:var(--muted-text);
+            text-align:right; border-bottom:1px solid var(--border-color); white-space:nowrap;
+        }
+        .analytics-table th:first-child { text-align:left; }
+        .analytics-table td { padding:5px 0; border-bottom:1px solid var(--border-color); color:var(--text-color); }
+        .analytics-table tr:last-child td { border-bottom:0; }
+        .analytics-name { max-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+        .analytics-num { text-align:right; font-variant-numeric:tabular-nums; white-space:nowrap; padding-left:10px; }
+        .analytics-num.is-ok { color:var(--success-text); }
+        .analytics-num.is-warm { color:var(--warning-text); font-weight:600; }
+        .analytics-num.is-hot { color:var(--danger-text); font-weight:600; }
+        .analytics-bars-legend {
+            display:flex; flex-wrap:wrap; justify-content:center; gap:16px;
+            margin:0 0 12px; font-size:12px; color:var(--text-color);
+        }
+        .analytics-legend-item { display:inline-flex; align-items:center; gap:6px; }
+        .analytics-legend-item i { width:24px; height:10px; border:1px solid; border-radius:2px; display:inline-block; }
+        .analytics-bars {
+            display:flex; align-items:flex-end; justify-content:space-around; gap:12px;
+            height:180px; padding:8px 8px 0; border-bottom:1px solid var(--border-color); overflow-x:auto;
+        }
+        .analytics-bar-col {
+            display:flex; flex-direction:column; align-items:center; justify-content:flex-end;
+            gap:6px; min-width:44px; height:100%;
+        }
+        .analytics-bar-stack { display:flex; flex-direction:column; justify-content:flex-end; width:56px; flex:1 1 auto; min-height:0; gap:1px; }
+        .analytics-bar-seg { width:100%; border:1px solid; border-radius:1px; }
+        .analytics-bar-label { font-size:11px; color:var(--muted-text); }
+        .analytics-empty { color:var(--muted-text); font-size:12px; padding:12px 0; }
 </style>
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}

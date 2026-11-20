@@ -2768,16 +2768,23 @@ function renderAnalyticsSummaryTable(id, rows, nameKey) {
     }
 
     el.innerHTML = '';
-    const totals = rows.map(r => Number(r.total) || 0).filter(v => v > 0);
-    const min = totals.length ? Math.min(...totals) : 0, max = totals.length ? Math.max(...totals) : 0;
+    const totals = rows.map(r => Number(r.total) || 0);
+    const max = totals.length ? Math.max(...totals) : 0;
+    // Concept colouring: biggest totals read as red, mid ones amber, the rest green.
+    const totalClass = v => {
+        const n = Number(v) || 0;
+        if (!max || n <= 0) return 'is-ok';
+        const share = n / max;
+        return share >= .6 ? 'is-hot' : share >= .3 ? 'is-warm' : 'is-ok';
+    };
     const table = document.createElement('table');
-    table.className = 'analytics-summary-table';
+    table.className = 'analytics-table';
     table.innerHTML = `<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
     const body = document.createElement('tbody');
     const start = analyticsPagination[kind] * pageSize;
     rows.slice(start, start + pageSize).forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row.label}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.today, min, max)}">${money(row.today)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.year_day_avg, min, max)}">${money(row.year_day_avg)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.total, min, max)}">${money(row.total)}</td>`;
+        tr.innerHTML = `<td class="analytics-name">${row.label}</td><td class="analytics-num is-ok">${money(row.today)}</td><td class="analytics-num is-ok">${money(row.year_day_avg)}</td><td class="analytics-num ${totalClass(row.total)}">${money(row.total)}</td>`;
         body.appendChild(tr);
     });
     table.appendChild(body);
@@ -2814,25 +2821,77 @@ function chartTextColor(){
     return '#111827';
 }
 window.chartTextColor=chartTextColor;
+// Concept statistics use plain HTML/CSS columns (no chart library), so the
+// modal renders the same stacked bars the approved design shows.
 function buildOCRAnalyticsChart(payload,selectedStore){
     renderAnalyticsSummaries(payload);
-    const canvas=document.getElementById('ocr-analytics-chart');
-    if(!canvas)return;
-    const ctx=canvas.getContext('2d');
-    if(ocrAnalyticsChart)ocrAnalyticsChart.destroy();
+    const host=document.getElementById('analytics-bars');
+    const legend=document.getElementById('analytics-bars-legend');
+    if(!host||!legend)return;
+    host.replaceChildren();
+    legend.replaceChildren();
     const monthly=payload.monthly||[];
-    const color=chartTextColor();
+    const fills=['#7B3B46','#2B536E','#8A6D1F','#4A6B33','#5F3F78'];
+    const strokes=['#B25565','#447FA6','#C9A227','#6B8E4E','#8A5FA8'];
+    let labels=[];
+    let series=[];
     if(selectedStore==='__all__'){
-        const labels=[...new Set(monthly.map(r=>r.ym))].sort();
-        const categories=[...new Set((payload.category_summary||[]).map(r=>r.category))];
-        const datasets=categories.map((cat,i)=>({type:'bar',label:categoryLabel(cat),data:labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((sum,r)=>{const st=(payload.store_summary||[]).find(s=>s.store===r.store);return sum+(st&&st.category===cat?Number(r.amount_sum||0):0);},0)),backgroundColor:storeColors[i%storeColors.length]+'66',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
-        ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:chartTextColor()}},y:{stacked:true,beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
-        return;
+        labels=[...new Set(monthly.map(r=>r.ym))].sort();
+        const stores=payload.store_summary||[];
+        const categories=[...new Set(stores.map(s=>s.category||'other'))].slice(0,5);
+        series=categories.map((cat,i)=>{
+            const members=stores.filter(s=>(s.category||'other')===cat).map(s=>s.store);
+            return {
+                label:categoryLabel(cat),
+                fill:fills[i%fills.length], stroke:strokes[i%strokes.length],
+                values:labels.map(ym=>monthly
+                    .filter(r=>r.ym===ym&&members.includes(r.store))
+                    .reduce((sum,r)=>sum+Number(r.amount_sum||0),0))
+            };
+        });
+    }else{
+        const daily=payload.daily||[];
+        labels=[...new Set(daily.map(r=>r.date))].sort();
+        series=[{
+            label:t('chart_amount','Amount'), fill:'#7B3B46', stroke:'#E53935',
+            values:labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount||0):0;})
+        }];
     }
-    const daily=payload.daily||[];
-    const labels=[...new Set(daily.map(r=>r.date))].sort();
-    const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
-    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(239,68,68,.45)',borderColor:'rgba(239,68,68,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:chartTextColor()}},y:{beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
+    const max=Math.max(1,...series.flatMap(s=>s.values));
+    series.forEach(s=>{
+        const item=document.createElement('span');
+        item.className='analytics-legend-item';
+        const swatch=document.createElement('i');
+        swatch.style.background=s.fill;
+        swatch.style.borderColor=s.stroke;
+        const name=document.createElement('span');
+        name.textContent=s.label;
+        item.append(swatch,name);
+        legend.appendChild(item);
+    });
+    if(!labels.length){ host.innerHTML='<div class="analytics-empty">'+t('no_data','No data')+'</div>'; return; }
+    labels.forEach((label,i)=>{
+        const col=document.createElement('div');
+        col.className='analytics-bar-col';
+        const stack=document.createElement('div');
+        stack.className='analytics-bar-stack';
+        series.slice().reverse().forEach(s=>{
+            const v=Number(s.values[i])||0;
+            if(v<=0)return;
+            const part=document.createElement('div');
+            part.className='analytics-bar-seg';
+            part.style.height=Math.max(2,Math.round(v/max*100))+'%';
+            part.style.background=s.fill;
+            part.style.borderColor=s.stroke;
+            part.title=`${s.label}: ${money(v)}`;
+            stack.appendChild(part);
+        });
+        const cap=document.createElement('span');
+        cap.className='analytics-bar-label';
+        cap.textContent=selectedStore==='__all__'?label.slice(5):label.slice(8);
+        col.append(stack,cap);
+        host.appendChild(col);
+    });
 }
 let lastAnalyticsPayload = null;
 function loadOCRAnalytics(){

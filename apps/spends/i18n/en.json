@@ -439,5 +439,6 @@
   "mobile_app_devices_state_pending": "Waiting for the phone",
   "mobile_app_devices_created": "Added {t}",
   "mobile_app_devices_last_used": "Last used {t}",
-  "mobile_app_devices_disconnect": "Disconnect"
+  "mobile_app_devices_disconnect": "Disconnect",
+  "table_edit_hint": "Tap any cell to quickly edit the amount"
 }

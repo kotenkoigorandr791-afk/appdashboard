@@ -439,5 +439,6 @@
   "mobile_app_devices_state_pending": "Чакае тэлефон",
   "mobile_app_devices_created": "Дададзена {t}",
   "mobile_app_devices_last_used": "Апошняе выкарыстанне {t}",
-  "mobile_app_devices_disconnect": "Адключыць"
+  "mobile_app_devices_disconnect": "Адключыць",
+  "table_edit_hint": "Націсніце на любую ячэйку, каб хутка адрэдагаваць суму"
 }

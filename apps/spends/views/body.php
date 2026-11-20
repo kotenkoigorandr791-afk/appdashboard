@@ -193,6 +193,7 @@
         <button class="modal-close" onclick="closeModal('expenses-table-modal')">×</button>
         <h3><?= htmlspecialchars($tableModalTitle) ?></h3>
         <div class="table-modal-actions">
+            <span class="table-modal-hint"><?= htmlspecialchars($translations['table_edit_hint'] ?? 'Tap any cell to edit the amount') ?></span>
             <button type="button" class="add-date-btn table-sub-btn" onclick="openManualAddFromTable()"><?= htmlspecialchars($translations['table_sub_button'] ?? 'Subscription') ?></button>
         </div>
         <div class="data-table-container">
@@ -266,19 +267,22 @@
             <label><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?></label>
             <select id="ocr-analytics-store" class="currency-select" onchange="loadOCRAnalytics()"><option value="__all__"><?= htmlspecialchars($translations['all_stores'] ?? 'All stores') ?></option></select>
         </div>
-        <div class="analytics-summary-grid">
-            <section>
+        <div class="analytics-grid">
+            <section class="analytics-card">
                 <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
                 <div id="analytics-store-summary"></div>
                 <div class="list-pagination" id="analytics-store-pagination" hidden></div>
             </section>
-            <section>
+            <section class="analytics-card">
                 <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
                 <div id="analytics-category-summary"></div>
                 <div class="list-pagination" id="analytics-category-pagination" hidden></div>
             </section>
         </div>
-        <div class="rate-chart-container"><canvas id="ocr-analytics-chart"></canvas></div>
+        <section class="analytics-card analytics-bars-card">
+            <div class="analytics-bars-legend" id="analytics-bars-legend"></div>
+            <div class="analytics-bars" id="analytics-bars"></div>
+        </section>
     </div>
 </div>
 

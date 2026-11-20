@@ -439,5 +439,6 @@
   "mobile_app_devices_state_pending": "Ожидает телефон",
   "mobile_app_devices_created": "Добавлено {t}",
   "mobile_app_devices_last_used": "Последнее использование {t}",
-  "mobile_app_devices_disconnect": "Отключить"
+  "mobile_app_devices_disconnect": "Отключить",
+  "table_edit_hint": "Нажмите на любую ячейку, чтобы быстро отредактировать сумму"
 }
