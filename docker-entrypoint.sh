@@ -197,31 +197,37 @@ chown -h www-data:www-data "$APP_ROOT/data" "$APP_ROOT/uploads" 2>/dev/null || t
 chmod -R u+rwX,g+rwX "$UPLOADS_BASE_DIR" 2>/dev/null || true
 chown www-data:www-data "$APPDATA_BASE_DIR" 2>/dev/null || true
 chmod 750 "$APPDATA_DATA_DIR" 2>/dev/null || true
-# MQTT credentials, ACL and the broker persistence file live on the APPDATA
-# volume so they survive container replacement and never land in the image.
-# Keep the broker config in sync with the bind-mounted source tree so paths do
-# not depend on an image rebuild.
+# MQTT: AppArmor on the host only allows mosquitto to read /etc/mosquitto and
+# /var/lib/mosquitto/mosquitto.db. APPDATA keeps durable mirrors across rebuilds.
 if [ -f /var/www/AppDashboard/deploy/mosquitto/smarthome.conf ]; then
   cp /var/www/AppDashboard/deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
   chmod 0644 /etc/mosquitto/conf.d/smarthome.conf
 fi
-mkdir -p /etc/mosquitto "$APPDATA_MOSQUITTO_DIR"
-touch "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl"
-chown -R mosquitto:mosquitto "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
-chmod 0700 "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
-chmod 0600 "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl" 2>/dev/null || true
+mkdir -p /etc/mosquitto /var/lib/mosquitto /var/log/mosquitto "$APPDATA_MOSQUITTO_DIR"
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard || true
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
-# ensure-apps-appdata chowns the whole APPDATA tree to www-data; the broker runs
-# as the mosquitto user and needs its own credentials/state directory back.
+# ensure-apps-appdata chowns the whole APPDATA tree to www-data; restore the
+# broker mirror dir, then seed runtime paths AppArmor actually allows.
 mkdir -p "$APPDATA_MOSQUITTO_DIR"
-touch "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl"
 chown -R mosquitto:mosquitto "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
 chmod 0700 "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
-chmod 0600 "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl" 2>/dev/null || true
+for f in smarthome.passwd smarthome.acl; do
+  if [ -s "$APPDATA_MOSQUITTO_DIR/$f" ]; then
+    cp -a "$APPDATA_MOSQUITTO_DIR/$f" "/etc/mosquitto/$f"
+  else
+    touch "/etc/mosquitto/$f"
+  fi
+  chown mosquitto:mosquitto "/etc/mosquitto/$f" 2>/dev/null || true
+  chmod 0600 "/etc/mosquitto/$f" 2>/dev/null || true
+done
+if [ -s "$APPDATA_MOSQUITTO_DIR/mosquitto.db" ]; then
+  cp -a "$APPDATA_MOSQUITTO_DIR/mosquitto.db" /var/lib/mosquitto/mosquitto.db
+fi
+chown -R mosquitto:mosquitto /var/lib/mosquitto /var/log/mosquitto 2>/dev/null || true
+chmod 0755 /var/lib/mosquitto /var/log/mosquitto 2>/dev/null || true
 # Seed the bundled lopaka build only when the app directory is absent or
 # empty. A bind-mounted checkout must never be wiped: the previous guard keyed
 # off index.html, which the lopaka rewrite no longer ships, so it deleted the

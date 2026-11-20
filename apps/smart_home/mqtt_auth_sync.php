@@ -5,10 +5,11 @@ if (php_sapi_name() !== 'cli') {
 require_once dirname(__DIR__, 2) . '/lib/app_db.php';
 $appDir = __DIR__;
 $dataDir = getenv('APPDATA_DATA_DIR') ?: dirname($appDir, 2) . '/data';
-// Credentials/ACL live on the APPDATA volume and must match
-// deploy/mosquitto/smarthome.conf. The container layer is not persistent.
-$passwdFile = getenv('SH_MQTT_PASSWD_FILE') ?: '/opt/ApplicationData/mosquitto/smarthome.passwd';
-$aclFile = getenv('SH_MQTT_ACL_FILE') ?: '/opt/ApplicationData/mosquitto/smarthome.acl';
+// Runtime credentials must live under /etc/mosquitto (AppArmor). APPDATA holds
+// durable mirrors so a container rebuild still has a bootstrap copy.
+$passwdFile = getenv('SH_MQTT_PASSWD_FILE') ?: '/etc/mosquitto/smarthome.passwd';
+$aclFile = getenv('SH_MQTT_ACL_FILE') ?: '/etc/mosquitto/smarthome.acl';
+$backupDir = getenv('SH_MQTT_BACKUP_DIR') ?: '/opt/ApplicationData/mosquitto';
 $dirtyFile = rtrim($dataDir, '/') . '/smarthome_mqtt_auth_dirty';
 function shma_db(): AppDatabase {
     $db = app_main_db();
@@ -40,7 +41,17 @@ function shma_backend_credentials(AppDatabase $db): array {
     $ins->execute();
     return [$username, $password];
 }
-function shma_run(string $passwdFile, string $aclFile): void {
+function shma_mirror(string $src, string $dst): void {
+    if ($src === $dst || !is_file($src)) return;
+    $dir = dirname($dst);
+    if (!is_dir($dir) && !@mkdir($dir, 0700, true) && !is_dir($dir)) return;
+    $tmp = $dst . '.tmp';
+    if (@copy($src, $tmp) === false) return;
+    @chmod($tmp, 0600);
+    @rename($tmp, $dst);
+    @chmod($dst, 0600);
+}
+function shma_run(string $passwdFile, string $aclFile, string $backupDir): void {
     $db = shma_db();
     [$backendUser, $backendPass] = shma_backend_credentials($db);
     $tmpPasswd = $passwdFile . '.tmp';
@@ -66,6 +77,15 @@ function shma_run(string $passwdFile, string $aclFile): void {
     rename($tmpPasswd, $passwdFile);
     rename($tmpAcl, $aclFile);
     exec('chown mosquitto:mosquitto ' . escapeshellarg($passwdFile) . ' ' . escapeshellarg($aclFile) . ' 2>/dev/null || true');
+    if ($backupDir !== '') {
+        if (!is_dir($backupDir)) @mkdir($backupDir, 0700, true);
+        shma_mirror($passwdFile, rtrim($backupDir, '/') . '/smarthome.passwd');
+        shma_mirror($aclFile, rtrim($backupDir, '/') . '/smarthome.acl');
+        if (is_file('/var/lib/mosquitto/mosquitto.db')) {
+            shma_mirror('/var/lib/mosquitto/mosquitto.db', rtrim($backupDir, '/') . '/mosquitto.db');
+        }
+        exec('chown -R mosquitto:mosquitto ' . escapeshellarg($backupDir) . ' 2>/dev/null || true');
+    }
     exec('pkill -HUP mosquitto >/dev/null 2>&1 || true');
 }
 $loop = in_array('--loop', $argv, true);
@@ -73,7 +93,7 @@ $synced = false;
 do {
     try {
         if (!$loop || !$synced || (is_file($dirtyFile) && (time() - filemtime($dirtyFile)) >= 2)) {
-            shma_run($passwdFile, $aclFile);
+            shma_run($passwdFile, $aclFile, $backupDir);
             $synced = true;
             @unlink($dirtyFile);
         }
