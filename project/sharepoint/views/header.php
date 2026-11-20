@@ -46,6 +46,7 @@ if (!function_exists('sp_public_shell')) {
   <footer class="sp-footer"><span class="sp-footer__brand"><img class="sp-brand-logo" src="' . sp_h(sp_asset('icon.svg')) . '" alt="" width="20" height="20">SharePoint</span>' . sp_footer_version_html() . '</footer>
 </main>
 <script src="' . sp_h(sp_asset('js/md3-components.js')) . '" defer></script>
+<script src="' . sp_h(sp_asset('js/md3-select.js')) . '" defer></script>
 </body>
 </html>';
     }

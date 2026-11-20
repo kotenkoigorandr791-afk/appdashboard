@@ -499,7 +499,7 @@
       if (kind === 'pie') {
         const items = categories.slice(0, 6);
         const rest = categories.slice(6).reduce(function (sum, item) { return sum + Number(item.total || 0); }, 0);
-        if (rest > 0) items.push({ category: 'other', total: rest });
+        if (rest > 0) items.push({ category: spT('store_category_other', 'Other'), total: rest });
         const total = items.reduce(function (sum, item) { return sum + Number(item.total || 0); }, 0);
         const cx = width / 2;
         const cy = height / 2;
@@ -588,16 +588,27 @@
       }
       ctx.fillStyle = font;
       ctx.textAlign = 'center';
+      // Month captions follow the page language ("авг. 26", not "26-08").
+      const monthLabel = function (row) {
+        const match = /^(\d{4})-(\d{2})$/.exec(String(row.month || ''));
+        if (!match) return String(row.month || '');
+        try {
+          return new Intl.DateTimeFormat(document.documentElement.lang || 'en', { month: 'short', year: '2-digit' })
+            .format(new Date(Number(match[1]), Number(match[2]) - 1, 1));
+        } catch (e) {
+          return String(row.month || '');
+        }
+      };
       const step = Math.max(1, Math.ceil(rows.length / 10));
       rows.forEach(function (row, index) {
         if (index % step !== 0 && index !== rows.length - 1) return;
         const x = kind === 'bar'
           ? left + plotW / rows.length * (index + 0.5)
           : left + plotW * (rows.length === 1 ? 0.5 : index / (rows.length - 1));
-        ctx.fillText(String(row.month || '').slice(2), x, height - 22);
+        ctx.fillText(monthLabel(row), x, height - 22);
       });
       legend(rows.map(function (row, index) {
-        return { label: row.month + ' · ' + Number(row.total).toLocaleString(), color: kind === 'bar' ? colorAt(index) : color };
+        return { label: monthLabel(row) + ' · ' + Number(row.total).toLocaleString(), color: kind === 'bar' ? colorAt(index) : color };
       }).slice(-3));
     }
 

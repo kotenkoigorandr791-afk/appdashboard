@@ -65,7 +65,10 @@ final class ExpenseChartShareHandler extends BaseAppHandler
         $result = $udb->query("SELECT COALESCE(NULLIF(s.category, ''), 'other') AS category, ROUND(SUM(e.amount)::numeric, 2) AS total
             FROM expenses e LEFT JOIN stores s ON s.name = e.store WHERE e.amount > 0 GROUP BY 1 ORDER BY total DESC");
         while ($row = $result->fetch(PDO::FETCH_ASSOC)) {
-            $categories[] = ['category' => (string)$row['category'], 'total' => (float)$row['total']];
+            // Category keys are stored as slugs; the share page must show the
+            // visitor's language, not the raw "food"/"other" token.
+            $key = strtolower((string)$row['category']);
+            $categories[] = ['category' => sp_t('store_category_' . $key), 'category_key' => $key, 'total' => (float)$row['total']];
         }
 
         $daily = [];

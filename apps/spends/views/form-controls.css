@@ -1,0 +1,418 @@
+/*
+ * Spends — typed form controls.
+ *
+ * One place for every control type the app renders: text/number fields,
+ * calendars, dropdown lists and the shared dropdown component. Screens do not
+ * carry their own input/select styling any more; they reference these rules by
+ * element type or by the `cal-field` / `cs-select` classes.
+ */
+
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+html[data-theme="dark"] {
+    --fc-bg: #181918;
+    --fc-bg-hover: #1d1f1d;
+    --fc-panel: #1e201e;
+    --fc-panel-hover: #252725;
+    --fc-border: #2c2e2c;
+    --fc-border-strong: #383b38;
+    --fc-text: #f3f4f6;
+    --fc-text-soft: #d1d5db;
+    --fc-muted: #9ca3af;
+    --fc-accent: #8ce043;
+    --fc-accent-ink: #141414;
+    --fc-danger: #f87171;
+    --fc-radius: 10px;
+    --fc-radius-lg: 12px;
+    color-scheme: dark;
+}
+html[data-theme="light"] {
+    --fc-bg: #ffffff;
+    --fc-bg-hover: #f6f8f4;
+    --fc-panel: #ffffff;
+    --fc-panel-hover: #eef2ea;
+    --fc-border: rgba(22, 27, 24, .16);
+    --fc-border-strong: rgba(22, 27, 24, .28);
+    --fc-text: #161b18;
+    --fc-text-soft: #374151;
+    --fc-muted: #5f6b62;
+    --fc-accent: var(--primary-color, #5c9c1f);
+    --fc-accent-ink: #ffffff;
+    --fc-danger: #b91c1c;
+}
+
+/* ── Type: text / number / search / textarea ───────────────────────────── */
+:where(
+    .modal-body input[type="text"],
+    .modal-body input[type="number"],
+    .modal-body input[type="search"],
+    .modal-body input[type="email"],
+    .modal-body input[type="password"],
+    .modal-body input[type="tel"],
+    .modal-body input[type="url"],
+    .modal-body input:not([type]),
+    .modal-body textarea
+):not(#data-table input):not(.income-switch input) {
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: var(--fc-radius-lg);
+    color: var(--fc-text);
+    font-size: 13px;
+    padding: 10px 14px;
+    min-height: 40px;
+    width: 100%;
+    box-sizing: border-box;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+:where(
+    .modal-body input[type="text"],
+    .modal-body input[type="number"],
+    .modal-body input[type="search"],
+    .modal-body input:not([type]),
+    .modal-body textarea
+):not(#data-table input):hover { background: var(--fc-bg-hover); }
+:where(
+    .modal-body input[type="text"],
+    .modal-body input[type="number"],
+    .modal-body input[type="search"],
+    .modal-body input:not([type]),
+    .modal-body textarea
+):not(#data-table input):focus {
+    border-color: var(--fc-accent);
+    outline: none;
+    box-shadow: none;
+}
+
+/* ── Type: calendar ────────────────────────────────────────────────────── */
+/* Every date control on every screen uses this block: the field itself, the
+   native picker glyph and the popup colour scheme. */
+:where(
+    input[type="date"],
+    input[type="month"],
+    input[type="week"],
+    input[type="time"],
+    input[type="datetime-local"],
+    .cal-field
+):not(#data-table input) {
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: var(--fc-radius-lg);
+    color: var(--fc-text);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
+    padding: 9px 12px;
+    min-height: 40px;
+    box-sizing: border-box;
+    width: 100%;
+    max-width: 100%;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+:where(input[type="date"], .cal-field):not(#data-table input):hover { background: var(--fc-bg-hover); }
+:where(input[type="date"], .cal-field):not(#data-table input):focus {
+    border-color: var(--fc-accent);
+    outline: none;
+}
+:where(input[type="date"], input[type="month"], .cal-field)::-webkit-datetime-edit { color: var(--fc-text); }
+:where(input[type="date"], input[type="month"], .cal-field)::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+:where(input[type="date"], input[type="month"], .cal-field)::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    width: 18px;
+    height: 18px;
+    opacity: .6;
+    padding: 0;
+    margin-left: 4px;
+    background: transparent
+        url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2.5'/%3E%3Cline x1='16' y1='2.5' x2='16' y2='6.5'/%3E%3Cline x1='8' y1='2.5' x2='8' y2='6.5'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E")
+        center / 18px no-repeat;
+    transition: opacity .15s ease;
+}
+:where(input[type="date"], input[type="month"], .cal-field)::-webkit-calendar-picker-indicator:hover { opacity: 1; }
+html[data-theme="light"] :where(input[type="date"], .cal-field)::-webkit-calendar-picker-indicator {
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235f6b62' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='3' y='4.5' width='18' height='17' rx='2.5'/%3E%3Cline x1='16' y1='2.5' x2='16' y2='6.5'/%3E%3Cline x1='8' y1='2.5' x2='8' y2='6.5'/%3E%3Cline x1='3' y1='10' x2='21' y2='10'/%3E%3C/svg%3E");
+}
+
+/* ── Type: dropdown (native select before enhancement) ─────────────────── */
+:where(.modal-body select, .form-row select):not([multiple]):not(.cs-native) {
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: var(--fc-radius-lg);
+    color: var(--fc-text);
+    font-size: 13px;
+    padding: 9px 34px 9px 12px;
+    min-height: 40px;
+    width: 100%;
+    appearance: none;
+    background-image: url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%239CA3AF' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    background-size: 16px;
+    cursor: pointer;
+}
+
+/* ── Custom dropdown component ─────────────────────────────────────────── */
+.cs-select {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+.cs-select.cs-inline { width: auto; }
+.cs-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+}
+.cs-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
+    box-sizing: border-box;
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: var(--fc-radius-lg);
+    color: var(--fc-text);
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease;
+}
+.cs-trigger:hover { background: var(--fc-bg-hover); border-color: var(--fc-border-strong); }
+.cs-trigger:focus-visible { outline: none; border-color: var(--fc-accent); }
+.cs-select.is-open .cs-trigger { border-color: var(--fc-accent); }
+.cs-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+    flex: 1 1 auto;
+}
+.cs-chevron {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    color: var(--fc-muted);
+    transition: transform .16s cubic-bezier(.16, 1, .3, 1);
+}
+.cs-select.is-open .cs-chevron { transform: rotate(180deg); }
+/* Fixed, so a dropdown inside a scrolling modal is never clipped by it.
+   JavaScript measures the trigger and sets left/top/width on open. */
+.cs-menu {
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 220px;
+    z-index: 100000;
+    display: flex;
+    flex-direction: column;
+    max-height: min(280px, 46vh);
+    box-sizing: border-box;
+    padding: 6px;
+    background: var(--fc-panel);
+    border: 1px solid var(--fc-border-strong);
+    border-radius: 11px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+    transform-origin: top center;
+    animation: cs-open .16s cubic-bezier(.16, 1, .3, 1);
+}
+.cs-menu[hidden] { display: none; }
+@keyframes cs-open {
+    from { opacity: 0; transform: translateY(-4px) scale(.99); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.cs-list {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+}
+.cs-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 10px;
+    box-sizing: border-box;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--fc-text-soft);
+    font-size: 13px;
+    font-family: inherit;
+    text-align: left;
+    cursor: pointer;
+}
+.cs-option-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cs-option:hover, .cs-option.is-active { background: var(--fc-panel-hover); color: var(--fc-text); }
+.cs-option[aria-selected="true"] { background: var(--fc-panel-hover); color: var(--fc-text); font-weight: 600; }
+.cs-option-dot {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--fc-accent);
+}
+.cs-pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+    padding-top: 6px;
+    border-top: 1px solid var(--fc-border);
+}
+.cs-pager button {
+    min-width: 26px;
+    height: 26px;
+    padding: 0 8px;
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: 8px;
+    color: var(--fc-text-soft);
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.cs-pager button:hover:not(:disabled) { background: var(--fc-panel-hover); color: var(--fc-text); }
+.cs-pager button:disabled { opacity: .4; cursor: default; }
+.cs-pager-status { font-size: 11px; color: var(--fc-muted); font-variant-numeric: tabular-nums; }
+.cs-empty { padding: 10px; font-size: 12px; color: var(--fc-muted); text-align: center; }
+
+/* ── Custom calendar field ─────────────────────────────────────────────── */
+.cal-field-wrap {
+    position: relative;
+    display: block;
+    width: 100%;
+    min-width: 0;
+}
+.cal-field-wrap.is-open .cal-trigger { border-color: var(--fc-accent); }
+.cal-native {
+    position: absolute !important;
+    width: 1px !important;
+    height: 1px !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: 0 !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    clip: rect(0 0 0 0);
+    overflow: hidden;
+}
+.cal-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 40px;
+    padding: 9px 12px;
+    box-sizing: border-box;
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: var(--fc-radius-lg);
+    color: var(--fc-text);
+    font-size: 13px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color .15s ease, border-color .15s ease;
+}
+.cal-trigger:hover { background: var(--fc-bg-hover); border-color: var(--fc-border-strong); }
+.cal-trigger:focus-visible { outline: none; border-color: var(--fc-accent); }
+.cal-trigger.is-disabled { opacity: .55; cursor: not-allowed; }
+.cal-label { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cal-label.is-empty { color: var(--fc-muted); }
+.cal-icon { flex: 0 0 auto; width: 18px; height: 18px; color: var(--fc-muted); }
+.cal-field-wrap.is-open .cal-icon { color: var(--fc-accent); }
+
+.cal-pop {
+    position: fixed;
+    z-index: 100001;
+    padding: 10px;
+    box-sizing: border-box;
+    background: var(--fc-panel);
+    border: 1px solid var(--fc-border-strong);
+    border-radius: 14px;
+    box-shadow: 0 24px 60px rgba(0, 0, 0, .6);
+    animation: cs-open .16s cubic-bezier(.16, 1, .3, 1);
+}
+.cal-pop[hidden] { display: none; }
+.cal-pop-head { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+.cal-selects { display: flex; gap: 6px; flex: 1 1 auto; min-width: 0; }
+.cal-selects .cs-select { flex: 1 1 0; min-width: 0; }
+.cal-selects .cs-trigger { min-height: 34px; padding: 6px 8px; font-size: 12px; border-radius: 9px; }
+.cal-selects .cs-chevron { width: 13px; height: 13px; }
+.cal-nav {
+    flex: 0 0 auto;
+    width: 30px;
+    height: 34px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: 9px;
+    color: var(--fc-muted);
+    font-size: 16px;
+    line-height: 1;
+    cursor: pointer;
+}
+.cal-nav:hover { background: var(--fc-panel-hover); color: var(--fc-text); }
+.cal-dows { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-dow {
+    padding: 4px 0;
+    text-align: center;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--fc-muted);
+    text-transform: uppercase;
+}
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
+.cal-blank { height: 30px; }
+.cal-day {
+    height: 30px;
+    padding: 0;
+    background: transparent;
+    border: 0;
+    border-radius: 8px;
+    color: var(--fc-text-soft);
+    font-size: 12px;
+    font-family: inherit;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+    transition: background-color .12s ease, color .12s ease;
+}
+.cal-day:hover:not(:disabled) { background: var(--fc-panel-hover); color: var(--fc-text); }
+.cal-day.is-today { box-shadow: inset 0 0 0 1px var(--fc-accent); color: var(--fc-text); }
+.cal-day[aria-selected="true"] { background: var(--fc-accent); color: var(--fc-accent-ink); font-weight: 700; box-shadow: none; }
+.cal-day:disabled { opacity: .28; cursor: default; }
+.cal-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--fc-border); }
+.cal-foot button {
+    flex: 1 1 0;
+    min-height: 30px;
+    background: var(--fc-bg);
+    border: 1px solid var(--fc-border);
+    border-radius: 9px;
+    color: var(--fc-text-soft);
+    font-size: 12px;
+    font-family: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.cal-foot button:hover { background: var(--fc-panel-hover); color: var(--fc-text); }
+.cal-foot .cal-today { border-color: var(--fc-accent); color: var(--fc-accent); }

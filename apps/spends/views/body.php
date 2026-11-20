@@ -253,35 +253,57 @@
 <div id="ocr-analytics-modal" class="modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('ocr-analytics-modal')">×</button>
-        <h3 style="margin-top:0;"><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></h3>
-        <div class="chart-nav-bottom" style="margin:0 0 10px;">
-            <button id="analytics-year-prev-btn" class="chart-nav-btn" onclick="changeAnalyticsYear(-1)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        <h3><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></h3>
+        <div class="stats-year">
+            <button type="button" id="analytics-year-prev-btn" class="stats-nav-btn" onclick="changeAnalyticsYear(-1)" aria-label="<?= htmlspecialchars($translations['prev_year'] ?? 'Previous year') ?>">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div class="chart-year-framed" id="analytics-year-label"></div>
-            <button id="analytics-year-next-btn" class="chart-nav-btn" onclick="changeAnalyticsYear(1)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            <div class="stats-year-badge" id="analytics-year-label" aria-live="polite"></div>
+            <button type="button" id="analytics-year-next-btn" class="stats-nav-btn" onclick="changeAnalyticsYear(1)" aria-label="<?= htmlspecialchars($translations['next_year'] ?? 'Next year') ?>">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
         </div>
-        <div class="form-row">
-            <label><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?></label>
-            <select id="ocr-analytics-store" class="currency-select" onchange="loadOCRAnalytics()"><option value="__all__"><?= htmlspecialchars($translations['all_stores'] ?? 'All stores') ?></option></select>
+        <div class="stats-filter">
+            <div class="stats-filter-head">
+                <label for="ocr-analytics-store"><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?></label>
+                <button type="button" class="stats-reset" id="analytics-reset-filter" onclick="selectAnalyticsStore('__all__')" hidden><?= htmlspecialchars($translations['analytics_reset_filter'] ?? 'Reset filter') ?></button>
+            </div>
+            <select id="ocr-analytics-store" onchange="onAnalyticsStoreChange()"><option value="__all__"><?= htmlspecialchars($translations['all_stores'] ?? 'All stores') ?></option></select>
         </div>
         <div class="analytics-grid">
             <section class="analytics-card">
-                <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
-                <div id="analytics-store-summary"></div>
+                <div class="analytics-card-head">
+                    <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
+                    <span class="analytics-card-hint"><?= htmlspecialchars($translations['analytics_filter_hint'] ?? 'Click a row to filter') ?></span>
+                </div>
+                <div class="analytics-table-wrap" id="analytics-store-summary"></div>
                 <div class="list-pagination" id="analytics-store-pagination" hidden></div>
             </section>
             <section class="analytics-card">
-                <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
-                <div id="analytics-category-summary"></div>
+                <div class="analytics-card-head">
+                    <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
+                    <span class="analytics-badge" id="analytics-category-badge" hidden></span>
+                </div>
+                <div class="analytics-table-wrap" id="analytics-category-summary"></div>
                 <div class="list-pagination" id="analytics-category-pagination" hidden></div>
             </section>
         </div>
         <section class="analytics-card analytics-bars-card">
             <div class="analytics-bars-legend" id="analytics-bars-legend"></div>
-            <div class="analytics-bars" id="analytics-bars"></div>
+            <div class="analytics-chart-scroll">
+                <div class="analytics-chart-inner">
+                    <svg id="analytics-chart" viewBox="0 0 1040 315" role="img" aria-label="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
+                        <g id="analytics-grid-layer"></g>
+                        <g id="analytics-bars-layer"></g>
+                        <g id="analytics-labels-layer"></g>
+                    </svg>
+                    <div class="analytics-tooltip" id="analytics-tooltip" aria-hidden="true">
+                        <div class="analytics-tooltip-month" id="analytics-tooltip-month"></div>
+                        <div id="analytics-tooltip-rows"></div>
+                        <div class="analytics-tooltip-total"><span><?= htmlspecialchars($translations['total_label'] ?? 'Total') ?></span><span id="analytics-tooltip-total"></span></div>
+                    </div>
+                </div>
+            </div>
         </section>
     </div>
 </div>
@@ -306,6 +328,29 @@
     </div>
 </div>
 <input type="file" id="bank-csv-input" accept=".csv,.ofx,.qfx,.mt940,.sta,.xml,text/csv,application/xml" style="display:none;">
+<div id="shortcuts-modal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closeModal('shortcuts-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
+        <h3><?= htmlspecialchars($translations['shortcuts_title'] ?? 'Keyboard shortcuts') ?></h3>
+        <ul class="shortcuts-list">
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_new_expense'] ?? 'New expense') ?></span><span class="shortcuts-keys"><span class="kbd">N</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_table'] ?? 'Open the table') ?></span><span class="shortcuts-keys"><span class="kbd">T</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_statistics'] ?? 'Statistics') ?></span><span class="shortcuts-keys"><span class="kbd">A</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_settings'] ?? 'Settings') ?></span><span class="shortcuts-keys"><span class="kbd">,</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_undo'] ?? 'Undo the last cell edit') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">Z</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_redo'] ?? 'Redo') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">Z</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_select_all'] ?? 'Select all cells') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">A</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_copy'] ?? 'Copy selected cells') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">C</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_save'] ?? 'Save pending edits') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">S</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_navigate'] ?? 'Move between cells') ?></span><span class="shortcuts-keys"><span class="kbd">←</span><span class="kbd">↑</span><span class="kbd">↓</span><span class="kbd">→</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_range'] ?? 'Select a range of cells') ?></span><span class="shortcuts-keys"><span class="kbd">Shift</span><span class="kbd"><?= htmlspecialchars($translations['shortcut_click'] ?? 'Click') ?></span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_months'] ?? 'Previous / next month') ?></span><span class="shortcuts-keys"><span class="kbd">PgUp</span><span class="kbd">PgDn</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_close'] ?? 'Close the window') ?></span><span class="shortcuts-keys"><span class="kbd">Esc</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_help'] ?? 'This list') ?></span><span class="shortcuts-keys"><span class="kbd">?</span></span></li>
+        </ul>
+        <p class="shortcuts-note"><?= htmlspecialchars($translations['shortcuts_note'] ?? 'Shortcuts are paused while you type in a field.') ?></p>
+    </div>
+</div>
 <div class="notification-container" id="notification-container"></div>
 <div id="amount-currency-popover" class="amount-currency-popover" style="display:none" role="listbox" aria-hidden="true"></div>
 
@@ -559,9 +604,9 @@
             <div id="bulk-delete-range-fields">
                 <div class="form-row">
                     <label><?= htmlspecialchars($translations['bulk_delete_date_from'] ?? 'From') ?>:</label>
-                    <input type="date" id="bulk-delete-from">
+                    <input type="date" id="bulk-delete-from" class="cal-field" max="<?= date('Y-m-d') ?>">
                     <label><?= htmlspecialchars($translations['bulk_delete_date_to'] ?? 'To') ?>:</label>
-                    <input type="date" id="bulk-delete-to">
+                    <input type="date" id="bulk-delete-to" class="cal-field" max="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="form-row">
                     <label><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?>:</label>

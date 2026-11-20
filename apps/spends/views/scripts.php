@@ -84,6 +84,590 @@ function resolveInputPrompt(value){
     if(resolve)resolve(value==null?null:String(value));
 }
 
+// ══ Custom dropdowns (every native select) ═════════════════════════════════
+// The concept renders dropdowns as a button plus a menu, so every <select> in
+// the app is replaced by that component while the native element stays in the
+// DOM as the single source of truth for form submits and existing listeners.
+const CS_PAGE_SIZE = 8;
+const CS_SVG_NS = 'http://www.w3.org/2000/svg';
+
+function csShouldSkip(select) {
+    return !select || select.multiple || select.hidden
+        || select.getAttribute('aria-hidden') === 'true'
+        || select.dataset.nativeSelect === '1';
+}
+
+function csOptions(select) {
+    return Array.from(select.options);
+}
+
+function csSync(select) {
+    const ui = select._cs;
+    if (!ui) return;
+    const selected = select.selectedOptions[0];
+    ui.label.textContent = selected ? selected.textContent.trim() : '';
+    ui.trigger.disabled = select.disabled;
+    ui.trigger.setAttribute('aria-label', selected ? selected.textContent.trim() : '');
+}
+
+function csCloseOthers(keep) {
+    document.querySelectorAll('.cs-select.is-open').forEach(wrap => {
+        if (wrap === keep) return;
+        wrap.classList.remove('is-open');
+        const menu = wrap._csMenu;
+        const trigger = wrap.querySelector('.cs-trigger');
+        if (menu) menu.hidden = true;
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    });
+}
+
+function csChoose(select, value) {
+    if (select.value === value) { select._cs.close(); return; }
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    csSync(select);
+    select._cs.close();
+    select._cs.trigger.focus();
+}
+
+function enhanceSelect(select) {
+    if (!select || select.dataset.csReady === '1' || csShouldSkip(select)) return;
+    select.dataset.csReady = '1';
+    const wrap = document.createElement('span');
+    wrap.className = 'cs-select' + (select.classList.contains('manual-cal-select') ? ' cs-inline' : '');
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add('cs-native');
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'cs-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    const label = document.createElement('span');
+    label.className = 'cs-label';
+    const chevron = document.createElementNS(CS_SVG_NS, 'svg');
+    chevron.setAttribute('viewBox', '0 0 24 24');
+    chevron.setAttribute('class', 'cs-chevron');
+    chevron.setAttribute('aria-hidden', 'true');
+    const polyline = document.createElementNS(CS_SVG_NS, 'polyline');
+    polyline.setAttribute('points', '6 9 12 15 18 9');
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', 'currentColor');
+    polyline.setAttribute('stroke-width', '2');
+    polyline.setAttribute('stroke-linecap', 'round');
+    polyline.setAttribute('stroke-linejoin', 'round');
+    chevron.appendChild(polyline);
+    trigger.append(label, chevron);
+
+    const menu = document.createElement('div');
+    menu.className = 'cs-menu';
+    menu.hidden = true;
+    const list = document.createElement('div');
+    list.className = 'cs-list';
+    list.setAttribute('role', 'listbox');
+    const pager = document.createElement('div');
+    pager.className = 'cs-pager';
+    pager.hidden = true;
+    menu.append(list, pager);
+    wrap.append(trigger);
+    // The menu lives on <body>: a modal with backdrop-filter becomes the
+    // containing block for position:fixed, which would offset the menu.
+    document.body.appendChild(menu);
+
+    const ui = {
+        wrap, trigger, label, menu, list, pager, page: 0,
+        open() {
+            csCloseOthers(wrap);
+            const options = csOptions(select);
+            const selectedIndex = options.findIndex(option => option.value === select.value);
+            ui.page = selectedIndex >= 0 ? Math.floor(selectedIndex / CS_PAGE_SIZE) : 0;
+            wrap.classList.add('is-open');
+            trigger.setAttribute('aria-expanded', 'true');
+            menu.hidden = false;
+            ui.render(selectedIndex);
+            ui.position();
+            // Fonts and scrollbars settle one frame later; re-measure then.
+            requestAnimationFrame(() => { if (wrap.classList.contains('is-open')) ui.position(); });
+            const active = list.querySelector('.cs-option.is-active');
+            if (active) active.focus({ preventScroll: true }); else trigger.focus();
+        },
+        position() {
+            const rect = trigger.getBoundingClientRect();
+            const margin = 8;
+            const preferred = Math.min(280, window.innerHeight * 0.46);
+            const spaceBelow = window.innerHeight - rect.bottom - margin;
+            const spaceAbove = rect.top - margin;
+            const openUp = spaceBelow < Math.min(180, preferred) && spaceAbove > spaceBelow;
+            const available = Math.max(140, openUp ? spaceAbove : spaceBelow);
+            menu.style.maxHeight = Math.min(preferred, available) + 'px';
+            menu.style.width = rect.width + 'px';
+            menu.style.left = Math.max(margin, Math.min(rect.left, window.innerWidth - rect.width - margin)) + 'px';
+            menu.style.top = openUp
+                ? Math.max(margin, rect.top - Math.min(menu.offsetHeight || preferred, available) - 6) + 'px'
+                : (rect.bottom + 6) + 'px';
+        },
+        close() {
+            wrap.classList.remove('is-open');
+            trigger.setAttribute('aria-expanded', 'false');
+            menu.hidden = true;
+        },
+        render(focusIndex) {
+            const options = csOptions(select);
+            const pageCount = Math.max(1, Math.ceil(options.length / CS_PAGE_SIZE));
+            ui.page = Math.max(0, Math.min(ui.page, pageCount - 1));
+            const start = ui.page * CS_PAGE_SIZE;
+            list.replaceChildren();
+            if (!options.length) {
+                const empty = document.createElement('div');
+                empty.className = 'cs-empty';
+                empty.textContent = t('no_data', 'No data');
+                list.appendChild(empty);
+            }
+            options.slice(start, start + CS_PAGE_SIZE).forEach((option, index) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'cs-option';
+                item.setAttribute('role', 'option');
+                item.setAttribute('aria-selected', option.value === select.value ? 'true' : 'false');
+                if (option.disabled) item.disabled = true;
+                const text = document.createElement('span');
+                text.className = 'cs-option-label';
+                text.textContent = option.textContent.trim();
+                item.appendChild(text);
+                if (option.value === select.value) {
+                    const dot = document.createElement('span');
+                    dot.className = 'cs-option-dot';
+                    item.appendChild(dot);
+                }
+                item.onclick = () => csChoose(select, option.value);
+                if (focusIndex !== undefined && start + index === focusIndex) item.classList.add('is-active');
+                list.appendChild(item);
+            });
+            pager.hidden = pageCount <= 1;
+            if (pageCount > 1) {
+                pager.replaceChildren();
+                const previous = document.createElement('button');
+                previous.type = 'button';
+                previous.textContent = '‹';
+                previous.setAttribute('aria-label', t('settings_previous', 'Previous page'));
+                previous.disabled = ui.page === 0;
+                previous.onclick = () => { ui.page--; ui.render(); };
+                const status = document.createElement('span');
+                status.className = 'cs-pager-status';
+                status.textContent = t('settings_page', '%1$d of %2$d')
+                    .replace('%1$d', String(ui.page + 1)).replace('%2$d', String(pageCount));
+                const next = document.createElement('button');
+                next.type = 'button';
+                next.textContent = '›';
+                next.setAttribute('aria-label', t('settings_next', 'Next page'));
+                next.disabled = ui.page === pageCount - 1;
+                next.onclick = () => { ui.page++; ui.render(); };
+                pager.append(previous, status, next);
+            }
+        },
+        move(delta) {
+            const options = csOptions(select);
+            if (!options.length) return;
+            const items = Array.from(list.querySelectorAll('.cs-option:not(:disabled)'));
+            if (!items.length) return;
+            const current = items.indexOf(document.activeElement);
+            const nextIndex = Math.max(0, Math.min(items.length - 1, current + delta));
+            items[nextIndex].focus();
+        }
+    };
+    select._cs = ui;
+    wrap._csMenu = menu;
+    csSync(select);
+
+    trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        if (wrap.classList.contains('is-open')) ui.close(); else ui.open();
+    });
+    trigger.addEventListener('keydown', event => {
+        if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+            event.preventDefault();
+            ui.open();
+        }
+    });
+    menu.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            // Escape closes the list, not the modal behind it.
+            event.preventDefault();
+            event.stopPropagation();
+            ui.close();
+            trigger.focus();
+        }
+        else if (event.key === 'ArrowDown') { event.preventDefault(); ui.move(1); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); ui.move(-1); }
+        else if (event.key === 'PageDown') { event.preventDefault(); ui.page++; ui.render(); }
+        else if (event.key === 'PageUp') { event.preventDefault(); ui.page--; ui.render(); }
+        else if (event.key === 'Home' || event.key === 'End') {
+            event.preventDefault();
+            const items = Array.from(list.querySelectorAll('.cs-option:not(:disabled)'));
+            if (items.length) items[event.key === 'Home' ? 0 : items.length - 1].focus();
+        }
+    });
+    select.addEventListener('change', () => csSync(select));
+    // Options are filled by other code (stores, currencies, analytics), so the
+    // trigger label follows the native element instead of caching the text.
+    new MutationObserver(() => csSync(select)).observe(select, { childList: true, subtree: true, characterData: true });
+}
+
+function enhanceAllSelects(root) {
+    const scope = root || document;
+    if (scope.tagName === 'SELECT') enhanceSelect(scope);
+    (scope.querySelectorAll ? scope.querySelectorAll('select') : []).forEach(enhanceSelect);
+}
+
+window.syncCustomSelects = function () {
+    enhanceAllSelects(document);
+    document.querySelectorAll('select[data-cs-ready="1"]').forEach(csSync);
+};
+
+function initCustomSelects() {
+    enhanceAllSelects(document);
+    new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) enhanceAllSelects(node);
+            });
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('mousedown', event => {
+        if (!event.target.closest('.cs-select') && !event.target.closest('.cs-menu')) csCloseOthers(null);
+    }, true);
+    // A fixed-position menu cannot follow a scroll, so any scroll closes it.
+    window.addEventListener('scroll', event => {
+        if (event.target instanceof Element && event.target.closest && event.target.closest('.cs-menu')) return;
+        csCloseOthers(null);
+    }, true);
+    window.addEventListener('resize', () => csCloseOthers(null));
+}
+
+// ══ Custom calendar field ══════════════════════════════════════════════════
+// Every <input type="date"> is replaced by a styled trigger plus a month grid,
+// so the native browser popup (which cannot be themed) never shows. The native
+// input stays in the DOM as the value holder for forms and existing handlers.
+const CAL_SVG_NS = 'http://www.w3.org/2000/svg';
+let openCalendar = null;
+
+function calYmd(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function calParse(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+    const [y, m, d] = value.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+function calFormat(input, date) {
+    if (!date) return '';
+    try {
+        return new Intl.DateTimeFormat(currentLang || 'en', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+    } catch (_) {
+        return calYmd(date);
+    }
+}
+function calBounds(input) {
+    const min = calParse(input.min);
+    const max = calParse(input.max);
+    return { min, max };
+}
+function calLabelFor(input) {
+    const date = calParse(input.value);
+    return calFormat(input, date);
+}
+
+function closeCalendar() {
+    if (!openCalendar) return;
+    openCalendar.pop.hidden = true;
+    openCalendar.input.closest('.cal-field-wrap')?.classList.remove('is-open');
+    openCalendar = null;
+}
+function csCloseForCalendar() {
+    if (typeof csCloseOthers === 'function') csCloseOthers(null);
+}
+
+function enhanceDateField(input) {
+    if (!input || input.dataset.calReady === '1' || input.dataset.nativeDate === '1') return;
+    if (input.closest('#data-table')) return;
+    input.dataset.calReady = '1';
+
+    const wrap = document.createElement('span');
+    wrap.className = 'cal-field-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    input.classList.add('cal-native');
+    if (!input.type) input.type = 'date';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'cal-trigger';
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    const label = document.createElement('span');
+    label.className = 'cal-label';
+    const icon = document.createElementNS(CAL_SVG_NS, 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('class', 'cal-icon');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('stroke', 'currentColor');
+    icon.setAttribute('stroke-width', '2');
+    icon.setAttribute('stroke-linecap', 'round');
+    icon.setAttribute('stroke-linejoin', 'round');
+    [['rect', { x: 3, y: 4.5, width: 18, height: 17, rx: 2.5 }], ['line', { x1: 16, y1: 2.5, x2: 16, y2: 6.5 }], ['line', { x1: 8, y1: 2.5, x2: 8, y2: 6.5 }], ['line', { x1: 3, y1: 10, x2: 21, y2: 10 }]]
+        .forEach(([tag, attrs]) => {
+            const node = document.createElementNS(CAL_SVG_NS, tag);
+            Object.entries(attrs).forEach(([name, value]) => node.setAttribute(name, String(value)));
+            icon.appendChild(node);
+        });
+    trigger.append(label, icon);
+    wrap.appendChild(trigger);
+
+    const pop = document.createElement('div');
+    pop.className = 'cal-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'dialog');
+    pop.innerHTML = `
+        <div class="cal-pop-head">
+            <button type="button" class="cal-nav" data-dir="-1" aria-label="${t('prev_month', 'Previous month')}">‹</button>
+            <div class="cal-selects">
+                <select class="cal-month" aria-label="${t('month_label', 'Month')}" data-native-select="0"></select>
+                <select class="cal-year" aria-label="${t('year_label', 'Year')}" data-native-select="0"></select>
+            </div>
+            <button type="button" class="cal-nav" data-dir="1" aria-label="${t('next_month', 'Next month')}">›</button>
+        </div>
+        <div class="cal-dows"></div>
+        <div class="cal-grid"></div>
+        <div class="cal-foot">
+            <button type="button" class="cal-today">${t('today', 'Today')}</button>
+            <button type="button" class="cal-clear">${t('calendar_clear', 'Clear')}</button>
+        </div>`;
+    // Same containment problem as the dropdown: keep the popup on <body>.
+    document.body.appendChild(pop);
+
+    const monthSelect = pop.querySelector('.cal-month');
+    const yearSelect = pop.querySelector('.cal-year');
+    const grid = pop.querySelector('.cal-grid');
+    const dows = pop.querySelector('.cal-dows');
+    const navButtons = pop.querySelectorAll('.cal-nav');
+
+    monthNames.forEach((name, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = name;
+        monthSelect.appendChild(option);
+    });
+
+    const dowsList = (() => {
+        const monday = new Date(2024, 0, 1);
+        return Array.from({ length: 7 }, (_, index) => {
+            const day = new Date(monday);
+            day.setDate(monday.getDate() + index);
+            try { return new Intl.DateTimeFormat(currentLang || 'en', { weekday: 'short' }).format(day); }
+            catch (_) { return ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'][index]; }
+        });
+    })();
+    dows.replaceChildren();
+    dowsList.forEach(name => {
+        const cell = document.createElement('span');
+        cell.className = 'cal-dow';
+        cell.textContent = name;
+        dows.appendChild(cell);
+    });
+
+    let viewYear = 0;
+    let viewMonth = 0;
+
+    function fillYears() {
+        const { min, max } = calBounds(input);
+        const nowYear = new Date().getFullYear();
+        const first = min ? min.getFullYear() : Math.min(1900, nowYear);
+        const last = max ? max.getFullYear() : Math.max(nowYear, viewYear);
+        const previous = yearSelect.value;
+        yearSelect.replaceChildren();
+        for (let year = first; year <= last; year++) {
+            const option = document.createElement('option');
+            option.value = String(year);
+            option.textContent = String(year);
+            yearSelect.appendChild(option);
+        }
+        yearSelect.value = previous && Number(previous) >= first && Number(previous) <= last ? previous : String(viewYear);
+        if (typeof csSync === 'function' && yearSelect._cs) csSync(yearSelect);
+        if (typeof csSync === 'function' && monthSelect._cs) csSync(monthSelect);
+    }
+
+    function render() {
+        const { min, max } = calBounds(input);
+        const selected = calParse(input.value);
+        const today = new Date();
+        const todayYmd = calYmd(today);
+        monthSelect.value = String(viewMonth);
+        yearSelect.value = String(viewYear);
+        if (monthSelect._cs) csSync(monthSelect);
+        if (yearSelect._cs) csSync(yearSelect);
+
+        grid.replaceChildren();
+        const firstWeekday = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+        for (let i = 0; i < firstWeekday; i++) {
+            const blank = document.createElement('span');
+            blank.className = 'cal-blank';
+            grid.appendChild(blank);
+        }
+        const days = new Date(viewYear, viewMonth + 1, 0).getDate();
+        for (let day = 1; day <= days; day++) {
+            const date = new Date(viewYear, viewMonth, day);
+            const ymd = calYmd(date);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'cal-day';
+            button.textContent = String(day);
+            button.dataset.date = ymd;
+            button.disabled = (min && date < min) || (max && date > max);
+            if (ymd === todayYmd) button.classList.add('is-today');
+            if (selected && ymd === calYmd(selected)) button.setAttribute('aria-selected', 'true');
+            button.onclick = () => pick(ymd);
+            grid.appendChild(button);
+        }
+    }
+
+    function position() {
+        const rect = trigger.getBoundingClientRect();
+        const margin = 8;
+        const width = 300;
+        const height = pop.offsetHeight || 340;
+        const spaceBelow = window.innerHeight - rect.bottom - margin;
+        const openUp = spaceBelow < height && rect.top - margin > spaceBelow;
+        pop.style.width = Math.min(width, window.innerWidth - margin * 2) + 'px';
+        pop.style.left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin)) + 'px';
+        pop.style.top = openUp ? Math.max(margin, rect.top - height - 6) + 'px' : rect.bottom + 6 + 'px';
+    }
+
+    function open() {
+        closeCalendar();
+        csCloseForCalendar();
+        const selected = calParse(input.value) || new Date();
+        viewYear = selected.getFullYear();
+        viewMonth = selected.getMonth();
+        const { max } = calBounds(input);
+        if (max && new Date(viewYear, viewMonth, 1) > max) {
+            viewYear = max.getFullYear();
+            viewMonth = max.getMonth();
+        }
+        fillYears();
+        render();
+        pop.hidden = false;
+        wrap.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+        openCalendar = { input, pop };
+        position();
+        requestAnimationFrame(() => { if (openCalendar && openCalendar.input === input) position(); });
+    }
+
+    function pick(ymd) {
+        input.value = ymd;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        syncLabel();
+        close();
+    }
+    function close() {
+        pop.hidden = true;
+        wrap.classList.remove('is-open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (openCalendar && openCalendar.input === input) openCalendar = null;
+    }
+    function syncLabel() {
+        const text = calLabelFor(input);
+        label.textContent = text || t('calendar_placeholder', 'dd.mm.yyyy');
+        label.classList.toggle('is-empty', !text);
+        trigger.disabled = input.disabled;
+        trigger.classList.toggle('is-disabled', input.disabled);
+        trigger.setAttribute('aria-label', text || t('select_date_label', 'Select date'));
+    }
+
+    trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        if (openCalendar && openCalendar.input === input) { close(); return; }
+        open();
+    });
+    navButtons.forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            viewMonth += Number(button.dataset.dir);
+            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+            fillYears();
+            render();
+        });
+    });
+    monthSelect.addEventListener('change', () => { viewMonth = Number(monthSelect.value); render(); });
+    yearSelect.addEventListener('change', () => { viewYear = Number(yearSelect.value); render(); });
+    pop.querySelector('.cal-today').onclick = event => {
+        event.stopPropagation();
+        const now = new Date();
+        const { min, max } = calBounds(input);
+        if ((min && now < min) || (max && now > max)) return;
+        pick(calYmd(now));
+    };
+    pop.querySelector('.cal-clear').onclick = event => {
+        event.stopPropagation();
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        syncLabel();
+        close();
+    };
+    input.addEventListener('change', syncLabel);
+    input.addEventListener('input', syncLabel);
+    // Other code writes input.value directly (default ranges, resets), which
+    // fires no event: trap the property so the label never goes stale.
+    const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(input, 'value', {
+        configurable: true,
+        get() { return valueDescriptor.get.call(this); },
+        set(value) { valueDescriptor.set.call(this, value); syncLabel(); }
+    });
+    new MutationObserver(syncLabel).observe(input, { attributes: true, attributeFilter: ['min', 'max', 'disabled', 'required'] });
+
+    enhanceSelect(monthSelect);
+    enhanceSelect(yearSelect);
+    syncLabel();
+    trigger.setAttribute('aria-expanded', 'false');
+}
+
+function enhanceAllDateFields(root) {
+    const scope = root || document;
+    if (scope.matches && scope.matches('input[type="date"]')) enhanceDateField(scope);
+    (scope.querySelectorAll ? scope.querySelectorAll('input[type="date"]') : []).forEach(enhanceDateField);
+}
+
+function initDateFields() {
+    enhanceAllDateFields(document);
+    new MutationObserver(mutations => {
+        mutations.forEach(mutation => mutation.addedNodes.forEach(node => {
+            if (node.nodeType === 1) enhanceAllDateFields(node);
+        }));
+    }).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('mousedown', event => {
+        if (!event.target.closest) return;
+        if (!event.target.closest('.cal-field-wrap') && !event.target.closest('.cal-pop') && !event.target.closest('.cs-menu')) closeCalendar();
+    }, true);
+    window.addEventListener('scroll', event => {
+        if (event.target instanceof Element && event.target.closest && event.target.closest('.cal-pop')) return;
+        closeCalendar();
+    }, true);
+    window.addEventListener('resize', () => closeCalendar());
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && openCalendar) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeCalendar();
+        }
+    }, true);
+}
+
 // ══ Notification ═══════════════════════════════════════════════════════════
 function showNotification(message, type='info') {
     const c = document.getElementById('notification-container');
@@ -196,6 +780,7 @@ function loadPage(page) {
         document.querySelectorAll('#data-table tbody input').forEach(inp=>{
             inp.defaultValue = inp.value;
         });
+        initTableInputSelection();
     })
     .catch(e=>{ console.error('loadPage error:', e); });
 }
@@ -279,10 +864,13 @@ function renderMonthPagination() {
     label.textContent = monthNamesShort[month] + ' ' + year;
     container.appendChild(label);
 
-    // Next month button
+    // Next month button: the future has no expenses, so it stops at this month.
     const nextBtn = document.createElement('button');
     nextBtn.innerHTML = '▶';
     nextBtn.title = t('next_month','Next month');
+    const nowDate = new Date();
+    nextBtn.disabled = year > nowDate.getFullYear()
+        || (year === nowDate.getFullYear() && month >= nowDate.getMonth());
     nextBtn.onclick = () => { navigateMonth(1); };
     container.appendChild(nextBtn);
 
@@ -328,7 +916,7 @@ function buildMonthPickerPopup(month, year) {
     // Two steps with a short slide: pick the year first (any year back to 1900),
     // then the month.
     const today = new Date();
-    const newestYear = Math.max(today.getFullYear(), tableYearMax, year, tableYearMin);
+    const newestYear = today.getFullYear();
     const OLDEST_YEAR = 1900;
     let pickedYear = year;
 
@@ -366,6 +954,8 @@ function buildMonthPickerPopup(month, year) {
         cell.type = 'button';
         cell.className = 'table-cal-cell';
         cell.textContent = name;
+        // Months after the current one are disabled for the current year.
+        cell.disabled = pickedYear === today.getFullYear() && i > today.getMonth();
         if (i === month) cell.classList.add('is-active');
         cell.onclick = () => {
             currentYear = pickedYear;
@@ -413,10 +1003,14 @@ document.addEventListener('click', e => {
 
 function navigateMonth(direction) {
     const { month, year } = getMonthData();
-    currentMonth = month + direction;
-    currentYear = year;
-    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    let nextMonth = month + direction;
+    let nextYear = year;
+    if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+    if (nextMonth < 0) { nextMonth = 11; nextYear--; }
+    const now = new Date();
+    if (nextYear > now.getFullYear() || (nextYear === now.getFullYear() && nextMonth > now.getMonth())) return;
+    currentMonth = nextMonth;
+    currentYear = nextYear;
     loadPageWithMonth();
 }
 
@@ -503,17 +1097,19 @@ function scheduleSave(input) {
     saveTimeout = setTimeout(()=>saveExpense(input), 800);
 }
 
-function saveExpense(input) {
+function saveExpense(input, options={}) {
     expensesData = (expensesData && typeof expensesData === 'object') ? expensesData : {};
     incomesData  = (incomesData  && typeof incomesData  === 'object') ? incomesData  : {};
     const date  = input.getAttribute('data-date');
     const store = input.getAttribute('data-store');
     const isIncome = input.getAttribute('data-income')==='1';
+    const before = input.defaultValue;
     let   val   = input.value.trim().replace(/,/g,'.');
     let   amount= safeCalc(val);
     amount = parseFloat(amount.toFixed(2));
     input.defaultValue = amount!==0?amount.toFixed(2):'';
     input.value = input.defaultValue;
+    if (options.history !== false) recordCellEdit(cellRef(input), before, input.defaultValue);
     
     if(isIncome){
         incomesData[date]=amount;
@@ -838,7 +1434,9 @@ function updateChart() {
         scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
                x:{title:{display:true,text:t('chart_month','Month'),color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
         plugins:{legend:{display:!hideChartLegend,labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>{const ds=datasets[item.datasetIndex];return !!ds&&!ds._dash&&ds.label!=='';}}},
-                 tooltip:{mode:'nearest',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+                 // A store with 0 in the hovered month has nothing to report, so it
+                 // never appears in the tooltip list.
+                 tooltip:{mode:'nearest',intersect:false,filter:item=>item.dataset.label!==''&&Number(item.parsed.y)!==0,callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     const chartLegendBtn=document.getElementById('chart-legend-btn');
     if(chartLegendBtn){
         chartLegendBtn.style.display=hideChartLegend?'':'none';
@@ -884,15 +1482,18 @@ function openChartLegend(){
 }
 
 function yearHasData(y){return availableYears.includes(Number(y));}
+// A year that has not started yet can be neither scanned nor charted.
+function highestSelectableYear(){return new Date().getFullYear();}
 function updateYearButtons(){
+    const maxYear=highestSelectableYear();
     const prev=document.getElementById('chart-year-prev-btn');
     const next=document.getElementById('chart-year-next-btn');
     if(prev)prev.disabled=!yearHasData(currentChartYear-1);
-    if(next)next.disabled=!yearHasData(currentChartYear+1);
+    if(next)next.disabled=currentChartYear+1>maxYear||!yearHasData(currentChartYear+1);
     const ap=document.getElementById('analytics-year-prev-btn');
     const an=document.getElementById('analytics-year-next-btn');
     if(ap)ap.disabled=!yearHasData(analyticsYear-1);
-    if(an)an.disabled=!yearHasData(analyticsYear+1);
+    if(an)an.disabled=analyticsYear+1>maxYear||!yearHasData(analyticsYear+1);
     const yl=document.getElementById('analytics-year-label');
     if(yl)yl.textContent=String(analyticsYear);
 }
@@ -908,7 +1509,7 @@ function loadAvailableYears(){
 
 function changeChartYear(d) {
     const target=currentChartYear+d;
-    if(!yearHasData(target))return;
+    if(target>highestSelectableYear()||!yearHasData(target))return;
     currentChartYear = target;
     // Load data for new year
     fetch(`?year_data=${currentChartYear}`)
@@ -925,7 +1526,7 @@ function changeChartYear(d) {
 }
 function changeAnalyticsYear(d){
     const target=analyticsYear+Number(d);
-    if(!yearHasData(target))return;
+    if(target>highestSelectableYear()||!yearHasData(target))return;
     analyticsYear=target;
     updateYearButtons();
     loadOCRAnalytics();
@@ -1054,7 +1655,6 @@ document.addEventListener('click',e=>{
     if(tab)xrSetBase(tab.dataset.base);
 });
 
-function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
 
 function highlightCurrentDate() {
     document.querySelectorAll('#data-table .current-date-row').forEach(r=>r.classList.remove('current-date-row'));
@@ -1246,6 +1846,8 @@ function manualAddCalendarShift(delta){
     let month = (manualAddCalView.month || 0) + Number(delta || 0);
     year += Math.floor(month / 12);
     month = ((month % 12) + 12) % 12;
+    const now = new Date();
+    if(year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())) return;
     manualAddCalView = { year, month };
     renderManualCalendar();
 }
@@ -1267,7 +1869,8 @@ function manualAddFillCalendarSelects(year, month){
         }
     }
     const minYear = 2000;
-    const maxYear = Math.max(new Date().getFullYear() + 1, year);
+    const now = new Date();
+    const maxYear = Math.max(now.getFullYear(), year);
     if(!yearSel.options.length || Number(yearSel.options[0].value) !== minYear || Number(yearSel.options[yearSel.options.length - 1].value) !== maxYear){
         yearSel.textContent = '';
         for(let y = minYear; y <= maxYear; y++){
@@ -1277,6 +1880,10 @@ function manualAddFillCalendarSelects(year, month){
             yearSel.appendChild(o);
         }
     }
+    // The current year stops at the current month, the future is unreachable.
+    Array.from(monthSel.options).forEach((option, index) => {
+        option.disabled = Number(year) === now.getFullYear() && index > now.getMonth();
+    });
     monthSel.value = String(month);
     yearSel.value = String(year);
 }
@@ -1287,6 +1894,8 @@ function manualAddCalendarJump(){
     const month = Number(monthSel.value);
     const year  = Number(yearSel.value);
     if(!Number.isFinite(month) || !Number.isFinite(year)) return;
+    const now = new Date();
+    if(year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())) return;
     manualAddCalView = { year, month };
     renderManualCalendar();
 }
@@ -1324,6 +1933,7 @@ function renderManualCalendar(){
         btn.className = 'manual-cal-day';
         btn.textContent = String(day);
         btn.setAttribute('data-date', ymd);
+        btn.disabled = ymd > today;
         if(ymd === manualAddState.date) btn.classList.add('selected');
         if(ymd === today) btn.classList.add('today');
         btn.onclick = () => manualAddPickDate(ymd);
@@ -2724,191 +3334,759 @@ function expenseGradientStyle(value,min,max){
     const sat1=dark?78:72,sat2=dark?84:78;
     return `background-image:linear-gradient(90deg,hsl(${hue} ${sat1}% ${lightness}%),hsl(${hue2} ${sat2}% ${lightness}%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;`;
 }
-const analyticsPagination = { store: 0, category: 0 };
+// ══ Statistics window ══════════════════════════════════════════════════════
+const analyticsState = { store: '__all__', payload: null, hidden: new Set() };
+let lastAnalyticsPayload = null;
 
-function getAnalyticsPageSize() {
-    const modalBody = document.querySelector('#ocr-analytics-modal .modal-body');
-    const bodyHeight = modalBody?.clientHeight || Math.round(window.innerHeight * 0.75);
-    const rowHeight = 44;
-    const reserve = 200;
-    return Math.max(1, Math.floor(Math.max(rowHeight, bodyHeight - reserve) / rowHeight));
+const analyticsPalette = [
+    { fill: '#7B3B46', stroke: '#B25565' },
+    { fill: '#2B536E', stroke: '#447FA6' },
+    { fill: '#8A6D1F', stroke: '#C9A227' },
+    { fill: '#4A6B33', stroke: '#6B8E4E' },
+    { fill: '#5F3F78', stroke: '#8A5FA8' }
+];
+const analyticsChartBox = { width: 1040, height: 315, left: 46, right: 24, top: 14, bottom: 34 };
+
+function analyticsStoreRows() {
+    const payload = analyticsState.payload || {};
+    return (payload.store_summary || [])
+        .map(row => ({ ...row, label: row.store }))
+        .filter(row => Number(row.total) > 0);
+}
+function analyticsCategoryRows() {
+    const payload = analyticsState.payload || {};
+    const selected = analyticsState.store;
+    const categories = (payload.category_summary || [])
+        .map(row => ({ ...row, label: categoryLabel(row.category) }))
+        .filter(row => Number(row.total) > 0)
+        .sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+    if (selected === '__all__') return categories;
+    const store = analyticsStoreRows().find(row => row.store === selected);
+    if (!store) return categories;
+    return [{
+        label: categoryLabel(store.category || 'other'),
+        today: store.today,
+        year_day_avg: store.year_day_avg,
+        total: store.total
+    }];
 }
 
-function renderAnalyticsSummaryTable(id, rows, nameKey) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (!rows || !rows.length) { el.textContent = t('no_data', 'No data'); return; }
+// Biggest totals read as red, mid ones amber, the rest green.
+function analyticsTotalClass(values, value) {
+    const max = Math.max(0, ...values.map(v => Number(v) || 0));
+    const n = Number(value) || 0;
+    if (!max || n <= 0) return 'is-ok';
+    const share = n / max;
+    return share >= .6 ? 'is-hot' : share >= .3 ? 'is-warm' : 'is-ok';
+}
 
-    const kind = id === 'analytics-store-summary' ? 'store' : 'category';
-    const pageSize = getAnalyticsPageSize();
-    const pageCount = Math.ceil(rows.length / pageSize);
-    analyticsPagination[kind] = Math.max(0, Math.min(analyticsPagination[kind], pageCount - 1));
-
-    const paginationEl = document.getElementById(`${kind === 'store' ? 'analytics-store' : 'analytics-category'}-pagination`);
-    if (paginationEl) {
-        paginationEl.hidden = pageCount <= 1;
-        if (pageCount > 1) {
-            paginationEl.replaceChildren();
-            const previous = document.createElement('button');
-            previous.type = 'button'; previous.className = 'settings-page-btn'; previous.textContent = '‹';
-            previous.setAttribute('aria-label', t('settings_previous', 'Previous page'));
-            previous.disabled = analyticsPagination[kind] === 0;
-            previous.onclick = () => { analyticsPagination[kind]--; renderAnalyticsSummaryTable(id, rows, nameKey); };
-            const status = document.createElement('span');
-            status.className = 'settings-page-status'; status.setAttribute('aria-live', 'polite');
-            status.textContent = t('settings_page', '%1$d of %2$d')
-                .replace('%1$d', String(analyticsPagination[kind] + 1)).replace('%2$d', String(pageCount));
-            const next = document.createElement('button');
-            next.type = 'button'; next.className = 'settings-page-btn'; next.textContent = '›';
-            next.setAttribute('aria-label', t('settings_next', 'Next page'));
-            next.disabled = analyticsPagination[kind] === pageCount - 1;
-            next.onclick = () => { analyticsPagination[kind]++; renderAnalyticsSummaryTable(id, rows, nameKey); };
-            paginationEl.append(previous, status, next);
-        }
+function renderAnalyticsSummaryTable(id, rows, nameKey, kind) {
+    const host = document.getElementById(id);
+    if (!host) return;
+    host.replaceChildren();
+    if (!rows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'analytics-empty';
+        empty.textContent = t('no_data', 'No data');
+        host.appendChild(empty);
+        return;
     }
-
-    el.innerHTML = '';
-    const totals = rows.map(r => Number(r.total) || 0);
-    const max = totals.length ? Math.max(...totals) : 0;
-    // Concept colouring: biggest totals read as red, mid ones amber, the rest green.
-    const totalClass = v => {
-        const n = Number(v) || 0;
-        if (!max || n <= 0) return 'is-ok';
-        const share = n / max;
-        return share >= .6 ? 'is-hot' : share >= .3 ? 'is-warm' : 'is-ok';
-    };
+    const totals = rows.map(row => row.total);
+    const selected = analyticsState.store;
     const table = document.createElement('table');
     table.className = 'analytics-table';
-    table.innerHTML = `<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    [nameKey, t('today', 'Today'), t('average_day_year', 'Avg/day'), t('total_expenses', 'Total')].forEach((label, index) => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        if (index === 0) th.scope = 'col';
+        headRow.appendChild(th);
+    });
+    head.appendChild(headRow);
+    table.appendChild(head);
     const body = document.createElement('tbody');
-    const start = analyticsPagination[kind] * pageSize;
-    rows.slice(start, start + pageSize).forEach(row => {
+    rows.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td class="analytics-name">${row.label}</td><td class="analytics-num is-ok">${money(row.today)}</td><td class="analytics-num is-ok">${money(row.year_day_avg)}</td><td class="analytics-num ${totalClass(row.total)}">${money(row.total)}</td>`;
+        if (kind === 'store') {
+            if (selected !== '__all__' && selected === row.store) tr.classList.add('is-selected');
+            else if (selected !== '__all__') tr.classList.add('is-dimmed');
+            tr.tabIndex = 0;
+            tr.setAttribute('role', 'button');
+            tr.setAttribute('aria-pressed', selected === row.store ? 'true' : 'false');
+            tr.title = t('analytics_filter_hint', 'Click a row to filter');
+            tr.onclick = () => selectAnalyticsStore(row.store);
+            tr.onkeydown = event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectAnalyticsStore(row.store);
+                }
+            };
+        }
+        const nameCell = document.createElement('td');
+        nameCell.className = 'analytics-name';
+        if (kind === 'store' && selected === row.store) {
+            const dot = document.createElement('span');
+            dot.className = 'analytics-store-dot';
+            nameCell.appendChild(dot);
+        }
+        nameCell.appendChild(document.createTextNode(row.label));
+        const today = document.createElement('td');
+        today.className = 'analytics-num is-ok';
+        today.textContent = money(row.today);
+        const avg = document.createElement('td');
+        avg.className = 'analytics-num is-ok';
+        avg.textContent = money(row.year_day_avg);
+        const total = document.createElement('td');
+        total.className = 'analytics-num ' + analyticsTotalClass(totals, row.total);
+        total.textContent = money(row.total);
+        tr.append(nameCell, today, avg, total);
         body.appendChild(tr);
     });
     table.appendChild(body);
-    el.appendChild(table);
+    host.appendChild(table);
 }
-function renderAnalyticsSummaries(payload){
-    analyticsPagination.store = 0;
-    analyticsPagination.category = 0;
-    const stores=(payload.store_summary||[]).map(r=>({...r,label:r.store}));
-    const categories=(payload.category_summary||[]).map(r=>({...r,label:categoryLabel(r.category)})).sort((a,b)=>(b.total||0)-(a.total||0));
-    renderAnalyticsSummaryTable('analytics-store-summary',stores,t('store_name','Store'));
-    renderAnalyticsSummaryTable('analytics-category-summary',categories,t('store_category','Category'));
-}
-function chartTextColor(){
-    const html=document.documentElement;
-    if(html.classList.contains('dark')||html.classList.contains('theme-dark'))return '#f3f4f6';
-    if(html.classList.contains('light')||html.classList.contains('theme-light'))return '#111827';
-    // Fallback: detect theme from CSS variable (--bg-color set server-side)
-    const bg=getComputedStyle(html).getPropertyValue('--bg-color').trim().toLowerCase();
-    if(bg){
-        const m=bg.match(/^#([0-9a-f]{6})$/);
-        if(m){
-            const v=parseInt(m[1],16),r=(v>>16)&255,g=(v>>8)&255,b=v&255;
-            return (r*0.299+g*0.587+b*0.114)<128?'#f3f4f6':'#111827';
-        }
-        if(bg.includes('rgba')||bg.includes('rgb')){
-            const nums=bg.match(/[\d.]+/g);
-            if(nums&&nums.length>=3){
-                const lum=(+nums[0])*0.299+(+nums[1])*0.587+(+nums[2])*0.114;
-                return lum<128?'#f3f4f6':'#111827';
-            }
-        }
+
+function renderAnalyticsSummaries(payload) {
+    analyticsState.payload = payload;
+    if (analyticsState.store !== '__all__'
+        && !(payload.store_summary || []).some(row => row.store === analyticsState.store)) {
+        analyticsState.store = '__all__';
     }
-    return '#111827';
+    const badge = document.getElementById('analytics-category-badge');
+    const reset = document.getElementById('analytics-reset-filter');
+    const selected = analyticsState.store;
+    if (badge) {
+        badge.hidden = selected === '__all__';
+        badge.textContent = selected === '__all__' ? '' : selected;
+    }
+    if (reset) reset.hidden = selected === '__all__';
+    const select = document.getElementById('ocr-analytics-store');
+    if (select && select.value !== selected) select.value = selected;
+    if (window.syncCustomSelects) syncCustomSelects();
+    renderAnalyticsSummaryTable('analytics-store-summary', analyticsStoreRows(), t('store_name', 'Store'), 'store');
+    renderAnalyticsSummaryTable('analytics-category-summary', analyticsCategoryRows(), t('store_category', 'Category'), 'category');
+    ['analytics-store-pagination', 'analytics-category-pagination'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.hidden = true; el.replaceChildren(); }
+    });
 }
-window.chartTextColor=chartTextColor;
-// Concept statistics use plain HTML/CSS columns (no chart library), so the
-// modal renders the same stacked bars the approved design shows.
-function buildOCRAnalyticsChart(payload,selectedStore){
-    renderAnalyticsSummaries(payload);
-    const host=document.getElementById('analytics-bars');
-    const legend=document.getElementById('analytics-bars-legend');
-    if(!host||!legend)return;
-    host.replaceChildren();
+
+// Rows per month for the chart: all visible categories, or the picked store.
+function analyticsChartSeries() {
+    const payload = analyticsState.payload || {};
+    const monthly = payload.monthly || [];
+    const selected = analyticsState.store;
+    if (selected === '__all__') {
+        const stores = analyticsStoreRows();
+        const labels = [...new Set(monthly.map(row => row.ym))].sort();
+        const grouped = new Map();
+        stores.forEach(store => {
+            const key = store.category || 'other';
+            if (!grouped.has(key)) grouped.set(key, { label: categoryLabel(key), members: [], total: 0 });
+            const entry = grouped.get(key);
+            entry.members.push(store.store);
+            entry.total += Number(store.total) || 0;
+        });
+        const series = [...grouped.entries()]
+            .sort((a, b) => b[1].total - a[1].total)
+            .map(([key, entry], index) => {
+                const palette = analyticsPalette[index % analyticsPalette.length];
+                return {
+                    key: categoryLabel(key),
+                    label: entry.label,
+                    fill: palette.fill,
+                    stroke: palette.stroke,
+                    values: labels.map(ym => monthly
+                        .filter(row => row.ym === ym && entry.members.includes(row.store))
+                        .reduce((sum, row) => sum + (Number(row.amount_sum) || 0), 0))
+                };
+            });
+        return { labels, series };
+    }
+    const rows = monthly.filter(row => row.store === selected);
+    const labels = [...new Set(rows.map(row => row.ym))].sort();
+    const store = analyticsStoreRows().find(row => row.store === selected);
+    const palette = analyticsPalette[0];
+    return {
+        labels,
+        series: [{
+            key: 'amount',
+            label: categoryLabel(store?.category || 'other'),
+            fill: palette.fill,
+            stroke: palette.stroke,
+            values: labels.map(ym => rows
+                .filter(row => row.ym === ym)
+                .reduce((sum, row) => sum + (Number(row.amount_sum) || 0), 0))
+        }]
+    };
+}
+
+function analyticsScaleMax(maxValue) {
+    if (!(maxValue > 0)) return 10;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+    const normalized = maxValue / magnitude;
+    const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return Math.max(1, factor * magnitude);
+}
+
+function renderAnalyticsLegend(series) {
+    const legend = document.getElementById('analytics-bars-legend');
+    if (!legend) return;
     legend.replaceChildren();
-    const monthly=payload.monthly||[];
-    const fills=['#7B3B46','#2B536E','#8A6D1F','#4A6B33','#5F3F78'];
-    const strokes=['#B25565','#447FA6','#C9A227','#6B8E4E','#8A5FA8'];
-    let labels=[];
-    let series=[];
-    if(selectedStore==='__all__'){
-        labels=[...new Set(monthly.map(r=>r.ym))].sort();
-        const stores=payload.store_summary||[];
-        const categories=[...new Set(stores.map(s=>s.category||'other'))].slice(0,5);
-        series=categories.map((cat,i)=>{
-            const members=stores.filter(s=>(s.category||'other')===cat).map(s=>s.store);
-            return {
-                label:categoryLabel(cat),
-                fill:fills[i%fills.length], stroke:strokes[i%strokes.length],
-                values:labels.map(ym=>monthly
-                    .filter(r=>r.ym===ym&&members.includes(r.store))
-                    .reduce((sum,r)=>sum+Number(r.amount_sum||0),0))
-            };
-        });
-    }else{
-        const daily=payload.daily||[];
-        labels=[...new Set(daily.map(r=>r.date))].sort();
-        series=[{
-            label:t('chart_amount','Amount'), fill:'#7B3B46', stroke:'#E53935',
-            values:labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount||0):0;})
-        }];
+    series.forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'analytics-legend-btn' + (analyticsState.hidden.has(item.key) ? ' is-off' : '');
+        button.setAttribute('aria-pressed', analyticsState.hidden.has(item.key) ? 'false' : 'true');
+        const swatch = document.createElement('span');
+        swatch.className = 'analytics-legend-swatch';
+        swatch.style.background = item.fill;
+        swatch.style.borderColor = item.stroke;
+        const label = document.createElement('span');
+        label.textContent = item.label;
+        button.append(swatch, label);
+        button.onclick = () => {
+            const visibleKeys = series.filter(entry => !analyticsState.hidden.has(entry.key));
+            if (analyticsState.hidden.has(item.key)) analyticsState.hidden.delete(item.key);
+            else if (visibleKeys.length > 1) analyticsState.hidden.add(item.key);
+            renderAnalyticsChart();
+        };
+        legend.appendChild(button);
+    });
+}
+
+function positionAnalyticsTooltip(event, tooltip) {
+    const host = tooltip.parentElement;
+    if (!host) return;
+    const rect = host.getBoundingClientRect();
+    const tipWidth = tooltip.offsetWidth || 190;
+    const tipHeight = tooltip.offsetHeight || 120;
+    let left = event.clientX - rect.left + 14;
+    let top = event.clientY - rect.top - 24;
+    if (left + tipWidth > rect.width - 6) left = event.clientX - rect.left - tipWidth - 14;
+    if (left < 6) left = 6;
+    if (top + tipHeight > rect.height - 6) top = rect.height - tipHeight - 6;
+    if (top < 6) top = 6;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function showAnalyticsTooltip(event, label, items) {
+    const tooltip = document.getElementById('analytics-tooltip');
+    const rowsHost = document.getElementById('analytics-tooltip-rows');
+    const month = document.getElementById('analytics-tooltip-month');
+    const totalEl = document.getElementById('analytics-tooltip-total');
+    if (!tooltip || !rowsHost || !month || !totalEl) return;
+    // Only series that actually spent money in this period are listed; a month
+    // full of zero-value stores used to flood the tooltip.
+    const visible = items.filter(item => Number(item.value) > 0);
+    month.textContent = label;
+    rowsHost.replaceChildren();
+    let total = 0;
+    visible.forEach(item => {
+        total += Number(item.value) || 0;
+        const row = document.createElement('div');
+        row.className = 'analytics-tooltip-row';
+        const key = document.createElement('span');
+        key.className = 'analytics-tooltip-key';
+        const swatch = document.createElement('span');
+        swatch.className = 'analytics-tooltip-swatch';
+        swatch.style.background = item.fill;
+        swatch.style.borderColor = item.stroke;
+        const name = document.createElement('span');
+        name.textContent = item.label + ':';
+        key.append(swatch, name);
+        const value = document.createElement('span');
+        value.className = 'analytics-tooltip-value';
+        value.textContent = money(item.value);
+        row.append(key, value);
+        rowsHost.appendChild(row);
+    });
+    if (!visible.length) {
+        const empty = document.createElement('div');
+        empty.className = 'analytics-tooltip-row';
+        empty.textContent = t('no_data', 'No data');
+        rowsHost.appendChild(empty);
     }
-    const max=Math.max(1,...series.flatMap(s=>s.values));
-    series.forEach(s=>{
-        const item=document.createElement('span');
-        item.className='analytics-legend-item';
-        const swatch=document.createElement('i');
-        swatch.style.background=s.fill;
-        swatch.style.borderColor=s.stroke;
-        const name=document.createElement('span');
-        name.textContent=s.label;
-        item.append(swatch,name);
-        legend.appendChild(item);
-    });
-    if(!labels.length){ host.innerHTML='<div class="analytics-empty">'+t('no_data','No data')+'</div>'; return; }
-    labels.forEach((label,i)=>{
-        const col=document.createElement('div');
-        col.className='analytics-bar-col';
-        const stack=document.createElement('div');
-        stack.className='analytics-bar-stack';
-        series.slice().reverse().forEach(s=>{
-            const v=Number(s.values[i])||0;
-            if(v<=0)return;
-            const part=document.createElement('div');
-            part.className='analytics-bar-seg';
-            part.style.height=Math.max(2,Math.round(v/max*100))+'%';
-            part.style.background=s.fill;
-            part.style.borderColor=s.stroke;
-            part.title=`${s.label}: ${money(v)}`;
-            stack.appendChild(part);
+    totalEl.textContent = money(total);
+    tooltip.classList.add('is-visible');
+    tooltip.setAttribute('aria-hidden', 'false');
+    positionAnalyticsTooltip(event, tooltip);
+}
+
+function hideAnalyticsTooltip() {
+    const tooltip = document.getElementById('analytics-tooltip');
+    if (!tooltip) return;
+    tooltip.classList.remove('is-visible');
+    tooltip.setAttribute('aria-hidden', 'true');
+}
+
+function analyticsTextColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#f3f4f6';
+}
+
+function renderAnalyticsChart() {
+    const gridLayer = document.getElementById('analytics-grid-layer');
+    const barsLayer = document.getElementById('analytics-bars-layer');
+    const labelsLayer = document.getElementById('analytics-labels-layer');
+    if (!gridLayer || !barsLayer || !labelsLayer) return;
+    if (!analyticsState.payload) return;
+
+    const all = analyticsChartSeries();
+    renderAnalyticsLegend(all.series);
+    const visibleSeries = all.series.filter(item => !analyticsState.hidden.has(item.key));
+    const series = all.labels.map((label, index) => ({
+        label,
+        values: visibleSeries.map(item => Number(item.values[index]) || 0)
+    }));
+    gridLayer.replaceChildren();
+    barsLayer.replaceChildren();
+    labelsLayer.replaceChildren();
+    if (!all.labels.length) return;
+
+    const { width, height, left, right, top, bottom } = analyticsChartBox;
+    const chartW = width - left - right;
+    const chartH = height - top - bottom;
+    const maxValue = Math.max(0, ...series.map(point => point.values.reduce((sum, value) => sum + value, 0)));
+    const scaleMax = analyticsScaleMax(maxValue);
+    const step = scaleMax / 5;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const axisColor = analyticsTextColor();
+
+    const make = (tag, attrs) => {
+        const node = document.createElementNS(svgNS, tag);
+        Object.entries(attrs).forEach(([name, value]) => node.setAttribute(name, String(value)));
+        return node;
+    };
+
+    for (let value = 0; value <= scaleMax + 0.0001; value += step) {
+        const y = top + chartH - (value / scaleMax) * chartH;
+        gridLayer.appendChild(make('line', {
+            x1: left, y1: y.toFixed(1), x2: left + chartW, y2: y.toFixed(1),
+            stroke: value === 0 ? '#323532' : '#262826', 'stroke-width': 1
+        }));
+        const tick = make('text', {
+            x: left - 10, y: (y + 3.5).toFixed(1), fill: '#8e928e',
+            'font-size': 10.5, 'text-anchor': 'end'
         });
-        const cap=document.createElement('span');
-        cap.className='analytics-bar-label';
-        cap.textContent=selectedStore==='__all__'?label.slice(5):label.slice(8);
-        col.append(stack,cap);
-        host.appendChild(col);
+        tick.textContent = (Math.round(value * 100) / 100).toString();
+        labelsLayer.appendChild(tick);
+    }
+
+    const columnWidth = chartW / series.length;
+    for (let index = 0; index <= series.length; index++) {
+        const x = left + index * columnWidth;
+        gridLayer.appendChild(make('line', {
+            x1: x.toFixed(1), y1: top, x2: x.toFixed(1), y2: top + chartH,
+            stroke: '#242624', 'stroke-width': 1
+        }));
+    }
+
+    const barWidth = Math.min(168, columnWidth * 0.72);
+    series.forEach((point, index) => {
+        const centerX = left + index * columnWidth + columnWidth / 2;
+        const barX = centerX - barWidth / 2;
+        const baseY = top + chartH;
+        const group = make('g', { class: 'analytics-bar-group' });
+        group.appendChild(make('rect', {
+            x: barX.toFixed(1), y: top, width: barWidth.toFixed(1), height: chartH, fill: 'transparent'
+        }));
+        let cursorY = baseY;
+        visibleSeries.forEach((item, seriesIndex) => {
+            const value = point.values[seriesIndex];
+            if (!(value > 0)) return;
+            const segmentHeight = (value / scaleMax) * chartH;
+            const segmentY = cursorY - segmentHeight;
+            group.appendChild(make('rect', {
+                class: 'analytics-bar-rect',
+                x: barX.toFixed(1), y: segmentY.toFixed(1),
+                width: barWidth.toFixed(1), height: segmentHeight.toFixed(1),
+                fill: item.fill, stroke: item.stroke, 'stroke-width': 1
+            }));
+            cursorY = segmentY;
+        });
+        const items = visibleSeries.map((item, seriesIndex) => ({
+            label: item.label, fill: item.fill, stroke: item.stroke, value: point.values[seriesIndex]
+        }));
+        group.addEventListener('mousemove', event => showAnalyticsTooltip(event, point.label, items));
+        group.addEventListener('mouseleave', hideAnalyticsTooltip);
+        barsLayer.appendChild(group);
+
+        const caption = make('text', {
+            x: centerX.toFixed(1), y: top + chartH + 20, fill: axisColor,
+            'font-size': 11, 'text-anchor': 'middle'
+        });
+        caption.textContent = point.label.length > 7 ? point.label.slice(5) : point.label;
+        labelsLayer.appendChild(caption);
     });
 }
-let lastAnalyticsPayload = null;
-function loadOCRAnalytics(){
-    const select=document.getElementById('ocr-analytics-store');
-    const store=select?select.value:'__all__';
-    fetch(`?get_ocr_stats=1&store=${encodeURIComponent(store)}&year=${encodeURIComponent(analyticsYear)}`).then(r=>r.json()).then(d=>{
-        if(d.status!=='success'){showNotification(t('failed_load_analytics','Failed to load analytics'),'error');return;}
-        if(select&&select.options.length<=1)(d.stores||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;select.appendChild(o);});
-        lastAnalyticsPayload = d;
-        buildOCRAnalyticsChart(d,store);
-    }).catch(()=>showNotification(t('failed_load_analytics','Failed to load analytics'),'error'));
+
+function buildOCRAnalyticsChart(payload, selectedStore) {
+    lastAnalyticsPayload = payload;
+    if (typeof selectedStore === 'string') analyticsState.store = selectedStore;
+    renderAnalyticsSummaries(payload);
+    renderAnalyticsChart();
 }
-function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
+
+// The picker filters the already loaded year payload, so every store stays in
+// the table (dimmed) and no extra request is needed per click.
+function renderAnalyticsSelection() {
+    renderAnalyticsSummaries(analyticsState.payload || {});
+    renderAnalyticsChart();
+}
+function selectAnalyticsStore(store) {
+    analyticsState.store = store === analyticsState.store && store !== '__all__' ? '__all__' : store;
+    const select = document.getElementById('ocr-analytics-store');
+    if (select) select.value = analyticsState.store;
+    renderAnalyticsSelection();
+}
+
+function onAnalyticsStoreChange() {
+    const select = document.getElementById('ocr-analytics-store');
+    analyticsState.store = select ? select.value : '__all__';
+    renderAnalyticsSelection();
+}
+
+function loadOCRAnalytics() {
+    const select = document.getElementById('ocr-analytics-store');
+    fetch(`?get_ocr_stats=1&store=__all__&year=${encodeURIComponent(analyticsYear)}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') { showNotification(t('failed_load_analytics', 'Failed to load analytics'), 'error'); return; }
+            const store = analyticsState.store || '__all__';
+            if (select) {
+                const options = [{ value: '__all__', label: t('all_stores', 'All stores') }]
+                    .concat((d.stores || []).map(name => ({ value: name, label: name })));
+                select.replaceChildren();
+                options.forEach(option => {
+                    const node = document.createElement('option');
+                    node.value = option.value;
+                    node.textContent = option.label;
+                    select.appendChild(node);
+                });
+                select.value = (d.stores || []).includes(store) ? store : '__all__';
+            }
+            buildOCRAnalyticsChart(d, select ? select.value : store);
+        })
+        .catch(() => showNotification(t('failed_load_analytics', 'Failed to load analytics'), 'error'));
+}
+
+function showOCRAnalyticsModal() {
+    showModal('ocr-analytics-modal');
+    updateYearButtons();
+    loadOCRAnalytics();
+}
+
+// ══ Excel-like cell selection ══════════════════════════════════════════════
+const tableSelection = { anchor: null, dragging: false, inputs: [] };
+const undoStack = [];
+const redoStack = [];
+
+function tableGridInputs() {
+    return Array.from(document.querySelectorAll('#data-table tbody input'));
+}
+function tableGridCols() {
+    const stores = (userSettings.stores || []).filter(store => store.visible !== false).length;
+    return stores + (userSettings.show_incomes ? 1 : 0);
+}
+function isCellInput(el) {
+    return !!el && el.tagName === 'INPUT' && !!el.closest && !!el.closest('#data-table tbody');
+}
+function markCell(input, on) {
+    const td = input.closest('td');
+    if (td) td.classList.toggle('cell-selected', on);
+}
+function clearCellSelection() {
+    document.querySelectorAll('#data-table td.cell-selected').forEach(td => td.classList.remove('cell-selected'));
+    tableSelection.inputs = [];
+    tableSelection.anchor = null;
+    tableSelection.dragging = false;
+    tableSelection.lastHover = null;
+}
+function selectCellRange(from, to, additive) {
+    const inputs = tableGridInputs();
+    const cols = tableGridCols();
+    const start = inputs.indexOf(from);
+    const end = inputs.indexOf(to);
+    if (start < 0 || end < 0 || cols <= 0) return;
+    if (!additive) {
+        document.querySelectorAll('#data-table td.cell-selected').forEach(td => td.classList.remove('cell-selected'));
+        tableSelection.inputs = [];
+    }
+    const rowA = Math.floor(start / cols), colA = start % cols;
+    const rowB = Math.floor(end / cols), colB = end % cols;
+    const firstRow = Math.min(rowA, rowB), lastRow = Math.max(rowA, rowB);
+    const firstCol = Math.min(colA, colB), lastCol = Math.max(colA, colB);
+    const picked = new Set(tableSelection.inputs);
+    for (let row = firstRow; row <= lastRow; row++) {
+        for (let col = firstCol; col <= lastCol; col++) {
+            const input = inputs[row * cols + col];
+            if (!input) continue;
+            picked.add(input);
+            markCell(input, true);
+        }
+    }
+    tableSelection.inputs = [...picked];
+}
+function selectAllTableCells() {
+    const inputs = tableGridInputs();
+    if (!inputs.length) return;
+    clearCellSelection();
+    tableSelection.inputs = inputs.slice();
+    tableSelection.anchor = inputs[0];
+    inputs.forEach(input => markCell(input, true));
+}
+function selectionBounds() {
+    const inputs = tableGridInputs();
+    const cols = tableGridCols();
+    const selected = tableSelection.inputs.filter(input => inputs.includes(input));
+    if (!selected.length || cols <= 0) return null;
+    const indexes = selected.map(input => inputs.indexOf(input));
+    const rows = indexes.map(index => Math.floor(index / cols));
+    const columns = indexes.map(index => index % cols);
+    return {
+        inputs, cols,
+        firstRow: Math.min(...rows), lastRow: Math.max(...rows),
+        firstCol: Math.min(...columns), lastCol: Math.max(...columns)
+    };
+}
+function selectionTsv() {
+    const bounds = selectionBounds();
+    if (!bounds) return '';
+    const lines = [];
+    for (let row = bounds.firstRow; row <= bounds.lastRow; row++) {
+        const cells = [];
+        for (let col = bounds.firstCol; col <= bounds.lastCol; col++) {
+            const input = bounds.inputs[row * bounds.cols + col];
+            cells.push(input ? String(input.value || '').replace(/\t/g, ' ') : '');
+        }
+        lines.push(cells.join('\t'));
+    }
+    return lines.join('\n');
+}
+function writeClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => copyViaTextarea(text));
+        return;
+    }
+    copyViaTextarea(text);
+}
+function copyViaTextarea(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); } catch (_) { /* clipboard unavailable */ }
+    area.remove();
+}
+function copySelectedCells() {
+    const text = selectionTsv();
+    if (!text) return false;
+    writeClipboard(text);
+    showNotification(t('cells_copied', 'Selected cells copied'), 'success');
+    return true;
+}
+function attachTableCellSelection(input) {
+    if (!input || input.dataset.cellSelectionReady === '1') return;
+    input.dataset.cellSelectionReady = '1';
+    input.addEventListener('mousedown', event => {
+        if (event.button !== 0) return;
+        // Suppress the browser's own text-selection drag: it scrolls the table
+        // under the pointer and would fight the spreadsheet-style range.
+        event.preventDefault();
+        if (event.shiftKey && tableSelection.anchor) {
+            selectCellRange(tableSelection.anchor, input, event.ctrlKey || event.metaKey);
+            input.focus({ preventScroll: true });
+            return;
+        }
+        tableSelection.anchor = input;
+        tableSelection.dragging = true;
+        tableSelection.lastHover = input;
+        selectCellRange(input, input, event.ctrlKey || event.metaKey);
+        input.focus({ preventScroll: true });
+        input.select();
+        // The currency hint floats over the cells below and would break a drag.
+        hideAmountCurrencyPopover();
+    });
+    input.addEventListener('focus', () => {
+        if (tableSelection.dragging) return;
+        if (tableSelection.inputs.includes(input)) return;
+        tableSelection.anchor = input;
+        selectCellRange(input, input, false);
+    });
+}
+function initTableInputSelection() {
+    tableGridInputs().forEach(attachTableCellSelection);
+    clearCellSelection();
+}
+document.addEventListener('mouseup', () => {
+    tableSelection.dragging = false;
+    tableSelection.lastHover = null;
+});
+// First Escape drops the cell selection; only the next one closes the table.
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !tableSelection.inputs.length) return;
+    clearCellSelection();
+    event.stopImmediatePropagation();
+}, true);
+// A drag follows the pointer across cells; elementFromPoint keeps it working
+// even when the pointer jumps over a cell border between two mousemove events.
+document.addEventListener('mousemove', event => {
+    if (!tableSelection.dragging || !tableSelection.anchor) return;
+    if (event.buttons === 0) { tableSelection.dragging = false; return; }
+    let el = document.elementFromPoint(event.clientX, event.clientY);
+    if (!isCellInput(el) && el && el.closest) el = el.closest('#data-table tbody td')?.querySelector('input') || null;
+    if (!isCellInput(el) || el === tableSelection.lastHover) return;
+    tableSelection.lastHover = el;
+    selectCellRange(tableSelection.anchor, el, false);
+});
+document.addEventListener('mousedown', event => {
+    if (event.target.closest && event.target.closest('#data-table')) return;
+    clearCellSelection();
+});
+
+// ══ Undo / redo for table edits ════════════════════════════════════════════
+function cellRef(input) {
+    return {
+        date: input.getAttribute('data-date'),
+        store: input.getAttribute('data-store'),
+        income: input.getAttribute('data-income') === '1'
+    };
+}
+function findCellInput(ref) {
+    return tableGridInputs().find(input => {
+        if (input.getAttribute('data-date') !== ref.date) return false;
+        if (ref.income) return input.getAttribute('data-income') === '1';
+        return input.getAttribute('data-store') === ref.store;
+    }) || null;
+}
+function recordCellEdit(ref, before, after) {
+    if (before === after) return;
+    undoStack.push({ ref, before, after });
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+}
+function applyCellHistory(ref, value) {
+    const input = findCellInput(ref);
+    if (!input) {
+        showNotification(t('undo_not_on_page', 'Open the table on that month to undo this edit'), 'warning');
+        return false;
+    }
+    input.value = value;
+    saveExpense(input, { history: false });
+    return true;
+}
+function undoCellEdit() {
+    const entry = undoStack.pop();
+    if (!entry) { showNotification(t('undo_nothing', 'Nothing to undo'), 'info'); return; }
+    if (applyCellHistory(entry.ref, entry.before)) redoStack.push(entry);
+}
+function redoCellEdit() {
+    const entry = redoStack.pop();
+    if (!entry) { showNotification(t('redo_nothing', 'Nothing to redo'), 'info'); return; }
+    if (applyCellHistory(entry.ref, entry.after)) undoStack.push(entry);
+}
+
+// ══ Keyboard shortcuts ═════════════════════════════════════════════════════
+function hotkeyTypingTarget(el) {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+    if (el.tagName !== 'INPUT') return false;
+    const type = (el.getAttribute('type') || 'text').toLowerCase();
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'].includes(type);
+}
+function openModalElement() {
+    return document.querySelector('.modal[style*="display: flex"]');
+}
+function flushPendingSaves() {
+    clearTimeout(saveTimeout);
+    const dirty = tableGridInputs().filter(input => input.value.trim() !== input.defaultValue);
+    dirty.forEach(input => saveExpense(input));
+    if (dirty.length) showNotification(t('shortcuts_saved', 'Edits saved'), 'success');
+}
+function setupWizardEnterKeys() {
+    const modal = document.getElementById('manual-add-modal');
+    if (!modal) return;
+    modal.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' || event.isComposing) return;
+        const el = document.activeElement;
+        if (!el || el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') return;
+        event.preventDefault();
+        if (manualAddState.step < 3) manualAddGo(manualAddState.step + 1);
+        else saveManualExpense();
+    });
+}
+function handleHotkeys(event) {
+    const key = event.key;
+    const mod = event.ctrlKey || event.metaKey;
+    if (mod) {
+        const lower = key.toLowerCase();
+        if (lower === 'z' && !event.shiftKey) {
+            if (isCellInput(document.activeElement) || undoStack.length) {
+                event.preventDefault();
+                undoCellEdit();
+            }
+            return;
+        }
+        if ((lower === 'z' && event.shiftKey) || (lower === 'y' && !event.shiftKey)) {
+            event.preventDefault();
+            redoCellEdit();
+            return;
+        }
+        if (lower === 'c' && tableSelection.inputs.length && !window.getSelection()?.toString()) {
+            if (copySelectedCells()) event.preventDefault();
+            return;
+        }
+        if (lower === 'a' && isCellInput(document.activeElement)) {
+            event.preventDefault();
+            selectAllTableCells();
+            return;
+        }
+        if (lower === 's') {
+            event.preventDefault();
+            flushPendingSaves();
+            return;
+        }
+        return;
+    }
+    if (event.altKey) return;
+    if (key === '?' || (key === '/' && event.shiftKey)) {
+        event.preventDefault();
+        showModal('shortcuts-modal');
+        return;
+    }
+    if (hotkeyTypingTarget(document.activeElement)) return;
+    const open = openModalElement();
+    if (open) {
+        if (open.id === 'ocr-analytics-modal' && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+            event.preventDefault();
+            changeAnalyticsYear(key === 'ArrowLeft' ? -1 : 1);
+        }
+        return;
+    }
+    if (key === 'PageUp') { event.preventDefault(); navigateMonth(-1); }
+    else if (key === 'PageDown') { event.preventDefault(); navigateMonth(1); }
+    else if (key === 'n' || key === 'N') { event.preventDefault(); openManualAddModal(); }
+    else if (key === 't' || key === 'T') { event.preventDefault(); showModal('expenses-table-modal'); }
+    else if (key === 'a' || key === 'A') { event.preventDefault(); showOCRAnalyticsModal(); }
+    else if (key === ',') { event.preventDefault(); showModal('settings-modal'); }
+}
+function initHotkeys() {
+    document.addEventListener('keydown', handleHotkeys);
+    setupWizardEnterKeys();
+}
 
 // ══ DOMContentLoaded ═══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
 setupModalChrome();
+initCustomSelects();
+initDateFields();
+initHotkeys();
 updateFinancialSummary();
 loadAvailableYears().then(()=>{updateChart();});
     highlightCurrentDate();
@@ -2923,6 +4101,7 @@ loadAvailableYears().then(()=>{updateChart();});
         attachCellContextMenu(input);
         attachAmountCurrencyPicker(input);
     });
+    initTableInputSelection();
     const acp=document.getElementById('amount-currency-popover');
     if(acp)acp.addEventListener('mousedown',e=>e.preventDefault());
     window.addEventListener('scroll',()=>{if(currencyPopoverInput)positionAmountCurrencyPopover(currencyPopoverInput);},true);

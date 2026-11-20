@@ -90,8 +90,30 @@ if (!function_exists('sp_lang')) {
         if (in_array($requested, ['en', 'uk', 'ru', 'be', 'pl', 'cs'], true)) {
             $_SESSION['lang'] = $requested;
         }
-        $candidate = strtolower((string)($requested !== '' ? $requested : ($_SESSION['lang'] ?? 'en')));
-        $lang = in_array($candidate, ['en', 'uk', 'ru', 'be', 'pl', 'cs'], true) ? $candidate : 'en';
+        $supported = ['en', 'uk', 'ru', 'be', 'pl', 'cs'];
+        $candidate = strtolower((string)($requested !== '' ? $requested : ($_SESSION['lang'] ?? '')));
+        // A share link opens for guests too, so fall back to the language the
+        // visitor already picked in the dashboard and then to the browser.
+        if ($candidate === '') {
+            $cookie = strtolower(trim((string)($_COOKIE['sk_language'] ?? '')));
+            if (in_array($cookie, $supported, true)) {
+                $candidate = $cookie;
+            }
+        }
+        if ($candidate === '') {
+            foreach (explode(',', strtolower((string)($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''))) as $part) {
+                $tag = strtolower(trim(explode(';', $part)[0]));
+                if ($tag === '') continue;
+                $primary = preg_split('/[-_]/', $tag)[0] ?? '';
+                if ($primary === 'ua') $primary = 'uk';
+                if ($primary === 'by') $primary = 'be';
+                if (in_array($primary, $supported, true)) {
+                    $candidate = $primary;
+                    break;
+                }
+            }
+        }
+        $lang = in_array($candidate, $supported, true) ? $candidate : 'en';
         return $lang;
     }
 }
