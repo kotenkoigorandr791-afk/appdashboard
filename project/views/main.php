@@ -2086,7 +2086,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             overflow: hidden;
         }
         .weather-settings-header {
-            padding: 24px 72px 20px 24px;
+            padding: 30px 72px 26px 24px;
             border-bottom: 0;
             background: var(--modal-bg);
         }
@@ -2100,11 +2100,12 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             position: relative;
             display: flex;
             width: min(100%, 430px);
-            padding: 4px;
+            padding: 5px;
             background: var(--modal-bg);
             border: 1px solid var(--border-color);
             border-radius: 20px;
-            margin: 0;
+            /* Centred under the title, with a little breathing room above/below. */
+            margin: 8px auto 10px;
             box-sizing: border-box;
         }
         .location-switch .slider {
@@ -2125,7 +2126,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             position: relative;
             z-index: 1;
             width: 50%;
-            padding: 12px 14px;
+            padding: 14px 16px;
             border: 0;
             background: var(--modal-bg);
             border-radius: 16px;
@@ -2136,7 +2137,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             line-height: 1.25;
             cursor: pointer;
             transition: color .2s;
-            min-height: 44px;
+            min-height: 50px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
