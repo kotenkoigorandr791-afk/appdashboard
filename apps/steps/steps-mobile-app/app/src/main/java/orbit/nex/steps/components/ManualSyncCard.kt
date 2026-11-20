@@ -252,12 +252,11 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
         }
     }
 
-    Card {
-        Column(modifier = Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-            Button(
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            FilledTonalButton(
                 onClick = { selectedOptionIndex = 0; showConfirmSheet = true },
                 enabled = !isSyncing && (webhookConfigs.isNotEmpty() || localTcpEnabled),
-                modifier = Modifier.fillMaxWidth()
             ) {
                 if (isSyncing) {
                     CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
@@ -265,11 +264,11 @@ fun ManualSyncCard(historyRequest: Int = 0, onSyncCompleted: () -> Unit = {}) {
                 }
                 Text(stringResource(if (isSyncing) R.string.manual_sync_syncing else R.string.manual_sync_btn))
             }
-            OutlinedButton(onClick = { selectedOptionIndex = 3; showHistorySheet = true }, enabled = !isSyncing, modifier = Modifier.fillMaxWidth()) {
+            TextButton(onClick = { selectedOptionIndex = 3; showHistorySheet = true }, enabled = !isSyncing) {
                 Text(stringResource(R.string.manual_sync_history_button))
             }
-            syncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
         }
+        syncMessage?.let { Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
     }
     if (showHistorySheet) {
         ModalBottomSheet(onDismissRequest = { showHistorySheet = false }) {

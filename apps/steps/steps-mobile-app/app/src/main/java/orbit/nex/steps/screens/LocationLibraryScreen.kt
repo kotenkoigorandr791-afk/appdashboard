@@ -2,6 +2,7 @@ package orbit.nex.steps.screens
 
 import orbit.nex.steps.ui.theme.Spacing
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -74,11 +75,12 @@ private data class PendingLibraryAction(val entry: LibraryEntry, val action: Lib
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
-fun LocationPanelsSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+fun LocationPanelsSheet(onDismiss: () -> Unit, onTripSelected: (java.time.LocalDate, List<orbit.nex.steps.location.GeoLatLon>) -> Unit, modifier: Modifier = Modifier) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         LocationPanelsContent(
             onDismiss = onDismiss,
+            onTripSelected = onTripSelected,
             modifier = modifier.fillMaxWidth().fillMaxHeight(0.92f),
         )
     }
@@ -86,7 +88,7 @@ fun LocationPanelsSheet(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.time.LocalDate, List<orbit.nex.steps.location.GeoLatLon>) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val repository = remember { LocationLibraryRepository(prefs) }
@@ -98,6 +100,8 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
     var loading by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
     var pending by remember { mutableStateOf<PendingLibraryAction?>(null) }
+    var renameEntry by remember { mutableStateOf<LibraryEntry?>(null) }
+    var renameText by remember { mutableStateOf("") }
     var actionBusy by remember { mutableStateOf(false) }
     var actionError by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
@@ -199,12 +203,47 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, modifier: Modifier = Mo
                     LibraryCard(
                         entry = entry,
                         enabled = !actionBusy,
-                        onAction = { action -> pending = PendingLibraryAction(entry, action) },
+                        onAction = { action ->
+                            if (action == LibraryAction.RENAME) { renameEntry = entry; renameText = entry.title }
+                            else pending = PendingLibraryAction(entry, action)
+                        },
+                        onOpen = {
+                            val activeConfig = config
+                            if (entry.isTrip && activeConfig != null) {
+                                actionBusy = true
+                                scope.launch {
+                                    repository.tripGeometry(activeConfig, entry.id)
+                                        .onSuccess { (day, path) -> onTripSelected(day, path) }
+                                        .onFailure { actionError = if (it.message == "no_geometry") context.getString(R.string.library_trip_no_geometry) else it.message }
+                                    actionBusy = false
+                                }
+                            }
+                        },
                     )
                 }
                 item { Spacer(Modifier.height(10.dp)) }
             }
         }
+    }
+
+    renameEntry?.let { entry ->
+        AlertDialog(
+            onDismissRequest = { if (!actionBusy) renameEntry = null },
+            title = { Text(stringResource(R.string.library_rename)) },
+            text = { OutlinedTextField(value = renameText, onValueChange = { renameText = it }, singleLine = true, label = { Text(stringResource(R.string.library_trip_name)) }) },
+            confirmButton = {
+                TextButton(enabled = !actionBusy && renameText.isNotBlank(), onClick = {
+                    val active = config ?: return@TextButton
+                    actionBusy = true
+                    scope.launch {
+                        repository.renameTrip(active, entry.id, renameText.trim()).onSuccess { notice = updatedLabel; refreshKey++; renameEntry = null }
+                            .onFailure { actionError = it.message ?: context.getString(R.string.library_error_generic); renameEntry = null }
+                        actionBusy = false
+                    }
+                }) { Text(stringResource(R.string.library_rename)) }
+            },
+            dismissButton = { TextButton(enabled = !actionBusy, onClick = { renameEntry = null }) { Text(stringResource(R.string.library_cancel)) } },
+        )
     }
 
     pending?.let { request ->
@@ -259,11 +298,11 @@ private fun LibraryMessage(message: String, isError: Boolean = false) {
 }
 
 @Composable
-private fun LibraryCard(entry: LibraryEntry, enabled: Boolean, onAction: (LibraryAction) -> Unit) {
+private fun LibraryCard(entry: LibraryEntry, enabled: Boolean, onAction: (LibraryAction) -> Unit, onOpen: () -> Unit) {
     Card(
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
         shape = RoundedCornerShape(16.dp),
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier.fillMaxWidth().then(if (entry.isTrip) Modifier.clickable(enabled = enabled, onClick = onOpen) else Modifier),
     ) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -346,6 +385,7 @@ private fun LibraryTab.titleRes(): Int = when (this) {
 private fun LibraryAction.labelRes(): Int = when (this) {
     LibraryAction.DELETE -> R.string.library_delete
     LibraryAction.ARCHIVE -> R.string.library_archive
+    LibraryAction.RENAME -> R.string.library_rename
     LibraryAction.CONFIRM -> R.string.library_confirm
     LibraryAction.REJECT -> R.string.library_reject
     LibraryAction.PAUSE -> R.string.library_pause
@@ -363,6 +403,7 @@ private fun LibraryAction.labelRes(): Int = when (this) {
 private fun confirmText(action: LibraryAction): String = when (action) {
     LibraryAction.DELETE -> stringResource(R.string.library_confirm_delete_place)
     LibraryAction.ARCHIVE -> stringResource(R.string.library_confirm_archive_trip)
+    LibraryAction.RENAME -> stringResource(R.string.library_rename)
     LibraryAction.CONFIRM, LibraryAction.REJECT -> stringResource(R.string.library_confirm_visit)
     LibraryAction.PAUSE, LibraryAction.RESUME -> stringResource(R.string.library_confirm_device)
     LibraryAction.REVOKE -> stringResource(R.string.library_confirm_revoke)

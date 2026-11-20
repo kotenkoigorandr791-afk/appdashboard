@@ -55,6 +55,8 @@ class SyncWorker(
         }
     }
 
+    override suspend fun getForegroundInfo(): ForegroundInfo = createForegroundInfo()
+
     private fun createForegroundInfo(): ForegroundInfo {
         ensureNotificationChannel()
         val notification = NotificationCompat.Builder(applicationContext, CHANNEL_ID)

@@ -58,6 +58,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
 import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -66,6 +68,8 @@ import org.osmdroid.views.overlay.Overlay
 import orbit.nex.steps.screens.KeepOverlay
 import orbit.nex.steps.screens.MapStyle
 import orbit.nex.steps.screens.StyledInfoWindow
+import orbit.nex.steps.screens.MapRotationOverlay
+import orbit.nex.steps.screens.withLocalEvents
 import orbit.nex.steps.screens.applyBasemap
 import orbit.nex.steps.screens.configureOsm
 import orbit.nex.steps.screens.rebuildOverlays
@@ -186,8 +190,8 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     val totalPage = repository.loadPage(active, 0, dayFrom, dayTo, null, null)
                     if (totalPage.error == null) totalCount = totalPage.total
                 }
-                val dayData = if (dayNow != null) geoRepository.loadDay(active, dayNow) else GeoMapData()
-                rebuildOverlays(map, dayData, prefs.getMapLayers())
+                val dayData = if (dayNow != null) geoRepository.loadDay(active, dayNow).withLocalEvents(withContext(Dispatchers.IO) { orbit.nex.steps.location.LocationEventStore(context).eventsForDay(dayNow) }) else GeoMapData()
+                rebuildOverlays(map, dayData, prefs.getMapLayers(), darkTheme)
                 if (box != null) drawSelection(map)
                 loadedBox = if (all.isEmpty()) null else SelectionBox(all.minOf { it.lon } - 0.00001, all.minOf { it.lat } - 0.00001, all.maxOf { it.lon } + 0.00001, all.maxOf { it.lat } + 0.00001)
                 all.forEach { point ->
@@ -201,15 +205,16 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                         }
                         setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                         title = point.sourceAt.replace('T', ' ').substringBefore('+').substringBefore('.')
-                        snippet = "%.5f, %.5f".format(point.lat, point.lon)
-                        setInfoWindow(StyledInfoWindow(map))
+                        snippet = context.getString(R.string.map_coordinates_values, point.lat, point.lon)
+                        setInfoWindow(StyledInfoWindow(map, darkTheme))
                     })
                 }
-                if (zoom && all.isNotEmpty()) {
-                    val north = all.maxOf { it.lat }; val south = all.minOf { it.lat }
-                    val east = all.maxOf { it.lon }; val west = all.minOf { it.lon }
+                if (zoom && (all.isNotEmpty() || dayData.bbox != null)) {
+                    val bounds = dayData.bbox
+                    val north = bounds?.north ?: all.maxOf { it.lat }; val south = bounds?.south ?: all.minOf { it.lat }
+                    val east = bounds?.east ?: all.maxOf { it.lon }; val west = bounds?.west ?: all.minOf { it.lon }
                     if (north > south || east > west) {
-                        runCatching { map.zoomToBoundingBox(org.osmdroid.util.BoundingBox(north, east, south, west), true, 96) }
+                        runCatching { map.zoomToBoundingBox(org.osmdroid.util.BoundingBox(north + 0.00001, east + 0.00001, south - 0.00001, west - 0.00001), true, 96) }
                     } else {
                         map.controller.setZoom(17.0)
                         map.controller.animateTo(GeoPoint(north, east))
@@ -237,6 +242,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     factory = { ctx ->
                         MapView(ctx).apply {
                             setMultiTouchControls(true)
+                            overlays.add(MapRotationOverlay(this))
                             if (!darkTheme) setTilesScaledToDpi(false)
                             applyBasemap(this, MapStyle.fromKey(prefs.getMapBasemap()), darkTheme)
                             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
@@ -254,7 +260,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                                 },
                             ))
                             mapView = this
-                            post { refreshSelection() }
+                            post { refreshSelection(focus == null) }
                         }
                     },
                     modifier = Modifier.fillMaxSize(),
@@ -427,6 +433,15 @@ private class RectangleDrawOverlay(
                 }
                 holdTask = task
                 mapView.postDelayed(task, 350L)
+                return false
+            }
+            android.view.MotionEvent.ACTION_POINTER_DOWN -> {
+                cancelHold(mapView)
+                if (drawing) {
+                    drawing = false
+                    mapView.parent.requestDisallowInterceptTouchEvent(false)
+                    mapView.invalidate()
+                }
                 return false
             }
             android.view.MotionEvent.ACTION_MOVE -> {

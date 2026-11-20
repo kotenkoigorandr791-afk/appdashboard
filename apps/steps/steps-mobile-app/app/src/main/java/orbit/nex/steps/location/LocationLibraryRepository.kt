@@ -32,6 +32,7 @@ enum class LibraryTab(val endpoint: String) {
 enum class LibraryAction {
     DELETE,
     ARCHIVE,
+    RENAME,
     CONFIRM,
     REJECT,
     PAUSE,
@@ -54,6 +55,7 @@ data class LibraryEntry(
     val active: Boolean? = null,
     val actions: List<LibraryAction> = emptyList(),
     val query: String = "",
+    val isTrip: Boolean = false,
 )
 
 data class LibrarySnapshot(
@@ -103,6 +105,7 @@ class LocationLibraryRepository(
                     LibraryAction.DELETE -> "places" to JSONObject()
                         .put("action", "delete")
                         .put("id", entry.id)
+                    LibraryAction.RENAME -> error("Use renameTrip")
                     LibraryAction.ARCHIVE -> "geolocation_trips" to JSONObject()
                         .put("action", "archive")
                         .put("id", entry.id)
@@ -146,6 +149,26 @@ class LocationLibraryRepository(
                 Unit
             }
         }
+
+    suspend fun renameTrip(config: WebhookConfig, id: String, title: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { post(config, "geolocation_trips", JSONObject().put("action", "rename").put("id", id).put("title", title)); Unit }
+    }
+
+    suspend fun tripGeometry(config: WebhookConfig, id: String): Result<Pair<java.time.LocalDate, List<GeoLatLon>>> = withContext(Dispatchers.IO) {
+        runCatching {
+            val trip = get(config, "geolocation_trips?id=" + Uri.encode(id)).getJSONObject("trip")
+            val date = OffsetDateTime.parse(trip.getString("started_at")).atZoneSameInstant(ZoneId.systemDefault()).toLocalDate()
+            val coordinates = trip.optJSONObject("geojson")?.optJSONArray("coordinates") ?: JSONArray()
+            val path = (0 until coordinates.length()).mapNotNull { i ->
+                val point = coordinates.optJSONArray(i) ?: return@mapNotNull null
+                val lon = point.optDouble(0, Double.NaN)
+                val lat = point.optDouble(1, Double.NaN)
+                if (lat in -90.0..90.0 && lon in -180.0..180.0) GeoLatLon(lat, lon) else null
+            }
+            require(path.isNotEmpty()) { "no_geometry" }
+            date to path
+        }
+    }
 
     private fun get(config: WebhookConfig, path: String): JSONObject {
         val builder = Request.Builder()
@@ -219,7 +242,8 @@ class LocationLibraryRepository(
                     duration(row.optLong("duration_s", 0L)),
                 ).filter { it.isNotBlank() }.joinToString(" · "),
                 status = row.optString("state"),
-                actions = listOf(LibraryAction.ARCHIVE),
+                actions = listOf(LibraryAction.ARCHIVE, LibraryAction.RENAME),
+                isTrip = true,
             )
         }
         return LibrarySnapshot(entries = entries)

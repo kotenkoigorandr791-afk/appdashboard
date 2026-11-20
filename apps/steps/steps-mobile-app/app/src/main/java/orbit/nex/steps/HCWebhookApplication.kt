@@ -62,7 +62,7 @@ class HCWebhookApplication : Application() {
             repeatInterval = syncIntervalMinutes.toLong(),
             repeatIntervalTimeUnit = TimeUnit.MINUTES
         )
-        .setInitialDelay(maxOf(0L, (preferencesManager.getEffectiveLastSyncAnchor() ?: System.currentTimeMillis()) + syncIntervalMinutes * 60_000L - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
+        .setInitialDelay(maxOf(0L, nextIntervalSyncAt(System.currentTimeMillis(), preferencesManager.getEffectiveLastSyncAnchor(), preferencesManager.getLastSyncAttemptTime(), syncIntervalMinutes * 60_000L) - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
         .setBackoffCriteria(
             BackoffPolicy.EXPONENTIAL,
             5,

@@ -213,6 +213,14 @@ class LocationEventStore(context: Context) {
         )
     }
 
+    fun syncedEvents(): List<StoredLocationEvent> {
+        val out = mutableListOf<StoredLocationEvent>()
+        helper.readableDatabase.rawQuery(
+            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, $COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS, $COLUMN_STATE FROM $TABLE WHERE $COLUMN_STATE IN ('$STATE_ACCEPTED','$STATE_DUPLICATE')", null,
+        ).use { cursor -> while (cursor.moveToNext()) out += cursor.toEvent() }
+        return out
+    }
+
     fun pendingEvents(): List<StoredLocationEvent> {
         val out = mutableListOf<StoredLocationEvent>()
         helper.readableDatabase.rawQuery(

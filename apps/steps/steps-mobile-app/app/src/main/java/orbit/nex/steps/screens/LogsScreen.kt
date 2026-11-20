@@ -314,6 +314,7 @@ fun LogsScreen(modifier: Modifier = Modifier, onBack: (() -> Unit)? = null) {
             SavedToast(
                 message,
                 Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.xl),
+                onDismiss = { toast = null },
             )
         }
     }

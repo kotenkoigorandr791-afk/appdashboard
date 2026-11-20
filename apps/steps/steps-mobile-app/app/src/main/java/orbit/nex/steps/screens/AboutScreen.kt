@@ -112,6 +112,8 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     }
     var testingConn by remember { mutableStateOf(false) }
     var connResult by remember { mutableStateOf<Boolean?>(null) }
+    var connectionLatency by remember { mutableStateOf<Long?>(null) }
+    var confirmDisconnect by remember { mutableStateOf(false) }
     val updateChecker = remember { AppUpdateChecker(context) }
     var autoUpdate by remember { mutableStateOf(prefs.isAutoUpdateEnabled()) }
     var updateBusy by remember { mutableStateOf(false) }
@@ -168,6 +170,27 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
         item { Spacer(Modifier.height(Spacing.sm)) }
     }
+    if (confirmDisconnect) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDisconnect = false },
+            icon = { Icon(Icons.Filled.LinkOff, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text(stringResource(R.string.account_disconnect_title)) },
+            text = { Text(stringResource(R.string.account_disconnect_desc)) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                configs = emptyList()
+                prefs.setWebhookConfigs(emptyList())
+                prefs.clearConnectionEstablished()
+                prefs.clearServerDataCache()
+                localAvatarFile(context).delete()
+                status = context.getString(R.string.auth_waiting)
+                profile = ServerProfile()
+                profilePhotoModel = null
+                confirmDisconnect = false
+                open = null
+            }) { Text(stringResource(R.string.auth_disconnect), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDisconnect = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
     val current = open
     val windowed = mapOf(
         "profile" to Intent(context, SettingsActivity::class.java).putExtra("section", SettingsSection.PROFILE.name),
@@ -185,9 +208,24 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.background,
-                modifier = Modifier.fillMaxWidth(0.96f).fillMaxHeight(0.92f),
+                modifier = Modifier.fillMaxWidth(if (current == "account") 1f else 0.96f).fillMaxHeight(if (current == "account") 1f else 0.92f),
             ) {
                 when (current) {
+                    "account" -> AccountDetails(
+                        profile = profile,
+                        photo = profilePhotoModel,
+                        connected = configs.any { it.isEnabled },
+                        connectedAt = prefs.getConnectionEstablishedAt(),
+                        syncs = prefs.getWebhookLogs().size,
+                        pending = orbit.nex.steps.location.LocationTrackingManager.pendingCount(context),
+                        testing = testingConn,
+                        result = connResult,
+                        latency = connectionLatency,
+                        onBack = dismiss,
+                        onTest = { scope.launch { testingConn = true; connResult = null; val start = android.os.SystemClock.elapsedRealtime(); connResult = testConnection(configs.firstOrNull { it.isEnabled }, prefs); connectionLatency = android.os.SystemClock.elapsedRealtime() - start; testingConn = false } },
+                        onDisconnect = { confirmDisconnect = true },
+                        prefs = prefs,
+                    )
                     "sync" -> SettingsScreen(onBack = dismiss, section = SettingsSection.SYNC)
                     "perms" -> SettingsScreen(onBack = dismiss, section = SettingsSection.PERMISSIONS)
                     else -> Column {
@@ -370,8 +408,53 @@ private suspend fun testConnection(config: WebhookConfig?, prefs: PreferencesMan
         OkHttpClient().newCall(builder.build()).execute().use { response ->
             if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
             if (!response.isSuccessful) error("HTTP ${response.code}")
-            prefs.markSyncSuccess()
             true
         }
     }.getOrDefault(false)
+}
+
+@Composable
+private fun AccountDetails(profile: ServerProfile, photo: String?, connected: Boolean, connectedAt: Long, syncs: Int, pending: Int, testing: Boolean, result: Boolean?, latency: Long?, onBack: () -> Unit, onTest: () -> Unit, onDisconnect: () -> Unit, prefs: PreferencesManager) {
+    val context = LocalContext.current
+    var points by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(connected) {
+        val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return@LaunchedEffect
+        val page = orbit.nex.steps.location.PointManagementRepository(prefs, context).loadPage(config, 0, null, null, null, null)
+        if (page.error == null) points = page.total
+    }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd)) }
+            Text(stringResource(R.string.account_title), style = MaterialTheme.typography.titleLarge)
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (photo != null) AsyncImage(model = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(72.dp).clip(CircleShape))
+                else Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(72.dp)) { androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) { Text(profile.name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "?" }, style = MaterialTheme.typography.titleLarge) } }
+                Text(profile.name.ifBlank { profile.email.ifBlank { stringResource(R.string.account_title) } }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (profile.email.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (connected) stringResource(R.string.account_connected_since, if (connectedAt > 0) java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(connectedAt)) else "—") else stringResource(R.string.account_status_disconnected), modifier = Modifier.padding(10.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.account_server_connection), style = MaterialTheme.typography.titleSmall)
+                    Text(when (result) { true -> stringResource(R.string.account_reachable, latency ?: 0L); false -> stringResource(R.string.account_unreachable); null -> if (connected) stringResource(R.string.auth_connected) else stringResource(R.string.account_status_disconnected) }, style = MaterialTheme.typography.bodySmall, color = when (result) { true -> MaterialTheme.semantic.success; false -> MaterialTheme.colorScheme.error; null -> MaterialTheme.colorScheme.onSurfaceVariant })
+                }
+                FilledTonalButton(onClick = onTest, enabled = connected && !testing) { if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.account_test)) }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(Triple(Icons.Filled.Sync, syncs.toString(), R.string.account_syncs), Triple(Icons.Filled.LocationOn, points?.let { java.text.NumberFormat.getIntegerInstance().format(it) } ?: "—", R.string.points_title), Triple(Icons.Filled.Schedule, pending.toString(), R.string.account_pending)).forEach { (icon, value, label) ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f)) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) { Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant); Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Text(stringResource(label), style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+                }
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        if (connected) OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Filled.LinkOff, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.account_disconnect)) }
+    }
 }

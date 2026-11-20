@@ -36,7 +36,7 @@ class ScheduledSyncManager(private val context: Context) {
      * keep happening even after the app's process was killed. Each run in
      * [SyncForegroundService] reschedules the chain, making it self-sustaining.
      */
-    fun scheduleNextIntervalSync() {
+    fun scheduleNextIntervalSync(afterAlarm: Boolean = false) {
         if (preferencesManager.getSyncMode() != SyncMode.INTERVAL) {
             return
         }
@@ -44,17 +44,16 @@ class ScheduledSyncManager(private val context: Context) {
         val intervalMs = preferencesManager.getSyncIntervalMinutes() * 60_000L
         val lastSync = preferencesManager.getEffectiveLastSyncAnchor()
         val now = System.currentTimeMillis()
-        val base = if (lastSync != null) lastSync + intervalMs else now + intervalMs
-        // Never re-fire sooner than a grace period, even if lastSync is far in
-        // the past (e.g. the device stayed off during the whole interval).
-        val trigger = maxOf(base, now + MIN_REPEAT_MS)
+        val base = nextIntervalSyncAt(now, lastSync, preferencesManager.getLastSyncAttemptTime(), intervalMs)
+        val trigger = maxOf(base, now + if (afterAlarm) MIN_REPEAT_MS else 1000L)
 
         val intent = Intent(context, ScheduledSyncReceiver::class.java).apply {
             action = ACTION_SCHEDULED_SYNC
             putExtra(EXTRA_SCHEDULE_ID, INTERVAL_BOUNDARY_ID)
         }
         val pendingIntent = buildAlarmPendingIntent(intent, INTERVAL_REQUEST_CODE)
-        alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+        if (canScheduleExactAlarms()) alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
+        else alarmManager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, pendingIntent)
     }
 
     /**
@@ -185,4 +184,10 @@ class ScheduledSyncManager(private val context: Context) {
             flags
         )
     }
+}
+
+internal fun nextIntervalSyncAt(now: Long, anchor: Long?, lastAttempt: Long?, intervalMs: Long): Long {
+    val due = (anchor ?: now) + intervalMs
+    val retry = lastAttempt?.takeIf { it >= due }?.plus(15 * 60_000L) ?: due
+    return maxOf(due, retry)
 }

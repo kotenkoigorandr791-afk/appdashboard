@@ -3,6 +3,9 @@ package orbit.nex.steps.location
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import orbit.nex.steps.PreferencesManager
@@ -98,6 +101,46 @@ class GeoMapRepository(
 
     private fun cacheFile(config: WebhookConfig, day: LocalDate): java.io.File? =
         cacheDir?.let { java.io.File(it, "geomap_${(config.url + prefs.getDeviceId()).hashCode()}_$day.json") }
+
+    suspend fun reconcileDeleted(config: WebhookConfig, context: android.content.Context, force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        LocationMutationLock.mutex.withLock {
+            runCatching {
+                val base = apiBase(config).trimEnd('/')
+                fun builder(url: String): Request.Builder = Request.Builder().url(url)
+                    .addHeader("Accept", "application/json")
+                    .addHeader("X-Device-Id", prefs.getDeviceId())
+                    .apply { config.headers.forEach { (key, value) -> addHeader(key, value) } }
+                val revision = client.newCall(builder("$base/geolocation_points?revision=1").build()).execute().use { response ->
+                    if (!response.isSuccessful) error("revision request failed")
+                    val json = JSONObject(response.body?.string().orEmpty())
+                    if (!json.optBoolean("ok") || !json.has("revision")) error("revision unavailable")
+                    json.getString("revision")
+                }
+                val key = "geo_deletion_revision_${config.url.hashCode()}"
+                val settings = prefs.getSharedPreferences()
+                val changed = settings.getString(key, null) != revision
+                if (!changed && !force) return@runCatching
+                val store = LocationEventStore(context)
+                val local = store.syncedEvents().map { it.eventId }
+                val missing = mutableListOf<String>()
+                local.chunked(500).forEach { batch ->
+                    val payload = JSONObject().put("action", "reconcile").put("local_device_id", prefs.getLocationDeviceId()).put("event_ids", JSONArray(batch))
+                    val request = builder("$base/geolocation_points").post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())).build()
+                    val existing = client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) error("reconciliation failed")
+                        val json = JSONObject(response.body?.string().orEmpty())
+                        if (!json.optBoolean("ok") || !json.has("event_ids")) error("reconciliation unavailable")
+                        val ids = json.getJSONArray("event_ids")
+                        (0 until ids.length()).map { ids.getString(it) }.toSet()
+                    }
+                    missing += batch.filterNot { it in existing }
+                }
+                store.removeEvents(missing)
+                settings.edit().putString(key, revision).apply()
+                if (changed || missing.isNotEmpty()) GeoMapChanges.invalidate(context)
+            }.isSuccess
+        }
+    }
 
     fun cached(config: WebhookConfig, day: LocalDate): GeoMapData? = runCatching {
         cacheFile(config, day)?.takeIf { it.exists() }?.let { parse(JSONObject(it.readText())) }

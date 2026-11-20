@@ -67,6 +67,15 @@ if ($method === 'GET') {
 if ($method !== 'POST') public_api_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
 $body = public_api_body();
 $action = strtolower(trim((string)($body['action'] ?? '')));
+if ($action === 'reconcile') {
+    $device = trim((string)($body['local_device_id'] ?? ''));
+    $events = array_values(array_unique(array_filter((array)($body['event_ids'] ?? []), static fn($id): bool => is_string($id) && StepsGeolocationDomain::isUuid($id))));
+    if (!StepsGeolocationDomain::isUuid($device) || count($events) > 500) public_api_json(['ok' => false, 'error' => 'invalid_reconcile'], 400);
+    if ($events === []) public_api_json(['ok' => true, 'event_ids' => []]);
+    $query = $pdo->prepare('SELECT client_event_id FROM geo_location_points WHERE user_email = :owner AND device_id = :device AND client_event_id IN (' . implode(',', array_map(static fn(string $id): string => $pdo->quote($id), $events)) . ')');
+    $query->execute([':owner' => $owner, ':device' => $device]);
+    public_api_json(['ok' => true, 'event_ids' => $query->fetchAll(PDO::FETCH_COLUMN)]);
+}
 // Deleting or counting does not capture anything: only the actions that derive
 // new measurement data depend on the capture flag. Gating "delete" here used to
 // return 403 for a user with capture switched off, so the app could never remove

@@ -80,13 +80,14 @@ class PointManagementRepository(
         }
     }
 
-    suspend fun loadPage(config: WebhookConfig, page: Int, from: String?, to: String?, state: String?, bbox: String?): PointPage = withContext(Dispatchers.IO) {
+    suspend fun loadPage(config: WebhookConfig, page: Int, from: String?, to: String?, state: String?, bbox: String?, pageSize: Int = 100): PointPage = withContext(Dispatchers.IO) {
+        val size = pageSize.coerceIn(1, 200)
         val local = localPoints(from, to, state, bbox)
-        val offset = page * 100
-        val localPage = local.drop(offset).take(100)
+        val offset = page * size
+        val localPage = local.drop(offset).take(size)
         runCatching {
             val query = buildList {
-                add("limit=${(100 - localPage.size).coerceAtLeast(1)}")
+                add("limit=${(size - localPage.size).coerceAtLeast(1)}")
                 add("offset=${(offset - local.size).coerceAtLeast(0)}")
                 if (!from.isNullOrBlank()) add("from=$from")
                 if (!to.isNullOrBlank()) add("to=$to")
@@ -95,7 +96,7 @@ class PointManagementRepository(
             }.joinToString("&")
             val root = get(config, "geolocation_points?$query")
             val rows = root.optJSONArray("points") ?: JSONArray()
-            val points = (0 until if (localPage.size == 100) 0 else rows.length()).mapNotNull { index ->
+            val points = (0 until if (localPage.size == size) 0 else rows.length()).mapNotNull { index ->
                 val row = rows.optJSONObject(index) ?: return@mapNotNull null
                 val lat = row.optDouble("latitude", Double.NaN)
                 val lon = row.optDouble("longitude", Double.NaN)

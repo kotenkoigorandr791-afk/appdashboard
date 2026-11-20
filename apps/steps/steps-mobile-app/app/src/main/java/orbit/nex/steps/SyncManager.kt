@@ -113,14 +113,20 @@ class SyncManager(private val context: Context) {
     suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> {
         if (syncType == "auto" && preferencesManager.getSyncMode() == SyncMode.INTERVAL) {
             preferencesManager.ensureInitialSyncAnchor()
-            val anchor = preferencesManager.getEffectiveLastSyncAnchor() ?: System.currentTimeMillis()
-            if (System.currentTimeMillis() < anchor + preferencesManager.getSyncIntervalMinutes() * 60_000L) return Result.success(SyncResult.NoData)
+            val now = System.currentTimeMillis()
+            val due = nextIntervalSyncAt(now, preferencesManager.getEffectiveLastSyncAnchor(), preferencesManager.getLastSyncAttemptTime(), preferencesManager.getSyncIntervalMinutes() * 60_000L)
+            if (now < due) return Result.success(SyncResult.NoData)
         }
         if (!syncMutex.tryLock()) {
             return Result.success(SyncResult.AlreadyRunning)
         }
         return try {
+            preferencesManager.setLastSyncAttemptTime(System.currentTimeMillis())
             val locationPending = flushLocationOutbox(targetWebhooks)
+            if (locationPending?.error != null) {
+                logLocationOnlySync(syncType, locationPending, 0)
+                return Result.failure(if (locationPending.retryable) java.io.IOException(locationPending.error) else IllegalStateException(locationPending.error))
+            }
             val result = performSyncInternal(
                 timeRangeDays, start, end, syncType, targetWebhooks, autoResolveConflict, locationPending,
             )
@@ -210,7 +216,6 @@ class SyncManager(private val context: Context) {
         */
 
         try {
-            preferencesManager.setLastSyncAttemptTime(Instant.now().toEpochMilli())
             val webhookConfigs = preferencesManager.getWebhookConfigs()
             val enabledWebhookConfigs = (targetWebhooks ?: webhookConfigs).filter { it.isEnabled }
 
@@ -764,7 +769,7 @@ class SyncManager(private val context: Context) {
         return if (parts.isEmpty()) "No new data" else parts.joinToString(" · ")
     }
 
-    private fun buildJsonPayload(healthData: HealthData): String {
+    internal fun buildJsonPayload(healthData: HealthData): String {
         val json = buildJsonObject {
             put("timestamp", Instant.now().toString())
             put("app_version", appVersionName)
