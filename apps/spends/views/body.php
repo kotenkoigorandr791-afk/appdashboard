@@ -118,13 +118,18 @@
                 <button type="button" role="menuitem" id="import-opt-csv"><?= htmlspecialchars($translations['import_menu_csv'] ?? 'CSV') ?></button>
             </div>
             </div>
+            <button class="header-btn header-btn-activity" type="button" onclick="openActivityHistory()" title="<?= htmlspecialchars($translations['activity_title'] ?? 'History') ?>" aria-label="<?= htmlspecialchars($translations['activity_title'] ?? 'History') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                <span class="header-btn-label"><?= htmlspecialchars($translations['activity_title'] ?? 'History') ?></span>
+            </button>
             <button class="header-btn header-btn-table" type="button" onclick="showModal('expenses-table-modal')" title="<?= htmlspecialchars($tableModalTitle) ?>">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
                 <span class="header-btn-label"><?= htmlspecialchars($tableModalTitle) ?></span>
             </button>
             <div class="header-divider" aria-hidden="true"></div>
-            <button class="header-btn" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v5"/><path d="M16 14.639V21"/><path d="M20 10.656V21"/><path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15"/><path d="M4 18.463V21"/><path d="M8 14.656V21"/></svg>
+            <button class="header-btn header-btn-stats" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v5"/><path d="M16 14.639V21"/><path d="M20 10.656V21"/><path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15"/><path d="M4 18.463V21"/><path d="M8 14.656V21"/></svg>
+                <span class="header-btn-label"><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></span>
             </button>
             <button class="header-btn" onclick="showModal('settings-modal')" title="<?= htmlspecialchars($translations['settings_title'].' · '.$translations['table_settings']) ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
@@ -184,10 +189,58 @@
 
     <div class="divider"></div>
 
+    <!-- Activity feed: recent transactions under the dashboard controls -->
+    <section id="dashboard-activity-section" class="dash-activity">
+        <div class="dash-activity__head">
+            <div class="dash-activity__title-wrap">
+                <span class="dash-activity__icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                </span>
+                <h3><?= htmlspecialchars($translations['activity_title'] ?? 'History') ?></h3>
+                <span id="tx-total-badge" class="dash-activity__badge">0</span>
+            </div>
+            <button type="button" class="dash-activity__all" onclick="openActivityHistory()">
+                <span><?= htmlspecialchars($translations['activity_all'] ?? 'All history') ?></span><span aria-hidden="true">→</span>
+            </button>
+        </div>
+        <div id="dashboard-activity-list" class="dash-activity__list"></div>
+        <div id="dashboard-activity-pagination" class="dash-activity__pager"></div>
+    </section>
+
     <div id="preview-tooltip" style="display:none;position:absolute;background:var(--modal-bg);border:1px solid var(--primary-color);border-radius:4px;padding:5px 10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:1000;pointer-events:none;">
         <span id="preview-tooltip-result"></span>
     </div>
 </div>
+<!-- Transaction details: bottom sheet on phones, dialog on larger screens -->
+<div id="tx-details-modal" class="modal tx-modal" onclick="if(event.target===this) closeModal('tx-details-modal')">
+    <div class="modal-content tx-sheet" role="dialog" aria-modal="true">
+        <div class="tx-sheet__head">
+            <span class="tx-sheet__eyebrow"><?= htmlspecialchars($translations['activity_details'] ?? 'Transaction details') ?></span>
+            <button type="button" class="tx-sheet__close" onclick="closeModal('tx-details-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">✕</button>
+        </div>
+        <div id="tx-details-content" class="tx-sheet__body"></div>
+    </div>
+</div>
+
+<!-- Full transaction history with search and source filters -->
+<div id="activity-history-modal" class="modal history-modal">
+    <div class="modal-content history-sheet" role="dialog" aria-modal="true">
+        <div class="history-sheet__head">
+            <h3><?= htmlspecialchars($translations['activity_title'] ?? 'History') ?></h3>
+            <button type="button" class="tx-sheet__close" onclick="closeModal('activity-history-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">✕</button>
+        </div>
+        <div class="history-sheet__toolbar">
+            <input id="history-search-input" type="search" class="history-sheet__search" placeholder="<?= htmlspecialchars($translations['activity_search_placeholder'] ?? 'Search by store, category or amount...') ?>" oninput="renderFullActivity()">
+            <div class="history-sheet__filters" id="history-source-filters">
+                <button type="button" class="hist-filter is-active" data-source="all" onclick="setActivitySourceFilter('all')"><?= htmlspecialchars($translations['activity_filter_all'] ?? 'All') ?></button>
+                <button type="button" class="hist-filter" data-source="notification" onclick="setActivitySourceFilter('notification')">🔔 <?= htmlspecialchars($translations['activity_filter_notification'] ?? 'Notification') ?></button>
+                <button type="button" class="hist-filter" data-source="manual" onclick="setActivitySourceFilter('manual')">✏️ <?= htmlspecialchars($translations['activity_filter_manual'] ?? 'Manual') ?></button>
+            </div>
+        </div>
+        <div id="full-activity-list" class="history-sheet__list"></div>
+    </div>
+</div>
+
 <div id="expenses-table-modal" class="modal table-modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('expenses-table-modal')">×</button>

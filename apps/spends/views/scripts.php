@@ -12,6 +12,8 @@ const ocrT=ocrI18n[currentLang]||ocrI18n.en;
 let expensesData = <?= json_encode($allStoresExpenses ?? [], $jsonFlags) ?: '{}' ?>;
 let incomesData  = <?= json_encode($allIncomes ?? [], $jsonFlags) ?: '{}' ?>;
 let allDates     = <?= json_encode($allDates ?? [], $jsonFlags) ?: '[]' ?>;
+// {date: {store: {source: 'manual'|'ocr'|..., note: 'raw notification'}}}
+let expenseActivityMeta = <?= json_encode($expenseActivityMeta ?? [], $jsonFlags) ?: '{}' ?>;
 let userSettings = <?= json_encode($userSettings, $jsonFlags) ?: '{}' ?>;
 let currentUser  = <?= json_encode($currentUser, $jsonFlags) ?: '""' ?>;
 const currentUserFolder = <?= json_encode($currentUserFolder, $jsonFlags) ?: '""' ?>;
@@ -52,7 +54,7 @@ function updateFinancialSummary(){
 
 // ══ Modal helpers ═══════════════════════════════════════════════════════════
 function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
-function setupModalChrome(){document.querySelectorAll('.modal-content').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
+function setupModalChrome(){document.querySelectorAll('.modal-content:not(.tx-sheet):not(.history-sheet)').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
 function showModal(id) { setupModalChrome(); document.getElementById(id).style.display='flex'; syncModalBodyState(); }
 function closeModal(id) { document.getElementById(id).style.display='none'; syncModalBodyState(); }
 function confirmWithModal(message,action,confirmLabel=t('delete','Delete')){
@@ -1447,6 +1449,253 @@ function updateChart() {
         btn.textContent=chartMode==='total'?translations.per_store_expenses:(chartMode==='stores'?t('chart_by_category','By category'):translations.total_expenses);
     });
     updateYearButtons();
+    renderActivityFeed();
+}
+
+// ══ Activity feed (transactions under the dashboard) ═══════════════════════
+const ACTIVITY_PAGE_SIZE = 6;
+let activityTransactions = [];
+let activityPage = 1;
+let activitySourceFilter = 'all';
+let activeActivityId = null;
+
+function activityEsc(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function activityCurrency(){ return (chartCurrency || userSettings.currency || 'USD').toUpperCase(); }
+function activityConvert(amount){
+    const base = (userSettings.currency || 'USD').toUpperCase();
+    const target = activityCurrency();
+    const conv = (exchangeRatesToUSD[base] || 1) / (exchangeRatesToUSD[target] || 1);
+    return (Number(amount) || 0) * conv;
+}
+function activityAmountText(amount){
+    return `${activityConvert(amount).toFixed(2)} ${activityCurrency()}`;
+}
+function activityDateLabel(date){
+    const d = new Date(`${date}T00:00:00`);
+    if (isNaN(d.getTime())) return String(date || '');
+    try {
+        return new Intl.DateTimeFormat(document.documentElement.lang || currentLang || 'en',
+            {weekday:'long', day:'numeric', month:'short'}).format(d);
+    } catch (e) { return String(date || ''); }
+}
+function activityFullDate(date){
+    const d = new Date(`${date}T00:00:00`);
+    if (isNaN(d.getTime())) return String(date || '');
+    try {
+        return new Intl.DateTimeFormat(document.documentElement.lang || currentLang || 'en',
+            {day:'numeric', month:'long', year:'numeric'}).format(d);
+    } catch (e) { return String(date || ''); }
+}
+function activityStoreCategory(store){
+    const entry = (userSettings.stores || []).find(s => s && s.name === store);
+    return entry && entry.category ? categoryLabel(entry.category) : t('store_category_other', 'Other');
+}
+
+// One card transaction per (date, store) pair — the expenses table stores sums.
+function buildActivityTransactions(){
+    const list = [];
+    const metaAll = (expenseActivityMeta && typeof expenseActivityMeta === 'object') ? expenseActivityMeta : {};
+    Object.keys(expensesData || {}).forEach(date => {
+        const row = expensesData[date] || {};
+        Object.keys(row).forEach(store => {
+            const amount = Number(row[store]) || 0;
+            if (!(amount > 0.0001)) return;
+            const meta = (metaAll[date] && metaAll[date][store]) || {};
+            const raw = String(meta.source || 'manual').toLowerCase();
+            const source = (raw === 'manual' || raw === 'subscription') ? 'manual' : 'notification';
+            list.push({
+                id: `${date}|${store}`,
+                date: date,
+                store: store,
+                amount: amount,
+                source: source,
+                raw: String(meta.note || ''),
+                category: activityStoreCategory(store)
+            });
+        });
+    });
+    list.sort((a, b) => a.date === b.date ? a.store.localeCompare(b.store) : (a.date < b.date ? 1 : -1));
+    return list;
+}
+function activityTransactionsForView(){
+    const all = buildActivityTransactions();
+    return activitySourceFilter === 'all' ? all : all.filter(tx => tx.source === activitySourceFilter);
+}
+function activityStoreIcon(store){
+    const key = String(store || '').trim().toLowerCase();
+    const badge = (bg, border, inner) => `<span class="activity-card__icon" style="background:${bg};border-color:${border}">${inner}</span>`;
+    if (key === 'lidl') return badge('#0050AA', '#1E6BC4', '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="#FFF000" stroke="#E60A14" stroke-width="2.4"/><text x="20" y="24" text-anchor="middle" fill="#0050AA" font-size="10" font-weight="900" font-family="sans-serif">LIDL</text></svg>');
+    if (key === 'biedronka') return badge('#FFD600', '#E6C200', '<svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="23" rx="9" ry="10" fill="#E30613"/><circle cx="20" cy="12" r="4" fill="#1D1D1B"/><line x1="20" y1="13" x2="20" y2="33" stroke="#1D1D1B" stroke-width="1.8"/></svg>');
+    if (key === 'kfc') return badge('#A3080C', '#C8102E', '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="7" width="26" height="26" rx="5" fill="#fff"/><text x="20" y="24" text-anchor="middle" fill="#181818" font-size="9" font-weight="900" font-family="sans-serif">KFC</text></svg>');
+    if (key === 'auchan') return badge('#E2001A', '#FF334B', '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="#fff"/><path d="M14 25 L20 13 L26 25 M16.5 21 H23.5" stroke="#E2001A" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>');
+    if (key === 'stokrotka' || key === 'stocrotka') return badge('#1E3B18', '#3E7A30', '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="12" r="3.6" fill="#fff"/><circle cx="28" cy="20" r="3.6" fill="#fff"/><circle cx="20" cy="28" r="3.6" fill="#fff"/><circle cx="12" cy="20" r="3.6" fill="#fff"/><circle cx="20" cy="20" r="4" fill="#FFD600"/></svg>');
+    const initial = (String(store || '?').trim().charAt(0) || '?').toUpperCase();
+    return `<span class="activity-card__icon activity-card__icon--initial">${activityEsc(initial)}</span>`;
+}
+function activityCardHtml(tx, showDate){
+    const sourceLabel = tx.source === 'notification'
+        ? `🔔 ${t('activity_filter_notification', 'Notification')}`
+        : `✏️ ${t('activity_filter_manual', 'Manual')}`;
+    return `<button type="button" class="activity-card" data-tx-id="${activityEsc(tx.id)}" onclick="openTxDetails('${activityEsc(tx.id).replace(/'/g, "\\'")}')" title="${activityEsc(tx.store)}">
+        ${activityStoreIcon(tx.store)}
+        <span class="activity-card__main">
+            <span class="activity-card__row">
+                <span class="activity-card__store">${activityEsc(tx.store)}</span>
+                ${showDate ? `<span class="activity-card__date">${activityEsc(activityDateLabel(tx.date))}</span>` : ''}
+            </span>
+            <span class="activity-card__meta">${sourceLabel}<span class="activity-card__dot">·</span><span class="activity-card__category">${activityEsc(tx.category)}</span></span>
+        </span>
+        <span class="activity-card__amount">-${activityAmountText(tx.amount)}</span>
+    </button>`;
+}
+function activityGroupHtml(list, showDate){
+    const groups = [];
+    let current = null;
+    list.forEach(tx => {
+        if (!current || current.date !== tx.date) { current = {date: tx.date, items: []}; groups.push(current); }
+        current.items.push(tx);
+    });
+    return groups.map(group => `<div class="activity-group">
+        ${showDate ? `<div class="activity-group__label">${activityEsc(activityDateLabel(group.date))}</div>` : ''}
+        <div class="activity-group__grid">${group.items.map(tx => activityCardHtml(tx, !showDate)).join('')}</div>
+    </div>`).join('');
+}
+function activityPageList(){
+    const n = Math.max(1, Math.ceil(activityTransactions.length / ACTIVITY_PAGE_SIZE));
+    if (activityPage > n) activityPage = n;
+    if (activityPage < 1) activityPage = 1;
+    return {page: activityPage, totalPages: n};
+}
+function renderActivityFeed(){
+    const listEl = document.getElementById('dashboard-activity-list');
+    if (!listEl) return;
+    activityTransactions = buildActivityTransactions();
+    const badge = document.getElementById('tx-total-badge');
+    if (badge) badge.textContent = String(activityTransactions.length);
+    const pager = document.getElementById('dashboard-activity-pagination');
+    if (!activityTransactions.length) {
+        listEl.innerHTML = `<div class="activity-empty">${activityEsc(t('activity_empty', 'No transactions yet.'))}</div>`;
+        if (pager) pager.innerHTML = '';
+        return;
+    }
+    const {page, totalPages} = activityPageList();
+    const start = (page - 1) * ACTIVITY_PAGE_SIZE;
+    const slice = activityTransactions.slice(start, start + ACTIVITY_PAGE_SIZE);
+    listEl.innerHTML = activityGroupHtml(slice, true);
+    if (pager) pager.innerHTML = activityPaginationHtml(start, slice.length, activityTransactions.length, page, totalPages);
+}
+function activityPaginationHtml(start, count, total, page, totalPages){
+    const summary = `${t('activity_shown', 'Showing')} ${start + 1}–${start + count} ${t('activity_of', 'of')} ${total}`;
+    const btn = (label, target, disabled, active) => `<button type="button" class="activity-pager__btn${active ? ' is-active' : ''}" ${disabled ? 'disabled' : ''} onclick="goToActivityPage(${target})">${label}</button>`;
+    let pages = '';
+    const windowSize = 5;
+    let from = Math.max(1, page - 2), to = Math.min(totalPages, from + windowSize - 1);
+    from = Math.max(1, to - windowSize + 1);
+    if (from > 1) pages += btn('1', 1, false, page === 1) + (from > 2 ? '<span class="activity-pager__gap">…</span>' : '');
+    for (let p = from; p <= to; p++) pages += btn(String(p), p, false, p === page);
+    if (to < totalPages) pages += (to < totalPages - 1 ? '<span class="activity-pager__gap">…</span>' : '') + btn(String(totalPages), totalPages, false, page === totalPages);
+    return `<div class="activity-pager__summary">${activityEsc(summary)}</div>
+        <div class="activity-pager__controls">
+            ${btn(`← ${activityEsc(t('activity_prev', 'Back'))}`, page - 1, page === 1, false)}
+            ${pages}
+            ${btn(`${activityEsc(t('activity_next', 'Next'))} →`, page + 1, page === totalPages, false)}
+        </div>`;
+}
+function goToActivityPage(page){
+    activityPage = Number(page) || 1;
+    renderActivityFeed();
+    const section = document.getElementById('dashboard-activity-section');
+    if (section && section.scrollIntoView) section.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function activityFilteredList(){
+    const query = String(document.getElementById('history-search-input')?.value || '').toLowerCase().trim();
+    return activityTransactions.filter(tx => {
+        if (activitySourceFilter !== 'all' && tx.source !== activitySourceFilter) return false;
+        if (!query) return true;
+        return tx.store.toLowerCase().includes(query)
+            || tx.category.toLowerCase().includes(query)
+            || activityConvert(tx.amount).toFixed(2).includes(query);
+    });
+}
+function renderFullActivity(){
+    const container = document.getElementById('full-activity-list');
+    if (!container) return;
+    const list = activityFilteredList();
+    container.innerHTML = list.length
+        ? activityGroupHtml(list, true)
+        : `<div class="activity-empty">${activityEsc(t('activity_no_results', 'No transactions match the filter'))}</div>`;
+}
+function setActivitySourceFilter(source){
+    activitySourceFilter = source || 'all';
+    document.querySelectorAll('#history-source-filters .hist-filter').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.source === activitySourceFilter);
+    });
+    renderFullActivity();
+}
+function openActivityHistory(){
+    activityTransactions = buildActivityTransactions();
+    setActivitySourceFilter('all');
+    const search = document.getElementById('history-search-input');
+    if (search) search.value = '';
+    renderFullActivity();
+    showModal('activity-history-modal');
+}
+function openTxDetails(id){
+    const tx = activityTransactions.find(item => item.id === id) || buildActivityTransactions().find(item => item.id === id);
+    if (!tx) return;
+    activeActivityId = tx.id;
+    const box = document.getElementById('tx-details-content');
+    if (!box) return;
+    const sourceText = tx.source === 'notification'
+        ? t('activity_source_notification', 'Notification (Google Wallet / Bank)')
+        : t('activity_source_manual', 'Manual entry');
+    box.innerHTML = `
+        <div class="tx-detail__hero">
+            ${activityStoreIcon(tx.store)}
+            <div class="tx-detail__hero-text">
+                <h4>${activityEsc(tx.store)}</h4>
+                <span class="tx-detail__badge">${tx.source === 'notification' ? '🔔' : '✏️'} ${activityEsc(tx.source === 'notification' ? t('activity_filter_notification', 'Notification') : t('activity_filter_manual', 'Manual'))}</span>
+            </div>
+            <div class="tx-detail__amount">-${activityAmountText(tx.amount)}</div>
+        </div>
+        <div class="tx-detail__table">
+            <div><span>${activityEsc(t('activity_date', 'Date'))}</span><b>${activityEsc(activityFullDate(tx.date))}</b></div>
+            <div><span>${activityEsc(t('activity_category', 'Category'))}</span><b>${activityEsc(tx.category)}</b></div>
+            <div><span>${activityEsc(t('activity_source', 'Source'))}</span><b>${activityEsc(sourceText)}</b></div>
+        </div>
+        ${tx.raw ? `<div class="tx-detail__raw"><div class="tx-detail__raw-title">🔔 ${activityEsc(t('activity_raw_notification', 'Original notification'))}</div><p>${activityEsc(tx.raw)}</p></div>` : ''}
+        <div class="tx-detail__actions">
+            <button type="button" class="tx-detail__delete" onclick="deleteTransaction('${activityEsc(tx.id).replace(/'/g, "\\'")}')">${activityEsc(t('activity_delete', 'Delete transaction'))}</button>
+            <button type="button" class="tx-detail__done" onclick="closeModal('tx-details-modal')">${activityEsc(t('activity_done', 'Done'))}</button>
+        </div>`;
+    showModal('tx-details-modal');
+}
+function deleteTransaction(id){
+    const tx = activityTransactions.find(item => item.id === id);
+    if (!tx) return;
+    const doDelete = () => {
+        fetch('', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({update_expense: '1', date: tx.date, store: tx.store, amount: '0'})})
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') { showNotification(d.message || t('error_generic', 'Error'), 'error'); return; }
+            if (expensesData[tx.date]) { delete expensesData[tx.date][tx.store]; }
+            if (expenseActivityMeta[tx.date]) { delete expenseActivityMeta[tx.date][tx.store]; }
+            closeModal('tx-details-modal');
+            updateFinancialSummary();
+            updateChart();
+            renderFullActivity();
+            showNotification(`${t('activity_deleted', 'Transaction deleted')}: ${tx.store}`, 'success');
+        })
+        .catch(e => showNotification(`${t('network_error', 'Network error')}: ${e}`, 'error'));
+    };
+    if (typeof confirmWithModal === 'function') {
+        confirmWithModal(`${t('activity_delete_confirm', 'Delete this transaction?')} ${tx.store} · ${activityAmountText(tx.amount)}`, doDelete, t('delete', 'Delete'));
+    } else {
+        doDelete();
+    }
 }
 function renderChartLegend(){
     const list=document.getElementById('chart-legend-list');
@@ -2402,6 +2651,7 @@ async function saveManualExpense(){
         }
         if(!allDates.includes(date)){ allDates.push(date); allDates.sort(); }
         updateFinancialSummary();
+        activityPage = 1;
         loadAvailableYears().then(() => updateChart());
         // Show the new row in the table right away.
         const dd = new Date(date + 'T00:00:00');
@@ -4213,7 +4463,9 @@ loadAvailableYears().then(()=>{updateChart();});
             menu.hidden=true;
             btn.setAttribute('aria-expanded','false');
         };
-        ['button[onclick*="settings-modal"]','button[onclick*="backup-modal"]','button[onclick*="showShareModal"]','button[onclick*="exchange-rates-modal"]','#mobile-app-btn'].forEach(function(sel){
+        // Account-level settings stay in the avatar menu; chart actions
+        // (share, rates) remain in the top bar as their own buttons.
+        ['button[onclick*="settings-modal"]','button[onclick*="backup-modal"]','#mobile-app-btn'].forEach(function(sel){
             document.querySelectorAll('.header-buttons '+sel).forEach(function(el){
                 if(el.closest('#profile-menu'))return;
                 const label=el.getAttribute('title')||el.textContent.trim();

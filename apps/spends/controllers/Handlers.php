@@ -1490,11 +1490,20 @@ if ($tableMinYear < 2000 || $tableMinYear > $tableMaxYear) $tableMinYear = min(2
 
 $allStoresExpenses = [];
 $allIncomes = [];
+// Source and raw notification text for the activity feed: one row per
+// (date, store), matching the expenses primary key.
+$expenseActivityMeta = [];
+$activityUserId = '';
+try { $activityUserId = spends_db_user_id($udb); } catch (Throwable $e) {}
 if (!empty($storeNames)) {
     $inListAll = implode(',', array_map(fn($s) => "'" . AppDatabase::escapeString($s) . "'", $storeNames));
-    $aRes = $udb->query("SELECT date, store, amount FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
+    $aRes = $udb->query("SELECT date, store, amount, entry_source, ocr_raw_store FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
     while ($row = $aRes->fetch(PDO::FETCH_ASSOC)) {
         $allStoresExpenses[$row['date']][$row['store']] = (float)$row['amount'];
+        $expenseActivityMeta[$row['date']][$row['store']] = [
+            'source' => strtolower((string)($row['entry_source'] ?? 'manual')),
+            'note' => spends_decrypt($row['ocr_raw_store'] ?? '', $activityUserId, 'ocr'),
+        ];
     }
 }
 $incResAll = $udb->query("SELECT date, amount FROM incomes WHERE date LIKE '$currentYear-%' ORDER BY date ASC");
