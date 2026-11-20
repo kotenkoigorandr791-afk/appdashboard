@@ -10,6 +10,10 @@
 final class StepsGeolocationMap
 {
     public const RAW_ZOOM = 13;
+    // Only states that hide a point from every view are filtered out. Pending
+    // and flagged points are still real records: a large import can stay in the
+    // quality queue for a while and must not disappear from the map meanwhile.
+    private const VISIBLE_QUALITY = "quality_state NOT IN ('rejected','excluded_by_user','private_redacted')";
     public const MAX_POINTS = 500;
     public const MAX_SPAN_DEG = 90.0;
 
@@ -99,7 +103,7 @@ final class StepsGeolocationMap
         $stmt = $pdo->prepare(
             "SELECT ST_XMin(extent) AS min_lon, ST_YMin(extent) AS min_lat, ST_XMax(extent) AS max_lon, ST_YMax(extent) AS max_lat
                FROM (SELECT ST_Extent(position) AS extent FROM geo_location_points
-                      WHERE user_email = :owner AND source_at BETWEEN :from AND :to AND quality_state = 'accepted') s
+                      WHERE user_email = :owner AND source_at BETWEEN :from AND :to AND " . self::VISIBLE_QUALITY . ") s
               WHERE extent IS NOT NULL"
         );
         $stmt->execute([':owner' => $owner, ':from' => $from, ':to' => $to]);
@@ -420,7 +424,7 @@ final class StepsGeolocationMap
                             round(ST_X(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lon,
                             COUNT(*) AS total
                        FROM geo_location_points
-                      WHERE $where AND quality_state = 'accepted'
+                      WHERE $where AND " . self::VISIBLE_QUALITY . "
                    GROUP BY ST_SnapToGrid(position, $cell)
                    ORDER BY total DESC LIMIT $limit"
                 );
@@ -442,7 +446,7 @@ final class StepsGeolocationMap
                                round(ST_Y(position)::numeric, $precision) AS lat,
                                round(ST_X(position)::numeric, $precision) AS lon
                           FROM geo_location_points
-                         WHERE $where AND quality_state NOT IN ('rejected','excluded_by_user','private_redacted')"
+                         WHERE $where AND " . self::VISIBLE_QUALITY
                     . ($cursorAt !== '' && $cursorId !== '' ? ' AND (source_at, id) > (:cursor_at, :cursor_id)' : '')
                     . " ORDER BY source_at ASC, id ASC LIMIT " . ($limit + 1);
                 $pointParams = $params;

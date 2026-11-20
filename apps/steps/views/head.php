@@ -3861,6 +3861,45 @@ height: 48px;
     backdrop-filter: blur(14px);
 }
 .map-hud #ma-map-error { color: #fecaca; border-color: rgba(239,68,68,0.42); }
+.map-hud #ma-map-live {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #d7f9e5;
+    border-color: rgba(34,197,94,0.36);
+}
+.map-hud #ma-map-live[hidden] { display: none; }
+.map-hud #ma-map-live.is-stale { color: #fde9c8; border-color: rgba(245,158,11,0.4); }
+.map-live-pulse {
+    width: 8px; height: 8px; border-radius: 50%; flex: 0 0 auto;
+    background: #22c55e;
+    animation: map-live-pulse 1.9s ease-out infinite;
+}
+#ma-map-live.is-stale .map-live-pulse { background: #f59e0b; animation: none; }
+@keyframes map-live-pulse {
+    0% { box-shadow: 0 0 0 0 rgba(34,197,94,0.62); }
+    70% { box-shadow: 0 0 0 9px rgba(34,197,94,0); }
+    100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+}
+.map-live-marker { position: relative; display: flex; align-items: center; justify-content: center; }
+.map-live-marker .map-live-ring {
+    position: absolute; inset: 0; border-radius: 50%;
+    background: rgba(56,189,248,0.25);
+}
+.map-live-marker.is-live .map-live-ring { animation: map-live-halo 2.1s ease-out infinite; }
+.map-live-marker .map-live-dot {
+    position: relative; display: flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    background: #0ea5e9; border: 2px solid #fff; color: #fff;
+    font-size: 10px; line-height: 1;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.45);
+}
+.map-live-marker .map-live-core { width: 8px; height: 8px; border-radius: 50%; background: #fff; }
+@keyframes map-live-halo {
+    0% { transform: scale(0.62); opacity: 0.85; }
+    70% { transform: scale(1.7); opacity: 0; }
+    100% { transform: scale(1.7); opacity: 0; }
+}
 .map-vignette {
     position: absolute;
     inset: 0;

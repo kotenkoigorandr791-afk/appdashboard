@@ -119,6 +119,7 @@ class MainActivity : AppCompatActivity() {
             val bound = withContext(Dispatchers.IO) { bindDevice(config, preferencesManager) }
             if (bound) {
                 preferencesManager.setWebhookConfigs(listOf(config))
+                preferencesManager.markConnectionEstablished()
                 preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
                 preferencesManager.clearAuthError()
                 Toast.makeText(this@MainActivity, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()

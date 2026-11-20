@@ -119,34 +119,21 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
     val geoRepository = remember { GeoMapRepository(prefs, cacheDir = context.cacheDir) }
     val primary = MaterialTheme.colorScheme.primary
     val errorColor = MaterialTheme.colorScheme.error
-    var drawMode by remember { mutableStateOf(false) }
+    val drawMode = true
     var selection by remember { mutableStateOf<SelectionBox?>(null) }
     var count by remember { mutableStateOf(0) }
+    var totalCount by remember { mutableStateOf(0) }
+    var deletedCount by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
     var notice by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
     var showDelete by remember { mutableStateOf(false) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var loadedBox by remember { mutableStateOf<SelectionBox?>(null) }
-    var day by remember { mutableStateOf<java.time.LocalDate?>(null) }
+    var day by remember { mutableStateOf<java.time.LocalDate?>(java.time.LocalDate.now()) }
     val zone = remember { java.time.ZoneId.systemDefault() }
     val dayFrom = day?.atStartOfDay(zone)?.toInstant()?.toString()
     val dayTo = day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString()
-
-    suspend fun idsInSelection(limit: Int = 1000): List<String> {
-        val active = config ?: return emptyList()
-        val box = selection ?: return emptyList()
-        val ids = mutableListOf<String>()
-        var offset = 0
-        while (ids.size < limit) {
-            val page = repository.loadPage(active, offset / 100, day?.atStartOfDay(zone)?.toInstant()?.toString(), day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString(), null, box.query)
-            if (page.error != null) { error = page.error; break }
-            ids += page.points.map { it.id }
-            offset += 100
-            if (offset >= page.total || page.points.isEmpty()) break
-        }
-        return ids.distinct().take(limit)
-    }
 
     fun drawSelection(map: MapView) {
         val box = selection ?: return
@@ -191,7 +178,14 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     pageIndex++
                     if (all.size >= page.total || page.points.isEmpty()) break
                 }
-                count = total
+                if (box == null) {
+                    totalCount = total
+                    count = 0
+                } else {
+                    count = total
+                    val totalPage = repository.loadPage(active, 0, dayFrom, dayTo, null, null)
+                    if (totalPage.error == null) totalCount = totalPage.total
+                }
                 val dayData = if (dayNow != null) geoRepository.loadDay(active, dayNow) else GeoMapData()
                 rebuildOverlays(map, dayData, prefs.getMapLayers())
                 if (box != null) drawSelection(map)
@@ -259,25 +253,22 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                                 },
                             ))
                             mapView = this
+                            post { refreshSelection() }
                         }
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
+                Text("© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                 if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
                 Row(Modifier.align(Alignment.BottomCenter).padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     orbit.nex.steps.screens.DayPill(
                         selectedDay = day ?: java.time.LocalDate.now(),
                         compact = false,
                         modifier = Modifier.width(220.dp),
-                        onPrevious = { day = (day ?: java.time.LocalDate.now()).minusDays(1); refreshSelection(true) },
-                        onNext = { val d = day ?: java.time.LocalDate.now(); if (d.isBefore(java.time.LocalDate.now())) { day = d.plusDays(1); refreshSelection(true) } },
-                        onPick = { day = it; refreshSelection(true) },
+                        onPrevious = { selection = null; day = (day ?: java.time.LocalDate.now()).minusDays(1); refreshSelection(true) },
+                        onNext = { val d = day ?: java.time.LocalDate.now(); if (d.isBefore(java.time.LocalDate.now())) { selection = null; day = d.plusDays(1); refreshSelection(true) } },
+                        onPick = { selection = null; day = it; refreshSelection(true) },
                     )
-                    if (day != null) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f), shadowElevation = 4.dp, onClick = { day = null; refreshSelection() }) {
-                            Icon(Icons.Filled.Close, contentDescription = null, modifier = Modifier.padding(10.dp).size(20.dp))
-                        }
-                    }
                 }
                 Surface(
                     Modifier.align(Alignment.TopCenter).padding(Spacing.md),
@@ -291,43 +282,36 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     )
                 }
             }
-            Surface(tonalElevation = 3.dp) {
+            Surface(color = MaterialTheme.colorScheme.surface) {
                 Column(Modifier.fillMaxWidth().padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
-                        AppStatusPill(stringResource(R.string.points_selected_count, count), highlighted = count > 0)
-                        Spacer(Modifier.weight(1f))
-                        IconButton(onClick = { drawMode = !drawMode }) {
-                            Icon(
-                                if (drawMode) Icons.Filled.Close else Icons.Filled.Edit,
-                                contentDescription = stringResource(if (drawMode) R.string.points_draw_disable else R.string.points_draw_area),
-                                tint = if (drawMode) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
+                        listOf(
+                            stringResource(R.string.points_total_short, totalCount) to MaterialTheme.colorScheme.surfaceVariant,
+                            stringResource(R.string.points_selected_short, count) to MaterialTheme.colorScheme.primaryContainer,
+                            stringResource(R.string.points_removed_short, deletedCount) to MaterialTheme.colorScheme.tertiaryContainer,
+                        ).forEach { (label, color) ->
+                            Surface(modifier = Modifier.weight(1f), shape = MaterialTheme.shapes.small, color = color) {
+                                Text(label, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center, style = MaterialTheme.typography.labelSmall, maxLines = 2)
+                            }
                         }
                     }
-                    error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
-                    notice?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
-                        OutlinedButton(
-                            enabled = loadedBox != null && !loading && config != null,
-                            onClick = {
-                                selection = loadedBox
-                                mapView?.let { map ->
-                                    map.overlays.removeAll { it is org.osmdroid.views.overlay.Polygon }
-                                    drawSelection(map)
-                                }
-                                refreshSelection()
-                            },
-                        ) {
-                            Icon(Icons.Filled.SelectAll, contentDescription = stringResource(R.string.points_select_on_map), modifier = Modifier.size(20.dp))
-                        }
                         Button(
-                            enabled = count > 0 && !loading && config != null,
+                            enabled = selection != null && count > 0 && !loading && config != null,
                             onClick = { showDelete = true },
                         ) {
-                            Icon(Icons.Filled.Delete, contentDescription = stringResource(R.string.points_delete_forever), modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
+                            Text(stringResource(R.string.points_delete_forever), modifier = Modifier.padding(start = Spacing.sm))
+                        }
+                        if (selection != null) {
+                            IconButton(onClick = { selection = null; count = 0; refreshSelection() }) {
+                                Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
+                            }
                         }
                     }
-                    if (config == null) Text(stringResource(R.string.points_no_connection), color = MaterialTheme.colorScheme.error)
+                    (error ?: if (config == null) stringResource(R.string.points_no_connection) else null)?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             }
         }
@@ -345,19 +329,29 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     onClick = {
                         showDelete = false
                         val active = config
-                        if (active != null) scope.launch {
+                        val box = selection
+                        val dayValue = day
+                        // Without a drawn box the day is the selection; refusing to
+                        // send anything made the confirmation a silent no-op.
+                        if (active != null && (box != null || dayValue != null)) scope.launch {
                             loading = true
-                            val ids = idsInSelection(100_000).toSet()
-                            var failure: Throwable? = null
-                            ids.chunked(500).forEach { chunk ->
-                                if (failure == null) repository.deleteIds(active, chunk.toSet()).onFailure { failure = it }
-                            }
-                            if (failure == null) {
-                                notice = context.getString(R.string.points_deleted, ids.size)
+                            // The server deletes by bbox (or by day range) in one request;
+                            // paging every id first used to take minutes and looked stuck.
+                            repository.deleteBbox(
+                                active,
+                                box?.query,
+                                dayValue?.atStartOfDay(zone)?.toInstant()?.toString(),
+                                dayValue?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString(),
+                            ).onSuccess { deleted ->
+                                // Report what the server removed, not what was selected.
+                                deletedCount += deleted
+                                notice = context.getString(R.string.points_deleted, deleted)
                                 selection = null
                                 count = 0
                                 refreshSelection()
-                            } else error = failure?.message
+                            }.onFailure { failure ->
+                                error = failure.message ?: failure.javaClass.simpleName
+                            }
                             loading = false
                         }
                     },

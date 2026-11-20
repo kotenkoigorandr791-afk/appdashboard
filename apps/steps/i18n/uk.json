@@ -873,5 +873,7 @@
   "zeep_ready_section": "Готово до імпорту",
   "zeep_start": "Імпортувати",
   "zeep_zip_file_label": "Файл архіву",
-  "zeep_zip_section": "ZIP-архів"
+  "zeep_zip_section": "ZIP-архів",
+  "map_live_now": "Поточне місцеперебування",
+  "map_live_last": "Останнє відоме місцеперебування"
 }

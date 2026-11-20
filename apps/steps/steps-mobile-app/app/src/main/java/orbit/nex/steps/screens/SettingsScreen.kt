@@ -467,6 +467,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                     .fillMaxSize()
                     .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = Spacing.md, bottom = Spacing.md),
             ) {
                 // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (section == SettingsSection.PROFILE) {
@@ -661,7 +662,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                 onClick = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(stringResource(R.string.action_grant_permissions))
+                                Text(stringResource(R.string.action_grant_permissions), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                             }
                             OutlinedButton(onClick = { permissionsSheetOpen = true }, modifier = Modifier.fillMaxWidth()) {
                                 Text(stringResource(R.string.config_action_view_perms))

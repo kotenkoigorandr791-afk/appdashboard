@@ -873,5 +873,7 @@
   "zeep_ready_section": "Гатова да імпарту",
   "zeep_start": "Імпартаваць",
   "zeep_zip_file_label": "Файл архіва",
-  "zeep_zip_section": "ZIP-архіў"
+  "zeep_zip_section": "ZIP-архіў",
+  "map_live_now": "Бягучае месцазнаходжанне",
+  "map_live_last": "Апошняе вядомае месцазнаходжанне"
 }

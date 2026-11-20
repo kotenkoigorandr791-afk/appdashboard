@@ -746,6 +746,9 @@
     <string name="points_no_connection">Connect to your server to manage points.</string>
     <string name="points_draw_hint">Hold and drag on the map to draw a selection.</string>
     <string name="points_draw_enable">Area actions are paused.</string>
+    <string name="points_total_short">Total: %1$d</string>
+    <string name="points_selected_short">Selected: %1$d</string>
+    <string name="points_removed_short">Deleted: %1$d</string>
     <string name="points_selected_count">%1$d points selected</string>
     <string name="points_draw_disable">Pause drawing</string>
     <string name="points_draw_area">Draw area</string>
@@ -767,6 +770,11 @@
     <string name="matching_desc_disabled">Raw GPS only.</string>
     <string name="matching_desc_conservative">Only snap where GPS fits a road clearly.</string>
     <string name="matching_desc_review">Flag uncertain snaps for manual review.</string>
+<string name="connection_date">Connected on</string>
+<string name="connection_date_unknown">Date unavailable</string>
+<string name="tracking_notification_sync_label">LAST SYNC</string>
+<string name="tracking_notification_never">Not yet</string>
+<string name="tracking_notification_compact_values">%1$s · %2$d</string>
 <string name="account_title">Account</string>
 <string name="account_server">Server</string>
 <string name="account_status">Connection</string>
@@ -779,6 +787,7 @@
 <string name="nav_tracking">Tracking</string>
 <string name="tracking_title">Background location</string>
 <string name="tracking_desc">Records your location so trips, stops and your timeline stay complete while the app is closed.</string>
+<string name="tracking_privacy_title">Privacy information</string>
 <string name="tracking_privacy">Only your paired server receives these points. Every measurement is saved on this phone first, then uploaded with this device id and a unique event id, so retries never create duplicates. Coordinates are never written to ordinary logs. Tracking starts only when you tap Start and stops when you tap Pause or Stop.</string>
 <string name="tracking_status_off">Tracking is off</string>
 <string name="tracking_status_running">Tracking is on</string>
@@ -795,7 +804,12 @@
 <string name="tracking_last_upload_failed">Upload failed: %1$s</string>
 <string name="tracking_interval_title">Sampling interval</string>
 <string name="tracking_interval_value">%1$d min</string>
-<string name="tracking_accuracy_title">Accuracy</string>
+<string name="tracking_min_distance">Minimum distance</string>
+<string name="tracking_stationary_threshold">Stationary time before low power</string>
+<string name="tracking_fast_threshold">Speed for high accuracy</string>
+<string name="tracking_current_mode">Current mode: %1$s</string>
+<string name="tracking_accuracy_auto">Automatic</string>
+    <string name="tracking_accuracy_title">Accuracy</string>
 <string name="tracking_accuracy_high">High</string>
 <string name="tracking_accuracy_balanced">Balanced</string>
 <string name="tracking_accuracy_low">Battery saver</string>

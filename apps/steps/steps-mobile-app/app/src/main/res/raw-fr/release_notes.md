@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 La carte affiche maintenant votre position actuelle avec un cercle de précision et une flèche indiquant votre orientation
+* ⚡ Les points sont envoyés au serveur dès leur enregistrement, la carte web se met donc à jour en temps réel
+* 📞 Correction des points manquants après les appels et autres pauses — l’enregistrement se rétablit désormais seul
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Correction de l'attribution des données de santé au mauvais jour pour les utilisateurs à l'est de UTC : distance, calories, sommeil et pouls sont désormais comptés le jour où ils se produisent

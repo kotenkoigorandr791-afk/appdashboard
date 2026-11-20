@@ -41,6 +41,17 @@ chmod 0775 /var/log/modsecurity 2>/dev/null || true
   printf 'max_file_uploads=20\n'
 } > /usr/local/etc/php/conf.d/appdashboard-upload.ini
 APP_ROOT=/var/www/AppDashboard
+# The code tree is a host bind mount on Docker Desktop (virtiofs). When that
+# filesystem daemon runs out of host descriptors every open() on the mount fails
+# with EMFILE and nginx answers 500. Keep a small container-local copy of the
+# public assets so nginx has something to serve during such an outage (see the
+# @project_static_fallback locations in nginx/appdashboard.conf.template).
+STATIC_FALLBACK_DIR=/var/www/static-fallback
+mkdir -p "$STATIC_FALLBACK_DIR/project" 2>/dev/null || true
+for _static_dir in assets onboarding; do
+  rm -rf "$STATIC_FALLBACK_DIR/project/$_static_dir" 2>/dev/null || true
+  cp -a "$APP_ROOT/project/$_static_dir" "$STATIC_FALLBACK_DIR/project/" 2>/dev/null || true
+done
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
 APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
 UPLOADS_BASE_DIR="${UPLOADS_BASE_DIR:-${APPDATA_BASE_DIR%/}/dashboard/uploads}"
@@ -243,11 +254,15 @@ if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
       needs_install=1
     fi
     [ "$needs_install" = "1" ] || return 0
+    # Only fix ownership of the tree that is about to be rewritten. The old
+    # unconditional chown -R over every vendor dir walked ~36k inodes on the
+    # virtiofs bind mount at each container start, which is exactly the kind of
+    # burst that pushes Docker Desktop's virtiofsd to its descriptor limit.
+    chown -R www-data:www-data "$dir/vendor" "$dir/composer.lock" 2>/dev/null || true
     su -s /bin/bash www-data -c "cd $dir && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader"
   }
   {
   mkdir -p /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
-  chown -R www-data:www-data /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
   install_composer_deps /var/www/AppDashboard sentry/sentry
   install_composer_deps /var/www/AppDashboard pimple/pimple
   install_composer_deps /var/www/AppDashboard/webssh cboden/ratchet

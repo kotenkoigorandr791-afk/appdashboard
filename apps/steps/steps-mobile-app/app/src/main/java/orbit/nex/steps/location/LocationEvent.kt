@@ -24,6 +24,9 @@ data class LocationEvent(
     val bearingDegrees: Float?,
     val deviceSequence: Long,
     val recordedAtMs: Long,
+    val provider: String? = null,
+    val trackingMode: String? = null,
+    val origin: String? = null,
 ) {
     /** Body item accepted by `POST /api/steps/geolocation?action=batch`. */
     fun toServerJson(deviceId: String): String = buildJsonObject {
@@ -38,6 +41,9 @@ data class LocationEvent(
         altitudeM?.let { put("altitude_m", JsonPrimitive(it)) }
         speedMps?.let { put("speed_mps", JsonPrimitive(it)) }
         bearingDegrees?.let { put("bearing_degrees", JsonPrimitive(it)) }
+        provider?.let { put("provider", it) }
+        trackingMode?.let { put("tracking_mode", it) }
+        origin?.let { put("measurement_origin", it) }
         put("device_sequence", deviceSequence)
     }.toString()
 }

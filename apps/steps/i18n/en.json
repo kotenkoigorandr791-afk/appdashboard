@@ -873,5 +873,7 @@
   "zeep_ready_section": "Ready to import",
   "zeep_start": "Import",
   "zeep_zip_file_label": "Archive file",
-  "zeep_zip_section": "ZIP archive"
+  "zeep_zip_section": "ZIP archive",
+  "map_live_now": "Live location",
+  "map_live_last": "Last known location"
 }

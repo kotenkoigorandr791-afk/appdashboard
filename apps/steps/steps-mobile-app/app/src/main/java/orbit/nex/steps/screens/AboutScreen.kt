@@ -130,7 +130,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         if (fetched.error == null) {
             // Download photo to local file for genuine offline caching
             if (fetched.photo.isNotBlank()) {
-                downloadAvatarFile(context, fetched.photo)
+                withContext(Dispatchers.IO) { downloadAvatarFile(context, fetched.photo) }
             }
             profile = fetched
             profilePhotoModel = localAvatarFile(context).takeIf { it.exists() }?.absolutePath
@@ -195,15 +195,37 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             IconButton(onClick = dismiss) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd))
                             }
-                            Text(stringResource(if (current == "account") R.string.auth_title else R.string.settings_update_title), style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(if (current == "account") R.string.account_title else R.string.settings_update_title), style = MaterialTheme.typography.titleLarge, maxLines = 1)
                         }
-                        LazyColumn(Modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        LazyColumn(Modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md), contentPadding = PaddingValues(top = Spacing.sm, bottom = Spacing.lg)) {
                             if (current == "account") {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.titleMedium)
-                    Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        if (profilePhotoModel != null) {
+                            AsyncImage(model = profilePhotoModel, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(52.dp).clip(CircleShape))
+                        } else {
+                            Icon(Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.size(52.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(profile.name.ifBlank { profile.email.ifBlank { stringResource(R.string.account_title) } }, style = MaterialTheme.typography.titleMedium)
+                            if (profile.email.isNotBlank() && profile.name.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (configs.any { it.isEnabled }) {
+                        val connectedAt = prefs.getConnectionEstablishedAt()
+                        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                                Icon(Icons.Filled.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Column {
+                                    Text(stringResource(R.string.connection_date), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (connectedAt > 0) java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(connectedAt)) else stringResource(R.string.connection_date_unknown), style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
                     if (configs.any { it.isEnabled }) {
                         Button(
                             onClick = {
@@ -236,6 +258,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                         OutlinedButton(onClick = {
                             configs = emptyList()
                             prefs.setWebhookConfigs(emptyList())
+                            prefs.clearConnectionEstablished()
                             prefs.clearServerDataCache()
                             localAvatarFile(context).delete()
                             status = context.getString(R.string.auth_waiting)

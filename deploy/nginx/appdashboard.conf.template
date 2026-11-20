@@ -602,14 +602,26 @@ server {
 
     location ^~ /project/assets/ {
         try_files $uri =404;
+        error_page 500 503 = @project_static_fallback;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
     }
 
     location ^~ /project/onboarding/ {
         try_files $uri =404;
+        error_page 500 503 = @project_static_fallback;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
+    }
+
+    # Container-local copy of the public assets, created by docker-entrypoint.sh.
+    # Used when Docker Desktop's virtiofs mount answers EMFILE ("Too many open
+    # files") and the real files cannot be opened.
+    location @project_static_fallback {
+        root /var/www/static-fallback;
+        try_files $uri =404;
+        add_header Cache-Control "no-store" always;
+        access_log off;
     }
 
     location ^~ /preview/ {

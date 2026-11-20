@@ -157,6 +157,7 @@ $metricButtons = [
                         <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>"></div>
                         <div class="map-hud">
                             <p id="ma-map-summary" role="status" aria-live="polite"></p>
+                            <p id="ma-map-live" role="status" aria-live="polite" hidden><span class="map-live-pulse" aria-hidden="true"></span><span id="ma-map-live-text"></span></p>
                             <p id="ma-map-error" role="alert" style="display:none;"></p>
                         </div>
                         <div class="map-vignette" aria-hidden="true"></div>
@@ -442,6 +443,9 @@ $metricButtons = [
                             pane.style.zIndex=String(395+i*5);
                             pane.style.pointerEvents='none';
                         });
+                        // Live position sits above every recorded layer.
+                        const livePane=map.createPane('live');
+                        livePane.style.zIndex='455';
                         layerGroup=L.layerGroup().addTo(map);
                         L.control.zoom({position:'bottomright'}).addTo(map);
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
@@ -1151,6 +1155,72 @@ $metricButtons = [
                     refresh.addEventListener('click',fetchViewport);
                     if(resetBtn) resetBtn.addEventListener('click',resetAppearance);
                     const pointsApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_points';
+                    // ---- Live position ----------------------------------------
+                    // The map is a viewport of recorded history; the live marker is
+                    // the newest measurement, refreshed independently of the day
+                    // range so the user can see where they are right now.
+                    let liveLayer=null, liveMarker=null, liveSeq=0;
+                    function liveRangeActive(){
+                        const today=todayIso();
+                        return (!fromInput.value||fromInput.value<=today)&&(!toInput.value||toInput.value>=today);
+                    }
+                    function clearLiveMarker(){
+                        if(liveLayer) liveLayer.clearLayers();
+                        liveMarker=null;
+                        const badge=document.getElementById('ma-map-live');
+                        if(badge) badge.hidden=true;
+                    }
+                    function renderLiveMarker(point){
+                        if(!map||!window.L) return;
+                        const L=window.L;
+                        const lat=Number(point.latitude), lon=Number(point.longitude);
+                        if(!isFinite(lat)||!isFinite(lon)) return;
+                        if(!liveLayer) liveLayer=L.layerGroup().addTo(map);
+                        liveLayer.clearLayers();
+                        const at=new Date(point.source_at);
+                        const age=Date.now()-at.getTime();
+                        const fresh=age<=120000;
+                        const acc=Number(point.accuracy_m);
+                        if(acc>0) L.circle([lat,lon],{pane:'mapBackdrop',radius:Math.min(1500,acc),color:'#38bdf8',weight:1,opacity:0.55,fillColor:'#38bdf8',fillOpacity:0.12,interactive:false}).addTo(liveLayer);
+                        const bearing=Number(point.bearing_degrees);
+                        const arrow=isFinite(bearing)
+                            ?'<i class="fas fa-location-arrow" style="transform:rotate('+bearing+'deg)"></i>'
+                            :'<span class="map-live-core"></span>';
+                        liveMarker=L.marker([lat,lon],{keyboard:false,pane:'live',zIndexOffset:1000,icon:L.divIcon({
+                            className:'map-live-marker'+(fresh?' is-live':''),
+                            html:'<span class="map-live-ring"></span><span class="map-live-dot">'+arrow+'</span>',
+                            iconSize:[30,30],iconAnchor:[15,15]
+                        })}).addTo(liveLayer);
+                        liveMarker.bindPopup(popupHtml(
+                            fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'),
+                            [at.toLocaleString(dateLocale(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),(acc>0?'±'+Math.round(acc)+' m':'')]
+                        ));
+                        const badge=document.getElementById('ma-map-live'), text=document.getElementById('ma-map-live-text');
+                        if(badge&&text){
+                            badge.hidden=false;
+                            badge.classList.toggle('is-stale',!fresh);
+                            text.textContent=(fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'))+' · '+at.toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'});
+                        }
+                    }
+                    async function pollLive(){
+                        if(!mapStarted||!map||!mapHost||mapHost.hidden||document.hidden) return;
+                        if(!liveRangeActive()){ clearLiveMarker(); return; }
+                        const seq=++liveSeq;
+                        const params=new URLSearchParams({
+                            limit:'1',
+                            from:new Date(Date.now()-20*60000).toISOString(),
+                            to:new Date(Date.now()+60000).toISOString()
+                        });
+                        try{
+                            const res=await fetch(pointsApi+'&'+params.toString(),{credentials:'same-origin',cache:'no-store'});
+                            const data=await res.json();
+                            if(seq!==liveSeq) return;
+                            if(!res.ok||!data.ok) return;
+                            const point=(data.points||[])[0];
+                            if(!point){ clearLiveMarker(); return; }
+                            renderLiveMarker(point);
+                        }catch(e){ /* next poll retries */ }
+                    }
                     async function pointsRequest(body){
                         const res=await fetch(pointsApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
                         const data=await res.json();
@@ -1395,6 +1465,15 @@ $metricButtons = [
                         chunkCache.clear();
                         if(mapStarted){ fetchViewport(); loadTrips(); }
                     };
+                    // Import completion and point deletion happen outside this
+                    // closure. Drop the cached chunks so the next draw reflects the
+                    // new rows instead of a viewport captured before them.
+                    window.stepsMapInvalidate=()=>{
+                        didFit=false;
+                        chunkCache.clear();
+                        clearPrefetchQueue(true);
+                        if(mapStarted){ fetchViewport({dir:null}); loadTrips(); }
+                    };
                     document.getElementById('ma-map-family')?.addEventListener('change',onRangeChanged);
                     async function loadFamilyTargets(){
                         const select=document.getElementById('ma-map-family');
@@ -1618,7 +1697,11 @@ $metricButtons = [
                     const syncSpeedLegend=()=>{ const l=document.getElementById('ma-speed-legend'); if(l) l.hidden=!selectedLayers().includes('speed'); };
                     section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ syncSpeedLegend(); saveSettings(); fetchViewport(); }));
                     setTimeout(syncSpeedLegend,300);
-                    setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
+                    setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); pollLive(); },30000);
+                    // The live marker is cheap (one row) and updates every 10 s, so a
+                    // moving phone visibly walks across the map.
+                    setInterval(()=>{ pollLive(); },10000);
+                    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) pollLive(); });
                     window.addEventListener('steps-map-shown',()=>{ startMapWorkspace(); });
                     document.addEventListener('visibilitychange',()=>{ if(document.hidden) cancelPrefetch(); });
                     window.addEventListener('offline',()=>cancelPrefetch());

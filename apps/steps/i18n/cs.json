@@ -873,5 +873,7 @@
   "zeep_ready_section": "Připraveno",
   "zeep_start": "Importovat",
   "zeep_zip_file_label": "Soubor archivu",
-  "zeep_zip_section": "ZIP archiv"
+  "zeep_zip_section": "ZIP archiv",
+  "map_live_now": "Aktuální poloha",
+  "map_live_last": "Poslední známá poloha"
 }

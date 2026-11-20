@@ -27,7 +27,18 @@ function steps_quality_pass(PDO $pdo, string $user, int $limit, array $threshold
     if ($user !== '') {
         $owners[] = $user;
     } else {
-        $stmt = $pdo->query("SELECT user_email FROM geo_processor_runs WHERE kind = 'quality' AND state = 'pending' GROUP BY user_email ORDER BY MIN(created_at) LIMIT 5");
+        // The work queue is not only explicit runs: a large import creates more
+        // pending points than one pass can score, and a worker restart can leave
+        // points pending without a run. Both cases must keep draining, otherwise
+        // imported points stay invisible on the map forever.
+        $stmt = $pdo->query(
+            "SELECT user_email FROM (
+                    SELECT user_email FROM geo_processor_runs WHERE kind = 'quality' AND state = 'pending'
+                    UNION
+                    SELECT user_email FROM geo_location_points WHERE quality_state = 'pending'
+                ) pending_owners
+              ORDER BY user_email LIMIT 5"
+        );
         foreach ($stmt->fetchAll(PDO::FETCH_ASSOC) as $row) $owners[] = (string)$row['user_email'];
     }
 

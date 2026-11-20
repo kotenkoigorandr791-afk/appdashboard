@@ -25,6 +25,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes"
         private const val KEY_WEBHOOK_URLS = "webhook_urls"
         private const val KEY_WEBHOOK_CONFIGS = "webhook_configs"
+        private const val KEY_CONNECTED_AT = "connection_established_at"
         private const val KEY_ENABLED_DATA_TYPES = "enabled_data_types"
         private const val KEY_WEBHOOK_LOGS = "webhook_logs"
         private const val KEY_LAST_SYNC_TIME = "last_sync_time"
@@ -87,6 +88,8 @@ class PreferencesManager(context: Context) {
         private const val KEY_LOCATION_PERMISSION_LOST = "location_permission_lost"
         private const val KEY_LOCATION_UPLOAD_OK_AT = "location_upload_ok_at"
         private const val KEY_LOCATION_UPLOAD_ERROR = "location_upload_error"
+        private const val KEY_LOCATION_HEARTBEAT = "location_service_heartbeat"
+        private const val KEY_LOCATION_LAST_FIX_AT = "location_last_fix_at"
         private const val KEY_MAP_BASEMAP = "map_basemap"
         private const val KEY_MAP_LAYERS = "map_layers"
         private const val KEY_MAP_CENTER_LAT = "map_center_lat"
@@ -135,6 +138,10 @@ class PreferencesManager(context: Context) {
     fun setSyncIntervalMinutes(minutes: Int) {
         prefs.edit().putInt(KEY_SYNC_INTERVAL_MINUTES, minutes).apply()
     }
+
+    fun getConnectionEstablishedAt(): Long = prefs.getLong(KEY_CONNECTED_AT, 0L)
+    fun markConnectionEstablished() { prefs.edit().putLong(KEY_CONNECTED_AT, System.currentTimeMillis()).apply() }
+    fun clearConnectionEstablished() { prefs.edit().remove(KEY_CONNECTED_AT).apply() }
 
     fun getWebhookUrls(): List<String> {
         val urlsString = prefs.getString(KEY_WEBHOOK_URLS, "") ?: ""
@@ -767,6 +774,15 @@ class PreferencesManager(context: Context) {
         prefs.edit().putInt(KEY_LOCATION_INTERVAL_MINUTES, minutes.coerceIn(1, 60)).apply()
     }
 
+    fun getLocationMinDistance(): Int = prefs.getInt("location_min_distance_m", -1)
+    fun setLocationMinDistance(meters: Int) { prefs.edit().putInt("location_min_distance_m", meters).apply() }
+    fun getStationarySeconds(): Int = prefs.getInt("location_stationary_seconds", 300)
+    fun setStationarySeconds(seconds: Int) { prefs.edit().putInt("location_stationary_seconds", seconds).apply() }
+    fun getFastModeSpeed(): Float = prefs.getFloat("location_fast_speed", 8f)
+    fun setFastModeSpeed(speed: Float) { prefs.edit().putFloat("location_fast_speed", speed).apply() }
+    fun getLocationPowerMode(): String = prefs.getString("location_power_mode", "balanced") ?: "balanced"
+    fun setLocationPowerMode(mode: String) { prefs.edit().putString("location_power_mode", mode).apply() }
+
     fun getLocationAccuracy(): LocationAccuracy =
         LocationAccuracy.fromStorage(prefs.getString(KEY_LOCATION_ACCURACY, null))
 
@@ -826,6 +842,28 @@ class PreferencesManager(context: Context) {
         prefs.edit().putString(KEY_LOCATION_UPLOAD_ERROR, message).apply()
     }
 
+    /**
+     * Liveness marker of the recording service. A process restart loses static
+     * flags, so the UI reads this instead of guessing that recording stopped.
+     */
+    fun setLocationServiceHeartbeat(at: Long) {
+        prefs.edit().putLong(KEY_LOCATION_HEARTBEAT, at).apply()
+    }
+
+    fun getLocationServiceHeartbeat(): Long = prefs.getLong(KEY_LOCATION_HEARTBEAT, 0L)
+
+    fun isLocationServiceAlive(maxAgeMs: Long = 3 * 60 * 1000L): Boolean {
+        val at = getLocationServiceHeartbeat()
+        return at > 0 && System.currentTimeMillis() - at <= maxAgeMs
+    }
+
+    /** Wall-clock time of the newest recorded measurement. */
+    fun setLocationLastFixAt(at: Long) {
+        prefs.edit().putLong(KEY_LOCATION_LAST_FIX_AT, at).apply()
+    }
+
+    fun getLocationLastFixAt(): Long = prefs.getLong(KEY_LOCATION_LAST_FIX_AT, 0L)
+
     fun markSyncSuccess() {
         prefs.edit().putLong(KEY_LAST_SYNC_OK_AT, System.currentTimeMillis()).apply()
     }
@@ -878,6 +916,8 @@ class PreferencesManager(context: Context) {
         editor.remove(KEY_LAST_SYNC_TIME)
         editor.remove(KEY_LAST_SYNC_ATTEMPT_MS)
         editor.remove(KEY_LAST_SYNC_SUMMARY)
+        editor.remove(KEY_LOCATION_UPLOAD_OK_AT)
+        editor.remove(KEY_LOCATION_UPLOAD_ERROR)
 
         // last_sync_ts_<HealthDataType>
         prefs.all.keys

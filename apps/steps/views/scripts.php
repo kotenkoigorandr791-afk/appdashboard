@@ -3694,6 +3694,7 @@
             const locationImportsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_imports';
             let locationImportsPoll = null;
             let locationImportsMaxBytes = 0;
+            let locationImportsReady = new Set();
             function importText(key, fallback) { return (window.translations && translations[key]) || fallback; }
             function importStateClass(state) {
                 if (state === 'ready') return 'is-ready';
@@ -3776,7 +3777,15 @@
                     const data = await res.json();
                     if (!res.ok || !data.ok) throw new Error((data && data.error) || 'import_list_failed');
                     renderImports(data);
-                    const active = (data.imports || []).some(item => item.state === 'pending' || item.state === 'processing');
+                    const imports = data.imports || [];
+                    const active = imports.some(item => item.state === 'pending' || item.state === 'processing');
+                    // A worker finishes in the background, so the map has to learn
+                    // about the new rows without waiting for a manual refresh.
+                    const ready = new Set(imports.filter(item => item.state === 'ready').map(item => item.id));
+                    let finished = false;
+                    ready.forEach(id => { if (!locationImportsReady.has(id)) finished = true; });
+                    locationImportsReady = ready;
+                    if (finished && typeof window.stepsMapInvalidate === 'function') window.stepsMapInvalidate();
                     if (active) locationImportsPoll = setTimeout(loadImports, 4000);
                 } catch (e) {
                     host.innerHTML = '<p class="import-error">' + ((e && e.message) || importText('map_error', 'Could not load data.')) + '</p>';
@@ -3790,6 +3799,7 @@
                     const data = await res.json();
                     if (!res.ok || !data.ok) throw new Error((data && data.error) || 'import_action_failed');
                     if (status) status.textContent = action === 'delete' ? (data.deleted_points + ' ' + importText('location_import_removed_points', 'points removed')) : importText('location_import_file_deleted', 'Source files deleted.');
+                    if (action === 'delete' && typeof window.stepsMapInvalidate === 'function') window.stepsMapInvalidate();
                     await loadImports();
                 } catch (e) {
                     if (status) status.textContent = (e && e.message) || importText('map_error', 'Could not load data.');

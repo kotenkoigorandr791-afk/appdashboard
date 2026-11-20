@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 Mapa nyní ukazuje vaši aktuální polohu s kruhem přesnosti a šipkou, kterým směrem se díváte
+* ⚡ Body se na server odesílají hned po zaznamenání, takže se mapa na webu aktualizuje v reálném čase
+* 📞 Opraveno chybějící body po telefonních hovorech a dalších pauzách — záznam se nyní obnoví sám
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Opraveno přiřazování zdravotních dat ke špatnému dni pro uživatele na východ od UTC — vzdálenost, kalorie, spánek a puls se nyní počítají ve dni, kdy skutečně nastaly

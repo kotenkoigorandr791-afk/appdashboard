@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 Mapa pokazuje teraz Twoją bieżącą pozycję z okręgiem dokładności i strzałką kierunku patrzenia
+* ⚡ Punkty są wysyłane na serwer od razu po zapisaniu, więc mapa w przeglądarce aktualizuje się na bieżąco
+* 📞 Naprawiono brakujące punkty po połączeniach i innych przerwach — zapis wznawia się teraz sam
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Naprawiono przypisywanie danych zdrowotnych do niewłaściwego dnia u użytkowników na wschód od UTC — dystans, kalorie, sen i tętno są teraz liczone w dniu, w którym wystąpiły

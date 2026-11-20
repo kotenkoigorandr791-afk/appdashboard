@@ -46,19 +46,31 @@ final class StepsGeolocationIngestion
                 return ['status' => 'duplicate', 'id' => (string)$knownId, 'client_event_id' => $event];
             }
             if (!empty($point['dedupe_nearby'])) {
+                // Points from the same import file are distinct samples of a
+                // track, even when consecutive samples are a few metres apart.
+                // Only points from other files/sources are nearby duplicates.
+                $sameFile = StepsGeolocationDomain::isUuid($importFileId)
+                    ? ' AND NOT EXISTS (
+                            SELECT 1 FROM geo_import_points same_file
+                             WHERE same_file.point_id = p.id AND same_file.user_email = :owner
+                               AND same_file.import_file_id = :file)'
+                    : '';
                 $nearby = $pdo->prepare(
-                    "SELECT id FROM geo_location_points
-                      WHERE user_email = :owner AND quality_state <> 'rejected'
-                        AND source_at BETWEEN :from AND :to
-                        AND ST_DWithin(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :radius)
-                   ORDER BY ST_Distance(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) ASC
+                    "SELECT p.id FROM geo_location_points p
+                      WHERE p.user_email = :owner AND p.quality_state <> 'rejected'
+                        AND p.source_at BETWEEN :from AND :to
+                        AND ST_DWithin(p.position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :radius)"
+                    . $sameFile . "
+                   ORDER BY ST_Distance(p.position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) ASC
                       LIMIT 1"
                 );
                 $atTs = strtotime($at);
-                $nearby->execute([
+                $nearbyParams = [
                     ':owner' => $owner, ':from' => gmdate('c', $atTs - 30), ':to' => gmdate('c', $atTs + 30),
                     ':lon' => (float)$lon, ':lat' => (float)$lat, ':radius' => 25,
-                ]);
+                ];
+                if ($sameFile !== '') $nearbyParams[':file'] = $importFileId;
+                $nearby->execute($nearbyParams);
                 $nearbyId = $nearby->fetchColumn();
                 if ($nearbyId) {
                     self::linkSource($pdo, $owner, (string)$nearbyId, $namespace, $sourceEventId);

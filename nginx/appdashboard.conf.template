@@ -691,6 +691,7 @@ server {
     location ^~ /project/assets/ {
         modsecurity off;
         try_files $uri =404;
+        error_page 500 503 = @project_static_fallback;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
     }
@@ -698,8 +699,22 @@ server {
     location ^~ /project/onboarding/ {
         modsecurity off;
         try_files $uri =404;
+        error_page 500 503 = @project_static_fallback;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
+    }
+
+    # Docker Desktop's virtiofs daemon limits how many host descriptors it can
+    # hold for the bind-mounted code tree; when it is exhausted nginx cannot
+    # open a file on that mount and would answer 500 for every page load.
+    # docker-entrypoint.sh keeps a container-local copy of these directories so
+    # the assets keep loading until the mount recovers.
+    location @project_static_fallback {
+        modsecurity off;
+        root /var/www/static-fallback;
+        try_files $uri =404;
+        add_header Cache-Control "no-store" always;
+        access_log off;
     }
 
     # Internal PHP includes under /project/ must never be requested directly:

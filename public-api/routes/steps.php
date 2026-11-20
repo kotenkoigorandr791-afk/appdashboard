@@ -17,7 +17,7 @@ $geoEndpoint = strtolower((string)$sub);
 // public_api_bootstrap() and scopes all queries by the resolved owner.
 $geoEndpoints = [
     'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
-    'geolocation_achievements', 'geolocation_quality', 'geolocation_matching',
+    'geolocation_achievements', 'geolocation_statistics', 'geolocation_quality', 'geolocation_matching',
     'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics', 'geolocation_points',
     'places', 'geofences', 'devices',
 ];

@@ -8,6 +8,7 @@ import android.location.LocationManager
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Point
+import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -57,6 +58,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -103,6 +105,8 @@ import orbit.nex.steps.location.LocationPermissions
 import orbit.nex.steps.location.LocationEventStore
 import orbit.nex.steps.location.LocationTrackingManager
 import orbit.nex.steps.location.TrackingState
+import orbit.nex.steps.location.LiveLocationProvider
+import orbit.nex.steps.location.LiveLocationState
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -157,11 +161,31 @@ internal object EsriStreet : OnlineTileSourceBase(
             MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
 }
 
+internal object EsriLight : OnlineTileSourceBase(
+    "EsriLightGrayBase", 0, 19, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/tile/"),
+    "Esri, HERE, Garmin, © OpenStreetMap contributors",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
 /** Esri imagery uses z/y/x order instead of the usual z/x/y. */
 internal object EsriSatellite : OnlineTileSourceBase(
     "EsriWorldImagery", 0, 19, 256, ".jpg",
     arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
     "Esri, Maxar, Earthstar Geographics",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+private object EsriLightLabels : OnlineTileSourceBase(
+    "EsriLightGrayLabels", 0, 19, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/"),
+    "Esri, HERE, Garmin, © OpenStreetMap contributors",
 ) {
     override fun getTileURLString(pMapTileIndex: Long): String =
         baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
@@ -220,6 +244,85 @@ private class HeatmapOverlay(
             paint.color = AndroidColor.argb((120 + 90 * intensity).toInt(), 255, 212, 74)
             paint.strokeWidth = (1.4f + 2.2f * intensity) * density
             canvas.drawPath(path, paint)
+        }
+    }
+}
+
+/**
+ * "Where am I" puck, drawn like the one in consumer map apps: an accuracy halo,
+ * a white-ringed blue dot, and a translucent cone plus arrow that show which way
+ * the phone is facing. It is repainted on every location or compass update and
+ * survives the overlay rebuild that follows a day reload.
+ */
+private class UserLocationOverlay(
+    private val state: LiveLocationState,
+) : Overlay(), KeepOverlay {
+
+    private val halo = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val cone = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val point = Point()
+    private val conePath = Path()
+    private val arrowPath = Path()
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val fix = state.fix ?: return
+        val projection = mapView.projection
+        projection.toPixels(GeoPoint(fix.latitude, fix.longitude), point)
+        val x = point.x.toFloat()
+        val y = point.y.toFloat()
+        val density = mapView.resources.displayMetrics.density
+
+        fix.accuracyM?.takeIf { it > 0f }?.let { accuracy ->
+            val radius = projection.metersToPixels(accuracy, fix.latitude, fix.longitude)
+                .coerceIn(7f * density, 900f * density)
+            halo.style = Paint.Style.FILL
+            halo.color = AndroidColor.argb(26, 33, 150, 243)
+            canvas.drawCircle(x, y, radius, halo)
+            halo.style = Paint.Style.STROKE
+            halo.strokeWidth = 1.4f * density
+            halo.color = AndroidColor.argb(70, 33, 150, 243)
+            canvas.drawCircle(x, y, radius, halo)
+        }
+
+        val heading = state.headingDeg
+        if (heading != null) {
+            val radius = 54f * density
+            // Wedge pointing up, rotated to the current heading.
+            conePath.reset()
+            conePath.moveTo(0f, 0f)
+            conePath.lineTo(-radius * 0.438f, -radius * 0.899f)
+            conePath.arcTo(RectF(-radius, -radius, radius, radius), -90f - 26f, 52f)
+            conePath.close()
+            cone.color = AndroidColor.argb(42, 33, 150, 243)
+            canvas.save()
+            canvas.translate(x, y)
+            canvas.rotate(heading)
+            canvas.drawPath(conePath, cone)
+            canvas.restore()
+        }
+
+        fill.style = Paint.Style.FILL
+        fill.color = AndroidColor.WHITE
+        canvas.drawCircle(x, y, 11f * density, fill)
+        fill.color = AndroidColor.rgb(33, 150, 243)
+        canvas.drawCircle(x, y, 8f * density, fill)
+
+        // Direction arrow sits on top of the dot, like a map app puck.
+        if (heading != null) {
+            arrowPath.reset()
+            arrowPath.moveTo(0f, -7f * density)
+            arrowPath.lineTo(-4.6f * density, 4.2f * density)
+            arrowPath.lineTo(0f, 2.2f * density)
+            arrowPath.lineTo(4.6f * density, 4.2f * density)
+            arrowPath.close()
+            canvas.save()
+            canvas.translate(x, y)
+            canvas.rotate(heading)
+            fill.color = AndroidColor.WHITE
+            canvas.drawPath(arrowPath, fill)
+            canvas.restore()
         }
     }
 }
@@ -295,7 +398,13 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
     var layers by remember { mutableStateOf(prefs.getMapLayers()) }
     var showLayers by remember { mutableStateOf(false) }
-    var myLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    // Live puck state: position, accuracy and heading. It is intentionally
+    // separate from the recorded day data, so it works with tracking off too.
+    val liveState = remember { LiveLocationState() }
+    val userOverlay = remember { UserLocationOverlay(liveState) }
+    val followState = remember { mutableStateOf(prefs.getMapCamera() == null) }
+    val latestFollow = rememberUpdatedState(followState.value)
+    val latestDay = rememberUpdatedState(selectedDay)
     var hintVisible by remember { mutableStateOf(true) }
     LaunchedEffect(selectedDay) { hintVisible = true; delay(3_000); hintVisible = false }
     var showPanels by remember { mutableStateOf(false) }
@@ -344,6 +453,21 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         loading = false
     }
 
+    // While today is open, re-read the server so points recorded elsewhere show
+    // up without switching days. The endpoint caches for 20s, so 10s polling
+    // stays cheap and still feels live.
+    LaunchedEffect(selectedDay, config?.url) {
+        val activeConfig = config ?: return@LaunchedEffect
+        while (true) {
+            delay(LIVE_MAP_REFRESH_MS)
+            if (selectedDay != LocalDate.now()) continue
+            val remote = repository.loadDay(activeConfig, selectedDay)
+            if (remote.error != null) continue
+            TrackingMapCache.put(activeConfig.url, selectedDay, remote)
+            remoteData = remote
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
@@ -385,6 +509,9 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             }
         }
     }
+    val labelsOverlay = remember {
+        TilesOverlay(MapTileProviderBasic(context).apply { setTileSource(EsriLightLabels) }, context)
+    }
     val roadsOverlay = remember {
         TilesOverlay(MapTileProviderBasic(context).apply { setTileSource(EsriTransportation) }, context)
     }
@@ -399,11 +526,11 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         }
     }
 
-    LaunchedEffect(resolvedStyle) {
+    LaunchedEffect(resolvedStyle, darkTheme) {
         mapView.setTileSource(
             when (resolvedStyle) {
                 MapStyle.SATELLITE -> EsriSatellite
-                MapStyle.NORMAL -> EsriStreet
+                MapStyle.NORMAL -> if (darkTheme) EsriStreet else EsriLight
             }
         )
         // Same street tiles in both themes; dark mode inverts them the way the
@@ -420,34 +547,57 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         mapView.invalidate()
     }
 
+    // Foreground live position. The recording service runs on its own schedule,
+    // so the visible map keeps its own high-accuracy stream for the puck.
+    val liveProvider = remember {
+        LiveLocationProvider(
+            context = context,
+            state = liveState,
+            onFix = { fix ->
+                mapView.invalidate()
+                if (latestFollow.value && latestDay.value == LocalDate.now()) {
+                    mapView.controller.animateTo(GeoPoint(fix.latitude, fix.longitude))
+                }
+            },
+            onDirectionChanged = { mapView.invalidate() },
+        )
+    }
+    DisposableEffect(Unit) {
+        mapView.overlays.add(userOverlay)
+        // Touching the map means the user wants to browse, so stop following.
+        mapView.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) followState.value = false
+            false
+        }
+        liveProvider.start()
+        onDispose { liveProvider.stop() }
+    }
+
     // Overlays are rebuilt only when the day data or the enabled layers change.
-    LaunchedEffect(data, layers, resolvedStyle, myLocation) {
-        rebuildOverlays(mapView, data, layers, myLocation)
+    LaunchedEffect(data, layers, resolvedStyle, darkTheme) {
+        rebuildOverlays(mapView, data, layers)
         mapView.overlays.remove(roadsOverlay)
-        if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
+        mapView.overlays.remove(labelsOverlay)
+        if (resolvedStyle == MapStyle.SATELLITE || !darkTheme) mapView.overlays.add(0, roadsOverlay)
+        if (resolvedStyle == MapStyle.NORMAL && !darkTheme) mapView.overlays.add(1, labelsOverlay)
         val box = data.bbox
-        if (!restoringCamera && !data.isEmpty && box != null && fittedDay != selectedDay) {
+        if (!restoringCamera && !followState.value && !data.isEmpty && box != null && fittedDay != selectedDay) {
             fittedDay = selectedDay
             fitBoundingBox(mapView, box)
         }
     }
 
-    @android.annotation.SuppressLint("MissingPermission")
     fun locate() {
-        val client = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
-        fun show(location: android.location.Location?) {
-            if (location == null) return
-            val point = GeoPoint(location.latitude, location.longitude)
-            myLocation = point
-            mapView.controller.setZoom(16.0)
-            mapView.controller.animateTo(point)
-            restoringCamera = false
+        followState.value = true
+        restoringCamera = false
+        fittedDay = selectedDay
+        val fix = liveState.fix
+        if (fix != null) {
+            mapView.controller.setZoom(maxOf(mapView.zoomLevelDouble, 16.0))
+            mapView.controller.animateTo(GeoPoint(fix.latitude, fix.longitude))
+        } else {
+            liveProvider.refresh()
         }
-        client.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
-            .addOnSuccessListener { location ->
-                if (location != null) show(location) else client.lastLocation.addOnSuccessListener { show(it) }
-            }
-            .addOnFailureListener { client.lastLocation.addOnSuccessListener { show(it) } }
     }
 
     val locateLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -481,6 +631,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         val controlIconSize = (22.dp * uiScale).coerceAtLeast(15.dp)
 
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        Text("© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 2.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(horizontal = 3.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
 
         // Floating header: what is recording and which day is shown. Both pills
         // always share one row and split the available width, so they fit even
@@ -928,8 +1079,21 @@ internal fun configureOsm(context: android.content.Context) {
     }
 }
 
+private class BasemapLabels(context: android.content.Context) : TilesOverlay(
+    MapTileProviderBasic(context).apply { setTileSource(EsriLightLabels) }, context
+), KeepOverlay
+
+private class BasemapRoads(context: android.content.Context) : TilesOverlay(
+    MapTileProviderBasic(context).apply { setTileSource(EsriTransportation) }, context
+), KeepOverlay
+
 internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean) {
-    mapView.setTileSource(if (style == MapStyle.SATELLITE) EsriSatellite else EsriStreet)
+    mapView.overlays.removeAll { it is BasemapRoads || it is BasemapLabels }
+    if (style == MapStyle.NORMAL && !darkTheme) {
+        mapView.overlays.add(0, BasemapRoads(mapView.context))
+        mapView.overlays.add(1, BasemapLabels(mapView.context))
+    }
+    mapView.setTileSource(if (style == MapStyle.SATELLITE) EsriSatellite else if (darkTheme) EsriStreet else EsriLight)
     mapView.overlayManager.tilesOverlay.setColorFilter(
         if (style == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
     )
@@ -942,7 +1106,7 @@ internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean)
     mapView.invalidate()
 }
 
-internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>, myLocation: GeoPoint? = null) {
+internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>) {
     mapView.overlays.removeAll { it !is KeepOverlay }
     val resources = mapView.resources
     val density = resources.displayMetrics.density
@@ -1028,15 +1192,11 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
         marker.setOnMarkerClickListener { _, _ -> true }
         mapView.overlays.add(marker)
     }
-    myLocation?.let { point ->
-        val marker = Marker(mapView)
-        marker.position = point
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-        marker.icon = dot(AndroidColor.rgb(33, 150, 243), AndroidColor.WHITE, (16 * density).toInt())
-        marker.setInfoWindow(null)
-        marker.setInfoWindow(null)
-        marker.setOnMarkerClickListener { _, _ -> true }
-        mapView.overlays.add(marker)
+    // The live puck stays on top of every rebuilt layer.
+    val live = mapView.overlays.filterIsInstance<UserLocationOverlay>()
+    if (live.isNotEmpty()) {
+        mapView.overlays.removeAll(live)
+        mapView.overlays.addAll(live)
     }
     mapView.invalidate()
 }
@@ -1072,6 +1232,9 @@ private fun SpeedLegend(modifier: Modifier = Modifier) {
 }
 
 private val SPEED_LEGEND_LABELS = listOf("0–3", "3–6", "6–12", "12–25", "25–50", "50+")
+
+/** Server refresh cadence for the open (today) map. */
+private const val LIVE_MAP_REFRESH_MS = 10_000L
 
 private fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoMapData {
     // Only measurements the server has not confirmed yet: accepted rows stay in

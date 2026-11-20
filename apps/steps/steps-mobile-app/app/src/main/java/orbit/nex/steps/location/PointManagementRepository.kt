@@ -93,11 +93,31 @@ class PointManagementRepository(
         }.getOrElse { PointPage(error = it.message ?: "network") }
     }
 
-    suspend fun deleteIds(config: WebhookConfig, ids: Set<String>): Result<Unit> =
-        post(config, "geolocation_points", JSONObject().put("action", "delete").put("ids", JSONArray(ids.toList())))
+    suspend fun deleteIds(config: WebhookConfig, ids: Set<String>): Result<Int> =
+        postDeleted(config, JSONObject().put("action", "delete").put("ids", JSONArray(ids.toList())))
 
-    suspend fun deleteBbox(config: WebhookConfig, bbox: String): Result<Unit> =
-        post(config, "geolocation_points", JSONObject().put("action", "delete").put("bbox", bbox))
+    /**
+     * One request for the whole drawn area, instead of paging every id.
+     *
+     * [bbox] may be null when the user only picked a day: the server then deletes
+     * every point of that day range. Returns the number of rows the server really
+     * deleted, so the UI never reports a silent no-op as success.
+     */
+    suspend fun deleteBbox(
+        config: WebhookConfig,
+        bbox: String?,
+        from: String? = null,
+        to: String? = null,
+    ): Result<Int> = postDeleted(
+        config,
+        JSONObject()
+            .put("action", "delete")
+            .apply {
+                if (!bbox.isNullOrBlank()) put("bbox", bbox)
+                if (!from.isNullOrBlank()) put("from", from)
+                if (!to.isNullOrBlank()) put("to", to)
+            },
+    )
 
     suspend fun exclude(config: WebhookConfig, ids: Set<String>): Result<String?> = withContext(Dispatchers.IO) {
         runCatching {
@@ -158,15 +178,17 @@ class PointManagementRepository(
     suspend fun runMatching(config: WebhookConfig): Result<Unit> =
         post(config, "geolocation_matching", JSONObject().put("action", "run"))
 
-    private fun get(config: WebhookConfig, path: String): JSONObject =
-        request(config, path, null).let { response ->
-            val body = response.first
-            val code = response.second
-            val root = parseJson(body)
-            if (code !in 200..299 || !root.optBoolean("ok", false)) {
-                error(root.optString("error").ifBlank { "HTTP $code" })
+    private suspend fun get(config: WebhookConfig, path: String): JSONObject =
+        withContext(Dispatchers.IO) {
+            request(config, path, null).let { response ->
+                val body = response.first
+                val code = response.second
+                val root = parseJson(body)
+                if (code !in 200..299 || !root.optBoolean("ok", false)) {
+                    error(root.optString("error").ifBlank { "HTTP $code" })
+                }
+                root
             }
-            root
         }
 
     private fun parseJson(text: String): JSONObject {
@@ -176,10 +198,27 @@ class PointManagementRepository(
         return runCatching { JSONObject(candidate) }.getOrElse { JSONObject() }
     }
 
-    private fun post(config: WebhookConfig, path: String, body: JSONObject): Result<Unit> =
-        runCatching { postJson(config, path, body); Unit }
+    // Blocking OkHttp calls must never run on the caller's (main) thread: Android
+    // throws NetworkOnMainThreadException with a null message, which used to make
+    // "delete" a silent no-op. Every request is moved to Dispatchers.IO here, so
+    // all callers are safe by construction.
+    private suspend fun post(config: WebhookConfig, path: String, body: JSONObject): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching { postJsonRequest(config, path, body); Unit }
+                .recoverCatching { error(it.message ?: it.javaClass.simpleName) }
+        }
 
-    private fun postJson(config: WebhookConfig, path: String, body: JSONObject): JSONObject {
+    /** Delete response carries `deleted`; propagate it instead of assuming success. */
+    private suspend fun postDeleted(config: WebhookConfig, body: JSONObject): Result<Int> =
+        withContext(Dispatchers.IO) {
+            runCatching { postJsonRequest(config, "geolocation_points", body).optInt("deleted", 0) }
+                .recoverCatching { error(it.message ?: it.javaClass.simpleName) }
+        }
+
+    private suspend fun postJson(config: WebhookConfig, path: String, body: JSONObject): JSONObject =
+        withContext(Dispatchers.IO) { postJsonRequest(config, path, body) }
+
+    private fun postJsonRequest(config: WebhookConfig, path: String, body: JSONObject): JSONObject {
         val (text, code) = request(config, path, body.toString())
         val root = parseJson(text)
         if (code !in 200..299 || !root.optBoolean("ok", false)) {

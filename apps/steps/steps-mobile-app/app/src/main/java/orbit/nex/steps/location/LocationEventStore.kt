@@ -40,7 +40,7 @@ data class StoredLocationEvent(
  */
 class LocationEventStore(context: Context) {
 
-    private val helper = Helper(context.applicationContext)
+    private val helper = sharedHelper(context)
 
     fun insert(deviceId: String, event: LocationEvent): Boolean {
         val values = ContentValues().apply {
@@ -275,6 +275,10 @@ class LocationEventStore(context: Context) {
     }
 
     companion object {
+        @Volatile private var shared: Helper? = null
+        private fun sharedHelper(context: Context): Helper = shared ?: synchronized(this) {
+            shared ?: Helper(context.applicationContext).also { shared = it }
+        }
         const val DEFAULT_BATCH = 50
         private const val MAX_SETTLED_ROWS = 5_000
         private const val RETENTION_DAYS = 7L

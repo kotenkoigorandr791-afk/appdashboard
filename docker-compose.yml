@@ -160,8 +160,11 @@ services:
       - SYS_ADMIN
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        # nginx keeps one descriptor per connection/upstream and modsecurity
+        # opens rule sets on every request; 65535 was low enough that a busy
+        # worker started answering 500 "Too many open files".
+        soft: 262144
+        hard: 262144
     sysctls:
       net.core.somaxconn: 4096
     depends_on:

@@ -873,5 +873,7 @@
   "zeep_ready_section": "Gotowe",
   "zeep_start": "Importuj",
   "zeep_zip_file_label": "Plik archiwum",
-  "zeep_zip_section": "Archiwum ZIP"
+  "zeep_zip_section": "Archiwum ZIP",
+  "map_live_now": "Bieżąca lokalizacja",
+  "map_live_last": "Ostatnia znana lokalizacja"
 }

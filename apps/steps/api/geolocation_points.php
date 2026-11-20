@@ -13,7 +13,6 @@ $owner = StepsGeolocationDomain::normalizeOwner($owner);
 public_api_rate_limit('geolocation_points', 120, 60);
 $pdo = app_main_db()->getPdo();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-if ($method === 'POST') StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'capture');
 
 function geo_points_uuid(): string
 {
@@ -52,7 +51,9 @@ if ($method === 'GET') {
     $offset = max(0, (int)($_GET['offset'] ?? 0));
     $count = $pdo->prepare("SELECT COUNT(*) FROM geo_location_points WHERE $where");
     $count->execute($params);
-    $stmt = $pdo->prepare("SELECT id, source_at, source_type, quality_state, accuracy_m, ST_Y(position) AS latitude, ST_X(position) AS longitude FROM geo_location_points WHERE $where ORDER BY source_at DESC, id LIMIT $limit OFFSET $offset");
+    // Bearing and speed let the web map turn the live marker toward the user's
+    // direction of travel; they are already stored on every measurement.
+    $stmt = $pdo->prepare("SELECT id, source_at, source_type, quality_state, accuracy_m, bearing_degrees, speed_mps, ST_Y(position) AS latitude, ST_X(position) AS longitude FROM geo_location_points WHERE $where ORDER BY source_at DESC, id LIMIT $limit OFFSET $offset");
     $stmt->execute($params);
     public_api_json(['ok' => true, 'total' => (int)$count->fetchColumn(), 'points' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
 }
@@ -60,6 +61,13 @@ if ($method === 'GET') {
 if ($method !== 'POST') public_api_json(['ok' => false, 'error' => 'method_not_allowed'], 405);
 $body = public_api_body();
 $action = strtolower(trim((string)($body['action'] ?? '')));
+// Deleting or counting does not capture anything: only the actions that derive
+// new measurement data depend on the capture flag. Gating "delete" here used to
+// return 403 for a user with capture switched off, so the app could never remove
+// its own points.
+if (in_array($action, ['smooth', 'unsmooth'], true)) {
+    StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'capture');
+}
 $ids = array_values(array_filter((array)($body['ids'] ?? []), static fn($id): bool => is_string($id) && StepsGeolocationDomain::isUuid($id)));
 if ($ids !== []) {
     $ids = array_slice($ids, 0, 5000);

@@ -925,4 +925,12 @@
     <string name="nex_auth_failed">Не удалось войти</string>
     <string name="date_from">С</string>
     <string name="date_to">По</string>
+    <string name="points_total_short">Всего: %1$d</string>
+    <string name="points_selected_short">Выбрано: %1$d</string>
+    <string name="points_removed_short">Удалено: %1$d</string>
+    <string name="tracking_privacy_title">Конфиденциальность</string>
+    <string name="connection_date">Дата подключения</string>
+    <string name="connection_date_unknown">Дата неизвестна</string>
+    <string name="tracking_notification_sync_label">ПОСЛЕДНЯЯ СИНХ.</string>
+    <string name="tracking_notification_never">Ещё не было</string>
 </resources>

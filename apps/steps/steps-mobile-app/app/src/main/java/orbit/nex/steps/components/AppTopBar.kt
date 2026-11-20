@@ -22,6 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.Link
+import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.PersonOff
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.CircularProgressIndicator
@@ -123,9 +127,9 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(orbit.nex.steps.ui.theme.ComponentHeight.minTouchTarget)
-                        .clip(CircleShape)
                         .clickable(onClick = { showAccount = true })
                         .padding(7.dp)
+                        .clip(CircleShape)
                 )
             } else {
                 Icon(
@@ -133,9 +137,9 @@ fun AppTopBar(showTimer: Boolean, modifier: Modifier = Modifier) {
                     contentDescription = stringResource(R.string.account_title),
                     modifier = Modifier
                         .size(orbit.nex.steps.ui.theme.ComponentHeight.minTouchTarget)
-                        .clip(CircleShape)
                         .clickable(onClick = { showAccount = true })
-                        .padding(7.dp),
+                        .padding(7.dp)
+                        .clip(CircleShape),
                     tint = if (isConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -253,27 +257,28 @@ private fun AccountDialog(
 
                 HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
 
-                AccountField(stringResource(R.string.personal_name), profile.name.ifBlank { "â€”" })
-                AccountField(stringResource(R.string.personal_email), profile.email.ifBlank { "â€”" })
+                AccountField(stringResource(R.string.personal_name), profile.name.ifBlank { "—" }, Icons.Filled.Person)
+                AccountField(stringResource(R.string.personal_email), profile.email.ifBlank { "—" }, Icons.Filled.Email)
                 AccountField(
                     stringResource(R.string.account_status),
                     stringResource(
                         if (connected) R.string.account_status_connected
                         else R.string.account_status_disconnected
                     ),
+                    icon = Icons.Filled.CloudDone,
                     valueColor = accent,
                     badgeColor = accent,
                 )
                 if (serverUrl.isNotBlank()) {
-                    AccountField(stringResource(R.string.account_server), serverUrl)
+                    AccountField(stringResource(R.string.account_server), serverUrl, Icons.Filled.Link)
                 }
 
                 TextButton(
                     onClick = onDismiss,
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(24.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(14.dp)),
+                        .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp)),
                 ) {
                     Text(stringResource(R.string.action_close), fontWeight = FontWeight.SemiBold)
                 }
@@ -287,11 +292,12 @@ private fun AccountDialog(
 private fun AccountField(
     label: String,
     value: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
     valueColor: Color? = null,
     badgeColor: Color? = null,
 ) {
     Surface(
-        shape = RoundedCornerShape(14.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
         modifier = Modifier.fillMaxWidth(),
@@ -301,6 +307,7 @@ private fun AccountField(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            Icon(icon, contentDescription = null, tint = MaterialTheme.colorScheme.primary, modifier = Modifier.size(20.dp))
             Column(Modifier.weight(1f)) {
                 Text(
                     label,
