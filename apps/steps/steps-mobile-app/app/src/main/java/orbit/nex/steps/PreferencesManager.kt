@@ -386,7 +386,11 @@ class PreferencesManager(context: Context) {
      */
     fun getEffectiveLastSyncAnchor(): Long? {
         getLastSyncTime()?.let { return it }
-        return getEffectiveLastSyncTime()
+        return getEffectiveLastSyncTime() ?: prefs.getLong("initial_sync_anchor", 0L).takeIf { it > 0 }
+    }
+
+    fun ensureInitialSyncAnchor(now: Long = System.currentTimeMillis()) {
+        if (getEffectiveLastSyncAnchor() == null) prefs.edit().putLong("initial_sync_anchor", now).apply()
     }
 
     fun setLastSyncTime(timestamp: Long) {
@@ -914,6 +918,7 @@ class PreferencesManager(context: Context) {
         editor.remove(KEY_PENDING_CONFLICT_JSON)
 
         editor.remove(KEY_LAST_SYNC_TIME)
+        editor.remove("initial_sync_anchor")
         editor.remove(KEY_LAST_SYNC_ATTEMPT_MS)
         editor.remove(KEY_LAST_SYNC_SUMMARY)
         editor.remove(KEY_LOCATION_UPLOAD_OK_AT)

@@ -356,9 +356,16 @@ final class StepsGeolocationApi
             $params[':maxLat'] = $bbox['maxLat'];
         }
         $whereSql = implode(' AND ', $where);
-        $count = $pdo->prepare("SELECT COUNT(*) FROM geo_location_points WHERE $whereSql");
-        $count->execute($params);
-        $total = (int)$count->fetchColumn();
+        $countKey = class_exists('StepsGeolocationObservability') ? StepsGeolocationObservability::cacheKey('map', $owner, ['points_total', $whereSql, $params]) : '';
+        $cachedTotal = $countKey !== '' ? StepsGeolocationObservability::cacheGet($countKey) : null;
+        if ($cachedTotal !== null && isset($cachedTotal['total'])) {
+            $total = (int)$cachedTotal['total'];
+        } else {
+            $count = $pdo->prepare("SELECT COUNT(*) FROM geo_location_points WHERE $whereSql");
+            $count->execute($params);
+            $total = (int)$count->fetchColumn();
+            if ($countKey !== '') StepsGeolocationObservability::cacheSet($countKey, ['total' => $total], 10);
+        }
         $stmt = $pdo->prepare(
             "SELECT id, device_id, source_type, source_at, received_at, quality_state, accuracy_m,
                     ST_Y(position) AS latitude, ST_X(position) AS longitude

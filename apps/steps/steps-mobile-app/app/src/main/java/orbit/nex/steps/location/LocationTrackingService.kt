@@ -85,7 +85,7 @@ class LocationTrackingService : Service() {
             val v = event.values
             val magnitude = kotlin.math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
             sensorBaseline = sensorBaseline * 0.9f + magnitude * 0.1f
-            if (kotlin.math.abs(magnitude - sensorBaseline) > 1.8f) {
+            if (kotlin.math.abs(magnitude - sensorBaseline) > 0.7f) {
                 lastMovingMs = SystemClock.elapsedRealtime()
                 if (prefs.getLocationAccuracy() == LocationAccuracy.AUTO && powerMode == LocationAccuracy.LOW) switchMode(LocationAccuracy.BALANCED)
             }
@@ -209,11 +209,6 @@ class LocationTrackingService : Service() {
                 prefs.setLocationTrackingEnabled(true)
                 prefs.setLocationTrackingPaused(false)
                 startTracking()
-                // Restarted service (reboot, update, sticky restart) resumes the
-                // outbox drain too, otherwise captured points wait for the next
-                // scheduled health sync.
-                LocationUploadWorker.ensurePeriodic(this)
-                LocationUploadWorker.enqueue(this)
             }
         }
         return START_STICKY
@@ -274,7 +269,7 @@ class LocationTrackingService : Service() {
         val distance = if (requestedDistance >= 0) requestedDistance.toFloat() else when (powerMode) {
             LocationAccuracy.LOW -> 20f
             LocationAccuracy.HIGH -> 0f
-            else -> 5f
+            else -> 0f
         }
         val request = LocationRequest.Builder(priority, interval)
             .setMinUpdateIntervalMillis(interval)
@@ -383,14 +378,6 @@ class LocationTrackingService : Service() {
         lastPersistedAtMs = event.recordedAtMs
         prefs.setLocationLastFixAt(event.recordedAtMs)
         prefs.setLocationServiceHeartbeat(event.recordedAtMs)
-        // Push the measurement as soon as it is on disk, so the server map shows
-        // the user while they are still moving. Bursts are throttled: each upload
-        // drains the whole outbox, so one request every few seconds is enough.
-        val now = SystemClock.elapsedRealtime()
-        if (now - lastUploadEnqueueMs >= UPLOAD_THROTTLE_MS) {
-            lastUploadEnqueueMs = now
-            LocationUploadWorker.enqueue(this)
-        }
         return event
     }
 

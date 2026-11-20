@@ -11,6 +11,7 @@
  * Each owner gets a geo_processor_runs row that records processor version,
  * input window and a JSON summary, so a failed pass is visible and retryable.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_quality.php';
 require_once dirname(__DIR__) . '/core/geolocation_trips.php';

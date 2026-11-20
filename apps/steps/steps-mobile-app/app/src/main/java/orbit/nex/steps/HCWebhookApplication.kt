@@ -24,14 +24,8 @@ class HCWebhookApplication : Application() {
         // indicator react the moment the network drops.
         NetworkState.start(this)
 
-        // Location work is only resumed when the user previously enabled it, so
-        // measurements taken before a reboot or an update still reach the server.
-        if (preferencesManager.isLocationTrackingEnabled() && !preferencesManager.isLocationTrackingPaused()) {
-            orbit.nex.steps.location.LocationUploadWorker.ensurePeriodic(this)
-        } else {
-            orbit.nex.steps.location.LocationUploadWorker.cancelPeriodic(this)
-        }
-
+        orbit.nex.steps.location.LocationUploadWorker.cancelAll(this)
+        preferencesManager.ensureInitialSyncAnchor()
         // Schedule syncs based on the selected sync mode
         when (preferencesManager.getSyncMode()) {
             SyncMode.INTERVAL -> {
@@ -68,6 +62,7 @@ class HCWebhookApplication : Application() {
             repeatInterval = syncIntervalMinutes.toLong(),
             repeatIntervalTimeUnit = TimeUnit.MINUTES
         )
+        .setInitialDelay(maxOf(0L, (preferencesManager.getEffectiveLastSyncAnchor() ?: System.currentTimeMillis()) + syncIntervalMinutes * 60_000L - System.currentTimeMillis()), TimeUnit.MILLISECONDS)
         .setBackoffCriteria(
             BackoffPolicy.EXPONENTIAL,
             5,

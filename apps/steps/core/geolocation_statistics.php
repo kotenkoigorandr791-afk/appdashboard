@@ -412,6 +412,36 @@ final class StepsGeolocationStatistics
         ]);
     }
 
+    /** @return list<array{day:string,code:string,name:string,count:int}> */
+    private static function resolveAreas(PDO $pdo, string $kind, string $version, string $owner, string $timezone, string $from, string $to): array
+    {
+        $stmt = $pdo->prepare(
+            "WITH pts AS MATERIALIZED (
+                SELECT (p.source_at AT TIME ZONE :tz)::date::text AS day, p.position,
+                       ST_X(ST_SnapToGrid(p.position, 0.01)) AS cx, ST_Y(ST_SnapToGrid(p.position, 0.01)) AS cy
+                  FROM geo_location_points p
+                 WHERE p.user_email = :owner AND p.quality_state NOT IN ('rejected','excluded_by_user','private_redacted')
+                   AND (p.source_at AT TIME ZONE :tz2)::date BETWEEN :from AND :to
+             ), cells AS (SELECT DISTINCT cx, cy FROM pts),
+             whole AS MATERIALIZED (
+                SELECT c.cx, c.cy, a.code, a.name
+                  FROM cells c
+                  JOIN geo_boundary_areas a ON a.dataset_version = :version AND a.kind = :kind
+                   AND ST_Covers(a.geometry, ST_MakeEnvelope(c.cx - 0.006, c.cy - 0.006, c.cx + 0.006, c.cy + 0.006, 4326))
+             )
+             SELECT day, code, name, COUNT(*) AS count FROM (
+                SELECT p.day, w.code, w.name FROM pts p JOIN whole w ON w.cx = p.cx AND w.cy = p.cy
+                UNION ALL
+                SELECT p.day, a.code, a.name FROM (
+                    SELECT * FROM pts q WHERE NOT EXISTS (SELECT 1 FROM whole w WHERE w.cx = q.cx AND w.cy = q.cy)
+                ) p
+                  JOIN geo_boundary_areas a ON a.dataset_version = :version2 AND a.kind = :kind2 AND ST_Covers(a.geometry, p.position)
+             ) r GROUP BY day, code, name"
+        );
+        $stmt->execute([':tz' => $timezone, ':tz2' => $timezone, ':owner' => $owner, ':from' => $from, ':to' => $to, ':version' => $version, ':kind' => $kind, ':version2' => $version, ':kind2' => $kind]);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     /** Recompute daily rows for a local-date range, or the full history. */
     public static function refresh(PDO $pdo, string $owner, string $timezone = 'UTC', ?string $from = null, ?string $to = null): int
     {
@@ -450,29 +480,11 @@ final class StepsGeolocationStatistics
 
         $countries = [];
         if ($countryDataset !== null) {
-            $countryStmt = $pdo->prepare(
-                "SELECT (p.source_at AT TIME ZONE :tz)::date::text AS day, a.code, a.name, COUNT(*) AS count
-                   FROM geo_location_points p
-                   JOIN geo_boundary_areas a ON a.dataset_version = :version AND a.kind = 'country' AND ST_Covers(a.geometry, p.position)
-                  WHERE p.user_email = :owner AND p.quality_state NOT IN ('rejected','excluded_by_user','private_redacted')
-                    AND (p.source_at AT TIME ZONE :tz)::date BETWEEN :from AND :to
-               GROUP BY day, a.code, a.name"
-            );
-            $countryStmt->execute([':tz' => $timezone, ':version' => $countryDataset['version'], ':owner' => $owner, ':from' => $from, ':to' => $to]);
-            $countries = $countryStmt->fetchAll(PDO::FETCH_ASSOC);
+            $countries = self::resolveAreas($pdo, 'country', (string)$countryDataset['version'], $owner, $timezone, $from, $to);
         }
         $cities = [];
         if ($cityDataset !== null) {
-            $cityStmt = $pdo->prepare(
-                "SELECT (p.source_at AT TIME ZONE :tz)::date::text AS day, a.name, a.code, COUNT(*) AS count
-                   FROM geo_location_points p
-                   JOIN geo_boundary_areas a ON a.dataset_version = :version AND a.kind = 'city' AND ST_Covers(a.geometry, p.position)
-                  WHERE p.user_email = :owner AND p.quality_state NOT IN ('rejected','excluded_by_user','private_redacted')
-                    AND (p.source_at AT TIME ZONE :tz)::date BETWEEN :from AND :to
-               GROUP BY day, a.name, a.code"
-            );
-            $cityStmt->execute([':tz' => $timezone, ':version' => $cityDataset['version'], ':owner' => $owner, ':from' => $from, ':to' => $to]);
-            $cities = $cityStmt->fetchAll(PDO::FETCH_ASSOC);
+            $cities = self::resolveAreas($pdo, 'city', (string)$cityDataset['version'], $owner, $timezone, $from, $to);
         }
 
         $daily = self::groupDaily($points, $timezone, $countries, $cities);

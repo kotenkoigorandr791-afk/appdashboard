@@ -46,6 +46,12 @@ function geo_points_filter(array $in, string $owner): array
 }
 
 if ($method === 'GET') {
+    if (($_GET['revision'] ?? '') === '1') {
+        $stmt = $pdo->prepare("SELECT id FROM geo_audit_events WHERE user_email = :owner AND event_type = 'points.deleted' ORDER BY created_at DESC, id DESC LIMIT 1");
+        $stmt->execute([':owner' => $owner]);
+        header('Cache-Control: no-store');
+        public_api_json(['ok' => true, 'revision' => (string)($stmt->fetchColumn() ?: '')]);
+    }
     [$where, $params] = geo_points_filter($_GET, $owner);
     $limit = max(1, min(200, (int)($_GET['limit'] ?? 50)));
     $offset = max(0, (int)($_GET['offset'] ?? 0));
@@ -69,10 +75,28 @@ if (in_array($action, ['smooth', 'unsmooth'], true)) {
     StepsGeolocationFeatures::requireEnabled($pdo, $owner, 'capture');
 }
 $ids = array_values(array_filter((array)($body['ids'] ?? []), static fn($id): bool => is_string($id) && StepsGeolocationDomain::isUuid($id)));
-if ($ids !== []) {
-    $ids = array_slice($ids, 0, 5000);
-    $where = 'user_email = :owner AND id IN (' . implode(',', array_map(static fn(string $id): string => $pdo->quote($id), $ids)) . ')';
-    $params = [':owner' => $owner];
+$localDeviceFilter = trim((string)($body['local_device_id'] ?? ''));
+$localClientIds = array_values(array_filter((array)($body['local_client_event_ids'] ?? []), static fn($id): bool => is_string($id) && StepsGeolocationDomain::isUuid($id)));
+$localClientIds = array_slice($localClientIds, 0, 5000);
+$localCondition = '';
+if (StepsGeolocationDomain::isUuid($localDeviceFilter) && $localClientIds !== []) {
+    $localCondition = '(device_id = ' . $pdo->quote($localDeviceFilter) . ' AND client_event_id IN (' . implode(',', array_map(static fn(string $id): string => $pdo->quote($id), $localClientIds)) . '))';
+}
+if ($ids !== [] || $localCondition !== '') {
+    $parts = [];
+    if ($ids !== []) {
+        $ids = array_slice($ids, 0, 5000);
+        $parts[] = 'id IN (' . implode(',', array_map(static fn(string $id): string => $pdo->quote($id), $ids)) . ')';
+    }
+    if ($localCondition !== '') $parts[] = $localCondition;
+    if ($ids === [] && (isset($body['bbox']) || isset($body['from']))) {
+        [$filteredWhere, $params] = geo_points_filter($body, $owner);
+        $where = '(' . $filteredWhere . ') OR (user_email = :local_owner AND ' . $localCondition . ')';
+        $params[':local_owner'] = $owner;
+    } else {
+        $where = 'user_email = :owner AND (' . implode(' OR ', $parts) . ')';
+        $params = [':owner' => $owner];
+    }
 } else {
     [$where, $params] = geo_points_filter($body, $owner);
     if (!isset($params[':from']) && !isset($params[':bbox']) && !isset($params[':minLon'])) {
@@ -139,21 +163,33 @@ try {
     $range = $pdo->prepare("SELECT MIN(source_at) AS a, MAX(source_at) AS b, COUNT(*) AS n FROM geo_location_points WHERE $where");
     $range->execute($params);
     $span = $range->fetch(PDO::FETCH_ASSOC);
-    $del = $pdo->prepare("DELETE FROM geo_location_points WHERE $where");
+    $del = $pdo->prepare("DELETE FROM geo_location_points WHERE $where RETURNING device_id, client_event_id");
     $del->execute($params);
-    $deleted = $del->rowCount();
+    $removed = $del->fetchAll(PDO::FETCH_ASSOC);
+    $deleted = count($removed);
+    $localDevice = trim((string)($body['local_device_id'] ?? ''));
+    $localEvents = [];
+    if (StepsGeolocationDomain::isUuid($localDevice)) {
+        foreach ($removed as $point) {
+            if (($point['device_id'] ?? '') === $localDevice && !empty($point['client_event_id'])) $localEvents[] = $point['client_event_id'];
+        }
+    }
     if ($deleted > 0 && $span && $span['a'] !== null) {
         $line = "(SELECT ST_MakeLine(p.position ORDER BY p.source_at) FROM geo_location_points p WHERE p.user_email = t.user_email AND p.quality_state = 'accepted' AND p.source_at BETWEEN t.started_at AND t.ended_at)";
         $bind = [':o' => $owner, ':a' => $span['a'], ':b' => $span['b']];
         $pdo->prepare("UPDATE geo_trips t SET geometry = $line, distance_m = COALESCE(ST_Length($line::geography), 0), updated_at = now() WHERE t.user_email = :o AND t.deleted_at IS NULL AND t.started_at <= :b AND t.ended_at >= :a AND ST_NPoints($line) >= 2")->execute($bind);
         $pdo->prepare("UPDATE geo_trips t SET deleted_at = now(), state = 'archived', updated_at = now() WHERE t.user_email = :o AND t.deleted_at IS NULL AND t.started_at <= :b AND t.ended_at >= :a AND COALESCE(ST_NPoints($line), 0) < 2")->execute($bind);
     }
+    if ($deleted > 0) $pdo->prepare('DELETE FROM geo_statistics_cache WHERE user_email = :owner')->execute([':owner' => $owner]);
     $pdo->prepare('INSERT INTO geo_audit_events(id, user_email, actor_email, event_type, context_json) VALUES(:id, :o, :o, :e, :c)')
         ->execute([':id' => geo_points_uuid(), ':o' => $owner, ':e' => 'points.deleted', ':c' => json_encode(['count' => $deleted])]);
     $pdo->commit();
     StepsGeolocationObservability::invalidateOwner($owner);
-    StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'delete');
-    public_api_json(['ok' => true, 'deleted' => $deleted]);
+    if ($deleted > 0) {
+        try { StepsGeolocationAchievements::enqueueIfEnabled($pdo, $owner, 'delete'); }
+        catch (Throwable $e) { error_log('geolocation points delete achievement queue: ' . $e->getMessage()); }
+    }
+    public_api_json(['ok' => true, 'deleted' => $deleted, 'local_event_ids' => $localEvents]);
 } catch (Throwable $e) {
     if ($pdo->inTransaction()) $pdo->rollBack();
     error_log('geolocation points delete: ' . $e->getMessage());

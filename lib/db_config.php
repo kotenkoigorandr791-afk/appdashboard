@@ -118,6 +118,7 @@ function app_pdo_open(array $c): PDO {
         $pdo->exec("SET timezone TO 'UTC'");
         $pdo->exec('SET search_path TO public');
     }
+    foreach ((array)($GLOBALS['app_db_extra_session_sql'] ?? []) as $q) $pdo->exec((string)$q);
     return $pdo;
 }
 function app_pdo_connect(bool $fresh = false): PDO {

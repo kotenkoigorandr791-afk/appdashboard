@@ -1110,6 +1110,7 @@ $metricButtons = [
                     async function startMapWorkspace(){
                         if(mapStarted) return mapBootPromise;
                         mapStarted=true;
+                        pollPointRevision();
                         mapBootPromise=(async()=>{
                             loadFamilyTargets();
                             try{
@@ -1697,6 +1698,25 @@ $metricButtons = [
                     const syncSpeedLegend=()=>{ const l=document.getElementById('ma-speed-legend'); if(l) l.hidden=!selectedLayers().includes('speed'); };
                     section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ syncSpeedLegend(); saveSettings(); fetchViewport(); }));
                     setTimeout(syncSpeedLegend,300);
+                    let pointRevision = null;
+                    let revisionPending = false;
+                    async function pollPointRevision(){
+                        if(!mapStarted||!mapHost||mapHost.hidden||document.hidden||revisionPending) return;
+                        revisionPending=true;
+                        try{
+                            const response=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_points&revision=1',{credentials:'same-origin',cache:'no-store'});
+                            if(!response.ok) return;
+                            const data=await response.json();
+                            if(!data.ok) return;
+                            const revision=String(data.revision||'');
+                            if(pointRevision!==null&&pointRevision!==revision){
+                                cancelPrefetch(); chunkCache.clear();
+                                await fetchViewport(); loadTrips();
+                            }
+                            pointRevision=revision;
+                        }catch(e){}finally{ revisionPending=false; }
+                    }
+                    setInterval(pollPointRevision,3000);
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); pollLive(); },30000);
                     // The live marker is cheap (one row) and updates every 10 s, so a
                     // moving phone visibly walks across the map.

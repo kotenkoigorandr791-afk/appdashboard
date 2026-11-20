@@ -10,6 +10,7 @@
  * window, replaces automatic trips in that window and never touches trips the
  * owner edited (`override_json.manual`), so rebuilds are deterministic.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_domain.php';
 require_once dirname(__DIR__) . '/core/geolocation_trips.php';

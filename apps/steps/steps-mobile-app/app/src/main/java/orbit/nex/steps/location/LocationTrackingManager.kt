@@ -59,10 +59,6 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingPaused(false)
         prefs.setLocationPermissionLost(false)
         LocationTrackingService.start(appContext)
-        // Keep draining the outbox even if the user never opens the map again, and
-        // send anything left from the previous session right away.
-        LocationUploadWorker.ensurePeriodic(appContext)
-        LocationUploadWorker.enqueue(appContext)
         return true
     }
 

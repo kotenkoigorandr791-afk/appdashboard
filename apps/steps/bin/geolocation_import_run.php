@@ -10,6 +10,7 @@
  * repository as mobile uploads. Progress and per-file errors stay in
  * PostgreSQL, so the status API can show partial failures.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_imports.php';

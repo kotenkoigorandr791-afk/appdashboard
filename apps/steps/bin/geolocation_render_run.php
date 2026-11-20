@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_render.php';

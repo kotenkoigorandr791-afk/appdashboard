@@ -490,7 +490,7 @@ final class StepsGeolocationMap
             // Heat is a density overlay: a street walked once is already drawn by
             // the trip track, so only cells passed by two or more separate routes
             // are returned. Otherwise heat just hides the underlying track.
-            $heatMinWeight = 2;
+            $heatMinWeight = 1;
             $segParams = [':owner' => $owner, ':from' => $from, ':to' => $to, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
             if ($device !== '') $segParams[':device'] = $device;
             $pointSql = self::trackCte($device !== '') . ", segs AS (

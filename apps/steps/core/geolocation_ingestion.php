@@ -85,6 +85,7 @@ final class StepsGeolocationIngestion
         $appVersion = StepsGeolocationDomain::normalizeDeviceName((string)($point['app_version'] ?? ''));
         $pdo->beginTransaction();
         try {
+            $pdo->exec('SET LOCAL synchronous_commit = off');
             // The row lock makes a concurrent revoke wait, so a revoked device
             // can never slip a point in after the revoke was acknowledged.
             $lock = $pdo->prepare('SELECT status, name, platform, app_version FROM geo_devices WHERE user_email = :owner AND id = :device FOR UPDATE');
@@ -96,14 +97,13 @@ final class StepsGeolocationIngestion
                     $pdo->rollBack();
                     return ['status' => 'rejected', 'error' => $status === 'paused' ? 'device_paused' : 'device_revoked'];
                 }
-                $stmt = $pdo->prepare('UPDATE geo_devices SET name = :name, platform = :platform, app_version = :app_version, last_seen_at = now(), updated_at = now() WHERE user_email = :owner AND id = :device');
-                $stmt->execute([
-                    ':name' => $name !== '' ? $name : (string)$existingDevice['name'],
-                    ':platform' => $platform !== '' ? $platform : (string)$existingDevice['platform'],
-                    ':app_version' => $appVersion !== '' ? $appVersion : (string)$existingDevice['app_version'],
-                    ':owner' => $owner,
-                    ':device' => $device,
-                ]);
+                $newName = $name !== '' ? $name : (string)$existingDevice['name'];
+                $newPlatform = $platform !== '' ? $platform : (string)$existingDevice['platform'];
+                $newVersion = $appVersion !== '' ? $appVersion : (string)$existingDevice['app_version'];
+                if ($newName !== (string)$existingDevice['name'] || $newPlatform !== (string)$existingDevice['platform'] || $newVersion !== (string)$existingDevice['app_version']) {
+                    $stmt = $pdo->prepare('UPDATE geo_devices SET name = :name, platform = :platform, app_version = :app_version, updated_at = now() WHERE user_email = :owner AND id = :device');
+                    $stmt->execute([':name' => $newName, ':platform' => $newPlatform, ':app_version' => $newVersion, ':owner' => $owner, ':device' => $device]);
+                }
                 if ($source === 'mobile') {
                     $pdo->prepare(
                         "UPDATE geo_devices
@@ -169,9 +169,12 @@ final class StepsGeolocationIngestion
             }
             if ($id && $namespace !== '' && $sourceEventId !== '') self::linkSource($pdo, $owner, (string)$id, $namespace, $sourceEventId);
             if ($id && $importFileId !== '' && StepsGeolocationDomain::isUuid($importFileId)) self::linkImport($pdo, $owner, $importFileId, (string)$id);
-            if ($id) {
-                $touch = $pdo->prepare('UPDATE geo_devices SET last_upload_at = now(), last_seen_at = now() WHERE user_email = :owner AND id = :device');
-                $touch->execute([':owner' => $owner, ':device' => $device]);
+            if ($existingDevice || $id) {
+                $touch = $pdo->prepare('UPDATE geo_devices SET last_upload_at = CASE WHEN :inserted = 1 THEN now() ELSE last_upload_at END, last_seen_at = now() WHERE user_email = :owner AND id = :device');
+                $touch->bindValue(':inserted', $id ? 1 : 0, PDO::PARAM_INT);
+                $touch->bindValue(':owner', $owner);
+                $touch->bindValue(':device', $device);
+                $touch->execute();
             }
             $pdo->commit();
             if ($id) {

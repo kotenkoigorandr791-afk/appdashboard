@@ -93,7 +93,7 @@ class PointsActivity : ComponentActivity() {
 private fun PointsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
-    val repository = remember { PointManagementRepository(prefs) }
+    val repository = remember { PointManagementRepository(prefs, context) }
     val scope = rememberCoroutineScope()
     val config = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
     var from by remember { mutableStateOf("") }

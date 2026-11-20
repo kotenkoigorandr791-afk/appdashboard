@@ -111,14 +111,16 @@ class SyncManager(private val context: Context) {
     }
 
     suspend fun performSync(timeRangeDays: Int? = null, start: Instant? = null, end: Instant? = null, syncType: String = "auto", targetWebhooks: List<WebhookConfig>? = null, autoResolveConflict: Boolean = false): Result<SyncResult> {
-        // Coordinates wait in their own outbox and are not part of the health read,
-        // so a manual "sync now" has to drain them explicitly; otherwise points
-        // stay pending until the periodic upload worker happens to run.
-        val locationPending = flushLocationOutbox(targetWebhooks)
+        if (syncType == "auto" && preferencesManager.getSyncMode() == SyncMode.INTERVAL) {
+            preferencesManager.ensureInitialSyncAnchor()
+            val anchor = preferencesManager.getEffectiveLastSyncAnchor() ?: System.currentTimeMillis()
+            if (System.currentTimeMillis() < anchor + preferencesManager.getSyncIntervalMinutes() * 60_000L) return Result.success(SyncResult.NoData)
+        }
         if (!syncMutex.tryLock()) {
             return Result.success(SyncResult.AlreadyRunning)
         }
         return try {
+            val locationPending = flushLocationOutbox(targetWebhooks)
             val result = performSyncInternal(
                 timeRangeDays, start, end, syncType, targetWebhooks, autoResolveConflict, locationPending,
             )

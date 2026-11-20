@@ -111,7 +111,7 @@ private data class SelectionBox(
 private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
-    val repository = remember { PointManagementRepository(prefs) }
+    val repository = remember { PointManagementRepository(prefs, context) }
     val scope = rememberCoroutineScope()
     val config = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
     remember { configureOsm(context) }
@@ -172,9 +172,9 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                 var total = 0
                 while (all.size < 1000) {
                     val page = repository.loadPage(active, pageIndex, dayFrom, dayTo, null, box?.query)
-                    if (page.error != null) { error = page.error; break }
                     total = page.total
                     all += page.points
+                    if (page.error != null) { error = page.error; break }
                     pageIndex++
                     if (all.size >= page.total || page.points.isEmpty()) break
                 }
@@ -237,6 +237,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     factory = { ctx ->
                         MapView(ctx).apply {
                             setMultiTouchControls(true)
+                            if (!darkTheme) setTilesScaledToDpi(false)
                             applyBasemap(this, MapStyle.fromKey(prefs.getMapBasemap()), darkTheme)
                             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
                             controller.setZoom(if (focus != null) 16.0 else 5.0)
@@ -258,7 +259,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     },
                     modifier = Modifier.fillMaxSize(),
                 )
-                Text("© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
+                Text(if (!darkTheme && MapStyle.fromKey(prefs.getMapBasemap()) == MapStyle.NORMAL) "© OpenStreetMap contributors" else "© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                 if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
                 Row(Modifier.align(Alignment.BottomCenter).padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     orbit.nex.steps.screens.DayPill(

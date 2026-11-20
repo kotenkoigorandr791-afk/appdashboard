@@ -3,6 +3,7 @@
  * Bounded analytics cache refresh using the existing durable job queue.
  * It never sends coordinates to another service and never creates public data.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_analytics.php';

@@ -82,7 +82,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
-    val pointRepository = remember { PointManagementRepository(prefs) }
+    val pointRepository = remember { PointManagementRepository(prefs, context) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
     val matchingConfig = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
 

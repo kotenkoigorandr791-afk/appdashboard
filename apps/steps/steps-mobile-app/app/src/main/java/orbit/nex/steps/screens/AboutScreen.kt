@@ -146,7 +146,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         Triple("data", Icons.Filled.Storage, R.string.settings_group_data),
         Triple("perms", Icons.Filled.Security, R.string.perms_title),
         Triple("location", Icons.Filled.LocationOn, R.string.settings_group_location),
-        Triple("points", Icons.Filled.Place, R.string.points_title),
+        Triple("points", Icons.Filled.ScatterPlot, R.string.points_title),
         Triple("look", Icons.Filled.Palette, R.string.settings_personalization),
         Triple("updates", Icons.Filled.Update, R.string.settings_update_title),
         Triple("logs", Icons.AutoMirrored.Filled.ListAlt, R.string.settings_logs_title),

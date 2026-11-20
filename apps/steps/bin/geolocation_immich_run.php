@@ -5,6 +5,7 @@
  *   php apps/steps/bin/geolocation_immich_run.php --loop
  *   php apps/steps/bin/geolocation_immich_run.php --user=owner@example.com
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_immich.php';

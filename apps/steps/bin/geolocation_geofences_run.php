@@ -10,6 +10,7 @@
  * from the latest committed event and new events are inserted transactionally
  * with the evaluator version recorded in the audit trail.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_geofences.php';
 require_once dirname(__DIR__) . '/core/geolocation_notifications.php';

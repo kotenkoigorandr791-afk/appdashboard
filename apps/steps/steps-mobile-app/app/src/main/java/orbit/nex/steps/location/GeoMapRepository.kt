@@ -62,6 +62,15 @@ data class GeoPointFeature(
 /** Data extent of the response, used to frame the map after loading a day. */
 data class GeoBoundingBox(val north: Double, val south: Double, val east: Double, val west: Double)
 
+object GeoMapChanges {
+    private val counter = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val revision: kotlinx.coroutines.flow.StateFlow<Long> = counter
+    fun invalidate(context: android.content.Context) {
+        context.cacheDir.listFiles()?.filter { it.name.startsWith("geomap_") && it.name.endsWith(".json") }?.forEach { it.delete() }
+        counter.value += 1
+    }
+}
+
 data class GeoMapData(
     val trips: List<GeoTrip> = emptyList(),
     val points: List<GeoPointFeature> = emptyList(),
@@ -98,6 +107,7 @@ class GeoMapRepository(
         // A bare date would be parsed by the server as UTC midnight, which drops
         // the local first hours of the day. Send the local day as explicit
         // instants: [local 00:00, local next 00:00).
+        val generation = GeoMapChanges.revision.value
         val zone = java.time.ZoneId.systemDefault()
         val from = day.atStartOfDay(zone).toInstant().toString()
         val to = day.plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1).toString()
@@ -128,7 +138,7 @@ class GeoMapRepository(
                     return@use GeoMapData(error = "HTTP ${response.code}")
                 }
                 val parsed = parse(JSONObject(body))
-                if (parsed.error == null) runCatching { cacheFile(config, day)?.writeText(body) }
+                if (parsed.error == null && generation == GeoMapChanges.revision.value) runCatching { cacheFile(config, day)?.writeText(body) }
                 parsed
             }
         }.getOrElse { error ->

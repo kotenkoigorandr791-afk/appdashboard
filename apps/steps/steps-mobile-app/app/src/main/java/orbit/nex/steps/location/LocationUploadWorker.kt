@@ -87,6 +87,11 @@ class LocationUploadWorker(
                 .enqueueUniquePeriodicWork(PERIODIC_WORK, ExistingPeriodicWorkPolicy.UPDATE, request)
         }
 
+        fun cancelAll(context: Context) {
+            WorkManager.getInstance(context.applicationContext).cancelUniqueWork(UNIQUE_WORK)
+            cancelPeriodic(context)
+        }
+
         fun cancelPeriodic(context: Context) {
             WorkManager.getInstance(context.applicationContext).cancelUniqueWork(PERIODIC_WORK)
         }

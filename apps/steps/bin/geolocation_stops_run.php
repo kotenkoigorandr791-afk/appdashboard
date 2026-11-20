@@ -8,6 +8,7 @@
  * Automatic stops/visits inside the recompute window are replaced; rows the
  * owner reviewed (override_json.manual) are preserved.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_stops.php';
 require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
