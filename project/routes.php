@@ -240,14 +240,37 @@ if ($path === '/client-auth') {
     $deviceName = $validRequest ? my_htmlspecialchars((string)($row['device_name'] ?: 'Desktop app')) : 'Desktop app';
     $platformName = $validRequest ? my_htmlspecialchars((string)($row['platform'] ?: 'desktop')) : 'desktop';
     $userEmail = my_htmlspecialchars((string)($_SESSION['user']['email'] ?? ''));
-    $primaryColor = my_htmlspecialchars((string)($config['color'] ?? '#2563eb'));
+    $primaryColor = my_htmlspecialchars(trim((string)($config['color'] ?? '')) !== '' ? (string)$config['color'] : '#2563eb');
+
+    // This screen can open on anyone's phone, so language and theme follow the
+    // browser instead of the signed-in user's saved preferences.
+    $caSupported = ['en', 'ru', 'uk', 'be', 'pl', 'cs'];
+    $caLang = 'en';
+    foreach (explode(',', strtolower((string)($_SERVER['HTTP_ACCEPT_LANGUAGE'] ?? ''))) as $caPart) {
+        $caTag = strtolower(trim(explode(';', $caPart)[0]));
+        if ($caTag === '') continue;
+        $caPrimary = preg_split('/[-_]/', $caTag)[0] ?? '';
+        if ($caPrimary === 'ua') $caPrimary = 'uk';
+        if ($caPrimary === 'by') $caPrimary = 'be';
+        if (in_array($caPrimary, $caSupported, true)) {
+            $caLang = $caPrimary;
+            break;
+        }
+    }
+    $caAll = require __DIR__ . '/client_auth_i18n.php';
+    $ca = $caAll[$caLang] ?? $caAll['en'];
+    $caE = static function (string $key) use ($ca): string {
+        return my_htmlspecialchars((string)($ca[$key] ?? ''));
+    };
+    $caJs = json_encode($ca, JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT);
     ?>
     <!doctype html>
-    <html lang="en">
+    <html lang="<?php echo $caLang; ?>">
     <head>
         <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>Desktop Authorization</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta name="color-scheme" content="light dark">
+        <title><?php echo $caE('title'); ?></title>
         <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
         <link rel="icon" type="image/png" href="/icon.png?v=3">
         <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
@@ -255,61 +278,122 @@ if ($path === '/client-auth') {
             :root{
                 color-scheme: light dark;
                 --accent: <?php echo $primaryColor; ?>;
-                --bg: light-dark(#f3f5f7,#0f1115);
-                --card: light-dark(rgba(255,255,255,.82),rgba(24,26,32,.82));
-                --line: light-dark(rgba(20,24,31,.08),rgba(255,255,255,.08));
-                --text: light-dark(#1f2329,#f3f5f7);
-                --muted: light-dark(#5a6472,#a8b0bc);
-                --shadow: 0 24px 64px rgba(0,0,0,.18);
+                --bg: #eef1f5;
+                --card: #ffffff;
+                --card-soft: #f5f7fa;
+                --line: rgba(16,24,40,.10);
+                --text: #171b21;
+                --muted: #5c6673;
+                --ok: #1d7a3d;
+                --err: #c02626;
+                --shadow: 0 20px 50px rgba(16,24,40,.13);
+                --ring: rgba(37,99,235,.45);
+            }
+            @media (prefers-color-scheme: dark){
+                :root{
+                    --bg: #0b0e12;
+                    --card: #161a21;
+                    --card-soft: #1d222b;
+                    --line: rgba(255,255,255,.10);
+                    --text: #f1f4f8;
+                    --muted: #a7b0bd;
+                    --ok: #7fe0a0;
+                    --err: #ff9d9d;
+                    --shadow: 0 20px 50px rgba(0,0,0,.55);
+                    --ring: rgba(125,175,255,.5);
+                }
             }
             *{box-sizing:border-box}
             body{
                 margin:0;
                 min-height:100vh;
-                font:15px/1.5 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
-                background:
-                    radial-gradient(circle at top, light-dark(rgba(255,255,255,.94), rgba(255,255,255,.05)), transparent 40%),
-                    linear-gradient(180deg, light-dark(#eef1f4,#0b0d10), var(--bg));
-                color:var(--text);
+                min-height:100dvh;
                 display:flex;
+                flex-direction:column;
                 align-items:center;
-                justify-content:center;
-                padding:24px;
+                justify-content:flex-start;
+                gap:14px;
+                padding:clamp(14px,4vw,28px);
+                font:15px/1.55 system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;
+                background:var(--bg);
+                color:var(--text);
+                -webkit-text-size-adjust:100%;
             }
             .card{
-                width:min(620px,100%);
+                width:100%;
+                max-width:560px;
+                margin-block:auto;
+                padding:clamp(18px,5vw,30px);
+                border:1px solid var(--line);
+                border-radius:22px;
                 background:var(--card);
-                border:1px solid var(--line);
-                border-radius:24px;
-                padding:32px;
                 box-shadow:var(--shadow);
-                backdrop-filter:blur(18px);
             }
-            .pill{display:inline-flex;align-items:center;gap:8px;padding:7px 12px;border-radius:999px;background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.05));color:var(--muted);font-size:12px;letter-spacing:.1em;text-transform:uppercase}
-            h1{font-size:34px;line-height:1.05;margin:14px 0 10px}
-            p{color:var(--muted);font-size:15px;line-height:1.6;margin:0}
-            .meta{margin:22px 0;padding:18px;border-radius:18px;background:light-dark(rgba(255,255,255,.55),rgba(255,255,255,.04));border:1px solid var(--line)}
-            .meta-row{display:flex;justify-content:space-between;gap:16px;padding:8px 0}
-            .meta-row span:first-child{color:var(--muted)}
-            button{
-                border:1px solid var(--line);
-                border-radius:14px;
-                padding:14px 18px;
-                font:inherit;
-                font-weight:700;
-                cursor:pointer;
-                background:light-dark(#23272f,#e5e9ef);
-                color:light-dark(#fff,#111318);
-                width:100%
+            .pill{
+                display:inline-flex;align-items:center;gap:8px;padding:6px 11px;border-radius:999px;
+                background:var(--card-soft);border:1px solid var(--line);color:var(--muted);
+                font-size:11.5px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;
             }
-            button[disabled]{opacity:.6;cursor:wait}
-            .secondary{margin-top:12px;background:transparent;color:var(--text)}
-            .status{margin-top:16px;min-height:24px;color:var(--muted)}
-            .ok{color:#2e7d32}.err{color:#c62828}
+            h1{
+                margin:14px 0 8px;
+                font-size:clamp(22px,6.4vw,32px);
+                line-height:1.15;
+                letter-spacing:-.01em;
+                overflow-wrap:anywhere;
+            }
+            p{margin:0;color:var(--muted);font-size:15px;line-height:1.6;overflow-wrap:anywhere}
+            .meta{
+                margin:20px 0 18px;padding:6px 16px;border-radius:16px;
+                background:var(--card-soft);border:1px solid var(--line);
+            }
+            .meta-row{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 12px;padding:10px 0;border-bottom:1px solid var(--line)}
+            .meta-row:last-child{border-bottom:0}
+            .meta-row span{color:var(--muted);font-size:14px;white-space:nowrap}
+            .meta-row strong{
+                margin-left:auto;min-width:0;max-width:100%;
+                text-align:right;overflow-wrap:anywhere;
+                font-size:14px;line-height:1.4;
+            }
+            /* Narrow phones: give long account/device values a little more room */
+            @media (max-width:400px){
+                .meta{padding:6px 12px}
+                .meta-row strong{font-size:13.5px}
+            }
+            .btn{
+                display:flex;align-items:center;justify-content:center;gap:8px;
+                width:100%;margin:0;padding:14px 18px;
+                border:1px solid transparent;border-radius:14px;
+                font:inherit;font-weight:700;line-height:1.25;text-align:center;
+                cursor:pointer;transition:filter .15s ease,transform .12s ease,background .15s ease,border-color .15s ease;
+            }
+            .btn-primary{background:var(--accent);color:#fff;box-shadow:0 10px 22px rgba(16,24,40,.18)}
+            .btn-primary:hover{filter:brightness(1.07)}
+            .btn-primary:active{transform:translateY(1px);box-shadow:none}
+            .btn-secondary{margin-top:10px;background:transparent;color:var(--text);border-color:var(--line)}
+            .btn-secondary:hover{background:var(--card-soft)}
+            .btn:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+            .btn[disabled]{opacity:.6;cursor:wait;filter:none;transform:none;box-shadow:none}
+            .status{margin-top:14px;min-height:22px;color:var(--muted);font-size:14px;overflow-wrap:anywhere}
+            .status.ok{color:var(--ok)}
+            .status.err{color:var(--err)}
+            .legal{display:flex;flex-wrap:wrap;gap:10px;margin-top:20px;padding-top:18px;border-top:1px solid var(--line)}
+            .legal a{
+                flex:1 1 130px;
+                display:inline-flex;align-items:center;justify-content:center;gap:8px;
+                padding:11px 14px;border-radius:12px;
+                border:1px solid var(--line);background:var(--card-soft);
+                color:var(--text);font-size:13.5px;font-weight:600;text-decoration:none;
+                transition:color .15s ease,border-color .15s ease,background .15s ease;
+            }
+            .legal a:hover{color:var(--accent);border-color:var(--accent)}
+            .legal a:focus-visible{outline:3px solid var(--ring);outline-offset:2px}
+            .legal svg{width:16px;height:16px;flex:none;opacity:.85}
             .toast{
-                position:fixed;right:18px;bottom:18px;min-width:240px;max-width:360px;padding:14px 16px;
-                border-radius:14px;background:light-dark(rgba(35,39,47,.96), rgba(236,239,244,.96));color:light-dark(#fff,#111318);
-                box-shadow:var(--shadow);transform:translateY(18px);opacity:0;pointer-events:none;transition:.22s ease;
+                position:fixed;left:14px;right:14px;bottom:calc(14px + env(safe-area-inset-bottom));
+                margin:0 auto;max-width:360px;padding:13px 16px;border-radius:14px;
+                background:var(--card);border:1px solid var(--line);color:var(--text);
+                box-shadow:var(--shadow);font-size:14px;
+                transform:translateY(18px);opacity:0;pointer-events:none;transition:.22s ease;
             }
             .toast.show{transform:none;opacity:1}
         </style>
@@ -318,20 +402,33 @@ if ($path === '/client-auth') {
         <div class="card">
             <div class="pill"><?php echo $mobileAuth ? 'Nexorbit' : 'NexOrbit Desktop'; ?></div>
             <?php if (!$validRequest): ?>
-                <h1>Authorization request is invalid or expired</h1>
-                <p>Return to the desktop app and start authorization again.</p>
+                <h1><?php echo $caE('invalid_title'); ?></h1>
+                <p><?php echo $caE('invalid_desc'); ?></p>
             <?php else: ?>
-                <h1><?php echo $mobileAuth ? 'Sign in to your app' : 'Authorize desktop sync'; ?></h1>
-                <p><?php echo $mobileAuth ? 'Confirm that you want to sign in on this device.' : 'Confirm token generation and cloud synchronization for this device. After confirmation, the browser will return control to the running application.'; ?></p>
+                <h1><?php echo $caE($mobileAuth ? 'mobile_title' : 'desktop_title'); ?></h1>
+                <p><?php echo $caE($mobileAuth ? 'mobile_desc' : 'desktop_desc'); ?></p>
                 <div class="meta">
-                    <div class="meta-row"><span>Account</span><strong><?php echo $userEmail; ?></strong></div>
-                    <div class="meta-row"><span>Device</span><strong><?php echo $deviceName; ?></strong></div>
-                    <div class="meta-row"><span>Platform</span><strong><?php echo $platformName; ?></strong></div>
+                    <div class="meta-row"><span><?php echo $caE('account'); ?></span><strong><?php echo $userEmail; ?></strong></div>
+                    <div class="meta-row"><span><?php echo $caE('device'); ?></span><strong><?php echo $deviceName; ?></strong></div>
+                    <div class="meta-row"><span><?php echo $caE('platform'); ?></span><strong><?php echo $platformName; ?></strong></div>
                 </div>
-                <button id="approveBtn" type="button">Confirm authorization</button>
-                <button class="secondary" type="button" onclick="window.close()">Close</button>
-                <div id="status" class="status"></div>
+                <button id="approveBtn" class="btn btn-primary" type="button"><?php echo $caE('approve'); ?></button>
+                <button class="btn btn-secondary" type="button" onclick="window.close()"><?php echo $caE('close'); ?></button>
+                <div id="status" class="status" role="status" aria-live="polite"></div>
                 <script>
+                const T = <?php echo $caJs; ?>;
+                (function syncLegalLinks(){
+                    const lang = document.documentElement.lang || 'en';
+                    const dark = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+                    const apply = () => {
+                        const theme = dark && dark.matches ? 'dark' : 'light';
+                        document.querySelectorAll('a[data-legal]').forEach((a) => {
+                            a.href = a.dataset.legal + '?lang=' + encodeURIComponent(lang) + '&theme=' + theme;
+                        });
+                    };
+                    apply();
+                    if (dark && dark.addEventListener) dark.addEventListener('change', apply);
+                })();
                 function showToast(text){
                     const toast=document.getElementById('toast');
                     toast.textContent=text;
@@ -348,7 +445,7 @@ if ($path === '/client-auth') {
                 const approveBtn = document.getElementById('approveBtn');
                 approveBtn.addEventListener('click', async () => {
                     approveBtn.disabled = true;
-                    statusEl.textContent = 'Approving and sending token to the application...';
+                    statusEl.textContent = T.approving;
                     showToast(statusEl.textContent);
                     try {
                         const res = await fetch('/main?api=client_auth&action=approve_browser_login', {
@@ -363,14 +460,14 @@ if ($path === '/client-auth') {
                         if (!data.ok) {
                             throw new Error(data.error || 'authorization_failed');
                         }
-                        statusEl.textContent = 'Authorization confirmed. Returning to the application...';
+                        statusEl.textContent = T.confirmed;
                         statusEl.className = 'status ok';
                         showToast(statusEl.textContent);
                         if (data.redirect_url) {
                             window.location.href = data.redirect_url;
                         }
                     } catch (err) {
-                        statusEl.textContent = 'Failed to confirm authorization: ' + err.message;
+                        statusEl.textContent = T.failed + err.message;
                         statusEl.className = 'status err';
                         showToast(statusEl.textContent);
                         approveBtn.disabled = false;
@@ -378,8 +475,18 @@ if ($path === '/client-auth') {
                 });
                 </script>
             <?php endif; ?>
+            <nav class="legal" aria-label="<?php echo $caE('legal_label'); ?>">
+                <a data-legal="/privacy" href="/privacy?lang=<?php echo $caLang; ?>" target="_blank" rel="noopener noreferrer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6l7-3z"/><path d="M9 12l2 2 4-4"/></svg>
+                    <span><?php echo $caE('privacy'); ?></span>
+                </a>
+                <a data-legal="/terms" href="/terms?lang=<?php echo $caLang; ?>" target="_blank" rel="noopener noreferrer">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8l-5-5z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg>
+                    <span><?php echo $caE('terms'); ?></span>
+                </a>
+            </nav>
         </div>
-        <div id="toast" class="toast"></div>
+        <div id="toast" class="toast" role="status" aria-live="polite"></div>
     </body>
     </html>
     <?php
