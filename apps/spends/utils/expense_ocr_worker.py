@@ -645,7 +645,7 @@ def ensure_db_schema(conn):
     # PostgreSQL deployments provision these tables centrally and the worker runs
     # as the unprivileged spends_app role, so any CREATE/ALTER here aborted the
     # whole OCR job with "permission denied for schema spends_shared".
-    if conn.__class__.__name__ == "PgConnection":
+    if conn.__class__.__name__ == "PgConnection" or hasattr(conn, "_conn"):
         return
     conn.execute("CREATE TABLE IF NOT EXISTS settings(key TEXT PRIMARY KEY,value TEXT)")
     conn.execute("CREATE TABLE IF NOT EXISTS stores(id TEXT PRIMARY KEY,name TEXT NOT NULL,visible INTEGER NOT NULL DEFAULT 1,sort_order INTEGER NOT NULL DEFAULT 0)")
@@ -730,7 +730,13 @@ def process(job_dir,user_email,base_currency):
     except Exception:
         warnings.append({"code":"no_rates"})
     conn=connect_user('spends', user_email)
-    ensure_db_schema(conn)
+    # Schema DDL is only a SQLite convenience: on PostgreSQL the tables belong to
+    # the app role and the worker may not create them. Never fail an OCR job
+    # because the best-effort bootstrap was refused.
+    try:
+        ensure_db_schema(conn)
+    except Exception as exc:
+        print(f"schema bootstrap skipped: {exc}", flush=True)
     conn.execute("BEGIN")
     existing_stores=load_existing_stores(conn)
     grouped={}
