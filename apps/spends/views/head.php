@@ -1017,6 +1017,343 @@ for ($i = 1; $i <= 20 && $spendsRatio($spendsRgb($primaryText), $spendsSurface) 
         .table-cal-back:hover { background:rgba(var(--primary-color-rgb),.14); }
         @keyframes tableCalIn { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:none; } }
         #pagination button { min-width:34px; height:32px; padding:0 9px; border-radius:9px; font-family:inherit; font-size:13px; font-weight:700; }
+
+        /* ══════════════════════════════════════════════════════════════════
+           Design system ported from the approved UI concept (dark theme).
+           Palette, radii and control metrics come from the concept file.
+           ══════════════════════════════════════════════════════════════════ */
+        html[data-theme="dark"] {
+            --bg-color:#161716;
+            --text-color:#F3F4F6;
+            --muted-text:#9CA3AF;
+            --surface-solid:#1E211E;
+            --surface-rail:#191B19;
+            --group-block-bg:#222522;
+            --border-color:#2E322E;
+            --modal-bg:#1C1E1C;
+            --radius-lg:16px;
+            --radius-md:12px;
+            --radius-sm:8px;
+            --ds-accent:#78C835;
+            --ds-accent-hover:#86D642;
+            --ds-accent-ink:#11160E;
+            --ds-danger:#E53935;
+            --ds-success:#38D66B;
+            --ds-warning:#EAB308;
+            --ds-line:#282B28;
+            --ds-line-strong:#323632;
+            --ds-surface-2:#191B19;
+            --radius-lg:16px;
+        }
+        html[data-theme="dark"] body {
+            background-color:#161716;
+            background-image:radial-gradient(circle at 86% 85%, rgba(46,125,110,.14) 0%, transparent 46%),
+                             radial-gradient(circle at 18% 32%, rgba(56,78,105,.08) 0%, transparent 45%);
+            font-variant-numeric:tabular-nums;
+        }
+        html[data-theme="dark"] #bg-layer { display:none; }
+        html[data-theme="dark"] .app-expenses { max-width:1440px; padding-top:calc(var(--top-bar-height) + 20px); }
+
+        /* ── Top app bar ───────────────────────────────────────────────── */
+        html[data-theme="dark"] .header {
+            background:rgba(24,26,24,.95);
+            border-bottom:1px solid var(--ds-line);
+            box-shadow:none;
+            backdrop-filter:blur(12px);
+            -webkit-backdrop-filter:blur(12px);
+        }
+        html[data-theme="dark"] .header h2 { color:#fff; font-size:1.15rem; font-weight:700; letter-spacing:-.01em; }
+        html[data-theme="dark"] .header-buttons { gap:8px; }
+        html[data-theme="dark"] .header-btn {
+            width:40px; height:40px; border-radius:999px;
+            border:1px solid transparent; background:transparent; color:#D1D5DB;
+            transition:background .15s ease, border-color .15s ease, color .15s ease;
+        }
+        html[data-theme="dark"] .header-btn:hover { background:#242724; border-color:var(--ds-line-strong); color:#fff; transform:none; }
+        html[data-theme="dark"] .header-btn:active { background:#2B2F2B; }
+        html[data-theme="dark"] .header-btn .header-btn-label { display:none; font-size:14px; font-weight:600; white-space:nowrap; }
+        html[data-theme="dark"] .header-btn.add-btn,
+        html[data-theme="dark"] .header-btn-table {
+            width:auto; padding:0 16px; gap:8px;
+            border-radius:999px;
+        }
+        html[data-theme="dark"] .header-btn.add-btn {
+            background:var(--ds-accent); border-color:var(--ds-accent); color:var(--ds-accent-ink);
+            box-shadow:0 0 18px rgba(120,200,53,.18);
+        }
+        html[data-theme="dark"] .header-btn.add-btn:hover { background:var(--ds-accent-hover); border-color:var(--ds-accent-hover); color:var(--ds-accent-ink); }
+        html[data-theme="dark"] .header-btn-table { background:#222522; border-color:var(--ds-line-strong); color:#E5E7EB; }
+        html[data-theme="dark"] .header-btn-table svg { color:var(--ds-accent); }
+        html[data-theme="dark"] .header-btn-table:hover { background:#2B2F2B; color:#fff; }
+        html[data-theme="dark"] .header-btn-table .header-btn-label { display:none; }
+        html[data-theme="dark"] .header-divider { width:1px; height:20px; background:#2C302C; margin:0 2px; flex:0 0 auto; }
+        @media (min-width:640px) {
+            html[data-theme="dark"] .header-btn.add-btn .header-btn-label { display:inline; }
+        }
+        @media (min-width:768px) {
+            html[data-theme="dark"] .header-btn-table .header-btn-label { display:inline; }
+        }
+        html[data-theme="dark"] .profile-avatar-btn { border-color:#363A36; padding:2px; }
+        html[data-theme="dark"] .profile-avatar-btn:hover { border-color:#565C56; background:transparent; }
+        html[data-theme="dark"] .import-dropdown,
+        html[data-theme="dark"] .profile-dropdown {
+            background:#202220; border:1px solid var(--ds-line-strong);
+            border-radius:16px; box-shadow:0 20px 50px rgba(0,0,0,.7);
+        }
+        html[data-theme="dark"] .import-dropdown button,
+        html[data-theme="dark"] .profile-dropdown .profile-menu-item {
+            border-radius:12px; color:#E5E7EB; font-size:14px;
+        }
+        html[data-theme="dark"] .import-dropdown button:hover,
+        html[data-theme="dark"] .profile-dropdown .profile-menu-item:hover { background:#2A2D2A; color:#fff; }
+
+        /* ── KPI cards ─────────────────────────────────────────────────── */
+        html[data-theme="dark"] .financial-summary-bar {
+            display:grid; grid-template-columns:1fr; gap:16px;
+            margin:0 0 20px; padding:0; background:none; border:0;
+        }
+        @media (min-width:768px) {
+            html[data-theme="dark"] .financial-summary-bar { grid-template-columns:repeat(3,minmax(0,1fr)); }
+        }
+        html[data-theme="dark"] .financial-summary-bar > div {
+            display:flex; flex-direction:column; gap:4px;
+            padding:16px 20px; border-radius:16px;
+            background:#1E211E; border:1px solid var(--border-color);
+        }
+        html[data-theme="dark"] .financial-summary-bar span { font-size:12px; color:var(--muted-text); }
+        html[data-theme="dark"] .financial-summary-bar strong { font-size:20px; font-weight:700; color:#fff; }
+        html[data-theme="dark"] .financial-summary-bar > div:nth-child(1) strong { color:#38D66B !important; }
+        html[data-theme="dark"] .financial-summary-bar > div:nth-child(2) strong { color:#E53935 !important; }
+        html[data-theme="dark"] .financial-summary-bar > div:nth-child(3) strong { color:#fff !important; }
+
+        /* ── Year pill and chart card ──────────────────────────────────── */
+        html[data-theme="dark"] .chart-header { display:flex; justify-content:center; margin:0 0 12px; }
+        html[data-theme="dark"] .chart-year-framed {
+            margin:0; padding:8px 20px; border-radius:12px;
+            background:#1E211E; border:1px solid var(--border-color);
+            color:#E5E7EB; font-size:14px; font-weight:600;
+            box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none;
+        }
+        html[data-theme="dark"] .chart-container {
+            max-width:100%; margin:0 0 20px; padding:16px 20px;
+            background:#1C1E1C; border:1px solid #2C302C; border-radius:16px;
+        }
+        html[data-theme="dark"] #expenses-chart { height:320px; }
+
+        /* ── Currency chips, year arrows, action pills ─────────────────── */
+        html[data-theme="dark"] .divider { display:none; }
+        html[data-theme="dark"] .chart-controls-row {
+            display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:16px;
+            padding:4px 0 24px; margin:0 0 8px; border-bottom:1px solid var(--ds-line);
+        }
+        html[data-theme="dark"] .currency-selector { display:flex; flex-wrap:wrap; gap:6px; }
+        html[data-theme="dark"] .currency-btn {
+            flex:0 0 auto; padding:8px 14px; border-radius:12px;
+            background:#1E211E; border:1px solid var(--border-color);
+            color:#D1D5DB; font-size:12px; font-weight:600;
+        }
+        html[data-theme="dark"] .currency-btn:hover { background:#282B28; color:#fff; border-color:var(--border-color); }
+        html[data-theme="dark"] .currency-btn.active { background:var(--ds-accent); border-color:var(--ds-accent); color:var(--ds-accent-ink); }
+        html[data-theme="dark"] .chart-nav-btn {
+            width:36px; height:36px; padding:0; border-radius:12px;
+            background:#1E211E; border:1px solid var(--border-color); color:#9CA3AF;
+            display:inline-flex; align-items:center; justify-content:center;
+        }
+        html[data-theme="dark"] .chart-nav-btn:hover { background:#282B28; color:#fff; }
+        html[data-theme="dark"] .chart-toggle-btn {
+            padding:8px 16px; border-radius:12px;
+            background:#1E211E; border:1px solid var(--border-color);
+            color:#E5E7EB; font-size:12px; font-weight:600;
+        }
+        html[data-theme="dark"] .chart-toggle-btn:hover { background:#282B28; color:#fff; }
+
+        /* ── Modal chrome ──────────────────────────────────────────────── */
+        html[data-theme="dark"] .modal { background:rgba(20,22,20,.95); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
+        html[data-theme="dark"] .modal-content {
+            background:#1C1E1C; border:1px solid var(--border-color);
+            border-radius:16px; box-shadow:0 20px 50px rgba(0,0,0,.7);
+            backdrop-filter:none; -webkit-backdrop-filter:none;
+        }
+        html[data-theme="dark"] .modal-content::before {
+            background:#1C1E1C; border-bottom:1px solid var(--ds-line);
+            border-radius:16px 16px 0 0;
+        }
+        html[data-theme="dark"] .modal-topbar { background:#1C1E1C; border-bottom:1px solid var(--ds-line); min-height:56px; padding:0 20px; }
+        html[data-theme="dark"] .modal-topbar-title { font-size:16px; font-weight:700; color:#fff; }
+        html[data-theme="dark"] .modal-close {
+            position:static; width:32px; height:32px; padding:0; box-sizing:border-box;
+            border-radius:8px; border:1px solid var(--ds-line-strong);
+            background:#202320; color:#9CA3AF; box-shadow:none;
+            display:inline-flex; align-items:center; justify-content:center;
+            font-size:18px; line-height:1;
+        }
+        html[data-theme="dark"] .modal-close:hover { background:#2C302C; color:#fff; filter:none; }
+
+        /* ── Form controls inside modals ───────────────────────────────── */
+        html[data-theme="dark"] .modal-body input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+        html[data-theme="dark"] .modal-body select,
+        html[data-theme="dark"] .modal-body textarea {
+            background:#181A18; border:1px solid var(--border-color); border-radius:12px;
+            color:#F3F4F6; font-size:13px; padding:10px 14px; min-height:40px;
+        }
+        html[data-theme="dark"] .modal-body select:not([multiple]) {
+            background-color:#181A18; background-position:right 12px center;
+            padding-right:36px;
+        }
+        html[data-theme="dark"] .modal-body input:focus,
+        html[data-theme="dark"] .modal-body select:focus,
+        html[data-theme="dark"] .modal-body textarea:focus {
+            border-color:var(--ds-accent); box-shadow:none; outline:none;
+        }
+        html[data-theme="dark"] .modal-body label,
+        html[data-theme="dark"] .modal-body .form-row > label { font-size:12px; font-weight:600; color:#D1D5DB; }
+
+        /* ── Buttons ───────────────────────────────────────────────────── */
+        html[data-theme="dark"] .action-primary-btn,
+        html[data-theme="dark"] .confirm-btn,
+        html[data-theme="dark"] .add-date-btn,
+        html[data-theme="dark"] .share-act-btn-primary,
+        html[data-theme="dark"] .download-btn,
+        html[data-theme="dark"] .restore-btn,
+        html[data-theme="dark"] .store-photo-crop-btn {
+            background:var(--ds-accent) !important; border:1px solid var(--ds-accent) !important;
+            color:var(--ds-accent-ink) !important; border-radius:12px;
+            padding:9px 16px; font-weight:600; font-size:13px;
+        }
+        html[data-theme="dark"] .action-primary-btn:hover,
+        html[data-theme="dark"] .confirm-btn:hover,
+        html[data-theme="dark"] .add-date-btn:hover { background:var(--ds-accent-hover) !important; border-color:var(--ds-accent-hover) !important; }
+        html[data-theme="dark"] .cancel-btn,
+        html[data-theme="dark"] .share-act-btn,
+        html[data-theme="dark"] .edit-store-btn,
+        html[data-theme="dark"] .add-store-btn {
+            background:#252825; border:1px solid #333733; color:#E5E7EB;
+            border-radius:12px; padding:9px 16px; font-weight:500; font-size:13px;
+        }
+        html[data-theme="dark"] .cancel-btn:hover,
+        html[data-theme="dark"] .share-act-btn:hover,
+        html[data-theme="dark"] .edit-store-btn:hover { background:#2E322E; color:#fff; }
+        html[data-theme="dark"] .delete-store-btn,
+        html[data-theme="dark"] .delete-btn { background:transparent; border:1px solid #3A2727; color:#F87171; border-radius:12px; padding:9px 16px; }
+        html[data-theme="dark"] .delete-store-btn:hover,
+        html[data-theme="dark"] .delete-btn:hover { background:color-mix(in srgb,var(--ds-danger) 16%,transparent); color:#FCA5A5; }
+
+        /* ── Settings: segmented tab bar ───────────────────────────────── */
+        html[data-theme="dark"] #settings-modal .settings-menu-bar {
+            display:flex; flex-wrap:wrap; gap:4px; width:fit-content; margin:0 auto 18px;
+            padding:4px; background:#191B19 !important;
+            border:1px solid #2D312D; border-radius:16px !important;
+            justify-content:center;
+        }
+        html[data-theme="dark"] #settings-modal .settings-menu-btn {
+            background:transparent; border:1px solid transparent !important; border-radius:12px !important;
+            padding:8px 16px; font-size:12px; font-weight:600; color:#9CA3AF;
+        }
+        html[data-theme="dark"] #settings-modal .settings-menu-btn:hover { background:#232723 !important; color:#fff !important; }
+        html[data-theme="dark"] #settings-modal .settings-menu-btn.active {
+            background:#232723 !important; border-color:#78C835 !important; color:#fff !important;
+        }
+        html[data-theme="dark"] .store-item {
+            background:#1E211E; border:1px solid var(--border-color);
+            border-radius:16px; padding:12px 14px;
+        }
+        html[data-theme="dark"] .store-item[data-visible="false"] { opacity:.55; }
+
+        /* ── Table modal ───────────────────────────────────────────────── */
+        html[data-theme="dark"] #expenses-table-modal { padding:0; }
+        html[data-theme="dark"] #expenses-table-modal .modal-content {
+            width:100vw; height:100vh; max-width:none; max-height:none;
+            border-radius:0; border:0; background:#161716; padding:0;
+        }
+        html[data-theme="dark"] #expenses-table-modal .modal-content::before { display:none; }
+        html[data-theme="dark"] #expenses-table-modal .modal-body { display:flex; flex-direction:column; min-height:0; height:100%; padding:0; }
+        html[data-theme="dark"] #expenses-table-modal .table-modal-actions {
+            margin:0; padding:12px 20px 8px; justify-content:flex-end;
+        }
+        html[data-theme="dark"] #expenses-table-modal .table-sub-btn {
+            background:var(--ds-accent) !important; color:var(--ds-accent-ink) !important;
+            border:1px solid var(--ds-accent) !important; border-radius:12px;
+            padding:7px 16px; font-size:12px; font-weight:600;
+        }
+        html[data-theme="dark"] #expenses-table-modal .data-table-container {
+            flex:1 1 auto; min-height:0; margin:0 16px; padding:0;
+            border:1px solid #2C302C; border-radius:12px; background:#191B19; overflow:hidden;
+        }
+        html[data-theme="dark"] #expenses-table-modal .data-table { background:#191B19; color:#E5E7EB; }
+        html[data-theme="dark"] #expenses-table-modal .data-table th {
+            background:var(--ds-accent) !important; color:var(--ds-accent-ink) !important;
+            border:0; border-right:1px solid #63A328 !important;
+            padding:10px 8px; font-size:12px; font-weight:700;
+        }
+        html[data-theme="dark"] #expenses-table-modal .data-table th:last-child { border-right:0 !important; }
+        html[data-theme="dark"] #expenses-table-modal .data-table td {
+            border:0; border-bottom:1px solid var(--ds-line); border-right:1px solid #232623;
+            color:#E5E7EB; padding:4px 6px;
+        }
+        html[data-theme="dark"] #expenses-table-modal .data-table tbody tr:hover td { background:#1F221F; }
+        html[data-theme="dark"] #expenses-table-modal .data-table td:first-child { color:#D1D5DB; font-weight:600; }
+        html[data-theme="dark"] #expenses-table-modal .data-table td input {
+            background:transparent; border:1px solid transparent; border-radius:8px;
+            color:#F3F4F6; text-align:center; min-height:0; padding:4px 6px;
+        }
+        html[data-theme="dark"] #expenses-table-modal .data-table td input:focus {
+            background:#202320; border-color:var(--ds-accent); box-shadow:none;
+        }
+        html[data-theme="dark"] #expenses-table-modal .month-pagination,
+        html[data-theme="dark"] #expenses-table-modal #pagination {
+            margin:0; padding:12px 20px; border-top:1px solid var(--ds-line); background:#161816;
+            display:flex; align-items:center; justify-content:center; gap:8px;
+        }
+        html[data-theme="dark"] #expenses-table-modal .month-pagination button,
+        html[data-theme="dark"] #expenses-table-modal #pagination button {
+            min-width:32px; height:32px; padding:0 10px; border-radius:8px;
+            background:#202320; border:1px solid #303430; color:#D1D5DB;
+            font-size:12px; font-weight:600;
+        }
+        html[data-theme="dark"] #expenses-table-modal .month-pagination button:hover,
+        html[data-theme="dark"] #expenses-table-modal #pagination button:hover { background:#2B2F2B; color:#fff; }
+        html[data-theme="dark"] #expenses-table-modal .month-pagination-label { color:#fff; font-size:12px; font-weight:600; }
+        html[data-theme="dark"] #expenses-table-modal .table-cal-pop { background:#202220; border-color:var(--ds-line-strong); }
+
+        /* ── Manual expense wizard ─────────────────────────────────────── */
+        html[data-theme="dark"] .manual-step {
+            height:38px; padding:0 14px 0 6px; border-radius:999px;
+            background:#1E211E; border:1px solid var(--border-color); color:#9CA3AF;
+            font-size:12px; font-weight:600;
+        }
+        html[data-theme="dark"] .manual-step.active { background:#242D20; border-color:var(--ds-accent); color:#fff; }
+        html[data-theme="dark"] .manual-step.active .manual-step-node { background:var(--ds-accent); border-color:var(--ds-accent); color:var(--ds-accent-ink); }
+        html[data-theme="dark"] .manual-step-node { width:24px; height:24px; flex:0 0 24px; background:#2A2D2A; border-color:transparent; color:#9CA3AF; font-size:11px; }
+        html[data-theme="dark"] .manual-store-btn {
+            background:#1E211E; border:1px solid var(--border-color); border-radius:12px;
+            color:#E5E7EB; font-weight:600;
+        }
+        html[data-theme="dark"] .manual-store-btn:hover { background:#262926; border-color:var(--ds-accent); }
+        html[data-theme="dark"] .manual-store-btn.selected { background:#242D20; border-color:var(--ds-accent); }
+        html[data-theme="dark"] #manual-add-modal .manual-store-search input {
+            background:#1D201D; border:1px solid var(--ds-accent); border-radius:12px;
+            padding:12px 14px 12px 44px; font-size:14px;
+        }
+        html[data-theme="dark"] #manual-add-modal .manual-amount-field {
+            background:#161816; border:1px solid var(--ds-accent); border-radius:12px;
+        }
+        html[data-theme="dark"] #manual-add-modal .manual-amount-field input { font-size:18px; font-weight:700; color:#fff; }
+        html[data-theme="dark"] .manual-summary, html[data-theme="dark"] .manual-sub { background:#1E211E; border:1px solid var(--border-color); border-radius:16px; }
+        html[data-theme="dark"] .goal-card { background:#1E211E; border:1px solid var(--border-color); border-radius:16px; }
+        html[data-theme="dark"] .goal-bar { background:#2B2F2B; }
+
+        /* ── Notifications ─────────────────────────────────────────────── */
+        html[data-theme="dark"] .notification {
+            background:#232623; border:1px solid #363A36; border-radius:12px;
+            color:#fff; font-size:13px; box-shadow:0 20px 50px rgba(0,0,0,.6);
+        }
+        html[data-theme="dark"] .notification.success { border-left:3px solid var(--ds-accent); }
+        html[data-theme="dark"] .notification.error { border-left:3px solid var(--ds-danger); }
+        html[data-theme="dark"] .notification.warning { border-left:3px solid var(--ds-warning); }
+
+        /* ── Exchange rates / share / small dialogs ─────────────────────── */
+        html[data-theme="dark"] .currency-select { background:#1E211E; border:1px solid var(--border-color); border-radius:12px; }
+        html[data-theme="dark"] .modal-body h3 { color:#fff; }
 </style>
     <script>
     function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}

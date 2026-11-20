@@ -105,10 +105,11 @@
         <div class="header-buttons">
             <div class="add-menu-wrap">
             <button id="import-btn" class="header-btn add-btn" type="button" title="<?= htmlspecialchars($translations['add']) ?>">
-                <svg width="28" height="28" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4">
-                    <line x1="24" y1="12" x2="24" y2="36"/>
-                    <line x1="12" y1="24" x2="36" y2="24"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
+                <span class="header-btn-label"><?= htmlspecialchars($translations['add']) ?></span>
             </button>
             <div id="import-menu" class="import-dropdown" role="menu">
                 <button type="button" role="menuitem" id="import-opt-manual"><?= htmlspecialchars($translations['import_menu_manual'] ?? 'Add manually') ?></button>
@@ -117,6 +118,11 @@
                 <button type="button" role="menuitem" id="import-opt-csv"><?= htmlspecialchars($translations['import_menu_csv'] ?? 'CSV') ?></button>
             </div>
             </div>
+            <button class="header-btn header-btn-table" type="button" onclick="showModal('expenses-table-modal')" title="<?= htmlspecialchars($tableModalTitle) ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                <span class="header-btn-label"><?= htmlspecialchars($tableModalTitle) ?></span>
+            </button>
+            <div class="header-divider" aria-hidden="true"></div>
             <button class="header-btn" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v5"/><path d="M16 14.639V21"/><path d="M20 10.656V21"/><path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15"/><path d="M4 18.463V21"/><path d="M8 14.656V21"/></svg>
             </button>
