@@ -8,6 +8,7 @@
  * to classify anything.
  */
 require_once __DIR__ . '/geolocation_quality.php';
+require_once __DIR__ . '/geolocation_place_config.php';
 
 final class StepsGeolocationStops
 {
@@ -15,29 +16,17 @@ final class StepsGeolocationStops
 
     public static function thresholds(): array
     {
-        $env = static function (string $key, float $default, float $min, float $max): float {
-            $raw = getenv($key);
-            if (!is_string($raw) || trim($raw) === '' || !is_numeric($raw)) return $default;
-            return max($min, min($max, (float)$raw));
-        };
-        return [
-            'radius_m' => $env('GEO_STOP_RADIUS_M', 60.0, 10.0, 2000.0),
-            'min_duration_s' => $env('GEO_STOP_MIN_DURATION_S', 300.0, 60.0, 86400.0),
-            'max_gap_s' => $env('GEO_STOP_MAX_GAP_S', 900.0, 60.0, 86400.0),
-            'max_accuracy_m' => $env('GEO_STOP_MAX_ACCURACY_M', 200.0, 5.0, 5000.0),
-            'merge_gap_s' => $env('GEO_STOP_MERGE_GAP_S', 600.0, 0.0, 86400.0),
-            'merge_radius_m' => $env('GEO_STOP_MERGE_RADIUS_M', 80.0, 5.0, 5000.0),
-            'min_points' => $env('GEO_STOP_MIN_POINTS', 3.0, 2.0, 100.0),
-        ];
+        return StepsGeolocationPlaceConfig::stop();
     }
 
     /**
      * @param list<array<string,mixed>> $points
      * @return array{stops:list<array<string,mixed>>,thresholds:array<string,float>}
      */
-    public static function detect(array $points, ?array $thresholds = null): array
+    public static function detect(array $points, ?array $thresholds = null, ?int $now = null): array
     {
         $t = $thresholds ?? self::thresholds();
+        $now = $now ?? time();
         $usable = [];
         foreach ($points as $point) {
             if (($point['quality_state'] ?? 'accepted') === 'rejected') continue;
@@ -68,6 +57,7 @@ final class StepsGeolocationStops
                 $current['ended_at'] = (string)$point['source_at'];
                 $current['sum_lat'] += (float)$point['latitude'];
                 $current['sum_lon'] += (float)$point['longitude'];
+                $current['obs'][] = [(float)$point['latitude'], (float)$point['longitude'], isset($point['accuracy_m']) && is_numeric($point['accuracy_m']) ? (float)$point['accuracy_m'] : null];
                 continue;
             }
             $clusters[] = $current;
@@ -80,14 +70,17 @@ final class StepsGeolocationStops
             $count = count($cluster['point_ids']);
             $duration = $cluster['last_at'] - $cluster['start_at'];
             if ($count < (int)$t['min_points'] || $duration < $t['min_duration_s']) continue;
+            [$centerLat, $centerLon, $medianAccuracy] = self::center($cluster['obs'], (float)$t['preferred_accuracy_m']);
             $stops[] = [
                 'started_at' => $cluster['started_at'],
                 'ended_at' => $cluster['ended_at'],
-                'latitude' => $cluster['sum_lat'] / $count,
-                'longitude' => $cluster['sum_lon'] / $count,
+                'latitude' => $centerLat,
+                'longitude' => $centerLon,
                 'radius_m' => (float)$t['radius_m'],
                 'duration_s' => $duration,
                 'point_ids' => $cluster['point_ids'],
+                'median_accuracy_m' => $medianAccuracy,
+                'provisional' => $now - $cluster['last_at'] < (float)$t['confirm_after_s'],
                 'confidence' => round(min(1.0, 0.5 + 0.05 * $count), 2),
             ];
         }
@@ -106,6 +99,7 @@ final class StepsGeolocationStops
                     $merged[$lastIndex]['point_ids'] = array_merge($previous['point_ids'], $stop['point_ids']);
                     $merged[$lastIndex]['duration_s'] = strtotime($stop['ended_at']) - strtotime($previous['started_at']);
                     $merged[$lastIndex]['confidence'] = max($previous['confidence'], $stop['confidence']);
+                    $merged[$lastIndex]['provisional'] = $stop['provisional'];
                     continue;
                 }
             }
@@ -127,7 +121,30 @@ final class StepsGeolocationStops
             'point_ids' => [(string)$point['id']],
             'sum_lat' => (float)$point['latitude'],
             'sum_lon' => (float)$point['longitude'],
+            'obs' => [[(float)$point['latitude'], (float)$point['longitude'], isset($point['accuracy_m']) && is_numeric($point['accuracy_m']) ? (float)$point['accuracy_m'] : null]],
         ];
+    }
+
+    /**
+     * Centre weighted by 1/accuracy^2, using only fixes at or under the
+     * preferred accuracy when enough of them exist.
+     *
+     * @param list<array{0:float,1:float,2:?float}> $obs
+     * @return array{0:float,1:float,2:?float}
+     */
+    public static function center(array $obs, float $preferred): array
+    {
+        $good = array_values(array_filter($obs, static fn(array $o): bool => $o[2] === null || $o[2] <= $preferred));
+        $use = count($good) >= 2 ? $good : $obs;
+        $sw = 0.0; $sl = 0.0; $so = 0.0;
+        foreach ($use as $o) {
+            $acc = max(3.0, $o[2] ?? $preferred);
+            $wt = 1.0 / ($acc * $acc);
+            $sw += $wt; $sl += $wt * $o[0]; $so += $wt * $o[1];
+        }
+        $accs = array_values(array_filter(array_map(static fn(array $o): ?float => $o[2], $obs), static fn($v): bool => $v !== null));
+        sort($accs);
+        return [$sl / $sw, $so / $sw, $accs === [] ? null : $accs[intdiv(count($accs), 2)]];
     }
 
     public static function uuid(): string

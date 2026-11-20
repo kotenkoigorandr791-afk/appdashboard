@@ -35,6 +35,7 @@ enum class LibraryAction {
     RENAME,
     CONFIRM,
     REJECT,
+    CORRECT,
     PAUSE,
     RESUME,
     REVOKE,
@@ -63,6 +64,18 @@ data class LibrarySnapshot(
     val summary: String = "",
     val enabled: Boolean = true,
     val error: String? = null,
+    val offline: Boolean = false,
+)
+
+data class VisitCandidate(val id: String, val name: String, val subtitle: String)
+
+data class VisitDetail(
+    val id: String,
+    val name: String,
+    val category: String,
+    val tag: String,
+    val candidates: List<VisitCandidate>,
+    val canBlock: Boolean,
 )
 
 /**
@@ -72,9 +85,42 @@ data class LibrarySnapshot(
  * the paired device headers. It never caches coordinates or secrets on disk and
  * turns server errors into short, redacted messages.
  */
+internal object VisitCache {
+    fun write(file: java.io.File?, snapshot: LibrarySnapshot) {
+        if (file == null) return
+        runCatching {
+            val rows = JSONArray()
+            snapshot.entries.forEach {
+                rows.put(JSONObject().put("id", it.id).put("title", it.title).put("subtitle", it.subtitle).put("meta", it.meta).put("status", it.status))
+            }
+            file.writeText(rows.toString())
+        }
+    }
+
+    fun read(file: java.io.File?): LibrarySnapshot? {
+        val source = file?.takeIf { it.isFile } ?: return null
+        return runCatching {
+            val rows = JSONArray(source.readText())
+            val entries = (0 until rows.length()).mapNotNull { i ->
+                val row = rows.optJSONObject(i) ?: return@mapNotNull null
+                LibraryEntry(
+                    id = row.optString("id"),
+                    title = row.optString("title"),
+                    subtitle = row.optString("subtitle"),
+                    meta = row.optString("meta"),
+                    status = row.optString("status"),
+                    active = row.optString("status") in setOf("confirmed", "manual"),
+                )
+            }
+            LibrarySnapshot(entries = entries, offline = true)
+        }.getOrNull()
+    }
+}
+
 class LocationLibraryRepository(
     private val prefs: PreferencesManager,
     private val client: OkHttpClient = OkHttpClient(),
+    private val cacheFile: java.io.File? = null,
 ) {
     suspend fun load(config: WebhookConfig, tab: LibraryTab, query: String = ""): LibrarySnapshot = withContext(Dispatchers.IO) {
         runCatching {
@@ -85,7 +131,7 @@ class LocationLibraryRepository(
             when (tab) {
                 LibraryTab.PLACES -> places(root)
                 LibraryTab.TRIPS -> trips(root)
-                LibraryTab.VISITS -> visits(root)
+                LibraryTab.VISITS -> visits(root).also { VisitCache.write(cacheFile, it) }
                 LibraryTab.GEOFENCES -> geofences(root)
                 LibraryTab.DEVICES -> devices(root)
                 LibraryTab.QUALITY -> quality(root)
@@ -94,8 +140,50 @@ class LocationLibraryRepository(
                 LibraryTab.ANALYTICS -> analytics(root)
             }
         }.getOrElse { failure ->
-            LibrarySnapshot(error = failure.message ?: "network")
+            (if (tab == LibraryTab.VISITS) VisitCache.read(cacheFile) else null)
+                ?: LibrarySnapshot(error = failure.message ?: "network")
         }
+    }
+
+    suspend fun visitDetail(config: WebhookConfig, id: String): Result<VisitDetail> = withContext(Dispatchers.IO) {
+        runCatching {
+            val visit = get(config, "geolocation_stops?id=" + Uri.encode(id)).getJSONArray("visits").getJSONObject(0)
+            val rows = visit.optJSONArray("candidates") ?: JSONArray()
+            val candidates = (0 until rows.length()).mapNotNull { i ->
+                val c = rows.optJSONObject(i) ?: return@mapNotNull null
+                VisitCandidate(
+                    id = c.optString("id"),
+                    name = c.optString("name"),
+                    subtitle = listOf(
+                        c.optString("category"),
+                        if (c.has("distance_m")) "${c.optDouble("distance_m").toInt()} m" else "",
+                        "${(c.optDouble("score") * 100).toInt()}%",
+                    ).filter { it.isNotBlank() }.joinToString(" · "),
+                )
+            }
+            VisitDetail(
+                id = id,
+                name = visit.optString("display_name").ifBlank { visit.optString("place_name") },
+                category = visit.optString("category"),
+                tag = visit.optString("place_tag"),
+                candidates = candidates,
+                canBlock = !visit.isNull("osm_id"),
+            )
+        }
+    }
+
+    suspend fun selectCandidate(config: WebhookConfig, id: String, candidateId: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { post(config, "geolocation_stops", JSONObject().put("action", "select_candidate").put("id", id).put("candidate_id", candidateId)) }
+    }
+
+    suspend fun assignVisit(config: WebhookConfig, id: String, name: String, category: String, tag: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            post(config, "geolocation_stops", JSONObject().put("action", "assign").put("id", id).put("name", name).put("category", category).put("tag", tag))
+        }
+    }
+
+    suspend fun visitAction(config: WebhookConfig, id: String, action: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { post(config, "geolocation_stops", JSONObject().put("action", action).put("id", id)) }
     }
 
     suspend fun apply(config: WebhookConfig, entry: LibraryEntry, action: LibraryAction): Result<Unit> =
@@ -115,6 +203,7 @@ class LocationLibraryRepository(
                     LibraryAction.REJECT -> "geolocation_stops" to JSONObject()
                         .put("action", "reject")
                         .put("id", entry.id)
+                    LibraryAction.CORRECT -> error("Use the visit editor")
                     LibraryAction.PAUSE -> "devices" to JSONObject()
                         .put("action", "pause")
                         .put("device_id", entry.id)
@@ -256,15 +345,18 @@ class LocationLibraryRepository(
             val row = rows.optJSONObject(i) ?: continue
             val arrived = row.optString("arrived_at")
             val departed = row.optString("departed_at")
+            val status = row.optString("detection_status").ifBlank { row.optString("state") }
+            val confidence = if (row.isNull("confidence")) "" else "${(row.optDouble("confidence") * 100).toInt()}%"
             entries += LibraryEntry(
                 id = row.optString("id"),
-                title = row.optString("place_name").ifBlank { "—" },
+                title = row.optString("place_name"),
                 subtitle = listOf(formatTimestamp(arrived), formatTimestamp(departed))
-                    .filter { it.isNotBlank() }.joinToString(" — "),
-                meta = listOf(row.optString("place_tag"), row.optString("state"))
+                    .filter { it.isNotBlank() }.joinToString(" — ") + row.optLong("duration_s").takeIf { it > 0 }?.let { " · " + duration(it) }.orEmpty(),
+                meta = listOf(row.optString("category"), row.optString("place_tag"), confidence, row.optString("address"))
                     .filter { it.isNotBlank() }.joinToString(" · "),
-                status = row.optString("state"),
-                actions = listOf(LibraryAction.CONFIRM, LibraryAction.REJECT),
+                status = status,
+                active = status == "confirmed" || status == "manual",
+                actions = listOf(LibraryAction.CORRECT, LibraryAction.CONFIRM, LibraryAction.REJECT),
             )
         }
         return LibrarySnapshot(entries = entries)

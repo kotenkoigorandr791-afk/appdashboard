@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -62,6 +63,7 @@ import orbit.nex.steps.location.LibraryEntry
 import orbit.nex.steps.location.LibrarySnapshot
 import orbit.nex.steps.location.LibraryTab
 import orbit.nex.steps.location.LocationLibraryRepository
+import orbit.nex.steps.location.VisitDetail
 import kotlinx.coroutines.delay
 
 private data class PendingLibraryAction(val entry: LibraryEntry, val action: LibraryAction)
@@ -91,7 +93,7 @@ fun LocationPanelsSheet(onDismiss: () -> Unit, onTripSelected: (java.time.LocalD
 private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.time.LocalDate, List<orbit.nex.steps.location.GeoLatLon>) -> Unit, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
-    val repository = remember { LocationLibraryRepository(prefs) }
+    val repository = remember { LocationLibraryRepository(prefs, cacheFile = java.io.File(context.filesDir, "visits_cache.json")) }
     val scope = rememberCoroutineScope()
     val config = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
     var tabName by rememberSaveable { mutableStateOf(LibraryTab.PLACES.name) }
@@ -102,6 +104,7 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.t
     var pending by remember { mutableStateOf<PendingLibraryAction?>(null) }
     var renameEntry by remember { mutableStateOf<LibraryEntry?>(null) }
     var renameText by remember { mutableStateOf("") }
+    var visitEdit by remember { mutableStateOf<LibraryEntry?>(null) }
     var actionBusy by remember { mutableStateOf(false) }
     var actionError by remember { mutableStateOf<String?>(null) }
     var notice by remember { mutableStateOf<String?>(null) }
@@ -178,6 +181,9 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.t
                 Modifier.fillMaxSize().padding(horizontal = Spacing.md),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
+                if (snapshot.offline) {
+                    item { Text(stringResource(R.string.visit_offline), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.error) }
+                }
                 if (snapshot.summary.isNotBlank()) {
                     item { Text(snapshot.summary, style = MaterialTheme.typography.labelLarge) }
                 }
@@ -202,9 +208,10 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.t
                 items(snapshot.entries, key = { it.id }) { entry ->
                     LibraryCard(
                         entry = entry,
-                        enabled = !actionBusy,
+                        enabled = !actionBusy && !snapshot.offline,
                         onAction = { action ->
                             if (action == LibraryAction.RENAME) { renameEntry = entry; renameText = entry.title }
+                            else if (action == LibraryAction.CORRECT) visitEdit = entry
                             else pending = PendingLibraryAction(entry, action)
                         },
                         onOpen = {
@@ -224,6 +231,16 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.t
                 item { Spacer(Modifier.height(10.dp)) }
             }
         }
+    }
+
+    visitEdit?.let { entry ->
+        val active = config
+        if (active != null) VisitEditorDialog(
+            repository = repository,
+            config = active,
+            entry = entry,
+            onDone = { changed -> visitEdit = null; if (changed) { notice = updatedLabel; refreshKey++ } },
+        )
     }
 
     renameEntry?.let { entry ->
@@ -307,7 +324,7 @@ private fun LibraryCard(entry: LibraryEntry, enabled: Boolean, onAction: (Librar
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    entry.title,
+                    entry.title.ifBlank { stringResource(R.string.visit_unidentified) },
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
                     maxLines = 1,
@@ -365,7 +382,11 @@ private fun statusLabel(status: String): String = when (status.lowercase()) {
     "paused" -> stringResource(R.string.library_status_paused)
     "revoked" -> stringResource(R.string.library_status_revoked)
     "deleted", "archived" -> stringResource(R.string.library_status_archived)
-    "confirmed" -> stringResource(R.string.library_status_active)
+    "confirmed" -> stringResource(R.string.visit_status_confirmed)
+    "provisional" -> stringResource(R.string.visit_status_provisional)
+    "manual" -> stringResource(R.string.visit_status_manual)
+    "unidentified" -> stringResource(R.string.visit_status_unidentified)
+    "pending" -> stringResource(R.string.visit_status_pending)
     "rejected" -> stringResource(R.string.library_status_archived)
     else -> status.replaceFirstChar { it.uppercase() }
 }
@@ -388,6 +409,7 @@ private fun LibraryAction.labelRes(): Int = when (this) {
     LibraryAction.RENAME -> R.string.library_rename
     LibraryAction.CONFIRM -> R.string.library_confirm
     LibraryAction.REJECT -> R.string.library_reject
+    LibraryAction.CORRECT -> R.string.visit_edit
     LibraryAction.PAUSE -> R.string.library_pause
     LibraryAction.RESUME -> R.string.library_resume
     LibraryAction.REVOKE -> R.string.library_revoke
@@ -404,7 +426,7 @@ private fun confirmText(action: LibraryAction): String = when (action) {
     LibraryAction.DELETE -> stringResource(R.string.library_confirm_delete_place)
     LibraryAction.ARCHIVE -> stringResource(R.string.library_confirm_archive_trip)
     LibraryAction.RENAME -> stringResource(R.string.library_rename)
-    LibraryAction.CONFIRM, LibraryAction.REJECT -> stringResource(R.string.library_confirm_visit)
+    LibraryAction.CONFIRM, LibraryAction.REJECT, LibraryAction.CORRECT -> stringResource(R.string.library_confirm_visit)
     LibraryAction.PAUSE, LibraryAction.RESUME -> stringResource(R.string.library_confirm_device)
     LibraryAction.REVOKE -> stringResource(R.string.library_confirm_revoke)
     LibraryAction.DISABLE -> stringResource(R.string.library_confirm_disable_geofence)
@@ -413,4 +435,75 @@ private fun confirmText(action: LibraryAction): String = when (action) {
     LibraryAction.PIN_VIEW -> stringResource(R.string.library_confirm_pin_view)
     LibraryAction.DELETE_VIEW -> stringResource(R.string.library_confirm_delete_view)
     LibraryAction.APPLY_VIEW -> stringResource(R.string.library_confirm_apply_view)
+}
+
+private val VISIT_TAGS = listOf("" to R.string.visit_tag_none, "home" to R.string.visit_tag_home, "work" to R.string.visit_tag_work, "school" to R.string.visit_tag_school, "gym" to R.string.visit_tag_gym, "favorite" to R.string.visit_tag_favorite)
+
+@Composable
+private fun VisitEditorDialog(
+    repository: LocationLibraryRepository,
+    config: orbit.nex.steps.WebhookConfig,
+    entry: LibraryEntry,
+    onDone: (Boolean) -> Unit,
+) {
+    val scope = rememberCoroutineScope()
+    var detail by remember { mutableStateOf<VisitDetail?>(null) }
+    var name by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
+    var tag by remember { mutableStateOf("") }
+    var busy by remember { mutableStateOf(true) }
+    var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(entry.id) {
+        repository.visitDetail(config, entry.id)
+            .onSuccess { detail = it; name = it.name; category = it.category; tag = it.tag }
+            .onFailure { error = it.message }
+        busy = false
+    }
+    fun run(block: suspend () -> Result<Unit>) {
+        busy = true
+        error = null
+        scope.launch {
+            block().onSuccess { onDone(true) }.onFailure { error = it.message; busy = false }
+        }
+    }
+    AlertDialog(
+        onDismissRequest = { if (!busy) onDone(false) },
+        title = { Text(stringResource(R.string.visit_edit)) },
+        text = {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (busy && detail == null) CircularProgressIndicator()
+                detail?.let { d ->
+                    if (d.candidates.isNotEmpty()) {
+                        Text(stringResource(R.string.visit_candidates), style = MaterialTheme.typography.labelLarge)
+                        d.candidates.forEach { c ->
+                            TextButton(enabled = !busy, onClick = { run { repository.selectCandidate(config, d.id, c.id) } }, modifier = Modifier.fillMaxWidth()) {
+                                Column(Modifier.fillMaxWidth()) {
+                                    Text(c.name.ifBlank { stringResource(R.string.visit_unnamed) }, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                                    Text(c.subtitle, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                    OutlinedTextField(value = name, onValueChange = { name = it.take(80) }, singleLine = true, label = { Text(stringResource(R.string.visit_name)) }, modifier = Modifier.fillMaxWidth())
+                    OutlinedTextField(value = category, onValueChange = { category = it.take(60) }, singleLine = true, label = { Text(stringResource(R.string.visit_category)) }, modifier = Modifier.fillMaxWidth())
+                    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        VISIT_TAGS.forEach { (value, label) ->
+                            FilterChip(selected = tag == value, onClick = { tag = value }, label = { Text(stringResource(label)) })
+                        }
+                    }
+                    Row(Modifier.horizontalScroll(rememberScrollState())) {
+                        TextButton(enabled = !busy, onClick = { run { repository.visitAction(config, d.id, "retry") } }) { Text(stringResource(R.string.visit_retry)) }
+                        if (d.canBlock) TextButton(enabled = !busy, onClick = { run { repository.visitAction(config, d.id, "block") } }) { Text(stringResource(R.string.visit_block)) }
+                    }
+                }
+                error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            }
+        },
+        confirmButton = {
+            TextButton(enabled = !busy && detail != null && (name.isNotBlank() || tag.isNotBlank()), onClick = { run { repository.assignVisit(config, entry.id, name.trim(), category.trim(), tag) } }) {
+                Text(stringResource(R.string.visit_save))
+            }
+        },
+        dismissButton = { TextButton(enabled = !busy, onClick = { onDone(false) }) { Text(stringResource(R.string.library_cancel)) } },
+    )
 }

@@ -3847,6 +3847,7 @@
                 if (clean) await importAction('cleanup_file', clean.getAttribute('data-import-cleanup'));
             });
             const placesApi = '/apps/steps/api/session_gateway.php?endpoint=places';
+            const placePrefsApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_place_prefs';
             const geofencesApi = '/apps/steps/api/session_gateway.php?endpoint=geofences';
             const qualityApi = '/apps/steps/api/session_gateway.php?endpoint=geolocation_quality';
             function toolsText(key, fallback) { return (window.translations && translations[key]) || fallback; }
@@ -3901,7 +3902,15 @@
             async function loadLocationTools() {
                 const status = document.getElementById('location-tools-status');
                 try {
-                    const [quality, places, zones] = await Promise.all([toolsCall(qualityApi, null), toolsCall(placesApi, null), toolsCall(geofencesApi, null)]);
+                    const [quality, places, zones, placePrefs] = await Promise.all([toolsCall(qualityApi, null), toolsCall(placesApi, null), toolsCall(geofencesApi, null), toolsCall(placePrefsApi, null).catch(() => ({pending:0,last_run:null}))]);
+                    const detectStatus = document.getElementById('location-places-detect-status');
+                    if (detectStatus) {
+                        const pending = Number(placePrefs.pending || 0);
+                        const run = placePrefs.last_run;
+                        detectStatus.textContent = pending
+                            ? toolsText('location_places_detect_pending', '{n} visit(s) waiting for detection').replace('{n}', String(pending))
+                            : (run ? toolsText('location_places_detect_idle', 'Up to date. Last run: {state}').replace('{state}', String(run.state || '')) : toolsText('location_places_detect_idle_empty', 'No pending visits.'));
+                    }
                     const c = quality.counts || {};
                     const counts = document.getElementById('location-quality-counts');
                     if (counts) counts.textContent = ['accepted', 'flagged', 'suspect', 'rejected', 'excluded_by_user', 'private_redacted', 'not_enough_evidence', 'pending'].map(k => k + ': ' + (c[k] || 0)).join(' · ');
@@ -3983,6 +3992,18 @@
                     host.appendChild(row);
                 });
             }
+            document.getElementById('location-places-detect')?.addEventListener('click', async () => {
+                const status = document.getElementById('location-tools-status');
+                const detectStatus = document.getElementById('location-places-detect-status');
+                try {
+                    const data = await toolsCall(placePrefsApi, { action: 'reprocess' });
+                    const queued = data.queued || {};
+                    const msg = toolsText('location_places_detect_queued', 'Place detection queued for {n} visit(s).').replace('{n}', String(queued.visits ?? queued.pending ?? 0));
+                    if (status) status.textContent = msg;
+                    if (detectStatus) detectStatus.textContent = msg;
+                    await loadLocationTools();
+                } catch (e) { if (status) status.textContent = e.message; }
+            });
             document.getElementById('location-quality-reprocess')?.addEventListener('click', async () => {
                 const status = document.getElementById('location-tools-status');
                 try { await toolsCall(qualityApi, { action: 'reprocess' }); if (status) status.textContent = toolsText('location_quality_queued', 'Quality recheck queued.'); }

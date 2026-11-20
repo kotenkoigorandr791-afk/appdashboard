@@ -40,6 +40,7 @@ $allowed = [
     'notifications',
     'geolocation_renders',
     'geolocation_points',
+    'geolocation_place_prefs',
     'geolocation_achievements',
     'api_keys',
 ];

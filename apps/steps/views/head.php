@@ -4621,6 +4621,29 @@ body.map-sidebar-open { overflow: hidden !important; }
     text-transform: none;
 }
 .trip-field textarea { min-height: 44px; resize: vertical; }
+.map-ctx-menu { position: absolute; z-index: 1200; min-width: 200px; display: flex; flex-direction: column; padding: 4px; border-radius: 10px; background: var(--card-bg, #1f2937); border: 1px solid var(--border-color, #374151); box-shadow: 0 8px 24px rgba(0,0,0,.35); }
+.map-ctx-menu button { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border: 0; border-radius: 6px; background: transparent; color: inherit; font: inherit; font-size: 13px; text-align: left; cursor: pointer; }
+.map-ctx-menu button:hover, .map-ctx-menu button:focus-visible { background: color-mix(in srgb, var(--primary-color) 18%, transparent); outline: none; }
+.map-ctx-head { padding: 4px 10px; font-size: 11px; opacity: .65; font-variant-numeric: tabular-nums; }
+.visit-chip { display: inline-block; padding: 1px 8px; border-radius: 999px; color: #fff; font-size: 10px; font-weight: 600; white-space: nowrap; }
+.visit-pop-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.visit-modal { position: fixed; inset: 0; z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0,0,0,.5); }
+.visit-modal-box { width: min(440px, 100%); max-height: 90vh; overflow: auto; border-radius: 14px; background: var(--card-bg, #1f2937); color: var(--text-color, inherit); border: 1px solid var(--border-color, #374151); padding: 14px; display: flex; flex-direction: column; gap: 10px; }
+.visit-modal-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.visit-modal-body { display: flex; flex-direction: column; gap: 10px; }
+.visit-meta, .visit-sub, .visit-msg { font-size: 12px; opacity: .8; }
+.visit-msg:empty { display: none; }
+.visit-cands { display: flex; flex-direction: column; gap: 6px; }
+.visit-cand { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border-color, #374151); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.visit-cand span { font-size: 11px; opacity: .75; }
+.visit-cand:hover, .visit-cand.is-selected { border-color: var(--primary-color); }
+.visit-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.visit-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--border-color, #374151); background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.visit-row:hover { border-color: var(--primary-color); }
+.visit-row-text { display: flex; flex-direction: column; min-width: 0; }
+.visit-row-text strong, .visit-row-text small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.visit-row-text small { font-size: 11px; opacity: .7; }
+.visit-dot { width: 10px; height: 10px; border-radius: 50%; flex: 0 0 auto; }
 .trip-field input:focus,
 .trip-field textarea:focus {
     outline: none;

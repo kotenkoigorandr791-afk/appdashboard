@@ -1,18 +1,64 @@
-# AppDashboard
+# NexOrbit
 
-AppDashboard is a self-hosted PHP dashboard for a collection of personal and team applications. It includes authentication, OAuth, shared files, an admin panel, a public API, Telegram integration, an MCP server, WebSSH, backups and application modules such as Cloud, Films, Recipes, Maps, Media Viewer, Performance, Spends and Steps.
+NexOrbit is a self-hosted PHP dashboard that integrates multiple personal and team applications. It includes authentication, OAuth 2.0, shared files, admin panel, public API, Telegram integration, MCP server, WebSSH, automated backups and various application modules.
 
-## Quick start
+## Branded & Secure
 
-```bash
-cp .env.example .env
-# edit BASE_DOMAIN (and DB_PASSWORD if needed)
-docker compose up -d --build
-```
+- **App Name**: NexOrbit
+- **OAuth Providers**: Google, GitHub
+- **Customizable Branding**: Custom app name, logo, favicon
+- **Digital Signatures**: App signing for enhanced security and trust
+- **Session & Token Auth**: Multiple secure authentication methods
+- **Full OAuth 2.0 Provider**: Authorization server with OpenID Connect support
 
-Open `http://localhost/` (local) or `https://<BASE_DOMAIN>/` (server).
+## Core Services
 
-Docker development details, service descriptions and operational commands are in [README.docker.md](README.docker.md).
+| Service | URL | Description |
+|---------|-----|-------------|
+| **NexOrbit** | `http://localhost/` or `https://<BASE_DOMAIN>/` | Main dashboard UI, session-based auth, shared files, admin panel, OAuth login |
+| **AI Gateway** | `https://ai.<BASE_DOMAIN>` | OmniRoute AI routing, supports multiple LLM providers |
+| **Search Engine** | `https://search.<BASE_DOMAIN>` | SearXNG meta search engine |
+| **Git** | `https://git.<BASE_DOMAIN>` | Gitea self-hosted Git service |
+| **Photos** | `https://photo.<BASE_DOMAIN>` | Immich photo/video management |
+| **Documents** | `https://document.<BASE_DOMAIN>` | OnlyOffice document editing |
+| **Docker** | `https://docker.<BASE_DOMAIN>` | Portainer container management |
+| **Maps** | `https://dawarich.<BASE_DOMAIN>` | Dawarich mapping tool |
+| **WebSSH** | `https://<BASE_DOMAIN>/ssh-ws` | Interactive SSH terminal in browser |
+
+## Authentication Methods
+
+| Method | Usage | Token Type |
+|--------|-------|------------|
+| **Session** | Web browser login | Cookie (`session_id`) |
+| **Bearer (Password Grant)** | Mobile apps, CLI, scripts | JWT Access + Refresh tokens |
+| **OAuth 2.0 / OIDC** | Third-party apps, MCP, SSO | OAuth Access Token |
+| **Desktop Client Auth** | Native desktop apps | JWT (browser-mediated) |
+
+- **Session Auth**: Web UI at `/login`, `/register`, `/verify`, `/logout`
+- **Bearer Auth**: API base at `/public-api/v1/auth`, endpoints: `/auth/login`, `/auth/me`, `/auth/refresh`, `/auth/revoke`
+- **OAuth**: Authorization server with discovery at `/.well-known/openid-configuration`, supports all standard flows (authorization code, client credentials, PKCE)
+
+### Supported OAuth Providers
+
+- **Google** — Social login via Google accounts
+- **GitHub** — Social login via GitHub accounts
+
+Configure providers in Admin Panel → Configuration → OAuth Providers
+
+## Key Features
+
+- **Branding**: Fully customizable app name (NexOrbit), logo, and favicon
+- **OAuth 2.0**: Full Authorization Server + OpenID Provider support (3rd-party SSO, AI assistants)
+- **Social Login**: Google and GitHub OAuth integration
+- **App Signing**: Digital signatures for enhanced security and trust
+- **Shared Files**: Public/private file sharing without login
+- **Admin Panel**: User management, app access, security settings, backups
+- **Public API**: RESTful API for Cloud, Films, Steps, Spends, Recipes, etc.
+- **Telegram Bot**: Integration with Telegram for notifications
+- **MCP Server**: Model Context Protocol integration for AI assistants
+- **WebSSH**: Browser-based SSH terminal with auto-start
+- **Automated Backups**: Restic-based backups (no Duplicati required)
+- **App Modules**: Cloud, Films, Recipes, Maps, Media Viewer, Performance, Spends, Steps
 
 ## Single domain setting
 

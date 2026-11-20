@@ -2,12 +2,15 @@
 require_once __DIR__ . '/store.php';
 // Settings
 $defaultSettings = [
+    'occupation'    => 'prefer_not_to_say',
     'goal_steps'    => 10000,
     'height'        => 170,
     'weight'        => 70,
     'stride_length' => 70,
     'birth_date'    => '1994-01-01',
 ];
+
+function steps_occupation_values(): array { return ['student', 'school_student', 'office_worker', 'remote_worker', 'freelancer', 'entrepreneur', 'self_employed', 'industrial_worker', 'driver_courier', 'taxi_driver', 'retail_worker', 'teacher', 'healthcare_worker', 'military', 'public_servant', 'retired', 'unemployed', 'homemaker', 'athlete', 'frequent_traveler', 'working_student', 'other', 'prefer_not_to_say']; }
 
 function loadUserSettings(AppDatabase $db, array $defaults): array {
     $settings = $defaults;

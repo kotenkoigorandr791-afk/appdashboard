@@ -119,6 +119,8 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     var updateBusy by remember { mutableStateOf(false) }
     var updateStatus by remember { mutableStateOf<String?>(null) }
     var downloadedApk by remember { mutableStateOf(updateChecker.latestDownloaded()) }
+    var latestUpdate by remember { mutableStateOf<orbit.nex.steps.updates.UpdateInfo?>(null) }
+    var updateAvailable by remember { mutableStateOf(false) }
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
     var profilePhotoModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
@@ -313,80 +315,57 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
                             } else {
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.settings_update_title), style = MaterialTheme.typography.titleMedium)
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Filled.SystemUpdate, contentDescription = null, modifier = Modifier.size(32.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_update_automatic))
-                            Text(
-                                stringResource(R.string.settings_update_automatic_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Text(context.getString(R.string.app_version_short, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(if (updateAvailable) context.getString(R.string.update_available_version, latestUpdate?.version_name.orEmpty()) else updateStatus ?: context.getString(R.string.update_check_button), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Switch(
-                            checked = autoUpdate,
-                            onCheckedChange = {
-                                autoUpdate = it
-                                prefs.setAutoUpdateEnabled(it)
-                            },
-                        )
                     }
-                    Text(
-                        context.getString(R.string.app_version_short, BuildConfig.VERSION_NAME),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                updateBusy = true
+                    Button(onClick = {
+                        scope.launch {
+                            updateBusy = true
+                            if (updateAvailable && latestUpdate != null) {
+                                updateStatus = context.getString(R.string.update_downloading)
+                                val file = updateChecker.downloadApk(latestUpdate!!)
+                                if (file != null) { downloadedApk = file; updateStatus = context.getString(R.string.update_downloaded_text, latestUpdate!!.version_name); updateChecker.install(file) }
+                                else updateStatus = context.getString(R.string.update_download_failed)
+                            } else {
                                 updateStatus = context.getString(R.string.update_checking)
                                 val check = updateChecker.checkForUpdate()
-                                when (check.outcome) {
-                                    CheckOutcome.NOT_CONNECTED -> updateStatus = context.getString(R.string.update_not_connected)
-                                    CheckOutcome.UP_TO_DATE -> updateStatus = context.getString(R.string.update_up_to_date)
-                                    CheckOutcome.ERROR -> updateStatus = context.getString(R.string.update_check_failed)
-                                    CheckOutcome.UPDATE_AVAILABLE -> {
-                                        val info = check.info
-                                        if (info == null) {
-                                            updateStatus = context.getString(R.string.update_check_failed)
-                                        } else {
-                                            updateStatus = context.getString(R.string.update_downloading)
-                                            val file = updateChecker.downloadApk(info)
-                                            if (file != null) {
-                                                downloadedApk = file
-                                                updateStatus = context.getString(R.string.update_downloaded_text, info.version_name)
-                                            } else {
-                                                updateStatus = context.getString(R.string.update_download_failed)
-                                            }
-                                        }
-                                    }
-                                }
-                                updateBusy = false
+                                latestUpdate = check.info
+                                updateAvailable = check.outcome == CheckOutcome.UPDATE_AVAILABLE && check.info != null
+                                updateStatus = context.getString(when (check.outcome) { CheckOutcome.NOT_CONNECTED -> R.string.update_not_connected; CheckOutcome.UP_TO_DATE -> R.string.update_up_to_date; CheckOutcome.ERROR -> R.string.update_check_failed; CheckOutcome.UPDATE_AVAILABLE -> R.string.update_check_button })
                             }
-                        },
-                        enabled = prefs.getWebhookConfigs().any { it.isEnabled } && !updateBusy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (updateBusy) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                            Spacer(Modifier.size(8.dp))
-                        } else {
-                            Icon(Icons.Filled.Update, contentDescription = null)
-                            Spacer(Modifier.size(8.dp))
+                            updateBusy = false
                         }
-                        Text(stringResource(R.string.update_check_button))
+                    }, enabled = prefs.getWebhookConfigs().any { it.isEnabled } && !updateBusy, modifier = Modifier.fillMaxWidth()) {
+                        if (updateBusy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Icon(if (updateAvailable) Icons.Filled.Download else Icons.Filled.Update, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(if (updateAvailable) R.string.update_download_install else R.string.update_check_button))
                     }
-                    downloadedApk?.let { file ->
-                        OutlinedButton(onClick = { updateChecker.install(file) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.update_install))
-                        }
-                    }
-                    updateStatus?.let { status ->
-                        Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    downloadedApk?.let { file -> OutlinedButton(onClick = { updateChecker.install(file) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.update_install)) } }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) { Text(stringResource(R.string.settings_update_automatic), style = MaterialTheme.typography.titleMedium); Text(stringResource(R.string.settings_update_automatic_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Switch(checked = autoUpdate, onCheckedChange = { autoUpdate = it; prefs.setAutoUpdateEnabled(it) })
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.update_whats_new, latestUpdate?.version_name ?: BuildConfig.VERSION_NAME), style = MaterialTheme.typography.titleMedium)
+                    val notes = latestUpdate?.release_notes.orEmpty()
+                    if (notes.isEmpty()) Text(stringResource(R.string.update_notes_unavailable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else notes.forEach { Text("•  $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Text(stringResource(R.string.update_source_build, latestUpdate?.version_code ?: BuildConfig.VERSION_CODE), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }

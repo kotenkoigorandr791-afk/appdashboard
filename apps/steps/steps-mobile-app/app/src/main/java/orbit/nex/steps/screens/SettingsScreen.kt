@@ -140,7 +140,10 @@ private const val KEY_HEIGHT = "height"
 private const val KEY_WEIGHT = "weight"
 private const val KEY_STRIDE = "stride_length"
 private const val KEY_BIRTH = "birth_date"
-private val PERSONAL_KEYS = listOf(KEY_GOAL, KEY_HEIGHT, KEY_WEIGHT, KEY_STRIDE, KEY_BIRTH)
+private const val KEY_OCCUPATION = "occupation"
+private val OCCUPATIONS = listOf("student", "school_student", "office_worker", "remote_worker", "freelancer", "entrepreneur", "self_employed", "industrial_worker", "driver_courier", "taxi_driver", "retail_worker", "teacher", "healthcare_worker", "military", "public_servant", "retired", "unemployed", "homemaker", "athlete", "frequent_traveler", "working_student", "other", "prefer_not_to_say")
+private val OCCUPATION_LABELS = listOf(R.string.occupation_student, R.string.occupation_school_student, R.string.occupation_office_worker, R.string.occupation_remote_worker, R.string.occupation_freelancer, R.string.occupation_entrepreneur, R.string.occupation_self_employed, R.string.occupation_industrial_worker, R.string.occupation_driver_courier, R.string.occupation_taxi_driver, R.string.occupation_retail_worker, R.string.occupation_teacher, R.string.occupation_healthcare_worker, R.string.occupation_military, R.string.occupation_public_servant, R.string.occupation_retired, R.string.occupation_unemployed, R.string.occupation_homemaker, R.string.occupation_athlete, R.string.occupation_frequent_traveler, R.string.occupation_working_student, R.string.occupation_other, R.string.occupation_prefer_not_to_say)
+private val PERSONAL_KEYS = listOf(KEY_OCCUPATION, KEY_GOAL, KEY_HEIGHT, KEY_WEIGHT, KEY_STRIDE, KEY_BIRTH)
 
 /** POSTs a JSON body to an app endpoint and returns (httpCode, body). */
 private suspend fun postJson(
@@ -228,6 +231,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
     var heightField by remember { mutableStateOf(personal[KEY_HEIGHT].orEmpty()) }
     var weightField by remember { mutableStateOf(personal[KEY_WEIGHT].orEmpty()) }
     var strideField by remember { mutableStateOf(personal[KEY_STRIDE].orEmpty()) }
+    var occupationField by remember { mutableStateOf(personal[KEY_OCCUPATION] ?: "prefer_not_to_say") }
+    var occupationExpanded by remember { mutableStateOf(false) }
     var birthField by remember { mutableStateOf(personal[KEY_BIRTH].orEmpty()) }
     var goalError by remember { mutableStateOf<String?>(null) }
     var heightError by remember { mutableStateOf<String?>(null) }
@@ -318,6 +323,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
             weightField = values[KEY_WEIGHT] ?: weightField
             strideField = values[KEY_STRIDE] ?: strideField
             birthField = values[KEY_BIRTH] ?: birthField
+            occupationField = values[KEY_OCCUPATION] ?: occupationField
         }
     }
 
@@ -377,6 +383,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 val normalized = value.trim()
                 if (normalized != (personal[key] ?: "")) payload[key] = normalized
             }
+            putIfChanged(KEY_OCCUPATION, occupationField)
             putIfChanged(KEY_GOAL, goalField)
             putIfChanged(KEY_HEIGHT, heightField)
             putIfChanged(KEY_WEIGHT, weightField)
@@ -389,7 +396,10 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 val (code, body) = postJson(config, prefs, "/settings", payload.toJSONObject())
                 if (code in 200..299) {
                     val updated = JSONObject(body).optJSONObject("settings")
-                    if (updated != null) {
+                    if (payload.containsKey(KEY_OCCUPATION) && (updated == null || updated.optString(KEY_OCCUPATION) != payload[KEY_OCCUPATION])) {
+                        failed = true
+                        detail = context.getString(R.string.occupation_server_unsupported)
+                    } else if (updated != null) {
                         val refreshed = mutableMapOf<String, String>()
                         PERSONAL_KEYS.forEach { key -> refreshed[key] = updated.optString(key) }
                         personal = refreshed
@@ -398,6 +408,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                         weightField = refreshed[KEY_WEIGHT] ?: weightField
                         strideField = refreshed[KEY_STRIDE] ?: strideField
                         birthField = refreshed[KEY_BIRTH] ?: birthField
+                        occupationField = refreshed[KEY_OCCUPATION] ?: occupationField
                         prefs.setPersonalSettingsCache(refreshed.toJSONObject().toString())
                     }
                 } else {
@@ -517,6 +528,12 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            ExposedDropdownMenuBox(expanded = occupationExpanded, onExpandedChange = { occupationExpanded = !occupationExpanded }) {
+                                OutlinedTextField(value = stringResource(OCCUPATION_LABELS[OCCUPATIONS.indexOf(occupationField).coerceAtLeast(0)]), onValueChange = {}, readOnly = true, enabled = connected, label = { Text(stringResource(R.string.occupation_title)) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(occupationExpanded) }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                                ExposedDropdownMenu(expanded = occupationExpanded, onDismissRequest = { occupationExpanded = false }) {
+                                    OCCUPATIONS.forEachIndexed { i, value -> DropdownMenuItem(text = { Text(stringResource(OCCUPATION_LABELS[i])) }, onClick = { occupationField = value; occupationExpanded = false }) }
+                                }
+                            }
                             HorizontalDivider()
                             Text(stringResource(R.string.personal_body_title), style = MaterialTheme.typography.titleSmall)
                             OutlinedTextField(

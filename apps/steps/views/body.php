@@ -261,6 +261,12 @@ $metricButtons = [
                         </div>
                         <div class="map-panel">
                             <div class="map-panel-head">
+                                <span class="map-panel-title"><?php echo htmlspecialchars($translations['visits_title'] ?? 'Visited places'); ?></span>
+                            </div>
+                            <div id="ma-visits-list" class="trip-list"></div>
+                        </div>
+                        <div class="map-panel">
+                            <div class="map-panel-head">
                                 <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_trips_title'] ?? 'Trips'); ?></span>
                                 <div class="map-day-nav">
                                     <button type="button" id="ma-trip-new" class="map-day-btn" title="<?php echo htmlspecialchars($translations['map_trip_new'] ?? 'Create trip from this range'); ?>" aria-label="<?php echo htmlspecialchars($translations['map_trip_new'] ?? 'Create trip from this range'); ?>">
@@ -335,7 +341,7 @@ $metricButtons = [
                     toInput.max = todayIso();
                     fromInput.max = todayIso();
                     if (!toInput.value) toInput.value = todayIso();
-                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 864e5));
+                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 30*864e5));
                     capToToday();
                     const fallbackProviders={
                         esri_dark:{name:'Esri Dark Gray Canvas',url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:16},
@@ -451,6 +457,7 @@ $metricButtons = [
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
                         try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
+                        map.on('contextmenu',e=>openMapMenu(e.latlng,e.originalEvent,null));
                         map.on('movestart',()=>{
                             // A new gesture makes all queued prediction stale immediately.
                             cancelPrefetch();
@@ -480,6 +487,7 @@ $metricButtons = [
                             new ResizeObserver(()=>{ if(map && mapHost && !mapHost.hidden) map.invalidateSize({pan:false}); }).observe(canvas);
                         }
                     }
+                    const VISIT_COLORS={confirmed:'#22c55e',provisional:'#f59e0b',manual:'#3b82f6',unidentified:'#94a3b8',pending:'#94a3b8'};
                     function popupHtml(title, lines){
                         const div=document.createElement('div');
                         const strong=document.createElement('strong'); strong.textContent=title; div.appendChild(strong);
@@ -514,6 +522,7 @@ $metricButtons = [
                         const heatStrength=Math.max(0.1, appearance.heat/100);
                         layerGroup.clearLayers();
                         const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
+                        const visitCenters=lastFeatures.filter(f=>f.properties&&f.properties.layer==='visit'&&f.geometry).map(f=>L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]));
                         lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
                             if(!feature.geometry||!feature.geometry.coordinates) return;
@@ -541,6 +550,8 @@ $metricButtons = [
                                 if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{pane:'mapBackdrop',radius:p.radius_m,color:p.color||'#22c55e',weight:1,opacity:0.6,fillColor:p.color||'#22c55e',fillOpacity:0.10}).addTo(layerGroup);
                                 addPoint(feature,{radius:baseRadius+2,color:p.color||'#22c55e',fillColor:p.color||'#22c55e',fillOpacity:pointOpacity},p.name||'place',[p.tag]);
                             } else if(p.layer==='stop'){
+                                const sc=L.latLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]);
+                                if(visitCenters.some(c=>c.distanceTo(sc)<80)) return;
                                 addPoint(feature,{radius:baseRadius-1,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:pointOpacity},p.name||'Stop',[p.started_at||'']);
                             } else if(p.layer==='point_cluster'){
                                 addCluster(feature, p.count||1);
@@ -551,7 +562,10 @@ $metricButtons = [
                                 const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span><i class="fas fa-camera"></i></span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
                                 photoMarker.bindPopup(photoPopup);
                             } else if(p.layer==='visit'){
-                                addPoint(feature,{radius:baseRadius-0.5,color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:pointOpacity},p.place_name||'visit',[p.arrived_at||'']);
+                                const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
+                                const vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#ffffff',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
+                                vm.unbindPopup(); vm.bindPopup(()=>visitPopup(p));
+                                vm.on('contextmenu',ev=>{ window.L.DomEvent.stop(ev); openMapMenu(ev.latlng,ev.originalEvent,p); });
                             } else if(p.layer==='point'){
                                 const flagged=p.quality_state==='flagged';
                                 addPoint(feature,{radius:Math.max(2,baseRadius-2),color:flagged?'#ef4444':'#0ea5e9',fillColor:flagged?'#ef4444':'#0ea5e9',fillOpacity:pointOpacity},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
@@ -769,6 +783,7 @@ $metricButtons = [
                     }
                     async function loadTrips(){
                         const seq=++tripsLoadSeq;
+                        window.dispatchEvent(new Event('steps-visits-refresh'));
                         try{
                             await syncTracks(false);
                             const params=new URLSearchParams({
@@ -1271,20 +1286,196 @@ $metricButtons = [
                                 const b=window.L.latLngBounds(areaStart,end);
                                 areaStart=null;
                                 if(Math.abs(map.latLngToContainerPoint(b.getNorthEast()).x-map.latLngToContainerPoint(b.getSouthWest()).x)<8){ areaClear(); return; }
-                                areaBox=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
-                                areaRect.setBounds(b);
-                                try{
-                                    const data=await pointsRequest(Object.assign({action:'count',bbox:areaBox},areaRange()));
-                                    areaInfo.textContent=data.count+' '+tr('points_unit','points');
-                                    areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
-                                    areaSmooth.hidden=data.count<2; areaToleranceWrap.hidden=data.count<2;
-                                    areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
-                                    areaDel.disabled=data.count===0;
-                                }catch(err){ showError((err&&err.message)||t.error); }
+                                areaApply(b);
                             });
                         }
                     }
+                    async function areaApply(b){
+                        areaBox=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
+                        if(!areaRect) areaRect=window.L.rectangle(b,{color:'#ef4444',weight:2,fillOpacity:0.12,interactive:false}).addTo(map);
+                        areaRect.setBounds(b);
+                        try{
+                            const data=await pointsRequest(Object.assign({action:'count',bbox:areaBox},areaRange()));
+                            areaInfo.textContent=data.count+' '+tr('points_unit','points');
+                            areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
+                            areaSmooth.hidden=data.count<2; areaToleranceWrap.hidden=data.count<2;
+                            areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
+                            areaDel.disabled=data.count===0;
+                        }catch(err){ showError((err&&err.message)||t.error); }
+                    }
                     areaBtn?.addEventListener('click',()=>setAreaMode(!areaMode));
+
+                    const visitsApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_stops';
+                    const placesApi='/apps/steps/api/session_gateway.php?endpoint=places';
+                    const fmtDur=sec=>{ sec=Math.max(0,Math.round(sec||0)); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60); return h?h+' h '+m+' min':m+' min'; };
+                    const fmtAt=iso=>iso?new Date(iso).toLocaleString([],{dateStyle:'short',timeStyle:'short'}):'';
+                    const statusLabel=st=>tr('visit_status_'+st,st||'unidentified');
+                    async function visitsRequest(body){
+                        const res=await fetch(visitsApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+                        const data=await res.json().catch(()=>({}));
+                        if(!res.ok||!data.ok) throw new Error((data&&data.error)||'visit_failed');
+                        return data;
+                    }
+                    function chip(status){
+                        const c=document.createElement('span'); c.className='visit-chip'; c.style.background=VISIT_COLORS[status]||VISIT_COLORS.unidentified; c.textContent=statusLabel(status); return c;
+                    }
+                    function visitPopup(p){
+                        const div=document.createElement('div');
+                        const head=document.createElement('div'); head.className='visit-pop-head';
+                        const strong=document.createElement('strong'); strong.textContent=p.place_name||tr('visit_unidentified','Unidentified place'); head.appendChild(strong); head.appendChild(chip(p.detection_status)); div.appendChild(head);
+                        const lines=[p.category,[fmtAt(p.arrived_at),fmtAt(p.departed_at)].filter(Boolean).join(' → '),tr('visit_duration','Duration')+': '+fmtDur(p.dwell_s),p.confidence!=null?tr('visit_confidence','Confidence')+': '+Math.round(p.confidence*100)+'%':'',p.address,p.visit_count>1?tr('visit_count','Visits')+': '+p.visit_count:''].filter(Boolean);
+                        lines.forEach(l=>{ const d=document.createElement('div'); d.textContent=l; d.style.cssText='font-size:11px;opacity:.85'; div.appendChild(d); });
+                        const ids=Array.isArray(p.visit_ids)?p.visit_ids:[];
+                        if(ids.length){
+                            const b=document.createElement('button'); b.type='button'; b.className='trip-btn'; b.style.marginTop='6px'; b.textContent=tr('visit_edit','Edit place');
+                            b.addEventListener('click',()=>{ map.closePopup(); openVisitEditor(ids[ids.length-1]); });
+                            div.appendChild(b);
+                        }
+                        return div;
+                    }
+                    let menuEl=null;
+                    function closeMapMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+                    function openMapMenu(latlng,ev,visit){
+                        closeMapMenu();
+                        const host=map.getContainer();
+                        menuEl=document.createElement('div'); menuEl.className='map-ctx-menu'; menuEl.setAttribute('role','menu');
+                        const add=(icon,label,fn)=>{
+                            const b=document.createElement('button'); b.type='button'; b.setAttribute('role','menuitem');
+                            const i=document.createElement('i'); i.className='fas fa-'+icon; b.appendChild(i); b.appendChild(document.createTextNode(' '+label));
+                            b.addEventListener('click',()=>{ closeMapMenu(); fn(); }); menuEl.appendChild(b);
+                        };
+                        const coords=latlng.lat.toFixed(6)+', '+latlng.lng.toFixed(6);
+                        const head=document.createElement('div'); head.className='map-ctx-head'; head.textContent=coords; menuEl.appendChild(head);
+                        if(visit&&Array.isArray(visit.visit_ids)&&visit.visit_ids.length){
+                            add('pen',tr('visit_edit','Edit place'),()=>openVisitEditor(visit.visit_ids[visit.visit_ids.length-1]));
+                        }
+                        add('map-pin',tr('ctx_add_place','Add place here…'),()=>openPlaceCreator(latlng));
+                        add('vector-square',tr('ctx_select_area','Select points nearby (100 m)'),()=>{
+                            areaClear(); setAreaMode(true);
+                            areaApply(window.L.latLng(latlng).toBounds(200));
+                        });
+                        add('draw-polygon',tr('ctx_draw_area','Draw selection area'),()=>{ areaClear(); setAreaMode(true); });
+                        add('copy',tr('ctx_copy','Copy coordinates'),()=>{ try{ navigator.clipboard.writeText(coords); }catch(e){} });
+                        host.appendChild(menuEl);
+                        const r=host.getBoundingClientRect();
+                        let x=ev.clientX-r.left, y=ev.clientY-r.top;
+                        x=Math.max(4,Math.min(x,r.width-menuEl.offsetWidth-4)); y=Math.max(4,Math.min(y,r.height-menuEl.offsetHeight-4));
+                        menuEl.style.left=x+'px'; menuEl.style.top=y+'px';
+                        menuEl.querySelector('button')?.focus();
+                    }
+                    function modal(titleText){
+                        const ov=document.createElement('div'); ov.className='visit-modal';
+                        const box=document.createElement('div'); box.className='visit-modal-box'; box.setAttribute('role','dialog'); box.setAttribute('aria-modal','true');
+                        const head=document.createElement('div'); head.className='visit-modal-head';
+                        const h=document.createElement('strong'); h.textContent=titleText; head.appendChild(h);
+                        const x=document.createElement('button'); x.type='button'; x.className='trip-close'; x.setAttribute('aria-label',tr('close','Close')); x.innerHTML='<i class="fas fa-xmark"></i>'; head.appendChild(x);
+                        box.appendChild(head); ov.appendChild(box);
+                        const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey); };
+                        const onKey=e=>{ if(e.key==='Escape') close(); };
+                        x.addEventListener('click',close); ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); }); document.addEventListener('keydown',onKey);
+                        document.body.appendChild(ov);
+                        return {ov,box,head,close};
+                    }
+                    function field(labelText,input){
+                        const l=document.createElement('label'); l.className='trip-field'; const s=document.createElement('span'); s.textContent=labelText; l.appendChild(s); l.appendChild(input); return l;
+                    }
+                    function tagSelect(current){
+                        const sel=document.createElement('select');
+                        [['',tr('visit_tag_none','No tag')],['home',tr('tag_home','Home')],['work',tr('tag_work','Work')],['school',tr('tag_school','School')],['gym',tr('tag_gym','Gym')],['parents',tr('tag_parents','Parents')],['favorite',tr('tag_favorite','Favorite')]].forEach(([v,l])=>{ const o=document.createElement('option'); o.value=v; o.textContent=l; if(v===current) o.selected=true; sel.appendChild(o); });
+                        return sel;
+                    }
+                    async function openVisitEditor(id){
+                        const m=modal(tr('visit_edit','Edit place'));
+                        const body=document.createElement('div'); body.className='visit-modal-body'; body.textContent=tr('map_trip_loading','Loading…'); m.box.appendChild(body);
+                        let v;
+                        try{
+                            const res=await fetch(visitsApi+'&id='+encodeURIComponent(id),{credentials:'same-origin'});
+                            const data=await res.json(); v=(data.visits||[])[0];
+                            if(!res.ok||!v) throw new Error('not_found');
+                        }catch(e){ body.textContent=(e&&e.message)||'error'; return; }
+                        body.textContent='';
+                        const top=document.createElement('div'); top.className='visit-pop-head';
+                        const nm=document.createElement('strong'); nm.textContent=v.place_name||tr('visit_unidentified','Unidentified place'); top.appendChild(nm); top.appendChild(chip(v.detection_status)); body.appendChild(top);
+                        const meta=document.createElement('div'); meta.className='visit-meta';
+                        meta.textContent=[v.category,[fmtAt(v.arrived_at),fmtAt(v.departed_at)].filter(Boolean).join(' → '),fmtDur(v.duration_s),v.confidence!=null?Math.round(v.confidence*100)+'%':'',v.address].filter(Boolean).join(' · ');
+                        body.appendChild(meta);
+                        const msg=document.createElement('div'); msg.className='visit-msg';
+                        const done=async fn=>{ try{ msg.textContent=''; await fn(); m.close(); chunkCache.clear(); fetchViewport(); loadVisits(); }catch(e){ msg.textContent=(e&&e.message)||'error'; } };
+                        const cands=v.candidates||[];
+                        if(cands.length){
+                            const list=document.createElement('div'); list.className='visit-cands';
+                            const cap=document.createElement('div'); cap.className='visit-sub'; cap.textContent=tr('visit_candidates','Possible places'); body.appendChild(cap);
+                            cands.forEach(c=>{
+                                const b=document.createElement('button'); b.type='button'; b.className='visit-cand'+(c.selected?' is-selected':'');
+                                const t1=document.createElement('strong'); t1.textContent=c.name||tr('visit_unnamed','Unnamed object'); b.appendChild(t1);
+                                const t2=document.createElement('span'); t2.textContent=[c.category,c.distance_m!=null?Math.round(c.distance_m)+' m':'',Math.round((c.score||0)*100)+'%'].filter(Boolean).join(' · '); b.appendChild(t2);
+                                b.addEventListener('click',()=>done(()=>visitsRequest({action:'select_candidate',id:v.id,candidate_id:c.id})));
+                                list.appendChild(b);
+                            });
+                            body.appendChild(list);
+                        }
+                        const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.maxLength=80; nameIn.value=v.display_name||v.place_name||'';
+                        const catIn=document.createElement('input'); catIn.type='text'; catIn.maxLength=60; catIn.value=v.category||'';
+                        const tagIn=tagSelect(v.place_tag||'');
+                        body.appendChild(field(tr('map_trip_name','Name'),nameIn)); body.appendChild(field(tr('visit_category','Category'),catIn)); body.appendChild(field(tr('visit_tag','Tag'),tagIn));
+                        const row=document.createElement('div'); row.className='visit-actions';
+                        const btn=(label,cls,fn)=>{ const b=document.createElement('button'); b.type='button'; b.className='trip-btn'+(cls?' '+cls:''); b.textContent=label; b.addEventListener('click',fn); row.appendChild(b); return b; };
+                        btn(tr('visit_save','Save'),'trip-btn-primary',()=>done(()=>visitsRequest({action:'assign',id:v.id,name:nameIn.value,category:catIn.value,tag:tagIn.value})));
+                        btn(tr('visit_retry','Detect again'),'',()=>done(()=>visitsRequest({action:'retry',id:v.id})));
+                        if(v.osm_id) btn(tr('visit_block','Never suggest this place'),'',()=>done(()=>visitsRequest({action:'block',id:v.id})));
+                        body.appendChild(row); body.appendChild(msg);
+                        nameIn.focus();
+                    }
+                    function openPlaceCreator(latlng){
+                        const m=modal(tr('ctx_add_place','Add place here…'));
+                        const body=document.createElement('div'); body.className='visit-modal-body'; m.box.appendChild(body);
+                        const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.maxLength=80;
+                        const tagIn=tagSelect('');
+                        const radIn=document.createElement('input'); radIn.type='number'; radIn.min='20'; radIn.max='1000'; radIn.value='60';
+                        body.appendChild(field(tr('map_trip_name','Name'),nameIn)); body.appendChild(field(tr('visit_tag','Tag'),tagIn)); body.appendChild(field(tr('location_radius','Radius (m)'),radIn));
+                        const msg=document.createElement('div'); msg.className='visit-msg';
+                        const row=document.createElement('div'); row.className='visit-actions';
+                        const ok=document.createElement('button'); ok.type='button'; ok.className='trip-btn trip-btn-primary'; ok.textContent=tr('visit_save','Save'); row.appendChild(ok);
+                        ok.addEventListener('click',async()=>{
+                            const name=nameIn.value.trim()||(tagIn.value?tagIn.options[tagIn.selectedIndex].textContent:'');
+                            if(!name){ msg.textContent=tr('visit_name_required','Enter a name'); return; }
+                            try{
+                                const res=await fetch(placesApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',name:name,tag:tagIn.value||'custom',latitude:latlng.lat,longitude:latlng.lng,radius_m:Number(radIn.value)||60})});
+                                const data=await res.json().catch(()=>({}));
+                                if(!res.ok||data.ok===false) throw new Error((data&&data.error)||'place_failed');
+                                m.close(); window.dispatchEvent(new Event('steps-places-changed')); chunkCache.clear(); fetchViewport();
+                            }catch(e){ msg.textContent=(e&&e.message)||'error'; }
+                        });
+                        body.appendChild(row); body.appendChild(msg); nameIn.focus();
+                    }
+                    let visitsSeq=0;
+                    async function loadVisits(){
+                        const host=document.getElementById('ma-visits-list'); if(!host) return;
+                        const seq=++visitsSeq;
+                        try{
+                            const res=await fetch(visitsApi+'&limit=200',{credentials:'same-origin'});
+                            const data=await res.json(); if(seq!==visitsSeq) return;
+                            if(!res.ok||!data.ok) throw new Error('visits_failed');
+                            const from=new Date(fromInput.value+'T00:00:00Z').getTime(), to=new Date(toInput.value+'T23:59:59Z').getTime();
+                            const rows=(data.visits||[]).filter(v=>{ const t=Date.parse(v.arrived_at); return t>=from&&t<=to; });
+                            host.textContent='';
+                            if(!rows.length){ const e=document.createElement('span'); e.className='trip-empty'; e.textContent=tr('visit_none','No visits in this range'); host.appendChild(e); return; }
+                            rows.forEach(v=>{
+                                const b=document.createElement('button'); b.type='button'; b.className='visit-row';
+                                const dot=document.createElement('i'); dot.className='visit-dot'; dot.style.background=VISIT_COLORS[v.detection_status]||VISIT_COLORS.unidentified; b.appendChild(dot);
+                                const txt=document.createElement('span'); txt.className='visit-row-text';
+                                const a=document.createElement('strong'); a.textContent=v.place_name||tr('visit_unidentified','Unidentified place'); txt.appendChild(a);
+                                const sub=document.createElement('small'); sub.textContent=[fmtAt(v.arrived_at),fmtDur(v.duration_s),v.category].filter(Boolean).join(' · '); txt.appendChild(sub);
+                                b.appendChild(txt);
+                                b.addEventListener('click',()=>{ if(v.latitude!=null&&map) map.setView([v.latitude,v.longitude],Math.max(map.getZoom(),17)); openVisitEditor(v.id); });
+                                host.appendChild(b);
+                            });
+                        }catch(e){ host.textContent=''; }
+                    }
+                    window.addEventListener('steps-visits-refresh',loadVisits);
+                    loadVisits();
+                    document.addEventListener('mousedown',e=>{ if(menuEl&&!menuEl.contains(e.target)) closeMapMenu(); });
+                    document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMapMenu(); });
                     areaCancel?.addEventListener('click',areaClear);
                     // Smoothing keeps one simplified line per pass through the box, so a
                     // chaotic 250 m cloud becomes one or two readable routes.
@@ -2117,6 +2308,18 @@ $metricButtons = [
                     <form id="settings-form" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="settings" value="1">
                         <div class="settings-tile">
+                            <div class="tile-title"><?php echo htmlspecialchars($translations['occupation_title'] ?? 'Occupation'); ?></div>
+                            <hr>
+                            <div class="tile-content">
+                                <span class="tile-icon"><i class="fas fa-briefcase"></i></span>
+                                <select name="occupation" aria-label="<?php echo htmlspecialchars($translations['occupation_title'] ?? 'Occupation'); ?>">
+                                    <?php foreach (steps_occupation_values() as $occupation): ?>
+                                        <option value="<?php echo htmlspecialchars($occupation); ?>" <?php echo ($userSettings['occupation'] ?? 'prefer_not_to_say') === $occupation ? 'selected' : ''; ?>><?php echo htmlspecialchars($translations['occupation_' . $occupation] ?? $occupation); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="settings-tile">
                             <div class="tile-title"><?php echo htmlspecialchars($translations['goal_steps']); ?></div>
                             <hr>
                             <div class="tile-content">
@@ -2520,6 +2723,12 @@ $metricButtons = [
                                 </div>
                             </div>
                             <div class="location-tools-grid">
+                                <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_places_detect_title'] ?? 'Automatic place detection'); ?></h4>
+                                    <p class="location-hint"><?php echo htmlspecialchars($translations['location_places_detect_hint'] ?? 'Visits are saved to the database immediately. The background worker looks them up in OpenStreetMap and writes the name back.'); ?></p>
+                                    <p id="location-places-detect-status" class="location-hint"></p>
+                                    <button type="button" id="location-places-detect" class="excel-btn"><i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['location_places_detect_run'] ?? 'Detect places now'); ?></button>
+                                </div>
                                 <div class="location-tool-card">
                                     <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>
                                     <div class="place-chips" id="place-chips"></div>

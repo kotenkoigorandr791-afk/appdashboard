@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/settings.php';
 /**
  * Personal settings + profile helpers for the mobile Settings screen.
  *
@@ -37,6 +38,7 @@ function steps_read_profile(?string $email): array {
  */
 function steps_settings_validators(): array {
     return [
+        'occupation' => static fn($v) => is_string($v) && in_array($v, steps_occupation_values(), true) ? $v : null,
         'goal_steps' => static function ($v) {
             if (!preg_match('/^\d+$/', (string)$v)) return null;
             $n = (int)$v;
@@ -58,7 +60,7 @@ function steps_settings_validators(): array {
 function steps_settings_defaults(): array {
     global $defaultSettings;
     if (is_array($defaultSettings ?? null) && $defaultSettings !== []) return $defaultSettings;
-    return ['goal_steps' => 10000, 'height' => 170, 'weight' => 70, 'stride_length' => 70, 'birth_date' => '1994-01-01'];
+    return ['occupation' => 'prefer_not_to_say', 'goal_steps' => 10000, 'height' => 170, 'weight' => 70, 'stride_length' => 70, 'birth_date' => '1994-01-01'];
 }
 
 /**

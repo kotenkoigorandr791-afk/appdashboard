@@ -11,6 +11,7 @@
 require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_stops.php';
+require_once dirname(__DIR__) . '/core/geolocation_place_resolver.php';
 require_once dirname(__DIR__) . '/core/geolocation_statistics.php';
 
 /** @return array{processed:int,stops:int,visits:int,failed:int} */
@@ -95,15 +96,15 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
                  VALUES(:id, :owner, :started, :ended, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), :radius, :confidence, 'ready', :override)"
             );
             $findPlace = $pdo->prepare(
-                "SELECT id FROM geo_places
+                "SELECT id, name, tag FROM geo_places
                   WHERE user_email = :owner AND is_active AND deleted_at IS NULL
                     AND ST_DWithin(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, radius_m)
                ORDER BY ST_Distance(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) ASC
                   LIMIT 1"
             );
             $insertVisit = $pdo->prepare(
-                "INSERT INTO geo_visits(id, user_email, place_id, stop_id, arrived_at, departed_at, confidence, state, override_json)
-                 VALUES(:id, :owner, :place, :stop, :arrived, :departed, :confidence, 'ready', :override)"
+                "INSERT INTO geo_visits(id, user_email, place_id, stop_id, arrived_at, departed_at, confidence, state, override_json, display_name, category, detection_status, detection_method, retry_after)
+                 VALUES(:id, :owner, :place, :stop, :arrived, :departed, :confidence, 'ready', :override, :display, :category, :dstatus, :dmethod, CASE WHEN :retry IS NULL THEN NULL ELSE to_timestamp(CAST(:retry2 AS bigint)) END)"
             );
 
             foreach ($result['stops'] as $stop) {
@@ -128,17 +129,24 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
                 $stopsMade++;
 
                 $findPlace->execute([':owner' => $owner, ':lon' => $stop['longitude'], ':lat' => $stop['latitude']]);
-                $placeId = $findPlace->fetchColumn() ?: null;
-                if ($placeId === null) continue;
+                $place = $findPlace->fetch(PDO::FETCH_ASSOC) ?: null;
+                $open = !empty($stop['provisional']);
+                $retryAt = $open ? strtotime((string)$stop['ended_at']) + (int)$thresholds['confirm_after_s'] : null;
                 $insertVisit->execute([
                     ':id' => StepsGeolocationStops::uuid(),
                     ':owner' => $owner,
-                    ':place' => $placeId,
+                    ':place' => $place['id'] ?? null,
                     ':stop' => $stopId,
                     ':arrived' => $stop['started_at'],
                     ':departed' => $stop['ended_at'],
                     ':confidence' => $stop['confidence'],
                     ':override' => json_encode(['source' => 'auto', 'processor_version' => $version], JSON_UNESCAPED_SLASHES),
+                    ':display' => $place['name'] ?? '',
+                    ':category' => $place['tag'] ?? '',
+                    ':dstatus' => $place ? 'confirmed' : ($open ? 'provisional' : 'pending'),
+                    ':dmethod' => $place ? 'personal' : ($open ? 'stop_open' : ''),
+                    ':retry' => $place ? null : $retryAt,
+                    ':retry2' => $place ? null : $retryAt,
                 ]);
                 $visitsMade++;
             }
@@ -150,6 +158,9 @@ function steps_stops_pass(PDO $pdo, string $user, int $limit, array $thresholds)
             $pdo->commit();
             $processed += count($rows);
             StepsGeolocationStatistics::invalidate($pdo, $owner, $inputFrom, $inputTo);
+            if ($visitsMade > 0) {
+                try { StepsGeolocationPlaceResolver::enqueue($pdo, $owner, false); } catch (Throwable $e) { error_log('geolocation places enqueue: ' . $e->getMessage()); }
+            }
             fwrite(STDOUT, "stops: {$owner} {$details['stops']} stop(s), {$visitsMade} visit(s)\n");
         } catch (Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();

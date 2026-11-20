@@ -489,7 +489,8 @@ final class StepsGeolocationApi
         $count->execute($params);
         $total = (int)$count->fetchColumn();
         $stmt = $pdo->prepare(
-            "SELECT v.id, v.place_id, v.arrived_at, v.departed_at, v.confidence, v.state, p.name AS place_name, p.tag AS place_tag
+            "SELECT v.id, v.place_id, v.arrived_at, v.departed_at, v.confidence, v.state, COALESCE(NULLIF(v.display_name, ''), p.name) AS place_name, p.tag AS place_tag,
+                    v.osm_type, v.osm_id, v.category, v.address, v.detection_status
                FROM geo_visits v LEFT JOIN geo_places p ON p.id = v.place_id AND p.deleted_at IS NULL
               WHERE $whereSql ORDER BY v.arrived_at DESC, v.id DESC LIMIT $limit OFFSET $offset"
         );
@@ -499,6 +500,7 @@ final class StepsGeolocationApi
             $row['id'] = (string)$row['id'];
             $row['place_id'] = $row['place_id'] !== null ? (string)$row['place_id'] : null;
             $row['confidence'] = $row['confidence'] !== null ? (float)$row['confidence'] : null;
+            $row['osm_id'] = $row['osm_id'] !== null ? (int)$row['osm_id'] : null;
             $items[] = $row;
         }
         return ['total' => $total, 'items' => $items, 'limit' => $limit, 'offset' => $offset, 'next_offset' => $offset + $limit < $total ? $offset + $limit : null];

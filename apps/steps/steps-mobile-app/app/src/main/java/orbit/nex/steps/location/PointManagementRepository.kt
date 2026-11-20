@@ -197,6 +197,9 @@ class PointManagementRepository(
     suspend fun setMatchingMode(config: WebhookConfig, mode: String): Result<Unit> =
         post(config, "geolocation_matching", JSONObject().put("action", "settings").put("mode", mode))
 
+    suspend fun smooth(config: WebhookConfig, bbox: String, from: String?, to: String?): Result<Unit> =
+        post(config, "geolocation_points", JSONObject().put("action", "smooth").put("bbox", bbox).put("from", from).put("to", to))
+
     suspend fun runMatching(config: WebhookConfig): Result<Unit> =
         post(config, "geolocation_matching", JSONObject().put("action", "run"))
 

@@ -14,14 +14,17 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.AltRoute
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Delete
@@ -106,8 +109,24 @@ private data class SelectionBox(
     val south: Double,
     val east: Double,
     val north: Double,
+    val corners: List<GeoPoint> = emptyList(),
+    val rotated: Boolean = false,
 ) {
     val query: String get() = "$west,$south,$east,$north"
+    fun contains(lat: Double, lon: Double): Boolean {
+        if (corners.size != 4) return lon in west..east && lat in south..north
+        var inside = false
+        var previous = corners.last()
+        for (point in corners) {
+            val ax = previous.longitude; val ay = previous.latitude
+            val bx = point.longitude; val by = point.latitude
+            val cross = (lon - ax) * (by - ay) - (lat - ay) * (bx - ax)
+            if (kotlin.math.abs(cross) < 1e-12 && lon >= minOf(ax, bx) - 1e-10 && lon <= maxOf(ax, bx) + 1e-10 && lat >= minOf(ay, by) - 1e-10 && lat <= maxOf(ay, by) + 1e-10) return true
+            if ((ay > lat) != (by > lat) && lon < (bx - ax) * (lat - ay) / (by - ay) + ax) inside = !inside
+            previous = point
+        }
+        return inside
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -126,11 +145,14 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
     val drawMode = true
     var selection by remember { mutableStateOf<SelectionBox?>(null) }
     var count by remember { mutableStateOf(0) }
+    var selectedIds by remember { mutableStateOf<Set<String>>(emptySet()) }
     var totalCount by remember { mutableStateOf(0) }
     var deletedCount by remember { mutableStateOf(0) }
     var loading by remember { mutableStateOf(false) }
+    var selectionRevision by remember { mutableStateOf(0) }
     var notice by remember { mutableStateOf<String?>(null) }
     var error by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(notice) { if (notice != null) { kotlinx.coroutines.delay(3500); notice = null } }
     var showDelete by remember { mutableStateOf(false) }
     var mapView by remember { mutableStateOf<MapView?>(null) }
     var loadedBox by remember { mutableStateOf<SelectionBox?>(null) }
@@ -142,10 +164,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
     fun drawSelection(map: MapView) {
         val box = selection ?: return
         val polygon = org.osmdroid.views.overlay.Polygon(map).apply {
-            points = listOf(
-                GeoPoint(box.north, box.west), GeoPoint(box.north, box.east),
-                GeoPoint(box.south, box.east), GeoPoint(box.south, box.west),
-            )
+            points = box.corners.ifEmpty { listOf(GeoPoint(box.north, box.west), GeoPoint(box.north, box.east), GeoPoint(box.south, box.east), GeoPoint(box.south, box.west)) }
             outlinePaint.color = primary.toArgb()
             outlinePaint.strokeWidth = 5f
             fillPaint.color = primary.copy(alpha = 0.18f).toArgb()
@@ -165,6 +184,9 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
         }
         loading = true
         error = null
+        val revision = ++selectionRevision
+        selectedIds = emptySet()
+        count = 0
         val dayNow = day
         val dayFrom = dayNow?.atStartOfDay(zone)?.toInstant()?.toString()
         val dayTo = dayNow?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString()
@@ -174,8 +196,10 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                 val all = mutableListOf<orbit.nex.steps.location.ManagedPoint>()
                 var pageIndex = 0
                 var total = 0
-                while (all.size < 1000) {
-                    val page = repository.loadPage(active, pageIndex, dayFrom, dayTo, null, box?.query)
+                while (box != null || all.size < 1000) {
+                    if (pageIndex > 0 && pageIndex % 100 == 0) kotlinx.coroutines.delay(60_000)
+                    val page = repository.loadPage(active, pageIndex, dayFrom, dayTo, null, box?.query, pageSize = 200)
+                    if (revision != selectionRevision) return@launch
                     total = page.total
                     all += page.points
                     if (page.error != null) { error = page.error; break }
@@ -184,31 +208,22 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                 }
                 if (box == null) {
                     totalCount = total
+                    selectedIds = emptySet()
                     count = 0
                 } else {
-                    count = total
+                    val selected = if (error == null) all.filter { box.contains(it.lat, it.lon) } else emptyList()
+                    selectedIds = selected.map { it.id }.toSet()
+                    count = selectedIds.size
                     val totalPage = repository.loadPage(active, 0, dayFrom, dayTo, null, null)
+                    if (revision != selectionRevision) return@launch
                     if (totalPage.error == null) totalCount = totalPage.total
                 }
                 val dayData = if (dayNow != null) geoRepository.loadDay(active, dayNow).withLocalEvents(withContext(Dispatchers.IO) { orbit.nex.steps.location.LocationEventStore(context).eventsForDay(dayNow) }) else GeoMapData()
+                if (revision != selectionRevision) return@launch
                 rebuildOverlays(map, dayData, prefs.getMapLayers(), darkTheme)
                 if (box != null) drawSelection(map)
                 loadedBox = if (all.isEmpty()) null else SelectionBox(all.minOf { it.lon } - 0.00001, all.minOf { it.lat } - 0.00001, all.maxOf { it.lon } + 0.00001, all.maxOf { it.lat } + 0.00001)
-                all.forEach { point ->
-                    map.overlays.add(Marker(map).apply {
-                        position = GeoPoint(point.lat, point.lon)
-                        icon = GradientDrawable().apply {
-                            shape = GradientDrawable.OVAL
-                            setColor(primary.toArgb())
-                            setStroke(2, AndroidColor.WHITE)
-                            setSize(14, 14)
-                        }
-                        setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                        title = point.sourceAt.replace('T', ' ').substringBefore('+').substringBefore('.')
-                        snippet = context.getString(R.string.map_coordinates_values, point.lat, point.lon)
-                        setInfoWindow(StyledInfoWindow(map, darkTheme))
-                    })
-                }
+                map.overlays.add(SelectionPointsOverlay(all.map { GeoPoint(it.lat, it.lon) }, primary.toArgb()))
                 if (zoom && (all.isNotEmpty() || dayData.bbox != null)) {
                     val bounds = dayData.bbox
                     val north = bounds?.north ?: all.maxOf { it.lat }; val south = bounds?.south ?: all.minOf { it.lat }
@@ -251,6 +266,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                             overlays.add(RectangleDrawOverlay(
                                 paintColor = primary.toArgb(),
                                 shouldDraw = { drawMode },
+                                currentBox = { selection },
                                 onBox = { box ->
                                     selection = box
                                     overlays.removeAll { it is org.osmdroid.views.overlay.Polygon }
@@ -267,6 +283,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                 )
                 Text(if (!darkTheme && MapStyle.fromKey(prefs.getMapBasemap()) == MapStyle.NORMAL) "© OpenStreetMap contributors" else "© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(4.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
                 if (loading) CircularProgressIndicator(Modifier.align(Alignment.Center))
+                notice?.let { orbit.nex.steps.components.SavedToast(it, Modifier.align(Alignment.BottomCenter).padding(bottom = 70.dp), onDismiss = { notice = null }) }
                 Row(Modifier.align(Alignment.BottomCenter).padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     orbit.nex.steps.screens.DayPill(
                         selectedDay = day ?: java.time.LocalDate.now(),
@@ -289,8 +306,8 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                     )
                 }
             }
-            Surface(color = MaterialTheme.colorScheme.surface) {
-                Column(Modifier.fillMaxWidth().padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+            Surface(color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.fillMaxWidth().navigationBarsPadding().padding(Spacing.md), verticalArrangement = Arrangement.spacedBy(Spacing.sm)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.xs), verticalAlignment = Alignment.CenterVertically) {
                         listOf(
                             stringResource(R.string.points_total_short, totalCount) to MaterialTheme.colorScheme.surfaceVariant,
@@ -302,14 +319,34 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                             }
                         }
                     }
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(Spacing.sm)) {
+                    Row(Modifier.fillMaxWidth().height(48.dp), horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                         Button(
                             enabled = selection != null && count > 0 && !loading && config != null,
+                            modifier = Modifier.weight(1f),
                             onClick = { showDelete = true },
                         ) {
                             Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(20.dp))
-                            Text(stringResource(R.string.points_delete_forever), modifier = Modifier.padding(start = Spacing.sm))
+                            Text(stringResource(R.string.points_delete_forever), modifier = Modifier.padding(start = Spacing.sm), maxLines = 1)
                         }
+                        IconButton(enabled = selection != null && selection?.rotated == false && !loading && config != null, onClick = {
+                            val active = config ?: return@IconButton
+                            val box = selection ?: return@IconButton
+                            scope.launch {
+                                loading = true
+                                repository.smooth(active, box.query, day?.atStartOfDay(zone)?.toInstant()?.toString(), day?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.toString())
+                                    .onSuccess { orbit.nex.steps.location.GeoMapChanges.invalidate(context); notice = context.getString(R.string.points_smooth_done); refreshSelection() }
+                                    .onFailure { error = it.message }
+                                loading = false
+                            }
+                        }) { Icon(Icons.Filled.Edit, contentDescription = stringResource(R.string.points_smooth)) }
+                        IconButton(enabled = !loading && config != null, onClick = {
+                            val active = config ?: return@IconButton
+                            scope.launch {
+                                loading = true
+                                repository.runMatching(active).onSuccess { notice = context.getString(R.string.matching_queued) }.onFailure { error = it.message }
+                                loading = false
+                            }
+                        }) { Icon(Icons.Filled.AltRoute, contentDescription = stringResource(R.string.points_match)) }
                         if (selection != null) {
                             IconButton(onClick = { selection = null; count = 0; refreshSelection() }) {
                                 Icon(Icons.Filled.Close, contentDescription = stringResource(R.string.action_close))
@@ -344,21 +381,17 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
                             loading = true
                             // The server deletes by bbox (or by day range) in one request;
                             // paging every id first used to take minutes and looked stuck.
-                            repository.deleteBbox(
-                                active,
-                                box?.query,
-                                dayValue?.atStartOfDay(zone)?.toInstant()?.toString(),
-                                dayValue?.plusDays(1)?.atStartOfDay(zone)?.toInstant()?.minusMillis(1)?.toString(),
-                            ).onSuccess { deleted ->
-                                // Report what the server removed, not what was selected.
-                                deletedCount += deleted
-                                notice = context.getString(R.string.points_deleted, deleted)
-                                selection = null
-                                count = 0
-                                refreshSelection()
-                            }.onFailure { failure ->
-                                error = failure.message ?: failure.javaClass.simpleName
+                            var deleted = 0
+                            var failure: Throwable? = null
+                            for (batch in selectedIds.chunked(3000)) {
+                                val result = repository.deleteIds(active, batch.toSet())
+                                if (result.isFailure) { failure = result.exceptionOrNull(); break }
+                                deleted += result.getOrDefault(0)
                             }
+                            deletedCount += deleted
+                            if (failure != null) error = failure.message ?: failure.javaClass.simpleName
+                            else { notice = context.getString(R.string.points_deleted, deleted); selection = null; count = 0; selectedIds = emptySet() }
+                            refreshSelection()
                             loading = false
                         }
                     },
@@ -379,6 +412,7 @@ private fun PointSelectionScreen(focus: GeoPoint?, onBack: () -> Unit) {
 private class RectangleDrawOverlay(
     private val paintColor: Int,
     private val shouldDraw: () -> Boolean,
+    private val currentBox: () -> SelectionBox?,
     private val onBox: (SelectionBox) -> Unit,
 ) : Overlay(), KeepOverlay {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -398,11 +432,24 @@ private class RectangleDrawOverlay(
     private var drawing = false
 
     override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
-        if (shadow || !drawing) return
+        if (shadow) return
+        if (!drawing) {
+            currentBox()?.let { box ->
+                val px = android.graphics.Point()
+                box.corners.ifEmpty { listOf(GeoPoint(box.north, box.west), GeoPoint(box.north, box.east), GeoPoint(box.south, box.east), GeoPoint(box.south, box.west)) }.forEach { point ->
+                    mapView.projection.toPixels(point, px)
+                    canvas.drawCircle(px.x.toFloat(), px.y.toFloat(), 7f * mapView.resources.displayMetrics.density, stroke)
+                }
+            }
+            return
+        }
         val left = minOf(startX, endX)
         val top = minOf(startY, endY)
+        canvas.save()
+        canvas.concat(mapView.projection.invertedScaleRotateCanvasMatrix)
         canvas.drawRect(left, top, maxOf(startX, endX), maxOf(startY, endY), paint)
         canvas.drawRect(left, top, maxOf(startX, endX), maxOf(startY, endY), stroke)
+        canvas.restore()
     }
 
     private var downX = 0f
@@ -418,10 +465,26 @@ private class RectangleDrawOverlay(
 
     override fun onTouchEvent(event: android.view.MotionEvent, mapView: MapView): Boolean {
         if (!shouldDraw()) return false
+        val screen = floatArrayOf(event.x, event.y)
+        mapView.projection.scaleRotateCanvasMatrix.mapPoints(screen)
+        val x = screen[0]; val y = screen[1]
         when (event.actionMasked) {
             android.view.MotionEvent.ACTION_DOWN -> {
                 cancelHold(mapView)
-                downX = event.x; downY = event.y; pressing = true
+                val existing = currentBox()
+                if (existing != null) {
+                    val corners = existing.corners.ifEmpty { listOf(GeoPoint(existing.north, existing.west), GeoPoint(existing.north, existing.east), GeoPoint(existing.south, existing.east), GeoPoint(existing.south, existing.west)) }
+                    val positions = corners.map { point -> android.graphics.Point().also { mapView.projection.toPixels(point, it); mapView.projection.rotateAndScalePoint(it.x, it.y, it) } }
+                    val hit = positions.indexOfFirst { point -> kotlin.math.hypot(x - point.x, y - point.y) <= 28f * mapView.resources.displayMetrics.density }
+                    if (hit >= 0) {
+                        val opposite = positions[(hit + 2) % 4]
+                        startX = opposite.x.toFloat(); startY = opposite.y.toFloat(); endX = x; endY = y
+                        drawing = true
+                        mapView.parent.requestDisallowInterceptTouchEvent(true)
+                        return true
+                    }
+                }
+                downX = x; downY = y; pressing = true
                 val task = Runnable {
                     if (pressing) {
                         pressing = false
@@ -446,27 +509,38 @@ private class RectangleDrawOverlay(
             }
             android.view.MotionEvent.ACTION_MOVE -> {
                 if (drawing) {
-                    endX = event.x; endY = event.y
+                    endX = x; endY = y
                     mapView.invalidate()
                     return true
                 }
-                if (pressing && (kotlin.math.abs(event.x - downX) > 16f || kotlin.math.abs(event.y - downY) > 16f)) cancelHold(mapView)
+                if (pressing && (kotlin.math.abs(x - downX) > 16f || kotlin.math.abs(y - downY) > 16f)) cancelHold(mapView)
                 return false
             }
-            android.view.MotionEvent.ACTION_UP, android.view.MotionEvent.ACTION_CANCEL -> {
+            android.view.MotionEvent.ACTION_CANCEL -> {
+                cancelHold(mapView)
+                drawing = false
+                mapView.parent.requestDisallowInterceptTouchEvent(false)
+                mapView.invalidate()
+                return false
+            }
+            android.view.MotionEvent.ACTION_UP -> {
                 cancelHold(mapView)
                 if (!drawing) return false
-                endX = event.x; endY = event.y
+                endX = x; endY = y
                 drawing = false
                 mapView.parent.requestDisallowInterceptTouchEvent(false)
                 if (kotlin.math.abs(endX - startX) > 24f && kotlin.math.abs(endY - startY) > 24f) {
-                    val a = mapView.projection.fromPixels(startX.toInt(), startY.toInt())
-                    val b = mapView.projection.fromPixels(endX.toInt(), endY.toInt())
+                    val left = minOf(startX, endX); val right = maxOf(startX, endX)
+                    val top = minOf(startY, endY); val bottom = maxOf(startY, endY)
+                    val corners = listOf(left to top, right to top, right to bottom, left to bottom).map { (px, py) ->
+                        val unrotated = mapView.projection.unrotateAndScalePoint(px.toInt(), py.toInt(), null)
+                        val point = mapView.projection.fromPixels(unrotated.x, unrotated.y)
+                        GeoPoint(point.latitude, point.longitude)
+                    }
                     onBox(SelectionBox(
-                        west = minOf(a.longitude, b.longitude),
-                        south = minOf(a.latitude, b.latitude),
-                        east = maxOf(a.longitude, b.longitude),
-                        north = maxOf(a.latitude, b.latitude),
+                        west = corners.minOf { it.longitude }, south = corners.minOf { it.latitude },
+                        east = corners.maxOf { it.longitude }, north = corners.maxOf { it.latitude },
+                        corners = corners, rotated = kotlin.math.abs(mapView.mapOrientation % 90f) > 1f && kotlin.math.abs(mapView.mapOrientation % 90f) < 89f,
                     ))
                 }
                 mapView.invalidate()
@@ -474,5 +548,22 @@ private class RectangleDrawOverlay(
             }
         }
         return false
+    }
+}
+
+private class SelectionPointsOverlay(private val points: List<GeoPoint>, color: Int) : Overlay() {
+    private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { this.color = color; style = Paint.Style.FILL }
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val density = mapView.resources.displayMetrics.density
+        val gridSize = (9f * density).coerceAtLeast(1f)
+        val occupied = HashSet<Pair<Int, Int>>()
+        val pixel = android.graphics.Point()
+        points.forEach { point ->
+            mapView.projection.toPixels(point, pixel)
+            if (pixel.x < 0 || pixel.y < 0 || pixel.x > mapView.width || pixel.y > mapView.height) return@forEach
+            val cell = (pixel.x / gridSize).toInt() to (pixel.y / gridSize).toInt()
+            if (occupied.add(cell)) canvas.drawCircle(pixel.x.toFloat(), pixel.y.toFloat(), 2f * density, paint)
+        }
     }
 }
