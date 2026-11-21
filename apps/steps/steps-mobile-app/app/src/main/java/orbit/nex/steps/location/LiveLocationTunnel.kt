@@ -6,6 +6,7 @@ import android.location.LocationListener
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Looper
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -13,13 +14,13 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import okhttp3.MediaType.Companion.toMediaType
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.WebhookConfig
 import org.json.JSONObject
@@ -27,6 +28,7 @@ import java.time.Instant
 import java.util.UUID
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicReference
 
 /**
  * Pushes the phone's current fix through the Steps websocket tunnel so the web
@@ -42,6 +44,8 @@ class LiveLocationTunnel(
         .readTimeout(0, TimeUnit.MILLISECONDS)
         .build()
     private val running = AtomicBoolean(false)
+    private val socketOpen = AtomicBoolean(false)
+    private val lastFix = AtomicReference<Location?>(null)
     private var socket: WebSocket? = null
     private var renewJob: Job? = null
     private var locationManager: LocationManager? = null
@@ -52,8 +56,12 @@ class LiveLocationTunnel(
         if (!running.compareAndSet(false, true)) return
         renewJob = scope.launch {
             while (isActive && running.get()) {
-                connectOnce()
-                delay(5_000)
+                if (socket != null && socketOpen.get()) {
+                    delay(4_000)
+                    continue
+                }
+                val ok = connectOnce()
+                delay(if (ok) 4_000 else 1_200)
             }
         }
         startGps()
@@ -64,6 +72,7 @@ class LiveLocationTunnel(
         renewJob?.cancel()
         renewJob = null
         stopGps()
+        socketOpen.set(false)
         socket?.close(1000, "stop")
         socket = null
     }
@@ -87,7 +96,7 @@ class LiveLocationTunnel(
         listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER).forEach { provider ->
             runCatching {
                 if (manager.isProviderEnabled(provider)) {
-                    manager.requestLocationUpdates(provider, 5_000L, 5f, locListener, Looper.getMainLooper())
+                    manager.requestLocationUpdates(provider, 1_000L, 0f, locListener, Looper.getMainLooper())
                 }
             }
         }
@@ -109,7 +118,9 @@ class LiveLocationTunnel(
     }
 
     private fun publish(location: Location) {
+        lastFix.set(location)
         val ws = socket ?: return
+        if (!socketOpen.get()) return
         val payload = JSONObject()
             .put("type", "fix")
             .put("latitude", location.latitude)
@@ -122,27 +133,54 @@ class LiveLocationTunnel(
         ws.send(payload.toString())
     }
 
-    private suspend fun connectOnce() {
-        val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return
-        val ticket = mintTicket(config) ?: return
+    private suspend fun connectOnce(): Boolean {
+        val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return false
+        val ticket = mintTicket(config) ?: return false
         val base = GeoMapRepository.apiBase(config)
         val uri = android.net.Uri.parse(base)
         val wsScheme = if (uri.scheme.equals("https", true)) "wss" else "ws"
-        val host = uri.authority ?: return
+        val host = uri.authority ?: return false
         val url = "$wsScheme://$host/steps-live-ws?ticket=$ticket"
+        val opened = CompletableDeferred<Boolean>()
         withContext(Dispatchers.Main) {
             socket?.cancel()
+            socketOpen.set(false)
             socket = client.newWebSocket(
                 Request.Builder().url(url).build(),
                 object : WebSocketListener() {
+                    override fun onOpen(webSocket: WebSocket, response: Response) {
+                        if (socket === webSocket) {
+                            socketOpen.set(true)
+                            opened.complete(true)
+                            lastFix.get()?.let { publish(it) }
+                        }
+                    }
                     override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
-                        if (socket === webSocket) socket = null
+                        if (socket === webSocket) {
+                            socket = null
+                            socketOpen.set(false)
+                        }
+                        opened.complete(false)
                     }
                     override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
-                        if (socket === webSocket) socket = null
+                        if (socket === webSocket) {
+                            socket = null
+                            socketOpen.set(false)
+                        }
                     }
                 },
             )
+        }
+        return runCatching {
+            withTimeoutOrNullCompat(8_000) { opened.await() } ?: false
+        }.getOrDefault(false)
+    }
+
+    private suspend fun <T> withTimeoutOrNullCompat(ms: Long, block: suspend () -> T): T? {
+        return try {
+            kotlinx.coroutines.withTimeout(ms) { block() }
+        } catch (_: kotlinx.coroutines.TimeoutCancellationException) {
+            null
         }
     }
 

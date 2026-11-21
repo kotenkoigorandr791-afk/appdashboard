@@ -33,9 +33,14 @@ $rooms = []; // email => [clientId => true]
 
 function steps_live_ticket_dirs(): array
 {
-    $base = getenv('APPDATA_BASE_DIR');
-    if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
-    return [rtrim($base, '/') . '/steps_runtime/live_ws_tickets'];
+    // FPM may use /storage/applications after mergerfs unify while Config.Env
+    // still points at /opt/ApplicationData — accept tickets from both trees.
+    $bases = [];
+    foreach ([getenv('APPDATA_BASE_DIR'), '/storage/applications', '/opt/ApplicationData'] as $base) {
+        if (!is_string($base) || trim($base) === '') continue;
+        $bases[] = rtrim($base, '/') . '/steps_runtime/live_ws_tickets';
+    }
+    return array_values(array_unique($bases));
 }
 
 function steps_live_validate_ticket(string $ticket): ?array

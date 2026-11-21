@@ -961,5 +961,6 @@
   "stats_no_confirmed_place": "Немає підтвердженого місця",
   "stats_confirm_places_hint": "Підтвердіть місця на карті",
   "distance": "Дистанція",
-  "today": "Сьогодні"
+  "today": "Сьогодні",
+  "map_goto_live": "До моєї локації"
 }

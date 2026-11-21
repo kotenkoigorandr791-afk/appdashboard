@@ -18,13 +18,19 @@ steps_geolocation_migrate(app_main_db());
 $pdo = app_main_db()->getPdo();
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
-function steps_live_ticket_dir(): string
+function steps_live_ticket_dirs(): array
 {
-    $base = getenv('APPDATA_BASE_DIR');
-    if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
-    $dir = rtrim($base, '/') . '/steps_runtime/live_ws_tickets';
-    if (!is_dir($dir)) @mkdir($dir, 0770, true);
-    return $dir;
+    $dirs = [];
+    foreach ([getenv('APPDATA_BASE_DIR'), '/storage/applications', '/opt/ApplicationData'] as $base) {
+        if (!is_string($base) || trim($base) === '') continue;
+        $dir = rtrim($base, '/') . '/steps_runtime/live_ws_tickets';
+        if (!is_dir($dir)) @mkdir($dir, 0770, true);
+        if (is_dir($dir)) {
+            @chmod($dir, 0770);
+            $dirs[] = $dir;
+        }
+    }
+    return array_values(array_unique($dirs));
 }
 
 if ($method === 'GET') {
@@ -67,9 +73,15 @@ if ($action === 'ticket') {
         'device_id' => $role === 'device' ? $deviceId : '',
         'exp' => $exp,
     ];
-    $dir = steps_live_ticket_dir();
-    if (!is_dir($dir) || !is_writable($dir)) public_api_json(['ok' => false, 'error' => 'ticket_store_unavailable'], 503);
-    file_put_contents($dir . '/' . $ticket . '.json', json_encode($payload, JSON_UNESCAPED_SLASHES));
+    $dirs = steps_live_ticket_dirs();
+    if ($dirs === []) public_api_json(['ok' => false, 'error' => 'ticket_store_unavailable'], 503);
+    $json = json_encode($payload, JSON_UNESCAPED_SLASHES);
+    $wrote = false;
+    foreach ($dirs as $dir) {
+        if (!is_writable($dir)) continue;
+        if (@file_put_contents($dir . '/' . $ticket . '.json', $json) !== false) $wrote = true;
+    }
+    if (!$wrote) public_api_json(['ok' => false, 'error' => 'ticket_store_unavailable'], 503);
     public_api_json([
         'ok' => true,
         'ticket' => $ticket,

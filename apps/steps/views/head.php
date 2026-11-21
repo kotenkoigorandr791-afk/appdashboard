@@ -1155,7 +1155,8 @@
         .photo-md3-lightbox-meta { padding: 12px 14px 16px; color: #e5e7eb; font-size: 13px; }
         @keyframes photoMd3Shimmer { to { background-position-x: -200%; } }
         .map-place-photo { background: transparent !important; border: 0 !important; }
-        .map-place-photo-ring { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #22c55e; box-shadow: 0 2px 8px rgba(0,0,0,.45); background: #1f2937; }
+        .map-place-photo-ring { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #0ea5e9; box-shadow: 0 2px 8px rgba(0,0,0,.45); background: #1f2937; }
+        .map-live-heading { display: inline-block; transform-origin: 50% 55%; }
         .map-place-photo-ring img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .visit-pop-photo, .visit-editor-photo { width: 72px; height: 72px; border-radius: 50%; overflow: hidden; margin: 0 0 8px; border: 2px solid rgba(255,255,255,.35); box-shadow: 0 2px 10px rgba(0,0,0,.35); }
         .visit-pop-photo img, .visit-editor-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -4077,9 +4078,16 @@ height: 48px;
 .map-stage .leaflet-control-zoom { border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.42); }
 .map-stage .leaflet-control-zoom a { width: 34px; height: 34px; line-height: 34px; background: rgba(11,17,23,0.78); color: #dbeafe; border-bottom: 1px solid rgba(255,255,255,0.1); }
 .map-stage .leaflet-control-zoom a:hover { background: rgba(56,189,248,0.24); color: #fff; }
-.map-stage .leaflet-bottom .leaflet-control-scale { margin: 0 0 22px 14px; }
+.map-stage .map-locate-control { margin-bottom: 10px; border: none; border-radius: 12px; overflow: hidden; box-shadow: 0 12px 30px rgba(0,0,0,0.42); }
+.map-stage .map-locate-control a.map-locate-btn {
+    width: 34px; height: 34px; line-height: 34px; display: flex; align-items: center; justify-content: center;
+    background: rgba(11,17,23,0.78); color: #7dd3fc; font-size: 14px;
+}
+.map-stage .map-locate-control a.map-locate-btn:hover { background: rgba(56,189,248,0.24); color: #fff; }
+.map-stage .leaflet-bottom.leaflet-left { margin-bottom: 8px; }
+.map-stage .leaflet-bottom .leaflet-control-scale { margin: 0 0 36px 14px; }
 .map-stage .leaflet-control-scale-line { background: rgba(11,17,23,0.6); color: #cbd5e1; border-color: rgba(255,255,255,0.4); border-radius: 6px; padding: 2px 7px; }
-.map-stage .leaflet-control-attribution { background: rgba(11,17,23,0.55) !important; color: #94a3b8 !important; font-size: 9px !important; border-radius: 6px; }
+.map-stage .leaflet-control-attribution { background: rgba(11,17,23,0.55) !important; color: #94a3b8 !important; font-size: 9px !important; border-radius: 6px; margin: 0 0 4px 8px !important; }
 .map-stage .leaflet-control-attribution a { color: #7dd3fc !important; }
 .map-stage .leaflet-popup-content-wrapper { background: rgba(13,20,27,0.94); color: #e2e8f0; border-radius: 12px; border: 1px solid rgba(148,163,184,0.28); box-shadow: 0 18px 40px rgba(0,0,0,0.5); }
 .map-stage .leaflet-popup-content { margin: 10px 12px; font-size: 12px; }
@@ -5120,7 +5128,7 @@ iframe.render-preview-media { height: 60vh; }
 .app-steps textarea { transition: border-color var(--transition-fast), background-color var(--transition-fast), color var(--transition-fast), box-shadow var(--transition-fast), transform var(--transition-fast); }
 /* Icon-only controls own their geometry (pills and squares); the generic rule
    only applies to text buttons. */
-.app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out):not(.mode-switch-btn):not(.map-day-btn):not(.map-sidebar-show):not(.map-reset-btn):not(.trip-close):not(.chart-nav) { min-height: var(--control-height); border-radius: var(--radius-sm); }
+.app-steps button:not(.maplibregl-ctrl-icon):not(.leaflet-control-zoom-in):not(.leaflet-control-zoom-out):not(.map-locate-btn):not(.mode-switch-btn):not(.map-day-btn):not(.map-sidebar-show):not(.map-reset-btn):not(.trip-close):not(.chart-nav) { min-height: var(--control-height); border-radius: var(--radius-sm); }
 .app-steps button:disabled { cursor: not-allowed; opacity: .52; }
 .app-steps button:not(:disabled):active { transform: translateY(1px); }
 .app-steps .app-icon { display: inline-block; width: 1em; font-family: "Font Awesome 6 Free"; font-size: 18px; font-style: normal; font-weight: 900; line-height: 1; text-align: center; }

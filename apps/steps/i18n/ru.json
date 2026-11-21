@@ -961,5 +961,6 @@
   "stats_no_confirmed_place": "Нет подтверждённого места",
   "stats_confirm_places_hint": "Подтвердите места на карте",
   "distance": "Дистанция",
-  "today": "Сегодня"
+  "today": "Сегодня",
+  "map_goto_live": "К моей локации"
 }

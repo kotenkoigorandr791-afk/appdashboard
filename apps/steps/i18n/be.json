@@ -961,5 +961,6 @@
   "stats_no_confirmed_place": "Няма пацверджанага месца",
   "stats_confirm_places_hint": "Пацвердзіце месцы на карце",
   "distance": "Дыстанцыя",
-  "today": "Сёння"
+  "today": "Сёння",
+  "map_goto_live": "Да маёй лакацыі"
 }

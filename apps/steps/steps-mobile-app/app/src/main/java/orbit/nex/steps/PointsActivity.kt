@@ -37,7 +37,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -47,7 +46,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import orbit.nex.steps.components.AppTooltipIconButton
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -150,16 +151,25 @@ private fun PointsScreen(onBack: () -> Unit) {
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    Scaffold(topBar = {
-        TopAppBar(
-            title = { Text(stringResource(R.string.points_management_title)) },
-            navigationIcon = {
-                IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd))
-                }
-            },
-        )
-    }) { padding ->
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(stringResource(R.string.points_management_title)) },
+                navigationIcon = {
+                    AppTooltipIconButton(
+                        onClick = onBack,
+                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = stringResource(R.string.settings_back_cd),
+                    )
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                ),
+            )
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+    ) { padding ->
         orbit.nex.steps.components.AppBackground {
             LazyColumn(
                 Modifier.fillMaxSize().padding(padding).padding(horizontal = Spacing.md),
@@ -221,12 +231,18 @@ private fun PointsScreen(onBack: () -> Unit) {
                             style = MaterialTheme.typography.labelMedium,
                             modifier = Modifier.weight(1f),
                         )
-                        IconButton(enabled = page > 0 && !loading, onClick = { page-- }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.points_previous_page))
-                        }
-                        IconButton(enabled = page + 1 < pageCount && !loading, onClick = { page++ }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowForward, contentDescription = stringResource(R.string.points_next_page))
-                        }
+                        AppTooltipIconButton(
+                            enabled = page > 0 && !loading,
+                            onClick = { page-- },
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.points_previous_page),
+                        )
+                        AppTooltipIconButton(
+                            enabled = page + 1 < pageCount && !loading,
+                            onClick = { page++ },
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = stringResource(R.string.points_next_page),
+                        )
                     }
                 }
                 if (loading) item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
@@ -361,9 +377,11 @@ private fun PointRow(point: ManagedPoint, checked: Boolean, onChecked: (Boolean)
                     point.source.takeIf { it.isNotBlank() }?.let { AppStatusPill(it) }
                 }
             }
-            IconButton(onClick = onMap) {
-                Icon(Icons.Filled.Map, contentDescription = stringResource(R.string.points_open_map))
-            }
+            AppTooltipIconButton(
+                onClick = onMap,
+                imageVector = Icons.Filled.Map,
+                contentDescription = stringResource(R.string.points_open_map),
+            )
         }
     }
 }

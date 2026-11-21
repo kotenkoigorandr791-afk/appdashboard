@@ -572,6 +572,25 @@ $metricButtons = [
                         livePane.style.zIndex='455';
                         layerGroup=L.layerGroup().addTo(map);
                         L.control.zoom({position:'bottomright'}).addTo(map);
+                        // Locate control sits above Leaflet's zoom +/- stack.
+                        const LocateControl=L.Control.extend({
+                            options:{position:'bottomright'},
+                            onAdd:function(){
+                                const wrap=L.DomUtil.create('div','leaflet-bar map-locate-control');
+                                const btn=L.DomUtil.create('a','map-locate-btn',wrap);
+                                btn.href='#';
+                                btn.title=tr('map_goto_live','Go to my location');
+                                btn.setAttribute('aria-label',tr('map_goto_live','Go to my location'));
+                                btn.innerHTML='<i class="fas fa-location-crosshairs" aria-hidden="true"></i>';
+                                L.DomEvent.disableClickPropagation(wrap);
+                                L.DomEvent.on(btn,'click',function(ev){
+                                    L.DomEvent.preventDefault(ev);
+                                    goToLiveLocation();
+                                });
+                                return wrap;
+                            }
+                        });
+                        new LocateControl().addTo(map);
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
                         try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
@@ -882,9 +901,10 @@ $metricButtons = [
                                 if(p.photo_url){
                                     const size=Math.max(28, baseRadius*4+16);
                                     const photoSrc=String(p.photo_url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
-                                    vm=L.marker([vlat,vlon],{keyboard:false,icon:L.divIcon({className:'map-place-photo',html:'<span class="map-place-photo-ring" style="border-color:'+vc+'"><img src="'+photoSrc+'" alt="" loading="lazy" decoding="async"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                    // Visit rings stay sky-blue; Immich photo rings stay amber (#f59e0b).
+                                    vm=L.marker([vlat,vlon],{keyboard:false,icon:L.divIcon({className:'map-place-photo',html:'<span class="map-place-photo-ring" style="border-color:#0ea5e9"><img src="'+photoSrc+'" alt="" loading="lazy" decoding="async"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
                                 } else {
-                                    vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#ffffff',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
+                                    vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#0ea5e9',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
                                 }
                                 vm.unbindPopup(); vm.bindPopup(()=>visitPopup(p),{maxWidth:420,className:'visit-md3-leaflet',closeButton:false});
                                 vm.on('contextmenu',ev=>{ window.L.DomEvent.stop(ev); openMapMenu(ev.latlng,ev.originalEvent,p); });
@@ -1479,6 +1499,7 @@ $metricButtons = [
                             }
                             await fetchViewport({dir:null});
                             loadTrips();
+                            pollLive();
                         })();
                         return mapBootPromise;
                     }
@@ -1512,10 +1533,6 @@ $metricButtons = [
                     // the newest measurement, refreshed independently of the day
                     // range so the user can see where they are right now.
                     let liveLayer=null, liveMarker=null, liveSeq=0;
-                    function liveRangeActive(){
-                        const today=todayIso();
-                        return (!fromInput.value||fromInput.value<=today)&&(!toInput.value||toInput.value>=today);
-                    }
                     function clearLiveMarker(){
                         if(liveLayer) liveLayer.clearLayers();
                         liveMarker=null;
@@ -1535,13 +1552,14 @@ $metricButtons = [
                         const acc=Number(point.accuracy_m);
                         if(acc>0) L.circle([lat,lon],{pane:'mapBackdrop',radius:Math.min(1500,acc),color:'#38bdf8',weight:1,opacity:0.55,fillColor:'#38bdf8',fillOpacity:0.12,interactive:false}).addTo(liveLayer);
                         const bearing=Number(point.bearing_degrees);
+                        // FA location-arrow points NE (~45°); offset so 0° = north.
                         const arrow=isFinite(bearing)
-                            ?'<i class="fas fa-location-arrow" style="transform:rotate('+bearing+'deg)"></i>'
+                            ?'<i class="fas fa-location-arrow map-live-heading" style="transform:rotate('+(bearing-45)+'deg)"></i>'
                             :'<span class="map-live-core"></span>';
                         liveMarker=L.marker([lat,lon],{keyboard:false,pane:'live',zIndexOffset:1000,icon:L.divIcon({
-                            className:'map-live-marker'+(fresh?' is-live':''),
+                            className:'map-live-marker'+(fresh?' is-live':'')+(isFinite(bearing)?' has-heading':''),
                             html:'<span class="map-live-ring"></span><span class="map-live-dot">'+arrow+'</span>',
-                            iconSize:[30,30],iconAnchor:[15,15]
+                            iconSize:[36,36],iconAnchor:[18,18]
                         })}).addTo(liveLayer);
                         liveMarker.bindPopup(popupHtml(
                             fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'),
@@ -1553,6 +1571,21 @@ $metricButtons = [
                             badge.classList.toggle('is-stale',!fresh);
                             text.textContent=(fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'))+' · '+at.toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'});
                         }
+                    }
+                    function goToLiveLocation(){
+                        if(!map) return;
+                        if(liveMarker){
+                            const ll=liveMarker.getLatLng();
+                            map.flyTo(ll, Math.max(map.getZoom(), 16), {duration:0.55});
+                            try{ liveMarker.openPopup(); }catch(_){}
+                            return;
+                        }
+                        pollLive().then(()=>{
+                            if(liveMarker){
+                                const ll=liveMarker.getLatLng();
+                                map.flyTo(ll, Math.max(map.getZoom(), 16), {duration:0.55});
+                            }
+                        });
                     }
                     let liveWs=null, liveWsTimer=null;
                     function liveWsUrl(ticket){
@@ -1585,8 +1618,9 @@ $metricButtons = [
                         }catch(_){}
                     }
                     async function pollLive(){
+                        // Live marker is independent of the selected day range: the
+                        // phone can be sharing position while the map shows history.
                         if(!mapStarted||!map||!mapHost||mapHost.hidden||document.hidden) return;
-                        if(!liveRangeActive()){ clearLiveMarker(); return; }
                         ensureLiveWs();
                         const seq=++liveSeq;
                         try{
@@ -2521,7 +2555,7 @@ $metricButtons = [
                     setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); pollLive(); },30000);
                     // The live marker is cheap (one row) and updates every 10 s, so a
                     // moving phone visibly walks across the map.
-                    setInterval(()=>{ pollLive(); },10000);
+                    setInterval(()=>{ pollLive(); },2500);
                     document.addEventListener('visibilitychange',()=>{ if(!document.hidden) pollLive(); });
                     window.addEventListener('steps-map-shown',()=>{ startMapWorkspace(); });
                     document.addEventListener('visibilitychange',()=>{ if(document.hidden) cancelPrefetch(); });

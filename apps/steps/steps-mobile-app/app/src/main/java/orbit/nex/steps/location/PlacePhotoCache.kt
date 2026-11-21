@@ -35,6 +35,20 @@ object PlacePhotoCache {
     fun resolveUrl(config: WebhookConfig, osmType: String, osmId: Long): String =
         GeoMapRepository.apiBase(config).trimEnd('/') + "/geolocation_place_photo?osm_type=$osmType&osm_id=$osmId"
 
+    /** Prefer the authenticated mobile API; rewrite session_gateway photo URLs. */
+    fun resolveFeatureUrl(config: WebhookConfig, osmType: String?, osmId: Long?, photoUrl: String?): String? {
+        if (!osmType.isNullOrBlank() && osmId != null && osmId > 0L) {
+            return resolveUrl(config, osmType, osmId)
+        }
+        val raw = photoUrl?.trim().orEmpty()
+        if (raw.isEmpty()) return null
+        if (raw.startsWith("http://", true) || raw.startsWith("https://", true)) return raw
+        val origin = android.net.Uri.parse(GeoMapRepository.apiBase(config)).let { uri ->
+            if (uri.scheme != null && uri.authority != null) "${uri.scheme}://${uri.authority}" else return null
+        }
+        return if (raw.startsWith("/")) origin + raw else "$origin/$raw"
+    }
+
     suspend fun ensure(
         context: Context,
         prefs: PreferencesManager,
@@ -43,6 +57,23 @@ object PlacePhotoCache {
         osmId: Long,
     ): Bitmap? = withContext(Dispatchers.IO) {
         fetch(context, prefs, config, key(osmType, osmId), resolveUrl(config, osmType, osmId))
+    }
+
+    suspend fun ensureFeature(
+        context: Context,
+        prefs: PreferencesManager,
+        config: WebhookConfig,
+        osmType: String?,
+        osmId: Long?,
+        photoUrl: String?,
+    ): Bitmap? = withContext(Dispatchers.IO) {
+        val cacheKey = when {
+            !osmType.isNullOrBlank() && osmId != null && osmId > 0L -> key(osmType, osmId)
+            !photoUrl.isNullOrBlank() -> "url:${photoUrl.hashCode()}"
+            else -> return@withContext null
+        }
+        val url = resolveFeatureUrl(config, osmType, osmId, photoUrl) ?: return@withContext null
+        fetch(context, prefs, config, cacheKey, url)
     }
 
     fun immichKey(assetId: String): String = "immich:$assetId"
