@@ -2,7 +2,7 @@
 /**
  * Docker Manager — translations.
  *
- * Every string lives in the shared dictionaries under project/i18n/<lang>.json.
+ * Every string lives in the shared dictionaries under shell/i18n/<lang>.json.
  * Docker-owned keys carry a `docker_` prefix so they never collide with the
  * generic `search`, `remove`, `copy`, `status`, ... keys used by other apps.
  */

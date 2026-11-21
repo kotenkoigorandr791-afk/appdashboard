@@ -19,8 +19,8 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
     <meta name="color-scheme" content="<?php echo $bootThemeDark ? 'dark' : (in_array($bootThemePref, ['auto', 'device'], true) ? 'light dark' : 'light'); ?>">
     <title><?php echo my_htmlspecialchars($pageTitle); ?></title>
     <script>(function(){var pref=<?php echo json_encode($bootThemePref, JSON_HEX_TAG); ?>;var resolved=<?php echo json_encode($bootThemeResolved, JSON_HEX_TAG); ?>;if(pref==='auto'||pref==='device'){try{resolved=window.matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light';}catch(e){}try{document.cookie='browser_theme='+encodeURIComponent(resolved)+'; path=/; max-age=86400; SameSite=Lax';}catch(e){}}else{resolved=(pref==='dark')?'dark':'light';}var dark=resolved==='dark';window.__AP_BOOT_THEME__=resolved;var root=document.documentElement;root.setAttribute('data-theme',resolved);root.style.colorScheme=resolved;root.classList.toggle('boot-theme-dark',dark);root.classList.toggle('boot-theme-light',!dark);})();</script>
-    <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
-    <link rel="icon" href="/project/views/icon.png?v=3" type="image/png">
+    <link rel="icon" type="image/x-icon" href="/shell/views/icon.ico?v=3">
+    <link rel="icon" href="/shell/views/icon.png?v=3" type="image/png">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
     <script>window.__AP_CSRF__=<?php echo json_encode(apSecCsrfToken(), JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;(function(){function tok(){var m=document.querySelector('meta[name="csrf-token"]');var v=(m&&m.getAttribute('content'))||window.__AP_CSRF__||'';return String(v||'');}function remember(t){if(!t)return;window.__AP_CSRF__=String(t);var m=document.querySelector('meta[name="csrf-token"]');if(m)m.setAttribute('content',String(t));}window.__AP_REMEMBER_CSRF__=remember;var f=window.fetch;window.fetch=function(i,n){n=n||{};var m=String((n.method||(typeof Request!=='undefined'&&i instanceof Request?i.method:'GET'))||'GET').toUpperCase();if(m!=='GET'&&m!=='HEAD'&&m!=='OPTIONS'){var t=tok();if(t){n.headers=new Headers(n.headers||{});n.headers.set('X-CSRF-TOKEN',t);if(typeof FormData!=='undefined'&&n.body instanceof FormData){if(n.body.has('_csrf'))n.body.set('_csrf',t);else n.body.append('_csrf',t);}}}return f.call(this,i,n).then(function(r){try{var ct=r.headers.get('content-type')||'';if(ct.indexOf('application/json')!==-1){r.clone().json().then(function(d){if(d&&d.csrf)remember(d.csrf);}).catch(function(){});}}catch(e){}return r;});};function ensureCsrf(form){if(!form||!form.tagName||form.tagName!=='FORM')return;if(String(form.method||'get').toLowerCase()!=='post')return;var t=tok();if(!t)return;var existing=form.querySelector('input[name="_csrf"]');if(existing){existing.value=t;return;}var inp=document.createElement('input');inp.type='hidden';inp.name='_csrf';inp.value=t;form.appendChild(inp);}document.addEventListener('submit',function(e){ensureCsrf(e.target);},true);var _submit=HTMLFormElement.prototype.submit;HTMLFormElement.prototype.submit=function(){ensureCsrf(this);return _submit.call(this);};})();</script>
     <?php app_cookie_consent_browser_script(); ?>
@@ -4354,8 +4354,8 @@ window.__SHELL_I18N=<?php echo json_encode([
     'app' => $translations['app'] ?? 'App',
 ], JSON_UNESCAPED_UNICODE|JSON_UNESCAPED_SLASHES); ?>;
 </script>
-<?php $__shellNavFile = APP_ROOT . '/project/assets/shell-app-nav.js'; $__shellNavVersion = is_file($__shellNavFile) ? (string)filemtime($__shellNavFile) : '8'; ?>
-<script src="/project/assets/shell-app-nav.js?v=<?php echo my_htmlspecialchars($__shellNavVersion); ?>" defer></script>
+<?php $__shellNavFile = APP_ROOT . '/shell/assets/shell-app-nav.js'; $__shellNavVersion = is_file($__shellNavFile) ? (string)filemtime($__shellNavFile) : '8'; ?>
+<script src="/shell/assets/shell-app-nav.js?v=<?php echo my_htmlspecialchars($__shellNavVersion); ?>" defer></script>
 <?php endif; ?>
 <div id="content"<?php if($showAppFrame):?> class="mobile-vv-shell app-edge-<?php echo my_htmlspecialchars(strtolower((string)$selectedApp)); ?><?php echo $showAppRail?' has-app-rail':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$railTopApps,true))?' rail-top-on-mobile':''; ?><?php echo ($showAppRail&&in_array($selectedApp,$edgeAppShellApps,true))?' edge-app-shell':''; ?>"<?php endif;?>>
     <?php if($path==='/main'): ?>
@@ -7652,10 +7652,10 @@ if (!empty($_guideEnabled)):
             && (!empty($_SESSION['user']['onboarding_pending']) && empty($_SESSION['user']['onboarding_done']));
     }
 ?>
-<link rel="stylesheet" href="/project/onboarding/guide.css?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide.css'); ?>">
-<link rel="stylesheet" href="/project/assets/weather.css">
+<link rel="stylesheet" href="/shell/onboarding/guide.css?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide.css'); ?>">
+<link rel="stylesheet" href="/shell/assets/weather.css">
 <script>window.__guideData = <?php echo json_encode($_guideStrings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_HEX_TAG); ?>;window.__guideForce = <?php echo empty($_guideCfg['dev_force_start']) ? 'false' : 'true'; ?>;window.__guideAuto = <?php echo $_guideAuto ? 'true' : 'false'; ?>;</script>
-<script src="/project/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script>
+<script src="/shell/onboarding/guide_core.js?v=<?php echo filemtime(__DIR__ . '/../onboarding/guide_core.js'); ?>" defer></script>
 <?php endif; ?>
 <script>
 (function(){

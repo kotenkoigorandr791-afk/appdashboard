@@ -1,6 +1,6 @@
 <?php
 /**
- * project/storage/index.php — Storage Manager entry point.
+ * shell/storage/index.php — Storage Manager entry point.
  *
  * Handles the JSON API (?api=...) and the standalone page. The Admin Panel
  * embeds the same panel markup directly.
@@ -11,7 +11,7 @@ $storageAppRoot = dirname(__DIR__, 2);
 if (!defined('APP_ROOT')) define('APP_ROOT', $storageAppRoot);
 if (getcwd() !== APP_ROOT) @chdir(APP_ROOT);
 
-require_once $storageAppRoot . '/project/bootstrap.php';
+require_once $storageAppRoot . '/shell/bootstrap.php';
 require_once $storageAppRoot . '/lib/embed_context.php';
 require_once $storageAppRoot . '/lib/Storage/bootstrap.php';
 smart_log_bootstrap('dashboard');

@@ -128,7 +128,7 @@ function formatPrecip(value) {
     return wt('weather_precip_mm', '%s mm').replace('%s', value);
 }
 
-    var weatherIconBase = '/project/assets/weather-icons/animated/';
+    var weatherIconBase = '/shell/assets/weather-icons/animated/';
     function weatherIconName(code) {
         if (code === 0) return 'clear-day';
         if (code >= 1 && code <= 2) return 'cloudy-2-day';
@@ -304,7 +304,7 @@ function loadCountriesForSelect() {
     weatherCountriesLoading = true;
     countrySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
     countrySelect.disabled = true;
-    weatherFetchJson('/project/weather_settings.php?action=countries')
+    weatherFetchJson('/shell/weather_settings.php?action=countries')
         .then(data => {
             if (!data.countries || !data.countries.length) throw new Error('No countries');
             weatherSettings.countries = data.countries;
@@ -386,7 +386,7 @@ function loadCitiesForSelect() {
     citySelect.disabled = !weatherSettings.selected_country_code;
     if (!weatherSettings.selected_country_code) return;
     citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_loading', 'Loading...')) + '</option>';
-    weatherFetchJson('/project/weather_settings.php?action=country_cities&country=' + encodeURIComponent(weatherSettings.selected_country))
+    weatherFetchJson('/shell/weather_settings.php?action=country_cities&country=' + encodeURIComponent(weatherSettings.selected_country))
         .then(data => {
             citySelect.innerHTML = '<option value="">' + escHtml(wt('weather_select_city', 'Select city')) + '</option>';
             (data.cities || []).forEach(name => {
@@ -431,7 +431,7 @@ function onCityChangeCustom(select) {
         if (label) label.textContent = customSelected.textContent;
     }
     
-    weatherFetchJson('/project/weather_settings.php?action=coords&city=' + encodeURIComponent(option.value.split('|')[0]) + '&country=' + encodeURIComponent(weatherSettings.selected_country) + '&country_code=' + encodeURIComponent(weatherSettings.selected_country_code))
+    weatherFetchJson('/shell/weather_settings.php?action=coords&city=' + encodeURIComponent(option.value.split('|')[0]) + '&country=' + encodeURIComponent(weatherSettings.selected_country) + '&country_code=' + encodeURIComponent(weatherSettings.selected_country_code))
         .then(city => {
             weatherSettings.selected_city = city.name;
             weatherSettings.selected_city_label = city.label || city.name;
@@ -451,7 +451,7 @@ function onCityChangeCustom(select) {
 function openWeatherSettings() {
     if (!settingsModalOverlay) return;
 
-    weatherFetchJson('/project/weather_settings.php')
+    weatherFetchJson('/shell/weather_settings.php')
         .then(data => {
             weatherSettings.use_current_location = data.use_current_location !== false;
             weatherSettings.selected_country = data.selected_country;
@@ -616,7 +616,7 @@ function saveWeatherSettings() {
         lon: weatherSettings.selected_lon
     };
 
-    weatherFetchJson('/project/weather_settings.php', {
+    weatherFetchJson('/shell/weather_settings.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -1319,7 +1319,7 @@ window.toggleWindChart = toggleWindChart;
             weatherStore.lon = lng;
             fetchWeather(lat, lng);
             fetchCity(lat, lng);
-            fetch('/project/weather_settings.php', {
+            fetch('/shell/weather_settings.php', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -1400,7 +1400,7 @@ window.toggleWindChart = toggleWindChart;
                 applyCached(cachedBoot);
             }
         } catch(e) {}
-        fetch('/project/weather_settings.php')
+        fetch('/shell/weather_settings.php')
             .then(function(response) { return response.json(); })
             .then(function(settings) {
                 if (!settings.use_current_location && settings.selected_city && settings.lat != null && settings.lon != null) {

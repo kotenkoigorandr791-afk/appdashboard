@@ -89,7 +89,7 @@ function smart_log_conn(): AppDatabase {
     if ($db instanceof AppDatabase) {
         return $db;
     }
-    require_once dirname(__FILE__) . '/lib/app_db.php';
+    require_once dirname(__DIR__) . '/lib/app_db.php';
     $db = app_main_db();
     $db->enableExceptions(true);
     smart_log_ensure_schema($db);
@@ -234,7 +234,7 @@ function smart_log_bootstrap(string $appId): void {
     if (!defined('SMART_LOG_APP_ID')) {
         define('SMART_LOG_APP_ID', $appId);
     }
-    require_once __DIR__ . '/lib/sentry_bootstrap.php';
+    require_once dirname(__DIR__) . '/lib/sentry_bootstrap.php';
     app_sentry_bootstrap($appId);
     set_error_handler(static function (int $errno, string $errstr, string $errfile, int $errline): bool {
         if (!(error_reporting() & $errno)) {

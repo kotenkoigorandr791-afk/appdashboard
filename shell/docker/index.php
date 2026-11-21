@@ -1,5 +1,5 @@
 <?php
-// project/docker/index.php — entry point for the Docker Manager app.
+// shell/docker/index.php — entry point for the Docker Manager app.
 // All logic lives next to this file (i18n.php, backend.php, views.php, ...).
 
 $dockerAppRoot = dirname(__DIR__, 2);
@@ -16,7 +16,7 @@ require_once $dockerAppRoot . '/db.php';
 require_once $dockerAppRoot . '/lib/admin_security.php';
 require_once $dockerAppRoot . '/lib/embed_context.php';
 require_once $dockerAppRoot . '/lib/docker_client.php';
-require_once $dockerAppRoot . '/smart_log.php';
+require_once $dockerAppRoot . '/shell/smart_log.php';
 smart_log_bootstrap('dashboard');
 adminPanelRequireGate();
 session_write_close();
@@ -38,7 +38,7 @@ if ($displayDomain === '') {
 }
 $jwtToken = trim((string)($dockerCfg['token'] ?? ''));
 
-// Load Docker i18n on top of shared translations (project/i18n/<lang>.json)
+// Load Docker i18n on top of shared translations (shell/i18n/<lang>.json)
 require_once __DIR__ . '/i18n.php';
 $i18n = docker_load_i18n($lang);
 

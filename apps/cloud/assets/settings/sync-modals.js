@@ -476,8 +476,8 @@ window.initSyncTokenModal = function initSyncTokenModal(i18n) {
       url: currentWebdavUrl || window.location.origin.replace(/^https?:\/\//, (s) => s === 'https://' ? 'webdavs://' : 'webdav://') + '/webdav/',
       username: currentUsername || '',
       token: currentToken || '',
-      iconUrl: new URL('project/views/icon.png', window.location.origin + '/').href,
-      iconIcoUrl: new URL('project/views/icon.ico', window.location.origin + '/').href
+      iconUrl: new URL('shell/views/icon.png', window.location.origin + '/').href,
+      iconIcoUrl: new URL('shell/views/icon.ico', window.location.origin + '/').href
     };
   }
 

@@ -1,6 +1,6 @@
 <?php
 function session_brand_icon_base(): string {
-    return '/project/assets/session-icons';
+    return '/shell/assets/session-icons';
 }
 
 function get_browser_icon_url(string $browser): string {

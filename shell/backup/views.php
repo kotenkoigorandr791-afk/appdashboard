@@ -2,9 +2,9 @@
 /**
  * Backup Manager — standalone page shell.
  *
- * The same panel markup (project/views/modals/backup_manager.php) is embedded
+ * The same panel markup (shell/views/modals/backup_manager.php) is embedded
  * directly into the Admin Panel. This shell only exists for direct access to
- * /backup_dashboard.php.
+ * /shell/backup/index.php.
  */
 declare(strict_types=1);
 
@@ -31,10 +31,10 @@ function backupViewShell(string $title, string $innerHtml, string $lang = 'en'):
         . '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">'
         . '<meta name="csrf-token" content="' . backupEscape($csrf) . '">'
         . '<title>' . backupEscape($title) . '</title>'
-        . '<link rel="stylesheet" href="/project/backup/assets/backup.css">'
+        . '<link rel="stylesheet" href="/shell/backup/assets/backup.css">'
         . '<style>.bdp-body{--dynamic-accent:' . backupEscape($accent) . ';}</style>'
         . '</head><body class="bdp-body bdp-theme-' . backupEscape($theme) . '">'
         . $innerHtml
-        . '<script src="/project/backup/assets/backup.js" defer></script>'
+        . '<script src="/shell/backup/assets/backup.js" defer></script>'
         . '</body></html>';
 }

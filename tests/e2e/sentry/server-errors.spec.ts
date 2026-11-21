@@ -116,7 +116,7 @@ test.describe('Sentry server project regressions', () => {
 // block must escape tags, otherwise user data can close the block and break
 // parsing (SERVER-2).
     const files = [
-      'project/views/main.php',
+      'shell/views/main.php',
       'apps/smart_home/views/scripts.php'
     ];
     const offenders: string[] = [];
@@ -303,10 +303,10 @@ echo $cfg["host"];
   });
 
   test('bootstrap: same-origin check is host and port aware', () => {
-    // Exercises the real apSecSameOrigin() from project/bootstrap.php without
+    // Exercises the real apSecSameOrigin() from shell/bootstrap.php without
     // the bootstrap side effects, by extracting the function bodies.
     const probe = (host: string, origin: string, referer = '') => phpInContainer(`
-$src = file_get_contents("project/bootstrap.php");
+$src = file_get_contents("shell/bootstrap.php");
 $grab = function (string $src, string $fn): string {
     $start = strpos($src, "function {$fn}(");
     $i = strpos($src, "{", $start);

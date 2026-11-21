@@ -16,7 +16,7 @@ $root = dirname(__DIR__, 2);
 if (!defined('APP_ROOT')) define('APP_ROOT', $root);
 chdir($root);
 require_once $root . '/db.php';
-require_once $root . '/storage_helper.php';
+require_once $root . '/shell/storage_helper.php';
 require_once $root . '/lib/Storage/bootstrap.php';
 require_once $root . '/lib/Storage/FileIndexWorker.php';
 require_once $root . '/lib/Storage/AppFiles.php';

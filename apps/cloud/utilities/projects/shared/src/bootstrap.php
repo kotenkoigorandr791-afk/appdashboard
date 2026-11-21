@@ -34,7 +34,7 @@ if (!function_exists('cloud_projects_bootstrap')) {
         }
 
         if ($withStorageHelper) {
-            $storageHelper = CLOUD_SERVER_ROOT . '/storage_helper.php';
+            $storageHelper = CLOUD_SERVER_ROOT . '/shell/storage_helper.php';
             if (is_file($storageHelper)) {
                 require_once $storageHelper;
             }

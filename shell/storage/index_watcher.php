@@ -11,7 +11,7 @@
  * Runs as root under supervisor. If inotifywait is not installed it degrades
  * to periodic background reconciliation (still no scanning in HTTP requests).
  *
- * Usage: php project/storage/index_watcher.php --loop
+ * Usage: php shell/storage/index_watcher.php --loop
  */
 declare(strict_types=1);
 

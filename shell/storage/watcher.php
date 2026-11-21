@@ -3,8 +3,8 @@
  * Storage watcher (root).
  *
  * Usage:
- *   php project/storage/watcher.php --once
- *   php project/storage/watcher.php --loop
+ *   php shell/storage/watcher.php --once
+ *   php shell/storage/watcher.php --loop
  *
  * Detects disks, reconciles MergerFS and resumes interrupted migrations.
  * Runs before php-fpm at container start and then continuously under

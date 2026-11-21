@@ -8,10 +8,10 @@
  * supervisor loop so the web request never waits for I/O.
  *
  * Usage:
- *   php project/bin/storage_usage_collector.php                 # one cycle
- *   php project/bin/storage_usage_collector.php --loop          # resident loop
- *   php project/bin/storage_usage_collector.php --source=immich # single source
- *   php project/bin/storage_usage_collector.php --dry-run       # query only, no writes
+ *   php shell/bin/storage_usage_collector.php                 # one cycle
+ *   php shell/bin/storage_usage_collector.php --loop          # resident loop
+ *   php shell/bin/storage_usage_collector.php --source=immich # single source
+ *   php shell/bin/storage_usage_collector.php --dry-run       # query only, no writes
  */
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "CLI only\n");

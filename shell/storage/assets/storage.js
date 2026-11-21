@@ -7,7 +7,7 @@
 
     var state = {
         root: null,
-        base: '/project/storage/index.php',
+        base: '/shell/storage/index.php',
         csrf: '',
         data: null,
         poll: null,
@@ -778,7 +778,7 @@
         if (root.dataset.stgReady === '1') { state.root = root; refresh(true); return; }
         root.dataset.stgReady = '1';
         state.root = root;
-        state.base = root.getAttribute('data-stg-base') || '/project/storage/index.php';
+        state.base = root.getAttribute('data-stg-base') || '/shell/storage/index.php';
         state.csrf = root.getAttribute('data-stg-csrf') || '';
         var saved = 'overview';
         try { saved = localStorage.getItem('stg.activeTab') || 'overview'; } catch (e) {}

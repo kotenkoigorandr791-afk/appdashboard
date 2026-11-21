@@ -1,5 +1,5 @@
 <?php
-require_once APP_ROOT . '/storage_helper.php';
+require_once APP_ROOT . '/shell/storage_helper.php';
 $auth = public_api_auth_user(true);
 $email = (string)$auth['email'];
 $role = public_api_role();

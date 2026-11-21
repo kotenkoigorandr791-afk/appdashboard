@@ -13,7 +13,7 @@ require_once APP_ROOT . '/lib/sentry_bootstrap.php';
 require_once APP_ROOT . '/lib/app_version.php';
 app_sentry_bootstrap('dashboard');
 require_once APP_ROOT . '/lib/app_session.php';
-require_once APP_ROOT . '/storage_helper.php';
+require_once APP_ROOT . '/shell/storage_helper.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/lib/admin_security.php';
@@ -23,7 +23,7 @@ require_once APP_ROOT . '/bot/tg_mini_auth.php';
 if (!isset($_SESSION['user']) || !is_array($_SESSION['user'])) {
     tgMiniRestoreSessionFromCookie();
 }
-require_once APP_ROOT . '/smart_log.php';
+require_once APP_ROOT . '/shell/smart_log.php';
 if ($__APP_DEBUG) {
     smart_log_bootstrap('dashboard');
 }

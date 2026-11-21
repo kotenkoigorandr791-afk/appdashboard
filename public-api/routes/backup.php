@@ -10,9 +10,9 @@
  * POST /backup/host_fs/mkdir   create a host folder
  * POST /backup/path_rw_test    verify read/write access
  */
-require_once APP_ROOT . '/project/backup/i18n.php';
+require_once APP_ROOT . '/shell/backup/i18n.php';
 backup_boot_i18n('en');
-require_once APP_ROOT . '/project/backup/api.php';
+require_once APP_ROOT . '/shell/backup/api.php';
 
 public_api_auth_user(true);
 $parts = public_api_parse_path();

@@ -3,7 +3,7 @@
 /**
  * Cloudflare Turnstile — adaptive captcha for outbound auth emails.
  *
- * Required from project/bootstrap.php, i.e. before core.php pulls in
+ * Required from shell/bootstrap.php, i.e. before core.php pulls in
  * vendor/autoload.php, so only curl_* may be used for the siteverify call.
  *
  * Adaptive model: the widget is not rendered on every request. A form is served

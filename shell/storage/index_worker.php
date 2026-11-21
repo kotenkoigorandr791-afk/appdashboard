@@ -3,10 +3,10 @@
  * File Index background worker.
  *
  * Usage:
- *   php project/storage/index_worker.php --once
- *   php project/storage/index_worker.php --loop
- *   php project/storage/index_worker.php --discover
- *   php project/storage/index_worker.php --reconcile --app=cloud --user=<user>
+ *   php shell/storage/index_worker.php --once
+ *   php shell/storage/index_worker.php --loop
+ *   php shell/storage/index_worker.php --discover
+ *   php shell/storage/index_worker.php --reconcile --app=cloud --user=<user>
  *
  * Runs under supervisor. It is the only place (together with the inotify
  * watcher) that performs directory scans for the file index.

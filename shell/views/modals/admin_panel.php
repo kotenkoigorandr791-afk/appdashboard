@@ -1,11 +1,11 @@
 <?php if($isAdmin): ?>
 <!-- ====================== ADMIN PANEL ====================== -->
-<link rel="stylesheet" href="/project/backup/assets/backup.css">
-<link rel="stylesheet" href="/project/storage/assets/storage.css?v=<?= is_file(dirname(__DIR__, 2) . '/storage/assets/storage.css') ? filemtime(dirname(__DIR__, 2) . '/storage/assets/storage.css') : '1' ?>">
-<script src="/project/backup/assets/backup.js" defer></script>
-<script src="/project/storage/assets/storage.js?v=<?= is_file(dirname(__DIR__, 2) . '/storage/assets/storage.js') ? filemtime(dirname(__DIR__, 2) . '/storage/assets/storage.js') : '1' ?>" defer></script>
-<link rel="stylesheet" href="/project/performance/style.css?v=<?= is_file(dirname(__DIR__, 2) . '/performance/style.css') ? filemtime(dirname(__DIR__, 2) . '/performance/style.css') : '9' ?>">
-<script src="/project/assets/docker/panel.js?v=<?= (int)@filemtime(dirname(__DIR__, 2) . '/assets/docker/panel.js') ?>" defer></script>
+<link rel="stylesheet" href="/shell/backup/assets/backup.css">
+<link rel="stylesheet" href="/shell/storage/assets/storage.css?v=<?= is_file(dirname(__DIR__, 2) . '/storage/assets/storage.css') ? filemtime(dirname(__DIR__, 2) . '/storage/assets/storage.css') : '1' ?>">
+<script src="/shell/backup/assets/backup.js" defer></script>
+<script src="/shell/storage/assets/storage.js?v=<?= is_file(dirname(__DIR__, 2) . '/storage/assets/storage.js') ? filemtime(dirname(__DIR__, 2) . '/storage/assets/storage.js') : '1' ?>" defer></script>
+<link rel="stylesheet" href="/shell/performance/style.css?v=<?= is_file(dirname(__DIR__, 2) . '/performance/style.css') ? filemtime(dirname(__DIR__, 2) . '/performance/style.css') : '9' ?>">
+<script src="/shell/assets/docker/panel.js?v=<?= (int)@filemtime(dirname(__DIR__, 2) . '/assets/docker/panel.js') ?>" defer></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <style>
 /* ══════════════════════════════════════════════════════════
@@ -3021,7 +3021,7 @@ function wireEvents(){
             box.innerHTML='<div class="ap-hint">Loading disk usage…</div>';
             var token=typeof apCsrfToken==='function'?apCsrfToken():'';
             var headers={'Accept':'application/json'}; if(token) headers['X-CSRF-Token']=token;
-            fetch('/project/storage/index.php?api=status',{credentials:'same-origin',headers:headers})
+            fetch('/shell/storage/index.php?api=status',{credentials:'same-origin',headers:headers})
                 .then(function(r){return r.json().then(function(d){if(!r.ok||!d.ok) throw new Error((d&&d.error)||('HTTP '+r.status));return d;});})
                 .then(function(d){window.apSettingsStorageData=d;apRenderSettingsStorage(d);})
                 .catch(function(e){box.innerHTML='<div class="ap-hint" style="color:#d9534f;">Could not load disk usage: '+esc(e.message||'error')+'</div>';});

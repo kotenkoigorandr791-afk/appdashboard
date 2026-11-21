@@ -1,5 +1,5 @@
 <?php
-require_once APP_ROOT . '/storage_helper.php';
+require_once APP_ROOT . '/shell/storage_helper.php';
 define('MOVIES_FILE', appdata_app_base_dir('films') . '/movies.json');
 define('CONFIG_FILE', appdata_app_base_dir('films') . '/config.json');
 define('UPLOAD_DIR', appdata_app_base_dir('films') . '/uploads/');

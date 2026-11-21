@@ -1,5 +1,5 @@
 <?php
-require_once APP_ROOT . '/storage_helper.php';
+require_once APP_ROOT . '/shell/storage_helper.php';
 require_once APP_ROOT . '/lib/cookie_consent.php';
 
 function my_htmlspecialchars($string, $flags = ENT_QUOTES | ENT_SUBSTITUTE, $encoding = 'UTF-8', $double_encode = true) {
@@ -17,6 +17,9 @@ function app_avatar_src($photo): string {
     $src = trim((string)($photo ?: 'default_avatar.png'));
     if (preg_match('#^https://lh3\.googleusercontent\.com/#i', $src)) {
         return '/main?api=avatar_proxy&u=' . rawurlencode($src);
+    }
+    if ($src === 'default_avatar.png' || $src === '/default_avatar.png') {
+        return '/shell/default_avatar.png';
     }
     return $src;
 }
@@ -135,7 +138,7 @@ if (isset($_GET['api']) && $_GET['api'] === 'avatar_proxy') {
         readfile($cacheFile);
         exit;
     }
-    header('Location: /default_avatar.png', true, 302);
+    header('Location: /shell/default_avatar.png', true, 302);
     exit;
 }
 const PASSWORD_MIN_LENGTH = 8;
@@ -1659,7 +1662,7 @@ function ap_load_i18n_lang(string $lang): array {
     if ($safe === '') {
         return $cache[$lang] = [];
     }
-    $path = APP_ROOT . '/project/i18n/' . $safe . '.json';
+    $path = APP_ROOT . '/shell/i18n/' . $safe . '.json';
     if (!is_readable($path)) {
         return $cache[$lang] = [];
     }
@@ -1672,7 +1675,7 @@ function ap_i18n_lang_exists(string $lang): bool {
     if ($safe === '') {
         return false;
     }
-    return is_readable(APP_ROOT . '/project/i18n/' . $safe . '.json');
+    return is_readable(APP_ROOT . '/shell/i18n/' . $safe . '.json');
 }
 function ap_merge_i18n(array $defaultTranslations, string $language): array {
     return array_map(static fn($v) => $v ?? '', array_merge($defaultTranslations, ap_load_i18n_lang($language)));
@@ -2057,7 +2060,7 @@ function apSmtpConfigured(?array $cfg = null): bool {
 }
 function apEmailIconPath(): ?string {
     $root = defined('APP_ROOT') ? APP_ROOT : getcwd();
-    foreach ([$root . '/project/home/icon.png', $root . '/home/icon.png', $root . '/icon.png', $root . '/project/views/icon.png'] as $path) {
+    foreach ([$root . '/shell/home/icon.png', $root . '/home/icon.png', $root . '/icon.png', $root . '/shell/views/icon.png'] as $path) {
         if (is_file($path)) return $path;
     }
     return null;
@@ -2970,8 +2973,8 @@ if (isset($_GET['api']) && $_GET['api'] === 'shell_fragment') {
     header('Cache-Control: private, no-store');
     if (($_GET['name'] ?? '') === 'sessions') {
         $activeSessions = getUserActiveSessions((string)$_SESSION['user']['email']);
-        require_once APP_ROOT . '/project/browser-icons.php';
-        require APP_ROOT . '/project/views/fragments/sessions_list.php';
+        require_once APP_ROOT . '/shell/browser-icons.php';
+        require APP_ROOT . '/shell/views/fragments/sessions_list.php';
     }
     exit;
 }

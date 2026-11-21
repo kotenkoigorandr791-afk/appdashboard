@@ -1,6 +1,6 @@
 # Admin Panel
 
-**Web UI**: `/project/*`, `/database` **API Base**: `/public-api/v1/admin`, `/config`, `/docker`, `/shell`, `/backup`, `/performance` **Auth**: Bearer + `admin` role
+**Web UI**: `/shell/*`, `/database` **API Base**: `/public-api/v1/admin`, `/config`, `/docker`, `/shell`, `/backup`, `/performance` **Auth**: Bearer + `admin` role
 
 ---
 
@@ -114,9 +114,9 @@
 
 | Path | Description |
 |------|-------------|
-| `/project/backup/` | Backup Manager UI (create, schedule, restore, download, verify) |
-| `/project/storage/` | Storage Analyzer UI (treemap, largest files, by app/user) |
-| `/project/performance/*` | Performance UI (charts, slow queries, request traces) |
+| `/shell/backup/` | Backup Manager UI (create, schedule, restore, download, verify) |
+| `/shell/storage/` | Storage Analyzer UI (treemap, largest files, by app/user) |
+| `/shell/performance/*` | Performance UI (charts, slow queries, request traces) |
 | `/database` | Database Admin (Adminer-like: query, tables, export, import) |
 
 ---
@@ -135,7 +135,7 @@
 
 | Permission | admin | user |
 |------------|-------|------|
-| Access `/project/*` | ✅ | ❌ |
+| Access `/shell/*` | ✅ | ❌ |
 | Access `/database` | ✅ | ❌ |
 | `POST /admin/*` | ✅ | ❌ |
 | `POST /config/*` | ✅ | ❌ |

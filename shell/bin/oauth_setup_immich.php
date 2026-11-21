@@ -2,7 +2,7 @@
 if (PHP_SAPI !== 'cli') { http_response_code(403); exit('cli_only'); }
 define('APP_ROOT', dirname(__DIR__, 2));
 require APP_ROOT . '/db.php';
-require APP_ROOT . '/project/oauth.php';
+require APP_ROOT . '/shell/oauth.php';
 $clientId = 'immich';
 $issuer = trim((string)($argv[1] ?? (function_exists('app_public_url') ? app_public_url('') : 'http://localhost')), '/');
 $immichUrl = trim((string)($argv[2] ?? (function_exists('app_public_url') ? app_public_url('photo') : 'http://photo.localhost')), '/');

@@ -1,5 +1,5 @@
 <?php
-$dockerJsUrl = '/project/assets/docker/manager.js?v=' . @filemtime(__DIR__ . '/../../assets/docker/manager.js');
+$dockerJsUrl = '/shell/assets/docker/manager.js?v=' . @filemtime(__DIR__ . '/../../assets/docker/manager.js');
 echo dockerAssetLinks();
 ?>
 <div <?php echo dockerAppAttrs(); ?>>

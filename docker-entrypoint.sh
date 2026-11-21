@@ -47,10 +47,10 @@ APP_ROOT=/var/www/AppDashboard
 # public assets so nginx has something to serve during such an outage (see the
 # @project_static_fallback locations in nginx/appdashboard.conf.template).
 STATIC_FALLBACK_DIR=/var/www/static-fallback
-mkdir -p "$STATIC_FALLBACK_DIR/project" 2>/dev/null || true
+mkdir -p "$STATIC_FALLBACK_DIR/shell" 2>/dev/null || true
 for _static_dir in assets onboarding; do
-  rm -rf "$STATIC_FALLBACK_DIR/project/$_static_dir" 2>/dev/null || true
-  cp -a "$APP_ROOT/project/$_static_dir" "$STATIC_FALLBACK_DIR/project/" 2>/dev/null || true
+  rm -rf "$STATIC_FALLBACK_DIR/shell/$_static_dir" 2>/dev/null || true
+  cp -a "$APP_ROOT/shell/$_static_dir" "$STATIC_FALLBACK_DIR/shell/" 2>/dev/null || true
 done
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
 APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
@@ -401,7 +401,7 @@ if [ "${STORAGE_ENABLED:-1}" = "1" ]; then
   if [ -d "$STORAGE_DISKS_ROOT" ] && [ -n "$(ls -A "$STORAGE_DISKS_ROOT" 2>/dev/null)" ]; then STORAGE_HAS_DISKS=1; fi
   if [ "$STORAGE_HAS_DISKS" = "1" ] || [ -f "$APPDATA_DATA_DIR/.storage-unified-appdata" ]; then
     for _try in 1 2 3; do
-      if /usr/local/bin/php /var/www/AppDashboard/project/storage/watcher.php --once >>"$STORAGE_INIT_LOG" 2>&1; then
+      if /usr/local/bin/php /var/www/AppDashboard/shell/storage/watcher.php --once >>"$STORAGE_INIT_LOG" 2>&1; then
         break
       fi
       sleep 3

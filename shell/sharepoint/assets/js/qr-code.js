@@ -13,7 +13,7 @@
         return;
       }
       var s = document.createElement('script');
-      s.src = '/project/assets/qr-code-loader.js?v=1';
+      s.src = '/shell/assets/qr-code-loader.js?v=1';
       s.async = true;
       s.dataset.apQrLoader = '1';
       s.onload = function () { resolve(window.apEnsureQrCodeStyling); };

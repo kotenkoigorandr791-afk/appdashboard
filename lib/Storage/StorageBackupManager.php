@@ -13,10 +13,10 @@ final class StorageBackupManager
     {
         if (function_exists('resticLoadConfig')) return true;
         $root = dirname(__DIR__, 2);
-        if (!is_file($root . '/project/backup/i18n.php') || !is_file($root . '/project/backup/api.php')) return false;
-        require_once $root . '/project/backup/i18n.php';
+        if (!is_file($root . '/shell/backup/i18n.php') || !is_file($root . '/shell/backup/api.php')) return false;
+        require_once $root . '/shell/backup/i18n.php';
         if (!isset($GLOBALS['backupI18n'])) backup_boot_i18n('en');
-        require_once $root . '/project/backup/api.php';
+        require_once $root . '/shell/backup/api.php';
         return function_exists('resticLoadConfig');
     }
 

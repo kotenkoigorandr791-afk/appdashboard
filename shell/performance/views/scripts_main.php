@@ -59,7 +59,7 @@ function t(key, params = {}) {
     return str;
 }
 
-var perfAppBase = (typeof window.__PERF_APP_BASE__ === 'string' && window.__PERF_APP_BASE__) ? window.__PERF_APP_BASE__ : <?= json_encode($perfAppBase ?? '/project/performance', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
+var perfAppBase = (typeof window.__PERF_APP_BASE__ === 'string' && window.__PERF_APP_BASE__) ? window.__PERF_APP_BASE__ : <?= json_encode($perfAppBase ?? '/shell/performance', JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>;
 var perfIndexUrl = perfAppBase.replace(/\/$/, '') + '/';
 var serverMonitorUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);
 var serverMonitorFallbackUrl = new URL(<?= json_encode($serverMonitorEndpoint, JSON_UNESCAPED_SLASHES | JSON_HEX_TAG) ?>, window.location.origin);

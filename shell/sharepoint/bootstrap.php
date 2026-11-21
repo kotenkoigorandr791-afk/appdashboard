@@ -11,7 +11,7 @@ if (!defined('SHAREPOINT_PUBLIC_PREFIX')) {
     define('SHAREPOINT_PUBLIC_PREFIX', '/s');
 }
 if (!defined('SHAREPOINT_ASSET_BASE')) {
-    define('SHAREPOINT_ASSET_BASE', '/project/sharepoint/assets');
+    define('SHAREPOINT_ASSET_BASE', '/shell/sharepoint/assets');
 }
 
 require_once dirname(__DIR__, 2) . '/db.php';

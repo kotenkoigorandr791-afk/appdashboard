@@ -15,11 +15,11 @@ putenv('STORAGE_DISKS_ROOT=/disks');
 putenv('APPDATA_DATA_DIR=/data');
 putenv('STORAGE_STATE_DIR=/data/storage');
 if (!defined('APP_ROOT')) define('APP_ROOT', $root);
-require_once $root . '/storage_helper.php';
+require_once $root . '/shell/storage_helper.php';
 require_once $root . '/lib/Storage/bootstrap.php';
 require_once $root . '/lib/db_config.php';
-require_once $root . '/project/backup/helpers.php';
-require_once $root . '/project/backup/api.php';
+require_once $root . '/shell/backup/helpers.php';
+require_once $root . '/shell/backup/api.php';
 
 $failures = 0;
 $checks = 0;

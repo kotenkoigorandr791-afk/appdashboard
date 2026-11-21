@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once dirname(__DIR__) . '/storage_helper.php';
+require_once dirname(__DIR__) . '/shell/storage_helper.php';
 function app_redis_load_file_config(): array {
     static $cfg = null;
     if ($cfg !== null) return $cfg;

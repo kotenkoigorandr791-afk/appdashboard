@@ -29,7 +29,7 @@
 | [Spends](services/spends.md) | Expense tracking, categories, reports | `/apps/spends/` | `/public-api/v1/spends` | Bearer + app access |
 | [Recipes](services/recipes.md) | Recipe management, meal planning, shopping lists | `/apps/recipes/` | `/public-api/v1/recipes` | Bearer + app access |
 | [Integrations](services/integrations.md) | SSO/launch for Dawarich, Gitea, Sentry, Immich, Kanboard, Lopaka | `/apps/{name}/` | `/public-api/v1/integrations` | Bearer + app access |
-| [Admin](services/admin.md) | Users, Docker, shell, backup, performance, database | `/project/*`, `/database` | `/public-api/v1/admin`... | Admin only |
+| [Admin](services/admin.md) | Users, Docker, shell, backup, performance, database | `/shell/*`, `/database` | `/public-api/v1/admin`... | Admin only |
 | [Auth & OAuth](services/auth.md) | Login, registration, OAuth providers, desktop auth, tokens | `/login`, `/oauth/*` | `/public-api/v1/auth`, `/public-api/v1/oauth` | Session / Bearer / Device ID |
 | [MCP Server](services/mcp.md) | Model Context Protocol for AI assistants (Claude, Cursor) | `/mcp` | `/mcp` (JSON-RPC) | OAuth client credentials |
 | [Public Sharing](services/sharing.md) | Share links, WebDAV public access, Sharepoint viewer | `/s/{token}`, `/sharedFile` | — | Optional password |

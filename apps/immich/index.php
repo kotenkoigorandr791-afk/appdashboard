@@ -6,7 +6,7 @@ app_sentry_bootstrap('immich');
 require_once APP_ROOT . '/lib/app_session.php';
 app_session_start();
 require_once APP_ROOT . '/db.php';
-require_once APP_ROOT . '/project/oauth.php';
+require_once APP_ROOT . '/shell/oauth.php';
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
 $asset = trim((string)($_GET['asset'] ?? ''));
 $assetOk = (bool)preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $asset);

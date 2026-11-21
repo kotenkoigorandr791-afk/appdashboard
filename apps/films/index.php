@@ -17,7 +17,7 @@ require_once __DIR__ . '/core/db.php';
 require_once __DIR__ . '/core/session.php';
 require_once __DIR__ . '/core/helpers.php';
 require_once __DIR__ . '/core/upload_errors.php';
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 require_once __DIR__ . '/models/MovieModel.php';
 
 $user_data = get_current_user_data();

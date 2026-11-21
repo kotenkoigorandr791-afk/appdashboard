@@ -5,7 +5,7 @@
  */
 session_start();
 require_once dirname(__DIR__, 2) . '/db.php';
-require_once dirname(__DIR__, 2) . '/smart_log.php';
+require_once dirname(__DIR__) . '/smart_log.php';
 smart_log_bootstrap('dashboard');
 require_once dirname(__DIR__, 2) . '/lib/embed_context.php';
 function docViewerIsEmbeddedRequest(): bool { return app_is_embedded_request(); }

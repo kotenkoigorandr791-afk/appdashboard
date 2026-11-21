@@ -8,7 +8,7 @@
 declare(strict_types=1);
 
 if (!function_exists('appdata_app_base_dir')) {
-    require_once dirname(__DIR__, 3) . '/storage_helper.php';
+    require_once dirname(__DIR__, 3) . '/shell/storage_helper.php';
 }
 if (!class_exists('AppFiles')) {
     require_once dirname(__DIR__, 3) . '/lib/Storage/AppFiles.php';

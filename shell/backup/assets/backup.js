@@ -5,7 +5,7 @@
 (function () {
     'use strict';
 
-    var BASE = (document.getElementById('bdp-app') && document.getElementById('bdp-app').dataset.bdpBase) || '/project/backup/index.php';
+    var BASE = (document.getElementById('bdp-app') && document.getElementById('bdp-app').dataset.bdpBase) || '/shell/backup/index.php';
 
     var state = {
         root: null,

@@ -15,7 +15,7 @@ cloud_session_start();
 }
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'db.php';
 require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'smart_log.php';
-require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'storage_helper.php';
+require_once dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'shell/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_sandbox.php';
 require_once __DIR__ . '/includes/ai_code_security.php';
 smart_log_bootstrap('cloud');

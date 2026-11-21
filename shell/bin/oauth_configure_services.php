@@ -6,7 +6,7 @@ if (!defined('APP_ROOT')) {
 if (!function_exists('oauth_issuer')) {
     require APP_ROOT . '/lib/app_domains.php';
     require APP_ROOT . '/db.php';
-    require APP_ROOT . '/project/oauth.php';
+    require APP_ROOT . '/shell/oauth.php';
 }
 
 function oauth_cfg_echo(string $line): void {

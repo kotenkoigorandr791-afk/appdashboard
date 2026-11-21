@@ -5,7 +5,7 @@
 declare(strict_types=1);
 
 if (!defined('BACKUP_APP_PATH')) {
-    define('BACKUP_APP_PATH', '/project/backup/index.php');
+    define('BACKUP_APP_PATH', '/shell/backup/index.php');
 }
 
 function backupUrl(array $params = []): string {

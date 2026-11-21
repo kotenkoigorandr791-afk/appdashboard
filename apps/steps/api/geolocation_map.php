@@ -150,8 +150,8 @@ if ($scope !== null && (float)$scope['precision_m'] > 0) {
 // Immich references are owner-only. Family viewers never receive photo URLs.
 $photos = [];
 if (in_array('photos', $layers, true) && $target === $viewer) {
-    if (!function_exists('oauth_sync_immich_steps') && is_file(APP_ROOT . '/project/oauth.php')) {
-        require_once APP_ROOT . '/project/oauth.php';
+    if (!function_exists('oauth_sync_immich_steps') && is_file(APP_ROOT . '/shell/oauth.php')) {
+        require_once APP_ROOT . '/shell/oauth.php';
     }
     if (function_exists('oauth_sync_immich_steps')) {
         try { oauth_sync_immich_steps($target); } catch (Throwable $ignored) {}

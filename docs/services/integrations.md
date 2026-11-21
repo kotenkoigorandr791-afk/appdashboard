@@ -178,4 +178,4 @@ curl -H "Authorization: Bearer <token>" https://your-domain.com/public-api/v1/ka
 | Kanboard API 401 | Ensure Kanboard `OAUTH2_*` config points to AppDashboard endpoints; user has `kanboard` app access |
 | Immich "Invalid token" | Immich expects `access_token` in `Authorization: Bearer`; check `OIDC_CLIENT_SECRET` matches |
 | Sentry SSO fails | Sentry uses SAML, not OIDC; configure SAML in Sentry with AppDashboard as IdP (Admin → Integrations → SAML) |
-| Lopaka not loading | Check `/apps/lopaka/` proxy in `project/routes.php`; verify Lopaka container running |
+| Lopaka not loading | Check `/apps/lopaka/` proxy in `shell/routes.php`; verify Lopaka container running |

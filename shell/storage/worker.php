@@ -2,7 +2,7 @@
 /**
  * Storage migration worker.
  *
- * Usage: php project/storage/worker.php --migration=<16 hex id>
+ * Usage: php shell/storage/worker.php --migration=<16 hex id>
  *
  * Runs one resumable migration outside the HTTP request.
  */

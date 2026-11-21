@@ -5,7 +5,7 @@
  * tables, per-user schemas/tables and sessions.
  *
  * Usage:
- *   php project/bin/purge_user.php --email=user@example.com [--keep-files] [--dry-run]
+ *   php shell/bin/purge_user.php --email=user@example.com [--keep-files] [--dry-run]
  */
 if (PHP_SAPI !== 'cli') {
     fwrite(STDERR, "CLI only\n");
@@ -14,7 +14,7 @@ if (PHP_SAPI !== 'cli') {
 define('APP_ROOT', dirname(__DIR__, 2));
 chdir(APP_ROOT);
 require APP_ROOT . '/db.php';
-require APP_ROOT . '/storage_helper.php';
+require APP_ROOT . '/shell/storage_helper.php';
 require APP_ROOT . '/lib/Storage/bootstrap.php';
 require APP_ROOT . '/lib/UserDataPurger.php';
 
@@ -28,7 +28,7 @@ foreach ($argv ?? [] as $arg) {
     if ($arg === '--dry-run') $dryRun = true;
 }
 if ($email === '') {
-    fwrite(STDERR, "Usage: php project/bin/purge_user.php --email=user@example.com [--keep-files] [--dry-run]\n");
+    fwrite(STDERR, "Usage: php shell/bin/purge_user.php --email=user@example.com [--keep-files] [--dry-run]\n");
     exit(2);
 }
 try {

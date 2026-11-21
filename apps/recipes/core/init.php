@@ -1,6 +1,6 @@
 <?php
 // Default parameters
-require_once dirname(__DIR__, 3) . '/project/i18n_helpers.php';
+require_once dirname(__DIR__, 3) . '/shell/i18n_helpers.php';
 $appDir = dirname(__DIR__);
 $lang = isset($_GET['lang']) && ap_i18n_lang_exists_in_dir($appDir, $_GET['lang']) ? ap_normalize_i18n_lang($_GET['lang']) : 'en';
 $theme = isset($_GET['theme']) && in_array($_GET['theme'], ['light', 'dark']) ? $_GET['theme'] : 'light';

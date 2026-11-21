@@ -2,7 +2,7 @@
 /**
  * Storage Manager panel — shared markup (Admin Panel + standalone page).
  */
-$stgBase = '/project/storage/index.php';
+$stgBase = '/shell/storage/index.php';
 $stgCss = dirname(__DIR__, 2) . '/storage/assets/storage.css';
 $stgJs = dirname(__DIR__, 2) . '/storage/assets/storage.js';
 $stgCsrf = (string)($GLOBALS['storage_csrf'] ?? ($_SESSION['_csrf_token'] ?? ''));
@@ -36,8 +36,8 @@ $stgIcon = static function (string $name, int $size = 16): string {
     return '<svg width="' . $size . '" height="' . $size . '" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' . $body . '</svg>';
 };
 ?>
-<link rel="stylesheet" href="/project/storage/assets/storage.css?v=<?php echo $stgVersion($stgCss); ?>">
-<script src="/project/storage/assets/storage.js?v=<?php echo $stgVersion($stgJs); ?>" defer></script>
+<link rel="stylesheet" href="/shell/storage/assets/storage.css?v=<?php echo $stgVersion($stgCss); ?>">
+<script src="/shell/storage/assets/storage.js?v=<?php echo $stgVersion($stgJs); ?>" defer></script>
 <div id="stg-app" class="stg-app" data-stg-lang="<?php echo htmlspecialchars($stgLang, ENT_QUOTES, 'UTF-8'); ?>" data-stg-i18n="<?php echo $stgI18nJson; ?>" data-stg-base="<?php echo htmlspecialchars($stgBase, ENT_QUOTES, 'UTF-8'); ?>" data-stg-csrf="<?php echo htmlspecialchars($stgCsrf, ENT_QUOTES, 'UTF-8'); ?>">
 
     <header class="stg-header">
@@ -292,8 +292,8 @@ $stgIcon = static function (string $name, int $size = 16): string {
                     <div class="stg-profile-step"><span class="stg-profile-num">3</span><div><strong><?php echo $stgE('detach'); ?></strong><small><?php echo $stgE('detach_text'); ?></small></div></div>
                 </div>
                 <div class="stg-row">
-                    <a class="stg-btn stg-btn-sm" href="/project/storage/index.php" target="_blank" rel="noopener"><?php echo $stgE('open_full_page'); ?></a>
-                    <a class="stg-btn stg-btn-sm stg-btn-ghost" href="/backup_dashboard.php" target="_blank" rel="noopener"><?php echo $stgE('backup_manager'); ?></a>
+                    <a class="stg-btn stg-btn-sm" href="/shell/storage/index.php" target="_blank" rel="noopener"><?php echo $stgE('open_full_page'); ?></a>
+                    <a class="stg-btn stg-btn-sm stg-btn-ghost" href="/shell/backup/index.php" target="_blank" rel="noopener"><?php echo $stgE('backup_manager'); ?></a>
                 </div>
             </section>
         </div>
@@ -379,8 +379,8 @@ $stgIcon = static function (string $name, int $size = 16): string {
                         <label class="stg-field"><span><?php echo $stgE('discovery_interval'); ?></span><input type="number" id="stg-interval" min="5" max="3600" step="5"></label>
                         <label class="stg-field"><span><?php echo $stgE('parallel_jobs'); ?></span><input type="number" id="stg-max-parallel" min="1" max="8" step="1"></label>
                     </div>
-                    <label class="stg-check"><input type="checkbox" id="stg-backup-required"><span><?php echo $stgE('require_snapshot'); ?></span></label>
-                    <label class="stg-check"><input type="checkbox" id="stg-delete-source"><span><?php echo $stgE('delete_source'); ?></span></label>
+                    <label class="stg-check"><input type="checkbox" id="stg-backup-required"><span class="stg-check-ui" aria-hidden="true"></span><span><?php echo $stgE('require_snapshot'); ?></span></label>
+                    <label class="stg-check"><input type="checkbox" id="stg-delete-source"><span class="stg-check-ui" aria-hidden="true"></span><span><?php echo $stgE('delete_source'); ?></span></label>
                     <div class="stg-row" role="group">
                         <button type="button" class="stg-btn stg-btn-primary" data-stg-action="save_settings" aria-label="<?php echo $stgE('save_settings'); ?>"><?php echo $stgIcon('check', 14); ?><span><?php echo $stgE('save_settings'); ?></span></button>
                     </div>
@@ -424,7 +424,7 @@ $stgIcon = static function (string $name, int $size = 16): string {
             </div>
             <div class="stg-dialog-body" id="stg-progress-body"><div class="stg-empty"><?php echo $stgE('loading'); ?></div></div>
             <div class="stg-dialog-foot">
-                <a class="stg-btn stg-btn-ghost" href="/backup_dashboard.php" target="_blank" rel="noopener"><?php echo $stgE('open_backup_manager'); ?></a>
+                <a class="stg-btn stg-btn-ghost" href="/shell/backup/index.php" target="_blank" rel="noopener"><?php echo $stgE('open_backup_manager'); ?></a>
                 <button type="button" class="stg-btn" data-stg-close="progress"><?php echo $stgE('close'); ?></button>
             </div>
         </div>

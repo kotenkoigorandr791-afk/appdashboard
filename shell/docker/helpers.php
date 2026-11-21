@@ -10,7 +10,7 @@ function dockerUrl(array $params = []) {
     foreach ($params as $k => $v) {
         if ($v === null) unset($query[$k]); else $query[$k] = $v;
     }
-    return '/project/docker/?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
+    return '/shell/docker/?' . http_build_query($query, '', '&', PHP_QUERY_RFC3986);
 }
 
 /**
@@ -49,7 +49,7 @@ function dockerIsFragment(): bool {
 function dockerAssetLinks(): string {
     $out = '';
     foreach (['manager', 'views'] as $name) {
-        $url = '/project/assets/docker/' . $name . '.css?v=' . @filemtime(__DIR__ . '/../assets/docker/' . $name . '.css');
+        $url = '/shell/assets/docker/' . $name . '.css?v=' . @filemtime(__DIR__ . '/../assets/docker/' . $name . '.css');
         $out .= '<link rel="stylesheet" href="' . htmlspecialchars($url, ENT_QUOTES, 'UTF-8') . '">';
     }
     return $out;

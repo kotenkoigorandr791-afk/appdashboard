@@ -26,7 +26,7 @@ function sh_data_dir(): string {
     if ($dir !== null) return $dir;
     $env = getenv('SMART_HOME_DATA_DIR');
     if (is_string($env) && trim($env) !== '') return $dir = rtrim($env, '/');
-    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $helper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
     if (is_file($helper)) {
         require_once $helper;
         try {
@@ -1627,7 +1627,7 @@ function sh_auto_mqtt(string $name, string $id): string {
 $userEmail = sh_user_email();
 $db = sh_db();
 sh_migrate_json_runtime_data($db);
-require_once dirname(SH_APP_DIR, 2) . '/project/i18n_helpers.php';
+require_once dirname(SH_APP_DIR, 2) . '/shell/i18n_helpers.php';
 $lang = isset($_GET['lang']) && ap_i18n_lang_exists_in_dir(SH_APP_DIR, $_GET['lang']) ? ap_normalize_i18n_lang($_GET['lang']) : 'en';
 $themeRaw = strtolower((string)($_GET['theme'] ?? 'dark'));
 $theme = $themeRaw === 'light' ? 'light' : 'dark';

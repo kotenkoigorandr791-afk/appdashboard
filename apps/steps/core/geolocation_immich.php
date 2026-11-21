@@ -421,7 +421,7 @@ final class StepsGeolocationImmich
         $response = self::http('GET', $url . '/api/assets/' . rawurlencode((string)$asset['immich_asset_id']) . '/thumbnail?size=' . rawurlencode($size), $key, null, 2097152);
         if ($response['status'] === 401 || $response['status'] === 403) {
             // Key deleted in Immich: recreate via OAuth sync and retry once.
-            $oauth = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__, 3)) . '/project/oauth.php';
+            $oauth = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__, 3)) . '/shell/oauth.php';
             if (!function_exists('oauth_sync_immich_steps') && is_file($oauth)) {
                 require_once $oauth;
             }

@@ -313,7 +313,7 @@ if (isset($_GET['get_exchange_history'])) {
 }
 
 // ─── Chat: search users for the send-to-chat picker ─────────────────────────
-// Mirrors the shell messenger (project/core.php search_users): prefix match on
+// Mirrors the shell messenger (shell/core.php search_users): prefix match on
 // email and name so typing a fragment works, not just a full exact email.
 if (isset($_GET['chat_search_users'])) {
     $q = trim((string)($_GET['q'] ?? ''));
@@ -414,7 +414,7 @@ if (isset($_POST['chat_send_message'])) {
         }
         $ext = image_type_to_extension($info[2], false);
         $uploadsBase = (string)(getenv('UPLOADS_BASE_DIR') ?: '/opt/ApplicationData/dashboard/uploads');
-        $spendsHelper = dirname(__DIR__, 2) . '/storage_helper.php';
+        $spendsHelper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
         if (is_file($spendsHelper)) {
             require_once $spendsHelper;
             $uploadsBase = appdata_uploads_base_dir();

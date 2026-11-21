@@ -296,7 +296,7 @@
             });
         }
         dockerRoot().addEventListener('click', function(e) {
-            const a = e.target.closest('a[href*="/project/docker/?"]');
+            const a = e.target.closest('a[href*="/shell/docker/?"]');
             if (!a || a.target === '_blank' || e.defaultPrevented) return;
             e.preventDefault();
             const inModal = a.closest('#dockerModalBody');

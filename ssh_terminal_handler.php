@@ -1,6 +1,6 @@
 <?php
-require_once __DIR__ . '/smart_log.php';
-require_once __DIR__ . '/storage_helper.php';
+require_once __DIR__ . '/shell/smart_log.php';
+require_once __DIR__ . '/shell/storage_helper.php';
 smart_log_bootstrap('dashboard');
 if (!defined('AP_WEBSHH_VENDOR_AUTOLOAD')) {
     define('AP_WEBSHH_VENDOR_AUTOLOAD', __DIR__ . '/webssh/vendor/autoload.php');

@@ -1,6 +1,6 @@
 <?php
 // Initialization
-require_once dirname(__DIR__, 3) . '/project/i18n_helpers.php';
+require_once dirname(__DIR__, 3) . '/shell/i18n_helpers.php';
 require_once __DIR__ . '/health_connect_ingest.php';
 $language     = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
 $theme        = $_GET['theme'] ?? 'light';

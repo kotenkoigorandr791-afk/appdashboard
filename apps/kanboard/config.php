@@ -25,7 +25,7 @@ $kb = kanboard_db_resolve();
 $kbDataDir = getenv('KANBOARD_DATA_DIR');
 if (!is_string($kbDataDir) || trim($kbDataDir) === '') {
     $kbDataDir = null;
-    $kbStorageHelper = dirname(__DIR__, 2) . '/storage_helper.php';
+    $kbStorageHelper = dirname(__DIR__, 2) . '/shell/storage_helper.php';
     if (is_file($kbStorageHelper)) {
         require_once $kbStorageHelper;
         try {

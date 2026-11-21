@@ -2,9 +2,9 @@
 /**
  * Backup Manager panel — shared markup.
  *
- * Included directly by project/post_handlers.php inside #ap-backup (no iframe)
- * and by project/backup/views.php for the standalone /backup_dashboard.php page.
- * All behaviour lives in project/backup/assets/backup.js.
+ * Included directly by shell/post_handlers.php inside #ap-backup (no iframe)
+ * and by shell/backup/views.php for the standalone /shell/backup/index.php page.
+ * All behaviour lives in shell/backup/assets/backup.js.
  */
 if (!function_exists('backup_load_i18n')) {
     require_once dirname(__DIR__, 2) . '/backup/i18n.php';

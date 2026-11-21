@@ -13,7 +13,7 @@ require_once __DIR__ . '/../utils/google_fit_takeout/fit_takeout_state.php';
 
 if (!defined('UPLOAD_SESSIONS_DIR')) {
     $stepsUpload = null;
-    $stepsHelper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $stepsHelper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
     if (is_file($stepsHelper)) {
         require_once $stepsHelper;
         try {

@@ -95,7 +95,7 @@ final class FilmShareHandler extends BaseAppHandler
 
     private function filmsDir(): string
     {
-        $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+        $helper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
         if (is_file($helper)) {
             require_once $helper;
             if (function_exists('appdata_app_base_dir')) {

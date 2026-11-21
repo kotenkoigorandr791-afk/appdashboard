@@ -1,8 +1,8 @@
 <script src="https://cdn.plyr.io/3.7.8/plyr.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.7/dist/hls.min.js"></script>
-<script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
-<script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
-<script src="/project/sharepoint/assets/js/share-modal.js?v=5"></script>
+<script src="/shell/sharepoint/assets/js/qr-code.js?v=5"></script>
+<script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/shell/sharepoint/assets/js/share-modal.js?v=5"></script>
 <script>
 function shareFilm(id, title) {
   if (!window.openShareModal) return;

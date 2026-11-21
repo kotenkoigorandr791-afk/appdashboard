@@ -1,6 +1,6 @@
 <?php
-require_once dirname(__DIR__, 3) . '/project/sharepoint/api_bootstrap.php';
-require_once dirname(__DIR__, 3) . '/storage_helper.php';
+require_once dirname(__DIR__, 3) . '/shell/sharepoint/api_bootstrap.php';
+require_once dirname(__DIR__, 3) . '/shell/storage_helper.php';
 
 if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) !== 'POST') {
     sp_json_response(['success' => false, 'error' => 'method_not_allowed'], 405);

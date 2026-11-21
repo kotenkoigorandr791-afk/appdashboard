@@ -103,7 +103,7 @@ define('TTS_OUTPUT_DIR', rtrim($__ttsAppData, '/') . '/cloud_runtime/tts_output'
 @chmod(TTS_OUTPUT_DIR . '/.cache', 0777);
 
 require_once __DIR__ . '/../../lib/app_db.php';
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 require_once dirname(__DIR__, 2) . '/lib/py_sidecar.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 

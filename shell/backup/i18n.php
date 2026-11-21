@@ -2,7 +2,7 @@
 /**
  * Backup Manager — translations.
  *
- * Every string lives in the shared dictionaries under project/i18n/<lang>.json
+ * Every string lives in the shared dictionaries under shell/i18n/<lang>.json
  * (or in the per-language chunks, when present). Backup-owned keys carry a
  * `backup_` prefix so they never collide with the generic keys used by other
  * apps.

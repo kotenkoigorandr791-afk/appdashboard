@@ -59,10 +59,10 @@ var v='4';
 var link=doc.createElement('link');
 link.id='mobile-browser-chrome-asset';
 link.rel='stylesheet';
-link.href='/project/assets/mobile-browser-chrome.css?v='+v;
+link.href='/shell/assets/mobile-browser-chrome.css?v='+v;
 head.appendChild(link);
 var script=doc.createElement('script');
-script.src='/project/assets/mobile-browser-chrome.js?v='+v;
+script.src='/shell/assets/mobile-browser-chrome.js?v='+v;
 head.appendChild(script);
 }
 };

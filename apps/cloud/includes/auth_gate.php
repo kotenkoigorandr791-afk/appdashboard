@@ -2,7 +2,7 @@
 declare(strict_types=1);
 // Server-side auth gate for cloud pages that nginx serves directly
 // (index.php, 3mf-viewer.php, utility controllers, ...).
-// The dashboard router (project/routes.php) can't protect these files, so every
+// The dashboard router (shell/routes.php) can't protect these files, so every
 // directly-openable page must call cloud_require_session_auth() before output.
 
 if (!function_exists('cloud_session_email_for_gate')) {

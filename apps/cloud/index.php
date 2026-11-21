@@ -57,7 +57,7 @@ $cloudApiBase = $cloudAppBase . '/api.php';
 $cloudAiBase = $cloudAppBase . '/ai.php';
 
 // Auth gate: this page is served directly by nginx, so it must enforce the
-// dashboard session itself instead of relying on project/routes.php.
+// dashboard session itself instead of relying on shell/routes.php.
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/includes/auth_gate.php';
 cloud_session_start();

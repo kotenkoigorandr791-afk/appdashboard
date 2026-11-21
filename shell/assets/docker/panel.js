@@ -2,7 +2,7 @@
     var root = null;
     var query = '';
     var currentHref = '';
-    var endpoint = '/project/docker/';
+    var endpoint = '/shell/docker/';
     function runScripts(container) {
         Array.prototype.slice.call(container.querySelectorAll('script')).forEach(function (old) {
             var s = document.createElement('script');

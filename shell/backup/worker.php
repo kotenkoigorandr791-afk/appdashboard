@@ -2,7 +2,7 @@
 /**
  * Backup Manager — restic job worker.
  *
- * Usage: php project/backup/worker.php <job-id>
+ * Usage: php shell/backup/worker.php <job-id>
  *
  * Runs one queued job, mirrors restic output into the job log, and updates the
  * job JSON so the web UI can poll progress. The repository password only lives

@@ -1,6 +1,6 @@
 <?php
 declare(strict_types=1);
-require_once dirname(__DIR__) . '/storage_helper.php';
+require_once dirname(__DIR__) . '/shell/storage_helper.php';
 if (!defined('APP_DB_CONFIG_LOADED')) {
     define('APP_DB_CONFIG_LOADED', true);
 }

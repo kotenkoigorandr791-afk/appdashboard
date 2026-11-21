@@ -1,6 +1,6 @@
 <?php
 /**
- * project/backup/index.php — entry point for the Backup Manager.
+ * shell/backup/index.php — entry point for the Backup Manager.
  *
  * Handles both the JSON API (?api=...) and the standalone page. The Admin
  * Panel embeds the same panel markup directly (no iframe).
@@ -15,7 +15,7 @@ if (getcwd() !== APP_ROOT) {
     @chdir(APP_ROOT);
 }
 
-require_once $backupAppRoot . '/project/bootstrap.php';
+require_once $backupAppRoot . '/shell/bootstrap.php';
 require_once $backupAppRoot . '/lib/embed_context.php';
 smart_log_bootstrap('dashboard');
 

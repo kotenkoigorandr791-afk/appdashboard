@@ -95,7 +95,7 @@
     if (document.querySelector('link[data-sharepoint-share-modal]')) return;
     const link = document.createElement('link');
     link.rel = 'stylesheet';
-    link.href = '/project/sharepoint/assets/css/share-modal.css?v=12';
+    link.href = '/shell/sharepoint/assets/css/share-modal.css?v=12';
     link.dataset.sharepointShareModal = '1';
     document.head.appendChild(link);
   }

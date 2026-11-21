@@ -6,7 +6,7 @@ $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){
 // api.php - Simple REST endpoints for users and files 
 require_once __DIR__ . '/vendor/autoload.php';
 require_once __DIR__ . '/includes/session.php';
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/cloud_group_chat.php';
 require_once __DIR__ . '/includes/cloud_storage_requests.php';

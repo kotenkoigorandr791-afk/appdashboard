@@ -3,7 +3,7 @@ $__d=__DIR__;for($__n=0;$__n<16;$__n++){if(is_file($__d.'/smart_log_boot.php')){
 require_once __DIR__ . '/../../db.php';
 require_once __DIR__ . '/includes/session.php';
 require_once __DIR__ . '/includes/auth_gate.php';
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 cloud_session_start();
 

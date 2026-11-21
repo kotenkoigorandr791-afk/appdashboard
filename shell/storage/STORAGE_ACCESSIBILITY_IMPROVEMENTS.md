@@ -6,7 +6,7 @@ This document describes the accessibility improvements made to the Storage Manag
 ## Changes Made
 
 ### 1. Light Theme Contrast Enhancement
-**File:** `project/storage/assets/storage.css`
+**File:** `shell/storage/assets/storage.css`
 
 **Changes:**
 - Updated light theme color variables to improve text and background contrast
@@ -26,7 +26,7 @@ This document describes the accessibility improvements made to the Storage Manag
 ```
 
 ### 2. Enhanced Button Styles
-**File:** `project/storage/assets/storage.css`
+**File:** `shell/storage/assets/storage.css`
 
 **Changes:**
 - Universal button styling with explicit background and text colors
@@ -47,7 +47,7 @@ This document describes the accessibility improvements made to the Storage Manag
 - Inputs: 44px
 
 ### 3. Custom Checkbox Styles with Animation
-**File:** `project/storage/assets/storage.css`
+**File:** `shell/storage/assets/storage.css`
 
 **Changes:**
 - Replaced default browser checkboxes with custom styled elements
@@ -72,7 +72,7 @@ This document describes the accessibility improvements made to the Storage Manag
 ```
 
 ### 4. Accessibility Attributes Added
-**File:** `project/views/modals/storage_manager.php`
+**File:** `shell/views/modals/storage_manager.php`
 
 **Changes:**
 - Added `aria-label` and `role` attributes to buttons
@@ -97,7 +97,7 @@ Example:
 ### 5. Component-Specific Improvements
 
 #### Disk Card Actions
-**File:** `project/storage/assets/storage.js`
+**File:** `shell/storage/assets/storage.js`
 
 **Changes:**
 - Enhanced disk action buttons (`check disk` and `safely remove`) with ARIA labels

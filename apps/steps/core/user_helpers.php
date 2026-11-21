@@ -15,7 +15,7 @@ function getUserPhoto(string $email): ?string {
 function logError(string $msg): void { error_log("[StepsApp] $msg"); }
 
 function steps_appdata_dir(string $subdir = ''): ?string {
-    $helper = dirname(__DIR__, 3) . '/storage_helper.php';
+    $helper = dirname(__DIR__, 3) . '/shell/storage_helper.php';
     if (!is_file($helper)) return null;
     require_once $helper;
     try {

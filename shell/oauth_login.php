@@ -2,8 +2,8 @@
 
 function oauthRequestPath(?string $requestUri = null): string {
     $path = parse_url($requestUri ?? ($_SERVER['REQUEST_URI'] ?? '/'), PHP_URL_PATH) ?: '/';
-    if (str_starts_with($path, '/project/login/oauth/')) {
-        $path = '/login/oauth/' . substr($path, strlen('/project/login/oauth/'));
+    if (str_starts_with($path, '/shell/login/oauth/')) {
+        $path = '/login/oauth/' . substr($path, strlen('/shell/login/oauth/'));
     }
     return rtrim($path, '/') ?: '/';
 }

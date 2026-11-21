@@ -1,8 +1,8 @@
 <script src="assets/js/custom-select.js?v=1"></script>
 <script src="assets/js/copy-flash.js?v=1"></script>
-<script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
-<script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
-<script src="/project/sharepoint/assets/js/share-modal.js?v=10"></script>
+<script src="/shell/sharepoint/assets/js/qr-code.js?v=5"></script>
+<script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($lang ?? 'en', ENT_QUOTES); ?>"></script>
+<script src="/shell/sharepoint/assets/js/share-modal.js?v=10"></script>
 <script>
 // ─── State ─────────────────────────────────────────────────────────────────
 // JSON_HEX_TAG keeps user-editable values from closing this <script> block.

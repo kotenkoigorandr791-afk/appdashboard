@@ -3,7 +3,7 @@
  * Public SharePoint path dispatcher.
  *
  * Shared links must render without an authenticated shell session. Keeping the
- * parsing here (instead of only in project/index.php) guarantees that any
+ * parsing here (instead of only in shell/index.php) guarantees that any
  * entrypoint which reaches routes.php still resolves /s/{token} through
  * SharePoint before the auth guards run.
  */

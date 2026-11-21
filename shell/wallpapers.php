@@ -28,7 +28,7 @@ function ap_wallpaper_asset_url(string $id): string {
     if ($id === 'default' || !isset($catalog[$id]) || empty($catalog[$id]['path'])) {
         return '';
     }
-    return '/project/assets/wallpapers/' . $catalog[$id]['path'];
+    return '/shell/assets/wallpapers/' . $catalog[$id]['path'];
 }
 
 function ap_wallpaper_preview_style(string $id): string {
@@ -48,5 +48,5 @@ function ap_wallpaper_preview_url(string $id): string {
     $pathParts = explode('/', $path);
     $filename = end($pathParts);
     $filenameWithoutExt = preg_replace('/\\.[^.]+$/', '', $filename);
-    return '/project/assets/wallpapers/previews/photos/photo-' . $filenameWithoutExt . '.webp';
+    return '/shell/assets/wallpapers/previews/photos/photo-' . $filenameWithoutExt . '.webp';
 }

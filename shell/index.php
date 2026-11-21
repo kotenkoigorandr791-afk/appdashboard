@@ -12,7 +12,7 @@ if (getcwd() !== APP_ROOT) {
 // Dispatched before any shell bootstrap so public links never hit the auth
 // guards that live in routes.php.
 $__sharePath = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
-require_once APP_ROOT . '/project/sharepoint/dispatch.php';
+require_once APP_ROOT . '/shell/sharepoint/dispatch.php';
 if (sharepoint_dispatch_path((string)$__sharePath)) {
     exit;
 }
@@ -49,17 +49,38 @@ if ($__pathLower === '/webdav' || str_starts_with($__pathLower, '/webdav/') || $
     require APP_ROOT . '/apps/cloud/webdav.php';
     exit;
 }
-$__performancePhp = [
-    '/project/performance/index.php' => APP_ROOT . '/project/performance/index.php',
-    '/project/performance/server_monitor.php' => APP_ROOT . '/project/performance/server_monitor.php',
-    '/project/performance/monitor_stats.php' => APP_ROOT . '/project/performance/monitor_stats.php',
-    '/project/storage/index.php' => APP_ROOT . '/project/storage/index.php',
-    '/project/backup/index.php' => APP_ROOT . '/project/backup/index.php',
+$__directPhp = [
+    '/shell/performance/index.php' => APP_ROOT . '/shell/performance/index.php',
+    '/shell/performance/server_monitor.php' => APP_ROOT . '/shell/performance/server_monitor.php',
+    '/shell/performance/monitor_stats.php' => APP_ROOT . '/shell/performance/monitor_stats.php',
+    '/shell/storage/index.php' => APP_ROOT . '/shell/storage/index.php',
+    '/shell/backup/index.php' => APP_ROOT . '/shell/backup/index.php',
+    '/shell/docs_viewer/index.php' => APP_ROOT . '/shell/docs_viewer/index.php',
+    '/shell/db_admin.php' => APP_ROOT . '/shell/db_admin.php',
+    '/backup_dashboard.php' => APP_ROOT . '/shell/backup/index.php',
+    '/doc_viewer.php' => APP_ROOT . '/shell/docs_viewer/index.php',
+    '/db_admin.php' => APP_ROOT . '/shell/db_admin.php',
 ];
-if (isset($__performancePhp[$__pathLower])) {
+if (isset($__directPhp[$__pathLower])) {
     $_SERVER['SCRIPT_NAME'] = $__pathLower;
     $_SERVER['PHP_SELF'] = $__path;
-    require $__performancePhp[$__pathLower];
+    require $__directPhp[$__pathLower];
+    exit;
+}
+if ($__pathLower === '/file_viewer.php') {
+    $token = (string)($_GET['sharedFile'] ?? '');
+    $token = preg_replace('/[^A-Za-z0-9_-]/', '', $token);
+    if ($token === '') {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Shared link not found';
+        exit;
+    }
+    $query = [];
+    foreach (['theme', 'lang', 'color'] as $key) {
+        if (!empty($_GET[$key])) $query[$key] = (string)$_GET[$key];
+    }
+    header('Location: /s/' . rawurlencode($token) . ($query ? '?' . http_build_query($query) : ''), true, 302);
     exit;
 }
 if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'HEAD') {
@@ -72,10 +93,10 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             require_once __DIR__ . '/bootstrap.php';
             $__skHomeLoggedIn = isset($_SESSION['user']) && is_array($_SESSION['user']) && !empty($_SESSION['user']['email']);
         }
-        $__homeHtml = file_get_contents(APP_ROOT . '/project/views/home.html');
+        $__homeHtml = file_get_contents(APP_ROOT . '/shell/views/home.html');
         if ($__homeHtml !== false) {
-            $__cssVersion = is_file(APP_ROOT . '/project/home/home.css') ? (string)filemtime(APP_ROOT . '/project/home/home.css') : '1';
-            $__jsVersion = is_file(APP_ROOT . '/project/home/home.js') ? (string)filemtime(APP_ROOT . '/project/home/home.js') : '1';
+            $__cssVersion = is_file(APP_ROOT . '/shell/home/home.css') ? (string)filemtime(APP_ROOT . '/shell/home/home.css') : '1';
+            $__jsVersion = is_file(APP_ROOT . '/shell/home/home.js') ? (string)filemtime(APP_ROOT . '/shell/home/home.js') : '1';
             $__homeHtml = str_replace('href="/home/home.css"', 'href="/home/home.css?v=' . $__cssVersion . '"', $__homeHtml);
             $__homeHtml = str_replace('src="/home/home.js"', 'src="/home/home.js?v=' . $__jsVersion . '"', $__homeHtml);
             $__appVersion = htmlspecialchars(getenv('APP_VERSION') ?: '1.0.7', ENT_QUOTES, 'UTF-8');
@@ -90,8 +111,11 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
         exit;
     }
     $__homeAssets = [
-        '/home/home.css' => ['project/home/home.css', 'text/css; charset=UTF-8'],
-        '/home/home.js' => ['project/home/home.js', 'application/javascript; charset=UTF-8'],
+        '/home/home.css' => ['shell/home/home.css', 'text/css; charset=UTF-8'],
+        '/home/home.js' => ['shell/home/home.js', 'application/javascript; charset=UTF-8'],
+        '/default_avatar.png' => ['shell/default_avatar.png', 'image/png'],
+        '/terms.html' => ['shell/terms.html', 'text/html; charset=UTF-8'],
+        '/privacy.html' => ['shell/privacy.html', 'text/html; charset=UTF-8'],
     ];
     if (isset($__homeAssets[$__path])) {
         [$__file, $__type] = $__homeAssets[$__path];
@@ -104,20 +128,20 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'GET' || ($_SERVER['REQUEST_METHOD
             exit;
         }
     }
-    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/project/assets/') || str_starts_with($__pathLower, '/project/sharepoint/assets/') || str_starts_with($__pathLower, '/project/performance/') || str_starts_with($__pathLower, '/project/onboarding/') || str_starts_with($__pathLower, '/project/icon')) {
+    if (str_starts_with($__pathLower, '/home/') || str_starts_with($__pathLower, '/preview/') || str_starts_with($__pathLower, '/shell/assets/') || str_starts_with($__pathLower, '/shell/sharepoint/assets/') || str_starts_with($__pathLower, '/shell/performance/') || str_starts_with($__pathLower, '/shell/onboarding/') || str_starts_with($__pathLower, '/shell/icon')) {
         $__relative = ltrim(rawurldecode($__path), '/');
         if (str_starts_with($__pathLower, '/home/')) {
-            $__relative = 'project/' . $__relative;
+            $__relative = 'shell/' . $__relative;
         }
         $__target = realpath(APP_ROOT . '/' . $__relative);
         $__root = realpath(APP_ROOT);
         if ($__target && $__root && str_starts_with($__target, $__root . DIRECTORY_SEPARATOR) && is_file($__target)) {
             $__ext = strtolower(pathinfo($__target, PATHINFO_EXTENSION));
-            if (str_starts_with($__pathLower, '/project/performance/') && !in_array($__ext, ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico', 'js', 'css', 'ttf', 'woff', 'woff2', 'json', 'map'], true)) {
+            if (str_starts_with($__pathLower, '/shell/performance/') && !in_array($__ext, ['png', 'jpg', 'jpeg', 'webp', 'svg', 'gif', 'ico', 'js', 'css', 'ttf', 'woff', 'woff2', 'json', 'map'], true)) {
                 http_response_code(404);
                 exit;
             }
-            if (str_starts_with($__pathLower, '/project/onboarding/') && !in_array($__ext, ['js', 'css'], true)) {
+            if (str_starts_with($__pathLower, '/shell/onboarding/') && !in_array($__ext, ['js', 'css'], true)) {
                 http_response_code(404);
                 exit;
             }

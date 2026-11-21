@@ -4,7 +4,7 @@ error_reporting(0);
 ini_set('display_errors', 0);
 header('Content-Type: application/json; charset=utf-8');
 mb_internal_encoding('UTF-8');
-require_once dirname(__DIR__, 2) . '/storage_helper.php';
+require_once dirname(__DIR__, 2) . '/shell/storage_helper.php';
 require_once __DIR__ . '/includes/cloud_groups.php';
 require_once __DIR__ . '/includes/transcription_jobs.php';
 require_once __DIR__ . '/includes/ai_speech.php';

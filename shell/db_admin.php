@@ -19,11 +19,12 @@ if (session_status() === PHP_SESSION_NONE) {
     ]);
     ini_set('session.use_strict_mode', '1');
     ini_set('session.use_only_cookies', '1');
-    require_once __DIR__ . '/lib/redis.php';
+    require_once dirname(__DIR__) . '/lib/redis.php';
     app_redis_configure_php_sessions();
     session_start();
 }
-require_once __DIR__ . '/db.php';
+if (!defined('APP_ROOT')) define('APP_ROOT', dirname(__DIR__));
+require_once APP_ROOT . '/db.php';
 require_once __DIR__ . '/smart_log.php';
 smart_log_bootstrap('dashboard');
 (static function (): void {
@@ -58,15 +59,15 @@ smart_log_bootstrap('dashboard');
 // ── Auth ──────────────────────────────────────────────────────────────────────
 if (!isset($_SESSION['user']['role']) || (int)$_SESSION['user']['role'] < 2) {
     if (isset($_POST['action'])) { header('Content-Type: application/json'); echo json_encode(['error'=>'Forbidden']); exit; }
-    require_once __DIR__ . '/project/i18n_helpers.php';
+    require_once __DIR__ . '/i18n_helpers.php';
     $authLang = ap_normalize_i18n_lang($_GET['lang'] ?? 'en');
-    $authI18n = ap_load_i18n_file(__DIR__ . '/project/i18n/' . $authLang . '.json');
-    if ($authI18n === []) $authI18n = ap_load_i18n_file(__DIR__ . '/project/i18n/en.json');
+    $authI18n = ap_load_i18n_file(__DIR__ . '/i18n/' . $authLang . '.json');
+    if ($authI18n === []) $authI18n = ap_load_i18n_file(__DIR__ . '/i18n/en.json');
     http_response_code(403); die(ap_i18n_t($authI18n, 'forbidden', 'Forbidden'));
 }
 
 // ── Embed mode support ───────────────────────────────────────────────────────
-require_once __DIR__ . '/lib/embed_context.php';
+require_once APP_ROOT . '/lib/embed_context.php';
 function dbAdminIsEmbeddedRequest(): bool { return app_is_embedded_request(); }
 $embedMode = dbAdminIsEmbeddedRequest();
 
@@ -895,7 +896,7 @@ if ($_SERVER['REQUEST_METHOD']==='POST' && isset($_POST['action'])) {
         $stmt->bindValue(':t',$thm);$stmt->bindValue(':c',$clr);
         $stmt->execute();
         if (!function_exists('oauth_provision_user_services')) {
-            $oauthFile = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__)) . '/project/oauth.php';
+            $oauthFile = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__)) . '/shell/oauth.php';
             if (is_readable($oauthFile)) require_once $oauthFile;
         }
         if (function_exists('oauth_provision_user_services') && $ver) {

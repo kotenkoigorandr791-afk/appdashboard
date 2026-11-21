@@ -411,7 +411,7 @@ if ($action === 'set_trash_retention') {
 }
 
 if ($action === 'share_file' || $action === 'share_folder') {
-    require_once dirname(__DIR__, 4) . '/project/sharepoint/bridge_legacy.php';
+    require_once dirname(__DIR__, 4) . '/shell/sharepoint/bridge_legacy.php';
     $user = get_current_user_from_sessions();
     if ($user === 'guest') json_out(['error' => 'not authenticated'], 401);
 

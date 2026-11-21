@@ -1,10 +1,10 @@
 <?php
 /**
  * Performance Monitor panel — inline (no iframe), like backup_manager.
- * Included by project/post_handlers.php inside #ap-performance.
+ * Included by shell/post_handlers.php inside #ap-performance.
  */
 $perfInline = true;
-$perfAppBase = '/project/performance';
+$perfAppBase = '/shell/performance';
 $_perfBackup = [
     'translations' => $translations ?? null,
     'lang' => $lang ?? null,

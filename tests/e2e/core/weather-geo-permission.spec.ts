@@ -36,7 +36,7 @@ async function login(page: Page) {
 }
 
 async function mockWeatherBackend(page: Page, opts: { settings?: object } = {}) {
-  await page.route('**/project/weather_settings.php', async (route) => {
+  await page.route('**/shell/weather_settings.php', async (route) => {
     if (route.request().method() === 'POST') {
       await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ success: true }) });
     } else {

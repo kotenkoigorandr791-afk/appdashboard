@@ -1,5 +1,5 @@
-    <script src="/project/sharepoint/assets/js/qr-code.js?v=5"></script>
-    <script src="/project/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
+    <script src="/shell/sharepoint/assets/js/qr-code.js?v=5"></script>
+    <script src="/shell/sharepoint/share_i18n.php?lang=<?php echo htmlspecialchars($language ?? 'en', ENT_QUOTES); ?>"></script>
     <?php
     // The share endpoint verifies X-SharePoint-CSRF against the session token, so
     // the page has to publish it. Without this every create/list call answered
@@ -7,7 +7,7 @@
     if (empty($_SESSION['sharepoint_csrf'])) $_SESSION['sharepoint_csrf'] = bin2hex(random_bytes(24));
     ?>
     <script>window.SHAREPOINT_CSRF=<?= json_encode($_SESSION['sharepoint_csrf']) ?>;</script>
-    <script src="/project/sharepoint/assets/js/share-modal.js?v=13"></script>
+    <script src="/shell/sharepoint/assets/js/share-modal.js?v=13"></script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
             var shareButton = document.getElementById('sharepoint-share-button');

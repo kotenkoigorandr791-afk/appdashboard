@@ -112,7 +112,7 @@ if ($path === '/oauth/approve') {
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Authorize Application</title>
-        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/x-icon" href="/shell/views/icon.ico?v=3">
         <link rel="icon" type="image/png" href="/icon.png?v=3">
         <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
@@ -271,7 +271,7 @@ if ($path === '/client-auth') {
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <meta name="color-scheme" content="light dark">
         <title><?php echo $caE('title'); ?></title>
-        <link rel="icon" type="image/x-icon" href="/project/views/icon.ico?v=3">
+        <link rel="icon" type="image/x-icon" href="/shell/views/icon.ico?v=3">
         <link rel="icon" type="image/png" href="/icon.png?v=3">
         <link rel="shortcut icon" type="image/png" href="/icon.png?v=3">
         <style>
@@ -498,10 +498,10 @@ if($path==='/privacy'||$path==='/terms'){
     $langParam=$_GET['lang']??$config['language'];
     $colorParam=$_GET['color']??$config['color'];
     if($path==='/privacy'){
-        include 'privacy.html';
+        include APP_ROOT . '/shell/privacy.html';
         exit;
     }elseif($path==='/terms'){
-        include 'terms.html';
+        include APP_ROOT . '/shell/terms.html';
         exit;
     }
 }
@@ -519,13 +519,10 @@ if($path==='/database'){
     }
     adminAuditLog('database_access', '/database', 'ok');
     
-    // Pass URL parameters to db_admin.php via global variables
     $_GET['theme'] = $_GET['theme'] ?? $config['theme'];
     $_GET['lang'] = $_GET['lang'] ?? $language;
     $_GET['color'] = $_GET['color'] ?? $config['color'];
-    
-    // Include db_admin.php directly (without redirect)
-    include 'db_admin.php';
+    include APP_ROOT . '/shell/db_admin.php';
     exit;
 }
 
@@ -589,15 +586,22 @@ if($path==='/verify'){
 }
 
 if(isset($_GET['sharedFile'])){
-    $themeParam = $_GET['theme'] ?? $config['theme'];
-    $langParam = $_GET['lang'] ?? $config['language'];
-    $colorParam = $_GET['color'] ?? $config['color'];
-    
-    $_GET['theme'] = $themeParam;
-    $_GET['lang'] = $langParam;
-    $_GET['color'] = $colorParam;
-    
-    include 'file_viewer.php';
+    $token = (string)($_GET['sharedFile'] ?? '');
+    $token = preg_replace('/[^A-Za-z0-9_-]/', '', $token);
+    if ($token === '') {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Shared link not found';
+        exit;
+    }
+    $query = [];
+    foreach (['theme', 'lang', 'color'] as $key) {
+        if (!empty($_GET[$key])) {
+            $query[$key] = (string)$_GET[$key];
+        }
+    }
+    $target = '/s/' . rawurlencode($token) . ($query ? '?' . http_build_query($query) : '');
+    header('Location: ' . $target, true, 302);
     exit;
 }
 
