@@ -157,7 +157,7 @@ if (in_array('photos', $layers, true) && $target === $viewer) {
         try { oauth_sync_immich_steps($target); } catch (Throwable $ignored) {}
     }
     $zoom = (int)($_GET['zoom'] ?? 12);
-    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, $zoom, 60);
+    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, $zoom, 200);
     foreach ($photos as $photo) {
         $assetId = (string)$photo['asset_id'];
         $result['features'][] = [

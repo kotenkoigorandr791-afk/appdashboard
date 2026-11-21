@@ -578,6 +578,11 @@ $metricButtons = [
                             const c=map.getCenter();
                             lastMove={lat:c.lat,lon:c.lng,t:performance.now()};
                         });
+                        map.on('zoomend',()=>{
+                            // Re-cluster photos from the last payload immediately so icons
+                            // split/merge in place without waiting for the viewport fetch.
+                            if(lastFeatures&&lastFeatures.length) render(lastFeatures);
+                        });
                         map.on('moveend',()=>{
                             if(!map) return;
                             const c=map.getCenter(), now=performance.now();
@@ -739,6 +744,88 @@ $metricButtons = [
                         marker.bindPopup(popupHtml(String(count), []));
                         return marker;
                     }
+                    // Pixel-distance clustering keeps each photo at its GPS point; groups
+                    // only form when icons would overlap on screen, so zoom no longer
+                    // jumps markers via server-side SnapToGrid centroids.
+                    function clusterPhotoFeatures(photoFeatures){
+                        if(!map||!window.L||!photoFeatures.length) return [];
+                        const L=window.L;
+                        const zoom=map.getZoom();
+                        const pxRadius=zoom>=17?22:zoom>=15?28:zoom>=13?34:40;
+                        const items=photoFeatures.map(f=>{
+                            const [lon,lat]=f.geometry.coordinates;
+                            const ll=L.latLng(lat,lon);
+                            const pt=map.latLngToLayerPoint(ll);
+                            return {f, ll, pt, id:String((f.properties&&f.properties.asset_id)||'')};
+                        }).sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+                        const used=new Set();
+                        const out=[];
+                        for(let i=0;i<items.length;i++){
+                            if(used.has(i)) continue;
+                            const group=[items[i]];
+                            used.add(i);
+                            for(let j=i+1;j<items.length;j++){
+                                if(used.has(j)) continue;
+                                const dx=items[i].pt.x-items[j].pt.x, dy=items[i].pt.y-items[j].pt.y;
+                                if((dx*dx+dy*dy)<=pxRadius*pxRadius){ group.push(items[j]); used.add(j); }
+                            }
+                            // Anchor stays on the lexicographically first asset so the
+                            // visible marker does not drift when membership changes.
+                            group.sort((a,b)=>a.id<b.id?-1:a.id>b.id?1:0);
+                            const head=group[0];
+                            const props=Object.assign({}, head.f.properties||{}, {count:group.length});
+                            out.push({
+                                type:'Feature',
+                                geometry:{type:'Point', coordinates:[head.ll.lng, head.ll.lat]},
+                                properties:props
+                            });
+                        }
+                        return out;
+                    }
+                    function addPhotoMarker(feature, baseRadius){
+                        const L=window.L;
+                        const p=feature.properties||{};
+                        const [plon,plat]=feature.geometry.coordinates;
+                        const count=Math.max(1, parseInt(p.count,10)||1);
+                        const size=Math.max(32, baseRadius*4+14);
+                        const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
+                        const photoCard=photoPopupCard(p);
+                        const cachedThumb=p.thumbnail?photoThumbReady.get(String(p.thumbnail)):null;
+                        const ringClass=cachedThumb?'map-photo-marker-ring is-ready':'map-photo-marker-ring is-loading';
+                        const ringStyle='width:'+size+'px;height:'+size+'px';
+                        const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="'+ringClass+'" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span><img alt="" decoding="async">'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                        photoMarker.bindPopup(photoCard,{maxWidth:280,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
+                        photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
+                        const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
+                        const ringImg=ring&&ring.querySelector('img');
+                        if(ring && ringImg && p.thumbnail){
+                            const applyThumb=(src)=>{
+                                ringImg.src=src;
+                                ringImg.classList.add('is-ready');
+                                ring.classList.add('is-ready');
+                                ring.classList.remove('is-loading');
+                            };
+                            if(cachedThumb){
+                                applyThumb(cachedThumb);
+                            } else {
+                                const fill=()=>{
+                                    if(ringImg.dataset.filled) return;
+                                    ringImg.dataset.filled='1';
+                                    loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                        applyThumb(loaded.src);
+                                    }).catch(()=>{ ring.classList.remove('is-loading'); ring.classList.add('is-ready'); });
+                                };
+                                if('IntersectionObserver' in window){
+                                    const io=new IntersectionObserver((entries)=>{
+                                        if(entries.some(e=>e.isIntersecting)){ io.disconnect(); fill(); }
+                                    },{root:null,rootMargin:'160px',threshold:0.01});
+                                    const el=photoMarker.getElement();
+                                    if(el) io.observe(el); else fill();
+                                } else fill();
+                            }
+                        }
+                        return photoMarker;
+                    }
                     function render(features){
                         if(!map||!window.L) return;
                         lastFeatures=Array.isArray(features)?features:[];
@@ -750,9 +837,11 @@ $metricButtons = [
                         layerGroup.clearLayers();
                         const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
                         const visitCenters=lastFeatures.filter(f=>f.properties&&f.properties.layer==='visit'&&f.geometry).map(f=>L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]));
+                        const photoFeatures=[];
                         lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
                             if(!feature.geometry||!feature.geometry.coordinates) return;
+                            if(p.layer==='photo_cluster'){ photoFeatures.push(feature); return; }
                             if(p.layer==='trip'){
                                 const isFocus=!!p.id&&focusTripId===p.id, isSel=!!p.id&&selTrips.has(p.id);
                                 if(speedOn&&!isFocus&&!isSel) return;
@@ -782,46 +871,6 @@ $metricButtons = [
                                 addPoint(feature,{radius:baseRadius-1,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:pointOpacity},p.name||'Stop',[p.started_at||'']);
                             } else if(p.layer==='point_cluster'){
                                 addCluster(feature, p.count||1);
-                            } else if(p.layer==='photo_cluster'){
-                                const [plon,plat]=feature.geometry.coordinates;
-                                const count=Math.max(1, parseInt(p.count,10)||1);
-                                const size=Math.max(32, baseRadius*4+14);
-                                const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
-                                const photoCard=photoPopupCard(p);
-                                const cachedThumb=p.thumbnail?photoThumbReady.get(String(p.thumbnail)):null;
-                                const ringClass=cachedThumb?'map-photo-marker-ring is-ready':'map-photo-marker-ring is-loading';
-                                const ringStyle='width:'+size+'px;height:'+size+'px';
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="'+ringClass+'" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span><img alt="" decoding="async">'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
-                                photoMarker.bindPopup(photoCard,{maxWidth:280,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
-                                photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
-                                const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
-                                const ringImg=ring&&ring.querySelector('img');
-                                if(ring && ringImg && p.thumbnail){
-                                    const applyThumb=(src)=>{
-                                        ringImg.src=src;
-                                        ringImg.classList.add('is-ready');
-                                        ring.classList.add('is-ready');
-                                        ring.classList.remove('is-loading');
-                                    };
-                                    if(cachedThumb){
-                                        applyThumb(cachedThumb);
-                                    } else {
-                                        const fill=()=>{
-                                            if(ringImg.dataset.filled) return;
-                                            ringImg.dataset.filled='1';
-                                            loadPhotoThumb(p.thumbnail).then(loaded=>{
-                                                applyThumb(loaded.src);
-                                            }).catch(()=>{ ring.classList.remove('is-loading'); ring.classList.add('is-ready'); });
-                                        };
-                                        if('IntersectionObserver' in window){
-                                            const io=new IntersectionObserver((entries)=>{
-                                                if(entries.some(e=>e.isIntersecting)){ io.disconnect(); fill(); }
-                                            },{root:null,rootMargin:'160px',threshold:0.01});
-                                            const el=photoMarker.getElement();
-                                            if(el) io.observe(el); else fill();
-                                        } else fill();
-                                    }
-                                }
                             } else if(p.layer==='visit'){
                                 const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
                                 const [vlon,vlat]=feature.geometry.coordinates;
@@ -852,6 +901,7 @@ $metricButtons = [
                                 addPoint(feature,{pane:'mapBackdrop',radius:Math.max(6,baseRadius*1.8),stroke:false,fillColor:'#10b981',fillOpacity:Math.min(0.6,0.12+0.35*heatStrength)},String(p.visits||0),[]);
                             }
                         });
+                        clusterPhotoFeatures(photoFeatures).forEach(f=>addPhotoMarker(f, baseRadius));
                     }
                     function bboxQuery(){
                         if(!map) return '';

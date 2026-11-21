@@ -79,7 +79,9 @@ try {
     geo_immich_assert(($candidate['mode'] ?? '') === 'time_candidate' && ($candidate['point_id'] ?? '') === $p2, 'time candidate missing');
 
     $clusters = StepsGeolocationImmich::mapClusters($pdo, $owner, ['minLon' => 30.5, 'minLat' => 50.4, 'maxLon' => 30.6, 'maxLat' => 50.5], '2026-10-01T00:00:00Z', '2026-10-02T00:00:00Z', 14);
-    geo_immich_assert(count($clusters) === 1, 'map photo cluster missing');
+    geo_immich_assert(count($clusters) === 1, 'map photo near route missing');
+    geo_immich_assert(abs((float)$clusters[0]['lat'] - 50.4501) < 0.0002, 'photo lat drifted from GPS');
+    geo_immich_assert(abs((float)$clusters[0]['lon'] - 30.5234) < 0.0002, 'photo lon drifted from GPS');
     $gallery = StepsGeolocationImmich::galleries($pdo, $owner);
     geo_immich_assert(count($gallery['assets']) === 2, 'photo gallery missing assets');
     $thumb = StepsGeolocationImmich::thumbnail($pdo, $owner, (string)$rows[0]['id']);
