@@ -15,7 +15,7 @@ require_once __DIR__ . '/geolocation_timeline.php';
 
 final class StepsGeolocationStatistics
 {
-    public const PROCESSOR_VERSION = 'stats-1';
+    public const PROCESSOR_VERSION = 'stats-2';
     public const RESIDENCY_WINDOW_DAYS = 183;
     public const RESIDENCY_THRESHOLD_DAYS = 183;
     public const ACCURACY_BUCKETS = [10, 25, 50, 100, 200];
@@ -725,7 +725,7 @@ final class StepsGeolocationStatistics
             ],
             'assumptions' => [
                 'Days are grouped in the requested IANA timezone: ' . $timezone . '.',
-                'Country and city names come only from explicitly imported boundary dataset versions. A day is summarised by its dominant country, while every country touched that day (a border crossing or a short visit) still counts in the visited-country metrics.',
+                'Country and city names come only from explicitly imported boundary dataset versions. A day is summarised by its dominant country. Visited-country metrics count only those dominant daily countries, so GPS teleports or sparse outliers in another country do not appear as visits.',
                 'Distance uses consecutive accepted samples within the same local day; cross-midnight segments are counted on the following day only when both samples share that day.',
                 'No statistic uses or infers a mode of transport.',
             ],
@@ -749,14 +749,12 @@ final class StepsGeolocationStatistics
             $metrics['route_distance_m'] += (float)$row['distance_m'];
             $metrics['active_seconds'] += (int)$row['active_seconds'];
             if ((int)$row['point_count'] > 0) $metrics['active_days']++;
-            $dayCountries = (array)($row['countries_json'] ?? $row['countries'] ?? []);
-            if ($dayCountries === [] && !empty($row['country_code'])) {
-                $dayCountries = [['code' => (string)$row['country_code'], 'name' => (string)$row['country_name']]];
-            }
-            foreach ($dayCountries as $country) {
-                $code = (string)($country['code'] ?? '');
-                if ($code !== '') $countries[$code] = (string)($country['name'] ?? '');
-            }
+            // Visited countries follow the dominant daily country only. Sparse
+            // GPS teleports (a handful of points in Peru while the day is in
+            // Ukraine) stay in countries_json for diagnostics but must not
+            // inflate the visited-country list shown next to the map.
+            $code = (string)($row['country_code'] ?? '');
+            if ($code !== '') $countries[$code] = (string)($row['country_name'] ?? '');
             if (!empty($row['city_name'])) $cities[(string)$row['city_name']] = true;
         }
         $metrics['route_distance_m'] = round($metrics['route_distance_m'], 2);

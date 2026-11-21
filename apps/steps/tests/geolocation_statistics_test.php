@@ -29,8 +29,9 @@ geo_stats_assert($daily['2026-01-01']['sources']['import'] === 2, 'source counts
 geo_stats_assert($daily['2026-01-01']['accuracy'][4] === 1, 'accuracy bucket <=200 wrong');
 geo_stats_assert($daily['2026-01-01']['accuracy'][6] === 1, 'missing accuracy bucket wrong');
 
-// A day that touches two countries keeps both; the dominant one stays the
-// daily summary and the short visit still counts as a visited country.
+// A day that touches two countries keeps both in the daily diagnostic list;
+// the dominant one stays the daily summary. Visited-country metrics ignore
+// sparse teleports that never dominate a day (e.g. Peru outliers on a UA day).
 $mixed = StepsGeolocationStatistics::groupDaily($points, 'UTC', [
     ['day' => '2026-01-01', 'code' => 'UA', 'name' => 'Ukraine', 'count' => 3],
     ['day' => '2026-01-01', 'code' => 'PE', 'name' => 'Peru', 'count' => 1],
@@ -39,8 +40,15 @@ geo_stats_assert(count($mixed['2026-01-01']['countries']) === 2, 'short country 
 geo_stats_assert($mixed['2026-01-01']['countries'][0]['code'] === 'UA', 'dominant country must come first');
 geo_stats_assert($mixed['2026-01-01']['country_code'] === 'UA', 'daily summary must stay the dominant country');
 $mixedMetrics = StepsGeolocationStatistics::aggregate([$mixed['2026-01-01']]);
-geo_stats_assert(count($mixedMetrics['countries']) === 2, 'visited countries must include the short visit');
-geo_stats_assert(in_array('PE', array_column($mixedMetrics['countries'], 'code'), true), 'Peru missing from visited countries');
+geo_stats_assert(count($mixedMetrics['countries']) === 1, 'teleport country must not inflate visited metrics');
+geo_stats_assert($mixedMetrics['countries'][0]['code'] === 'UA', 'visited countries must follow the dominant daily country');
+geo_stats_assert(!in_array('PE', array_column($mixedMetrics['countries'], 'code'), true), 'Peru teleport must stay out of visited countries');
+$twoDayMetrics = StepsGeolocationStatistics::aggregate([
+    $mixed['2026-01-01'],
+    ['point_count' => 4, 'accepted_count' => 4, 'flagged_count' => 0, 'rejected_count' => 0, 'distance_m' => 0, 'active_seconds' => 0, 'country_code' => 'PL', 'country_name' => 'Poland', 'city_name' => null],
+]);
+geo_stats_assert(count($twoDayMetrics['countries']) === 2, 'dominant countries across days must both count');
+geo_stats_assert(in_array('PL', array_column($twoDayMetrics['countries'], 'code'), true), 'Poland dominant day missing');
 
 // A GPS teleport must not be stitched into the daily route distance.
 $jump = [

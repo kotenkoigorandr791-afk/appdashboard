@@ -46,7 +46,7 @@
               currentLocale = localeMap['<?php echo $language; ?>'] || 'en-EN';
 
         const chartTypeStorageKey = () => 'stepsChartType_' + String(currentUser || 'u').replace(/[^a-z0-9_\-]/gi, '_');
-        let currentView = 'year', currentDataType = 'steps', currentDate = new Date(), chart = null;
+        let currentView = 'week', currentDataType = 'steps', currentDate = new Date(), chart = null;
         let yearlyDistributionChart = null, monthlyIntensityChart = null;
         let currentChartType = 'bar';
         let stepsDataVersion = '';
@@ -255,10 +255,10 @@
             return true;
         };
 
-        // Hide buttons when there is no corresponding metric on server.
-        // This prevents showing empty charts (e.g. no sleep data => no sleep button).
+        // Hide optional metric buttons when there is no corresponding data.
+        // Steps / Distance / Calories stay visible (distance & calories can be derived).
         const hideEmptyDataTypeButtons = () => {
-            const candidates = ['distance', 'calories', 'heart_rate', 'sleep', 'weight'];
+            const candidates = ['heart_rate', 'sleep', 'weight'];
             const hasAny = (dt) => stepsData.some(entry => hasRealMetricForDate(entry.date, dt));
 
             const stepsBtn = document.querySelector('.data-type-btn[data-type="steps"]');
@@ -266,6 +266,11 @@
                 document.querySelectorAll('.data-type-btn').forEach(b => b.classList.remove('active'));
                 if (currentDataType === 'steps' && stepsBtn) stepsBtn.classList.add('active');
             };
+
+            ['steps', 'distance', 'calories'].forEach(dt => {
+                const btn = document.querySelector(`.data-type-btn[data-type="${dt}"]`);
+                if (btn) btn.style.display = '';
+            });
 
             candidates.forEach(dt => {
                 const btn = document.querySelector(`.data-type-btn[data-type="${dt}"]`);
@@ -524,7 +529,10 @@
             if (modal) {
                 if (modal.firstElementChild) modal.firstElementChild.classList.add('modal-content');
                 document.body.classList.add('modal-open');
-                modal.style.display = 'flex';
+                modal.style.removeProperty('pointer-events');
+                modal.style.removeProperty('visibility');
+                modal.style.setProperty('display', 'flex', 'important');
+                document.querySelectorAll('.topbar-icon-btn.is-active').forEach(btn => btn.classList.remove('is-active'));
                 if (modalId === 'settings-modal') {
                     resetSettingsModalTabs();
                     syncChartTypeButtons();
@@ -564,7 +572,17 @@
         function closeModal(modalId) {
             const modal = document.getElementById(modalId);
             if (modal) {
-                modal.style.display = 'none';
+                modal.style.setProperty('display', 'none', 'important');
+                modal.style.removeProperty('pointer-events');
+                modal.style.removeProperty('visibility');
+                document.querySelectorAll('.topbar-icon-btn.is-active').forEach(btn => btn.classList.remove('is-active'));
+                try {
+                    const url = new URL(window.location.href);
+                    if (modalId === 'settings-modal' && url.searchParams.has('settings')) {
+                        url.searchParams.delete('settings');
+                        history.replaceState(null, '', url);
+                    }
+                } catch (e) {}
                 if (modalId === 'add-steps-modal') {
                     if (typeof zlStopPoll === 'function') zlStopPoll();
                     if (typeof ftStopPoll === 'function') ftStopPoll();
@@ -642,14 +660,11 @@
     return { labels, data, dates };
 }
 
-        function createBarGradient(canvas, alpha = 0.5) {
+        function createBarGradient(canvas, alpha = 1) {
             const ctx = canvas.getContext('2d');
-            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            const r = 0, g = 123, b = 255;
-            const halfWhite = `rgba(${Math.round((255 + r) / 2)},${Math.round((255 + g) / 2)},${Math.round((255 + b) / 2)},${alpha})`;
-            const full = `rgba(${r},${g},${b},${alpha})`;
-            gradient.addColorStop(0, halfWhite);
-            gradient.addColorStop(1, full);
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height || 300);
+            gradient.addColorStop(0, `rgba(76, 154, 255, ${alpha})`);
+            gradient.addColorStop(1, `rgba(37, 99, 235, ${alpha})`);
             return gradient;
         }
 
@@ -661,17 +676,21 @@
             const chartData = prepareChartData(view, selectedDate, dataType, lang);
             if (!chartData.data.length) return;
 
-            document.getElementById('chart-label').textContent = getChartLabel(view, selectedDate, lang);
+            const chartLabelText = getChartLabel(view, selectedDate, lang);
+            document.getElementById('chart-label').textContent = chartLabelText;
+            const rangeLabel = document.getElementById('chart-range-label');
+            if (rangeLabel) rangeLabel.textContent = chartLabelText;
             document.getElementById('chart-nav-left').style.display = 'inline-flex';
             document.getElementById('chart-nav-right').style.display = 'inline-flex';
             document.getElementById('chart-nav-left').disabled = !canNavigateBackward();
             document.getElementById('chart-nav-right').disabled = !canNavigateForward();
 
             const unitLabel = unitLabelFor(dataType);
-            const isDarkTheme = '<?php echo $theme === 'dark' ? 'true' : 'false'; ?>' === 'true';
-            const chartGridColor = isDarkTheme ? 'rgba(160, 160, 160, 0.45)' : 'rgba(0, 0, 0, 0.12)';
+            const isDarkTheme = true;
+            const chartGridColor = 'rgba(255, 255, 255, 0.07)';
+            const axisColor = '#71757D';
             const seriesType = isSeriesType(dataType);
-            const hideChartTitles = window.matchMedia('(max-width: 768px)').matches;
+            const hideChartTitles = true;
             const fmtAxis = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
             const fmtTooltip = v => seriesType ? String(Math.round(v * 10) / 10) : formatNumber(Math.round(v));
 
@@ -692,8 +711,10 @@
                         label: unitLabel,
                         data: chartData.data,
                         backgroundColor: barBg,
-                        borderColor: 'rgba(0,123,255,1)',
-                        borderWidth: chartType === 'bar' ? 1 : 2,
+                        borderColor: '#4C9AFF',
+                        borderWidth: chartType === 'bar' ? 0 : 2,
+                        borderRadius: chartType === 'bar' ? 8 : 0,
+                        borderSkipped: false,
                         fill: chartType === 'line',
                         tension: chartType === 'line' ? 0.4 : 0
                     }]
@@ -701,38 +722,44 @@
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    layout: { padding: 10 },
+                    layout: { padding: { top: 8, right: 8, bottom: 4, left: 4 } },
                     scales: {
                         y: {
                             beginAtZero: true,
                             ...(yMaxWhenBelowGoal != null ? { max: yMaxWhenBelowGoal } : {}),
                             grid: { color: chartGridColor },
-                            border: { color: chartGridColor },
+                            border: { color: '#34363B' },
                             ticks: {
                                 display: true,
-                                color: isDarkTheme ? '#fff' : '#000',
+                                color: axisColor,
+                                font: { family: 'JetBrains Mono', size: 11 },
                                 callback: (v) => fmtAxis(v)
                             },
                             title: {
                                 display: !hideChartTitles,
                                 text: unitLabel,
-                                color: isDarkTheme ? '#fff' : '#000'
+                                color: axisColor
                             }
                         },
                         x: {
-                            grid: { color: chartGridColor },
-                            border: { color: chartGridColor },
-                            ticks: { display: true, color: isDarkTheme ? '#fff' : '#000' },
+                            grid: { display: false },
+                            border: { color: '#34363B' },
+                            ticks: { display: true, color: axisColor, font: { family: 'JetBrains Mono', size: 11 } },
                             title: {
                                 display: !hideChartTitles,
                                 text: translations.time || 'Time',
-                                color: isDarkTheme ? '#fff' : '#000'
+                                color: axisColor
                             }
                         }
                     },
                     plugins: {
                         legend: { display: false },
                         tooltip: {
+                            backgroundColor: '#1C1D1F',
+                            titleColor: '#fff',
+                            bodyColor: '#E3E5E8',
+                            borderColor: '#34363B',
+                            borderWidth: 1,
                             callbacks: {
                                 label: context => `${unitLabel}: ${fmtTooltip(context.raw)}`
                             }
@@ -752,18 +779,19 @@
                                         type: 'line',
                                         yMin: userSettings.goal_steps,
                                         yMax: userSettings.goal_steps,
-                                        borderColor: 'rgba(194, 0, 42, 0.76)',
+                                        borderColor: 'rgba(52, 211, 153, 0.55)',
                                         borderWidth: 2,
                                         borderDash: [6, 6],
                                         label: {
                                             display: true,
                                             content: (translations.goal_label || 'Goal: ') + formatNumber(userSettings.goal_steps),
                                             position: 'end',
-                                            yAdjust: -20,
-                                            backgroundColor: 'rgba(167, 0, 36, 0.55)',
-                                            font: {
-                                                size: 12
-                                            }
+                                            yAdjust: -18,
+                                            backgroundColor: 'rgba(6, 78, 59, 0.9)',
+                                            color: '#34d399',
+                                            borderColor: 'rgba(52, 211, 153, 0.35)',
+                                            borderWidth: 1,
+                                            font: { size: 10, family: 'JetBrains Mono' }
                                         }
                                     }
                                 }
@@ -851,47 +879,87 @@
                 if (grid) grid.style.display = 'none';
                 return;
             }
-            const yearlySection = document.querySelector('#stats-modal .stats-card');
-            const hasMultipleYears = yearlyLabels.length >= 2;
-            if (yearlySection) yearlySection.style.display = hasMultipleYears ? '' : 'none';
-            const totalAllYears = yearlyData.reduce((sum, value) => sum + value, 0);
-            if (hasMultipleYears) {
-            yearlyDistributionChart = new Chart(document.getElementById('stats-years-chart').getContext('2d'), {
-                type: 'pie',
-                data: {
-                    labels: yearlyLabels,
-                    datasets: [{
-                        label: translations.statistics_pie_chart_label || 'Yearly Step Share',
-                        data: yearlyData,
-                        backgroundColor: yearlyLabels.map((_, i) => palette[i % palette.length]),
-                        borderColor: isDarkTheme ? 'rgba(255,255,255,0.22)' : 'rgba(0,0,0,0.12)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { position: 'bottom', labels: { color: chartTextColor } },
-                        tooltip: {
-                            callbacks: {
-                                label: context => {
-                                    const value = Number(context.raw) || 0;
-                                    const pct = totalAllYears ? (value / totalAllYears * 100).toFixed(1) : '0.0';
-                                    return `${context.label}: ${formatNumber(value)} ${translations.steps || 'steps'} (${pct}%)`;
+            const year = new Date().getFullYear();
+            const goal = Math.max(1, Number(userSettings.goal_steps) || 8000);
+            let yearSteps = 0;
+            let yearDays = 0;
+            let goalDays = 0;
+            const activeMonths = new Set();
+            const monthly = Array.from({ length: 12 }, () => 0);
+            stepsData.forEach(entry => {
+                const d = localDateFromYMD(entry.date);
+                if (isNaN(d.getTime()) || d.getFullYear() !== year) return;
+                const steps = Number(entry.steps) || 0;
+                monthly[d.getMonth()] += steps;
+                if (steps <= 0) return;
+                yearSteps += steps;
+                yearDays += 1;
+                activeMonths.add(d.getMonth());
+                if (steps >= goal) goalDays += 1;
+            });
+            const completionPct = yearDays ? Math.min(100, Math.round((goalDays / yearDays) * 100)) : 0;
+            const yearsCanvas = document.getElementById('stats-years-chart');
+            if (yearsCanvas) {
+                yearlyDistributionChart = new Chart(yearsCanvas.getContext('2d'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: [
+                            translations.stats_goal_completion || 'Goal completion',
+                            translations.stats_remaining || 'Remaining'
+                        ],
+                        datasets: [{
+                            data: [Math.max(completionPct, 0), Math.max(0, 100 - completionPct)],
+                            backgroundColor: ['#3B82F6', isDarkTheme ? '#2E3034' : '#E5E7EB'],
+                            borderWidth: 0,
+                            hoverOffset: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        cutout: '72%',
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                callbacks: {
+                                    label: context => `${context.label}: ${context.raw}%`
                                 }
                             }
                         }
                     }
-                }
-            });
+                });
             }
-            const year = new Date().getFullYear();
-            const monthly = Array.from({ length: 12 }, () => 0);
-            stepsData.forEach(entry => {
-                const d = localDateFromYMD(entry.date);
-                if (!isNaN(d.getTime()) && d.getFullYear() === year) monthly[d.getMonth()] += Number(entry.steps) || 0;
-            });
+            const pctNode = document.getElementById('stats-yearly-donut-pct');
+            const stepsNode = document.getElementById('stats-yearly-donut-steps');
+            if (pctNode) pctNode.textContent = completionPct + '%';
+            if (stepsNode) stepsNode.textContent = formatNumber(yearSteps);
+            const metricsHost = document.getElementById('stats-yearly-metrics');
+            if (metricsHost) {
+                metricsHost.textContent = '';
+                const monthNames = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1).toLocaleDateString(lang, { month: 'short' }));
+                const monthIndexes = Array.from(activeMonths).sort((a, b) => a - b);
+                const monthsLabel = monthIndexes.length
+                    ? (monthIndexes.length === 1
+                        ? monthNames[monthIndexes[0]]
+                        : monthNames[monthIndexes[0]] + ' – ' + monthNames[monthIndexes[monthIndexes.length - 1]])
+                    : '—';
+                const rows = [
+                    [translations.stats_active_months || 'Active Months', monthsLabel],
+                    [translations.stats_goal_days || 'Goal Completion Days', formatNumber(goalDays)],
+                    [translations.stats_daily_average || 'Daily Average', formatNumber(yearDays ? Math.round(yearSteps / yearDays) : 0) + ' ' + (translations.steps_per_day || 'steps/day')]
+                ];
+                rows.forEach(([label, value]) => {
+                    const row = document.createElement('div');
+                    row.className = 'stats-yearly-metric-row';
+                    const l = document.createElement('span');
+                    l.textContent = label;
+                    const v = document.createElement('strong');
+                    v.textContent = value;
+                    row.appendChild(l);
+                    row.appendChild(v);
+                    metricsHost.appendChild(row);
+                });
+            }
             const monthlyTitle = document.getElementById('stats-monthly-title');
             if (monthlyTitle) monthlyTitle.textContent = (translations.statistics_monthly_intensity || 'Monthly Step Intensity') + ' ' + year;
             monthlyIntensityChart = new Chart(document.getElementById('stats-months-chart').getContext('2d'), {
@@ -1002,15 +1070,42 @@
             const places = summary && summary.most_visited_places ? summary.most_visited_places : [];
             statsText('stats-overview-places', places.length ? formatNumber(places.length) : (metrics.cities ? metrics.cities.length : '—'));
             const achievements = statsExperience.achievements;
-            statsText('stats-overview-earned', achievements && achievements.enabled !== false ? formatNumber(achievements.earned_count || 0) : '—');
+            if (achievements && achievements.enabled !== false) {
+                const earned = Number(achievements.earned_count != null ? achievements.earned_count : (achievements.earned_achievements || []).length) || 0;
+                statsText('stats-overview-earned', formatNumber(earned));
+            } else if (achievements && achievements.enabled === false) {
+                statsText('stats-overview-earned', '—');
+            }
 
             const reach = document.getElementById('stats-overview-reach');
+            const reachCount = document.getElementById('stats-overview-reach-count');
             if (reach) {
                 reach.textContent = '';
                 const countries = metrics.countries || [];
                 const cities = metrics.cities || [];
-                countries.slice(0, 6).forEach(country => reach.appendChild(statsBadge((country.name || country.code || '') + ' · ' + (translations.stats_country || 'country'))));
-                cities.slice(0, 6).forEach(city => reach.appendChild(statsBadge(String(city))));
+                if (reachCount) {
+                    if (countries.length) {
+                        reachCount.hidden = false;
+                        reachCount.textContent = countries.length + ' ' + (countries.length === 1
+                            ? (translations.stats_country_one || translations.stats_country || 'country')
+                            : (translations.stats_countries || 'countries'));
+                    } else {
+                        reachCount.hidden = true;
+                        reachCount.textContent = '';
+                    }
+                }
+                countries.slice(0, 8).forEach(country => {
+                    const chip = statsBadge((country.name || country.code || '') + ' · ' + (translations.stats_country || 'country'));
+                    chip.className = 'stats-reach-chip';
+                    reach.appendChild(chip);
+                });
+                if (!countries.length) {
+                    cities.slice(0, 6).forEach(city => {
+                        const chip = statsBadge(String(city));
+                        chip.className = 'stats-reach-chip';
+                        reach.appendChild(chip);
+                    });
+                }
                 if (!countries.length && !cities.length) {
                     reach.appendChild(statsBadge(translations.stats_reach_empty || 'Movement will appear here as your history grows.'));
                 }
@@ -1028,8 +1123,13 @@
             statsText('stats-movement-trip-avg', movement.avg_distance_m ? ' · ' + statsDistance(movement.avg_distance_m) : '');
             statsText('stats-movement-time', statsDuration(metrics.active_seconds));
             const top = places[0];
-            statsText('stats-movement-place', top ? (top.name || top.label || '—') : '—');
-            statsText('stats-movement-place-meta', top ? (translations.stats_visits || 'visits') + ': ' + formatNumber(top.visits || top.count || 0) : '');
+            if (top && (top.name || top.label)) {
+                statsText('stats-movement-place', top.name || top.label);
+                statsText('stats-movement-place-meta', (translations.stats_visits || 'visits') + ': ' + formatNumber(top.visits || top.count || 0));
+            } else {
+                statsText('stats-movement-place', translations.stats_no_confirmed_place || 'No confirmed place');
+                statsText('stats-movement-place-meta', translations.stats_confirm_places_hint || 'Confirm places on map');
+            }
             const host = document.getElementById('stats-week-rhythm');
             if (!host) return;
             host.textContent = '';
@@ -1040,12 +1140,12 @@
                 const row = rows[index] || {};
                 const trips = Number(row.trips) || 0;
                 const day = document.createElement('div');
-                day.className = 'stats-rhythm-day';
+                day.className = 'stats-rhythm-day' + (max && trips === max ? ' is-peak' : '');
                 const value = document.createElement('strong');
                 value.textContent = formatNumber(trips);
                 const bar = document.createElement('div');
                 bar.className = 'stats-rhythm-bar';
-                bar.style.height = (max ? Math.max(5, Math.round(trips / max * 96)) : 5) + 'px';
+                bar.style.height = (max ? Math.max(8, Math.round(trips / max * 160)) : 8) + 'px';
                 bar.title = weekdays[index] + ': ' + trips;
                 const label = document.createElement('small');
                 label.textContent = weekdays[index];
@@ -1089,39 +1189,37 @@
                 else td.textContent = item;
                 return td;
             };
-            const buildTable = (caption, headers, rows) => {
-                const table = document.createElement('table');
-                table.className = 'stats-source-table';
-                const cap = document.createElement('caption');
-                cap.textContent = caption;
-                table.appendChild(cap);
-                const thead = document.createElement('thead');
-                const headRow = document.createElement('tr');
-                headers.forEach(label => {
-                    const th = document.createElement('th');
-                    th.scope = 'col';
-                    th.textContent = label;
-                    headRow.appendChild(th);
+            const buildGridTable = (colsClass, headers, rows) => {
+                const wrap = document.createElement('div');
+                wrap.className = 'stats-source-grid ' + colsClass;
+                const head = document.createElement('div');
+                head.className = 'stats-source-row is-head';
+                headers.forEach((label, index) => {
+                    const cellNode = document.createElement('div');
+                    cellNode.className = 'stats-source-cell' + (index === 0 ? ' is-name' : ' is-num');
+                    cellNode.textContent = label;
+                    head.appendChild(cellNode);
                 });
-                thead.appendChild(headRow);
-                table.appendChild(thead);
-                const tbody = document.createElement('tbody');
+                wrap.appendChild(head);
                 rows.forEach(cells => {
-                    const tr = document.createElement('tr');
-                    cells.forEach(item => tr.appendChild(cell(item.text !== undefined ? item.text : item.node, item.className)));
-                    tbody.appendChild(tr);
+                    const row = document.createElement('div');
+                    row.className = 'stats-source-row';
+                    cells.forEach((item, index) => {
+                        const cellNode = document.createElement('div');
+                        cellNode.className = 'stats-source-cell' + (index === 0 ? ' is-name' : ' is-num');
+                        if (item && item.nodeType === 1) cellNode.appendChild(item);
+                        else cellNode.textContent = item == null ? '—' : String(item);
+                        row.appendChild(cellNode);
+                    });
+                    wrap.appendChild(row);
                 });
-                table.appendChild(tbody);
-                return table;
+                return wrap;
             };
             if (sourceNames.length) {
-                host.appendChild(buildTable(
-                    translations.stats_sources_caption || 'Sources',
+                host.appendChild(buildGridTable(
+                    'cols-sources',
                     [translations.stats_source_name || 'Source', translations.stats_source_points || 'Points'],
-                    sourceNames.map(source => ([
-                        { text: source, className: 'stats-source-name' },
-                        { text: formatNumber(sources[source]), className: 'stats-source-count' }
-                    ]))
+                    sourceNames.map(source => [source, formatNumber(sources[source])])
                 ));
             }
             if (devices.length) {
@@ -1130,10 +1228,10 @@
                     paused: translations.device_paused || 'Paused',
                     revoked: translations.device_revoked || 'Revoked'
                 };
-                host.appendChild(buildTable(
-                    translations.stats_devices_caption || 'Connected devices',
+                host.appendChild(buildGridTable(
+                    'cols-devices',
                     [
-                        translations.device_name || 'Device',
+                        translations.stats_connected_device || translations.device_name || 'Connected device',
                         translations.stats_device_points || 'Points',
                         translations.stats_device_last_seen || 'Last seen'
                     ],
@@ -1142,24 +1240,30 @@
                         const name = device.name || device.platform || 'Device';
                         const label = statusLabels[status] || device.status || '—';
                         const nameCell = document.createElement('div');
-                        nameCell.textContent = name;
-                        if (device.platform && device.platform !== name) {
-                            const meta = document.createElement('span');
-                            meta.className = 'render-card-meta';
-                            meta.style.display = 'block';
-                            meta.textContent = device.platform;
-                            nameCell.appendChild(meta);
+                        nameCell.className = 'stats-device-inline';
+                        const title = document.createElement('span');
+                        title.className = 'stats-device-name';
+                        title.textContent = name;
+                        nameCell.appendChild(title);
+                        const formatRaw = String(device.format || device.platform || '').toLowerCase();
+                        const formatMatch = formatRaw.match(/\b(gpx|geojson|json|csv|tcx)\b/i);
+                        if (formatMatch) {
+                            const formatPill = document.createElement('span');
+                            formatPill.className = 'stats-device-format';
+                            formatPill.textContent = formatMatch[1].toUpperCase();
+                            nameCell.appendChild(formatPill);
                         }
                         const statusChip = document.createElement('span');
                         statusChip.className = 'stats-source-status' +
+                            (status === 'active' ? ' is-active' : '') +
                             (status === 'paused' ? ' is-paused' : '') +
                             (status === 'revoked' ? ' is-revoked' : '');
                         statusChip.textContent = label;
                         nameCell.appendChild(statusChip);
                         return [
-                            { node: nameCell, className: 'stats-source-name' },
-                            { text: formatNumber(device.points), className: 'stats-source-count' },
-                            { text: device.last_seen_at ? statsDate(device.last_seen_at) : '—' }
+                            nameCell,
+                            formatNumber(device.points),
+                            device.last_seen_at ? statsDate(device.last_seen_at) : '—'
                         ];
                     })
                 ));
@@ -1202,10 +1306,22 @@
             return formatNumber(target);
         }
 
+        function achievementYear(item) {
+            const raw = String(item.earned_at || item.unlocked_at || item.created_at || '');
+            const m = raw.match(/(20\d{2}|19\d{2})/);
+            return m ? m[1] : 'undated';
+        }
+
+        function filterStatsAchievementsByYear(year) {
+            statsExperience.achYear = year || 'ALL';
+            renderStatsAchievements();
+        }
+
         function renderStatsAchievements() {
             const data = statsExperience.achievements;
             const host = document.getElementById('stats-achievement-grid');
             const empty = document.getElementById('stats-achievement-empty');
+            const yearHost = document.getElementById('stats-ach-year-filters');
             if (!host) return;
             host.textContent = '';
             const earned = data && data.enabled !== false ? (data.earned_achievements || []) : [];
@@ -1215,31 +1331,89 @@
                 if (empty) { empty.hidden = false; empty.textContent = translations.stats_loading || 'Loading…'; }
                 return;
             }
-            earned.forEach((item, index) => {
-                const card = document.createElement('article');
-                const visual = achievementVisual(item);
-                card.className = 'stats-achievement stats-achievement--' + visual.tone;
-                card.style.animationDelay = Math.min(index * 35, 260) + 'ms';
-                const icon = document.createElement('div');
-                icon.className = 'stats-achievement-icon';
-                icon.innerHTML = '<i class="fa-solid ' + visual.icon + '" aria-hidden="true"></i>';
-                const title = document.createElement('h4');
-                title.textContent = translations[item.title_key] || trFallbackKey(item.title_key);
-                const description = document.createElement('p');
-                description.textContent = translations[item.description_key] || trFallbackKey(item.description_key);
-                const footer = document.createElement('footer');
-                const tier = document.createElement('span');
-                tier.textContent = achievementTier(item);
+            const byYear = {};
+            earned.forEach(item => {
+                const y = achievementYear(item);
+                (byYear[y] || (byYear[y] = [])).push(item);
+            });
+            const years = Object.keys(byYear).sort((a, b) => {
+                if (a === 'undated') return 1;
+                if (b === 'undated') return -1;
+                return String(b).localeCompare(String(a));
+            });
+            const activeYear = statsExperience.achYear || 'ALL';
+            if (yearHost) {
+                yearHost.textContent = '';
+                const makeChip = (key, label) => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'ach-year-chip' + (activeYear === key ? ' is-active' : '');
+                    btn.setAttribute('data-year', key);
+                    btn.textContent = label;
+                    btn.addEventListener('click', () => filterStatsAchievementsByYear(key));
+                    yearHost.appendChild(btn);
+                };
+                makeChip('ALL', (translations.stats_all_years || 'All Years') + ' (' + earned.length + ')');
+                years.forEach(y => {
+                    const label = (y === 'undated' ? (translations.stats_undated || 'Undated') : y) + ' (' + byYear[y].length + ')';
+                    makeChip(y, label);
+                });
+            }
+            const visibleYears = activeYear === 'ALL' ? years : years.filter(y => y === activeYear);
+            let index = 0;
+            visibleYears.forEach(year => {
+                const group = document.createElement('div');
+                group.className = 'stats-ach-year-group';
+                group.setAttribute('data-year', year);
+                const head = document.createElement('div');
+                head.className = 'stats-ach-year-head';
                 const badge = document.createElement('span');
-                badge.className = 'stats-achievement-badge';
-                badge.textContent = (translations.achievement_earned || 'Earned') + (item.earned_at ? ' · ' + statsDate(item.earned_at) : '');
-                footer.appendChild(tier);
-                footer.appendChild(badge);
-                card.appendChild(icon);
-                card.appendChild(title);
-                card.appendChild(description);
-                card.appendChild(footer);
-                host.appendChild(card);
+                badge.className = 'stats-ach-year-badge';
+                badge.textContent = year === 'undated' ? (translations.stats_undated || 'Undated') : year;
+                const count = document.createElement('span');
+                count.className = 'stats-ach-year-count';
+                const n = byYear[year].length;
+                count.textContent = n + ' ' + (translations.stats_milestones_count || translations.stats_milestones || 'milestones');
+                const rule = document.createElement('div');
+                rule.className = 'stats-ach-year-rule';
+                rule.setAttribute('aria-hidden', 'true');
+                head.appendChild(badge);
+                head.appendChild(count);
+                head.appendChild(rule);
+                group.appendChild(head);
+                const grid = document.createElement('div');
+                grid.className = 'stats-achievement-grid';
+                byYear[year].forEach(item => {
+                    const card = document.createElement('article');
+                    const visual = achievementVisual(item);
+                    card.className = 'stats-achievement stats-achievement--' + visual.tone;
+                    card.style.animationDelay = Math.min(index * 35, 260) + 'ms';
+                    index += 1;
+                    const icon = document.createElement('div');
+                    icon.className = 'stats-achievement-icon';
+                    icon.innerHTML = '<i class="fa-solid ' + visual.icon + '" aria-hidden="true"></i>';
+                    const title = document.createElement('h4');
+                    title.textContent = translations[item.title_key] || trFallbackKey(item.title_key);
+                    const description = document.createElement('p');
+                    description.textContent = translations[item.description_key] || trFallbackKey(item.description_key);
+                    const footer = document.createElement('footer');
+                    footer.className = 'stats-achievement-foot';
+                    const tier = document.createElement('span');
+                    tier.className = 'stats-achievement-tier';
+                    tier.textContent = achievementTier(item);
+                    const badge = document.createElement('span');
+                    badge.className = 'stats-achievement-badge';
+                    badge.textContent = (translations.achievement_earned || 'Earned') + (item.earned_at ? ' · ' + statsDate(item.earned_at) : '');
+                    footer.appendChild(tier);
+                    footer.appendChild(badge);
+                    card.appendChild(icon);
+                    card.appendChild(title);
+                    card.appendChild(description);
+                    card.appendChild(footer);
+                    grid.appendChild(card);
+                });
+                group.appendChild(grid);
+                host.appendChild(group);
             });
             if (!earned.length && data && empty) empty.textContent = translations.stats_no_achievements || 'Your first milestone is still ahead.';
         }
@@ -1328,6 +1502,7 @@
             statsExperience.achievementsLoading = false;
             activateStatsTab('overview');
             loadStatsSummary(true);
+            loadStatsAchievements(true);
         }
 
         document.addEventListener('click', event => {
@@ -1426,9 +1601,48 @@
             const totalSteps = monthSteps.reduce((sum, entry) => sum + entry.steps, 0);
             const goalDays = monthSteps.filter(entry => entry.steps >= userSettings.goal_steps).length;
 
-            document.getElementById('goal-summary').innerHTML = `
+            const goalSummary = document.getElementById('goal-summary');
+            if (goalSummary) {
+                goalSummary.innerHTML = `
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.total_steps}</span><span class="goal-summary-value">${formatNumber(totalSteps)}</span></div>
                 <div class="goal-summary-item"><span class="goal-summary-label">${translations.goal_days}</span><span class="goal-summary-value">${goalDays}</span></div>`;
+            }
+            updateKpiCards(date, totalSteps, goalDays);
+        }
+
+        function updateKpiCards(selectedDate, monthTotalSteps, goalDaysCount) {
+            const goal = Math.max(1, Number(userSettings.goal_steps) || 8000);
+            const dateStr = formatLocalYMD(selectedDate instanceof Date ? selectedDate : currentDate);
+            const day = stepsData.find(entry => entry.date === dateStr) || { steps: 0 };
+            const steps = Number(day.steps) || 0;
+            const pct = Math.round((steps / goal) * 100);
+            const distanceKm = dayValue(dateStr, 'distance');
+            const calories = dayValue(dateStr, 'calories');
+            const setText = (id, value) => { const el = document.getElementById(id); if (el) el.textContent = value; };
+            setText('kpi-selected-label', (selectedDate instanceof Date ? selectedDate : currentDate).toLocaleDateString(currentLocale, { month: 'short', day: 'numeric', year: 'numeric' }));
+            setText('kpi-goal-badge', pct + '%');
+            const badge = document.getElementById('kpi-goal-badge');
+            if (badge) badge.classList.toggle('is-complete', pct >= 100);
+            setText('kpi-steps-val', formatNumber(steps));
+            setText('kpi-steps-goal', '/ ' + formatNumber(goal));
+            const bar = document.getElementById('kpi-steps-bar');
+            if (bar) {
+                bar.style.width = Math.min(100, pct) + '%';
+                bar.classList.toggle('is-complete', pct >= 100);
+            }
+            setText('kpi-distance-val', (Number(distanceKm) || 0).toFixed(2));
+            setText('kpi-calories-val', formatNumber(Math.round(Number(calories) || 0)));
+            setText('kpi-streak-val', formatNumber(goalDaysCount != null ? goalDaysCount : 0));
+            const monthTotal = document.getElementById('kpi-month-total');
+            if (monthTotal) {
+                const label = (translations.goal_days || translations.streak_avg_hint || 'Goal days') + ' · ' + (translations.total_steps || 'Month total') + ': ';
+                monthTotal.textContent = '';
+                monthTotal.appendChild(document.createTextNode(label));
+                const strong = document.createElement('span');
+                strong.className = 'kpi-sub-strong';
+                strong.textContent = formatNumber(monthTotalSteps != null ? monthTotalSteps : 0);
+                monthTotal.appendChild(strong);
+            }
         }
 
         // Main mode switch: steps / map
@@ -1446,9 +1660,15 @@
                 const showMap = mode === 'map';
                 appMain.hidden = showMap;
                 mapView.hidden = !showMap;
+                appMain.style.setProperty('display', showMap ? 'none' : 'flex', 'important');
+                mapView.style.setProperty('display', showMap ? 'grid' : 'none', 'important');
+                document.body.classList.toggle('md3-map-mode', showMap);
                 if (!showMap) document.body.classList.remove('map-sidebar-open');
                 if (showMap) {
                     window.dispatchEvent(new Event('steps-map-shown'));
+                    try {
+                        window.dispatchEvent(new Event('resize'));
+                    } catch (e) {}
                 } else if (chart && typeof chart.resize === 'function') {
                     chart.resize();
                 }
@@ -1476,21 +1696,66 @@
                     options.map(opt => `<button type="button" class="custom-select-option${opt.selected ? ' active' : ''}" data-value="${escapeHtml(opt.value)}" role="option" aria-selected="${opt.selected ? 'true' : 'false'}">${escapeHtml(opt.textContent.trim())}</button>`).join('') +
                     '</div>';
             };
+            const placeMenu = () => {
+                const r = trigger.getBoundingClientRect();
+                const width = Math.max(r.width, 180);
+                const maxH = Math.min(280, window.innerHeight - 16);
+                menu.classList.add('is-portal-open');
+                menu.style.display = 'block';
+                menu.style.position = 'fixed';
+                menu.style.left = Math.min(Math.max(8, r.left), window.innerWidth - width - 8) + 'px';
+                menu.style.width = width + 'px';
+                menu.style.right = 'auto';
+                menu.style.zIndex = '200000';
+                menu.style.maxHeight = maxH + 'px';
+                menu.style.overflow = 'auto';
+                let top = r.bottom + 8;
+                const h = Math.min(menu.scrollHeight || 200, maxH);
+                if (top + h > window.innerHeight - 8) top = Math.max(8, r.top - h - 8);
+                menu.style.top = top + 'px';
+            };
             const close = () => {
                 root.classList.remove('is-open');
                 trigger.setAttribute('aria-expanded', 'false');
+                menu.classList.remove('is-portal-open');
+                menu.style.display = '';
+                if (menu.parentElement !== root) root.appendChild(menu);
+                menu.style.position = '';
+                menu.style.left = '';
+                menu.style.top = '';
+                menu.style.width = '';
+                menu.style.right = '';
+                menu.style.zIndex = '';
+                menu.style.maxHeight = '';
             };
-            trigger.addEventListener('click', () => {
+            trigger.addEventListener('click', (e) => {
+                e.stopPropagation();
                 if (trigger.disabled) return;
                 if (root.classList.contains('is-open')) { close(); return; }
                 document.querySelectorAll('.custom-select.is-open').forEach(other => {
-                    other.classList.remove('is-open');
-                    const otherTrigger = other.querySelector('.custom-select-trigger');
-                    if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+                    if (typeof other._stepsClose === 'function') other._stepsClose();
+                    else {
+                        other.classList.remove('is-open');
+                        const otherTrigger = other.querySelector('.custom-select-trigger');
+                        if (otherTrigger) otherTrigger.setAttribute('aria-expanded', 'false');
+                    }
+                });
+                document.querySelectorAll('.custom-select-menu.is-portal-open').forEach(m => {
+                    m.classList.remove('is-portal-open');
+                    m.style.display = '';
+                    m.style.position = '';
+                    m.style.left = '';
+                    m.style.top = '';
+                    m.style.width = '';
+                    m.style.right = '';
+                    m.style.zIndex = '';
+                    m.style.maxHeight = '';
                 });
                 render();
+                document.body.appendChild(menu);
                 root.classList.add('is-open');
                 trigger.setAttribute('aria-expanded', 'true');
+                placeMenu();
             });
             menu.addEventListener('click', e => {
                 const option = e.target.closest('.custom-select-option');
@@ -1503,8 +1768,14 @@
                 }
                 render();
             });
-            document.addEventListener('click', e => { if (!root.contains(e.target)) close(); });
+            document.addEventListener('click', e => {
+                if (!root.classList.contains('is-open')) return;
+                if (!root.contains(e.target) && !menu.contains(e.target)) close();
+            });
             document.addEventListener('keydown', e => { if (e.key === 'Escape') close(); });
+            window.addEventListener('resize', () => { if (root.classList.contains('is-open')) placeMenu(); });
+            window.addEventListener('scroll', () => { if (root.classList.contains('is-open')) placeMenu(); }, true);
+            root._stepsClose = close;
             native.addEventListener('change', render);
             new MutationObserver(render).observe(native, { childList: true, subtree: true });
             root._stepsRender = render;
@@ -2737,12 +3008,14 @@
         }
         function ftUpdateWizardUi() {
             const hasFile = !!(document.getElementById('ft-zip') && document.getElementById('ft-zip').files && document.getElementById('ft-zip').files[0]);
-            const maxStep = hasFile ? 3 : 1;
+            let maxStep = 1;
+            if (hasFile) maxStep = ftWizardStep >= 2 ? 3 : 2;
             if (!hasFile) ftWizardStep = 1;
-            else if (ftWizardStep < 2) ftWizardStep = 2;
             if (ftWizardStep > maxStep) ftWizardStep = maxStep;
             setWizardUi('ft-steps', ftWizardStep, maxStep, ftWizardLocked);
             setWizardSections('add-panel-takeout', ftWizardStep, ftWizardLocked);
+            const n1 = document.getElementById('ft-next-step1');
+            if (n1) n1.disabled = !(hasFile && ftWizardStep === 1 && !ftWizardLocked);
             const st = document.getElementById('ft-start');
             if (st) st.disabled = !(hasFile && ftWizardStep === 3 && !ftWizardLocked);
         }
@@ -3609,8 +3882,54 @@
                 const h = Math.floor(Number(seconds || 0) / 3600), m = Math.round((Number(seconds || 0) % 3600) / 60);
                 return h > 0 ? h + ' h ' + m + ' min' : m + ' min';
             }
+            function locationStatEscape(text) {
+                return String(text == null ? '' : text).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            }
+            function getCountryFlag(nameOrCode) {
+                const raw = String(nameOrCode || '').trim();
+                if (!raw) return '🌐';
+                const nameMap = {
+                    'ukraine': 'UA', 'україна': 'UA', 'poland': 'PL', 'polska': 'PL', 'portugal': 'PT', 'peru': 'PE',
+                    'united states': 'US', 'united states of america': 'US', 'usa': 'US', 'germany': 'DE', 'deutschland': 'DE',
+                    'czechia': 'CZ', 'czech republic': 'CZ', 'česko': 'CZ', 'slovakia': 'SK', 'austria': 'AT',
+                    'france': 'FR', 'spain': 'ES', 'italy': 'IT', 'united kingdom': 'GB', 'great britain': 'GB', 'uk': 'GB',
+                    'netherlands': 'NL', 'belgium': 'BE', 'switzerland': 'CH', 'sweden': 'SE', 'norway': 'NO',
+                    'denmark': 'DK', 'finland': 'FI', 'ireland': 'IE', 'hungary': 'HU', 'romania': 'RO',
+                    'bulgaria': 'BG', 'greece': 'GR', 'turkey': 'TR', 'türkiye': 'TR', 'japan': 'JP', 'china': 'CN',
+                    'canada': 'CA', 'brazil': 'BR', 'argentina': 'AR', 'mexico': 'MX', 'australia': 'AU',
+                    'new zealand': 'NZ', 'israel': 'IL', 'india': 'IN', 'lithuania': 'LT', 'latvia': 'LV',
+                    'estonia': 'EE', 'belarus': 'BY', 'moldova': 'MD', 'georgia': 'GE', 'armenia': 'AM',
+                    'croatia': 'HR', 'slovenia': 'SI', 'serbia': 'RS', 'bosnia and herzegovina': 'BA', 'north macedonia': 'MK'
+                };
+                let code = raw.toUpperCase();
+                if (!/^[A-Z]{2}$/.test(code)) code = nameMap[raw.toLowerCase()] || '';
+                if (!/^[A-Z]{2}$/.test(code)) return '🌐';
+                return String.fromCodePoint(...[...code].map(ch => 127397 + ch.charCodeAt(0)));
+            }
+            function ensureLocationTimezoneOption(select, value) {
+                if (!select || !value) return;
+                const exists = Array.from(select.options).some(opt => opt.value === value);
+                if (!exists) {
+                    const opt = document.createElement('option');
+                    opt.value = value;
+                    opt.textContent = value;
+                    select.appendChild(opt);
+                }
+                select.value = value;
+            }
+            function initLocationTimezoneSelect() {
+                const tzInput = document.getElementById('location-stats-tz');
+                if (!tzInput || tzInput.dataset.initialized === '1') return tzInput;
+                tzInput.dataset.initialized = '1';
+                try {
+                    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone;
+                    if (browserTz) ensureLocationTimezoneOption(tzInput, browserTz);
+                } catch (e) {}
+                return tzInput;
+            }
             function renderLocationStatistics(data) {
                 const status = document.getElementById('location-stats-status');
+                const period = document.getElementById('location-stats-period');
                 const cards = document.getElementById('location-stats-cards');
                 const warnings = document.getElementById('location-stats-warnings');
                 const details = document.getElementById('location-stats-details');
@@ -3619,45 +3938,90 @@
                 if (!status || !cards || !details) return;
                 const m = data.metrics || {};
                 const coverage = data.coverage || {};
-                status.textContent = (data.range ? data.range.from + ' → ' + data.range.to + ' · ' : '') + (data.timezone || 'UTC') + (data.cached ? ' · ' + locationStatText('location_stats_cached', 'cached') : '');
-                const card = (label, value) => '<div class="location-card"><span>' + label + '</span><strong>' + value + '</strong></div>';
+                const periodText = (data.range ? data.range.from + ' → ' + data.range.to + ' · ' : '') + (data.timezone || 'UTC') + (data.cached ? ' · ' + locationStatText('location_stats_cached', 'cached') : '');
+                status.textContent = '';
+                if (period) {
+                    period.textContent = periodText;
+                    period.hidden = !periodText;
+                }
+                const card = (label, value) => '<div class="location-card loc-kpi-tile"><span>' + locationStatEscape(label) + '</span><strong class="font-mono">' + locationStatEscape(value) + '</strong></div>';
                 cards.innerHTML = [
                     card(locationStatText('location_stats_points', 'Points'), locationStatNumber(m.point_count)),
                     card(locationStatText('location_stats_distance', 'Distance'), locationStatNumber((m.route_distance_m || 0) / 1000, 1) + ' km'),
                     card(locationStatText('location_stats_active_days', 'Active days'), locationStatNumber(m.active_days)),
+                    card(locationStatText('location_stats_visits', 'Visits'), locationStatNumber(m.visits)),
                     card(locationStatText('location_stats_countries', 'Countries'), locationStatNumber((m.countries || []).length)),
                     card(locationStatText('location_stats_cities', 'Cities'), locationStatNumber((m.cities || []).length)),
-                    card(locationStatText('location_stats_visits', 'Visits'), locationStatNumber(m.visits)),
                     card(locationStatText('location_stats_dwell', 'Dwell time'), locationStatDuration(m.dwell_seconds)),
                     card(locationStatText('location_stats_places', 'Places'), locationStatNumber(m.places))
                 ].join('');
                 const residency = data.residency || {};
                 const warningList = residency.warnings || [];
-                warnings.innerHTML = warningList.length ? warningList.map(w => '<div class="location-warning"><i class="fas fa-triangle-exclamation"></i> ' + (w.country_name || w.country_code) + ': ' + w.days + ' / ' + w.window_days + ' ' + locationStatText('location_stats_days', 'days') + ' (' + w.window_from + ' → ' + w.window_to + ')</div>').join('') : '';
-                const top = (data.most_visited_places || []).map(p => '<li><span>' + p.name + '</span><span>' + p.visits + ' × · ' + locationStatDuration(p.dwell_seconds) + '</span></li>').join('');
-                const countries = (m.countries || []).map(c => c.name || c.code).join(', ');
+                warnings.innerHTML = warningList.length ? warningList.map(w => '<div class="location-warning"><i class="fas fa-triangle-exclamation"></i> ' + locationStatEscape(w.country_name || w.country_code) + ': ' + w.days + ' / ' + w.window_days + ' ' + locationStatText('location_stats_days', 'days') + ' (' + locationStatEscape(w.window_from) + ' → ' + locationStatEscape(w.window_to) + ')</div>').join('') : '';
+                const topPlaces = data.most_visited_places || [];
+                const topHtml = topPlaces.length
+                    ? '<ul class="loc-bento-list">' + topPlaces.map(p => '<li><span class="loc-bento-list-name">' + locationStatEscape(p.name) + '</span><span class="font-mono">' + locationStatEscape(p.visits + ' × · ' + locationStatDuration(p.dwell_seconds)) + '</span></li>').join('') + '</ul>'
+                    : '<div class="loc-empty-state"><span class="material-symbols-rounded" aria-hidden="true">location_off</span><strong>' + locationStatEscape(locationStatText('location_stats_none', 'No data yet')) + '</strong><span>' + locationStatEscape(locationStatText('location_stats_places_empty_hint', 'Confirm visits on the map to populate')) + '</span></div>';
+                const countryRows = m.countries || [];
+                const countriesHtml = countryRows.length
+                    ? '<div class="loc-country-chips">' + countryRows.map(c => {
+                        const label = c.name || c.code || '';
+                        return '<span class="loc-country-chip"><span class="loc-country-flag" aria-hidden="true">' + getCountryFlag(c.code || c.name) + '</span><span>' + locationStatEscape(label) + '</span></span>';
+                    }).join('') + '</div>'
+                    : '<p class="loc-bento-muted">' + locationStatEscape(locationStatText('location_stats_boundary_missing', 'No boundary dataset imported yet.')) + '</p>';
                 const accuracy = data.accuracy || {};
-                const sourceRows = Object.entries((data.source_health || {}).sources || {}).map(([source, count]) => '<li><span>' + source + '</span><span>' + locationStatNumber(count) + '</span></li>').join('');
-                const months = (data.monthly || []).slice(-6).map(row => '<li><span>' + row.period + '</span><span>' + locationStatNumber((row.metrics.route_distance_m || 0) / 1000, 1) + ' km · ' + locationStatNumber(row.metrics.active_days) + ' d</span></li>').join('');
-                details.innerHTML = '<div class="location-detail-block"><h4>' + locationStatText('location_stats_top_places', 'Most visited places') + '</h4><ul>' + (top || '<li>' + locationStatText('location_stats_none', 'No data yet.') + '</li>') + '</ul></div>'
-                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_recent_months', 'Recent months') + '</h4><ul>' + (months || '<li>' + locationStatText('location_stats_none', 'No data yet.') + '</li>') + '</ul></div>'
-                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_coverage', 'Coverage & gaps') + '</h4><ul><li><span>' + locationStatText('location_stats_days_with_data', 'Days with data') + '</span><span>' + locationStatNumber(coverage.days_with_data) + ' / ' + locationStatNumber(coverage.days_total) + '</span></li><li><span>' + locationStatText('location_stats_missing_days', 'Missing days') + '</span><span>' + locationStatNumber(coverage.missing_days) + '</span></li><li><span>' + locationStatText('location_stats_gaps', 'Data gaps (latest)') + '</span><span>' + ((coverage.gaps || []).slice(0, 6).join(', ') || '—') + '</span></li></ul></div>'
-                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_accuracy', 'Accuracy') + '</h4><ul><li><span>' + locationStatText('location_stats_accuracy_avg', 'Average accuracy') + '</span><span>' + (accuracy.avg_m === null || accuracy.avg_m === undefined ? '—' : locationStatNumber(accuracy.avg_m, 1) + ' m') + '</span></li><li><span>' + locationStatText('location_stats_accuracy_missing', 'Missing accuracy') + '</span><span>' + locationStatNumber(accuracy.missing) + '</span></li><li><span>' + locationStatText('location_stats_sources', 'Sources') + '</span></li>' + (sourceRows || '') + '</ul></div>'
-                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_movement', 'Movement patterns') + '</h4><ul><li><span>' + locationStatText('location_stats_trips', 'Trips') + '</span><span>' + locationStatNumber((data.movement_patterns || {}).trips) + '</span></li><li><span>' + locationStatText('location_stats_avg_distance', 'Average trip distance') + '</span><span>' + locationStatNumber(((data.movement_patterns || {}).avg_distance_m || 0) / 1000, 1) + ' km</span></li><li><span>' + locationStatText('location_stats_avg_duration', 'Average trip duration') + '</span><span>' + locationStatDuration((data.movement_patterns || {}).avg_duration_s) + '</span></li></ul></div>'
-                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_comparison', 'Previous period') + '</h4><ul><li><span>' + locationStatText('location_stats_distance', 'Distance') + '</span><span>' + locationStatNumber(((data.comparison || {}).metrics?.route_distance_m || 0) / 1000, 1) + ' km</span></li><li><span>' + locationStatText('location_stats_active_days', 'Active days') + '</span><span>' + locationStatNumber((data.comparison || {}).metrics?.active_days) + '</span></li><li><span>' + locationStatText('location_stats_visits', 'Visits') + '</span><span>' + locationStatNumber((data.comparison || {}).metrics?.visits) + '</span></li></ul></div>'
-                    + '<div class="location-detail-block"><h4>' + locationStatText('location_stats_countries', 'Countries') + '</h4><p>' + (countries || locationStatText('location_stats_boundary_missing', 'No boundary dataset imported yet.')) + '</p></div>';
+                const sourceRows = Object.entries((data.source_health || {}).sources || {}).map(([source, count]) => '<li><span>' + locationStatEscape(source) + '</span><span class="font-mono">' + locationStatNumber(count) + '</span></li>').join('');
+                const monthRows = (data.monthly || []).slice(-6);
+                const peakMonth = Math.max(1, ...monthRows.map(row => Number((row.metrics && row.metrics.route_distance_m) || 0)));
+                const monthsHtml = monthRows.length
+                    ? '<div class="loc-month-list">' + monthRows.map(row => {
+                        const dist = Number((row.metrics && row.metrics.route_distance_m) || 0);
+                        const pct = Math.max(4, Math.round((dist / peakMonth) * 100));
+                        return '<div class="loc-month-row"><div class="loc-month-meta"><span class="font-mono">' + locationStatEscape(row.period) + '</span><span class="font-mono">' + locationStatNumber(dist / 1000, 1) + ' km</span><span class="loc-month-days font-mono">' + locationStatNumber(row.metrics.active_days) + ' d</span></div><div class="loc-month-track"><div class="loc-month-fill" style="width:' + pct + '%"></div></div></div>';
+                    }).join('') + '</div>'
+                    : '<p class="loc-bento-muted">' + locationStatEscape(locationStatText('location_stats_none', 'No data yet.')) + '</p>';
+                const gaps = (coverage.gaps || []).slice(0, 12);
+                const gapsHtml = gaps.length
+                    ? '<div class="loc-gap-chips">' + gaps.map(g => '<span class="loc-gap-chip font-mono">' + locationStatEscape(g) + '</span>').join('') + '</div>'
+                    : '<span class="loc-bento-muted">—</span>';
+                const kv = (label, value, tone) => '<li><span>' + locationStatEscape(label) + '</span><span class="font-mono' + (tone ? ' ' + tone : '') + '">' + locationStatEscape(value) + '</span></li>';
+                details.innerHTML =
+                    '<div class="loc-bento-row loc-bento-2">'
+                    + '<div class="location-detail-block loc-bento-card"><h4>' + locationStatEscape(locationStatText('location_stats_recent_months', 'Recent months')) + '</h4>' + monthsHtml + '</div>'
+                    + '<div class="location-detail-block loc-bento-card"><h4>' + locationStatEscape(locationStatText('location_stats_coverage', 'Coverage & gaps')) + '</h4>'
+                    + '<ul class="loc-bento-list">'
+                    + kv(locationStatText('location_stats_days_with_data', 'Days with data'), locationStatNumber(coverage.days_with_data) + ' / ' + locationStatNumber(coverage.days_total))
+                    + kv(locationStatText('location_stats_missing_days', 'Missing days'), locationStatNumber(coverage.missing_days), 'is-amber')
+                    + '</ul>'
+                    + '<div class="loc-gap-section"><span class="loc-gap-label">' + locationStatEscape(locationStatText('location_stats_gaps', 'Data gaps (latest)')) + '</span>' + gapsHtml + '</div>'
+                    + '</div></div>'
+                    + '<div class="loc-bento-row loc-bento-3">'
+                    + '<div class="location-detail-block loc-bento-card"><h4>' + locationStatEscape(locationStatText('location_stats_accuracy', 'Accuracy & sources')) + '</h4><ul class="loc-bento-list">'
+                    + kv(locationStatText('location_stats_accuracy_avg', 'Average accuracy'), (accuracy.avg_m === null || accuracy.avg_m === undefined ? '—' : locationStatNumber(accuracy.avg_m, 1) + ' m'))
+                    + kv(locationStatText('location_stats_accuracy_missing', 'Missing accuracy'), locationStatNumber(accuracy.missing))
+                    + '</ul><div class="loc-bento-divider"></div><ul class="loc-bento-list">' + (sourceRows || '<li><span>' + locationStatEscape(locationStatText('location_stats_sources', 'Sources')) + '</span><span>—</span></li>') + '</ul></div>'
+                    + '<div class="location-detail-block loc-bento-card"><h4>' + locationStatEscape(locationStatText('location_stats_movement', 'Movement patterns')) + '</h4><ul class="loc-bento-list">'
+                    + kv(locationStatText('location_stats_trips', 'Trips'), locationStatNumber((data.movement_patterns || {}).trips))
+                    + kv(locationStatText('location_stats_avg_distance', 'Average trip distance'), locationStatNumber(((data.movement_patterns || {}).avg_distance_m || 0) / 1000, 1) + ' km')
+                    + kv(locationStatText('location_stats_avg_duration', 'Average trip duration'), locationStatDuration((data.movement_patterns || {}).avg_duration_s))
+                    + '</ul></div>'
+                    + '<div class="location-detail-block loc-bento-card"><h4>' + locationStatEscape(locationStatText('location_stats_comparison', 'Previous period')) + '</h4><ul class="loc-bento-list">'
+                    + kv(locationStatText('location_stats_distance', 'Distance'), locationStatNumber(((data.comparison || {}).metrics?.route_distance_m || 0) / 1000, 1) + ' km')
+                    + kv(locationStatText('location_stats_active_days', 'Active days'), locationStatNumber((data.comparison || {}).metrics?.active_days))
+                    + kv(locationStatText('location_stats_visits', 'Visits'), locationStatNumber((data.comparison || {}).metrics?.visits))
+                    + '</ul></div></div>'
+                    + '<div class="loc-bento-row loc-bento-countries">'
+                    + '<div class="location-detail-block loc-bento-card loc-bento-span-7"><div class="loc-bento-card-head"><h4>' + locationStatEscape(locationStatText('location_stats_countries', 'Countries')) + '</h4><span class="loc-total-badge font-mono">' + locationStatNumber(countryRows.length) + ' ' + locationStatEscape(locationStatText('location_stats_visited', 'visited')) + '</span></div>' + countriesHtml + '</div>'
+                    + '<div class="location-detail-block loc-bento-card loc-bento-span-5"><h4>' + locationStatEscape(locationStatText('location_stats_top_places', 'Most visited places')) + '</h4>' + topHtml + '</div>'
+                    + '</div>';
                 const countryDataset = (data.boundary || {}).country_dataset;
-                boundary.textContent = countryDataset ? locationStatText('location_stats_boundary_version', 'Boundary dataset') + ': ' + countryDataset.version + ' (' + countryDataset.feature_count + ')' : ((data.boundary || {}).assumption || '');
-                assumptions.innerHTML = (data.assumptions || []).map(text => '<li>' + text + '</li>').join('');
+                if (boundary) boundary.textContent = countryDataset ? locationStatText('location_stats_boundary_version', 'Boundary dataset') + ': ' + countryDataset.version + ' (' + countryDataset.feature_count + ')' : ((data.boundary || {}).assumption || '');
+                if (assumptions) assumptions.innerHTML = (data.assumptions || []).map(text => '<li>' + locationStatEscape(text) + '</li>').join('');
             }
             async function loadLocationStatistics() {
                 const panel = document.getElementById('settings-panel-location');
                 if (!panel) return;
-                const tzInput = document.getElementById('location-stats-tz');
-                if (tzInput && !tzInput.dataset.initialized) {
-                    tzInput.dataset.initialized = '1';
-                    try { const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (browserTz) tzInput.value = browserTz; } catch (e) {}
-                }
+                const tzInput = initLocationTimezoneSelect();
                 const status = document.getElementById('location-stats-status');
                 const tz = (tzInput && tzInput.value.trim()) || 'UTC';
                 if (status) status.textContent = locationStatText('map_loading', 'Loading…');
@@ -3673,11 +4037,7 @@
             document.getElementById('location-stats-refresh')?.addEventListener('click', async () => {
                 if (locationStatsBusy) return;
                 locationStatsBusy = true;
-                const tzInput = document.getElementById('location-stats-tz');
-                if (tzInput && !tzInput.dataset.initialized) {
-                    tzInput.dataset.initialized = '1';
-                    try { const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone; if (browserTz) tzInput.value = browserTz; } catch (e) {}
-                }
+                const tzInput = initLocationTimezoneSelect();
                 const status = document.getElementById('location-stats-status');
                 const tz = (tzInput && tzInput.value.trim()) || 'UTC';
                 if (status) status.textContent = locationStatText('map_loading', 'Loading…');
@@ -3699,6 +4059,7 @@
             function importStateClass(state) {
                 if (state === 'ready') return 'is-ready';
                 if (state === 'failed') return 'is-failed';
+                if (state === 'deleted') return 'is-deleted';
                 if (state === 'processing' || state === 'pending') return 'is-processing';
                 return '';
             }
@@ -4844,6 +5205,8 @@
                     document.querySelectorAll('.settings-tab').forEach(t => t.classList.remove('active'));
                     document.querySelectorAll('.settings-tab-panel').forEach(p => p.classList.remove('active'));
                     tab.classList.add('active');
+                    tab.setAttribute('aria-selected', 'true');
+                    document.querySelectorAll('.settings-tab').forEach(t => { if (t !== tab) t.setAttribute('aria-selected', 'false'); });
                     const panel = document.getElementById('settings-panel-' + id);
                     if (panel) panel.classList.add('active');
                     if (id === 'chart') syncChartTypeButtons();
@@ -4854,6 +5217,47 @@
                     if (id === 'render') window.dispatchEvent(new CustomEvent('steps-render-tab-open'));
                     steps_syncSettingsUrl();
                 });
+            });
+            document.querySelectorAll('#settings-loc-subtabs .locdata-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    const sec = pill.getAttribute('data-locsec') || 'stats';
+                    document.querySelectorAll('#settings-loc-subtabs .locdata-pill').forEach(p => p.classList.toggle('is-active', p === pill));
+                    document.querySelectorAll('#settings-panel-location [data-locgroup]').forEach(group => {
+                        group.classList.toggle('is-hidden', group.getAttribute('data-locgroup') !== sec);
+                    });
+                });
+            });
+            document.getElementById('settings-md3-close')?.addEventListener('click', () => closeModal('settings-modal'));
+            (function lockSettingsModalScroll() {
+                const modal = document.getElementById('settings-modal');
+                if (!modal) return;
+                const reset = () => {
+                    modal.scrollTop = 0;
+                    const content = modal.querySelector('.settings-content');
+                    if (content) content.scrollTop = 0;
+                };
+                modal.addEventListener('focusin', reset);
+                modal.addEventListener('scroll', reset, { passive: true });
+                modal.querySelector('.settings-content')?.addEventListener('scroll', reset, { passive: true });
+            })();
+            document.getElementById('settings-md3-save')?.addEventListener('click', async () => {
+                const settingsForm = document.getElementById('settings-form');
+                if (settingsForm) {
+                    try {
+                        const formData = new FormData(settingsForm);
+                        const response = await fetch('', { method: 'POST', body: formData });
+                        const data = await response.json();
+                        if (data.status !== 'success') {
+                            showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${data.message}`, 'error');
+                            return;
+                        }
+                        showToast(translations.settings_saved || 'Settings saved', 'success');
+                    } catch (err) {
+                        showToast(`${translations.failed_save_settings || 'Error saving settings'}: ${err.message}`, 'error');
+                        return;
+                    }
+                }
+                closeModal('settings-modal');
             });
             function steps_syncSettingsUrl() {
                 try {
@@ -4896,6 +5300,29 @@
                 new MutationObserver(upgradeAll).observe(modal, { childList: true, subtree: true });
                 if (shareModal) new MutationObserver(upgradeAll).observe(shareModal, { childList: true, subtree: true });
             })();
+
+            const todayBtn = document.getElementById('chart-today-btn');
+            if (todayBtn) {
+                todayBtn.addEventListener('click', () => {
+                    currentDate = new Date();
+                    syncCalendarSelectors();
+                    renderCalendar(currentDate, currentLocale);
+                    renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                });
+            }
+            const scrubber = document.getElementById('history-scrubber');
+            if (scrubber) {
+                scrubber.addEventListener('input', () => {
+                    const years = [...new Set(stepsData.map(e => localDateFromYMD(e.date).getFullYear()))].sort((a, b) => a - b);
+                    if (!years.length) return;
+                    const idx = Math.round((Number(scrubber.value) / 100) * (years.length - 1));
+                    const year = years[Math.max(0, Math.min(years.length - 1, idx))];
+                    currentDate = new Date(year, currentDate.getMonth(), Math.min(currentDate.getDate(), 28));
+                    syncCalendarSelectors();
+                    renderCalendar(currentDate, currentLocale);
+                    renderChart(currentView, currentDate, currentDataType, currentChartType, currentLocale);
+                });
+            }
 
             // Chart navigation
             document.getElementById('chart-nav-left').addEventListener('click', () => {
@@ -4993,15 +5420,18 @@
                 });
             });
             document.getElementById('ft-zip')?.addEventListener('change', function() {
-                const f = this.files && this.files[0];
-                if (f && ftWizardStep < 2) ftWizardStep = 2;
+                ftUpdateWizardUi();
+            });
+            document.getElementById('ft-next-step1')?.addEventListener('click', function() {
+                if (!(document.getElementById('ft-zip')?.files?.[0]) || ftWizardLocked) return;
+                ftWizardStep = 2;
                 ftUpdateWizardUi();
             });
             document.getElementById('ft-lang')?.addEventListener('change', function() {
-                if (document.getElementById('ft-zip')?.files?.[0]) { ftWizardStep = 3; ftUpdateWizardUi(); }
+                if (document.getElementById('ft-zip')?.files?.[0] && ftWizardStep >= 2) { ftWizardStep = 3; ftUpdateWizardUi(); }
             });
             document.getElementById('ft-year')?.addEventListener('input', function() {
-                if (document.getElementById('ft-zip')?.files?.[0]) { ftWizardStep = 3; ftUpdateWizardUi(); }
+                if (document.getElementById('ft-zip')?.files?.[0] && ftWizardStep >= 2) { ftWizardStep = 3; ftUpdateWizardUi(); }
             });
             document.getElementById('ft-start')?.addEventListener('click', async function() {
                 if (ftWizardStep < 3) return;
@@ -5331,12 +5761,12 @@
             document.getElementById('search-date-to')?.addEventListener('change', searchInTable);
 
             // Close modals
-            document.querySelectorAll('.modal-close').forEach(btn => {
-                btn.addEventListener('click', () => {
+            document.querySelectorAll('.modal-close, #close-settings, #settings-md3-close').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
                     const modal = btn.closest('[id$="-modal"]');
-                    if (modal) {
-                        closeModal(modal.id);
-                    }
+                    if (modal) closeModal(modal.id);
                 });
             });
 
@@ -5461,15 +5891,30 @@
             h += '<div class="dp-foot"><button type="button" class="dp-today" data-today>' + tx('map_today', 'Today') + '</button></div>';
             pop.innerHTML = h;
         };
-        const close = () => { pop.hidden = true; trigger.setAttribute('aria-expanded', 'false'); };
+        const close = () => {
+            pop.hidden = true;
+            trigger.setAttribute('aria-expanded', 'false');
+            if (pop.parentElement !== field) field.appendChild(pop);
+            pop.style.left = ''; pop.style.top = ''; pop.style.width = ''; pop.style.zIndex = '';
+        };
         const open = () => {
-            document.querySelectorAll('.dp-popover').forEach(p => { p.hidden = true; });
+            document.querySelectorAll('.dp-popover').forEach(p => {
+                p.hidden = true;
+                const host = p.closest('.dp-field');
+                if (host && p.parentElement !== host) host.appendChild(p);
+            });
             view = cur ? new Date(cur.y, cur.m, 1) : new Date();
-            render(); pop.hidden = false; trigger.setAttribute('aria-expanded', 'true');
+            render();
+            document.body.appendChild(pop);
+            pop.hidden = false;
+            trigger.setAttribute('aria-expanded', 'true');
             const r = trigger.getBoundingClientRect(), w = Math.min(300, window.innerWidth - 16), hh = pop.offsetHeight || 340;
-            pop.style.width = w + 'px'; pop.style.left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8) + 'px';
+            pop.style.position = 'fixed';
+            pop.style.width = w + 'px';
+            pop.style.left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8) + 'px';
             let top = r.bottom + 8; if (top + hh > window.innerHeight - 8) top = Math.max(8, r.top - hh - 8);
-            pop.style.top = top + 'px'; pop.style.zIndex = '100002';
+            pop.style.top = top + 'px';
+            pop.style.zIndex = '200000';
         };
         trigger.addEventListener('click', e => { e.stopPropagation(); pop.hidden ? open() : close(); });
         pop.addEventListener('click', e => {
@@ -5510,6 +5955,7 @@
             if (!modal) return;
             const content = modal.firstElementChild;
             if (!content || content.querySelector(':scope > .modal-topbar')) return;
+            if (content.querySelector(':scope > .md3-modal-head') || document.querySelector('.app-steps.md3')) return;
 
             const title = content.querySelector('h1, h2, h3, .day-steps-title, .alert-title');
             let close = null;
@@ -5548,7 +5994,7 @@
             close.type = 'button';
             close.classList.add('app-close-button');
             close.setAttribute('aria-label', close.getAttribute('aria-label') || closeLabel);
-            close.innerHTML = '<i class="fa-solid fa-xmark" aria-hidden="true"></i>';
+            close.innerHTML = '<span class="material-symbols-rounded" aria-hidden="true">close</span>';
             topbar.appendChild(close);
 
             content.insertBefore(topbar, content.firstChild);
@@ -5563,6 +6009,42 @@
     if (document.readyState === 'loading') {
         document.addEventListener('DOMContentLoaded', setupModalTopbars);
     }
+
+    function enhanceM3Checkboxes(root) {
+        const scope = root && root.querySelectorAll ? root : document;
+        scope.querySelectorAll('input[type="checkbox"]').forEach(function (input) {
+            if (input.classList.contains('m3-checkbox-input') || input.classList.contains('dp-native')) return;
+            if (input.closest('.map-switch') || input.closest('.m3-checkbox-wrapper')) return;
+            input.classList.add('m3-checkbox-input');
+            const box = document.createElement('span');
+            box.className = 'm3-checkbox-box';
+            box.innerHTML = '<svg class="m3-checkbox-svg" viewBox="0 0 16 16"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline></svg>';
+            input.insertAdjacentElement('afterend', box);
+            const label = input.closest('label');
+            if (label) label.classList.add('m3-checkbox-wrapper');
+            else {
+                const wrap = document.createElement('label');
+                wrap.className = 'm3-checkbox-wrapper';
+                input.parentNode.insertBefore(wrap, input);
+                wrap.appendChild(input);
+                wrap.appendChild(box);
+            }
+        });
+    }
+    const startM3Checkboxes = function () {
+        enhanceM3Checkboxes(document);
+        new MutationObserver(function (ms) {
+            ms.forEach(function (m) {
+                m.addedNodes.forEach(function (n) {
+                    if (n.nodeType !== 1) return;
+                    if (n.matches && n.matches('input[type="checkbox"]')) enhanceM3Checkboxes(n.parentNode || document);
+                    else enhanceM3Checkboxes(n);
+                });
+            });
+        }).observe(document.body, { childList: true, subtree: true });
+    };
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startM3Checkboxes);
+    else startM3Checkboxes();
 })();</script>
 
 </body>
