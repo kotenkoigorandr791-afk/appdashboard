@@ -100,7 +100,7 @@ class PreferencesManager(context: Context) {
         const val MAP_BASEMAP_AUTO = "auto"
         // Points are on by default: the day view should show what the server has
         // recorded next to the measurements still waiting to be uploaded.
-        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "visits", "points")
+        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "points")
         private const val DEFAULT_LOCATION_INTERVAL_MINUTES = 15
         private const val KEY_LAST_SYNC_OK_AT = "last_sync_ok_at"
         private const val KEY_LAST_AUTH_ERROR_AT = "last_auth_error_at"
@@ -958,12 +958,22 @@ class PreferencesManager(context: Context) {
     /** Enabled GeoJSON layers, stored as a comma separated key list. */
     fun getMapLayers(): Set<String> {
         val raw = prefs.getString(KEY_MAP_LAYERS, null) ?: return DEFAULT_MAP_LAYERS
-        val parsed = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
+        val parsed = raw.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toMutableSet()
+        // Visits were merged into Places — keep one toggle and one stored key.
+        if ("visits" in parsed) {
+            parsed.remove("visits")
+            parsed.add("places")
+        }
         return parsed.ifEmpty { DEFAULT_MAP_LAYERS }
     }
 
     fun setMapLayers(layers: Set<String>) {
-        prefs.edit().putString(KEY_MAP_LAYERS, layers.joinToString(",")).apply()
+        val normalized = layers.toMutableSet()
+        if ("visits" in normalized) {
+            normalized.remove("visits")
+            normalized.add("places")
+        }
+        prefs.edit().putString(KEY_MAP_LAYERS, normalized.joinToString(",")).apply()
     }
 
     fun getMapCamera(): Triple<Double, Double, Double>? {

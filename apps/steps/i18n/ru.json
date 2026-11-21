@@ -455,7 +455,7 @@
   "map_show_panel": "Показать панель",
   "map_smooth_title": "Сглаженный маршрут",
   "map_source_title": "Источник и тайлы",
-  "map_summary": "Поездки: {trips} · Остановки: {stops} · Места: {places} · Визиты: {visits} · Точки: {points}",
+  "map_summary": "Поездки: {trips} · Остановки: {stops} · Места: {places} · Точки: {points}",
   "map_title": "Карта локаций",
   "map_to": "По",
   "map_today": "Сегодня",

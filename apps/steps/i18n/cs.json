@@ -455,7 +455,7 @@
   "map_show_panel": "Zobrazit panel",
   "map_smooth_title": "Vyhlazená trasa",
   "map_source_title": "Zdroj a dlaždice",
-  "map_summary": "Cesty: {trips} · Zastávky: {stops} · Místa: {places} · Návštěvy: {visits} · Body: {points}",
+  "map_summary": "Cesty: {trips} · Zastávky: {stops} · Místa: {places} · Body: {points}",
   "map_title": "Mapa polohy",
   "map_to": "Do",
   "map_today": "Dnes",

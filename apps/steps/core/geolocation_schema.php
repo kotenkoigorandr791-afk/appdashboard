@@ -162,6 +162,12 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v24_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '024']);
         }
+        // 025: unified Places surface — visits are place events, one catalog view.
+        $applied->execute([':version' => '025']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v25_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '025']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -422,6 +428,64 @@ function steps_geolocation_schema_v19_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_owner_time_idx ON geo_matched_segments(user_email, started_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_geometry_idx ON geo_matched_segments USING GIST(matched_geometry)",
         "ANALYZE geo_location_points",
+    ];
+}
+
+function steps_geolocation_schema_v25_sql(): array
+{
+    return [
+        // Single catalog for map/library: saved places + visit-derived locations.
+        "CREATE OR REPLACE VIEW geo_unified_places AS
+         SELECT p.user_email,
+                p.id::text AS place_key,
+                'saved'::text AS kind,
+                p.id AS place_id,
+                NULL::uuid AS visit_id,
+                p.name,
+                p.tag,
+                p.color,
+                p.radius_m,
+                p.position,
+                p.is_active,
+                p.updated_at AS sort_at
+           FROM geo_places p
+          WHERE p.deleted_at IS NULL
+         UNION ALL
+         SELECT v.user_email,
+                CASE
+                  WHEN v.place_id IS NOT NULL THEN 'p:' || v.place_id::text
+                  WHEN v.osm_id IS NOT NULL THEN 'o:' || COALESCE(v.osm_type, '') || ':' || v.osm_id::text
+                  ELSE 'v:' || v.id::text
+                END AS place_key,
+                'visit'::text AS kind,
+                v.place_id,
+                v.id AS visit_id,
+                COALESCE(NULLIF(v.display_name, ''), pl.name, '') AS name,
+                COALESCE(pl.tag, v.category, '') AS tag,
+                COALESCE(pl.color, '') AS color,
+                COALESCE(pl.radius_m, 40) AS radius_m,
+                COALESCE(op.position, s.position, pl.position) AS position,
+                true AS is_active,
+                v.arrived_at AS sort_at
+           FROM geo_visits v
+           LEFT JOIN geo_places pl ON pl.id = v.place_id
+           LEFT JOIN geo_stops s ON s.id = v.stop_id
+           LEFT JOIN geo_osm_places op ON op.osm_type = v.osm_type AND op.osm_id = v.osm_id
+          WHERE COALESCE(op.position, s.position, pl.position) IS NOT NULL",
+        // Prefer the unified Places layer in stored map preferences.
+        "UPDATE geo_map_preferences
+            SET layers_json = (
+              SELECT COALESCE(jsonb_agg(DISTINCT value), '[]'::jsonb)
+                FROM jsonb_array_elements_text(
+                  CASE
+                    WHEN layers_json @> '\"visits\"'::jsonb AND NOT (layers_json @> '\"places\"'::jsonb)
+                      THEN (layers_json - 'visits') || '\"places\"'::jsonb
+                    ELSE layers_json - 'visits'
+                  END
+                ) AS value
+            ),
+            updated_at = now()
+          WHERE layers_json @> '\"visits\"'::jsonb",
     ];
 }
 

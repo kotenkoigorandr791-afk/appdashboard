@@ -1127,9 +1127,9 @@
         .leaflet-popup.photo-md3-leaflet .leaflet-popup-content { margin: 0; width: auto !important; }
         .leaflet-popup.photo-md3-leaflet .leaflet-popup-tip { background: rgba(20,22,28,.92); }
         .leaflet-popup.photo-md3-leaflet a.leaflet-popup-close-button { display: none; }
-        .photo-md3-pop { width: min(260px, 78vw); background: rgba(18,20,26,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
-        .photo-md3-media { position: relative; aspect-ratio: 1 / 1; background: #0b0d12; display: flex; align-items: center; justify-content: center; }
-        .photo-md3-media img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; opacity: 0; transition: opacity .25s ease; }
+        .photo-md3-pop { width: min(280px, 82vw); background: rgba(18,20,26,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
+        .photo-md3-media { position: relative; background: #0b0d12; line-height: 0; min-height: 96px; }
+        .photo-md3-media img { width: 100%; height: auto; max-height: min(56vh, 420px); object-fit: contain; object-position: center; display: block; opacity: 0; transition: opacity .25s ease; vertical-align: top; }
         .photo-md3-media img.is-ready { opacity: 1; }
         .photo-md3-skeleton { position: absolute; inset: 0; background: linear-gradient(110deg, #1a1d24 20%, #2a2f3a 40%, #1a1d24 60%); background-size: 200% 100%; animation: photoMd3Shimmer 1.2s linear infinite; }
         .photo-md3-actions { display: flex; gap: 6px; padding: 8px; }
@@ -1143,8 +1143,8 @@
         .photo-md3-lightbox[hidden] { display: none !important; }
         .photo-md3-lightbox-card { width: min(720px, 92vw); max-height: 92vh; background: #111318; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 24px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; }
         .photo-md3-lightbox-top { display: flex; justify-content: flex-end; gap: 8px; padding: 10px; }
-        .photo-md3-lightbox-media { flex: 1; min-height: min(56vw, 520px); max-height: min(78vh, 720px); aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; background: #000; margin: 0 auto; width: 100%; }
-        .photo-md3-lightbox-media img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
+        .photo-md3-lightbox-media { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; width: 100%; padding: 0; }
+        .photo-md3-lightbox-media img { max-width: 100%; max-height: min(78vh, 860px); width: auto; height: auto; object-fit: contain; }
         .photo-md3-lightbox-meta { padding: 12px 14px 16px; color: #e5e7eb; font-size: 13px; }
         @keyframes photoMd3Shimmer { to { background-position-x: -200%; } }
         .map-place-photo { background: transparent !important; border: 0 !important; }

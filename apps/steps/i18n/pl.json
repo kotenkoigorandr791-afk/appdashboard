@@ -455,7 +455,7 @@
   "map_show_panel": "Pokaż panel",
   "map_smooth_title": "Wygładzona trasa",
   "map_source_title": "Źródło i kafle",
-  "map_summary": "Podróże: {trips} · Postoje: {stops} · Miejsca: {places} · Wizyty: {visits} · Punkty: {points}",
+  "map_summary": "Podróże: {trips} · Postoje: {stops} · Miejsca: {places} · Punkty: {points}",
   "map_title": "Mapa lokalizacji",
   "map_to": "Do",
   "map_today": "Dzisiaj",

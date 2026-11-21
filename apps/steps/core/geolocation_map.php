@@ -357,8 +357,11 @@ final class StepsGeolocationMap
             $meta['counts']['stops'] = count($rows);
         }
 
+        // Places and visits are one user-facing concept: enabling either loads both.
         if (in_array('places', $layers, true) || in_array('visits', $layers, true)) {
-            if (in_array('places', $layers, true)) {
+            $wantPlaces = true;
+            $wantVisits = true;
+            if ($wantPlaces) {
                 $stmt = $pdo->prepare(
                     "SELECT id, name, tag, color, radius_m,
                             round(ST_Y(position)::numeric, $precision) AS lat,
@@ -390,7 +393,7 @@ final class StepsGeolocationMap
                 $meta['counts']['places'] = count($rows);
             }
 
-            if (in_array('visits', $layers, true)) {
+            if ($wantVisits) {
                 require_once __DIR__ . '/geolocation_place_photos.php';
                 $stmt = $pdo->prepare(
                     "SELECT v.id, v.arrived_at, v.departed_at, v.confidence, v.place_id, v.osm_type, v.osm_id, v.display_name, v.category, v.address, v.detection_status,

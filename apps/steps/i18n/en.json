@@ -455,7 +455,7 @@
   "map_show_panel": "Show panel",
   "map_smooth_title": "Smoothed route",
   "map_source_title": "Source and tiles",
-  "map_summary": "Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}",
+  "map_summary": "Trips: {trips} · Stops: {stops} · Places: {places} · Points: {points}",
   "map_title": "Location map",
   "map_to": "To",
   "map_today": "Today",

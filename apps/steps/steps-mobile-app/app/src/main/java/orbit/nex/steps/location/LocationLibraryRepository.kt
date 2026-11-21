@@ -136,7 +136,17 @@ class LocationLibraryRepository(
             } else tab.endpoint
             val root = get(config, endpoint)
             when (tab) {
-                LibraryTab.PLACES -> places(root)
+                LibraryTab.PLACES -> {
+                    val placeSnap = places(root)
+                    val visitSnap = runCatching { visits(get(config, "geolocation_stops?limit=100")) }
+                        .getOrElse { LibrarySnapshot() }
+                        .also { VisitCache.write(cacheFile, it) }
+                    LibrarySnapshot(
+                        entries = placeSnap.entries + visitSnap.entries,
+                        offline = placeSnap.offline || visitSnap.offline,
+                        error = placeSnap.error ?: visitSnap.error,
+                    )
+                }
                 LibraryTab.TRIPS -> trips(root)
                 LibraryTab.VISITS -> visits(root).also { VisitCache.write(cacheFile, it) }
                 LibraryTab.GEOFENCES -> geofences(root)
@@ -147,7 +157,7 @@ class LocationLibraryRepository(
                 LibraryTab.ANALYTICS -> analytics(root)
             }
         }.getOrElse { failure ->
-            (if (tab == LibraryTab.VISITS) VisitCache.read(cacheFile) else null)
+            (if (tab == LibraryTab.PLACES || tab == LibraryTab.VISITS) VisitCache.read(cacheFile) else null)
                 ?: LibrarySnapshot(error = failure.message ?: "network")
         }
     }

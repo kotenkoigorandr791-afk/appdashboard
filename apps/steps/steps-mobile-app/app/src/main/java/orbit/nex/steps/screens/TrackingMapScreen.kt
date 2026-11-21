@@ -142,7 +142,6 @@ private enum class GeoLayer(val key: String, val titleRes: Int) {
     TRIPS("trips", R.string.map_layer_trips),
     STOPS("stops", R.string.map_layer_stops),
     PLACES("places", R.string.map_layer_places),
-    VISITS("visits", R.string.map_layer_visits),
     POINTS("points", R.string.map_layer_points),
     HEATMAP("heatmap", R.string.map_layer_heatmap),
     SPEED("speed", R.string.map_layer_speed),
@@ -619,7 +618,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
     // Overlays are rebuilt only when the day data or the enabled layers change.
     LaunchedEffect(data, layers, resolvedStyle, darkTheme, config?.url) {
         val active = config
-        if (active != null && GeoLayer.VISITS.key in layers) {
+        if (active != null && GeoLayer.PLACES.key in layers) {
             data.points.filter { it.layer == "visit" && it.osmType != null && it.osmId != null }.forEach { feature ->
                 PlacePhotoCache.ensure(context, prefs, active, feature.osmType!!, feature.osmId!!)
             }
@@ -1252,8 +1251,9 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
     addPoints("stop", GeoLayer.STOPS.key, stopColor, AndroidColor.WHITE, 14) { feature ->
         if (feature.count > 1) feature.count.toString() else null
     }
+    // Visits render under the Places toggle — one concept on the map.
     addPoints("place", GeoLayer.PLACES.key, placeColor, AndroidColor.WHITE, 16) { it.label }
-    addPoints("visit", GeoLayer.VISITS.key, visitColor, AndroidColor.WHITE, 14) { feature ->
+    addPoints("visit", GeoLayer.PLACES.key, visitColor, AndroidColor.WHITE, 14) { feature ->
         feature.label ?: mapView.context.getString(R.string.visit_unidentified)
     }
     // Raw points and aggregated clusters are decoration: dense days would be

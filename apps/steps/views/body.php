@@ -325,14 +325,13 @@ $metricButtons = [
                                     'improved' => $translations['map_layer_improved'] ?? 'Improved (derived)',
                                     'stops' => $translations['map_layer_stops'] ?? 'Stops',
                                     'places' => $translations['map_layer_places'] ?? 'Places',
-                                    'visits' => $translations['map_layer_visits'] ?? 'Visits',
                                     'points' => $translations['map_layer_points'] ?? 'Points',
                                     'photos' => $translations['map_layer_photos'] ?? 'Photos',
                                     'speed' => $translations['map_layer_speed'] ?? 'Speed',
                                     'heatmap' => $translations['map_layer_heatmap'] ?? 'Heatmap',
                                     'explored' => $translations['map_layer_explored'] ?? 'Explored area',
                                 ];
-                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'visits', 'improved'], true); ?>
+                                foreach ($mapLayers as $layerKey => $layerLabel): $checked = in_array($layerKey, ['trips', 'stops', 'places', 'improved'], true); ?>
                                 <label class="map-switch">
                                     <input type="checkbox" data-layer="<?php echo htmlspecialchars($layerKey); ?>" <?php echo $checked ? 'checked' : ''; ?>>
                                     <span class="map-switch-track" aria-hidden="true"><span class="map-switch-thumb"></span></span>
@@ -432,7 +431,7 @@ $metricButtons = [
                         empty: <?php echo json_encode($translations['map_empty'] ?? 'No location data in this range.'); ?>,
                         unavailable: <?php echo json_encode($translations['map_unavailable'] ?? 'Map tiles are unavailable; showing counts only.'); ?>,
                         error: <?php echo json_encode($translations['map_error'] ?? 'Could not load map data.'); ?>,
-                        summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Visits: {visits} · Points: {points}'); ?>
+                        summary: <?php echo json_encode($translations['map_summary'] ?? 'Trips: {trips} · Stops: {stops} · Places: {places} · Points: {points}'); ?>
                     };
                     const iso = (d) => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
                     const todayIso = () => iso(new Date());
@@ -505,7 +504,12 @@ $metricButtons = [
                         if(renderTimer) return;
                         renderTimer=setTimeout(()=>{ renderTimer=null; render(lastFeatures); },80);
                     }
-                    const selectedLayers = () => Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.getAttribute('data-layer'));
+                    // Places subsumes Visits: one toggle loads both map layers.
+                    const selectedLayers = () => {
+                        const layers=Array.from(section.querySelectorAll('input[data-layer]:checked')).map(i=>i.getAttribute('data-layer')).filter(Boolean);
+                        if(layers.includes('places') && !layers.includes('visits')) layers.push('visits');
+                        return layers;
+                    };
                     const showError = (m) => { errorEl.textContent = m || ''; errorEl.style.display = m ? '' : 'none'; };
                     function ensureLeaflet(){
                         if (window.L) return Promise.resolve(window.L);
@@ -1294,7 +1298,8 @@ $metricButtons = [
                         };
                         const serverStops=Number(server.stops)||0, serverClusters=Number(server.point_clusters)||0;
                         const stops=(serverStops+serverClusters)>0?serverStops+serverClusters:derived.stops;
-                        summary.textContent=t.summary.replace('{trips}',count('trips')).replace('{stops}',stops).replace('{places}',count('places')).replace('{visits}',count('visits')).replace('{points}',count('points'));
+                        const placesCount=(count('places')||0)+(count('visits')||0);
+                        summary.textContent=t.summary.replace('{trips}',count('trips')).replace('{stops}',stops).replace('{places}',placesCount).replace('{points}',count('points'));
                         if(!data.geojson.features.length) summary.textContent=t.empty;
                     }
                     function clearPrefetchQueue(abortRequests){

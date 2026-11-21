@@ -152,7 +152,7 @@ private fun LocationPanelsContent(onDismiss: () -> Unit, onTripSelected: (java.t
             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            LibraryTab.entries.forEach { candidate ->
+            LibraryTab.entries.filter { it != LibraryTab.VISITS }.forEach { candidate ->
                 FilterChip(
                     selected = tab == candidate,
                     onClick = {
