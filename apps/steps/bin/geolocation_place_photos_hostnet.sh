@@ -1,7 +1,7 @@
 #!/bin/bash
 # Place-photos need outbound HTTPS (Wikimedia). The app container often has no
 # egress; this wrapper runs each batch in a host-network sibling. volumes-from
-# keeps APPDATA on the same /storage/applications tree the web PHP-FPM uses.
+# keeps APPDATA on the same tree the web PHP-FPM uses.
 set -euo pipefail
 
 IMAGE="${APPDASHBOARD_PLACE_PHOTOS_IMAGE:-${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}}"
@@ -11,7 +11,7 @@ SELF_NAME="${APPDASHBOARD_CONTAINER_NAME:-appdashboard}"
 # creates an empty host directory for missing binds and hides the image files.
 CODE_DIR="${APPDASHBOARD_CODE_DIR:-}"
 DB_PASSWORD="${DB_PASSWORD:-appdashboard_dev_password}"
-APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/storage/applications}"
+APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-}"
 
 resolve_pg() {
   local ip
@@ -21,6 +21,25 @@ resolve_pg() {
   fi
   printf '%s' "${ip}"
 }
+
+# Prefer the parent container's Config.Env so a stale supervisord env cannot
+# point place-photos at a different APPDATA tree than PHP-FPM.
+parent_env() {
+  local key="$1"
+  docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${SELF_NAME}" 2>/dev/null | sed -n "s/^${key}=//p" | head -n1
+}
+if [[ -z "${APPDATA_BASE_DIR}" || "${APPDATA_BASE_DIR}" == "/storage/applications" ]]; then
+  APPDATA_BASE_DIR="$(parent_env APPDATA_BASE_DIR)"
+fi
+APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
+if [[ -z "${DB_PASSWORD}" || "${DB_PASSWORD}" == "appdashboard_dev_password" ]]; then
+  parent_db="$(parent_env DB_PASSWORD)"
+  if [[ -n "${parent_db}" ]]; then DB_PASSWORD="${parent_db}"; fi
+fi
+if [[ -z "${IMAGE}" || "${IMAGE}" == "ihorkotenko/appdashboard:latest" ]]; then
+  parent_image="$(docker inspect -f '{{.Config.Image}}' "${SELF_NAME}" 2>/dev/null || true)"
+  if [[ -n "${parent_image}" ]]; then IMAGE="${parent_image}"; fi
+fi
 
 echo "place-photos-hostnet: self=${SELF_NAME} code=${CODE_DIR:-<image>} appdata=${APPDATA_BASE_DIR}" >&2
 
