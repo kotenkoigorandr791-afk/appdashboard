@@ -179,7 +179,7 @@ final class StepsGeolocationImmich
         $url = $url !== null && trim($url) !== '' ? self::normalizeUrl($url) : trim((string)steps_geo_decrypt((string)($existing['server_url_ciphertext'] ?? ''), $owner, 'server_url'));
         $apiKey = $apiKey !== null && trim($apiKey) !== '' ? trim($apiKey) : trim((string)steps_geo_decrypt((string)($existing['credential_ciphertext'] ?? ''), $owner, 'api_key'));
         if ($url === '' || $apiKey === '') throw new StepsGeolocationImmichError('immich_not_configured', 409);
-        $response = self::http('GET', $url . '/api/server/about', $apiKey);
+        $response = self::http('GET', self::requestBaseUrl($url) . '/api/server/about', $apiKey);
         if ($response['status'] === 401 || $response['status'] === 403) throw new StepsGeolocationImmichError('immich_unauthorized', 401);
         if ($response['status'] < 200 || $response['status'] >= 300) throw new StepsGeolocationImmichError('immich_test_failed', 502);
         $data = json_decode($response['body'], true);
@@ -419,6 +419,24 @@ final class StepsGeolocationImmich
         $key = trim((string)steps_geo_decrypt((string)$asset['credential_ciphertext'], $owner, 'api_key'));
         $url = self::requestBaseUrl($storedUrl);
         $response = self::http('GET', $url . '/api/assets/' . rawurlencode((string)$asset['immich_asset_id']) . '/thumbnail?size=' . rawurlencode($size), $key, null, 2097152);
+        if ($response['status'] === 401 || $response['status'] === 403) {
+            // Key deleted in Immich: recreate via OAuth sync and retry once.
+            $oauth = (defined('APP_ROOT') ? APP_ROOT : dirname(__DIR__, 3)) . '/project/oauth.php';
+            if (!function_exists('oauth_sync_immich_steps') && is_file($oauth)) {
+                require_once $oauth;
+            }
+            if (function_exists('oauth_sync_immich_steps')) {
+                try { oauth_sync_immich_steps($owner); } catch (Throwable $ignored) {}
+                $stmt->execute([':asset' => $assetId, ':owner' => $owner]);
+                $asset = $stmt->fetch(PDO::FETCH_ASSOC);
+                if ($asset) {
+                    $storedUrl = trim((string)steps_geo_decrypt((string)$asset['server_url_ciphertext'], $owner, 'server_url'));
+                    $key = trim((string)steps_geo_decrypt((string)$asset['credential_ciphertext'], $owner, 'api_key'));
+                    $url = self::requestBaseUrl($storedUrl);
+                    $response = self::http('GET', $url . '/api/assets/' . rawurlencode((string)$asset['immich_asset_id']) . '/thumbnail?size=' . rawurlencode($size), $key, null, 2097152);
+                }
+            }
+        }
         if ($response['status'] === 404 || $response['status'] === 410) {
             $pdo->prepare("UPDATE geo_immich_assets SET state = 'unavailable', updated_at = now() WHERE id = :asset AND user_email = :owner")->execute([':asset' => $assetId, ':owner' => $owner]);
             return null;

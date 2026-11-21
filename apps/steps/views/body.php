@@ -611,6 +611,8 @@ $metricButtons = [
                     const photoThumbQueue=[];
                     let photoThumbActive=0;
                     const PHOTO_THUMB_MAX=3;
+                    const photoThumbReady=new Map();
+                    const photoThumbInflight=new Map();
                     function enqueuePhotoThumb(loader){
                         return new Promise((resolve,reject)=>{
                             photoThumbQueue.push({loader,resolve,reject});
@@ -625,13 +627,19 @@ $metricButtons = [
                         }
                     }
                     function loadPhotoThumb(url){
-                        return enqueuePhotoThumb(()=>new Promise((resolve,reject)=>{
+                        const key=String(url||'');
+                        if(!key) return Promise.reject(new Error('thumb_missing'));
+                        if(photoThumbReady.has(key)) return Promise.resolve({src:photoThumbReady.get(key)});
+                        if(photoThumbInflight.has(key)) return photoThumbInflight.get(key);
+                        const pending=enqueuePhotoThumb(()=>new Promise((resolve,reject)=>{
                             const img=new Image();
                             img.decoding='async';
-                            img.onload=()=>resolve(img);
+                            img.onload=()=>{ photoThumbReady.set(key,img.src); resolve(img); };
                             img.onerror=()=>reject(new Error('thumb_failed'));
-                            img.src=url;
-                        }));
+                            img.src=key;
+                        })).finally(()=>{ photoThumbInflight.delete(key); });
+                        photoThumbInflight.set(key,pending);
+                        return pending;
                     }
                     function openImmichFromSteps(immichAssetId){
                         const id=String(immichAssetId||'').trim();
@@ -780,12 +788,14 @@ $metricButtons = [
                                 const size=Math.max(32, baseRadius*4+14);
                                 const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
                                 const photoCard=photoPopupCard(p);
-                                const ringStyle='width:'+size+'px;height:'+size+'px';
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="map-photo-marker-ring is-loading" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span>'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                const cachedThumb=p.thumbnail?photoThumbReady.get(String(p.thumbnail)):null;
+                                const ringClass=cachedThumb?'map-photo-marker-ring is-ready has-thumb':'map-photo-marker-ring is-loading';
+                                const ringStyle='width:'+size+'px;height:'+size+'px'+(cachedThumb?';--photo-thumb:url('+JSON.stringify(String(cachedThumb))+')':'');
+                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="'+ringClass+'" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span>'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
                                 photoMarker.bindPopup(photoCard,{maxWidth:280,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
                                 photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
                                 const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
-                                if(ring && p.thumbnail){
+                                if(ring && p.thumbnail && !cachedThumb){
                                     const fill=()=>{
                                         if(ring.dataset.filled) return;
                                         ring.dataset.filled='1';

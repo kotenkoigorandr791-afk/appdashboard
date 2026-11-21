@@ -1260,6 +1260,18 @@ function oauth_immich_issue_api_key(PDO $immich, string $userId, string $name, s
     return $token;
 }
 
+function oauth_immich_api_key_exists(PDO $immich, string $userId, string $token): bool {
+    $token = trim($token);
+    if ($token === '' || $userId === '') return false;
+    try {
+        $chk = $immich->prepare('SELECT 1 FROM api_key WHERE "userId" = :uid AND key = decode(:hex, \'hex\') LIMIT 1');
+        $chk->execute([':uid' => $userId, ':hex' => hash('sha256', $token)]);
+        return (bool)$chk->fetchColumn();
+    } catch (\Exception $e) {
+        return false;
+    }
+}
+
 function oauth_sync_immich_steps(string $email): void {
     $email = trim($email);
     if ($email === '') return;
@@ -1275,20 +1287,42 @@ function oauth_sync_immich_steps(string $email): void {
     }
     try {
         $existing = StepsGeolocationImmich::connection($pdo, $email);
-        if (is_array($existing) && (string)($existing['state'] ?? '') === 'active') return;
+        // Explicit disconnect in Steps must stay disconnected.
         if (is_array($existing) && (string)($existing['state'] ?? '') === 'disconnected') return;
+
+        $user = function_exists('getUserByEmail') ? (getUserByEmail($email) ?: []) : [];
+        $name = trim((string)($user['name'] ?? ''));
+        $isAdmin = (int)($user['role'] ?? 0) >= 2;
+        oauth_ensure_immich_user($email, $name !== '' ? $name : $email, $isAdmin);
+
         $immich = oauth_immich_db();
         if (!$immich) return;
         $stmt = $immich->prepare('SELECT id FROM "user" WHERE lower(email) = lower(:email) AND "deletedAt" IS NULL LIMIT 1');
         $stmt->execute([':email' => $email]);
         $immichUserId = $stmt->fetchColumn() ?: null;
         if ($immichUserId === null) return;
+
         $url = rtrim(oauth_external_app_url('immich'), '/');
         if ($url === '') return;
-        $token = oauth_immich_issue_api_key($immich, (string)$immichUserId, 'Steps', '{all}');
-        if ($token === '') return;
-        StepsGeolocationImmich::configure($pdo, $email, $url, $token);
-        StepsGeolocationImmich::enqueue($pdo, $email, gmdate('c', time() - 30 * 86400), gmdate('c'));
+
+        $storedToken = '';
+        if (is_array($existing) && (string)($existing['credential_ciphertext'] ?? '') !== '') {
+            $storedToken = trim((string)steps_geo_decrypt((string)$existing['credential_ciphertext'], $email, 'api_key'));
+        }
+        $token = '';
+        if ($storedToken !== '' && oauth_immich_api_key_exists($immich, (string)$immichUserId, $storedToken)) {
+            $token = $storedToken;
+        }
+        // Immich key missing/deleted → recreate named "Steps" key and rewrite Steps connection.
+        if ($token === '') {
+            $token = oauth_immich_issue_api_key($immich, (string)$immichUserId, 'Steps', '{all}');
+            if ($token === '') return;
+        }
+        $isActive = is_array($existing) && (string)($existing['state'] ?? '') === 'active';
+        if (!$isActive || $token !== $storedToken) {
+            StepsGeolocationImmich::configure($pdo, $email, $url, $token);
+            StepsGeolocationImmich::enqueue($pdo, $email, gmdate('c', time() - 30 * 86400), gmdate('c'));
+        }
     } catch (\Throwable $e) {
         error_log('oauth_sync_immich_steps: ' . $e->getMessage());
     }
