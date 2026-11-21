@@ -7,7 +7,9 @@ set -euo pipefail
 IMAGE="${APPDASHBOARD_PLACE_PHOTOS_IMAGE:-${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}}"
 LIMIT="${APPDASHBOARD_PLACE_PHOTOS_LIMIT:-15}"
 SELF_NAME="${APPDASHBOARD_CONTAINER_NAME:-appdashboard}"
-CODE_DIR="${APPDASHBOARD_CODE_DIR:-/home/ihor/apps-dashboard}"
+# Optional host bind for live code. Never default to a workstation path: Docker
+# creates an empty host directory for missing binds and hides the image files.
+CODE_DIR="${APPDASHBOARD_CODE_DIR:-}"
 DB_PASSWORD="${DB_PASSWORD:-appdashboard_dev_password}"
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/storage/applications}"
 
@@ -20,7 +22,7 @@ resolve_pg() {
   printf '%s' "${ip}"
 }
 
-echo "place-photos-hostnet: self=${SELF_NAME} code=${CODE_DIR} appdata=${APPDATA_BASE_DIR}" >&2
+echo "place-photos-hostnet: self=${SELF_NAME} code=${CODE_DIR:-<image>} appdata=${APPDATA_BASE_DIR}" >&2
 
 while true; do
   PG_IP="$(resolve_pg)"
@@ -30,19 +32,25 @@ while true; do
     continue
   fi
   set +e
-  # volumes-from: live /storage/applications (FPM APPDATA). Code bind: host tree.
-  docker run --rm --network host --volumes-from "${SELF_NAME}" \
-    -v "${CODE_DIR}:/var/www/AppDashboard" \
-    --entrypoint php \
-    -e DB_HOST="${PG_IP}" \
-    -e DB_PORT=5432 \
-    -e DB_NAME=appdashboard \
-    -e DB_USER=appdashboard \
-    -e DB_PASSWORD="${DB_PASSWORD}" \
-    -e APP_DB_CONFIG=/opt/AppDashboard/data/db.env \
-    -e APPDATA_BASE_DIR="${APPDATA_BASE_DIR}" \
-    -e APPDATA_DATA_DIR=/opt/AppDashboard/data \
-    -e TMPDIR=/tmp \
+  # volumes-from: live APPDATA mounts from the app container. Use the image's
+  # /var/www/AppDashboard unless an explicit host code tree is provided.
+  docker_args=(
+    run --rm --network host --volumes-from "${SELF_NAME}"
+    --entrypoint php
+    -e DB_HOST="${PG_IP}"
+    -e DB_PORT=5432
+    -e DB_NAME=appdashboard
+    -e DB_USER=appdashboard
+    -e DB_PASSWORD="${DB_PASSWORD}"
+    -e APP_DB_CONFIG=/opt/AppDashboard/data/db.env
+    -e APPDATA_BASE_DIR="${APPDATA_BASE_DIR}"
+    -e APPDATA_DATA_DIR=/opt/AppDashboard/data
+    -e TMPDIR=/tmp
+  )
+  if [[ -n "${CODE_DIR}" ]]; then
+    docker_args+=(-v "${CODE_DIR}:/var/www/AppDashboard")
+  fi
+  docker "${docker_args[@]}" \
     "${IMAGE}" \
     /var/www/AppDashboard/apps/steps/bin/geolocation_place_photos_run.php --limit="${LIMIT}"
   rc=$?

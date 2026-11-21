@@ -1233,6 +1233,67 @@ function oauth_ensure_gitea_user(string $email, string $name, bool $isAdmin, str
     }
 }
 
+function oauth_immich_issue_api_key(PDO $immich, string $userId, string $name, string $permissions): string {
+    $token = oauth_immich_api_token();
+    $hashHex = hash('sha256', $token);
+    $immich->prepare('DELETE FROM api_key WHERE "userId" = :uid AND name = :name')->execute([
+        ':uid' => $userId,
+        ':name' => $name,
+    ]);
+    try {
+        $ins = $immich->prepare('INSERT INTO api_key (id, name, key, "userId", permissions, "createdAt", "updatedAt", "updateId") VALUES (gen_random_uuid(), :name, decode(:hex, \'hex\'), :uid, CAST(:perms AS varchar[]), now(), now(), gen_random_uuid())');
+        $ins->execute([
+            ':name' => $name,
+            ':hex' => $hashHex,
+            ':uid' => $userId,
+            ':perms' => $permissions,
+        ]);
+    } catch (\Exception $e) {
+        $ins = $immich->prepare('INSERT INTO api_key (name, key, "userId", permissions) VALUES (:name, decode(:hex, \'hex\'), :uid, :perms)');
+        $ins->execute([
+            ':name' => $name,
+            ':hex' => $hashHex,
+            ':uid' => $userId,
+            ':perms' => $permissions,
+        ]);
+    }
+    return $token;
+}
+
+function oauth_sync_immich_steps(string $email): void {
+    $email = trim($email);
+    if ($email === '') return;
+    $immichPath = (defined('APP_ROOT') ? APP_ROOT : '/var/www/AppDashboard') . '/apps/steps/core/geolocation_immich.php';
+    if (!class_exists('StepsGeolocationImmich') && is_file($immichPath)) {
+        require_once $immichPath;
+    }
+    if (!class_exists('StepsGeolocationImmich') || !function_exists('app_main_db')) return;
+    try {
+        $pdo = app_main_db()->getPdo();
+    } catch (\Throwable $e) {
+        return;
+    }
+    try {
+        $existing = StepsGeolocationImmich::connection($pdo, $email);
+        if (is_array($existing) && (string)($existing['state'] ?? '') === 'active') return;
+        if (is_array($existing) && (string)($existing['state'] ?? '') === 'disconnected') return;
+        $immich = oauth_immich_db();
+        if (!$immich) return;
+        $stmt = $immich->prepare('SELECT id FROM "user" WHERE lower(email) = lower(:email) AND "deletedAt" IS NULL LIMIT 1');
+        $stmt->execute([':email' => $email]);
+        $immichUserId = $stmt->fetchColumn() ?: null;
+        if ($immichUserId === null) return;
+        $url = rtrim(oauth_external_app_url('immich'), '/');
+        if ($url === '') return;
+        $token = oauth_immich_issue_api_key($immich, (string)$immichUserId, 'Steps', '{all}');
+        if ($token === '') return;
+        StepsGeolocationImmich::configure($pdo, $email, $url, $token);
+        StepsGeolocationImmich::enqueue($pdo, $email, gmdate('c', time() - 30 * 86400), gmdate('c'));
+    } catch (\Throwable $e) {
+        error_log('oauth_sync_immich_steps: ' . $e->getMessage());
+    }
+}
+
 function oauth_provision_user_services(string $email, array $user = []): void {
     $email = trim($email);
     if ($email === '') return;
@@ -1248,6 +1309,7 @@ function oauth_provision_user_services(string $email, array $user = []): void {
     oauth_ensure_dawarich_user($email, $name, $isAdmin, $theme);
     oauth_ensure_gitea_user($email, $name, $isAdmin, $theme, $photo);
     oauth_sync_immich_dawarich($email);
+    oauth_sync_immich_steps($email);
 }
 
 
