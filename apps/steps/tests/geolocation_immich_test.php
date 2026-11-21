@@ -14,7 +14,7 @@ function geo_immich_assert(bool $condition, string $message): void
 }
 function geo_immich_cleanup(PDO $pdo, string $owner): void
 {
-    foreach (['geo_trip_photos', 'geo_immich_assets', 'geo_processor_runs', 'geo_location_points', 'geo_devices'] as $table) {
+    foreach (['geo_trip_photos', 'geo_immich_assets', 'geo_processor_runs', 'geo_trips', 'geo_location_points', 'geo_devices'] as $table) {
         $pdo->prepare("DELETE FROM $table WHERE user_email = :owner")->execute([':owner' => $owner]);
     }
     $pdo->prepare('DELETE FROM geo_immich_connections WHERE user_email = :owner')->execute([':owner' => $owner]);
@@ -54,6 +54,9 @@ try {
     $p2 = StepsGeolocationImmich::uuid();
     $point->execute([':id' => $p1, ':owner' => $owner, ':device' => $device, ':event' => StepsGeolocationImmich::uuid(), ':at' => '2026-10-01T10:00:00Z', ':lon' => 30.5234, ':lat' => 50.4501]);
     $point->execute([':id' => $p2, ':owner' => $owner, ':device' => $device, ':event' => StepsGeolocationImmich::uuid(), ':at' => '2026-10-01T10:05:00Z', ':lon' => 30.5235, ':lat' => 50.4502]);
+    $trip = StepsGeolocationImmich::uuid();
+    $pdo->prepare("INSERT INTO geo_trips(id, user_email, started_at, ended_at, geometry, distance_m, state, boundary_reason, processor_version) VALUES(:id, :owner, '2026-10-01T09:55:00Z', '2026-10-01T10:10:00Z', ST_SetSRID(ST_GeomFromText('LINESTRING(30.5230 50.4500, 30.5240 50.4505)'), 4326), 120, 'ready', 'first_point', 'trips-1')")
+        ->execute([':id' => $trip, ':owner' => $owner]);
 
     $url = 'http://127.0.0.1:' . $port;
     $connection = StepsGeolocationImmich::configure($pdo, $owner, $url, 'test-api-key', ['time_tolerance_s' => 120, 'distance_tolerance_m' => 100]);

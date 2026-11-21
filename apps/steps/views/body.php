@@ -789,29 +789,38 @@ $metricButtons = [
                                 const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
                                 const photoCard=photoPopupCard(p);
                                 const cachedThumb=p.thumbnail?photoThumbReady.get(String(p.thumbnail)):null;
-                                const ringClass=cachedThumb?'map-photo-marker-ring is-ready has-thumb':'map-photo-marker-ring is-loading';
-                                const ringStyle='width:'+size+'px;height:'+size+'px'+(cachedThumb?';--photo-thumb:url('+JSON.stringify(String(cachedThumb))+')':'');
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="'+ringClass+'" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span>'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                const ringClass=cachedThumb?'map-photo-marker-ring is-ready':'map-photo-marker-ring is-loading';
+                                const ringStyle='width:'+size+'px;height:'+size+'px';
+                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="'+ringClass+'" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span><img alt="" decoding="async">'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
                                 photoMarker.bindPopup(photoCard,{maxWidth:280,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
                                 photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
                                 const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
-                                if(ring && p.thumbnail && !cachedThumb){
-                                    const fill=()=>{
-                                        if(ring.dataset.filled) return;
-                                        ring.dataset.filled='1';
-                                        loadPhotoThumb(p.thumbnail).then(loaded=>{
-                                            ring.style.setProperty('--photo-thumb','url('+JSON.stringify(String(loaded.src))+')');
-                                            ring.classList.add('is-ready','has-thumb');
-                                            ring.classList.remove('is-loading');
-                                        }).catch(()=>{ ring.classList.remove('is-loading'); ring.classList.add('is-ready'); });
+                                const ringImg=ring&&ring.querySelector('img');
+                                if(ring && ringImg && p.thumbnail){
+                                    const applyThumb=(src)=>{
+                                        ringImg.src=src;
+                                        ringImg.classList.add('is-ready');
+                                        ring.classList.add('is-ready');
+                                        ring.classList.remove('is-loading');
                                     };
-                                    if('IntersectionObserver' in window){
-                                        const io=new IntersectionObserver((entries)=>{
-                                            if(entries.some(e=>e.isIntersecting)){ io.disconnect(); fill(); }
-                                        },{root:null,rootMargin:'120px',threshold:0.01});
-                                        const el=photoMarker.getElement();
-                                        if(el) io.observe(el); else fill();
-                                    } else fill();
+                                    if(cachedThumb){
+                                        applyThumb(cachedThumb);
+                                    } else {
+                                        const fill=()=>{
+                                            if(ringImg.dataset.filled) return;
+                                            ringImg.dataset.filled='1';
+                                            loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                                applyThumb(loaded.src);
+                                            }).catch(()=>{ ring.classList.remove('is-loading'); ring.classList.add('is-ready'); });
+                                        };
+                                        if('IntersectionObserver' in window){
+                                            const io=new IntersectionObserver((entries)=>{
+                                                if(entries.some(e=>e.isIntersecting)){ io.disconnect(); fill(); }
+                                            },{root:null,rootMargin:'160px',threshold:0.01});
+                                            const el=photoMarker.getElement();
+                                            if(el) io.observe(el); else fill();
+                                        } else fill();
+                                    }
                                 }
                             } else if(p.layer==='visit'){
                                 const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;

@@ -448,32 +448,155 @@ final class StepsGeolocationImmich
         return ['body' => $response['body'], 'mime' => $mime, 'cached' => false];
     }
 
+    /**
+     * Map photo markers: keep only assets near trip routes
+     * (50 m in urban areas, 100 m elsewhere) and grid-cluster them.
+     */
     public static function mapClusters(PDO $pdo, string $owner, array $bbox, string $from, string $to, int $zoom, int $limit = 60): array
     {
         $connection = self::connection($pdo, $owner);
         if ($connection === null || $connection['state'] !== 'active') return [];
         $zoom = max(1, min(22, $zoom));
-        if ($zoom < 11) $limit = min($limit, 18);
-        elseif ($zoom < 14) $limit = min($limit, 36);
-        else $limit = min($limit, 60);
-        $precision = max(1, min(6, 7 - (int)floor($zoom / 3)));
-        $divisor = $zoom < 12 ? 8 : ($zoom < 15 ? 14 : 20);
-        $cell = max(0.0008, round(360.0 / (2 ** max(1, min(20, $zoom))) / $divisor, 6));
+        if ($zoom < 11) $limit = min($limit, 12);
+        elseif ($zoom < 13) $limit = min($limit, 20);
+        elseif ($zoom < 15) $limit = min($limit, 32);
+        else $limit = min($limit, 48);
+        $precision = max(1, min(5, 6 - (int)floor($zoom / 4)));
+        // Larger cells at low zoom so dense areas collapse into countable groups.
+        if ($zoom <= 11) $cell = 0.04;
+        elseif ($zoom <= 12) $cell = 0.02;
+        elseif ($zoom <= 13) $cell = 0.01;
+        elseif ($zoom <= 14) $cell = 0.005;
+        elseif ($zoom <= 16) $cell = 0.0025;
+        else $cell = 0.0012;
         $stmt = $pdo->prepare(
-            "SELECT COUNT(*) AS total, round(ST_Y(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lat,
+            "WITH envelope AS (
+                SELECT ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326) AS g
+             ),
+             route_photos AS (
+                SELECT a.id, a.immich_asset_id, a.original_filename, a.captured_at, a.position
+                  FROM geo_immich_assets a
+                  CROSS JOIN envelope e
+                 WHERE a.user_email = :owner AND a.state = 'matched' AND a.deleted_at IS NULL AND a.position IS NOT NULL
+                   AND a.position && e.g
+                   AND a.captured_at BETWEEN :from AND :to
+                   AND EXISTS (
+                     SELECT 1 FROM geo_trips t
+                      WHERE t.user_email = a.user_email AND t.deleted_at IS NULL AND t.geometry IS NOT NULL
+                        AND COALESCE(t.geometry_visible, true) = true
+                        AND t.geometry && ST_Expand(a.position, 0.002)
+                        AND a.captured_at BETWEEN (t.started_at - interval '30 minutes') AND (t.ended_at + interval '30 minutes')
+                        AND ST_DWithin(
+                              a.position::geography,
+                              t.geometry::geography,
+                              CASE
+                                WHEN EXISTS (
+                                  SELECT 1 FROM geo_places p2
+                                   WHERE p2.user_email = a.user_email AND p2.deleted_at IS NULL
+                                     AND ST_DWithin(a.position::geography, p2.position::geography, GREATEST(COALESCE(p2.radius_m, 0)::float, 250))
+                                ) THEN 50
+                                WHEN EXISTS (
+                                  SELECT 1 FROM geo_boundary_areas b2
+                                   WHERE lower(b2.kind) IN ('city','town','urban','municipality','place')
+                                     AND ST_Intersects(b2.geometry, a.position)
+                                ) THEN 50
+                                WHEN (
+                                  SELECT COUNT(*) FROM geo_location_points lp2
+                                   WHERE lp2.user_email = a.user_email AND lp2.quality_state <> 'rejected'
+                                     AND lp2.position && ST_Expand(a.position, 0.002)
+                                     AND ST_DWithin(lp2.position::geography, a.position::geography, 200)
+                                ) >= 35 THEN 50
+                                ELSE 100
+                              END
+                            )
+                   )
+             )
+             SELECT COUNT(*) AS total,
+                    round(ST_Y(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lat,
                     round(ST_X(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lon,
                     (array_agg(id ORDER BY captured_at DESC))[1] AS asset_id,
                     (array_agg(immich_asset_id ORDER BY captured_at DESC))[1] AS immich_asset_id,
                     (array_agg(original_filename ORDER BY captured_at DESC))[1] AS original_filename,
                     (array_agg(captured_at ORDER BY captured_at DESC))[1] AS captured_at
-               FROM geo_immich_assets
-              WHERE user_email = :owner AND state = 'matched' AND deleted_at IS NULL AND position IS NOT NULL
-                AND position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
-                AND captured_at BETWEEN :from AND :to
-           GROUP BY ST_SnapToGrid(position, $cell) ORDER BY total DESC LIMIT $limit"
+               FROM route_photos
+           GROUP BY ST_SnapToGrid(position, $cell)
+           ORDER BY total DESC
+              LIMIT $limit"
         );
-        $stmt->execute([':owner' => $owner, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat'], ':from' => $from, ':to' => $to]);
-        return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt->execute([
+                ':owner' => $owner,
+                ':minLon' => $bbox['minLon'],
+                ':minLat' => $bbox['minLat'],
+                ':maxLon' => $bbox['maxLon'],
+                ':maxLat' => $bbox['maxLat'],
+                ':from' => $from,
+                ':to' => $to,
+            ]);
+            return $stmt->fetchAll(PDO::FETCH_ASSOC);
+        } catch (Throwable $e) {
+            // Older DBs without boundary tables: keep route filter via places/density only.
+            error_log('mapClusters route filter: ' . $e->getMessage());
+            $fallback = $pdo->prepare(
+                "WITH envelope AS (
+                    SELECT ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326) AS g
+                 ),
+                 route_photos AS (
+                    SELECT a.id, a.immich_asset_id, a.original_filename, a.captured_at, a.position
+                      FROM geo_immich_assets a
+                      CROSS JOIN envelope e
+                     WHERE a.user_email = :owner AND a.state = 'matched' AND a.deleted_at IS NULL AND a.position IS NOT NULL
+                       AND a.position && e.g
+                       AND a.captured_at BETWEEN :from AND :to
+                       AND EXISTS (
+                         SELECT 1 FROM geo_trips t
+                          WHERE t.user_email = a.user_email AND t.deleted_at IS NULL AND t.geometry IS NOT NULL
+                            AND COALESCE(t.geometry_visible, true) = true
+                            AND t.geometry && ST_Expand(a.position, 0.002)
+                            AND a.captured_at BETWEEN (t.started_at - interval '30 minutes') AND (t.ended_at + interval '30 minutes')
+                            AND ST_DWithin(
+                                  a.position::geography,
+                                  t.geometry::geography,
+                                  CASE
+                                    WHEN EXISTS (
+                                      SELECT 1 FROM geo_places p2
+                                       WHERE p2.user_email = a.user_email AND p2.deleted_at IS NULL
+                                         AND ST_DWithin(a.position::geography, p2.position::geography, GREATEST(COALESCE(p2.radius_m, 0)::float, 250))
+                                    ) THEN 50
+                                    WHEN (
+                                      SELECT COUNT(*) FROM geo_location_points lp2
+                                       WHERE lp2.user_email = a.user_email AND lp2.quality_state <> 'rejected'
+                                         AND lp2.position && ST_Expand(a.position, 0.002)
+                                         AND ST_DWithin(lp2.position::geography, a.position::geography, 200)
+                                    ) >= 35 THEN 50
+                                    ELSE 100
+                                  END
+                                )
+                       )
+                 )
+                 SELECT COUNT(*) AS total,
+                        round(ST_Y(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lat,
+                        round(ST_X(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lon,
+                        (array_agg(id ORDER BY captured_at DESC))[1] AS asset_id,
+                        (array_agg(immich_asset_id ORDER BY captured_at DESC))[1] AS immich_asset_id,
+                        (array_agg(original_filename ORDER BY captured_at DESC))[1] AS original_filename,
+                        (array_agg(captured_at ORDER BY captured_at DESC))[1] AS captured_at
+                   FROM route_photos
+               GROUP BY ST_SnapToGrid(position, $cell)
+               ORDER BY total DESC
+                  LIMIT $limit"
+            );
+            $fallback->execute([
+                ':owner' => $owner,
+                ':minLon' => $bbox['minLon'],
+                ':minLat' => $bbox['minLat'],
+                ':maxLon' => $bbox['maxLon'],
+                ':maxLat' => $bbox['maxLat'],
+                ':from' => $from,
+                ':to' => $to,
+            ]);
+            return $fallback->fetchAll(PDO::FETCH_ASSOC);
+        }
     }
 
     public static function timelinePhotos(PDO $pdo, string $owner, string $from, string $to, int $limit = 30): array
