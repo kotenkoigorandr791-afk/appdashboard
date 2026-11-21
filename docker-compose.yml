@@ -139,7 +139,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        APP_VERSION: ${APP_VERSION:-1.10.10}
+        APP_VERSION: ${APP_VERSION:-1.10.11}
         APP_GIT_COMMIT: ${APP_GIT_COMMIT:-}
         APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
@@ -178,7 +178,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
-      APP_VERSION: "${APP_VERSION:-1.10.10}"
+      APP_VERSION: "${APP_VERSION:-1.10.11}"
       # Single source of truth for public hostnames. Entrypoint derives ai./search./git./...
       BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
       APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"
