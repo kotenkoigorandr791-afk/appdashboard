@@ -627,58 +627,93 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
         onDispose { liveProvider.stop() }
     }
 
-    // Overlays are rebuilt only when the day data or the enabled layers change.
+    // Paint on every data/layer change. Photo network fetch uses a stable key so
+    // the ~10s map poll does not cancel in-flight Immich/place downloads.
+    fun paintOverlays(fit: Boolean) {
+        rebuildOverlays(mapView, data, layers, darkTheme, prefs, config)
+        mapView.overlays.remove(roadsOverlay)
+        mapView.overlays.remove(labelsOverlay)
+        if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
+        val box = data.bbox
+        if (fit && !restoringCamera && !followState.value && !data.isEmpty && box != null && fittedDay != selectedDay) {
+            fittedDay = selectedDay
+            fitBoundingBox(mapView, box)
+        }
+    }
     LaunchedEffect(data, layers, resolvedStyle, darkTheme, config?.url) {
-        val active = config
-        fun paint(fit: Boolean) {
-            rebuildOverlays(mapView, data, layers, darkTheme, prefs, active)
-            mapView.overlays.remove(roadsOverlay)
-            mapView.overlays.remove(labelsOverlay)
-            if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
-            val box = data.bbox
-            if (fit && !restoringCamera && !followState.value && !data.isEmpty && box != null && fittedDay != selectedDay) {
-                fittedDay = selectedDay
-                fitBoundingBox(mapView, box)
+        paintOverlays(fit = true)
+    }
+    val placePhotoKeys = remember(data, layers) {
+        if (GeoLayer.PLACES.key !in layers) emptyList()
+        else data.points.asSequence()
+            .filter { it.layer == "visit" || it.layer == "place" }
+            .mapNotNull { f ->
+                when {
+                    !f.osmType.isNullOrBlank() && f.osmId != null -> "${f.osmType}:${f.osmId}"
+                    !f.photoUrl.isNullOrBlank() -> "url:${f.photoUrl}"
+                    else -> null
+                }
             }
-        }
-        paint(fit = true)
-        if (active != null && GeoLayer.PLACES.key in layers) {
-            val placeFeatures = data.points.filter {
-                (it.layer == "visit" || it.layer == "place") &&
-                    ((!it.osmType.isNullOrBlank() && it.osmId != null) || !it.photoUrl.isNullOrBlank())
-            }
-            var loaded = 0
-            kotlinx.coroutines.coroutineScope {
-                placeFeatures.map { feature ->
+            .sorted()
+            .toList()
+    }
+    val immichPhotoKeys = remember(data, layers) {
+        if (GeoLayer.PHOTOS.key !in layers) emptyList()
+        else data.points.asSequence()
+            .filter { it.layer == "photo_cluster" && !it.assetId.isNullOrBlank() }
+            .map { it.assetId!! }
+            .sorted()
+            .toList()
+    }
+    LaunchedEffect(placePhotoKeys, immichPhotoKeys, config?.url) {
+        val active = config ?: return@LaunchedEffect
+        if (placePhotoKeys.isEmpty() && immichPhotoKeys.isEmpty()) return@LaunchedEffect
+        val gate = kotlinx.coroutines.sync.Semaphore(6)
+        var loaded = 0
+        kotlinx.coroutines.coroutineScope {
+            if (GeoLayer.PLACES.key in layers) {
+                data.points.filter {
+                    (it.layer == "visit" || it.layer == "place") &&
+                        ((!it.osmType.isNullOrBlank() && it.osmId != null) || !it.photoUrl.isNullOrBlank())
+                }.forEach { feature ->
                     launch(Dispatchers.IO) {
-                        val bitmap = PlacePhotoCache.ensureFeature(
-                            context, prefs, active, feature.osmType, feature.osmId, feature.photoUrl,
-                        )
-                        if (bitmap != null) {
-                            withContext(Dispatchers.Main) {
-                                loaded++
-                                if (loaded == 1 || loaded % 4 == 0 || loaded == placeFeatures.size) paint(fit = false)
+                        gate.acquire()
+                        try {
+                            val bitmap = PlacePhotoCache.ensureFeature(
+                                context, prefs, active, feature.osmType, feature.osmId, feature.photoUrl,
+                            )
+                            if (bitmap != null) {
+                                withContext(Dispatchers.Main) {
+                                    loaded++
+                                    if (loaded == 1 || loaded % 3 == 0) paintOverlays(fit = false)
+                                }
                             }
+                        } finally {
+                            gate.release()
                         }
                     }
-                }.forEach { it.join() }
+                }
             }
-            paint(fit = false)
-        }
-        if (active != null && GeoLayer.PHOTOS.key in layers) {
-            val photoFeatures = data.points.filter { it.layer == "photo_cluster" && !it.assetId.isNullOrBlank() }
-            kotlinx.coroutines.coroutineScope {
-                photoFeatures.map { feature ->
+            if (GeoLayer.PHOTOS.key in layers) {
+                data.points.filter { it.layer == "photo_cluster" && !it.assetId.isNullOrBlank() }.forEach { feature ->
                     launch(Dispatchers.IO) {
-                        val bitmap = PlacePhotoCache.ensureImmich(context, prefs, active, feature.assetId!!)
-                        if (bitmap != null) {
-                            withContext(Dispatchers.Main) { paint(fit = false) }
+                        gate.acquire()
+                        try {
+                            val bitmap = PlacePhotoCache.ensureImmich(context, prefs, active, feature.assetId!!)
+                            if (bitmap != null) {
+                                withContext(Dispatchers.Main) {
+                                    loaded++
+                                    if (loaded == 1 || loaded % 3 == 0) paintOverlays(fit = false)
+                                }
+                            }
+                        } finally {
+                            gate.release()
                         }
                     }
-                }.forEach { it.join() }
+                }
             }
-            paint(fit = false)
         }
+        paintOverlays(fit = false)
     }
 
     fun locate() {
@@ -1252,7 +1287,7 @@ internal class PhotoInfoWindow(
                 }
             }
         }
-        val cached = feature?.assetId?.let { PlacePhotoCache.memoryGet(PlacePhotoCache.immichKey(it)) }
+        val cached = feature?.assetId?.let { PlacePhotoCache.memoryOrDisk(mView.context, PlacePhotoCache.immichKey(it)) }
         if (cached != null) {
             fitBitmap(cached)
         } else {
@@ -1522,9 +1557,9 @@ internal fun rebuildOverlays(
             val photo = if (featureLayer == "visit" || featureLayer == "place") {
                 when {
                     feature.osmType != null && feature.osmId != null ->
-                        PlacePhotoCache.memoryGet(PlacePhotoCache.key(feature.osmType, feature.osmId))
+                        PlacePhotoCache.memoryOrDisk(mapView.context, PlacePhotoCache.key(feature.osmType, feature.osmId))
                     !feature.photoUrl.isNullOrBlank() ->
-                        PlacePhotoCache.memoryGet("url:${feature.photoUrl.hashCode()}")
+                        PlacePhotoCache.memoryOrDisk(mapView.context, "url:${feature.photoUrl.hashCode()}")
                     else -> null
                 }
             } else null
@@ -1590,7 +1625,7 @@ internal fun rebuildOverlays(
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            val cached = feature.assetId?.let { PlacePhotoCache.memoryGet(PlacePhotoCache.immichKey(it)) }
+            val cached = feature.assetId?.let { PlacePhotoCache.memoryOrDisk(mapView.context, PlacePhotoCache.immichKey(it)) }
             val size = (36 * density).toInt().coerceIn(48, 80)
             marker.icon = if (cached != null) {
                 android.graphics.drawable.BitmapDrawable(

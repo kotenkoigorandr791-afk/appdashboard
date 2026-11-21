@@ -443,7 +443,8 @@ final class StepsGeolocationMap
                 foreach ($groups as $key => $row) {
                     $name = (string)($row['display_name'] !== '' ? $row['display_name'] : ($row['place_name'] ?? ''));
                     $photoUrl = null;
-                    if (($row['photo_status'] ?? '') === 'ready' && $row['osm_id'] !== null && $row['osm_type']) {
+                    if (($row['photo_status'] ?? '') === 'ready' && $row['osm_id'] !== null && $row['osm_type']
+                        && StepsGeolocationPlacePhotos::isReadyOnDisk((string)$row['osm_type'], (int)$row['osm_id'])) {
                         $photoUrl = StepsGeolocationPlacePhotos::publicUrl((string)$row['osm_type'], (int)$row['osm_id']);
                     }
                     $features[] = [

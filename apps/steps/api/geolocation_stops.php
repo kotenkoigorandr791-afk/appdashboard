@@ -67,7 +67,8 @@ if ($method === 'GET') {
         $row['candidates'] = $byVisit[$row['id']] ?? [];
         $row['duration_s'] = (int)$row['duration_s'];
         $row['photo_url'] = null;
-        if (($row['photo_status'] ?? '') === 'ready' && $row['osm_type'] && $row['osm_id'] !== null) {
+        if (($row['photo_status'] ?? '') === 'ready' && $row['osm_type'] && $row['osm_id'] !== null
+            && StepsGeolocationPlacePhotos::isReadyOnDisk((string)$row['osm_type'], (int)$row['osm_id'])) {
             // Cookie session (web) needs session_gateway; Bearer clients still
             // accept the same path via gateway when opened in WebView with cookies,
             // and Android loads bytes through the authenticated API client separately.

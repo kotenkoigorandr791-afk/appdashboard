@@ -638,7 +638,7 @@ $metricButtons = [
                     }
                     const photoThumbQueue=[];
                     let photoThumbActive=0;
-                    const PHOTO_THUMB_MAX=3;
+                    const PHOTO_THUMB_MAX=8;
                     const photoThumbReady=new Map();
                     const photoThumbInflight=new Map();
                     function enqueuePhotoThumb(loader){
@@ -659,13 +659,22 @@ $metricButtons = [
                         if(!key) return Promise.reject(new Error('thumb_missing'));
                         if(photoThumbReady.has(key)) return Promise.resolve({src:photoThumbReady.get(key)});
                         if(photoThumbInflight.has(key)) return photoThumbInflight.get(key);
-                        const pending=enqueuePhotoThumb(()=>new Promise((resolve,reject)=>{
-                            const img=new Image();
-                            img.decoding='async';
-                            img.onload=()=>{ photoThumbReady.set(key,img.src); resolve(img); };
-                            img.onerror=()=>reject(new Error('thumb_failed'));
-                            img.src=key;
-                        })).finally(()=>{ photoThumbInflight.delete(key); });
+                        // fetch+blob survives marker rebuilds better than Image()+IntersectionObserver:
+                        // map poll/clearLayers used to drop in-flight <img> loads mid-flight.
+                        const pending=enqueuePhotoThumb(()=>fetch(key,{credentials:'same-origin',cache:'force-cache'})
+                            .then(res=>{
+                                if(!res.ok) throw new Error('thumb_http_'+res.status);
+                                const ctype=String(res.headers.get('content-type')||'');
+                                if(ctype && !ctype.startsWith('image/')) throw new Error('thumb_not_image');
+                                return res.blob();
+                            })
+                            .then(blob=>{
+                                if(!blob||!String(blob.type||'').startsWith('image/')) throw new Error('thumb_bad_blob');
+                                const src=URL.createObjectURL(blob);
+                                photoThumbReady.set(key,src);
+                                return {src};
+                            })
+                        ).finally(()=>{ photoThumbInflight.delete(key); });
                         photoThumbInflight.set(key,pending);
                         return pending;
                     }
@@ -823,6 +832,7 @@ $metricButtons = [
                         const ringImg=ring&&ring.querySelector('img');
                         if(ring && ringImg && p.thumbnail){
                             const applyThumb=(src)=>{
+                                if(!src||!ringImg.isConnected) return;
                                 ringImg.src=src;
                                 ringImg.classList.add('is-ready');
                                 ring.classList.add('is-ready');
@@ -831,20 +841,11 @@ $metricButtons = [
                             if(cachedThumb){
                                 applyThumb(cachedThumb);
                             } else {
-                                const fill=()=>{
-                                    if(ringImg.dataset.filled) return;
-                                    ringImg.dataset.filled='1';
-                                    loadPhotoThumb(p.thumbnail).then(loaded=>{
-                                        applyThumb(loaded.src);
-                                    }).catch(()=>{ ring.classList.remove('is-loading'); ring.classList.add('is-ready'); });
-                                };
-                                if('IntersectionObserver' in window){
-                                    const io=new IntersectionObserver((entries)=>{
-                                        if(entries.some(e=>e.isIntersecting)){ io.disconnect(); fill(); }
-                                    },{root:null,rootMargin:'160px',threshold:0.01});
-                                    const el=photoMarker.getElement();
-                                    if(el) io.observe(el); else fill();
-                                } else fill();
+                                // Always start immediately — IO missed Leaflet marker
+                                // panes and left amber camera placeholders forever.
+                                loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                    applyThumb(loaded.src);
+                                }).catch(()=>{ if(ring.isConnected) ring.classList.remove('is-loading'); });
                             }
                         }
                         return photoMarker;
@@ -1319,7 +1320,7 @@ $metricButtons = [
                         const serverStops=Number(server.stops)||0, serverClusters=Number(server.point_clusters)||0;
                         const stops=(serverStops+serverClusters)>0?serverStops+serverClusters:derived.stops;
                         const placesCount=(count('places')||0)+(count('visits')||0);
-                        summary.textContent=t.summary.replace('{trips}',count('trips')).replace('{stops}',stops).replace('{places}',placesCount).replace('{points}',count('points'));
+                        summary.textContent=t.summary.replace('{trips}',count('trips')).replace('{stops}',stops).replace('{places}',count('places')).replace('{visits}',count('visits')).replace('{points}',count('points'));
                         if(!data.geojson.features.length) summary.textContent=t.empty;
                     }
                     function clearPrefetchQueue(abortRequests){

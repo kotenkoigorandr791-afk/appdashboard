@@ -3868,6 +3868,10 @@ height: 48px;
 .map-hud h3 i { color: #38bdf8; }
 .map-hud p {
     margin: 0;
+    white-space: nowrap;
+    max-width: 100%;
+    overflow: hidden;
+    text-overflow: ellipsis;
     padding: 8px 12px;
     border-radius: 12px;
     max-width: 100%;

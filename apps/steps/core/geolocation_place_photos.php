@@ -72,6 +72,11 @@ final class StepsGeolocationPlacePhotos
         return null;
     }
 
+    public static function isReadyOnDisk(string $osmType, int $osmId): bool
+    {
+        return self::existingPhotoPath($osmType, $osmId) !== null;
+    }
+
     public static function publicUrl(string $osmType, int $osmId): string
     {
         return '/apps/steps/api/session_gateway.php?endpoint=geolocation_place_photo&osm_type='
@@ -777,6 +782,12 @@ final class StepsGeolocationPlacePhotos
     {
         $path = self::existingPhotoPath($osmType, $osmId);
         if ($path === null) {
+            try {
+                $pdo = app_main_db()->getPdo();
+                self::requestRefresh($pdo, $osmType, $osmId);
+            } catch (Throwable $e) {
+                // best-effort requeue when DB says ready but the file vanished
+            }
             http_response_code(404);
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['ok' => false, 'error' => 'not_found']);

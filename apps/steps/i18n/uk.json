@@ -455,7 +455,7 @@
   "map_show_panel": "Показати панель",
   "map_smooth_title": "Згладжений маршрут",
   "map_source_title": "Джерело та тайли",
-  "map_summary": "Поїздки: {trips} · Зупинки: {stops} · Місця: {places} · Точки: {points}",
+  "map_summary": "Поїздки: {trips} · Зупинки: {stops} · Місця: {places} · Візити: {visits} · Точки: {points}",
   "map_title": "Карта локацій",
   "map_to": "По",
   "map_today": "Сьогодні",

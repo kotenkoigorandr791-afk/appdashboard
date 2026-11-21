@@ -32,6 +32,19 @@ object PlacePhotoCache {
     fun diskFile(context: Context, key: String): File =
         File(context.cacheDir, "place_photos/${key.replace(':', '_').replace('/', '_')}.bin")
 
+    /** Sync disk→memory for overlay rebuilds (map poll must not wait on network). */
+    fun memoryOrDisk(context: Context, key: String): Bitmap? {
+        memory[key]?.let { return it }
+        val file = diskFile(context, key)
+        if (!file.exists() || file.length() <= 32) return null
+        val bytes = runCatching { file.readBytes() }.getOrNull() ?: return null
+        if (!isImageMagic(bytes)) {
+            runCatching { file.delete() }
+            return null
+        }
+        return BitmapFactory.decodeByteArray(bytes, 0, bytes.size)?.also { memory[key] = it }
+    }
+
     fun resolveUrl(config: WebhookConfig, osmType: String, osmId: Long): String =
         GeoMapRepository.apiBase(config).trimEnd('/') + "/geolocation_place_photo?osm_type=$osmType&osm_id=$osmId"
 
