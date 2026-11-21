@@ -674,7 +674,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 item {
                     HealthPermissionsScreen(
                         grantedPermissionsSet = grantedPermissions,
-                        onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
+                        onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(HealthDataType.values().toSet())) },
                         modifier = Modifier.fillMaxWidth().height(780.dp),
                     )
                 }
