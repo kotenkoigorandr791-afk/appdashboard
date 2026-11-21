@@ -22,11 +22,12 @@
     return null;
   }
 
-  function iframeSrc(folder) {
+  function iframeSrc(folder, opts) {
     var path = 'apps/' + encodeURIComponent(folder) + '/' + (folder === 'lopaka' ? '' : 'index.php');
     var activeTheme = document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : (document.body.classList.contains('light-theme') || document.body.classList.contains('theme-light') ? 'light' : theme);
     var q = 'lang=' + encodeURIComponent(lang) + '&theme=' + encodeURIComponent(activeTheme) + '&color=' + encodeURIComponent(color);
     if (userData) q += '&user_data=' + encodeURIComponent(userData);
+    if (opts && opts.asset) q += '&asset=' + encodeURIComponent(String(opts.asset));
     var routeHash = folder === 'smart_home' && /^#smart_home\/(home|devices|groups|statistics|errors|map|settings)$/.test(window.location.hash)
       ? window.location.hash : '';
     return path + '?' + q + routeHash;
@@ -245,10 +246,13 @@
     setTimeout(finish, 45000);
   }
 
-  function showApp(folder, push) {
+  function showApp(folder, push, opts) {
+    opts = opts || {};
     var app = byFolder(folder);
     if (!app) {
-      window.location.href = '/main?app=' + encodeURIComponent(folder);
+      var fallback = '/main?app=' + encodeURIComponent(folder);
+      if (opts.asset) fallback += '&asset=' + encodeURIComponent(String(opts.asset));
+      window.location.href = fallback;
       return;
     }
     var content = document.getElementById('content');
@@ -284,8 +288,8 @@
     mountAppChrome();
     setMenuVars(app);
     if (iframe) {
-      var next = iframeSrc(folder);
-      var needLoad = iframe.getAttribute('src') !== next;
+      var next = iframeSrc(folder, opts);
+      var needLoad = iframe.getAttribute('src') !== next || !!opts.asset;
       iframe.title = 'Application: ' + folder;
       if (needLoad) {
         var token = ++loadGen;
@@ -299,8 +303,9 @@
     var appTitle = (i18n.app || 'App') + ' | ' + (app.name || folder);
     document.title = appTitle;
     var url = new URL(app.href, window.location.origin);
+    if (opts.asset) url.searchParams.set('asset', String(opts.asset));
     if (push !== false) {
-      history.pushState({ shellApp: folder }, appTitle, url.pathname + url.search);
+      history.pushState({ shellApp: folder, asset: opts.asset || null }, appTitle, url.pathname + url.search);
     }
     try {
       fetch('/main?app=' + encodeURIComponent(folder) + '&_visit=1', { method: 'GET', credentials: 'same-origin', keepalive: true }).catch(function () {});
@@ -409,9 +414,11 @@
     ensureAppShell();
     mountAppChrome();
     setMenuVars(byFolder(currentFolder));
+    var bootAsset = new URL(window.location.href).searchParams.get('asset') || '';
     var initialFrame = document.getElementById('app-iframe');
     var initialApp = byFolder(currentFolder);
-    var initialFrameSrc = iframeSrc(currentFolder);
+    var initialOpts = bootAsset ? { asset: bootAsset } : {};
+    var initialFrameSrc = iframeSrc(currentFolder, initialOpts);
     var token = ++loadGen;
     showAppLoading(initialApp || { name: currentFolder, folder: currentFolder });
     if (initialFrame) {
@@ -423,7 +430,7 @@
     document.body.classList.add('shell-app-open');
     document.body.classList.remove('shell-home');
     document.body.classList.toggle('shell-local-app', !(initialApp && initialApp.app_rail));
-    history.replaceState({ shellApp: currentFolder }, document.title, window.location.href);
+    history.replaceState({ shellApp: currentFolder, asset: bootAsset || null }, document.title, window.location.href);
   } else if (document.getElementById('app-grid')) {
     document.body.classList.add('shell-home');
     history.replaceState({ shellApp: null }, document.title, window.location.href);

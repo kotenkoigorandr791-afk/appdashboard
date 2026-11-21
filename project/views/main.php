@@ -4436,8 +4436,10 @@ window.__SHELL_I18N=<?php echo json_encode([
         <?php
         $appIframeTheme = ($selectedApp === 'kanboard' && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true)) ? 'auto' : $bootThemeResolved;
         $appIframeBootDefer = $showAppFrame && in_array((string)($config['theme'] ?? ''), ['auto', 'device'], true) && $selectedApp !== 'kanboard';
+        $appIframeAsset = trim((string)($_GET['asset'] ?? ''));
+        $appIframeAssetOk = (bool)preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $appIframeAsset);
         $appIframeSrc = $showAppFrame
-            ? 'apps/'.urlencode($selectedApp).'/'.($selectedApp === 'lopaka' ? '' : 'index.php').'?lang='.urlencode($language).'&theme='.urlencode($appIframeTheme).'&color='.urlencode($config['color']).($userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):'')
+            ? 'apps/'.urlencode($selectedApp).'/'.($selectedApp === 'lopaka' ? '' : 'index.php').'?lang='.urlencode($language).'&theme='.urlencode($appIframeTheme).'&color='.urlencode($config['color']).($userDataForApps?'&user_data='.urlencode(base64_encode(json_encode($userDataForApps))):'').($appIframeAssetOk?'&asset='.urlencode($appIframeAsset):'')
             : 'about:blank';
         ?>
         <div id="app-icon-rail"<?php echo $showAppRail ? '' : ' class="hidden" style="display:none"'; ?>>

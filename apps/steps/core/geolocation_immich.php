@@ -98,6 +98,48 @@ final class StepsGeolocationImmich
             ->execute([':id' => self::uuid(), ':owner' => $owner, ':actor' => $actor, ':event' => $event, ':context' => json_encode($context, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)]);
     }
 
+    /** Prefer the compose-internal Immich URL for server-side fetches (no Cloudflare hairpin). */
+    public static function requestBaseUrl(string $storedUrl = ''): string
+    {
+        $internal = rtrim(trim((string)getenv('IMMICH_INTERNAL_URL')), '/');
+        if ($internal !== '' && preg_match('#^https?://#i', $internal)) return $internal;
+        return rtrim(trim($storedUrl), '/');
+    }
+
+    private static function thumbCacheDir(string $owner): string
+    {
+        $base = rtrim((string)(getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData'), '/');
+        return $base . '/steps/immich-thumbs/' . substr(hash('sha256', strtolower($owner)), 0, 32);
+    }
+
+    private static function thumbCachePaths(string $owner, string $assetId, string $size): array
+    {
+        $dir = self::thumbCacheDir($owner);
+        $key = preg_replace('/[^a-f0-9-]/i', '', $assetId) . '-' . ($size === 'preview' ? 'preview' : 'thumb');
+        return ['dir' => $dir, 'bin' => $dir . '/' . $key . '.bin', 'meta' => $dir . '/' . $key . '.json'];
+    }
+
+    private static function readThumbCache(string $owner, string $assetId, string $size): ?array
+    {
+        $paths = self::thumbCachePaths($owner, $assetId, $size);
+        if (!is_file($paths['bin']) || !is_file($paths['meta'])) return null;
+        if (filemtime($paths['bin']) < time() - 86400 * 7) return null;
+        $meta = json_decode((string)@file_get_contents($paths['meta']), true);
+        $body = @file_get_contents($paths['bin']);
+        if (!is_array($meta) || $body === false || $body === '') return null;
+        return ['body' => $body, 'mime' => (string)($meta['mime'] ?? 'image/jpeg'), 'cached' => true];
+    }
+
+    private static function writeThumbCache(string $owner, string $assetId, string $size, string $body, string $mime): void
+    {
+        $paths = self::thumbCachePaths($owner, $assetId, $size);
+        if (!is_dir($paths['dir'])) {
+            @mkdir($paths['dir'], 0775, true);
+        }
+        @file_put_contents($paths['bin'], $body);
+        @file_put_contents($paths['meta'], json_encode(['mime' => $mime, 'saved_at' => gmdate('c')], JSON_UNESCAPED_SLASHES));
+    }
+
     private static function http(string $method, string $url, string $apiKey, ?array $json = null, int $maxBytes = 5242880): array
     {
         if (!function_exists('curl_init')) throw new StepsGeolocationImmichError('immich_http_unavailable', 500);
@@ -108,6 +150,7 @@ final class StepsGeolocationImmich
             $body = json_encode($json, JSON_UNESCAPED_SLASHES);
             $headers[] = 'Content-Type: application/json';
         }
+        $secure = str_starts_with(strtolower($url), 'https://');
         curl_setopt_array($ch, [
             CURLOPT_CUSTOMREQUEST => $method,
             CURLOPT_RETURNTRANSFER => true,
@@ -116,8 +159,8 @@ final class StepsGeolocationImmich
             CURLOPT_TIMEOUT => 20,
             CURLOPT_MAXFILESIZE => $maxBytes,
             CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
+            CURLOPT_SSL_VERIFYPEER => $secure,
+            CURLOPT_SSL_VERIFYHOST => $secure ? 2 : 0,
             CURLOPT_POSTFIELDS => $body,
         ]);
         $response = curl_exec($ch);
@@ -278,9 +321,10 @@ final class StepsGeolocationImmich
     {
         $connection = self::connection($pdo, $owner);
         if ($connection === null || $connection['state'] !== 'active') throw new StepsGeolocationImmichError('immich_not_connected', 409);
-        $url = trim((string)steps_geo_decrypt((string)$connection['server_url_ciphertext'], $owner, 'server_url'));
+        $storedUrl = trim((string)steps_geo_decrypt((string)$connection['server_url_ciphertext'], $owner, 'server_url'));
         $key = trim((string)steps_geo_decrypt((string)$connection['credential_ciphertext'], $owner, 'api_key'));
-        if ($url === '' || $key === '') throw new StepsGeolocationImmichError('immich_credentials_unavailable', 409);
+        if ($storedUrl === '' || $key === '') throw new StepsGeolocationImmichError('immich_credentials_unavailable', 409);
+        $url = self::requestBaseUrl($storedUrl);
         $toAt = $to !== null && strtotime($to) !== false ? strtotime($to) : time();
         $fromAt = $from !== null && strtotime($from) !== false ? strtotime($from) : $toAt - 30 * 86400;
         if ($fromAt >= $toAt) throw new StepsGeolocationImmichError('invalid_range');
@@ -351,8 +395,9 @@ final class StepsGeolocationImmich
         $point->execute([':point' => $pointId, ':owner' => $owner]);
         $p = $point->fetch(PDO::FETCH_ASSOC);
         if (!$p) throw new StepsGeolocationImmichError('point_not_found', 404);
-        $url = trim((string)steps_geo_decrypt((string)$asset['server_url_ciphertext'], $owner, 'server_url'));
+        $storedUrl = trim((string)steps_geo_decrypt((string)$asset['server_url_ciphertext'], $owner, 'server_url'));
         $key = trim((string)steps_geo_decrypt((string)$asset['credential_ciphertext'], $owner, 'api_key'));
+        $url = self::requestBaseUrl($storedUrl);
         $response = self::http('PUT', $url . '/api/assets/' . rawurlencode((string)$asset['immich_asset_id']), $key, ['latitude' => (float)$p['latitude'], 'longitude' => (float)$p['longitude']]);
         if ($response['status'] < 200 || $response['status'] >= 300) throw new StepsGeolocationImmichError('immich_write_failed', 502);
         $pdo->prepare("UPDATE geo_immich_assets SET position = ST_SetSRID(ST_MakePoint(:lon, :lat), 4326), state = 'matched', match_json = :match, match_point_id = :point, updated_at = now() WHERE id = :asset AND user_email = :owner")
@@ -360,34 +405,49 @@ final class StepsGeolocationImmich
         self::audit($pdo, $owner, $owner, 'immich.gps_written', ['asset_id' => $assetId, 'point_id' => $pointId]);
     }
 
-    public static function thumbnail(PDO $pdo, string $owner, string $assetId): ?array
+    public static function thumbnail(PDO $pdo, string $owner, string $assetId, string $size = 'thumbnail'): ?array
     {
         if (!StepsGeolocationDomain::isUuid($assetId)) return null;
+        $size = $size === 'preview' ? 'preview' : 'thumbnail';
+        $cached = self::readThumbCache($owner, $assetId, $size);
+        if ($cached !== null) return $cached;
         $stmt = $pdo->prepare("SELECT a.*, c.state AS connection_state, c.server_url_ciphertext, c.credential_ciphertext FROM geo_immich_assets a JOIN geo_immich_connections c ON c.id = a.connection_id WHERE a.id = :asset AND a.user_email = :owner AND a.deleted_at IS NULL AND a.state <> 'deleted' AND c.state = 'active'");
         $stmt->execute([':asset' => $assetId, ':owner' => $owner]);
         $asset = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$asset) return null;
-        $url = trim((string)steps_geo_decrypt((string)$asset['server_url_ciphertext'], $owner, 'server_url'));
+        $storedUrl = trim((string)steps_geo_decrypt((string)$asset['server_url_ciphertext'], $owner, 'server_url'));
         $key = trim((string)steps_geo_decrypt((string)$asset['credential_ciphertext'], $owner, 'api_key'));
-        $response = self::http('GET', $url . '/api/assets/' . rawurlencode((string)$asset['immich_asset_id']) . '/thumbnail?size=thumbnail', $key, null, 2097152);
+        $url = self::requestBaseUrl($storedUrl);
+        $response = self::http('GET', $url . '/api/assets/' . rawurlencode((string)$asset['immich_asset_id']) . '/thumbnail?size=' . rawurlencode($size), $key, null, 2097152);
         if ($response['status'] === 404 || $response['status'] === 410) {
             $pdo->prepare("UPDATE geo_immich_assets SET state = 'unavailable', updated_at = now() WHERE id = :asset AND user_email = :owner")->execute([':asset' => $assetId, ':owner' => $owner]);
             return null;
         }
         if ($response['status'] < 200 || $response['status'] >= 300) return null;
-        return ['body' => $response['body'], 'mime' => $response['mime'] !== '' ? $response['mime'] : 'image/jpeg'];
+        $mime = $response['mime'] !== '' ? $response['mime'] : 'image/jpeg';
+        if (str_contains($mime, ';')) $mime = trim(explode(';', $mime, 2)[0]);
+        self::writeThumbCache($owner, $assetId, $size, $response['body'], $mime);
+        return ['body' => $response['body'], 'mime' => $mime, 'cached' => false];
     }
 
-    public static function mapClusters(PDO $pdo, string $owner, array $bbox, string $from, string $to, int $zoom, int $limit = 100): array
+    public static function mapClusters(PDO $pdo, string $owner, array $bbox, string $from, string $to, int $zoom, int $limit = 60): array
     {
         $connection = self::connection($pdo, $owner);
         if ($connection === null || $connection['state'] !== 'active') return [];
+        $zoom = max(1, min(22, $zoom));
+        if ($zoom < 11) $limit = min($limit, 18);
+        elseif ($zoom < 14) $limit = min($limit, 36);
+        else $limit = min($limit, 60);
         $precision = max(1, min(6, 7 - (int)floor($zoom / 3)));
-        $cell = max(0.0005, round(360.0 / (2 ** max(1, min(20, $zoom))) / 20, 6));
+        $divisor = $zoom < 12 ? 8 : ($zoom < 15 ? 14 : 20);
+        $cell = max(0.0008, round(360.0 / (2 ** max(1, min(20, $zoom))) / $divisor, 6));
         $stmt = $pdo->prepare(
             "SELECT COUNT(*) AS total, round(ST_Y(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lat,
                     round(ST_X(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lon,
-                    (array_agg(id ORDER BY captured_at DESC))[1] AS asset_id
+                    (array_agg(id ORDER BY captured_at DESC))[1] AS asset_id,
+                    (array_agg(immich_asset_id ORDER BY captured_at DESC))[1] AS immich_asset_id,
+                    (array_agg(original_filename ORDER BY captured_at DESC))[1] AS original_filename,
+                    (array_agg(captured_at ORDER BY captured_at DESC))[1] AS captured_at
                FROM geo_immich_assets
               WHERE user_email = :owner AND state = 'matched' AND deleted_at IS NULL AND position IS NOT NULL
                 AND position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)

@@ -4530,7 +4530,24 @@
             const immichApi = '/apps/steps/api/session_gateway.php?endpoint=immich';
             let immichGalleryPoll = null;
             function immichText(key, fallback) { return (window.translations && translations[key]) || fallback; }
-            function immichThumb(assetId) { return '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' + encodeURIComponent(assetId); }
+            function immichThumb(assetId, size) {
+                return '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' + encodeURIComponent(assetId) + (size === 'preview' ? '&size=preview' : '');
+            }
+            const immichThumbQueue = [];
+            let immichThumbActive = 0;
+            function pumpImmichThumbs() {
+                while (immichThumbActive < 3 && immichThumbQueue.length) {
+                    const job = immichThumbQueue.shift();
+                    immichThumbActive++;
+                    Promise.resolve().then(job.run).then(job.resolve, job.reject).finally(() => { immichThumbActive--; pumpImmichThumbs(); });
+                }
+            }
+            function enqueueImmichThumb(run) {
+                return new Promise((resolve, reject) => {
+                    immichThumbQueue.push({ run, resolve, reject });
+                    pumpImmichThumbs();
+                });
+            }
             function renderImmich(data) {
                 const host = document.getElementById('immich-gallery');
                 const status = document.getElementById('immich-status');
@@ -4562,7 +4579,17 @@
                     const card = document.createElement('div');
                     card.className = 'immich-card';
                     const img = document.createElement('img');
-                    img.loading = 'lazy'; img.alt = asset.original_filename || ''; img.src = immichThumb(asset.id);
+                    img.loading = 'lazy'; img.alt = asset.original_filename || '';
+                    img.dataset.src = immichThumb(asset.id);
+                    enqueueImmichThumb(() => new Promise((resolve) => {
+                        const kick = () => { img.src = img.dataset.src; resolve(); };
+                        if ('IntersectionObserver' in window) {
+                            const io = new IntersectionObserver((entries) => {
+                                if (entries.some((e) => e.isIntersecting)) { io.disconnect(); kick(); }
+                            }, { rootMargin: '80px' });
+                            io.observe(img);
+                        } else kick();
+                    }));
                     card.appendChild(img);
                     const caption = document.createElement('span');
                     caption.textContent = [String(asset.captured_at || '').slice(0, 16).replace('T', ' '), asset.place_name, asset.trip_title].filter(Boolean).join(' · ');

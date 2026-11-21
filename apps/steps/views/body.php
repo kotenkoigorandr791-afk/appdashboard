@@ -608,6 +608,111 @@ $metricButtons = [
                         (lines||[]).forEach(line=>{ const p=document.createElement('div'); p.textContent=line; p.style.fontSize='11px'; p.style.opacity='.82'; div.appendChild(p); });
                         return div;
                     }
+                    const photoThumbQueue=[];
+                    let photoThumbActive=0;
+                    const PHOTO_THUMB_MAX=3;
+                    function enqueuePhotoThumb(loader){
+                        return new Promise((resolve,reject)=>{
+                            photoThumbQueue.push({loader,resolve,reject});
+                            pumpPhotoThumbs();
+                        });
+                    }
+                    function pumpPhotoThumbs(){
+                        while(photoThumbActive<PHOTO_THUMB_MAX && photoThumbQueue.length){
+                            const job=photoThumbQueue.shift();
+                            photoThumbActive++;
+                            Promise.resolve().then(job.loader).then(job.resolve,job.reject).finally(()=>{ photoThumbActive--; pumpPhotoThumbs(); });
+                        }
+                    }
+                    function loadPhotoThumb(url){
+                        return enqueuePhotoThumb(()=>new Promise((resolve,reject)=>{
+                            const img=new Image();
+                            img.decoding='async';
+                            img.onload=()=>resolve(img);
+                            img.onerror=()=>reject(new Error('thumb_failed'));
+                            img.src=url;
+                        }));
+                    }
+                    function openImmichFromSteps(immichAssetId){
+                        const id=String(immichAssetId||'').trim();
+                        if(!id) return;
+                        try{
+                            if(window.top && window.top.ShellAppNav && typeof window.top.ShellAppNav.open==='function'){
+                                window.top.ShellAppNav.open('immich', true, {asset:id});
+                                return;
+                            }
+                        }catch(_){}
+                        const url='/apps/immich/index.php?asset='+encodeURIComponent(id);
+                        try{ if(window.top && window.top!==window){ window.top.location.href='/main?app=immich&asset='+encodeURIComponent(id); return; } }catch(_){}
+                        window.location.href=url;
+                    }
+                    function ensurePhotoLightbox(){
+                        let box=document.getElementById('photo-md3-lightbox');
+                        if(box) return box;
+                        box=document.createElement('div');
+                        box.id='photo-md3-lightbox';
+                        box.className='photo-md3-lightbox';
+                        box.hidden=true;
+                        box.innerHTML='<div class="photo-md3-lightbox-card"><div class="photo-md3-lightbox-top"><button type="button" class="photo-md3-btn" data-photo-lb-info>Info</button><button type="button" class="photo-md3-btn primary" data-photo-lb-immich>Immich</button><button type="button" class="photo-md3-btn" data-photo-lb-close aria-label="Close">✕</button></div><div class="photo-md3-lightbox-media"><img alt=""></div><div class="photo-md3-lightbox-meta" hidden></div></div>';
+                        document.body.appendChild(box);
+                        box.addEventListener('click',ev=>{ if(ev.target===box) box.hidden=true; });
+                        box.querySelector('[data-photo-lb-close]').addEventListener('click',()=>{ box.hidden=true; });
+                        return box;
+                    }
+                    function openPhotoLightbox(p){
+                        const box=ensurePhotoLightbox();
+                        const img=box.querySelector('.photo-md3-lightbox-media img');
+                        const meta=box.querySelector('.photo-md3-lightbox-meta');
+                        const immichBtn=box.querySelector('[data-photo-lb-immich]');
+                        const infoBtn=box.querySelector('[data-photo-lb-info]');
+                        img.removeAttribute('src');
+                        meta.hidden=true;
+                        meta.textContent='';
+                        const lines=[];
+                        if(p.original_filename) lines.push(p.original_filename);
+                        if(p.captured_at) lines.push(String(p.captured_at).slice(0,19).replace('T',' '));
+                        if(p.count>1) lines.push(String(p.count)+' photos here');
+                        if(p.immich_asset_id) lines.push(p.immich_asset_id);
+                        meta.innerHTML=lines.map(l=>'<div>'+String(l).replace(/[<>&]/g,s=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[s]))+'</div>').join('');
+                        infoBtn.onclick=()=>{ meta.hidden=!meta.hidden; };
+                        immichBtn.onclick=()=>openImmichFromSteps(p.immich_asset_id);
+                        box.hidden=false;
+                        loadPhotoThumb(p.preview||p.thumbnail).then(loaded=>{ img.src=loaded.src; }).catch(()=>{ if(p.thumbnail) img.src=p.thumbnail; });
+                    }
+                    function photoPopupCard(p){
+                        const root=document.createElement('div');
+                        root.className='photo-md3-pop';
+                        const media=document.createElement('div'); media.className='photo-md3-media';
+                        const sk=document.createElement('div'); sk.className='photo-md3-skeleton'; media.appendChild(sk);
+                        const img=document.createElement('img'); img.alt=''; img.decoding='async'; media.appendChild(img);
+                        root.appendChild(media);
+                        const actions=document.createElement('div'); actions.className='photo-md3-actions';
+                        const expand=document.createElement('button'); expand.type='button'; expand.className='photo-md3-btn'; expand.innerHTML='<i class="fas fa-expand"></i>'; expand.title='Expand';
+                        const info=document.createElement('button'); info.type='button'; info.className='photo-md3-btn'; info.innerHTML='<i class="fas fa-circle-info"></i>'; info.title='Info';
+                        const open=document.createElement('button'); open.type='button'; open.className='photo-md3-btn primary'; open.textContent='Immich';
+                        actions.appendChild(expand); actions.appendChild(info); actions.appendChild(open);
+                        root.appendChild(actions);
+                        const infoBox=document.createElement('div'); infoBox.className='photo-md3-info';
+                        const bits=[];
+                        if(p.original_filename) bits.push('<div>'+String(p.original_filename).replace(/[<>&]/g,s=>({"<":"&lt;",">":"&gt;","&":"&amp;"}[s]))+'</div>');
+                        if(p.captured_at) bits.push('<div>'+String(p.captured_at).slice(0,19).replace('T',' ')+'</div>');
+                        if(p.count>1) bits.push('<div>'+String(p.count)+' photos</div>');
+                        infoBox.innerHTML=bits.join('')||'<div>—</div>';
+                        root.appendChild(infoBox);
+                        expand.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); openPhotoLightbox(p); });
+                        info.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); infoBox.classList.toggle('is-open'); });
+                        open.addEventListener('click',ev=>{ ev.preventDefault(); ev.stopPropagation(); openImmichFromSteps(p.immich_asset_id); });
+                        root._photoLoad=()=>{
+                            if(root._photoLoaded || !p.thumbnail) return;
+                            root._photoLoaded=true;
+                            loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                img.src=loaded.src;
+                                img.classList.add('is-ready');
+                                sk.remove();
+                            }).catch(()=>{ sk.remove(); });
+                        };
+                        return root;
+                    }
                     function addPoint(feature, style, title, lines){
                         const L=window.L;
                         const [lon,lat]=feature.geometry.coordinates;
@@ -671,10 +776,12 @@ $metricButtons = [
                                 addCluster(feature, p.count||1);
                             } else if(p.layer==='photo_cluster'){
                                 const [plon,plat]=feature.geometry.coordinates;
-                                const photoPopup=popupHtml((p.count||1)+' photo(s)',[]);
-                                if(p.thumbnail){ const img=document.createElement('img'); img.src=p.thumbnail; img.alt=''; img.loading='lazy'; img.style.cssText='max-width:180px;max-height:140px;border-radius:8px;margin-top:6px;display:block'; photoPopup.appendChild(img); }
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span><i class="fas fa-camera"></i></span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
-                                photoMarker.bindPopup(photoPopup);
+                                const count=Math.max(1, parseInt(p.count,10)||1);
+                                const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
+                                const photoCard=photoPopupCard(p);
+                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker'+(count>1?' has-count':''),html:'<span><i class="fas fa-camera"></i>'+countHtml+'</span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
+                                photoMarker.bindPopup(photoCard,{maxWidth:260,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
+                                photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
                             } else if(p.layer==='visit'){
                                 const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
                                 const [vlon,vlat]=feature.geometry.coordinates;

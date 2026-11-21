@@ -1116,6 +1116,32 @@
         .immich-card img { width: 100%; height: 105px; object-fit: cover; background: rgba(127,127,127,.12); }
         .immich-card span { font-size: 10px; padding: 0 6px; color: var(--muted-text); }
         .map-photo-marker { display: flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: #f59e0b; color: #111; border: 2px solid #fff; box-shadow: 0 2px 8px rgba(0,0,0,.4); }
+        .map-photo-marker.has-count span { position: relative; }
+        .map-photo-marker .map-photo-count { position: absolute; top: -8px; right: -10px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #111; color: #fff; font-size: 10px; line-height: 16px; text-align: center; border: 1px solid rgba(255,255,255,.55); }
+        .leaflet-popup.photo-md3-leaflet .leaflet-popup-content-wrapper { background: transparent; box-shadow: none; padding: 0; border: 0; }
+        .leaflet-popup.photo-md3-leaflet .leaflet-popup-content { margin: 0; width: auto !important; }
+        .leaflet-popup.photo-md3-leaflet .leaflet-popup-tip { background: rgba(20,22,28,.92); }
+        .leaflet-popup.photo-md3-leaflet a.leaflet-popup-close-button { display: none; }
+        .photo-md3-pop { width: min(240px, 72vw); background: rgba(18,20,26,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
+        .photo-md3-media { position: relative; aspect-ratio: 4/5; background: #0b0d12; }
+        .photo-md3-media img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .25s ease; }
+        .photo-md3-media img.is-ready { opacity: 1; }
+        .photo-md3-skeleton { position: absolute; inset: 0; background: linear-gradient(110deg, #1a1d24 20%, #2a2f3a 40%, #1a1d24 60%); background-size: 200% 100%; animation: photoMd3Shimmer 1.2s linear infinite; }
+        .photo-md3-actions { display: flex; gap: 6px; padding: 8px; }
+        .photo-md3-btn { flex: 1; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 34px; border: 0; border-radius: 12px; background: rgba(255,255,255,.08); color: #f3f4f6; font-size: 12px; cursor: pointer; }
+        .photo-md3-btn:hover { background: rgba(255,255,255,.14); }
+        .photo-md3-btn.primary { background: #f59e0b; color: #111; font-weight: 600; }
+        .photo-md3-info { display: none; padding: 0 10px 10px; color: #d1d5db; font-size: 11px; line-height: 1.45; }
+        .photo-md3-info.is-open { display: block; }
+        .photo-md3-info div + div { margin-top: 4px; opacity: .85; }
+        .photo-md3-lightbox { position: fixed; inset: 0; z-index: 12000; background: rgba(0,0,0,.82); display: flex; align-items: center; justify-content: center; padding: 24px; }
+        .photo-md3-lightbox[hidden] { display: none !important; }
+        .photo-md3-lightbox-card { width: min(920px, 96vw); max-height: 92vh; background: #111318; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 24px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; }
+        .photo-md3-lightbox-top { display: flex; justify-content: flex-end; gap: 8px; padding: 10px; }
+        .photo-md3-lightbox-media { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; }
+        .photo-md3-lightbox-media img { max-width: 100%; max-height: min(78vh, 900px); object-fit: contain; }
+        .photo-md3-lightbox-meta { padding: 12px 14px 16px; color: #e5e7eb; font-size: 13px; }
+        @keyframes photoMd3Shimmer { to { background-position-x: -200%; } }
         .map-place-photo { background: transparent !important; border: 0 !important; }
         .map-place-photo-ring { display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #22c55e; box-shadow: 0 2px 8px rgba(0,0,0,.45); background: #1f2937; }
         .map-place-photo-ring img { width: 100%; height: 100%; object-fit: cover; display: block; }

@@ -150,12 +150,23 @@ if ($scope !== null && (float)$scope['precision_m'] > 0) {
 // Immich references are owner-only. Family viewers never receive photo URLs.
 $photos = [];
 if (in_array('photos', $layers, true) && $target === $viewer) {
-    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, (int)($_GET['zoom'] ?? 12), 100);
+    $zoom = (int)($_GET['zoom'] ?? 12);
+    $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, $zoom, 60);
     foreach ($photos as $photo) {
+        $assetId = (string)$photo['asset_id'];
         $result['features'][] = [
             'type' => 'Feature',
             'geometry' => ['type' => 'Point', 'coordinates' => [(float)$photo['lon'], (float)$photo['lat']]],
-            'properties' => ['layer' => 'photo_cluster', 'count' => (int)$photo['total'], 'asset_id' => (string)$photo['asset_id'], 'thumbnail' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . urlencode((string)$photo['asset_id'])],
+            'properties' => [
+                'layer' => 'photo_cluster',
+                'count' => (int)$photo['total'],
+                'asset_id' => $assetId,
+                'immich_asset_id' => (string)($photo['immich_asset_id'] ?? ''),
+                'original_filename' => (string)($photo['original_filename'] ?? ''),
+                'captured_at' => isset($photo['captured_at']) ? (string)$photo['captured_at'] : null,
+                'thumbnail' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . rawurlencode($assetId),
+                'preview' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . rawurlencode($assetId) . '&size=preview',
+            ],
         ];
     }
 }

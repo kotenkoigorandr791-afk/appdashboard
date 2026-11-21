@@ -8,6 +8,8 @@ app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/project/oauth.php';
 $theme = in_array((string)($_GET['theme'] ?? ''), ['light', 'dark'], true) ? (string)$_GET['theme'] : '';
+$asset = trim((string)($_GET['asset'] ?? ''));
+$assetOk = (bool)preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $asset);
 if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
     // Embedded documents must never get a silent login: show an explicit action.
     if (app_is_embedded_request()) {
@@ -17,6 +19,10 @@ if (!isset($_SESSION['user']['email']) || !ensureAuthenticatedSession()) {
 }
 if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
     oauth_provision_user_services((string)($_SESSION['user']['email'] ?? ''), $_SESSION['user'] ?? []);
+    $base = rtrim(oauth_iframe_app_url('immich'), '/');
+    if ($assetOk) {
+        oauth_redirect_iframe($base . '/photos/' . rawurlencode($asset));
+    }
     $params = ['autoLaunch' => '1'];
     if ($theme !== '') {
         $params['theme'] = $theme;
@@ -24,6 +30,6 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
         $params['color-theme'] = $theme;
         $params['appearance'] = $theme;
     }
-    oauth_redirect_iframe(oauth_iframe_app_url('immich') . '/auth/login?' . http_build_query($params));
+    oauth_redirect_iframe($base . '/auth/login?' . http_build_query($params));
 }
-oauth_redirect_html(oauth_app_bridge_url('immich', $theme));
+oauth_redirect_html(oauth_app_bridge_url('immich', $theme) . ($assetOk ? '&asset=' . rawurlencode($asset) : ''));
