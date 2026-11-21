@@ -58,6 +58,7 @@ class PreferencesManager(context: Context) {
         private const val KEY_FIRST_OPEN_TIME = "first_open_time"
         private const val KEY_WEEKLY_FEEDBACK_PROMPT_DISMISSED = "weekly_feedback_prompt_dismissed"
         private const val KEY_WIFI_ONLY = "wifi_only"
+        private const val KEY_LIVE_LOCATION_SHARE = "live_location_share"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_AMOLED_ENABLED = "amoled_enabled"
         private const val KEY_ACCENT_COLOR = "accent_color"
@@ -100,7 +101,7 @@ class PreferencesManager(context: Context) {
         const val MAP_BASEMAP_AUTO = "auto"
         // Points are on by default: the day view should show what the server has
         // recorded next to the measurements still waiting to be uploaded.
-        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "points")
+        val DEFAULT_MAP_LAYERS = setOf("trips", "stops", "places", "photos", "points")
         private const val DEFAULT_LOCATION_INTERVAL_MINUTES = 15
         private const val KEY_LAST_SYNC_OK_AT = "last_sync_ok_at"
         private const val KEY_LAST_AUTH_ERROR_AT = "last_auth_error_at"
@@ -648,6 +649,11 @@ class PreferencesManager(context: Context) {
     fun isWifiOnly(): Boolean = prefs.getBoolean(KEY_WIFI_ONLY, false)
     fun setWifiOnly(value: Boolean) {
         prefs.edit().putBoolean(KEY_WIFI_ONLY, value).apply()
+    }
+
+    fun isLiveLocationShareEnabled(): Boolean = prefs.getBoolean(KEY_LIVE_LOCATION_SHARE, false)
+    fun setLiveLocationShareEnabled(value: Boolean) {
+        prefs.edit().putBoolean(KEY_LIVE_LOCATION_SHARE, value).apply()
     }
     fun getThemeMode(): String = prefs.getString(KEY_THEME_MODE, "auto") ?: "auto"
     fun setThemeMode(value: String) {

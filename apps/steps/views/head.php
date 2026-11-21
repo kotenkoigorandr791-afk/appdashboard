@@ -1102,6 +1102,13 @@
         .location-tools-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 12px; }
         .location-tool-card { display: flex; flex-direction: column; gap: 8px; padding: 10px; border: 1px solid rgba(127,127,127,.16); border-radius: 12px; background: rgba(127,127,127,.05); }
         .location-tool-card h4 { margin: 0; font-size: 13px; }
+        .places-manager-modal { position: fixed; inset: 0; z-index: 11000; background: rgba(0,0,0,.55); display: flex; align-items: flex-end; justify-content: center; padding: 12px; }
+        .places-manager-modal[hidden] { display: none !important; }
+        .places-manager-card { width: min(920px, 100%); height: min(86vh, 820px); background: var(--surface, #12141a); border-radius: 18px 18px 12px 12px; border: 1px solid rgba(255,255,255,.08); display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 24px 80px rgba(0,0,0,.45); }
+        .places-manager-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 12px; }
+        .places-manager-top h3 { margin: 0; font-size: 16px; }
+        .places-manager-map { flex: 1; min-height: 240px; background: #0b0d12; }
+        .places-manager-bottom { display: flex; flex-wrap: wrap; gap: 8px; align-items: end; padding: 10px 12px 14px; border-top: 1px solid rgba(255,255,255,.08); }
         .location-tool-row { display: flex; gap: 6px; flex-wrap: wrap; }
         .location-tool-row input { min-width: 0; flex: 1 1 90px; font-size: 12px; padding: 5px 7px; }
         .location-tool-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; font-size: 11px; padding: 4px 0; border-top: 1px solid rgba(127,127,127,.1); }

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:background="@drawable/map_info_bg"
+    android:elevation="8dp"
+    android:minWidth="200dp"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <FrameLayout
+        android:layout_width="220dp"
+        android:layout_height="wrap_content"
+        android:minHeight="140dp">
+
+        <ProgressBar
+            android:id="@+id/photo_loading"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
+            android:layout_gravity="center" />
+
+        <ImageView
+            android:id="@+id/photo_image"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:adjustViewBounds="true"
+            android:contentDescription="@string/map_layer_photos"
+            android:maxHeight="320dp"
+            android:scaleType="fitCenter" />
+    </FrameLayout>
+
+    <Button
+        android:id="@+id/photo_immich"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="8dp"
+        android:background="@drawable/btn_immich_bg"
+        android:backgroundTint="@null"
+        android:text="@string/map_open_immich"
+        android:textAllCaps="false"
+        android:textColor="#111111"
+        android:textSize="13sp" />
+</LinearLayout>

@@ -37,17 +37,17 @@ geo_quality_assert(in_array('duplicate_timestamp', $dup['flags'], true), 'duplic
 $future = StepsGeolocationQuality::evaluate($point(['source_at' => $at(3600)]), null);
 geo_quality_assert(in_array('timestamp_future', $future['flags'], true), 'future timestamp not flagged');
 
-// An impossible jump is flagged but keeps its coordinates for audit.
+// Spoofed teleports (>300 km/h) are rejected so they never feed the map/stops.
 $jump = StepsGeolocationQuality::evaluate($point(['latitude' => 51.5]), $prev);
-geo_quality_assert($jump['state'] === 'flagged' && in_array('jump', $jump['flags'], true), 'jump not flagged');
+geo_quality_assert($jump['state'] === 'rejected' && in_array('impossible_speed', $jump['flags'], true), 'impossible jump not rejected');
 $speed = StepsGeolocationQuality::evaluate($point(['latitude' => 51.5]), $prev);
-geo_quality_assert(in_array('impossible_speed', $speed['flags'], true), 'impossible speed not flagged');
+geo_quality_assert($speed['state'] === 'rejected' && in_array('impossible_speed', $speed['flags'], true), 'impossible speed not rejected');
 
-// Valid high-speed travel (a flight) must not become a quality failure.
-$flightPrev = ['latitude' => 50.0, 'longitude' => 30.0, 'source_at' => $at(-3600)];
-$flight = ['latitude' => 60.0, 'longitude' => 30.0, 'source_at' => $at(0), 'accuracy_m' => 15];
-$flying = StepsGeolocationQuality::evaluate($flight, $flightPrev);
-geo_quality_assert($flying['state'] === 'accepted', 'valid high-speed travel flagged: ' . $flying['reason']);
+// Ground travel under 300 km/h stays accepted.
+$trainPrev = ['latitude' => 50.0, 'longitude' => 30.0, 'source_at' => $at(-3600)];
+$train = ['latitude' => 50.5, 'longitude' => 30.0, 'source_at' => $at(0), 'accuracy_m' => 15];
+$riding = StepsGeolocationQuality::evaluate($train, $trainPrev);
+geo_quality_assert($riding['state'] === 'accepted', 'valid ground travel rejected: ' . $riding['reason']);
 
 // Thresholds are configurable and bounded.
 $strict = ['max_accuracy_m' => 5.0, 'max_speed_mps' => 450.0, 'max_jump_m' => 5000.0, 'jump_window_s' => 60.0, 'max_future_s' => 300.0, 'max_age_days' => 3650.0];

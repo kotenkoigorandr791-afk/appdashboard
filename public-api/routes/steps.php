@@ -10,8 +10,12 @@ require_once APP_ROOT . '/apps/steps/core/settings_api.php';
 $parts = public_api_parse_path();
 $sub = $parts[1] ?? '';
 $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
-header('Content-Type: application/json; charset=utf-8');
 $geoEndpoint = strtolower((string)$sub);
+// Binary media endpoints set their own Content-Type; JSON is the default for the rest.
+$geoBinaryEndpoints = ['immich_thumbnail', 'geolocation_place_photo', 'geolocation_export_download'];
+if (!in_array($geoEndpoint, $geoBinaryEndpoints, true)) {
+    header('Content-Type: application/json; charset=utf-8');
+}
 // Mobile geo screens share the same bearer-token surface as the map. Keep this
 // an explicit allowlist: every forwarded endpoint authenticates through
 // public_api_bootstrap() and scopes all queries by the resolved owner.
@@ -20,6 +24,8 @@ $geoEndpoints = [
     'geolocation_achievements', 'geolocation_statistics', 'geolocation_quality', 'geolocation_matching',
     'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics', 'geolocation_points', 'geolocation_place_prefs',
     'geolocation_place_photo',
+    'immich_thumbnail',
+    'geolocation_live',
     'geolocation_exports', 'geolocation_export_download',
     'places', 'geofences', 'devices',
 ];

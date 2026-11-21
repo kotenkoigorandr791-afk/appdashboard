@@ -22,13 +22,25 @@ resolve_pg() {
   printf '%s' "${ip}"
 }
 
-# Prefer the parent container's Config.Env so a stale supervisord env cannot
-# point place-photos at a different APPDATA tree than PHP-FPM.
+# Prefer the APPDATA PHP-FPM actually serves. docker-entrypoint may re-export
+# APPDATA_BASE_DIR to /storage/applications after seeding mergerfs, while
+# Config.Env still says /opt/ApplicationData — writing there leaves the API
+# unable to see place photos.
 parent_env() {
   local key="$1"
   docker inspect -f '{{range .Config.Env}}{{println .}}{{end}}' "${SELF_NAME}" 2>/dev/null | sed -n "s/^${key}=//p" | head -n1
 }
-if [[ -z "${APPDATA_BASE_DIR}" || "${APPDATA_BASE_DIR}" == "/storage/applications" ]]; then
+fpm_appdata() {
+  local pid
+  pid="$(docker exec "${SELF_NAME}" sh -c 'pgrep -o -u www-data php-fpm 2>/dev/null || pgrep -o php-fpm' 2>/dev/null | head -n1 || true)"
+  if [[ -z "${pid}" ]]; then return 0; fi
+  docker exec "${SELF_NAME}" sh -c "tr '\\0' '\\n' < /proc/${pid}/environ 2>/dev/null" \
+    | sed -n 's/^APPDATA_BASE_DIR=//p' | head -n1
+}
+resolved_appdata="$(fpm_appdata || true)"
+if [[ -n "${resolved_appdata}" ]]; then
+  APPDATA_BASE_DIR="${resolved_appdata}"
+elif [[ -z "${APPDATA_BASE_DIR}" ]]; then
   APPDATA_BASE_DIR="$(parent_env APPDATA_BASE_DIR)"
 fi
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"

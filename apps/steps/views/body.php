@@ -1554,10 +1554,50 @@ $metricButtons = [
                             text.textContent=(fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'))+' · '+at.toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'});
                         }
                     }
+                    let liveWs=null, liveWsTimer=null;
+                    function liveWsUrl(ticket){
+                        const proto=location.protocol==='https:'?'wss:':'ws:';
+                        return proto+'//'+location.host+'/steps-live-ws?ticket='+encodeURIComponent(ticket);
+                    }
+                    async function ensureLiveWs(){
+                        if(liveWs&&(liveWs.readyState===WebSocket.OPEN||liveWs.readyState===WebSocket.CONNECTING)) return;
+                        try{
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_live',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ticket',role:'viewer'})});
+                            const data=await res.json();
+                            if(!res.ok||!data.ok||!data.ticket) return;
+                            const ws=new WebSocket(liveWsUrl(data.ticket));
+                            liveWs=ws;
+                            ws.onmessage=(ev)=>{
+                                try{
+                                    const msg=JSON.parse(ev.data||'{}');
+                                    if(msg.type==='presence'&&Number.isFinite(msg.latitude)&&Number.isFinite(msg.longitude)){
+                                        renderLiveMarker({
+                                            latitude:msg.latitude,
+                                            longitude:msg.longitude,
+                                            accuracy_m:msg.accuracy_m,
+                                            bearing_degrees:msg.bearing_degrees,
+                                            source_at:msg.source_at||new Date().toISOString()
+                                        });
+                                    }
+                                }catch(_){}
+                            };
+                            ws.onclose=()=>{ if(liveWs===ws) liveWs=null; };
+                        }catch(_){}
+                    }
                     async function pollLive(){
                         if(!mapStarted||!map||!mapHost||mapHost.hidden||document.hidden) return;
                         if(!liveRangeActive()){ clearLiveMarker(); return; }
+                        ensureLiveWs();
                         const seq=++liveSeq;
+                        try{
+                            const res=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_live',{credentials:'same-origin',cache:'no-store'});
+                            const data=await res.json();
+                            if(seq!==liveSeq) return;
+                            if(res.ok&&data.ok&&data.presence){
+                                renderLiveMarker(data.presence);
+                                return;
+                            }
+                        }catch(_){}
                         const params=new URLSearchParams({
                             limit:'1',
                             from:new Date(Date.now()-20*60000).toISOString(),
@@ -3349,6 +3389,22 @@ $metricButtons = [
                                     <p class="location-hint"><?php echo htmlspecialchars($translations['location_places_detect_hint'] ?? 'Visits are saved to the database immediately. The background worker looks them up in OpenStreetMap and writes the name back.'); ?></p>
                                     <p id="location-places-detect-status" class="location-hint"></p>
                                     <button type="button" id="location-places-detect" class="excel-btn"><i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['location_places_detect_run'] ?? 'Detect places now'); ?></button>
+                                    <button type="button" id="location-places-manager-open" class="excel-btn"><i class="fas fa-map"></i> <?php echo htmlspecialchars($translations['location_places_manager_open'] ?? 'Places map & recalculate'); ?></button>
+                                </div>
+                                <div id="location-places-manager" class="places-manager-modal" hidden>
+                                    <div class="places-manager-card">
+                                        <div class="places-manager-top">
+                                            <h3><?php echo htmlspecialchars($translations['location_places_manager_title'] ?? 'Places'); ?></h3>
+                                            <button type="button" id="location-places-manager-close" class="excel-btn" aria-label="Close">✕</button>
+                                        </div>
+                                        <div id="location-places-manager-map" class="places-manager-map"></div>
+                                        <div class="places-manager-bottom">
+                                            <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_places_recalc_from'] ?? 'From'); ?></span><input type="date" id="location-places-recalc-from"></label>
+                                            <label class="location-export-field"><span><?php echo htmlspecialchars($translations['location_places_recalc_to'] ?? 'To'); ?></span><input type="date" id="location-places-recalc-to"></label>
+                                            <button type="button" id="location-places-recalc-run" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['location_places_recalc_run'] ?? 'Recalculate visits'); ?></button>
+                                            <p id="location-places-recalc-status" class="location-hint"></p>
+                                        </div>
+                                    </div>
                                 </div>
                                 <div class="location-tool-card">
                                     <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>

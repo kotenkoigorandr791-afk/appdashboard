@@ -158,8 +158,18 @@ if (in_array('photos', $layers, true) && $target === $viewer) {
     }
     $zoom = (int)($_GET['zoom'] ?? 12);
     $photos = StepsGeolocationImmich::mapClusters($pdo, $target, $bbox, $fromIso, $toIso, $zoom, 200);
+    $immichOpenBase = '';
+    $conn = StepsGeolocationImmich::connection($pdo, $target);
+    if (is_array($conn) && !empty($conn['server_url_ciphertext'])) {
+        try {
+            $immichOpenBase = rtrim((string)steps_geo_decrypt((string)$conn['server_url_ciphertext'], $target, 'server_url'), '/');
+        } catch (Throwable $ignored) {
+            $immichOpenBase = '';
+        }
+    }
     foreach ($photos as $photo) {
         $assetId = (string)$photo['asset_id'];
+        $immichAssetId = (string)($photo['immich_asset_id'] ?? '');
         $result['features'][] = [
             'type' => 'Feature',
             'geometry' => ['type' => 'Point', 'coordinates' => [(float)$photo['lon'], (float)$photo['lat']]],
@@ -167,7 +177,10 @@ if (in_array('photos', $layers, true) && $target === $viewer) {
                 'layer' => 'photo_cluster',
                 'count' => (int)$photo['total'],
                 'asset_id' => $assetId,
-                'immich_asset_id' => (string)($photo['immich_asset_id'] ?? ''),
+                'immich_asset_id' => $immichAssetId,
+                'immich_open_url' => ($immichOpenBase !== '' && $immichAssetId !== '')
+                    ? ($immichOpenBase . '/photos/' . rawurlencode($immichAssetId))
+                    : '',
                 'original_filename' => (string)($photo['original_filename'] ?? ''),
                 'captured_at' => isset($photo['captured_at']) ? (string)$photo['captured_at'] : null,
                 'thumbnail' => '/apps/steps/api/session_gateway.php?endpoint=immich_thumbnail&id=' . rawurlencode($assetId),

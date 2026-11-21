@@ -49,6 +49,29 @@ final class StepsGeolocationPlacePhotos
         return rtrim(self::storageDir(), '/') . '/' . self::relativePath($osmType, $osmId);
     }
 
+    /** Legacy / alternate APPDATA trees the hostnet worker may have written to. */
+    private static function alternateAbsolutePaths(string $osmType, int $osmId): array
+    {
+        $rel = self::relativePath($osmType, $osmId);
+        $out = [];
+        foreach (['/opt/ApplicationData/steps/place-photos', '/storage/applications/steps/place-photos'] as $base) {
+            $path = rtrim($base, '/') . '/' . $rel;
+            if ($path !== self::absolutePath($osmType, $osmId)) $out[] = $path;
+        }
+        return $out;
+    }
+
+    /** Prefer an on-disk file already fetched for this OSM id (any APPDATA tree). */
+    private static function existingPhotoPath(string $osmType, int $osmId): ?string
+    {
+        $primary = self::absolutePath($osmType, $osmId);
+        if (is_file($primary) && filesize($primary) > 0) return $primary;
+        foreach (self::alternateAbsolutePaths($osmType, $osmId) as $alt) {
+            if (is_file($alt) && filesize($alt) > 0) return $alt;
+        }
+        return null;
+    }
+
     public static function publicUrl(string $osmType, int $osmId): string
     {
         return '/apps/steps/api/session_gateway.php?endpoint=geolocation_place_photo&osm_type='
@@ -123,9 +146,16 @@ final class StepsGeolocationPlacePhotos
         $id = (int)$row['osm_id'];
         $attempts = (int)$row['attempts'] + 1;
         $force = (string)$row['status'] === self::STATUS_REFRESH;
-        $existingPath = self::absolutePath($type, $id);
-        if (!$force && is_file($existingPath) && filesize($existingPath) > 0 && (string)$row['checksum'] !== '') {
-            self::markReadyFromExisting($pdo, $type, $id, (string)$row['local_path'], (string)$row['checksum']);
+        $existingPath = self::existingPhotoPath($type, $id);
+        if (!$force && $existingPath !== null) {
+            $dest = self::absolutePath($type, $id);
+            if ($existingPath !== $dest) {
+                @mkdir(dirname($dest), 0775, true);
+                @copy($existingPath, $dest);
+            }
+            $checksum = (string)$row['checksum'];
+            if ($checksum === '' && is_file($dest)) $checksum = hash_file('sha256', $dest) ?: '';
+            self::markReadyFromExisting($pdo, $type, $id, self::relativePath($type, $id), $checksum !== '' ? $checksum : (string)$row['checksum']);
             return 'skipped';
         }
         $tags = is_array($row['tags_json'] ?? null) ? $row['tags_json'] : (json_decode((string)($row['tags_json'] ?? '{}'), true) ?: []);
@@ -745,12 +775,18 @@ final class StepsGeolocationPlacePhotos
 
     public static function serveFile(string $osmType, int $osmId): void
     {
-        $path = self::absolutePath($osmType, $osmId);
-        if (!is_file($path) || filesize($path) <= 0) {
+        $path = self::existingPhotoPath($osmType, $osmId);
+        if ($path === null) {
             http_response_code(404);
             header('Content-Type: application/json; charset=utf-8');
             echo json_encode(['ok' => false, 'error' => 'not_found']);
             return;
+        }
+        $primary = self::absolutePath($osmType, $osmId);
+        if ($path !== $primary) {
+            @mkdir(dirname($primary), 0775, true);
+            @copy($path, $primary);
+            if (is_file($primary) && filesize($primary) > 0) $path = $primary;
         }
         $etag = '"' . hash_file('sha256', $path) . '"';
         header('Content-Type: image/webp');

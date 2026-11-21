@@ -37,6 +37,7 @@ class LocationTrackingManager(private val context: Context) {
 
     private val appContext = context.applicationContext
     private val prefs = PreferencesManager(appContext)
+    private val liveTunnel = LiveLocationTunnel(appContext, prefs)
 
     fun state(): TrackingState {
         if (prefs.getWebhookConfigs().none { it.isEnabled }) return TrackingState.NOT_CONNECTED
@@ -59,12 +60,14 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingPaused(false)
         prefs.setLocationPermissionLost(false)
         LocationTrackingService.start(appContext)
+        syncLiveTunnel()
         return true
     }
 
     fun pause() {
         prefs.setLocationTrackingPaused(true)
         LocationTrackingService.pause(appContext)
+        liveTunnel.stop()
     }
 
     fun resume(): Boolean {
@@ -76,8 +79,21 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingEnabled(false)
         prefs.setLocationTrackingPaused(false)
         LocationTrackingService.stop(appContext)
+        liveTunnel.stop()
         // Points captured before the stop must still leave the phone.
         if (pendingCount(appContext) == 0) LocationUploadWorker.cancelPeriodic(appContext)
+    }
+
+    fun syncLiveTunnel() {
+        if (prefs.isLiveLocationShareEnabled() &&
+            prefs.isLocationTrackingEnabled() &&
+            !prefs.isLocationTrackingPaused() &&
+            LocationPermissions.hasForeground(appContext)
+        ) {
+            liveTunnel.start()
+        } else {
+            liveTunnel.stop()
+        }
     }
 
     /**
@@ -110,6 +126,7 @@ class LocationTrackingManager(private val context: Context) {
             }
             runCatching {
                 LocationTrackingService.start(context.applicationContext)
+                LocationTrackingManager(context.applicationContext).syncLiveTunnel()
             }.onFailure { Log.w(TAG, "Could not auto-resume tracking: ${it.message}") }
         }
 

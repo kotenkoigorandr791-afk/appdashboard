@@ -358,21 +358,37 @@ final class StepsGeolocationMap
         }
 
         // Places and visits are one user-facing concept: enabling either loads both.
+        // Catalog places only appear when there is a visit inside the selected
+        // date range — otherwise a saved lyceum would show every day.
         if (in_array('places', $layers, true) || in_array('visits', $layers, true)) {
             $wantPlaces = true;
             $wantVisits = true;
             if ($wantPlaces) {
                 $stmt = $pdo->prepare(
-                    "SELECT id, name, tag, color, radius_m,
-                            round(ST_Y(position)::numeric, $precision) AS lat,
-                            round(ST_X(position)::numeric, $precision) AS lon
-                       FROM geo_places
-                      WHERE user_email = :owner AND is_active AND deleted_at IS NULL
-                        AND position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)"
-                    . ($place !== '' ? ' AND id = :place' : '')
-                    . ' ORDER BY name ASC LIMIT 200'
+                    "SELECT p.id, p.name, p.tag, p.color, p.radius_m,
+                            round(ST_Y(p.position)::numeric, $precision) AS lat,
+                            round(ST_X(p.position)::numeric, $precision) AS lon
+                       FROM geo_places p
+                       WHERE p.user_email = :owner AND p.is_active AND p.deleted_at IS NULL
+                        AND p.position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+                        AND EXISTS (
+                              SELECT 1 FROM geo_visits v
+                               WHERE v.user_email = :owner2 AND v.place_id = p.id
+                                 AND v.arrived_at BETWEEN :from AND :to
+                        )"
+                    . ($place !== '' ? ' AND p.id = :place' : '')
+                    . ' ORDER BY p.name ASC LIMIT 200'
                 );
-                $placeParams = [':owner' => $owner, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
+                $placeParams = [
+                    ':owner' => $owner,
+                    ':owner2' => $owner,
+                    ':minLon' => $bbox['minLon'],
+                    ':minLat' => $bbox['minLat'],
+                    ':maxLon' => $bbox['maxLon'],
+                    ':maxLat' => $bbox['maxLat'],
+                    ':from' => $from,
+                    ':to' => $to,
+                ];
                 if ($place !== '') $placeParams[':place'] = $place;
                 $stmt->execute($placeParams);
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);

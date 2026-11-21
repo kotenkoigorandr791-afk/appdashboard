@@ -65,11 +65,12 @@ final class StepsGeolocationStops
         }
         if ($current !== null) $clusters[] = $current;
 
-        // Longer tracks need denser dwells: adaptive = max(min_points, ceil(sqrt(N)*factor)).
+        // Longer tracks need denser dwells, but watermark batches can be thousands
+        // of points — capping the sqrt input keeps café-length stops detectable.
         $routePoints = count($usable);
         $adaptiveMin = (int)max(
             (int)$t['min_points'],
-            min((int)$t['max_adaptive_points'], (int)ceil(sqrt(max(1, $routePoints)) * (float)$t['density_factor']))
+            min((int)$t['max_adaptive_points'], (int)ceil(sqrt(max(1, min(400, $routePoints))) * (float)$t['density_factor']))
         );
 
         $stops = [];

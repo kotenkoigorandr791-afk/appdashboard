@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CloudDone
 import androidx.compose.material.icons.filled.CloudOff
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Map
@@ -41,6 +42,13 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Satellite
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.TravelExplore
+import android.content.Intent
+import android.net.Uri
+import android.view.MotionEvent
+import android.widget.Button
+import android.widget.ImageView
+import android.widget.ProgressBar
+import android.widget.TextView
 import androidx.compose.material3.Checkbox
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.verticalScroll
@@ -80,6 +88,8 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.tileprovider.MapTileProviderBasic
@@ -142,6 +152,7 @@ private enum class GeoLayer(val key: String, val titleRes: Int) {
     TRIPS("trips", R.string.map_layer_trips),
     STOPS("stops", R.string.map_layer_stops),
     PLACES("places", R.string.map_layer_places),
+    PHOTOS("photos", R.string.map_layer_photos),
     POINTS("points", R.string.map_layer_points),
     HEATMAP("heatmap", R.string.map_layer_heatmap),
     SPEED("speed", R.string.map_layer_speed),
@@ -618,12 +629,19 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
     // Overlays are rebuilt only when the day data or the enabled layers change.
     LaunchedEffect(data, layers, resolvedStyle, darkTheme, config?.url) {
         val active = config
+        rebuildOverlays(mapView, data, layers, darkTheme, prefs, active)
         if (active != null && GeoLayer.PLACES.key in layers) {
             data.points.filter { it.layer == "visit" && it.osmType != null && it.osmId != null }.forEach { feature ->
                 PlacePhotoCache.ensure(context, prefs, active, feature.osmType!!, feature.osmId!!)
             }
         }
-        rebuildOverlays(mapView, data, layers, darkTheme)
+        if (active != null && GeoLayer.PHOTOS.key in layers) {
+            data.points.filter { it.layer == "photo_cluster" && !it.assetId.isNullOrBlank() }.forEach { feature ->
+                PlacePhotoCache.ensureImmich(context, prefs, active, feature.assetId!!)
+            }
+        }
+        // Second pass so circles pick up thumbs that finished downloading.
+        rebuildOverlays(mapView, data, layers, darkTheme, prefs, active)
         mapView.overlays.remove(roadsOverlay)
         mapView.overlays.remove(labelsOverlay)
         if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
@@ -741,12 +759,22 @@ fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) 
         }
 
         // Map controls, scaled with the viewport so five buttons do not take up
-        // half of a small map.
+        // half of a small map. North-up sits above the side-panel entry.
         Column(
             Modifier.align(Alignment.CenterEnd).padding(end = edge),
             verticalArrangement = Arrangement.spacedBy((10.dp * uiScale).coerceAtLeast(6.dp)),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
+            MapControlButton(
+                icon = Icons.Filled.Explore,
+                contentDescription = stringResource(R.string.map_north_up),
+                size = controlSize,
+                iconSize = controlIconSize,
+                onClick = {
+                    mapView.mapOrientation = 0f
+                    mapView.invalidate()
+                },
+            )
             MapControlButton(
                 icon = Icons.Filled.TravelExplore,
                 contentDescription = stringResource(R.string.map_panels_open),
@@ -1107,6 +1135,13 @@ internal interface KeepOverlay
 
 internal class MapRotationOverlay(mapView: MapView) : org.osmdroid.views.overlay.gestures.RotationGestureOverlay(mapView), KeepOverlay
 
+internal enum class MapHitKind { PHOTO, VISIT, POINT }
+
+internal data class MapHitPayload(
+    val kind: MapHitKind,
+    val feature: GeoPointFeature? = null,
+)
+
 internal class StyledInfoWindow(mapView: MapView, private val dark: Boolean = false) : org.osmdroid.views.overlay.infowindow.InfoWindow(R.layout.map_info_window, mapView) {
     override fun onOpen(item: Any?) {
         val marker = item as? Marker
@@ -1116,10 +1151,10 @@ internal class StyledInfoWindow(mapView: MapView, private val dark: Boolean = fa
             setStroke((mView.resources.displayMetrics.density).toInt().coerceAtLeast(1), if (dark) AndroidColor.DKGRAY else AndroidColor.LTGRAY)
         }
         mView.background = bg
-        mView.findViewById<android.widget.TextView>(R.id.info_title).setTextColor(if (dark) AndroidColor.WHITE else AndroidColor.BLACK)
-        mView.findViewById<android.widget.TextView>(R.id.info_snippet).setTextColor(if (dark) AndroidColor.LTGRAY else AndroidColor.DKGRAY)
-        mView.findViewById<android.widget.TextView>(R.id.info_title).text = marker?.title.orEmpty()
-        mView.findViewById<android.widget.TextView>(R.id.info_snippet).apply {
+        mView.findViewById<TextView>(R.id.info_title).setTextColor(if (dark) AndroidColor.WHITE else AndroidColor.BLACK)
+        mView.findViewById<TextView>(R.id.info_snippet).setTextColor(if (dark) AndroidColor.LTGRAY else AndroidColor.DKGRAY)
+        mView.findViewById<TextView>(R.id.info_title).text = marker?.title.orEmpty()
+        mView.findViewById<TextView>(R.id.info_snippet).apply {
             text = marker?.snippet.orEmpty()
             visibility = if (marker?.snippet.isNullOrBlank()) android.view.View.GONE else android.view.View.VISIBLE
         }
@@ -1129,10 +1164,131 @@ internal class StyledInfoWindow(mapView: MapView, private val dark: Boolean = fa
     override fun onClose() {}
 }
 
-internal fun styleMarker(marker: Marker, mapView: MapView, dark: Boolean) {
-    if (marker.title.isNullOrBlank()) marker.title = mapView.context.getString(R.string.map_coordinates)
-    marker.snippet = mapView.context.getString(R.string.map_coordinates_values, marker.position.latitude, marker.position.longitude)
+internal class PhotoInfoWindow(
+    mapView: MapView,
+    private val dark: Boolean = false,
+    private val prefs: PreferencesManager? = null,
+    private val config: orbit.nex.steps.WebhookConfig? = null,
+) : org.osmdroid.views.overlay.infowindow.InfoWindow(R.layout.map_photo_info_window, mapView) {
+    private var loadJob: kotlinx.coroutines.Job? = null
+
+    override fun onOpen(item: Any?) {
+        val marker = item as? Marker ?: return
+        val feature = (marker.relatedObject as? MapHitPayload)?.feature
+        val bg = android.graphics.drawable.GradientDrawable().apply {
+            setColor(if (dark) AndroidColor.rgb(18, 20, 26) else AndroidColor.WHITE)
+            cornerRadius = 18f * mView.resources.displayMetrics.density
+            setStroke((mView.resources.displayMetrics.density).toInt().coerceAtLeast(1), if (dark) AndroidColor.rgb(55, 58, 68) else AndroidColor.LTGRAY)
+        }
+        mView.background = bg
+        val image = mView.findViewById<ImageView>(R.id.photo_image)
+        val loading = mView.findViewById<ProgressBar>(R.id.photo_loading)
+        val immich = mView.findViewById<Button>(R.id.photo_immich)
+        fun showBitmap(bitmap: android.graphics.Bitmap) {
+            image.setImageBitmap(bitmap)
+            image.visibility = android.view.View.VISIBLE
+            loading.visibility = android.view.View.GONE
+        }
+        val cached = feature?.assetId?.let { PlacePhotoCache.memoryGet(PlacePhotoCache.immichKey(it)) }
+        if (cached != null) {
+            showBitmap(cached)
+        } else {
+            image.setImageDrawable(null)
+            image.visibility = android.view.View.INVISIBLE
+            loading.visibility = android.view.View.VISIBLE
+            val assetId = feature?.assetId
+            val activePrefs = prefs
+            val activeConfig = config
+            if (!assetId.isNullOrBlank() && activePrefs != null && activeConfig != null) {
+                loadJob?.cancel()
+                loadJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main.immediate).launch {
+                    val bitmap = withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        PlacePhotoCache.ensureImmich(mView.context, activePrefs, activeConfig, assetId)
+                    }
+                    if (bitmap != null && isOpen) showBitmap(bitmap)
+                    else loading.visibility = android.view.View.GONE
+                }
+            } else {
+                loading.visibility = android.view.View.GONE
+            }
+        }
+        immich.setOnClickListener {
+            openImmichPhoto(mView.context, feature?.immichAssetId, feature?.immichOpenUrl)
+        }
+    }
+
+    override fun onClose() {
+        loadJob?.cancel()
+        loadJob = null
+    }
+}
+
+internal fun openImmichPhoto(context: android.content.Context, immichAssetId: String?, openUrl: String?) {
+    val id = immichAssetId?.trim().orEmpty()
+    val urls = buildList {
+        openUrl?.trim()?.takeIf { it.isNotEmpty() }?.let(::add)
+        if (id.isNotEmpty()) add("https://my.immich.app/photos/$id")
+    }
+    if (urls.isEmpty()) return
+    val packages = listOf("app.alextran.immich", "app.alextran.immich.offline", "com.immichapp")
+    for (pkg in packages) {
+        for (url in urls) {
+            val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url)).setPackage(pkg).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            if (intent.resolveActivity(context.packageManager) != null) {
+                runCatching { context.startActivity(intent) }
+                return
+            }
+        }
+    }
+    runCatching {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(urls.first())).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    }
+}
+
+internal fun styleMarker(marker: Marker, mapView: MapView, dark: Boolean, coordsFallback: Boolean = true) {
+    if (coordsFallback && marker.title.isNullOrBlank()) {
+        marker.title = mapView.context.getString(R.string.map_coordinates)
+    }
+    if (coordsFallback) {
+        marker.snippet = mapView.context.getString(R.string.map_coordinates_values, marker.position.latitude, marker.position.longitude)
+    }
     marker.setInfoWindow(StyledInfoWindow(mapView, dark))
+}
+
+/** Photos (3) beat visits (2) beat raw points (1), with a forgiving photo hit radius. */
+internal class MapPriorityTapOverlay : Overlay(), KeepOverlay {
+    var photos: List<Marker> = emptyList()
+    var visits: List<Marker> = emptyList()
+    var points: List<Marker> = emptyList()
+
+    override fun onSingleTapConfirmed(e: MotionEvent, mapView: MapView): Boolean {
+        val density = mapView.resources.displayMetrics.density
+        fun nearest(markers: List<Marker>, maxPx: Float): Marker? {
+            var best: Marker? = null
+            var bestDist = maxPx * maxPx
+            val tap = android.graphics.Point()
+            mapView.projection.unrotateAndScalePoint(e.x.toInt(), e.y.toInt(), tap)
+            val pixel = android.graphics.Point()
+            markers.forEach { marker ->
+                mapView.projection.toPixels(marker.position, pixel)
+                val dx = (pixel.x - tap.x).toFloat()
+                val dy = (pixel.y - tap.y).toFloat()
+                val d = dx * dx + dy * dy
+                if (d <= bestDist) {
+                    bestDist = d
+                    best = marker
+                }
+            }
+            return best
+        }
+        val hit = nearest(photos, 56f * density)
+            ?: nearest(visits, 40f * density)
+            ?: nearest(points, 28f * density)
+        org.osmdroid.views.overlay.infowindow.InfoWindow.closeAllInfoWindowsOn(mapView)
+        if (hit == null) return true
+        hit.showInfoWindow()
+        return true
+    }
 }
 
 internal fun configureOsm(context: android.content.Context) {
@@ -1169,7 +1325,14 @@ internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean)
     mapView.invalidate()
 }
 
-internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>, dark: Boolean = false) {
+internal fun rebuildOverlays(
+    mapView: MapView,
+    data: GeoMapData,
+    layers: Set<String>,
+    dark: Boolean = false,
+    prefs: PreferencesManager? = null,
+    config: orbit.nex.steps.WebhookConfig? = null,
+) {
     mapView.overlays.removeAll { it !is KeepOverlay }
     val resources = mapView.resources
     val density = resources.displayMetrics.density
@@ -1221,7 +1384,23 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
         mapView.overlays.add(HeatmapOverlay(data.heat))
     }
 
-    fun addPoints(featureLayer: String, toggleKey: String, color: Int, border: Int, sizeDp: Int, title: (GeoPointFeature) -> String?) {
+    val hitPhotos = mutableListOf<Marker>()
+    val hitVisits = mutableListOf<Marker>()
+    val hitPoints = mutableListOf<Marker>()
+
+    fun disableDefaultClick(marker: Marker) {
+        marker.setOnMarkerClickListener { _, _ -> true }
+    }
+
+    fun addPoints(
+        featureLayer: String,
+        toggleKey: String,
+        color: Int,
+        border: Int,
+        sizeDp: Int,
+        kind: MapHitKind,
+        title: (GeoPointFeature) -> String?,
+    ) {
         if (toggleKey !in layers) return
         data.points.filter { it.layer == featureLayer }.forEach { feature ->
             val marker = Marker(mapView)
@@ -1240,24 +1419,22 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
                 dot(color, border, (sizeDp * density).toInt())
             }
             title(feature)?.let { marker.title = it }
-            styleMarker(marker, mapView, dark)
+            styleMarker(marker, mapView, dark, coordsFallback = featureLayer == "stop")
             if (!feature.photoAttribution.isNullOrBlank()) {
-                marker.snippet = listOfNotNull(marker.snippet, feature.photoAttribution).joinToString("\n")
+                marker.snippet = listOfNotNull(marker.snippet?.takeIf { it.isNotBlank() }, feature.photoAttribution).joinToString("\n")
             }
+            marker.relatedObject = MapHitPayload(kind, feature)
+            disableDefaultClick(marker)
             mapView.overlays.add(marker)
+            when (kind) {
+                MapHitKind.VISIT -> hitVisits += marker
+                MapHitKind.POINT -> hitPoints += marker
+                MapHitKind.PHOTO -> hitPhotos += marker
+            }
         }
     }
 
-    addPoints("stop", GeoLayer.STOPS.key, stopColor, AndroidColor.WHITE, 14) { feature ->
-        if (feature.count > 1) feature.count.toString() else null
-    }
-    // Visits render under the Places toggle — one concept on the map.
-    addPoints("place", GeoLayer.PLACES.key, placeColor, AndroidColor.WHITE, 16) { it.label }
-    addPoints("visit", GeoLayer.PLACES.key, visitColor, AndroidColor.WHITE, 14) { feature ->
-        feature.label ?: mapView.context.getString(R.string.visit_unidentified)
-    }
-    // Raw points and aggregated clusters are decoration: dense days would be
-    // unreadable as markers, so only clustered positions are drawn.
+    // Draw low-priority first; PriorityTapOverlay decides the tap winner.
     if (GeoLayer.POINTS.key in layers) {
         data.points.filter { it.layer == "point_cluster" || it.layer == "point" || it.layer == "local_synced" }.forEach { feature ->
             val marker = Marker(mapView)
@@ -1265,20 +1442,61 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             marker.icon = dot(pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
             styleMarker(marker, mapView, dark)
+            marker.relatedObject = MapHitPayload(MapHitKind.POINT, feature)
+            disableDefaultClick(marker)
             mapView.overlays.add(marker)
+            hitPoints += marker
+        }
+        data.points.filter { it.pending }.forEach { feature ->
+            val marker = Marker(mapView)
+            marker.position = GeoPoint(feature.lat, feature.lon)
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            marker.icon = dot(pendingPointColor, AndroidColor.WHITE, (9 * density).toInt())
+            styleMarker(marker, mapView, dark)
+            marker.relatedObject = MapHitPayload(MapHitKind.POINT, feature)
+            disableDefaultClick(marker)
+            mapView.overlays.add(marker)
+            hitPoints += marker
         }
     }
-    // Measurements that have not reached the server yet are always drawn, even
-    // with the points layer off, so nothing recorded on the device is invisible.
-    if (GeoLayer.POINTS.key in layers) data.points.filter { it.pending }.forEach { feature ->
-        val marker = Marker(mapView)
-        marker.position = GeoPoint(feature.lat, feature.lon)
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-        marker.icon = dot(pendingPointColor, AndroidColor.WHITE, (9 * density).toInt())
-        styleMarker(marker, mapView, dark)
-        mapView.overlays.add(marker)
+    addPoints("stop", GeoLayer.STOPS.key, stopColor, AndroidColor.WHITE, 14, MapHitKind.POINT) { feature ->
+        if (feature.count > 1) feature.count.toString() else null
     }
-    // The live puck stays on top of every rebuilt layer.
+    addPoints("place", GeoLayer.PLACES.key, placeColor, AndroidColor.WHITE, 16, MapHitKind.VISIT) { it.label }
+    addPoints("visit", GeoLayer.PLACES.key, visitColor, AndroidColor.WHITE, 14, MapHitKind.VISIT) { feature ->
+        feature.label ?: mapView.context.getString(R.string.visit_unidentified)
+    }
+    if (GeoLayer.PHOTOS.key in layers) {
+        val photoBorder = AndroidColor.rgb(245, 158, 11)
+        data.points.filter { it.layer == "photo_cluster" }.forEach { feature ->
+            val marker = Marker(mapView)
+            marker.position = GeoPoint(feature.lat, feature.lon)
+            marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            val cached = feature.assetId?.let { PlacePhotoCache.memoryGet(PlacePhotoCache.immichKey(it)) }
+            val size = (36 * density).toInt().coerceIn(48, 80)
+            marker.icon = if (cached != null) {
+                android.graphics.drawable.BitmapDrawable(
+                    resources,
+                    PlacePhotoCache.circularIcon(cached, size, photoBorder, 2.5f * density),
+                )
+            } else {
+                dot(photoBorder, AndroidColor.WHITE, (18 * density).toInt())
+            }
+            marker.title = feature.label ?: mapView.context.getString(R.string.map_layer_photos)
+            marker.setInfoWindow(PhotoInfoWindow(mapView, dark, prefs, config))
+            marker.relatedObject = MapHitPayload(MapHitKind.PHOTO, feature)
+            disableDefaultClick(marker)
+            mapView.overlays.add(marker)
+            hitPhotos += marker
+        }
+    }
+    val priority = mapView.overlays.filterIsInstance<MapPriorityTapOverlay>().firstOrNull()
+        ?: MapPriorityTapOverlay().also { mapView.overlays.add(it) }
+    priority.photos = hitPhotos
+    priority.visits = hitVisits
+    priority.points = hitPoints
+    mapView.overlays.remove(priority)
+    mapView.overlays.add(priority)
     val live = mapView.overlays.filterIsInstance<UserLocationOverlay>()
     if (live.isNotEmpty()) {
         mapView.overlays.removeAll(live)
