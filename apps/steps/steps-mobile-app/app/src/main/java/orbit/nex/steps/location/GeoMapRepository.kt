@@ -3,6 +3,9 @@ package orbit.nex.steps.location
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import orbit.nex.steps.PreferencesManager
@@ -57,10 +60,23 @@ data class GeoPointFeature(
     val count: Int,
     val intensity: Float,
     val pending: Boolean = false,
+    val photoUrl: String? = null,
+    val osmType: String? = null,
+    val osmId: Long? = null,
+    val photoAttribution: String? = null,
 )
 
 /** Data extent of the response, used to frame the map after loading a day. */
 data class GeoBoundingBox(val north: Double, val south: Double, val east: Double, val west: Double)
+
+object GeoMapChanges {
+    private val counter = kotlinx.coroutines.flow.MutableStateFlow(0L)
+    val revision: kotlinx.coroutines.flow.StateFlow<Long> = counter
+    fun invalidate(context: android.content.Context) {
+        context.cacheDir.listFiles()?.filter { it.name.startsWith("geomap_") && it.name.endsWith(".json") }?.forEach { it.delete() }
+        counter.value += 1
+    }
+}
 
 data class GeoMapData(
     val trips: List<GeoTrip> = emptyList(),
@@ -90,14 +106,52 @@ class GeoMapRepository(
     private fun cacheFile(config: WebhookConfig, day: LocalDate): java.io.File? =
         cacheDir?.let { java.io.File(it, "geomap_${(config.url + prefs.getDeviceId()).hashCode()}_$day.json") }
 
+    suspend fun reconcileDeleted(config: WebhookConfig, context: android.content.Context, force: Boolean = false): Boolean = withContext(Dispatchers.IO) {
+        LocationMutationLock.mutex.withLock {
+            runCatching {
+                val base = apiBase(config).trimEnd('/')
+                fun builder(url: String): Request.Builder = Request.Builder().url(url)
+                    .addHeader("Accept", "application/json")
+                    .addHeader("X-Device-Id", prefs.getDeviceId())
+                    .apply { config.headers.forEach { (key, value) -> addHeader(key, value) } }
+                val revision = client.newCall(builder("$base/geolocation_points?revision=1").build()).execute().use { response ->
+                    if (!response.isSuccessful) error("revision request failed")
+                    val json = JSONObject(response.body?.string().orEmpty())
+                    if (!json.optBoolean("ok") || !json.has("revision")) error("revision unavailable")
+                    json.getString("revision")
+                }
+                val key = "geo_deletion_revision_${config.url.hashCode()}"
+                val settings = prefs.getSharedPreferences()
+                val changed = settings.getString(key, null) != revision
+                if (!changed && !force) return@runCatching
+                val store = LocationEventStore(context)
+                val local = store.syncedEvents().map { it.eventId }
+                val missing = mutableListOf<String>()
+                local.chunked(500).forEach { batch ->
+                    val payload = JSONObject().put("action", "reconcile").put("local_device_id", prefs.getLocationDeviceId()).put("event_ids", JSONArray(batch))
+                    val request = builder("$base/geolocation_points").post(payload.toString().toRequestBody("application/json; charset=utf-8".toMediaType())).build()
+                    val existing = client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) error("reconciliation failed")
+                        val json = JSONObject(response.body?.string().orEmpty())
+                        if (!json.optBoolean("ok") || !json.has("event_ids")) error("reconciliation unavailable")
+                        val ids = json.getJSONArray("event_ids")
+                        (0 until ids.length()).map { ids.getString(it) }.toSet()
+                    }
+                    missing += batch.filterNot { it in existing }
+                }
+                store.removeEvents(missing)
+                settings.edit().putString(key, revision).apply()
+                if (changed || missing.isNotEmpty()) GeoMapChanges.invalidate(context)
+            }.isSuccess
+        }
+    }
+
     fun cached(config: WebhookConfig, day: LocalDate): GeoMapData? = runCatching {
         cacheFile(config, day)?.takeIf { it.exists() }?.let { parse(JSONObject(it.readText())) }
     }.getOrNull()
 
     suspend fun loadDay(config: WebhookConfig, day: LocalDate): GeoMapData = withContext(Dispatchers.IO) {
-        // A bare date would be parsed by the server as UTC midnight, which drops
-        // the local first hours of the day. Send the local day as explicit
-        // instants: [local 00:00, local next 00:00).
+        val generation = GeoMapChanges.revision.value
         val zone = java.time.ZoneId.systemDefault()
         val from = day.atStartOfDay(zone).toInstant().toString()
         val to = day.plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1).toString()
@@ -128,8 +182,8 @@ class GeoMapRepository(
                     return@use GeoMapData(error = "HTTP ${response.code}")
                 }
                 val parsed = parse(JSONObject(body))
-                if (parsed.error == null) runCatching { cacheFile(config, day)?.writeText(body) }
-                parsed
+                if (parsed.error == null && generation == GeoMapChanges.revision.value) runCatching { cacheFile(config, day)?.writeText(body) }
+                mergeVisitWindow(config, day, parsed)
             }
         }.getOrElse { error ->
             GeoMapData(error = error.message ?: "network")
@@ -189,17 +243,24 @@ class GeoMapRepository(
                     val lon = coordinates.optDouble(0)
                     val lat = coordinates.optDouble(1)
                     if (!isCoordinate(lat, lon)) continue
+                    val osmType = properties.optString("osm_type").ifBlank { null }
+                    val osmId = properties.optLong("osm_id").takeIf { properties.has("osm_id") && !properties.isNull("osm_id") && it > 0L }
+                    val photoUrl = properties.optString("photo_url").ifBlank { null }
                     points += GeoPointFeature(
                         layer = layer,
                         lat = lat,
                         lon = lon,
                         label = when (layer) {
                             "place" -> properties.optString("name").ifBlank { null }
-                            "visit" -> properties.optString("place_name").ifBlank { null }
+                            "visit" -> properties.optString("place_name").ifBlank { properties.optString("category") }.ifBlank { properties.optString("detection_status") }.ifBlank { null }
                             else -> null
                         },
                         count = properties.optInt("count", 1),
                         intensity = properties.optDouble("intensity", 0.5).toFloat(),
+                        photoUrl = photoUrl,
+                        osmType = osmType,
+                        osmId = osmId,
+                        photoAttribution = properties.optString("photo_attribution").ifBlank { null },
                     )
                 }
             }
@@ -216,6 +277,28 @@ class GeoMapRepository(
             heat.asSequence().flatMap { line -> line.path.asSequence().map { it.lat to it.lon } } +
             speed.asSequence().flatMap { segment -> segment.path.asSequence().map { it.lat to it.lon } })
         return GeoMapData(trips = trips, points = points, heat = heat, speed = speed, bbox = bbox)
+    }
+
+
+    private fun mergeVisitWindow(config: WebhookConfig, day: LocalDate, base: GeoMapData): GeoMapData {
+        if (base.error != null) return base
+        return runCatching {
+            val zone = java.time.ZoneId.systemDefault()
+            val from = day.minusDays(29).atStartOfDay(zone).toInstant().toString()
+            val to = day.plusDays(1).atStartOfDay(zone).toInstant().minusMillis(1).toString()
+            val url = apiBase(config) + "/geolocation_map?from=$from&to=$to&zoom=$MAP_ZOOM&layers=visits"
+            val request = Request.Builder().url(url)
+                .apply { config.headers.forEach { (k, v) -> addHeader(k, v) }; addHeader("X-Device-Id", prefs.getDeviceId()); addHeader("Accept", "application/json") }
+                .build()
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use base
+                val extra = parse(JSONObject(response.body?.string().orEmpty()))
+                if (extra.error != null) return@use base
+                val existing = base.points.filter { it.layer == "visit" }.map { "${it.lat}:${it.lon}:${it.label}" }.toSet()
+                val mergedVisits = extra.points.filter { it.layer == "visit" && "${it.lat}:${it.lon}:${it.label}" !in existing }
+                base.copy(points = base.points + mergedVisits, bbox = base.bbox ?: extra.bbox)
+            }
+        }.getOrDefault(base)
     }
 
     private fun readLine(coordinates: JSONArray?): List<GeoLatLon> {

@@ -105,10 +105,11 @@
         <div class="header-buttons">
             <div class="add-menu-wrap">
             <button id="import-btn" class="header-btn add-btn" type="button" title="<?= htmlspecialchars($translations['add']) ?>">
-                <svg width="28" height="28" viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="4">
-                    <line x1="24" y1="12" x2="24" y2="36"/>
-                    <line x1="12" y1="24" x2="36" y2="24"/>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="12" y1="5" x2="12" y2="19"/>
+                    <line x1="5" y1="12" x2="19" y2="12"/>
                 </svg>
+                <span class="header-btn-label"><?= htmlspecialchars($translations['add']) ?></span>
             </button>
             <div id="import-menu" class="import-dropdown" role="menu">
                 <button type="button" role="menuitem" id="import-opt-manual"><?= htmlspecialchars($translations['import_menu_manual'] ?? 'Add manually') ?></button>
@@ -117,8 +118,18 @@
                 <button type="button" role="menuitem" id="import-opt-csv"><?= htmlspecialchars($translations['import_menu_csv'] ?? 'CSV') ?></button>
             </div>
             </div>
-            <button class="header-btn" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v5"/><path d="M16 14.639V21"/><path d="M20 10.656V21"/><path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15"/><path d="M4 18.463V21"/><path d="M8 14.656V21"/></svg>
+            <button class="header-btn header-btn-activity" type="button" onclick="openActivityHistory()" title="<?= htmlspecialchars($translations['activity_title'] ?? 'History') ?>" aria-label="<?= htmlspecialchars($translations['activity_title'] ?? 'History') ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                <span class="header-btn-label"><?= htmlspecialchars($translations['activity_title'] ?? 'History') ?></span>
+            </button>
+            <button class="header-btn header-btn-table" type="button" onclick="showModal('expenses-table-modal')" title="<?= htmlspecialchars($tableModalTitle) ?>">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="3" y1="15" x2="21" y2="15"/><line x1="9" y1="9" x2="9" y2="21"/></svg>
+                <span class="header-btn-label"><?= htmlspecialchars($tableModalTitle) ?></span>
+            </button>
+            <div class="header-divider" aria-hidden="true"></div>
+            <button class="header-btn header-btn-stats" onclick="showOCRAnalyticsModal()" title="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16v5"/><path d="M16 14.639V21"/><path d="M20 10.656V21"/><path d="m22 3-8.646 8.646a.5.5 0 0 1-.708 0L9.354 8.354a.5.5 0 0 0-.707 0L2 15"/><path d="M4 18.463V21"/><path d="M8 14.656V21"/></svg>
+                <span class="header-btn-label"><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></span>
             </button>
             <button class="header-btn" onclick="showModal('settings-modal')" title="<?= htmlspecialchars($translations['settings_title'].' · '.$translations['table_settings']) ?>">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor"><path d="M19.14,12.94a1.43,1.43,0,0,0,0-1.88l2.11-1.65a.48.48,0,0,0,.12-.61l-2-3.46a.49.49,0,0,0-.6-.21l-2.49,1a5.14,5.14,0,0,0-1.62-.94l-.38-2.65A.48.48,0,0,0,13.81,2H10.19a.48.48,0,0,0-.48.41L9.33,5.06a5.14,5.14,0,0,0-1.62.94l-2.49-1a.49.49,0,0,0-.6.21l-2,3.46a.48.48,0,0,0,.12.61L4.86,11.06a1.43,1.43,0,0,0,0,1.88L2.75,14.59a.48.48,0,0,0-.12.61l2,3.46a.49.49,0,0,0,.6.21l2.49-1a5.14,5.14,0,0,0,1.62.94l.38,2.65a.48.48,0,0,0,.48.41h3.62a.48.48,0,0,0,.48-.41l.38-2.65a5.14,5.14,0,0,0,1.62-.94l2.49,1a.49.49,0,0,0,.6-.21l2-3.46a.48.48,0,0,0-.12-.61ZM12,15.5A3.5,3.5,0,1,1,15.5,12,3.5,3.5,0,0,1,12,15.5Z"/></svg>
@@ -170,23 +181,72 @@
             </button>
         </div>
         <div class="chart-controls-actions">
-            <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
             <button class="chart-toggle-btn" id="chart-legend-btn" type="button" style="display:none;" onclick="openChartLegend()"><?= htmlspecialchars($translations['legend'] ?? 'Legend') ?></button>
+            <button class="chart-toggle-btn" onclick="toggleChartMode()"><?= htmlspecialchars($translations['total_expenses']) ?></button>
         </div>
         <div class="chart-year" id="chart-year2"></div>
     </div>
 
     <div class="divider"></div>
 
+    <!-- Activity feed: recent transactions under the dashboard controls -->
+    <section id="dashboard-activity-section" class="dash-activity">
+        <div class="dash-activity__head">
+            <div class="dash-activity__title-wrap">
+                <span class="dash-activity__icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/><path d="M12 7v5l4 2"/></svg>
+                </span>
+                <h3><?= htmlspecialchars($translations['activity_title'] ?? 'History') ?></h3>
+                <span id="tx-total-badge" class="dash-activity__badge">0</span>
+            </div>
+            <button type="button" class="dash-activity__all" onclick="openActivityHistory()">
+                <span><?= htmlspecialchars($translations['activity_all'] ?? 'All history') ?></span><span aria-hidden="true">→</span>
+            </button>
+        </div>
+        <div id="dashboard-activity-list" class="dash-activity__list"></div>
+        <div id="dashboard-activity-pagination" class="dash-activity__pager"></div>
+    </section>
+
     <div id="preview-tooltip" style="display:none;position:absolute;background:var(--modal-bg);border:1px solid var(--primary-color);border-radius:4px;padding:5px 10px;font-size:14px;box-shadow:0 2px 10px rgba(0,0,0,.2);z-index:1000;pointer-events:none;">
         <span id="preview-tooltip-result"></span>
     </div>
 </div>
+<!-- Transaction details: bottom sheet on phones, dialog on larger screens -->
+<div id="tx-details-modal" class="modal tx-modal" onclick="if(event.target===this) closeModal('tx-details-modal')">
+    <div class="modal-content tx-sheet" role="dialog" aria-modal="true">
+        <div class="tx-sheet__head">
+            <span class="tx-sheet__eyebrow"><?= htmlspecialchars($translations['activity_details'] ?? 'Transaction details') ?></span>
+            <button type="button" class="tx-sheet__close" onclick="closeModal('tx-details-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">✕</button>
+        </div>
+        <div id="tx-details-content" class="tx-sheet__body"></div>
+    </div>
+</div>
+
+<!-- Full transaction history with search and source filters -->
+<div id="activity-history-modal" class="modal history-modal">
+    <div class="modal-content history-sheet" role="dialog" aria-modal="true">
+        <div class="history-sheet__head">
+            <h3><?= htmlspecialchars($translations['activity_title'] ?? 'History') ?></h3>
+            <button type="button" class="tx-sheet__close" onclick="closeModal('activity-history-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">✕</button>
+        </div>
+        <div class="history-sheet__toolbar">
+            <input id="history-search-input" type="search" class="history-sheet__search" placeholder="<?= htmlspecialchars($translations['activity_search_placeholder'] ?? 'Search by store, category or amount...') ?>" oninput="renderFullActivity()">
+            <div class="history-sheet__filters" id="history-source-filters">
+                <button type="button" class="hist-filter is-active" data-source="all" onclick="setActivitySourceFilter('all')"><?= htmlspecialchars($translations['activity_filter_all'] ?? 'All') ?></button>
+                <button type="button" class="hist-filter" data-source="notification" onclick="setActivitySourceFilter('notification')">🔔 <?= htmlspecialchars($translations['activity_filter_notification'] ?? 'Notification') ?></button>
+                <button type="button" class="hist-filter" data-source="manual" onclick="setActivitySourceFilter('manual')">✏️ <?= htmlspecialchars($translations['activity_filter_manual'] ?? 'Manual') ?></button>
+            </div>
+        </div>
+        <div id="full-activity-list" class="history-sheet__list"></div>
+    </div>
+</div>
+
 <div id="expenses-table-modal" class="modal table-modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('expenses-table-modal')">×</button>
         <h3><?= htmlspecialchars($tableModalTitle) ?></h3>
         <div class="table-modal-actions">
+            <span class="table-modal-hint"><?= htmlspecialchars($translations['table_edit_hint'] ?? 'Tap any cell to edit the amount') ?></span>
             <button type="button" class="add-date-btn table-sub-btn" onclick="openManualAddFromTable()"><?= htmlspecialchars($translations['table_sub_button'] ?? 'Subscription') ?></button>
         </div>
         <div class="data-table-container">
@@ -246,33 +306,58 @@
 <div id="ocr-analytics-modal" class="modal">
     <div class="modal-content">
         <button class="modal-close" onclick="closeModal('ocr-analytics-modal')">×</button>
-        <h3 style="margin-top:0;"><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></h3>
-        <div class="chart-nav-bottom" style="margin:0 0 10px;">
-            <button id="analytics-year-prev-btn" class="chart-nav-btn" onclick="changeAnalyticsYear(-1)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        <h3><?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?></h3>
+        <div class="stats-year">
+            <button type="button" id="analytics-year-prev-btn" class="stats-nav-btn" onclick="changeAnalyticsYear(-1)" aria-label="<?= htmlspecialchars($translations['prev_year'] ?? 'Previous year') ?>">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
             </button>
-            <div class="chart-year-framed" id="analytics-year-label"></div>
-            <button id="analytics-year-next-btn" class="chart-nav-btn" onclick="changeAnalyticsYear(1)">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M10 6L8.59 7.41 13.17 12l-4.58 4.59L10 18l6-6z"/></svg>
+            <div class="stats-year-badge" id="analytics-year-label" aria-live="polite"></div>
+            <button type="button" id="analytics-year-next-btn" class="stats-nav-btn" onclick="changeAnalyticsYear(1)" aria-label="<?= htmlspecialchars($translations['next_year'] ?? 'Next year') ?>">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>
             </button>
         </div>
-        <div class="form-row">
-            <label><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?></label>
-            <select id="ocr-analytics-store" class="currency-select" onchange="loadOCRAnalytics()"><option value="__all__"><?= htmlspecialchars($translations['all_stores'] ?? 'All stores') ?></option></select>
+        <div class="stats-filter">
+            <div class="stats-filter-head">
+                <label for="ocr-analytics-store"><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?></label>
+                <button type="button" class="stats-reset" id="analytics-reset-filter" onclick="selectAnalyticsStore('__all__')" hidden><?= htmlspecialchars($translations['analytics_reset_filter'] ?? 'Reset filter') ?></button>
+            </div>
+            <select id="ocr-analytics-store" onchange="onAnalyticsStoreChange()"><option value="__all__"><?= htmlspecialchars($translations['all_stores'] ?? 'All stores') ?></option></select>
         </div>
-        <div class="analytics-summary-grid">
-            <section>
-                <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
-                <div id="analytics-store-summary"></div>
+        <div class="analytics-grid">
+            <section class="analytics-card">
+                <div class="analytics-card-head">
+                    <h4><?= htmlspecialchars($translations['analytics_by_store'] ?? 'By store') ?></h4>
+                    <span class="analytics-card-hint"><?= htmlspecialchars($translations['analytics_filter_hint'] ?? 'Click a row to filter') ?></span>
+                </div>
+                <div class="analytics-table-wrap" id="analytics-store-summary"></div>
                 <div class="list-pagination" id="analytics-store-pagination" hidden></div>
             </section>
-            <section>
-                <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
-                <div id="analytics-category-summary"></div>
+            <section class="analytics-card">
+                <div class="analytics-card-head">
+                    <h4><?= htmlspecialchars($translations['analytics_by_category'] ?? 'By category') ?></h4>
+                    <span class="analytics-badge" id="analytics-category-badge" hidden></span>
+                </div>
+                <div class="analytics-table-wrap" id="analytics-category-summary"></div>
                 <div class="list-pagination" id="analytics-category-pagination" hidden></div>
             </section>
         </div>
-        <div class="rate-chart-container"><canvas id="ocr-analytics-chart"></canvas></div>
+        <section class="analytics-card analytics-bars-card">
+            <div class="analytics-bars-legend" id="analytics-bars-legend"></div>
+            <div class="analytics-chart-scroll">
+                <div class="analytics-chart-inner">
+                    <svg id="analytics-chart" viewBox="0 0 1040 315" role="img" aria-label="<?= htmlspecialchars($translations['statistics_title'] ?? 'Statistics') ?>">
+                        <g id="analytics-grid-layer"></g>
+                        <g id="analytics-bars-layer"></g>
+                        <g id="analytics-labels-layer"></g>
+                    </svg>
+                    <div class="analytics-tooltip" id="analytics-tooltip" aria-hidden="true">
+                        <div class="analytics-tooltip-month" id="analytics-tooltip-month"></div>
+                        <div id="analytics-tooltip-rows"></div>
+                        <div class="analytics-tooltip-total"><span><?= htmlspecialchars($translations['total_label'] ?? 'Total') ?></span><span id="analytics-tooltip-total"></span></div>
+                    </div>
+                </div>
+            </div>
+        </section>
     </div>
 </div>
 
@@ -296,6 +381,29 @@
     </div>
 </div>
 <input type="file" id="bank-csv-input" accept=".csv,.ofx,.qfx,.mt940,.sta,.xml,text/csv,application/xml" style="display:none;">
+<div id="shortcuts-modal" class="modal" aria-hidden="true">
+    <div class="modal-content">
+        <button class="modal-close" type="button" onclick="closeModal('shortcuts-modal')" aria-label="<?= htmlspecialchars($translations['close'] ?? 'Close') ?>">×</button>
+        <h3><?= htmlspecialchars($translations['shortcuts_title'] ?? 'Keyboard shortcuts') ?></h3>
+        <ul class="shortcuts-list">
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_new_expense'] ?? 'New expense') ?></span><span class="shortcuts-keys"><span class="kbd">N</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_table'] ?? 'Open the table') ?></span><span class="shortcuts-keys"><span class="kbd">T</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_statistics'] ?? 'Statistics') ?></span><span class="shortcuts-keys"><span class="kbd">A</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_settings'] ?? 'Settings') ?></span><span class="shortcuts-keys"><span class="kbd">,</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_undo'] ?? 'Undo the last cell edit') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">Z</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_redo'] ?? 'Redo') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">Shift</span><span class="kbd">Z</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_select_all'] ?? 'Select all cells') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">A</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_copy'] ?? 'Copy selected cells') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">C</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_save'] ?? 'Save pending edits') ?></span><span class="shortcuts-keys"><span class="kbd">Ctrl</span><span class="kbd">S</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_navigate'] ?? 'Move between cells') ?></span><span class="shortcuts-keys"><span class="kbd">←</span><span class="kbd">↑</span><span class="kbd">↓</span><span class="kbd">→</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_range'] ?? 'Select a range of cells') ?></span><span class="shortcuts-keys"><span class="kbd">Shift</span><span class="kbd"><?= htmlspecialchars($translations['shortcut_click'] ?? 'Click') ?></span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_months'] ?? 'Previous / next month') ?></span><span class="shortcuts-keys"><span class="kbd">PgUp</span><span class="kbd">PgDn</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_close'] ?? 'Close the window') ?></span><span class="shortcuts-keys"><span class="kbd">Esc</span></span></li>
+            <li class="shortcuts-row"><span><?= htmlspecialchars($translations['shortcut_help'] ?? 'This list') ?></span><span class="shortcuts-keys"><span class="kbd">?</span></span></li>
+        </ul>
+        <p class="shortcuts-note"><?= htmlspecialchars($translations['shortcuts_note'] ?? 'Shortcuts are paused while you type in a field.') ?></p>
+    </div>
+</div>
 <div class="notification-container" id="notification-container"></div>
 <div id="amount-currency-popover" class="amount-currency-popover" style="display:none" role="listbox" aria-hidden="true"></div>
 
@@ -447,14 +555,14 @@
                 <?php foreach ($userSettings['stores'] as $store):
                     $storePhoto = (string)($store['photo_url'] ?? '');
                 ?>
-                    <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>">
+                    <div class="store-item" data-store-id="<?= $store['id'] ?>" data-store-name="<?= htmlspecialchars($store['name']) ?>" data-visible="<?= $store['visible'] ? 'true' : 'false' ?>">
                         <?php if ($storePhoto): ?><img src="<?= htmlspecialchars($storePhoto) ?>" class="store-icon" alt="<?= htmlspecialchars($store['name']) ?>" onerror="this.remove()"><?php endif; ?>
                         <span style="flex:1;"><?= htmlspecialchars($store['name']) ?></span>
                         <button class="visibility-toggle" data-store-id="<?= $store['id'] ?>" data-visible="<?= $store['visible']?'true':'false' ?>" onclick="toggleStoreVisibility(this)" title="<?= htmlspecialchars($translations['visible'] ?? 'Visible') ?>">
                             <?php if ($store['visible']): ?>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.75 12 5.75 21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.25"/></svg>
                             <?php else: ?>
-                                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.75 12 5.75 21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.25"/><path d="M3.5 3.5 20.5 20.5"/></svg>
                             <?php endif; ?>
                         </button>
                         <button class="edit-store-btn" onclick="showAddEditStoreModal('<?= $store['id'] ?>','<?= htmlspecialchars($store['name'],ENT_QUOTES) ?>',<?= $store['visible']?'true':'false' ?>)">
@@ -549,9 +657,9 @@
             <div id="bulk-delete-range-fields">
                 <div class="form-row">
                     <label><?= htmlspecialchars($translations['bulk_delete_date_from'] ?? 'From') ?>:</label>
-                    <input type="date" id="bulk-delete-from">
+                    <input type="date" id="bulk-delete-from" class="cal-field" max="<?= date('Y-m-d') ?>">
                     <label><?= htmlspecialchars($translations['bulk_delete_date_to'] ?? 'To') ?>:</label>
-                    <input type="date" id="bulk-delete-to">
+                    <input type="date" id="bulk-delete-to" class="cal-field" max="<?= date('Y-m-d') ?>">
                 </div>
                 <div class="form-row">
                     <label><?= htmlspecialchars($translations['store_name'] ?? 'Store') ?>:</label>

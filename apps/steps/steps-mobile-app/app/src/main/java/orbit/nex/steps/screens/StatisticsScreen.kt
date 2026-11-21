@@ -32,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
@@ -256,8 +257,18 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
     val daySteps = if (connected) state.steps[selectedDate] ?: 0L else androidSteps ?: 0L
     val dayStepsError = if (connected) null else androidStepsError
     val number = NumberFormat.getIntegerInstance(Locale.getDefault())
+    fun compact(value: Number): String {
+        val n = value.toDouble()
+        val scale = when {
+            n >= 1_000_000_000 -> 1_000_000_000.0 to "B"
+            n >= 1_000_000 -> 1_000_000.0 to "M"
+            n >= 10_000 -> 1_000.0 to "K"
+            else -> return number.format(value)
+        }
+        return String.format(Locale.getDefault(), "%.1f%s", n / scale.first, scale.second).replace(Regex("[.,]0([KMB])$"), "$1")
+    }
     val yearSteps = remember(monthSteps) {
-        monthSteps.filterKeys { it.year == selectedDate.year }.values.sum()
+        monthSteps.filterKeys { it.year == selectedDate.year && it.month == selectedDate.month }.values.sum()
     }
 
     LazyColumn(
@@ -286,7 +297,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(Spacing.sm), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            number.format(daySteps),
+                            compact(daySteps),
                             style = MaterialTheme.typography.headlineLarge,
                             fontWeight = FontWeight.Bold,
                         )
@@ -331,7 +342,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OverviewMetric(
                             stringResource(R.string.stats_active_days),
-                            number.format(serverStats.activeDays),
+                            compact(serverStats.activeDays),
                             stringResource(R.string.stats_active_days_hint),
                             Modifier.weight(1f),
                         )
@@ -347,13 +358,13 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         OverviewMetric(
                             stringResource(R.string.stats_places),
-                            number.format(serverStats.places.size),
+                            compact(serverStats.places.size),
                             stringResource(R.string.stats_places_hint),
                             Modifier.weight(1f),
                         )
                         OverviewMetric(
                             stringResource(R.string.stats_earned),
-                            number.format(achievements.earnedCount),
+                            compact(achievements.earnedCount),
                             stringResource(R.string.stats_earned_hint),
                             Modifier.weight(1f),
                         )
@@ -362,10 +373,10 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                 item {
                     AppSectionCard(
                         title = stringResource(R.string.stats_steps_this_year),
-                        kicker = stringResource(R.string.stats_this_year),
+                        kicker = stringResource(R.string.stats_month_total),
                         icon = Icons.AutoMirrored.Filled.TrendingUp,
                     ) {
-                        Text(number.format(yearSteps), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
+                        Text(compact(yearSteps), style = MaterialTheme.typography.displaySmall, fontWeight = FontWeight.Bold)
                         Text(
                             stringResource(R.string.stats_steps),
                             style = MaterialTheme.typography.bodySmall,
@@ -445,7 +456,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OverviewMetric(stringResource(R.string.stats_route_distance), formatDistance(serverStats.routeDistanceM), stringResource(R.string.stats_confirmed_only), Modifier.weight(1f))
-                            OverviewMetric(stringResource(R.string.stats_trips), number.format(serverStats.trips), stringResource(R.string.stats_avg_trip) + " " + formatDistance(serverStats.averageTripM), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_trips), compact(serverStats.trips), stringResource(R.string.stats_avg_trip) + " " + formatDistance(serverStats.averageTripM), Modifier.weight(1f))
                         }
                     }
                     item {
@@ -475,7 +486,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                             Text(stringResource(R.string.stats_milestones), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                         }
                         Text(
-                            number.format(achievements.earnedCount),
+                            compact(achievements.earnedCount),
                             style = MaterialTheme.typography.headlineMedium,
                             color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Bold,
@@ -528,12 +539,12 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
                     item {
                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             OverviewMetric(stringResource(R.string.stats_latest_point), StatisticsRepository.dateLabel(serverStats.latestPointAt).ifBlank { "â€”" }, stringResource(R.string.stats_latest_point_hint), Modifier.weight(1f))
-                            OverviewMetric(stringResource(R.string.stats_devices), number.format(serverStats.devices.size), stringResource(R.string.stats_devices_hint), Modifier.weight(1f))
+                            OverviewMetric(stringResource(R.string.stats_devices), compact(serverStats.devices.size), stringResource(R.string.stats_devices_hint), Modifier.weight(1f))
                         }
                     }
                     item {
                         AppSectionCard(title = stringResource(R.string.stats_sources), icon = Icons.Filled.Hub) {
-                            val sources = serverStats.sources.entries.map { "${it.key} Â· ${number.format(it.value)}" } +
+                            val sources = serverStats.sources.entries.map { "${it.key} Â· ${compact(it.value)}" } +
                                 serverStats.devices.map { "${it.name} Â· ${it.status}" }
                             if (sources.isEmpty()) {
                                 Text(stringResource(R.string.stats_no_sources), color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -577,7 +588,7 @@ fun StatisticsScreen(modifier: Modifier = Modifier) {
         ModalBottomSheet(onDismissRequest = { selectedStatsDate = null }) {
             Column(Modifier.padding(Spacing.xl), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(formatTooltipDate(date), style = MaterialTheme.typography.titleLarge)
-                Text("${number.format(monthSteps[date] ?: 0L)} ${stringResource(R.string.stats_steps)}", style = MaterialTheme.typography.headlineSmall)
+                Text("${compact(monthSteps[date] ?: 0L)} ${stringResource(R.string.stats_steps)}", style = MaterialTheme.typography.headlineSmall)
                 state.byDay[date].orEmpty().forEach { metric ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(stringResource(metric.type.nameResId))
@@ -942,12 +953,9 @@ private fun StepsChart(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int 
 }
 @Composable
 private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: Int, onDayClick: (LocalDate) -> Unit) {
-    // Gold marks the days the daily step goal was reached.
-    val goalGold = MaterialTheme.semantic.warning
     val days = remember(steps, month) { (1..month.lengthOfMonth()).map { month.atDay(it) } }
     val max = remember(days, steps) { (days.maxOfOrNull { steps[it] ?: 0L } ?: 0L).coerceAtLeast(1L) }
     val base = MaterialTheme.colorScheme.primary
-    val warm = MaterialTheme.colorScheme.tertiary
     val empty = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f)
     var picked by remember { mutableStateOf<LocalDate?>(null) }
     // Weeks start on Monday; leading blanks keep the weekday columns aligned.
@@ -963,7 +971,7 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: In
                     } else {
                         val count = steps[date] ?: 0L
                         val intensity = (count.toFloat() / max.toFloat()).coerceIn(0f, 1f)
-                        val color = if (count <= 0L) empty else lerp(base, warm, intensity).copy(alpha = 0.35f + 0.65f * intensity)
+                        val color = if (count <= 0L) empty else lerp(MaterialTheme.colorScheme.surfaceVariant, base, 0.22f + 0.78f * intensity)
                         val goalReached = goal > 0 && count >= goal
                         Box(
                             modifier = Modifier
@@ -971,11 +979,6 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: In
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(4.dp))
                                 .background(color)
-                                .then(
-                                    if (goalReached) {
-                                        Modifier.border(1.5.dp, goalGold, RoundedCornerShape(4.dp))
-                                    } else Modifier
-                                )
                                 .clickable { picked = if (picked == date) null else date; onDayClick(date) },
                             contentAlignment = Alignment.Center,
                         ) {
@@ -984,11 +987,13 @@ private fun StepsHeatmap(steps: Map<LocalDate, Long>, month: YearMonth, goal: In
                                 date.dayOfMonth.toString(),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = when {
-                                    goalReached -> goalGold
                                     intensity > 0.55f -> MaterialTheme.colorScheme.onPrimary
                                     else -> MaterialTheme.colorScheme.onSurfaceVariant
                                 },
                             )
+                            if (goalReached) {
+                                Box(Modifier.align(Alignment.BottomCenter).padding(bottom = 3.dp).size(4.dp).clip(CircleShape).background(if (intensity > 0.55f) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.primary))
+                            }
                         }
                     }
                 }

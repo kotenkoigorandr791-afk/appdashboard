@@ -67,13 +67,20 @@
     ['color', 'background', 'border', 'box-shadow', 'border-radius', 'opacity'].forEach(function (prop) {
       btn.style.removeProperty(prop);
     });
+    // The home button lives in the same chrome host while an app is open, but it
+    // must never inherit the app's menu-button skin: those inline styles used to
+    // survive the return to the dashboard and repaint the home button there.
     var home = document.getElementById('home-root-button');
-    if (home) clearMenuInlineLayout(home);
+    if (home) {
+      clearMenuInlineLayout(home);
+      ['color', 'background', 'border', 'box-shadow', 'border-radius', 'opacity'].forEach(function (prop) {
+        home.style.removeProperty(prop);
+      });
+    }
     var styleMap = (app && app.menu_button_style) || {};
     Object.keys(styleMap).forEach(function (prop) {
       try {
         btn.style.setProperty(prop, styleMap[prop]);
-        if (home) home.style.setProperty(prop, styleMap[prop]);
       } catch (_) {}
     });
   }

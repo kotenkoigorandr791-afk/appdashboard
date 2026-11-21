@@ -60,6 +60,7 @@ fun ConnectionGateScreen(modifier: Modifier = Modifier, onConnected: () -> Unit)
             val config = WebhookConfig("$origin/api/steps", "NexSteps", mapOf("Authorization" to "Bearer $token"))
             if (bindDevice(config, prefs)) {
                 prefs.setWebhookConfigs(listOf(config))
+                prefs.markConnectionEstablished()
                 prefs.setEnabledDataTypes(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() })
                 prefs.markSyncSuccess()
                 prefs.clearAuthError()

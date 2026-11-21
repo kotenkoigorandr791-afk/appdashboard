@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -140,7 +141,10 @@ private const val KEY_HEIGHT = "height"
 private const val KEY_WEIGHT = "weight"
 private const val KEY_STRIDE = "stride_length"
 private const val KEY_BIRTH = "birth_date"
-private val PERSONAL_KEYS = listOf(KEY_GOAL, KEY_HEIGHT, KEY_WEIGHT, KEY_STRIDE, KEY_BIRTH)
+private const val KEY_OCCUPATION = "occupation"
+private val OCCUPATIONS = listOf("student", "school_student", "office_worker", "remote_worker", "freelancer", "entrepreneur", "self_employed", "industrial_worker", "driver_courier", "taxi_driver", "retail_worker", "teacher", "healthcare_worker", "military", "public_servant", "retired", "unemployed", "homemaker", "athlete", "frequent_traveler", "working_student", "other", "prefer_not_to_say")
+private val OCCUPATION_LABELS = listOf(R.string.occupation_student, R.string.occupation_school_student, R.string.occupation_office_worker, R.string.occupation_remote_worker, R.string.occupation_freelancer, R.string.occupation_entrepreneur, R.string.occupation_self_employed, R.string.occupation_industrial_worker, R.string.occupation_driver_courier, R.string.occupation_taxi_driver, R.string.occupation_retail_worker, R.string.occupation_teacher, R.string.occupation_healthcare_worker, R.string.occupation_military, R.string.occupation_public_servant, R.string.occupation_retired, R.string.occupation_unemployed, R.string.occupation_homemaker, R.string.occupation_athlete, R.string.occupation_frequent_traveler, R.string.occupation_working_student, R.string.occupation_other, R.string.occupation_prefer_not_to_say)
+private val PERSONAL_KEYS = listOf(KEY_OCCUPATION, KEY_GOAL, KEY_HEIGHT, KEY_WEIGHT, KEY_STRIDE, KEY_BIRTH)
 
 /** POSTs a JSON body to an app endpoint and returns (httpCode, body). */
 private suspend fun postJson(
@@ -228,6 +232,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
     var heightField by remember { mutableStateOf(personal[KEY_HEIGHT].orEmpty()) }
     var weightField by remember { mutableStateOf(personal[KEY_WEIGHT].orEmpty()) }
     var strideField by remember { mutableStateOf(personal[KEY_STRIDE].orEmpty()) }
+    var occupationField by remember { mutableStateOf(personal[KEY_OCCUPATION] ?: "prefer_not_to_say") }
+    var occupationExpanded by remember { mutableStateOf(false) }
     var birthField by remember { mutableStateOf(personal[KEY_BIRTH].orEmpty()) }
     var goalError by remember { mutableStateOf<String?>(null) }
     var heightError by remember { mutableStateOf<String?>(null) }
@@ -250,10 +256,14 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
     // â”€â”€ App settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     var enabled by remember { mutableStateOf(prefs.getEnabledDataTypes().ifEmpty { HealthDataType.values().toSet() }) }
     var grantedPermissions by remember { mutableStateOf(prefs.getKnownGrantedPermissions()) }
-    var permissionsSheetOpen by remember { mutableStateOf(false) }
     var wifiOnly by remember { mutableStateOf(prefs.isWifiOnly()) }
     var autoUpdate by remember { mutableStateOf(prefs.isAutoUpdateEnabled()) }
     var syncMode by remember { mutableStateOf(prefs.getSyncMode()) }
+    var exactAlarmsAllowed by remember { mutableStateOf(ScheduledSyncManager(context).canScheduleExactAlarms()) }
+    val exactAlarmLauncher = rememberLauncherForActivityResult(androidx.activity.result.contract.ActivityResultContracts.StartActivityForResult()) {
+        exactAlarmsAllowed = ScheduledSyncManager(context).canScheduleExactAlarms()
+        if (syncMode == SyncMode.INTERVAL) ScheduledSyncManager(context).scheduleNextIntervalSync() else ScheduledSyncManager(context).scheduleAllAlarms()
+    }
     var syncInterval by remember { mutableStateOf(prefs.getSyncIntervalMinutes()) }
     var scheduledSyncs by remember { mutableStateOf(prefs.getScheduledSyncs()) }
     var intervalExpanded by remember { mutableStateOf(false) }
@@ -313,10 +323,13 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
             weightField = values[KEY_WEIGHT] ?: weightField
             strideField = values[KEY_STRIDE] ?: strideField
             birthField = values[KEY_BIRTH] ?: birthField
+            occupationField = values[KEY_OCCUPATION] ?: occupationField
         }
     }
 
     fun applySyncSchedule(mode: SyncMode, interval: Int = syncInterval) {
+        saveOk = true
+        showSavedToast = true
         prefs.setSyncMode(mode)
         syncMode = mode
         val app = context.applicationContext as? HCWebhookApplication
@@ -370,6 +383,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 val normalized = value.trim()
                 if (normalized != (personal[key] ?: "")) payload[key] = normalized
             }
+            putIfChanged(KEY_OCCUPATION, occupationField)
             putIfChanged(KEY_GOAL, goalField)
             putIfChanged(KEY_HEIGHT, heightField)
             putIfChanged(KEY_WEIGHT, weightField)
@@ -382,7 +396,10 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 val (code, body) = postJson(config, prefs, "/settings", payload.toJSONObject())
                 if (code in 200..299) {
                     val updated = JSONObject(body).optJSONObject("settings")
-                    if (updated != null) {
+                    if (payload.containsKey(KEY_OCCUPATION) && (updated == null || updated.optString(KEY_OCCUPATION) != payload[KEY_OCCUPATION])) {
+                        failed = true
+                        detail = context.getString(R.string.occupation_server_unsupported)
+                    } else if (updated != null) {
                         val refreshed = mutableMapOf<String, String>()
                         PERSONAL_KEYS.forEach { key -> refreshed[key] = updated.optString(key) }
                         personal = refreshed
@@ -391,6 +408,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                         weightField = refreshed[KEY_WEIGHT] ?: weightField
                         strideField = refreshed[KEY_STRIDE] ?: strideField
                         birthField = refreshed[KEY_BIRTH] ?: birthField
+                        occupationField = refreshed[KEY_OCCUPATION] ?: occupationField
                         prefs.setPersonalSettingsCache(refreshed.toJSONObject().toString())
                     }
                 } else {
@@ -467,6 +485,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                     .fillMaxSize()
                     .padding(horizontal = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(Spacing.md),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(top = Spacing.md, bottom = Spacing.md),
             ) {
                 // â”€â”€ Personal data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (section == SettingsSection.PROFILE) {
@@ -509,6 +528,12 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                 singleLine = true,
                                 modifier = Modifier.fillMaxWidth(),
                             )
+                            ExposedDropdownMenuBox(expanded = occupationExpanded, onExpandedChange = { occupationExpanded = !occupationExpanded }) {
+                                OutlinedTextField(value = stringResource(OCCUPATION_LABELS[OCCUPATIONS.indexOf(occupationField).coerceAtLeast(0)]), onValueChange = {}, readOnly = true, enabled = connected, label = { Text(stringResource(R.string.occupation_title)) }, trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(occupationExpanded) }, modifier = Modifier.fillMaxWidth().menuAnchor())
+                                ExposedDropdownMenu(expanded = occupationExpanded, onDismissRequest = { occupationExpanded = false }) {
+                                    OCCUPATIONS.forEachIndexed { i, value -> DropdownMenuItem(text = { Text(stringResource(OCCUPATION_LABELS[i])) }, onClick = { occupationField = value; occupationExpanded = false }) }
+                                }
+                            }
                             HorizontalDivider()
                             Text(stringResource(R.string.personal_body_title), style = MaterialTheme.typography.titleSmall)
                             OutlinedTextField(
@@ -632,6 +657,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                     onCheckedChange = {
                                         wifiOnly = it
                                         prefs.setWifiOnly(it)
+                                        saveOk = true
+                                        showSavedToast = true
                                         (context.applicationContext as? HCWebhookApplication)?.scheduleSyncWork()
                                     },
                                 )
@@ -644,30 +671,11 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                 // â”€â”€ Permissions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
                 if (section == SettingsSection.PERMISSIONS) {
                 item {
-                    Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                            Text(stringResource(R.string.perms_title), style = MaterialTheme.typography.titleMedium)
-                            val grantedCount = HealthDataType.entries.count { type ->
-                                HealthPermission.getReadPermission(type.recordClass) in grantedPermissions
-                            }
-                            Text(
-                                stringResource(R.string.perms_granted_summary, grantedCount, HealthDataType.entries.size),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            Button(
-                                onClick = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.action_grant_permissions))
-                            }
-                            OutlinedButton(onClick = { permissionsSheetOpen = true }, modifier = Modifier.fillMaxWidth()) {
-                                Text(stringResource(R.string.config_action_view_perms))
-                            }
-                        }
-                    }
+                    HealthPermissionsScreen(
+                        grantedPermissionsSet = grantedPermissions,
+                        onRequestPermissions = { permissionLauncher.launch(HealthConnectManager.getPermissionsForTypes(enabled)) },
+                        modifier = Modifier.fillMaxWidth().height(780.dp),
+                    )
                 }
                 }
 
@@ -680,6 +688,12 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                     ) {
                         Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text(stringResource(R.string.settings_sync_interval), style = MaterialTheme.typography.titleMedium)
+                            if (!exactAlarmsAllowed && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
+                                OutlinedButton(onClick = {
+                                    val intent = Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:${context.packageName}"))
+                                    runCatching { exactAlarmLauncher.launch(intent) }
+                                }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.exact_alarm_warning), textAlign = androidx.compose.ui.text.style.TextAlign.Center) }
+                            }
                             val currentLabel = if (syncMode == SyncMode.SCHEDULED) {
                                 stringResource(R.string.config_sync_mode_scheduled)
                             } else {
@@ -773,6 +787,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                     onCheckedChange = { checked ->
                                         conflictRemember = checked
                                         prefs.setConflictRememberEnabled(checked)
+                                        saveOk = true
+                                        showSavedToast = true
                                     },
                                 )
                             }
@@ -804,6 +820,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                                 onClick = {
                                                     conflictDefaultAction = value
                                                     prefs.setConflictDefaultAction(value)
+                                        saveOk = true
+                                        showSavedToast = true
                                                     conflictActionExpanded = false
                                                 },
                                             )
@@ -814,6 +832,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                     onClick = {
                                         conflictRemember = false
                                         prefs.setConflictRememberEnabled(false)
+                                        saveOk = true
+                                        showSavedToast = true
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                 ) {
@@ -869,6 +889,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                                             onCheckedChange = { checked ->
                                                 enabled = if (checked) enabled + type else enabled - type
                                                 prefs.setEnabledDataTypes(enabled)
+                                        saveOk = true
+                                        showSavedToast = true
                                             },
                                         )
                                         Text(stringResource(type.nameResId), modifier = Modifier.weight(1f))
@@ -896,6 +918,7 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                         }
                     }
                 }
+                item { LocationExportCard(prefs) }
                 }
             }
             if (showSavedToast) {
@@ -903,17 +926,11 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                     stringResource(if (saveOk == false) R.string.save_failed_toast else R.string.saved_toast),
                     Modifier.align(Alignment.BottomCenter).padding(bottom = Spacing.xl),
                     isError = saveOk == false,
+                    onDismiss = { showSavedToast = false },
                 )
             }
             }
         }
-    }
-
-    if (permissionsSheetOpen) {
-        PermissionsBottomSheet(
-            grantedPermissionsSet = grantedPermissions,
-            onDismiss = { permissionsSheetOpen = false },
-        )
     }
 
     if (showExportSheet) {
@@ -1022,6 +1039,8 @@ fun SettingsScreen(onBack: () -> Unit, section: SettingsSection = SettingsSectio
                         if (it.id == target.id) it.copy(hour = pickerState.hour, minute = pickerState.minute) else it
                     }
                     prefs.setScheduledSyncs(updated)
+                                        saveOk = true
+                                        showSavedToast = true
                     scheduledSyncs = updated
                     scheduleToEdit = null
                     ScheduledSyncManager(context).scheduleAllAlarms()
@@ -1060,59 +1079,145 @@ internal fun accentColorValue(value: String): Color = when (value) {
     else -> Color(0xFF4285F4)
 }
 
-private fun performExport(
-    context: android.content.Context,
-    prefs: PreferencesManager,
-    selectedTypes: Set<HealthDataType>,
-    rangeIndex: Int,
-    formatIndex: Int,
-) {
-    val cutoffMs = when (rangeIndex) {
-        0 -> System.currentTimeMillis() - 24L * 60 * 60 * 1000
-        1 -> System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
-        2 -> System.currentTimeMillis() - 30L * 24 * 60 * 60 * 1000
-        else -> 0L
+private fun performExport(context: android.content.Context, prefs: PreferencesManager, selectedTypes: Set<HealthDataType>, rangeIndex: Int, formatIndex: Int) {
+    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main).launch {
+        runCatching {
+            withContext(Dispatchers.IO) {
+                val now = java.time.Instant.now()
+                val days = when (rangeIndex) { 0 -> 1L; 1 -> 7L; 2 -> 30L; else -> 36500L }
+                val data = HealthConnectManager(context).readHealthData(selectedTypes, emptyMap(), start = now.minusSeconds(days * 86400), end = now).getOrThrow()
+                val json = orbit.nex.steps.SyncManager(context).buildJsonPayload(data)
+                val file = File(context.cacheDir, "exports/health-export." + if (formatIndex == 0) "json" else "csv").apply { parentFile?.mkdirs() }
+                if (formatIndex == 0) file.writeText(json) else {
+                    val root = org.json.JSONObject(json)
+                    file.bufferedWriter().use { out ->
+                        out.write("type,record\n")
+                        root.keys().forEach { key ->
+                            val records = root.optJSONArray(key) ?: return@forEach
+                            for (i in 0 until records.length()) out.write("\"" + key.replace("\"", "\"\"") + "\",\"" + records.get(i).toString().replace("\"", "\"\"") + "\"\n")
+                        }
+                    }
+                }
+                file
+            }
+        }.onSuccess { shareExport(context, it, if (formatIndex == 0) "application/json" else "text/csv") }
+            .onFailure { android.widget.Toast.makeText(context, it.message ?: context.getString(R.string.save_failed_toast), android.widget.Toast.LENGTH_LONG).show() }
     }
-    val logs = prefs.getWebhookLogs().filter { it.timestamp >= cutoffMs }
-    val exportDir = File(context.cacheDir, "exports").apply { mkdirs() }
-    if (formatIndex == 0) {
-        val file = File(exportDir, "stepmonitor-export.json")
-        val json = Json { prettyPrint = true }
-        val payload = buildJsonObject {
-            put("exportedAt", java.time.Instant.now().toString())
-            put("enabledDataTypes", JsonArray(selectedTypes.map { json.encodeToJsonElement(it.name) }))
-            put("logs", json.encodeToJsonElement(logs))
+}
+private fun shareExport(context: android.content.Context, file: File, mime: String) {
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
+        type = mime
+        putExtra(Intent.EXTRA_STREAM, uri)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+    }, context.getString(R.string.export_confirm)))
+}
+
+
+@Composable
+private fun LocationExportCard(prefs: PreferencesManager) {
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    var contents by remember { mutableIntStateOf(2) }
+    var range by remember { mutableIntStateOf(1) }
+    var format by remember { mutableIntStateOf(0) }
+    var from by remember { mutableStateOf(java.time.LocalDate.now().minusDays(6)) }
+    var to by remember { mutableStateOf(java.time.LocalDate.now()) }
+    var picker by remember { mutableIntStateOf(0) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    if (picker != 0) orbit.nex.steps.components.AppDatePickerDialog(if (picker == 1) from else to, if (picker == 2) from else null, if (picker == 1) to else java.time.LocalDate.now(), { picker = 0 }) { date -> if (picker == 1) from = date else to = date; picker = 0 }
+    Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+        Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(stringResource(R.string.location_export_title), style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.location_export_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(stringResource(R.string.location_export_include), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf(R.string.location_export_routes, R.string.location_export_points, R.string.location_export_both).forEachIndexed { i, label ->
+                    androidx.compose.material3.FilterChip(selected = contents == i, onClick = { contents = i }, label = { Text(stringResource(label), maxLines = 1) }, modifier = Modifier.weight(1f))
+                }
+            }
+            Text(stringResource(R.string.export_time_range), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            listOf(listOf(R.string.location_export_today, R.string.export_range_7d), listOf(R.string.export_range_30d, R.string.location_export_custom)).forEachIndexed { row, labels ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    labels.forEachIndexed { col, label -> val i = row * 2 + col; androidx.compose.material3.FilterChip(selected = range == i, onClick = { range = i }, label = { Text(stringResource(label), maxLines = 1) }, modifier = Modifier.weight(1f)) }
+                }
+            }
+            if (range == 3) Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                OutlinedButton(onClick = { picker = 1 }, modifier = Modifier.weight(1f)) { Text(from.toString()) }
+                OutlinedButton(onClick = { picker = 2 }, modifier = Modifier.weight(1f)) { Text(to.toString()) }
+            }
+            Text(stringResource(R.string.export_format), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                listOf("GPX", "GeoJSON", "CSV").forEachIndexed { i, label -> androidx.compose.material3.FilterChip(selected = format == i, onClick = { format = i }, label = { Text(label) }, modifier = Modifier.weight(1f)) }
+            }
+            error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+            OutlinedButton(onClick = {
+                val active = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
+                if (active == null) { error = context.getString(R.string.points_no_connection); return@OutlinedButton }
+                val today = java.time.LocalDate.now()
+                val start = when (range) { 0 -> today; 1 -> today.minusDays(6); 2 -> today.minusDays(29); else -> from }
+                val end = if (range == 3) to else today
+                busy = true; error = null
+                scope.launch {
+                    runCatching {
+                        val zone = java.time.ZoneId.systemDefault()
+                        val fromTime = start.atStartOfDay(zone).toInstant().toString()
+                        val endExclusive = end.plusDays(1).atStartOfDay(zone).toInstant()
+                        val toTime = endExclusive.toString()
+                        val repo = orbit.nex.steps.location.PointManagementRepository(prefs, context)
+                        val points = mutableListOf<orbit.nex.steps.location.ManagedPoint>()
+                        var page = 0
+                        while (true) {
+                            if (page > 0 && page % 100 == 0) kotlinx.coroutines.delay(60_000)
+                            val result = repo.loadPage(active, page++, fromTime, toTime, null, null, pageSize = 200)
+                            if (result.error != null) error(result.error)
+                            points += result.points
+                            if (points.size >= result.total || result.points.isEmpty()) break
+                        }
+                        withContext(Dispatchers.IO) { writeLocationExport(context, points.filter { runCatching { java.time.Instant.parse(it.sourceAt).isBefore(endExclusive) }.getOrDefault(false) }, contents, format) }
+                    }.onSuccess { shareExport(context, it, when (format) { 0 -> "application/gpx+xml"; 1 -> "application/geo+json"; else -> "text/csv" }) }
+                        .onFailure { error = it.message ?: context.getString(R.string.save_failed_toast) }
+                    busy = false
+                }
+            }, enabled = !busy, modifier = Modifier.fillMaxWidth()) {
+                if (busy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.location_export_button, listOf("GPX", "GeoJSON", "CSV")[format]))
+            }
         }
-        file.writeText(json.encodeToString(kotlinx.serialization.json.JsonObject.serializer(), payload))
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-            type = "application/json"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }, context.getString(R.string.export_confirm)))
-    } else {
-        val file = File(exportDir, "stepmonitor-export.csv")
-        val sb = StringBuilder()
-        sb.appendLine("timestamp,dataType,url,statusCode,success,syncType,errorMessage")
-        logs.forEach { log ->
-            sb.appendLine(
-                listOf(
-                    log.timestamp,
-                    log.dataType.orEmpty(),
-                    log.url,
-                    log.statusCode ?: "",
-                    log.success,
-                    log.syncType.orEmpty(),
-                    "\"${log.errorMessage.orEmpty().replace("\"", "\"\"")}\"",
-                ).joinToString(","),
-            )
-        }
-        file.writeText(sb.toString())
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        context.startActivity(Intent.createChooser(Intent(Intent.ACTION_SEND).apply {
-            type = "text/csv"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }, context.getString(R.string.export_confirm)))
     }
+}
+private fun writeLocationExport(context: android.content.Context, input: List<orbit.nex.steps.location.ManagedPoint>, contents: Int, format: Int): File {
+    val points = input.distinctBy { it.id }.sortedBy { it.sourceAt }
+    val segments = mutableListOf<MutableList<orbit.nex.steps.location.ManagedPoint>>()
+    points.forEach { point ->
+        val previous = segments.lastOrNull()?.lastOrNull()
+        val gap = if (previous == null) Long.MAX_VALUE else runCatching { java.time.Duration.between(java.time.Instant.parse(previous.sourceAt), java.time.Instant.parse(point.sourceAt)).seconds }.getOrDefault(Long.MAX_VALUE)
+        if (gap < 0 || gap > 300) segments.add(mutableListOf())
+        segments.last().add(point)
+    }
+    val file = File(context.cacheDir, "exports/location-export." + listOf("gpx", "geojson", "csv")[format]).apply { parentFile?.mkdirs() }
+    file.bufferedWriter().use { out ->
+        when (format) {
+            0 -> {
+                out.write("<?xml version=\"1.0\" encoding=\"UTF-8\"?><gpx version=\"1.1\" creator=\"NexSteps\" xmlns=\"http://www.topografix.com/GPX/1/1\">")
+                if (contents != 0) points.forEach { out.write("<wpt lat=\"${it.lat}\" lon=\"${it.lon}\"><time>${it.sourceAt.replace("&", "&amp;").replace("<", "&lt;")}</time></wpt>") }
+                if (contents != 1) segments.filter { it.size >= 2 }.forEach { segment -> out.write("<trk><trkseg>"); segment.forEach { out.write("<trkpt lat=\"${it.lat}\" lon=\"${it.lon}\"><time>${it.sourceAt.replace("&", "&amp;").replace("<", "&lt;")}</time></trkpt>") }; out.write("</trkseg></trk>") }
+                out.write("</gpx>")
+            }
+            1 -> {
+                val features = org.json.JSONArray()
+                if (contents != 0) points.forEach { features.put(org.json.JSONObject().put("type", "Feature").put("geometry", org.json.JSONObject().put("type", "Point").put("coordinates", org.json.JSONArray().put(it.lon).put(it.lat))).put("properties", org.json.JSONObject().put("source_at", it.sourceAt).put("accuracy_m", it.accuracyM))) }
+                if (contents != 1) segments.filter { it.size >= 2 }.forEach { segment -> val coordinates = org.json.JSONArray(); segment.forEach { coordinates.put(org.json.JSONArray().put(it.lon).put(it.lat)) }; features.put(org.json.JSONObject().put("type", "Feature").put("geometry", org.json.JSONObject().put("type", "LineString").put("coordinates", coordinates)).put("properties", org.json.JSONObject())) }
+                out.write(org.json.JSONObject().put("type", "FeatureCollection").put("features", features).toString())
+            }
+            else -> {
+                out.write("type,segment,latitude,longitude,source_at,accuracy_m\n")
+                segments.forEachIndexed { index, segment -> segment.forEach { p ->
+                    if (contents != 0) out.write("point,$index,${p.lat},${p.lon},${p.sourceAt},${p.accuracyM ?: ""}\n")
+                    if (contents != 1 && segment.size >= 2) out.write("route,$index,${p.lat},${p.lon},${p.sourceAt},${p.accuracyM ?: ""}\n")
+                } }
+            }
+        }
+    }
+    return file
 }

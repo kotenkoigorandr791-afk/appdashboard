@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 The map now shows your live position with an accuracy ring and an arrow that points where you are facing
+* ⚡ Points are sent to the server right after they are recorded, so the web map updates while you move
+* 📞 Fixed missing points after phone calls and other pauses — recording now recovers by itself
+
 ## v1.10.3 - 2026-10-30
 
 * ✅ Fixed the saved confirmation in Settings so it stays above the system navigation area

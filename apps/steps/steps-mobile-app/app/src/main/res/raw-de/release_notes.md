@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 Die Karte zeigt jetzt deine aktuelle Position mit Genauigkeitskreis und einem Pfeil für deine Blickrichtung
+* ⚡ Punkte werden direkt nach der Aufzeichnung an den Server gesendet, damit die Webkarte live aktualisiert wird
+* 📞 Fehlende Punkte nach Telefonaten und anderen Pausen behoben – die Aufzeichnung erholt sich jetzt selbst
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Gesundheitsdaten wurden für Nutzer östlich von UTC dem falschen Tag zugeordnet — Distanz, Kalorien, Schlaf und Puls zählen jetzt am Tag, an dem sie aufgetreten sind

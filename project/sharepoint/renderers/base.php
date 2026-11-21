@@ -33,7 +33,7 @@ abstract class BaseRenderer
     {
         if ($this->share->resource_type === 'app') {
             $catalog = ShareRegistry::entityCatalog();
-            return $catalog[$this->share->entity_type] ?? 'Interactive app';
+            return $catalog[$this->share->entity_type] ?? sp_t('interactive_app');
         }
         return $this->share->resource_type === 'folder' ? sp_t('folder') : sp_t('file');
     }
@@ -198,6 +198,7 @@ abstract class BaseRenderer
 </footer>
 <script>window.SP_I18N = ' . json_encode(sp_translations(), JSON_UNESCAPED_UNICODE | JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ';</script>
 <script src="' . sp_h(sp_asset('js/md3-components.js')) . '" defer></script>
+<script src="' . sp_h(sp_asset('js/md3-select.js')) . '" defer></script>
 <script src="' . sp_h(sp_asset('js/qr-code.js')) . '" defer></script>
 <script src="' . sp_h(sp_asset('js/sharepoint.js')) . '" defer></script>
 </body>

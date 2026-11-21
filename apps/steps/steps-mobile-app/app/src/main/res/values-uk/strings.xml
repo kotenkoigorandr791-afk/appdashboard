@@ -927,4 +927,12 @@
     <string name="nex_auth_failed">Не вдалося увійти</string>
     <string name="date_from">Від</string>
     <string name="date_to">До</string>
+    <string name="points_total_short">Усього: %1$d</string>
+    <string name="points_selected_short">Вибрано: %1$d</string>
+    <string name="points_removed_short">Видалено: %1$d</string>
+    <string name="tracking_privacy_title">Конфіденційність</string>
+    <string name="connection_date">Дата підключення</string>
+    <string name="connection_date_unknown">Дата невідома</string>
+    <string name="tracking_notification_sync_label">ОСТАННЯ СИНХ.</string>
+    <string name="tracking_notification_never">Ще не було</string>
 </resources>

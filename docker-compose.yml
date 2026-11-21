@@ -8,7 +8,7 @@ services:
     image: postgis/postgis:16-3.7
     container_name: appdashboard-db
     restart: unless-stopped
-    command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=2GB", "-c", "effective_cache_size=6GB", "-c", "work_mem=8MB", "-c", "maintenance_work_mem=256MB", "-c", "wal_compression=on", "-c", "checkpoint_timeout=15min", "-c", "max_wal_size=4GB", "-c", "autovacuum_vacuum_scale_factor=0.05", "-c", "autovacuum_analyze_scale_factor=0.02", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
+    command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=2GB", "-c", "effective_cache_size=6GB", "-c", "work_mem=8MB", "-c", "maintenance_work_mem=256MB", "-c", "wal_compression=on", "-c", "jit=off", "-c", "random_page_cost=1.1", "-c", "effective_io_concurrency=200", "-c", "checkpoint_timeout=15min", "-c", "max_wal_size=4GB", "-c", "autovacuum_vacuum_scale_factor=0.05", "-c", "autovacuum_analyze_scale_factor=0.02", "-c", "idle_in_transaction_session_timeout=60000", "-c", "log_min_duration_statement=1000", "-c", "shared_preload_libraries=pg_stat_statements", "-c", "pg_stat_statements.track=top"]
     environment:
       POSTGRES_DB: appdashboard
       POSTGRES_USER: appdashboard
@@ -38,9 +38,10 @@ services:
       POOL_MODE: session
       SERVER_RESET_QUERY: DISCARD ALL
       MAX_CLIENT_CONN: "10000"
-      DEFAULT_POOL_SIZE: "${PGBOUNCER_POOL_SIZE:-300}"
+      DEFAULT_POOL_SIZE: "${PGBOUNCER_POOL_SIZE:-250}"
       RESERVE_POOL_SIZE: "20"
-      MIN_POOL_SIZE: "20"
+      MIN_POOL_SIZE: "10"
+      SERVER_IDLE_TIMEOUT: "120"
       QUERY_WAIT_TIMEOUT: "30"
       IGNORE_STARTUP_PARAMETERS: extra_float_digits,options
     ulimits:
@@ -138,7 +139,7 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
-        APP_VERSION: ${APP_VERSION:-1.10.10}
+        APP_VERSION: ${APP_VERSION:-1.10.11}
         APP_GIT_COMMIT: ${APP_GIT_COMMIT:-}
         APP_BUILD_DATE: ${APP_BUILD_DATE:-}
     image: ${APPDASHBOARD_IMAGE:-ihorkotenko/appdashboard:latest}
@@ -160,8 +161,11 @@ services:
       - SYS_ADMIN
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        # nginx keeps one descriptor per connection/upstream and modsecurity
+        # opens rule sets on every request; 65535 was low enough that a busy
+        # worker started answering 500 "Too many open files".
+        soft: 262144
+        hard: 262144
     sysctls:
       net.core.somaxconn: 4096
     depends_on:
@@ -174,7 +178,7 @@ services:
     environment:
       APP_ENV: "${APP_ENV:-local}"
       APP_DEBUG: "${APP_DEBUG:-1}"
-      APP_VERSION: "${APP_VERSION:-1.10.10}"
+      APP_VERSION: "${APP_VERSION:-1.10.11}"
       # Single source of truth for public hostnames. Entrypoint derives ai./search./git./...
       BASE_DOMAIN: "${BASE_DOMAIN:-localhost}"
       APP_PUBLIC_SCHEME: "${APP_PUBLIC_SCHEME:-http}"

@@ -148,6 +148,20 @@ function steps_geolocation_migrate(AppDatabase $db): void {
             foreach (steps_geolocation_schema_v22_sql() as $sql) $pdo->exec($sql);
             $insert->execute([':version' => '022']);
         }
+        // 023: automatic place detection: OSM objects, cached Overpass
+        // lookups, ranked visit candidates, the user profile and the list of
+        // OSM objects a user never wants assigned automatically.
+        $applied->execute([':version' => '023']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v23_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '023']);
+        }
+        // 024: local place photos for OSM objects (WebP on appdata volume).
+        $applied->execute([':version' => '024']);
+        if (!$applied->fetchColumn()) {
+            foreach (steps_geolocation_schema_v24_sql() as $sql) $pdo->exec($sql);
+            $insert->execute([':version' => '024']);
+        }
         $pdo->commit();
     } catch (Throwable $e) {
         if ($pdo->inTransaction()) $pdo->rollBack();
@@ -408,6 +422,69 @@ function steps_geolocation_schema_v19_sql(): array
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_owner_time_idx ON geo_matched_segments(user_email, started_at DESC)",
         "CREATE INDEX IF NOT EXISTS geo_matched_segments_geometry_idx ON geo_matched_segments USING GIST(matched_geometry)",
         "ANALYZE geo_location_points",
+    ];
+}
+
+function steps_geolocation_schema_v24_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_osm_place_photos (
+            osm_type TEXT NOT NULL CHECK (osm_type IN ('node','way','relation')),
+            osm_id BIGINT NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','ready','missing','failed','refresh')),
+            local_path TEXT NOT NULL DEFAULT '',
+            source_provider TEXT NOT NULL DEFAULT '',
+            source_url TEXT NOT NULL DEFAULT '',
+            source_page_url TEXT NOT NULL DEFAULT '',
+            author TEXT NOT NULL DEFAULT '',
+            license_name TEXT NOT NULL DEFAULT '',
+            license_url TEXT NOT NULL DEFAULT '',
+            attribution TEXT NOT NULL DEFAULT '',
+            fetched_at TIMESTAMPTZ,
+            width_px INTEGER,
+            height_px INTEGER,
+            file_bytes INTEGER,
+            checksum TEXT NOT NULL DEFAULT '',
+            attempts INTEGER NOT NULL DEFAULT 0,
+            retry_after TIMESTAMPTZ,
+            last_error TEXT NOT NULL DEFAULT '',
+            created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+            PRIMARY KEY (osm_type, osm_id),
+            FOREIGN KEY (osm_type, osm_id) REFERENCES geo_osm_places(osm_type, osm_id) ON DELETE CASCADE
+        )",
+        "CREATE INDEX IF NOT EXISTS geo_osm_place_photos_pending_idx ON geo_osm_place_photos(status, retry_after) WHERE status IN ('pending','failed','refresh')",
+        "CREATE INDEX IF NOT EXISTS geo_osm_place_photos_checksum_idx ON geo_osm_place_photos(checksum) WHERE checksum <> ''",
+        "INSERT INTO geo_osm_place_photos(osm_type, osm_id, status)
+            SELECT osm_type, osm_id, 'pending' FROM geo_osm_places
+            ON CONFLICT DO NOTHING",
+    ];
+}
+function steps_geolocation_schema_v23_sql(): array
+{
+    return [
+        "CREATE TABLE IF NOT EXISTS geo_osm_places (osm_type TEXT NOT NULL CHECK (osm_type IN ('node','way','relation')), osm_id BIGINT NOT NULL, name TEXT NOT NULL DEFAULT '', category TEXT NOT NULL DEFAULT '', subcategory TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', position geometry(Point,4326) NOT NULL, geometry geometry(Geometry,4326), tags_json JSONB NOT NULL DEFAULT '{}'::jsonb, fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (osm_type, osm_id))",
+        "CREATE INDEX IF NOT EXISTS geo_osm_places_position_idx ON geo_osm_places USING GIST(position)",
+        "CREATE INDEX IF NOT EXISTS geo_osm_places_fetched_idx ON geo_osm_places(fetched_at)",
+        "CREATE TABLE IF NOT EXISTS geo_osm_query_cache (cache_key TEXT PRIMARY KEY, provider TEXT NOT NULL DEFAULT '', element_refs JSONB NOT NULL DEFAULT '[]'::jsonb, status TEXT NOT NULL DEFAULT 'ok', fetched_at TIMESTAMPTZ NOT NULL DEFAULT now(), expires_at TIMESTAMPTZ NOT NULL)",
+        "CREATE INDEX IF NOT EXISTS geo_osm_query_cache_expires_idx ON geo_osm_query_cache(expires_at)",
+        "CREATE TABLE IF NOT EXISTS geo_user_prefs (user_email TEXT PRIMARY KEY, profile TEXT NOT NULL DEFAULT 'unspecified', settings_json JSONB NOT NULL DEFAULT '{}'::jsonb, updated_at TIMESTAMPTZ NOT NULL DEFAULT now())",
+        "CREATE TABLE IF NOT EXISTS geo_place_blocks (user_email TEXT NOT NULL, osm_type TEXT NOT NULL, osm_id BIGINT NOT NULL, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), PRIMARY KEY (user_email, osm_type, osm_id))",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS osm_type TEXT",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS osm_id BIGINT",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS display_name TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS category TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS address TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS detection_status TEXT NOT NULL DEFAULT 'pending'",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS detection_method TEXT NOT NULL DEFAULT ''",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS resolved_at TIMESTAMPTZ",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS resolve_attempts INTEGER NOT NULL DEFAULT 0",
+        "ALTER TABLE geo_visits ADD COLUMN IF NOT EXISTS retry_after TIMESTAMPTZ",
+        "UPDATE geo_visits SET detection_status = 'confirmed', detection_method = 'personal' WHERE place_id IS NOT NULL AND detection_status = 'pending'",
+        "CREATE TABLE IF NOT EXISTS geo_visit_candidates (id UUID PRIMARY KEY, visit_id UUID NOT NULL REFERENCES geo_visits(id) ON DELETE CASCADE, user_email TEXT NOT NULL, osm_type TEXT NOT NULL, osm_id BIGINT NOT NULL, rank INTEGER NOT NULL, score DOUBLE PRECISION NOT NULL, selected BOOLEAN NOT NULL DEFAULT false, details_json JSONB NOT NULL DEFAULT '{}'::jsonb, created_at TIMESTAMPTZ NOT NULL DEFAULT now(), UNIQUE (visit_id, osm_type, osm_id))",
+        "CREATE INDEX IF NOT EXISTS geo_visit_candidates_visit_idx ON geo_visit_candidates(visit_id, rank)",
+        "CREATE INDEX IF NOT EXISTS geo_visits_pending_idx ON geo_visits(detection_status, retry_after) WHERE detection_status IN ('pending','provisional')",
+        "CREATE INDEX IF NOT EXISTS geo_visits_owner_osm_idx ON geo_visits(user_email, osm_type, osm_id) WHERE osm_id IS NOT NULL",
     ];
 }
 function steps_geolocation_schema_v22_sql(): array

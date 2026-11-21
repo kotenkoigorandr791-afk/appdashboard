@@ -6,13 +6,14 @@ import orbit.nex.steps.PreferencesManager
 
 /** Accuracy profile the user picks for background recording. */
 enum class LocationAccuracy(val storageValue: String) {
+    AUTO("auto"),
     HIGH("high"),
     BALANCED("balanced"),
     LOW("low");
 
     companion object {
         fun fromStorage(value: String?): LocationAccuracy =
-            entries.firstOrNull { it.storageValue == value } ?: BALANCED
+            entries.firstOrNull { it.storageValue == value } ?: AUTO
     }
 }
 
@@ -42,7 +43,9 @@ class LocationTrackingManager(private val context: Context) {
         if (!prefs.isLocationTrackingEnabled()) return TrackingState.OFF
         if (prefs.isLocationTrackingPaused()) return TrackingState.PAUSED
         if (!LocationPermissions.hasForeground(appContext)) return TrackingState.PERMISSION_MISSING
-        if (!LocationTrackingService.isRecording) return TrackingState.PAUSED
+        // The in-process flag is lost when Android restarts the service in a new
+        // process; the heartbeat written by the service is the durable signal.
+        if (!LocationTrackingService.isRecording && !prefs.isLocationServiceAlive()) return TrackingState.PAUSED
         return TrackingState.RUNNING
     }
 
@@ -73,7 +76,8 @@ class LocationTrackingManager(private val context: Context) {
         prefs.setLocationTrackingEnabled(false)
         prefs.setLocationTrackingPaused(false)
         LocationTrackingService.stop(appContext)
-        LocationUploadWorker.cancelPeriodic(appContext)
+        // Points captured before the stop must still leave the phone.
+        if (pendingCount(appContext) == 0) LocationUploadWorker.cancelPeriodic(appContext)
     }
 
     /**

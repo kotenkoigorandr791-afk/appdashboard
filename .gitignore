@@ -23,9 +23,6 @@ build/
 dist/
 *.egg-info/
 apps/recipes/.pydeps/
-graphify-out/
-**/graphify-out/
-**/.graphify*/
 /backups/
 # Runtime data lives on the APPDATA volume. The repository never stores it and
 # never links to it (no symlinks in the code tree).

@@ -38,6 +38,7 @@ data class UpdateInfo(
     val apk_path: String = "",
     val download_url: String = "",
     val source: String = "server",
+    val release_notes: List<String> = emptyList(),
 )
 
 enum class CheckOutcome { NOT_CONNECTED, UP_TO_DATE, UPDATE_AVAILABLE, ERROR }

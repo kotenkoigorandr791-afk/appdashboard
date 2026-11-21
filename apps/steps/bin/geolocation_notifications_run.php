@@ -5,6 +5,7 @@
  *   php apps/steps/bin/geolocation_notifications_run.php --loop
  *   php apps/steps/bin/geolocation_notifications_run.php --limit=100
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_notifications.php';

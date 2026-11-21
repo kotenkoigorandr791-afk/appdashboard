@@ -32,7 +32,11 @@ function spends_decrypt(?string $value, string $userId, string $purpose): string
     $plain = openssl_decrypt(substr($raw, 28), 'aes-256-gcm', $key, OPENSSL_RAW_DATA, substr($raw, 0, 12), substr($raw, 12, 16), $userId . '|' . $purpose);
     return $plain === false ? '' : $plain;
 }
-function spends_db_user_id(AppDatabase $db): string { return (string)$db->querySingle("SELECT current_setting('spends.user_id', true)"); }
+function spends_db_user_id(AppDatabase $db): string {
+    static $m = [];
+    $k = spl_object_id($db);
+    return $m[$k] ??= (string)$db->querySingle("SELECT current_setting('spends.user_id', true)");
+}
 function app_spends_encrypt_existing(AppDatabase $db, string $uid): void {
     static $done = []; if ($uid === '' || isset($done[$uid])) return;
     $db->exec('BEGIN');

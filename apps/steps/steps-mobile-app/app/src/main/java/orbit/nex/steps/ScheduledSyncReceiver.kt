@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.Log
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
+import androidx.work.OutOfQuotaPolicy
 import androidx.work.WorkManager
 import orbit.nex.steps.updates.AppUpdateManager
 
@@ -34,11 +35,12 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                 val scheduleId = intent.getStringExtra(ScheduledSyncManager.EXTRA_SCHEDULE_ID)
                 Log.d(TAG, "Delegating scheduled sync to WorkManager (scheduleId=$scheduleId)")
                 rescheduleNext(context, scheduleId)
-                WorkManager.getInstance(context).enqueueUniqueWork("steps-sync-once", ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<SyncWorker>().build())
+                WorkManager.getInstance(context).enqueueUniqueWork("steps-sync-once", ExistingWorkPolicy.KEEP, OneTimeWorkRequestBuilder<SyncWorker>().setExpedited(OutOfQuotaPolicy.RUN_AS_NON_EXPEDITED_WORK_REQUEST).build())
             }
 
             Intent.ACTION_BOOT_COMPLETED,
-            Intent.ACTION_MY_PACKAGE_REPLACED -> {
+            Intent.ACTION_MY_PACKAGE_REPLACED,
+            android.app.AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED -> {
                 Log.d(TAG, "Rescheduling after boot/update")
                 val prefsManager = PreferencesManager(context)
                 when (prefsManager.getSyncMode()) {
@@ -58,8 +60,10 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
                 }
                 // Restore background location recording after reboot or an update.
                 // The service is restarted only when the user had enabled it.
-                orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(context)
-                AppUpdateManager.start(context)
+                if (intent.action != android.app.AlarmManager.ACTION_SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED) {
+                    orbit.nex.steps.location.LocationTrackingManager.resumeIfEnabled(context)
+                    AppUpdateManager.start(context)
+                }
             }
         }
     }
@@ -68,7 +72,7 @@ class ScheduledSyncReceiver : BroadcastReceiver() {
         val prefsManager = PreferencesManager(context)
         val scheduler = ScheduledSyncManager(context)
         when (prefsManager.getSyncMode()) {
-            SyncMode.INTERVAL -> scheduler.scheduleNextIntervalSync()
+            SyncMode.INTERVAL -> scheduler.scheduleNextIntervalSync(afterAlarm = true)
             SyncMode.SCHEDULED -> {
                 if (scheduleId == null) return
                 val schedule = prefsManager.getScheduledSyncs().find { it.id == scheduleId }

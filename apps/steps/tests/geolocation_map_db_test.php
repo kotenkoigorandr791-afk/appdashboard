@@ -79,10 +79,11 @@ try {
     geo_map_db_assert(in_array('visit', $layersSeen, true), 'visit layer missing');
 
     // Aggregated zoom returns clusters, heatmap and explored cells.
-    $coarse = StepsGeolocationMap::features($pdo, $owner, $bbox, $range + ['zoom' => 10, 'layers' => ['points', 'heatmap', 'explored']]);
+    $coarse = StepsGeolocationMap::features($pdo, $owner, $bbox, $range + ['zoom' => 10, 'layers' => ['points', 'heatmap', 'speed', 'explored']]);
     $kinds = array_map(static fn(array $f): string => $f['properties']['layer'], $coarse['features']);
     geo_map_db_assert(in_array('point_cluster', $kinds, true), 'point clustering missing');
     geo_map_db_assert(in_array('heatmap', $kinds, true), 'heatmap layer missing');
+    geo_map_db_assert(in_array('speed', $kinds, true), 'speed layer missing');
     geo_map_db_assert(in_array('explored', $kinds, true), 'explored layer missing');
 
     // Precision follows zoom (coordinates are rounded before rendering).

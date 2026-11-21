@@ -2,6 +2,7 @@ package orbit.nex.steps.components
 
 import orbit.nex.steps.PreferencesManager
 import orbit.nex.steps.SyncMode
+import orbit.nex.steps.nextIntervalSyncAt
 import java.util.Calendar
 
 data class NextSyncInfo(
@@ -38,8 +39,7 @@ fun computeNextSyncInfo(prefs: PreferencesManager, now: Long): NextSyncInfo? {
         }
         SyncMode.INTERVAL -> {
             val intervalMs = prefs.getSyncIntervalMinutes() * 60_000L
-            val lastSync = prefs.getEffectiveLastSyncAnchor() ?: now
-            val nextSync = maxOf(lastSync + intervalMs, now)
+            val nextSync = maxOf(nextIntervalSyncAt(now, prefs.getEffectiveLastSyncAnchor(), prefs.getLastSyncAttemptTime(), intervalMs), now)
             NextSyncInfo(nextSync, intervalMs, "")
         }
     }

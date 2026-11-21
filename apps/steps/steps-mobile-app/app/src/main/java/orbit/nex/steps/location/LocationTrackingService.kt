@@ -13,10 +13,20 @@ import android.content.IntentFilter
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.location.Location
+import android.location.LocationManager
+import android.location.LocationListener
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
+import android.hardware.TriggerEvent
+import android.hardware.TriggerEventListener
 import android.os.Build
 import android.os.IBinder
+import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
+import android.os.SystemClock
 import android.util.Log
 import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
@@ -58,8 +68,88 @@ class LocationTrackingService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private lateinit var fusedClient: FusedLocationProviderClient
     private lateinit var prefs: PreferencesManager
-    private var active = false
+    @Volatile private var active = false
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var requestGeneration = 0
+    @Volatile private var powerMode = LocationAccuracy.BALANCED
+    private var lastMovingMs = 0L
+    private var lastModeChangeMs = 0L
+    private var fastSamples = 0
+    private var slowSamples = 0
+    private val sensorManager by lazy { getSystemService(Context.SENSOR_SERVICE) as SensorManager }
+    private val locationManager by lazy { getSystemService(Context.LOCATION_SERVICE) as LocationManager }
+    private var sensorBaseline = 9.81f
+    private val motionSensorListener = object : SensorEventListener {
+        override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+        override fun onSensorChanged(event: SensorEvent) {
+            val v = event.values
+            val magnitude = kotlin.math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2])
+            sensorBaseline = sensorBaseline * 0.9f + magnitude * 0.1f
+            if (kotlin.math.abs(magnitude - sensorBaseline) > 0.7f) {
+                lastMovingMs = SystemClock.elapsedRealtime()
+                if (prefs.getLocationAccuracy() == LocationAccuracy.AUTO && powerMode == LocationAccuracy.LOW) switchMode(LocationAccuracy.BALANCED)
+            }
+        }
+    }
+    private val significantMotionListener = object : TriggerEventListener() {
+        override fun onTrigger(event: TriggerEvent?) {
+            if (!active) return
+            lastMovingMs = SystemClock.elapsedRealtime()
+            if (prefs.getLocationAccuracy() == LocationAccuracy.AUTO && powerMode == LocationAccuracy.LOW) switchMode(LocationAccuracy.BALANCED)
+            registerSignificantMotion()
+        }
+    }
+    private val fallbackListener = LocationListener { location ->
+        if (active) onMeasurement(location, "gnss")
+    }
+    private fun registerSignificantMotion() {
+        sensorManager.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)?.let {
+            runCatching { sensorManager.requestTriggerSensor(significantMotionListener, it) }
+        }
+    }
+    private fun configureMotionSensors() {
+        sensorManager.unregisterListener(motionSensorListener)
+        sensorManager.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)?.let { runCatching { sensorManager.cancelTriggerSensor(significantMotionListener, it) } }
+        if (prefs.getLocationAccuracy() == LocationAccuracy.AUTO) {
+            sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)?.let { sensorManager.registerListener(motionSensorListener, it, SensorManager.SENSOR_DELAY_UI) }
+            registerSignificantMotion()
+        }
+    }
+    private fun switchMode(mode: LocationAccuracy) {
+        if (powerMode == mode) return
+        powerMode = mode
+        lastModeChangeMs = SystemClock.elapsedRealtime()
+        prefs.setLocationPowerMode(mode.storageValue)
+        applyRequest()
+    }
+    private fun onMeasurement(location: Location, origin: String) {
+        lastFixElapsedMs = SystemClock.elapsedRealtime()
+        persist(location, origin)
+        if (prefs.getLocationAccuracy() == LocationAccuracy.AUTO && location.hasAccuracy() && location.accuracy <= 50f) {
+            val now = SystemClock.elapsedRealtime()
+            val speed = if (location.hasSpeed()) location.speed else 0f
+            if (speed > 0.8f) lastMovingMs = now
+            fastSamples = if (speed >= prefs.getFastModeSpeed()) fastSamples + 1 else 0
+            slowSamples = if (speed < 5f) slowSamples + 1 else 0
+            if (now - lastModeChangeMs >= 60_000L) {
+                when {
+                    fastSamples >= 3 -> switchMode(LocationAccuracy.HIGH)
+                    powerMode == LocationAccuracy.HIGH && slowSamples >= 6 -> switchMode(LocationAccuracy.BALANCED)
+                    now - lastMovingMs >= prefs.getStationarySeconds() * 1_000L -> switchMode(LocationAccuracy.LOW)
+                }
+            }
+        }
+        updateNotification()
+    }
     private var powerReceiver: BroadcastReceiver? = null
+    private var screenReceiver: BroadcastReceiver? = null
+    private var watchdogJob: Job? = null
+    @Volatile private var lastFixElapsedMs = 0L
+    @Volatile private var lastRecoveryElapsedMs = 0L
+    private var lastUploadEnqueueMs = 0L
+    private var lastPersistedLat = Double.NaN
+    private var lastPersistedLon = Double.NaN
+    private var lastPersistedAtMs = 0L
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -79,6 +169,9 @@ class LocationTrackingService : Service() {
             return
         }
         prefs.setLocationPermissionLost(false)
+        // The card must appear immediately even before the first fix arrives, and
+        // a restarted process must be seen as running by the UI.
+        prefs.setLocationServiceHeartbeat(System.currentTimeMillis())
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -91,6 +184,9 @@ class LocationTrackingService : Service() {
                 return START_NOT_STICKY
             }
             ACTION_REFRESH -> {
+                if (prefs.isLocationTrackingEnabled() && !prefs.isLocationTrackingPaused()) {
+                    if (active) { configureMotionSensors(); applyRequest() } else startTracking()
+                }
                 // Re-inflates the card so a theme, or an in-app theme override,
                 // is reflected without waiting for the next location fix.
                 updateNotification()
@@ -127,71 +223,134 @@ class LocationTrackingService : Service() {
             return
         }
         active = true
+        powerMode = prefs.getLocationAccuracy().let { if (it == LocationAccuracy.AUTO) LocationAccuracy.BALANCED else it }
+        prefs.setLocationPowerMode(powerMode.storageValue)
+        lastMovingMs = SystemClock.elapsedRealtime()
+        lastModeChangeMs = lastMovingMs
+        configureMotionSensors()
+        lastFixElapsedMs = SystemClock.elapsedRealtime()
         applyRequest()
         registerPowerReceiver()
+        registerScreenReceiver()
+        startWatchdog()
         updateNotification()
     }
 
     private fun stopTracking() {
         isRecording = false
-        if (active) {
-            runCatching { fusedClient.removeLocationUpdates(locationCallback) }
-            active = false
-        }
+        active = false
+        sensorManager.unregisterListener(motionSensorListener)
+        sensorManager.getDefaultSensor(Sensor.TYPE_SIGNIFICANT_MOTION)?.let { runCatching { sensorManager.cancelTriggerSensor(significantMotionListener, it) } }
+        runCatching { locationManager.removeUpdates(fallbackListener) }
+        requestGeneration++
+        runCatching { fusedClient.removeLocationUpdates(locationCallback) }
+        runCatching { fusedClient.removeLocationUpdates(passiveCallback) }
+        watchdogJob?.cancel()
+        watchdogJob = null
         unregisterPowerReceiver()
+        unregisterScreenReceiver()
+        prefs.setLocationServiceHeartbeat(0L)
     }
 
     /** Applies accuracy and sampling interval from settings; no transport inference. */
     @SuppressLint("MissingPermission")
     private fun applyRequest() {
         if (!LocationPermissions.hasForeground(this)) return
-        val powerSaver = (getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
-        // Sampling cadence is the location setting, not the health data sync
-        // interval: sharing the two made recording follow the webhook schedule.
-        val accuracy = prefs.getLocationAccuracy()
-        val intervalMs = prefs.getLocationIntervalSec() * 1000L
-        val priority = when {
-            powerSaver -> Priority.PRIORITY_LOW_POWER
-            else -> when (prefs.getLocationAccuracy()) {
-                LocationAccuracy.HIGH -> Priority.PRIORITY_HIGH_ACCURACY
-                LocationAccuracy.LOW -> Priority.PRIORITY_LOW_POWER
-                else -> Priority.PRIORITY_BALANCED_POWER_ACCURACY
-            }
+        val selected = prefs.getLocationAccuracy()
+        if (selected != LocationAccuracy.AUTO) powerMode = selected
+        prefs.setLocationPowerMode(powerMode.storageValue)
+        val priority = if (powerMode == LocationAccuracy.LOW) Priority.PRIORITY_BALANCED_POWER_ACCURACY else Priority.PRIORITY_HIGH_ACCURACY
+        val interval = when (powerMode) {
+            LocationAccuracy.LOW -> prefs.getLocationIntervalSec().coerceIn(30, 60) * 1_000L
+            LocationAccuracy.HIGH -> prefs.getLocationIntervalSec().coerceIn(1, 2) * 1_000L
+            else -> prefs.getLocationIntervalSec().coerceIn(5, 10) * 1_000L
         }
-        // Battery saver doubles the interval instead of silently dropping updates.
-        val effectiveInterval = if (powerSaver) intervalMs * 2 else intervalMs
-        val request = LocationRequest.Builder(priority, effectiveInterval)
-            .setMinUpdateIntervalMillis(effectiveInterval)
-            .setMinUpdateDistanceMeters(MIN_DISTANCE_M)
+        val requestedDistance = prefs.getLocationMinDistance()
+        val distance = if (requestedDistance >= 0) requestedDistance.toFloat() else when (powerMode) {
+            LocationAccuracy.LOW -> 20f
+            LocationAccuracy.HIGH -> 0f
+            else -> 0f
+        }
+        val request = LocationRequest.Builder(priority, interval)
+            .setMinUpdateIntervalMillis(interval)
+            .setMinUpdateDistanceMeters(distance)
             .setWaitForAccurateLocation(false)
             .build()
-        runCatching {
-            fusedClient.removeLocationUpdates(locationCallback)
-            fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
-                .addOnSuccessListener { if (active) isRecording = true }
-                .addOnFailureListener { error ->
-                    isRecording = false
-                    Log.e(TAG, "Location request failed: ${error.message}")
-                    prefs.setLocationUploadFailure(error.message ?: "location_unavailable")
-                    updateNotification()
+        mainHandler.post {
+            if (!active) return@post
+            val generation = ++requestGeneration
+            runCatching { fusedClient.removeLocationUpdates(passiveCallback) }
+            if (powerMode == LocationAccuracy.LOW) {
+                runCatching {
+                    val passive = LocationRequest.Builder(Priority.PRIORITY_PASSIVE, 30_000L).setMinUpdateIntervalMillis(1_000L).build()
+                    fusedClient.requestLocationUpdates(passive, passiveCallback, Looper.getMainLooper())
                 }
-        }.onFailure { error ->
-            isRecording = false
-            Log.e(TAG, "Location request rejected: ${error.message}")
+            }
+            runCatching {
+                fusedClient.removeLocationUpdates(locationCallback).addOnCompleteListener {
+                    if (!active || generation != requestGeneration || !LocationPermissions.hasForeground(this)) return@addOnCompleteListener
+                    runCatching {
+                        fusedClient.requestLocationUpdates(request, locationCallback, Looper.getMainLooper())
+                            .addOnSuccessListener {
+                                if (active && generation == requestGeneration) {
+                                    isRecording = true
+                                    prefs.setLocationServiceHeartbeat(System.currentTimeMillis())
+                                }
+                            }
+                            .addOnFailureListener { error ->
+                                if (generation == requestGeneration) {
+                                    isRecording = false
+                                    Log.e(TAG, "Location request failed: ${error.message}")
+                                    prefs.setLocationUploadFailure(error.message ?: "location_unavailable")
+                                    startPlatformFallback()
+                                    updateNotification()
+                                }
+                            }
+                    }.onFailure { error ->
+                        isRecording = false
+                        Log.e(TAG, "Location request rejected: ${error.message}")
+                    }
+                }
+            }.onFailure { error ->
+                isRecording = false
+                Log.e(TAG, "Location request reset failed: ${error.message}")
+            }
+        }
+    }
+
+    private val passiveCallback = object : LocationCallback() {
+        override fun onLocationResult(result: LocationResult) {
+            if (active && powerMode == LocationAccuracy.LOW) result.locations.forEach { onMeasurement(it, "passive") }
         }
     }
 
     private val locationCallback = object : LocationCallback() {
         override fun onLocationResult(result: LocationResult) {
-            result.locations.forEach { persist(it) }
+            if (!active) return
+            result.locations.forEach { location ->
+                // Any delivery proves the request is alive, even when the point is
+                // skipped as "standing still". The watchdog must not treat that as
+                // a broken stream.
+                onMeasurement(location, "fused")
+            }
             updateNotification()
         }
     }
 
     /** Writes the measurement to disk before anything is sent anywhere. */
-    private fun persist(location: Location): LocationEvent? {
+    @SuppressLint("MissingPermission")
+    private fun startPlatformFallback() {
+        if (!active || !LocationPermissions.hasForeground(this)) return
+        runCatching {
+            val provider = if (powerMode == LocationAccuracy.LOW && locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) LocationManager.NETWORK_PROVIDER else if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) LocationManager.GPS_PROVIDER else LocationManager.NETWORK_PROVIDER
+            locationManager.requestLocationUpdates(provider, 10_000L, 0f, fallbackListener, Looper.getMainLooper())
+            isRecording = true
+        }.onFailure { Log.e(TAG, "Platform location request failed", it) }
+    }
+
+    private fun persist(location: Location, origin: String = "fused"): LocationEvent? {
         if (!location.hasAccuracy() && location.latitude == 0.0 && location.longitude == 0.0) return null
-        if (abs(location.latitude) < 0.0001 && abs(location.longitude) < 0.0001) return null
+        if (location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0) return null
         val event = LocationEvent(
             clientEventId = UUID.randomUUID().toString(),
             latitude = location.latitude,
@@ -204,10 +363,66 @@ class LocationTrackingService : Service() {
             bearingDegrees = if (location.hasBearing()) location.bearing else null,
             deviceSequence = prefs.nextLocationSequence(),
             recordedAtMs = System.currentTimeMillis(),
+            provider = location.provider,
+            trackingMode = powerMode.storageValue,
+            origin = origin,
         )
         val stored = LocationEventStore(this).insert(prefs.getLocationDeviceId(), event)
-        if (!stored) Log.w(TAG, "Duplicate location event ignored")
-        return event.takeIf { stored }
+        if (!stored) {
+            Log.w(TAG, "Duplicate location event ignored")
+            return null
+        }
+        lastFixElapsedMs = SystemClock.elapsedRealtime()
+        lastPersistedLat = event.latitude
+        lastPersistedLon = event.longitude
+        lastPersistedAtMs = event.recordedAtMs
+        prefs.setLocationLastFixAt(event.recordedAtMs)
+        prefs.setLocationServiceHeartbeat(event.recordedAtMs)
+        return event
+    }
+
+    /**
+     * Recovers from the cases where the platform silently stops delivering fixes:
+     * a request lost after a Play Services restart, restricted while-in-use access
+     * after a background start, or a long phone call / Doze window. Re-issuing the
+     * request and asking for one immediate fix costs nothing when updates flow.
+     */
+    private fun startWatchdog() {
+        if (watchdogJob?.isActive == true) return
+        watchdogJob = scope.launch {
+            while (isActive) {
+                delay(WATCHDOG_INTERVAL_MS)
+                if (!active) continue
+                val now = System.currentTimeMillis()
+                prefs.setLocationServiceHeartbeat(now)
+                val intervalMs = prefs.getLocationIntervalSec().coerceAtLeast(5) * 1000L
+                // Two missed sampling windows is already a real gap: recover it
+                // before the user notices missing points on the map.
+                val allowedGap = maxOf(intervalMs * 2, STALE_FIX_FLOOR_MS)
+                val elapsed = SystemClock.elapsedRealtime()
+                if (!shouldRecoverLocation(elapsed, lastFixElapsedMs, lastRecoveryElapsedMs, allowedGap)) continue
+                lastRecoveryElapsedMs = elapsed
+                Log.w(TAG, "No location fix for ${allowedGap / 1000}s, re-requesting")
+                applyRequest()
+            }
+        }
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun requestFallbackFix() {
+        if (!LocationPermissions.hasForeground(this)) return
+        runCatching {
+            fusedClient.getCurrentLocation(Priority.PRIORITY_BALANCED_POWER_ACCURACY, null)
+                .addOnSuccessListener { location ->
+                    if (!active || location == null) return@addOnSuccessListener
+                    lastFixElapsedMs = SystemClock.elapsedRealtime()
+                    persist(location)
+                    updateNotification()
+                }
+                .addOnFailureListener { error ->
+                    Log.w(TAG, "Fallback location failed: ${error.message}")
+                }
+        }
     }
 
     private fun pendingCount(): Int = runCatching { LocationEventStore(this).pendingCount() }.getOrDefault(0)
@@ -242,8 +457,11 @@ class LocationTrackingService : Service() {
     }
 
     private fun updateNotification() {
-        val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return
-        runCatching { manager.notify(NOTIFICATION_ID, buildNotification(pendingCount(), todayRouteMeters())) }
+        scope.launch {
+            val manager = getSystemService(Context.NOTIFICATION_SERVICE) as? NotificationManager ?: return@launch
+            val notification = runCatching { buildNotification(pendingCount(), todayRouteMeters()) }.getOrNull() ?: return@launch
+            if (active) manager.notify(NOTIFICATION_ID, notification)
+        }
     }
 
     /**
@@ -347,12 +565,15 @@ class LocationTrackingService : Service() {
         val fullViews = RemoteViews(packageName, R.layout.notification_tracking).apply {
             setTextViewText(R.id.notif_route, distanceText)
             setTextViewText(R.id.notif_pending, pending.toString())
+            setTextViewText(R.id.notif_sync, prefs.getLocationUploadOkAt()?.let { android.text.format.DateFormat.getTimeFormat(this@LocationTrackingService).format(java.util.Date(it)) } ?: getString(R.string.tracking_notification_never))
+            setTextColor(R.id.notif_sync_label, labelColor)
+            setTextColor(R.id.notif_sync, valueColor)
+            setInt(R.id.notif_sync_chip, "setBackgroundResource", palette.chip)
             setTextColor(R.id.notif_route_label, labelColor)
             setTextColor(R.id.notif_pending_label, labelColor)
             setTextColor(R.id.notif_route, valueColor)
             setTextColor(R.id.notif_pending, pendingColor)
             setInt(R.id.notif_card, "setBackgroundResource", palette.card)
-            setInt(R.id.notif_icon_wrap, "setBackgroundResource", palette.iconTile)
             setInt(R.id.notif_route_chip, "setBackgroundResource", palette.chip)
             setInt(R.id.notif_pending_chip, "setBackgroundResource", palette.chip)
             setInt(R.id.notif_stop, "setBackgroundResource", palette.stop)
@@ -366,11 +587,9 @@ class LocationTrackingService : Service() {
         val compactViews = RemoteViews(packageName, R.layout.notification_tracking_compact).apply {
             setTextViewText(
                 R.id.notif_compact_text,
-                getString(R.string.tracking_notification_compact, distanceText, pending),
+                getString(R.string.tracking_notification_compact_values, distanceText, pending),
             )
             setTextColor(R.id.notif_compact_text, valueColor)
-            setInt(R.id.notif_compact_card, "setBackgroundResource", palette.card)
-            setInt(R.id.notif_compact_icon_wrap, "setBackgroundResource", palette.iconTile)
             setOnClickPendingIntent(R.id.notif_root, open)
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -409,6 +628,39 @@ class LocationTrackingService : Service() {
         powerReceiver = null
     }
 
+    /**
+     * Screen-on is the cheapest reliable moment to recover: it follows the end of
+     * a call, leaving Doze, or reopening the app. Re-issuing the request there is
+     * what closes the gaps that used to appear after phone calls.
+     */
+    private fun registerScreenReceiver() {
+        if (screenReceiver != null) return
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (!active) return
+                val gap = maxOf(prefs.getLocationIntervalSec().coerceAtLeast(5) * 2_000L, STALE_FIX_FLOOR_MS)
+                val elapsed = SystemClock.elapsedRealtime()
+                if (shouldRecoverLocation(elapsed, lastFixElapsedMs, lastRecoveryElapsedMs, gap)) {
+                    lastRecoveryElapsedMs = elapsed
+                    applyRequest()
+                    requestFallbackFix()
+                }
+            }
+        }
+        ContextCompat.registerReceiver(
+            this,
+            receiver,
+            IntentFilter(Intent.ACTION_SCREEN_ON),
+            ContextCompat.RECEIVER_NOT_EXPORTED,
+        )
+        screenReceiver = receiver
+    }
+
+    private fun unregisterScreenReceiver() {
+        screenReceiver?.let { runCatching { unregisterReceiver(it) } }
+        screenReceiver = null
+    }
+
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
         // System light/dark switch ("auto" theme) has to repaint the card.
@@ -430,7 +682,11 @@ class LocationTrackingService : Service() {
             private set
         private const val TAG = "LocationTrackingService"
         private const val NOTIFICATION_ID = 2003
-        private const val MIN_DISTANCE_M = 20f
+        private const val WATCHDOG_INTERVAL_MS = 30_000L
+        private const val STALE_FIX_FLOOR_MS = 2L * 60 * 1000
+        private const val UPLOAD_THROTTLE_MS = 5_000L
+        private const val MIN_MOVE_M = 10f
+        private const val STATIONARY_REPEAT_MS = 5L * 60 * 1000
         const val CHANNEL_ID = "location_tracking"
         const val ACTION_START = "orbit.nex.steps.location.START"
         const val ACTION_STOP = "orbit.nex.steps.location.STOP"
@@ -467,3 +723,6 @@ class LocationTrackingService : Service() {
         }
     }
 }
+
+internal fun shouldRecoverLocation(now: Long, lastFix: Long, lastRecovery: Long, allowedGap: Long): Boolean =
+    now - lastFix >= allowedGap && now - lastRecovery >= allowedGap

@@ -9,6 +9,7 @@
  * Artifacts are streamed to the existing app data volume. Expired artifacts are
  * removed by the same worker; download endpoints authorize again on every hit.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_exports.php';

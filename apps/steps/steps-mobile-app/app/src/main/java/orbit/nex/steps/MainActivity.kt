@@ -43,6 +43,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.BlendMode
@@ -119,6 +120,7 @@ class MainActivity : AppCompatActivity() {
             val bound = withContext(Dispatchers.IO) { bindDevice(config, preferencesManager) }
             if (bound) {
                 preferencesManager.setWebhookConfigs(listOf(config))
+                preferencesManager.markConnectionEstablished()
                 preferencesManager.setEnabledDataTypes(HealthDataType.values().toSet())
                 preferencesManager.clearAuthError()
                 Toast.makeText(this@MainActivity, getString(R.string.auth_connected), Toast.LENGTH_LONG).show()
@@ -134,6 +136,8 @@ class MainActivity : AppCompatActivity() {
             restore = { route -> bottomNavItems.firstOrNull { it.route == route } ?: NavigationScreen.Home }
         )
         var selected by rememberSaveable(stateSaver = navigationSaver) { mutableStateOf(NavigationScreen.Home) }
+        var mapOpened by remember { mutableStateOf(false) }
+        LaunchedEffect(selected) { if (selected == NavigationScreen.Tracking) mapOpened = true }
         // The app is usable only after a device token is paired: without it every
         // tab would show empty or stale data, so the gate replaces the whole shell.
         var connected by remember { mutableStateOf(preferencesManager.getWebhookConfigs().any { it.isEnabled }) }
@@ -297,15 +301,27 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 AppBackground(Modifier.weight(1f)) {
-                    androidx.compose.animation.AnimatedContent(targetState = selected, transitionSpec = {
-                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) togetherWith
-                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200))
-                    }, label = "tabs") { screen ->
-                        when (screen) {
-                            NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
-                            NavigationScreen.Tracking -> TrackingMapScreen(Modifier.padding(padding))
-                            NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
-                            NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+                    androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+                        if (mapOpened || selected == NavigationScreen.Tracking) {
+                            val visible = selected == NavigationScreen.Tracking
+                            TrackingMapScreen(
+                                modifier = Modifier.padding(padding).graphicsLayer { alpha = if (visible) 1f else 0f }
+                                    .then(if (visible) Modifier else Modifier.clearAndSetSemantics {}),
+                                isVisible = visible,
+                            )
+                        }
+                        if (selected != NavigationScreen.Tracking) {
+                            androidx.compose.animation.AnimatedContent(targetState = selected, transitionSpec = {
+                                androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(200)) togetherWith
+                                    androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(200))
+                            }, label = "tabs") { screen ->
+                                when (screen) {
+                                    NavigationScreen.Home -> ConfigurationScreen(Modifier.padding(padding), historyRequest = historyRequest)
+                                    NavigationScreen.Statistics -> StatisticsScreen(Modifier.padding(padding))
+                                    NavigationScreen.About -> AboutScreen(Modifier.padding(padding))
+                                    NavigationScreen.Tracking -> Unit
+                                }
+                            }
                         }
                     }
                 }

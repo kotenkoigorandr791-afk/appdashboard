@@ -8,6 +8,7 @@ require_once __DIR__ . '/../core/goals.php';
 require_once __DIR__ . '/../core/rates.php';
 require_once __DIR__ . '/../core/tags.php';
 require_once __DIR__ . '/../core/mobile_sync.php';
+if (($_SERVER['REQUEST_METHOD'] ?? 'GET') === 'POST') register_shutdown_function('spends_mobile_invalidate_snapshot');
 require_once __DIR__ . '/../core/file_index.php';
 
 // Mobile companion: profile probe used after QR pairing.
@@ -496,11 +497,21 @@ if (isset($_GET['get_expenses_page'])) {
     if ($sort === 'date_desc') {
         $allDays = array_reverse($allDays);
     }
+    // Page the day rows instead of materialising the whole window: every request
+    // only queries the dates the user actually sees.
+    $perPage   = max(10, min(200, (int)($_GET['per_page'] ?? 20)));
+    $totalDays = count($allDays);
+    if ($search !== '') $perPage = max($perPage, $totalDays ?: 1);
+    $totalPages = max(1, (int)ceil($totalDays / max(1, $perPage)));
+    $page       = min($totalPages, max(1, (int)($_GET['page'] ?? 1)));
+    $pageDays   = $allDays ? array_slice($allDays, ($page - 1) * $perPage, $perPage) : [];
+    $queryStart = $pageDays ? min($pageDays) : $rangeStart;
+    $queryEnd   = $pageDays ? max($pageDays) : $rangeEnd;
     $rows = [];
     $incomes = [];
-    if (!empty($allDays)) {
+    if (!empty($pageDays)) {
         $expWhere = "date >= :ra AND date <= :rb";
-        $expParams = [':ra' => $rangeStart, ':rb' => $rangeEnd];
+        $expParams = [':ra' => $queryStart, ':rb' => $queryEnd];
         if ($search !== '') {
             $expWhere .= " AND (date LIKE :s OR store LIKE :s2 OR CAST(amount AS TEXT) LIKE :s3)";
             $expParams[':s']  = "%$search%";
@@ -513,7 +524,7 @@ if (isset($_GET['get_expenses_page'])) {
         while ($r = $expRes->fetch(PDO::FETCH_ASSOC)) $rows[] = $r;
 
         $incWhere = "date >= :ra AND date <= :rb";
-        $incParams = [':ra' => $rangeStart, ':rb' => $rangeEnd];
+        $incParams = [':ra' => $queryStart, ':rb' => $queryEnd];
         if ($search !== '') {
             $incWhere .= " AND (date LIKE :s OR CAST(amount AS TEXT) LIKE :s2)";
             $incParams[':s']  = "%$search%";
@@ -534,9 +545,11 @@ if (isset($_GET['get_expenses_page'])) {
         'status'     => 'success',
         'rows'       => $rows,
         'incomes'    => $incomes,
-        'dates'      => $allDays,
-        'total'      => count($allDays),
-        'totalPages' => 1,
+        'dates'      => $search !== '' ? $allDays : $pageDays,
+        'total'      => $search !== '' ? count($allDays) : $totalDays,
+        'page'       => $page,
+        'perPage'    => $perPage,
+        'totalPages' => $search !== '' ? 1 : $totalPages,
     ]));
 }
 
@@ -1427,24 +1440,34 @@ if ($startDateForTable !== '' && strcmp($startDateForTable, $rangeStart) > 0) {
 }
 $firstPageRows = [];
 $totalRows = 0;
+$tablePerPage = 20;
+$tablePage = 1;
+$tableTotalPages = 1;
 if (strcmp($rangeStart, $rangeEnd) <= 0) {
     $allTableDays = listCalendarDaysInclusive($rangeStart, $rangeEnd);
     if ($tableSettings['sort_by'] === 'date_desc') {
         $allTableDays = array_reverse($allTableDays);
     }
     $totalRows = count($allTableDays);
+    // Render one page of days and query only those dates, so a long history no
+    // longer turns into a single unbounded SELECT on every page load.
+    $tableTotalPages = max(1, (int)ceil($totalRows / $tablePerPage));
+    $tablePage = min($tableTotalPages, max(1, (int)($_GET['table_page'] ?? 1)));
+    $pageDays = array_slice($allTableDays, ($tablePage - 1) * $tablePerPage, $tablePerPage);
+    $pageStart = $pageDays ? min($pageDays) : $rangeStart;
+    $pageEnd   = $pageDays ? max($pageDays) : $rangeEnd;
     $tableAmounts = [];
     if (!empty($visibleStoreNames)) {
         $tableSt = $udb->prepare('SELECT date, store, amount FROM expenses WHERE date >= :a AND date <= :b');
-        $tableSt->bindValue(':a', $rangeStart);
-        $tableSt->bindValue(':b', $rangeEnd);
+        $tableSt->bindValue(':a', $pageStart);
+        $tableSt->bindValue(':b', $pageEnd);
         $tableRes = $tableSt->execute();
         $visibleSet = array_flip($visibleStoreNames);
         while ($r = $tableRes->fetch(PDO::FETCH_ASSOC)) {
             if (isset($visibleSet[$r['store']])) $tableAmounts[$r['date']][$r['store']] = (float)$r['amount'];
         }
     }
-    foreach ($allTableDays as $d) {
+    foreach ($pageDays as $d) {
         $rowData = [];
         foreach ($visibleStoreNames as $sn) $rowData[$sn] = $tableAmounts[$d][$sn] ?? 0;
         $firstPageRows[$d] = $rowData;
@@ -1467,11 +1490,20 @@ if ($tableMinYear < 2000 || $tableMinYear > $tableMaxYear) $tableMinYear = min(2
 
 $allStoresExpenses = [];
 $allIncomes = [];
+// Source and raw notification text for the activity feed: one row per
+// (date, store), matching the expenses primary key.
+$expenseActivityMeta = [];
+$activityUserId = '';
+try { $activityUserId = spends_db_user_id($udb); } catch (Throwable $e) {}
 if (!empty($storeNames)) {
     $inListAll = implode(',', array_map(fn($s) => "'" . AppDatabase::escapeString($s) . "'", $storeNames));
-    $aRes = $udb->query("SELECT date, store, amount FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
+    $aRes = $udb->query("SELECT date, store, amount, entry_source, ocr_raw_store FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
     while ($row = $aRes->fetch(PDO::FETCH_ASSOC)) {
         $allStoresExpenses[$row['date']][$row['store']] = (float)$row['amount'];
+        $expenseActivityMeta[$row['date']][$row['store']] = [
+            'source' => strtolower((string)($row['entry_source'] ?? 'manual')),
+            'note' => spends_decrypt($row['ocr_raw_store'] ?? '', $activityUserId, 'ocr'),
+        ];
     }
 }
 $incResAll = $udb->query("SELECT date, amount FROM incomes WHERE date LIKE '$currentYear-%' ORDER BY date ASC");

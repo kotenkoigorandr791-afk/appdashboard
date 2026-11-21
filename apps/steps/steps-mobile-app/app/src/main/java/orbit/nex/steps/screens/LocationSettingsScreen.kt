@@ -82,8 +82,10 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
-    val pointRepository = remember { PointManagementRepository(prefs) }
+    val pointRepository = remember { PointManagementRepository(prefs, context) }
     val scope = androidx.compose.runtime.rememberCoroutineScope()
+    val noticeHost = remember { androidx.compose.material3.SnackbarHostState() }
+    fun showNotice(message: String = context.getString(R.string.saved_toast)) { scope.launch { noticeHost.showSnackbar(message) } }
     val matchingConfig = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
 
     var matching by remember { mutableStateOf(MatchingState()) }
@@ -99,6 +101,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     var permissionLost by remember { mutableStateOf(prefs.isLocationPermissionLost()) }
     var intervalSec by remember { mutableStateOf(prefs.getLocationIntervalSec()) }
     var accuracy by remember { mutableStateOf(prefs.getLocationAccuracy()) }
+    var currentPower by remember { mutableStateOf(LocationAccuracy.fromStorage(prefs.getLocationPowerMode())) }
     var actionMessage by remember { mutableStateOf<String?>(null) }
 
     fun refresh() {
@@ -112,6 +115,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
         lastError = prefs.getLocationUploadError()
         permissionLost = prefs.isLocationPermissionLost()
         accuracy = prefs.getLocationAccuracy()
+        currentPower = LocationAccuracy.fromStorage(prefs.getLocationPowerMode())
     }
 
     LaunchedEffect(matchingConfig?.url) {
@@ -142,6 +146,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
     }
 
     Scaffold(
+        snackbarHost = { androidx.compose.material3.SnackbarHost(noticeHost) { data -> orbit.nex.steps.components.SavedToast(data.visuals.message, Modifier.padding(bottom = 8.dp), onDismiss = { data.dismiss() }) } },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.tracking_settings_title)) },
@@ -255,7 +260,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             OutlinedButton(
-                                onClick = { manager.pause(); refresh() },
+                                onClick = { manager.pause(); refresh(); showNotice(context.getString(R.string.tracking_status_paused)) },
                                 modifier = Modifier.weight(1f),
                             ) { Text(stringResource(R.string.tracking_pause)) }
                             OutlinedButton(
@@ -272,7 +277,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                             horizontalArrangement = Arrangement.spacedBy(Spacing.sm),
                         ) {
                             Button(
-                                onClick = { manager.resume(); refresh() },
+                                onClick = { manager.resume(); refresh(); showNotice(context.getString(R.string.tracking_status_running)) },
                                 modifier = Modifier.weight(1f),
                             ) { Text(stringResource(R.string.tracking_resume)) }
                             OutlinedButton(
@@ -388,6 +393,7 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                         optionLabel = { stringResource(accuracyRes(it)) },
                         optionIcon = {
                             when (it) {
+                                LocationAccuracy.AUTO -> Icons.Filled.Tune
                                 LocationAccuracy.HIGH -> Icons.Filled.GpsFixed
                                 LocationAccuracy.BALANCED -> Icons.Filled.Tune
                                 else -> Icons.Filled.BatteryChargingFull
@@ -395,10 +401,12 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                         },
                         onSelect = {
                             accuracy = it
-                            prefs.setLocationAccuracy(it)
+                            prefs.setLocationAccuracy(it); showNotice()
+                            orbit.nex.steps.location.LocationTrackingService.refreshNotification(context)
                         },
                     )
-                    val intervals = listOf(5, 10, 20, 30, 60, 120, 300)
+                    Text(stringResource(R.string.tracking_current_mode, stringResource(accuracyRes(currentPower))), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    val intervals = listOf(1, 2, 5, 10, 30, 45, 60)
                     IconDropdown(
                         label = stringResource(R.string.tracking_interval_title),
                         options = intervals,
@@ -407,9 +415,18 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
                         optionIcon = { Icons.Filled.Timer },
                         onSelect = {
                             intervalSec = it
-                            prefs.setLocationIntervalSec(it)
+                            prefs.setLocationIntervalSec(it); showNotice()
+                            orbit.nex.steps.location.LocationTrackingService.refreshNotification(context)
                         },
                     )
+                    var minDistance by remember { mutableStateOf(prefs.getLocationMinDistance()) }
+                    IconDropdown(label = stringResource(R.string.tracking_min_distance), options = listOf(-1, 0, 2, 5, 10, 20, 50), selected = minDistance, optionLabel = { if (it < 0) context.getString(R.string.tracking_accuracy_auto) else "$it m" }, optionIcon = { Icons.Filled.GpsFixed }, onSelect = { minDistance = it; prefs.setLocationMinDistance(it); showNotice(); orbit.nex.steps.location.LocationTrackingService.refreshNotification(context) })
+                    if (accuracy == LocationAccuracy.AUTO) {
+                        var stationary by remember { mutableStateOf(prefs.getStationarySeconds()) }
+                        var fastSpeed by remember { mutableStateOf(prefs.getFastModeSpeed()) }
+                        IconDropdown(label = stringResource(R.string.tracking_stationary_threshold), options = listOf(120, 300, 600, 900), selected = stationary, optionLabel = { "${it / 60} min" }, optionIcon = { Icons.Filled.Timer }, onSelect = { stationary = it; prefs.setStationarySeconds(it); showNotice() })
+                        IconDropdown(label = stringResource(R.string.tracking_fast_threshold), options = listOf(5f, 8f, 12f, 20f), selected = fastSpeed, optionLabel = { "${(it * 3.6f).toInt()} km/h" }, optionIcon = { Icons.Filled.GpsFixed }, onSelect = { fastSpeed = it; prefs.setFastModeSpeed(it); showNotice() })
+                    }
                 }
             }
         }
@@ -483,18 +500,13 @@ fun LocationSettingsScreen(onBack: () -> Unit) {
             }
         }
 
-        // ── Privacy copy ──────────────────────────────────────────────────────
         item {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text(
-                    stringResource(R.string.tracking_privacy),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(Spacing.lg),
-                )
+            var expanded by remember { mutableStateOf(false) }
+            OutlinedButton(onClick = { expanded = !expanded }, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.tracking_privacy_title))
+            }
+            if (expanded) {
+                Text(stringResource(R.string.tracking_privacy), style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(Spacing.lg))
             }
         }
         item { Spacer(Modifier.size(12.dp)) }
@@ -538,6 +550,7 @@ private fun matchingDescriptionRes(mode: String): Int = when (mode) {
 }
 
 private fun accuracyRes(accuracy: LocationAccuracy): Int = when (accuracy) {
+    LocationAccuracy.AUTO -> R.string.tracking_accuracy_auto
     LocationAccuracy.HIGH -> R.string.tracking_accuracy_high
     LocationAccuracy.BALANCED -> R.string.tracking_accuracy_balanced
     LocationAccuracy.LOW -> R.string.tracking_accuracy_low

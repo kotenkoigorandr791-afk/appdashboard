@@ -1,4 +1,4 @@
-<body>
+<body class="md3-steps <?php echo $theme === 'dark' ? 'dark' : 'light'; ?>" data-theme="<?php echo htmlspecialchars($theme === 'dark' ? 'dark' : 'light'); ?>">
     <?php
 $bgFull = $theme === 'dark' ? 'background_dark.jpg' : 'background_light.jpg';
 $bgBase = $theme === 'dark' ? 'background_dark' : 'background_light';
@@ -45,7 +45,7 @@ foreach (($healthMetrics ?? []) as $healthDay) {
 }
 $metricButtons = [
     'steps' => ['label' => $translations['steps'] ?? 'Steps', 'icon' => '<span class="data-type-icon" style="--metric-color:#3D8BFF" aria-hidden="true"><i class="fas fa-shoe-prints"></i></span>'],
-    'distance' => ['label' => $translations['distance_km'] ?? 'Distance', 'icon' => '<span class="data-type-icon" style="--metric-color:#22B573" aria-hidden="true"><i class="fas fa-location-dot"></i></span>'],
+    'distance' => ['label' => $translations['distance'] ?? 'Distance', 'icon' => '<span class="data-type-icon" style="--metric-color:#22B573" aria-hidden="true"><i class="fas fa-location-dot"></i></span>'],
     'calories' => ['label' => $translations['calories'] ?? 'Calories', 'icon' => '<span class="data-type-icon" style="--metric-color:#FF6B4A" aria-hidden="true"><i class="fas fa-fire-flame-curved"></i></span>'],
     'heart_rate' => ['label' => $translations['heart_rate'] ?? 'Heart rate', 'icon' => '<span class="data-type-icon" style="--metric-color:#F44778" aria-hidden="true"><i class="fas fa-heart-pulse"></i></span>'],
     'sleep' => ['label' => $translations['sleep'] ?? 'Sleep', 'icon' => '<span class="data-type-icon" style="--metric-color:#4C5FD5" aria-hidden="true"><i class="fas fa-moon"></i></span>'],
@@ -54,75 +54,157 @@ $metricButtons = [
 ?>
     <div id="bg-layer" aria-hidden="true"></div>
     <script>(function(){var s=<?php echo json_encode($bgFull, JSON_HEX_TAG); ?>,ss=<?php echo json_encode($bgSrcset, JSON_HEX_TAG); ?>,el=document.getElementById('bg-layer'),im=new Image(),apply=function(){el.style.backgroundImage='url('+(im.currentSrc||s)+')';el.classList.add('ready')};im.decoding='async';im.sizes='100vw';im.srcset=ss;im.onload=apply;im.src=s;if(im.complete)apply()})();</script>
-    <div class="app-steps">
+    <div class="app-steps md3">
         <div class="app-topbar">
-            <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
-            <div class="app-topbar-actions">
-                <button id="sharepoint-share-button" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><i class="fas fa-share-nodes" style="font-size:22px" aria-hidden="true"></i></button>
-                <div id="share-chooser" class="share-chooser" hidden>
-                    <button type="button" id="share-choose-steps"><i class="fas fa-shoe-prints"></i> <?php echo htmlspecialchars($translations['share_steps'] ?? 'Share steps'); ?></button>
-                    <button type="button" id="share-choose-location"><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></button>
+            <div class="app-topbar-inner">
+                <div class="app-brand">
+                    <div class="app-brand-mark" aria-hidden="true"><span class="material-symbols-rounded filled">directions_walk</span></div>
+                    <div class="app-brand-text">
+                        <h1><?php echo htmlspecialchars($translations['steps_counter_title']); ?></h1>
+                        <p class="app-brand-sub"><?php echo htmlspecialchars($translations['activity_mobility'] ?? 'Activity & Mobility'); ?></p>
+                    </div>
                 </div>
-                <button id="add-steps-button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
-                    <i class="fas fa-plus"></i>
-                </button>
-                <button id="stepmonitor-apk-button" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><i class="fas fa-mobile-screen-button"></i></button>
-                <?php if (!empty($stepsData)): ?>
-                <button id="stats-button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Statistics'); ?>">
-                    <i class="fa-solid fa-chart-pie app-icon" aria-hidden="true"></i>
-                </button>
-                <?php endif; ?>
-                <button id="settings-button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
-                    <i class="fas fa-cog"></i>
-                </button>
-                <button id="info-button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
-                    <i class="fas fa-info-circle"></i>
-                </button>
-                <div id="user-button" title="<?php echo htmlspecialchars($userName); ?>">
-                    <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="User">
+                <div class="mode-switch" role="tablist" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?> / <?php echo htmlspecialchars($translations['map_title'] ?? 'Map'); ?>">
+                    <button type="button" class="mode-switch-btn active" data-mode="steps" role="tab" aria-selected="true">
+                        <span class="material-symbols-rounded icon-sm filled" aria-hidden="true">directions_walk</span>
+                        <span class="mode-label"><?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?></span>
+                    </button>
+                    <button type="button" class="mode-switch-btn" data-mode="map" role="tab" aria-selected="false">
+                        <span class="material-symbols-rounded icon-sm" aria-hidden="true">map</span>
+                        <span class="mode-label"><?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?></span>
+                    </button>
+                </div>
+                <div class="app-topbar-actions">
+                    <button id="sharepoint-share-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>" aria-label="<?php echo htmlspecialchars($translations['share'] ?? 'Share'); ?>"><span class="material-symbols-rounded" aria-hidden="true">share</span></button>
+                    <div id="share-chooser" class="share-chooser" hidden>
+                        <button type="button" id="share-choose-steps"><i class="fas fa-shoe-prints"></i> <?php echo htmlspecialchars($translations['share_steps'] ?? 'Share steps'); ?></button>
+                        <button type="button" id="share-choose-location"><i class="fas fa-location-dot"></i> <?php echo htmlspecialchars($translations['location_share_title'] ?? 'Location sharing'); ?></button>
+                    </div>
+                    <button id="add-steps-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>" aria-label="<?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps_tooltip']); ?>">
+                        <span class="material-symbols-rounded" aria-hidden="true">add</span>
+                    </button>
+                    <button id="stepmonitor-apk-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>" aria-label="<?php echo htmlspecialchars($translations['mobile_app_download'] ?? 'Download mobile app'); ?>"><span class="material-symbols-rounded" aria-hidden="true">smartphone</span></button>
+                    <?php if (!empty($stepsData)): ?>
+                    <button id="stats-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Activity & Movement'); ?>" aria-label="<?php echo htmlspecialchars($translations['statistics_navigation'] ?? 'Activity & Movement'); ?>">
+                        <span class="material-symbols-rounded" aria-hidden="true">pie_chart</span>
+                    </button>
+                    <?php endif; ?>
+                    <button id="settings-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>" aria-label="<?php echo htmlspecialchars($translations['settings_tooltip']); ?>">
+                        <span class="material-symbols-rounded" aria-hidden="true">settings</span>
+                    </button>
+                    <button id="info-button" class="topbar-icon-btn" type="button" title="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>" aria-label="<?php echo htmlspecialchars($translations['app_info'] ?? 'App Information'); ?>">
+                        <span class="material-symbols-rounded" aria-hidden="true">info</span>
+                    </button>
+                    <div id="user-button" class="topbar-icon-btn" title="<?php echo htmlspecialchars($userName); ?>" role="button" tabindex="0" aria-label="<?php echo htmlspecialchars($userName); ?>">
+                        <img src="<?php echo htmlspecialchars($profilePhoto); ?>" alt="">
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="mode-switch" role="tablist" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?> / <?php echo htmlspecialchars($translations['map_title'] ?? 'Map'); ?>">
-            <button type="button" class="mode-switch-btn active" data-mode="steps" role="tab" aria-selected="true">
-                <i class="fas fa-shoe-prints" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?>
-            </button>
-            <button type="button" class="mode-switch-btn" data-mode="map" role="tab" aria-selected="false">
-                <i class="fas fa-map-location-dot" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_title'] ?? 'Map'); ?>
-            </button>
-        </div>
-        
+
         <div class="app-main">
-        <div class="data-type-selector">
-            <?php foreach ($metricButtons as $metricType => $metricButton): ?>
-            <?php if (!empty($availableMetricTypes[$metricType])): ?>
-            <button class="data-type-btn<?php echo $metricType === 'steps' ? ' active' : ''; ?>" data-type="<?php echo htmlspecialchars($metricType); ?>" title="<?php echo htmlspecialchars($metricButton['label']); ?>" aria-label="<?php echo htmlspecialchars($metricButton['label']); ?>">
-                <?php echo $metricButton['icon']; ?>
-            </button>
-            <?php endif; ?>
-            <?php endforeach; ?>
-        </div>
-        
-        <div class="chart-container">
-            <div class="chart-main">
-                <div class="chart-label" id="chart-label"></div>
-                <div class="chart-wrapper">
-                    <canvas id="steps-chart"></canvas>
+        <div class="kpi-row" id="kpi-row" aria-live="polite">
+            <div class="kpi-card">
+                <div class="kpi-card-top">
+                    <span class="kpi-label" id="kpi-selected-label"><?php echo htmlspecialchars($translations['selected_day'] ?? 'Selected day'); ?></span>
+                    <span class="kpi-badge" id="kpi-goal-badge">0%</span>
                 </div>
+                <div class="kpi-metric-row">
+                    <span class="kpi-value" id="kpi-steps-val">0</span>
+                    <span class="kpi-unit" id="kpi-steps-goal">/ 0</span>
+                </div>
+                <div class="kpi-bar" aria-hidden="true"><span id="kpi-steps-bar"></span></div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-card-top">
+                    <span class="kpi-label"><?php echo htmlspecialchars($translations['distance_km'] ?? 'Distance'); ?></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--blue" aria-hidden="true"><span class="material-symbols-rounded">straighten</span></span>
+                </div>
+                <div class="kpi-metric-row">
+                    <span class="kpi-value" id="kpi-distance-val">0.00</span>
+                    <span class="kpi-unit">km</span>
+                </div>
+                <span class="kpi-sub"><?php echo htmlspecialchars($translations['stride_length'] ?? 'Stride length'); ?>: <span id="kpi-stride-val" class="kpi-sub-strong"><?php echo (int)($userSettings['stride_length'] ?? 72); ?> cm</span></span>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-card-top">
+                    <span class="kpi-label"><?php echo htmlspecialchars($translations['calories'] ?? 'Calories'); ?></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--amber" aria-hidden="true"><span class="material-symbols-rounded">local_fire_department</span></span>
+                </div>
+                <div class="kpi-metric-row">
+                    <span class="kpi-value" id="kpi-calories-val">0</span>
+                    <span class="kpi-unit">kcal</span>
+                </div>
+                <span class="kpi-sub"><?php echo htmlspecialchars($translations['active_time'] ?? 'Active time'); ?>: <span id="kpi-time-val" class="kpi-sub-strong">—</span></span>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-card-top">
+                    <span class="kpi-label"><?php echo htmlspecialchars($translations['goal_days'] ?? 'Daily Goal Streak'); ?></span>
+                    <span class="kpi-icon-badge kpi-icon-badge--emerald" aria-hidden="true"><span class="material-symbols-rounded">trending_up</span></span>
+                </div>
+                <div class="kpi-metric-row">
+                    <span class="kpi-value" id="kpi-streak-val">0</span>
+                </div>
+                <span class="kpi-sub" id="kpi-month-total"><?php echo htmlspecialchars($translations['total_steps'] ?? 'Month total'); ?>: <span class="kpi-sub-strong">0</span></span>
             </div>
         </div>
-        
-        <div class="view-selector">
-            <button class="view-btn active" data-view="year"><?php echo htmlspecialchars($translations['year']); ?></button>
-            <button class="view-btn" data-view="month"><?php echo htmlspecialchars($translations['month']); ?></button>
-            <button class="view-btn" data-view="week"><?php echo htmlspecialchars($translations['week']); ?></button>
-        </div>
+
+        <section class="step-activity" aria-label="<?php echo htmlspecialchars($translations['step_activity'] ?? 'Step activity'); ?>">
+            <div class="step-activity-head">
+                <div class="step-activity-title-row">
+                    <div class="step-activity-icon" aria-hidden="true"><span class="material-symbols-rounded">bar_chart</span></div>
+                    <div class="step-activity-copy">
+                        <h2><?php echo htmlspecialchars($translations['step_activity'] ?? 'Step Activity'); ?></h2>
+                        <p><?php echo htmlspecialchars($translations['step_activity_hint'] ?? 'Click any bar to inspect daily metrics or scroll across history'); ?></p>
+                    </div>
+                </div>
+                <div class="step-activity-toolbar">
+                    <div class="data-type-selector seg-group">
+                        <?php foreach (['steps', 'distance', 'calories'] as $metricType):
+                            $metricButton = $metricButtons[$metricType];
+                        ?>
+                        <button class="data-type-btn<?php echo $metricType === 'steps' ? ' active' : ''; ?>" data-type="<?php echo htmlspecialchars($metricType); ?>" title="<?php echo htmlspecialchars($metricButton['label']); ?>" aria-label="<?php echo htmlspecialchars($metricButton['label']); ?>">
+                            <span class="mode-label"><?php echo htmlspecialchars($metricButton['label']); ?></span>
+                        </button>
+                        <?php endforeach; ?>
+                    </div>
+                    <div class="view-selector seg-group">
+                        <button class="view-btn active" data-view="week"><?php echo htmlspecialchars($translations['week']); ?></button>
+                        <button class="view-btn" data-view="month"><?php echo htmlspecialchars($translations['month']); ?></button>
+                        <button class="view-btn" data-view="year"><?php echo htmlspecialchars($translations['year']); ?></button>
+                    </div>
+                    <div class="period-nav seg-group">
+                        <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" aria-label="<?php echo htmlspecialchars($translations['chart_prev'] ?? 'Previous'); ?>">
+                            <span class="material-symbols-rounded icon-sm" aria-hidden="true">chevron_left</span>
+                        </button>
+                        <span class="chart-range-label" id="chart-range-label">—</span>
+                        <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" aria-label="<?php echo htmlspecialchars($translations['chart_next'] ?? 'Next'); ?>">
+                            <span class="material-symbols-rounded icon-sm" aria-hidden="true">chevron_right</span>
+                        </button>
+                    </div>
+                    <button type="button" class="btn-today" id="chart-today-btn"><span class="material-symbols-rounded icon-sm" aria-hidden="true">today</span> <?php echo htmlspecialchars($translations['today'] ?? 'Today'); ?></button>
+                </div>
+            </div>
+            <div class="chart-container">
+                <div class="chart-main">
+                    <div class="chart-label" id="chart-label"></div>
+                    <div class="chart-wrapper">
+                        <canvas id="steps-chart"></canvas>
+                    </div>
+                </div>
+            </div>
+            <div class="history-scrubber">
+                <label for="history-scrubber"><span class="material-symbols-rounded icon-sm" style="color:#4C9AFF" aria-hidden="true">swap_horiz</span><?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll History'); ?></label>
+                <input type="range" id="history-scrubber" class="md-slider" min="0" max="100" value="100" aria-label="<?php echo htmlspecialchars($translations['scroll_history'] ?? 'Scroll history'); ?>">
+                <div class="chart-legend" aria-hidden="true">
+                    <span><i class="lg-goal"></i><?php echo htmlspecialchars($translations['goal_reached'] ?? 'Goal reached'); ?></span>
+                    <span><i class="lg-below"></i><?php echo htmlspecialchars($translations['below_goal'] ?? 'Below goal'); ?></span>
+                </div>
+            </div>
+        </section>
 
         <div class="calendar-container">
             <div class="calendar-header">
-                <button type="button" class="chart-nav chart-nav-left" id="chart-nav-left" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_prev'] ?? 'Previous'); ?>">
-                    <i class="fas fa-chevron-left"></i>
-                </button>
                 <div class="calendar-selector-box">
                     <div class="custom-select" data-custom-select="year-selector">
                         <select id="year-selector" class="custom-select-native" tabindex="-1" aria-hidden="true"></select>
@@ -141,14 +223,11 @@ $metricButtons = [
                         <div class="custom-select-menu" role="listbox"></div>
                     </div>
                 </div>
-                <button type="button" class="chart-nav chart-nav-right" id="chart-nav-right" style="display:none;" aria-label="<?php echo htmlspecialchars($translations['chart_next'] ?? 'Next'); ?>">
-                    <i class="fas fa-chevron-right"></i>
-                </button>
             </div>
             <div id="calendar"></div>
-            <div class="goal-summary" id="goal-summary"></div>
+            <div class="goal-summary" id="goal-summary" hidden></div>
         </div>
-        
+
         </div>
         <div class="map-view" id="map-view" hidden>
                 <!-- Map: viewport-bounded layers, provider settings, non-map summary -->
@@ -157,6 +236,7 @@ $metricButtons = [
                         <div id="ma-map-canvas" role="application" aria-label="<?php echo htmlspecialchars($translations['map_title'] ?? 'Location map'); ?>"></div>
                         <div class="map-hud">
                             <p id="ma-map-summary" role="status" aria-live="polite"></p>
+                            <p id="ma-map-live" role="status" aria-live="polite" hidden><span class="map-live-pulse" aria-hidden="true"></span><span id="ma-map-live-text"></span></p>
                             <p id="ma-map-error" role="alert" style="display:none;"></p>
                         </div>
                         <div class="map-vignette" aria-hidden="true"></div>
@@ -165,7 +245,7 @@ $metricButtons = [
                         </button>
                     </div>
                     <div class="map-sidebar-backdrop" aria-hidden="true"></div>
-                    <aside class="map-sidebar" aria-label="<?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?>">
+                    <aside class="map-sidebar" data-tab="layers" aria-label="<?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?>">
                         <div class="map-sidebar-head">
                             <div class="map-sidebar-title">
                                 <span class="map-sidebar-kicker"><?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?></span>
@@ -174,6 +254,12 @@ $metricButtons = [
                                 <i class="fas fa-angles-right" aria-hidden="true"></i>
                             </button>
                         </div>
+                        <div class="map-tabs" role="tablist" aria-label="<?php echo htmlspecialchars($translations['map_controls'] ?? 'Map controls'); ?>">
+                            <button type="button" class="map-tab-btn is-active" data-map-tab="layers" role="tab" aria-selected="true"><?php echo htmlspecialchars($translations['map_layers'] ?? 'Layers'); ?></button>
+                            <button type="button" class="map-tab-btn" data-map-tab="places" role="tab" aria-selected="false"><?php echo htmlspecialchars($translations['places'] ?? 'Places'); ?></button>
+                            <button type="button" class="map-tab-btn" data-map-tab="trips" role="tab" aria-selected="false"><?php echo htmlspecialchars($translations['map_trips_title'] ?? 'Trips'); ?></button>
+                        </div>
+                        <div class="map-tab-panel" data-tab-panel="layers">
                         <div class="map-panel">
                             <span class="map-panel-title"><?php echo htmlspecialchars($translations['points_area_title'] ?? 'Area tools'); ?></span>
                             <div class="map-area-tools">
@@ -258,6 +344,16 @@ $metricButtons = [
                                 <span style="background:#38bdf8"></span><em>&lt;3</em><span style="background:#22c55e"></span><em>3–6</em><span style="background:#eab308"></span><em>6–12</em><span style="background:#f97316"></span><em>12–25</em><span style="background:#ef4444"></span><em>25–50</em><span style="background:#a855f7"></span><em>50+ km/h</em>
                             </div>
                         </div>
+                        </div>
+                        <div class="map-tab-panel" data-tab-panel="places">
+                        <div class="map-panel">
+                            <div class="map-panel-head">
+                                <span class="map-panel-title"><?php echo htmlspecialchars($translations['visits_title'] ?? 'Visited places'); ?></span>
+                            </div>
+                            <div id="ma-visits-list" class="trip-list"></div>
+                        </div>
+                        </div>
+                        <div class="map-tab-panel" data-tab-panel="trips">
                         <div class="map-panel">
                             <div class="map-panel-head">
                                 <span class="map-panel-title"><?php echo htmlspecialchars($translations['map_trips_title'] ?? 'Trips'); ?></span>
@@ -276,7 +372,7 @@ $metricButtons = [
                             <div id="ma-trip-editor" class="trip-editor" hidden>
                                 <div class="trip-editor-head">
                                     <strong><?php echo htmlspecialchars($translations['map_trip_edit'] ?? 'Edit trip'); ?></strong>
-                                    <button type="button" id="ma-trip-close" class="trip-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                                    <button type="button" id="ma-trip-close" class="trip-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                                 </div>
                                 <label class="trip-field"><span><?php echo htmlspecialchars($translations['map_trip_name'] ?? 'Title'); ?></span><input type="text" id="ma-trip-title" maxlength="120"></label>
                                 <div class="trip-dates">
@@ -291,9 +387,12 @@ $metricButtons = [
                                 </div>
                             </div>
                         </div>
-                        <button type="button" id="ma-map-refresh" class="map-apply-btn">
-                            <i class="fas fa-rotate" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
+                        </div>
+                        <div class="map-sidebar-foot">
+                        <button type="button" id="ma-map-refresh" class="map-apply-btn map-refresh-btn">
+                            <span class="material-symbols-rounded icon-sm" aria-hidden="true">refresh</span> <?php echo htmlspecialchars($translations['map_refresh'] ?? 'Refresh'); ?>
                         </button>
+                        </div>
                     </aside>
                 </section>
                 <script>
@@ -301,6 +400,19 @@ $metricButtons = [
                     function boot(){
                     const section=document.getElementById('ma-map');
                     if(!section) return;
+                    const sidebarEl=section.querySelector('.map-sidebar');
+                    section.querySelectorAll('[data-map-tab]').forEach(btn=>{
+                        btn.addEventListener('click',()=>{
+                            const tab=btn.getAttribute('data-map-tab');
+                            if(!tab||!sidebarEl) return;
+                            sidebarEl.setAttribute('data-tab', tab);
+                            section.querySelectorAll('[data-map-tab]').forEach(b=>{
+                                const on=b===btn;
+                                b.classList.toggle('is-active', on);
+                                b.setAttribute('aria-selected', on?'true':'false');
+                            });
+                        });
+                    });
                     const mapHost=document.getElementById('map-view');
                     const canvas=document.getElementById('ma-map-canvas');
                     const summary=document.getElementById('ma-map-summary');
@@ -334,7 +446,7 @@ $metricButtons = [
                     toInput.max = todayIso();
                     fromInput.max = todayIso();
                     if (!toInput.value) toInput.value = todayIso();
-                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 864e5));
+                    if (!fromInput.value) fromInput.value = iso(new Date(Date.now() - 30*864e5));
                     capToToday();
                     const fallbackProviders={
                         esri_dark:{name:'Esri Dark Gray Canvas',url:'https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}',attribution:'Tiles © Esri',max_zoom:16},
@@ -428,11 +540,20 @@ $metricButtons = [
                     function selectProvider(key){
                         const p=providers[key]||providers.osm;
                         if(!map||!p) return;
-                        if(map._tileLayer) map.removeLayer(map._tileLayer);
-                        // Tiles go through the app's disk cache, so repeated pans and
-                        // revisits do not re-download the same images from upstream.
-                        const tileUrl='/apps/steps/api/map_tiles.php?provider='+encodeURIComponent(key)+'&z={z}&x={x}&y={y}';
-                        map._tileLayer=window.L.tileLayer(tileUrl,{attribution:p.attribution,maxZoom:p.max_zoom||19,keepBuffer:4,updateWhenIdle:false,crossOrigin:true,className:'map-tiles'}).addTo(map);
+                        if(map._tileLayer){ map.removeLayer(map._tileLayer); map._tileLayer=null; }
+                        // Browser loads upstream tiles directly (avoids proxy 502 noise when
+                        // the container has no egress). CDN + keepBuffer keep day flips warm.
+                        const tileUrl=String(p.url||'');
+                        if(!tileUrl) return;
+                        map._tileLayer=window.L.tileLayer(tileUrl,{
+                            attribution:p.attribution,
+                            maxZoom:p.max_zoom||19,
+                            keepBuffer:8,
+                            updateWhenIdle:true,
+                            updateWhenZooming:false,
+                            crossOrigin:true,
+                            className:'map-tiles',
+                        }).addTo(map);
                         canvas.dataset.provider=key;
                     }
                     function makeMap(L){
@@ -442,11 +563,15 @@ $metricButtons = [
                             pane.style.zIndex=String(395+i*5);
                             pane.style.pointerEvents='none';
                         });
+                        // Live position sits above every recorded layer.
+                        const livePane=map.createPane('live');
+                        livePane.style.zIndex='455';
                         layerGroup=L.layerGroup().addTo(map);
                         L.control.zoom({position:'bottomright'}).addTo(map);
                         L.control.scale({position:'bottomleft',imperial:false,maxWidth:110}).addTo(map);
                         try{ L.control.attribution({position:'bottomleft',prefix:false}).addTo(map); }catch(e){}
                         selectProvider(provider);
+                        map.on('contextmenu',e=>openMapMenu(e.latlng,e.originalEvent,null));
                         map.on('movestart',()=>{
                             // A new gesture makes all queued prediction stale immediately.
                             cancelPrefetch();
@@ -476,6 +601,7 @@ $metricButtons = [
                             new ResizeObserver(()=>{ if(map && mapHost && !mapHost.hidden) map.invalidateSize({pan:false}); }).observe(canvas);
                         }
                     }
+                    const VISIT_COLORS={confirmed:'#22c55e',provisional:'#f59e0b',manual:'#3b82f6',unidentified:'#94a3b8',pending:'#94a3b8'};
                     function popupHtml(title, lines){
                         const div=document.createElement('div');
                         const strong=document.createElement('strong'); strong.textContent=title; div.appendChild(strong);
@@ -510,6 +636,7 @@ $metricButtons = [
                         const heatStrength=Math.max(0.1, appearance.heat/100);
                         layerGroup.clearLayers();
                         const speedOn=lastFeatures.some(f=>f.properties&&f.properties.layer==='speed');
+                        const visitCenters=lastFeatures.filter(f=>f.properties&&f.properties.layer==='visit'&&f.geometry).map(f=>L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]));
                         lastFeatures.forEach(feature=>{
                             const p=feature.properties||{};
                             if(!feature.geometry||!feature.geometry.coordinates) return;
@@ -537,6 +664,8 @@ $metricButtons = [
                                 if(p.radius_m) L.circle([feature.geometry.coordinates[1],feature.geometry.coordinates[0]],{pane:'mapBackdrop',radius:p.radius_m,color:p.color||'#22c55e',weight:1,opacity:0.6,fillColor:p.color||'#22c55e',fillOpacity:0.10}).addTo(layerGroup);
                                 addPoint(feature,{radius:baseRadius+2,color:p.color||'#22c55e',fillColor:p.color||'#22c55e',fillOpacity:pointOpacity},p.name||'place',[p.tag]);
                             } else if(p.layer==='stop'){
+                                const sc=L.latLng(feature.geometry.coordinates[1],feature.geometry.coordinates[0]);
+                                if(visitCenters.some(c=>c.distanceTo(sc)<80)) return;
                                 addPoint(feature,{radius:baseRadius-1,color:'#f59e0b',fillColor:'#f59e0b',fillOpacity:pointOpacity},p.name||'Stop',[p.started_at||'']);
                             } else if(p.layer==='point_cluster'){
                                 addCluster(feature, p.count||1);
@@ -547,7 +676,18 @@ $metricButtons = [
                                 const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span><i class="fas fa-camera"></i></span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
                                 photoMarker.bindPopup(photoPopup);
                             } else if(p.layer==='visit'){
-                                addPoint(feature,{radius:baseRadius-0.5,color:'#a78bfa',fillColor:'#a78bfa',fillOpacity:pointOpacity},p.place_name||'visit',[p.arrived_at||'']);
+                                const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
+                                const [vlon,vlat]=feature.geometry.coordinates;
+                                let vm;
+                                if(p.photo_url){
+                                    const size=Math.max(28, baseRadius*4+16);
+                                    const photoSrc=String(p.photo_url).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;');
+                                    vm=L.marker([vlat,vlon],{keyboard:false,icon:L.divIcon({className:'map-place-photo',html:'<span class="map-place-photo-ring" style="border-color:'+vc+'"><img src="'+photoSrc+'" alt="" loading="lazy" decoding="async"></span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                } else {
+                                    vm=addPoint(feature,{radius:baseRadius+(p.detection_status==='confirmed'||p.detection_status==='manual'?2.5:1.5),color:'#ffffff',fillColor:vc,fillOpacity:Math.max(pointOpacity,0.85),dashArray:p.detection_status==='provisional'?'3 2':null},'',[]);
+                                }
+                                vm.unbindPopup(); vm.bindPopup(()=>visitPopup(p),{maxWidth:420,className:'visit-md3-leaflet',closeButton:false});
+                                vm.on('contextmenu',ev=>{ window.L.DomEvent.stop(ev); openMapMenu(ev.latlng,ev.originalEvent,p); });
                             } else if(p.layer==='point'){
                                 const flagged=p.quality_state==='flagged';
                                 addPoint(feature,{radius:Math.max(2,baseRadius-2),color:flagged?'#ef4444':'#0ea5e9',fillColor:flagged?'#ef4444':'#0ea5e9',fillOpacity:pointOpacity},p.source_at||'',[p.accuracy_m?'±'+p.accuracy_m+' m':'']);
@@ -606,11 +746,21 @@ $metricButtons = [
                                 html+='</div><div class="dp-foot"><button type="button" class="dp-today" data-dp-today>'+todayLabel+'</button></div>';
                                 pop.innerHTML=html;
                             };
-                            const close=()=>{ pop.hidden=true; trigger.setAttribute('aria-expanded','false'); };
+                            const close=()=>{
+                                pop.hidden=true;
+                                trigger.setAttribute('aria-expanded','false');
+                                if(pop.parentElement!==field) field.appendChild(pop);
+                                pop.style.left=''; pop.style.top=''; pop.style.width=''; pop.style.zIndex='';
+                            };
                             const open=()=>{
-                                document.querySelectorAll('.dp-popover').forEach(p=>{p.hidden=true;});
+                                document.querySelectorAll('.dp-popover').forEach(p=>{
+                                    p.hidden=true;
+                                    const host=p.closest('.dp-field');
+                                    if(host&&p.parentElement!==host) host.appendChild(p);
+                                });
                                 view=parseYMD(native.value)||new Date();
                                 render();
+                                document.body.appendChild(pop);
                                 pop.hidden=false;
                                 trigger.setAttribute('aria-expanded','true');
                                 const rect=trigger.getBoundingClientRect(),
@@ -619,9 +769,11 @@ $metricButtons = [
                                 let left=Math.min(Math.max(8,rect.left), window.innerWidth-width-8);
                                 let top=rect.bottom+8;
                                 if(top+height>window.innerHeight-8) top=Math.max(8,rect.top-height-8);
+                                pop.style.position='fixed';
                                 pop.style.width=width+'px';
                                 pop.style.left=left+'px';
                                 pop.style.top=top+'px';
+                                pop.style.zIndex='200000';
                             };
                             trigger.addEventListener('click',event=>{
                                 event.stopPropagation();
@@ -765,6 +917,7 @@ $metricButtons = [
                     }
                     async function loadTrips(){
                         const seq=++tripsLoadSeq;
+                        window.dispatchEvent(new Event('steps-visits-refresh'));
                         try{
                             await syncTracks(false);
                             const params=new URLSearchParams({
@@ -1106,6 +1259,7 @@ $metricButtons = [
                     async function startMapWorkspace(){
                         if(mapStarted) return mapBootPromise;
                         mapStarted=true;
+                        pollPointRevision();
                         mapBootPromise=(async()=>{
                             loadFamilyTargets();
                             try{
@@ -1151,6 +1305,72 @@ $metricButtons = [
                     refresh.addEventListener('click',fetchViewport);
                     if(resetBtn) resetBtn.addEventListener('click',resetAppearance);
                     const pointsApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_points';
+                    // ---- Live position ----------------------------------------
+                    // The map is a viewport of recorded history; the live marker is
+                    // the newest measurement, refreshed independently of the day
+                    // range so the user can see where they are right now.
+                    let liveLayer=null, liveMarker=null, liveSeq=0;
+                    function liveRangeActive(){
+                        const today=todayIso();
+                        return (!fromInput.value||fromInput.value<=today)&&(!toInput.value||toInput.value>=today);
+                    }
+                    function clearLiveMarker(){
+                        if(liveLayer) liveLayer.clearLayers();
+                        liveMarker=null;
+                        const badge=document.getElementById('ma-map-live');
+                        if(badge) badge.hidden=true;
+                    }
+                    function renderLiveMarker(point){
+                        if(!map||!window.L) return;
+                        const L=window.L;
+                        const lat=Number(point.latitude), lon=Number(point.longitude);
+                        if(!isFinite(lat)||!isFinite(lon)) return;
+                        if(!liveLayer) liveLayer=L.layerGroup().addTo(map);
+                        liveLayer.clearLayers();
+                        const at=new Date(point.source_at);
+                        const age=Date.now()-at.getTime();
+                        const fresh=age<=120000;
+                        const acc=Number(point.accuracy_m);
+                        if(acc>0) L.circle([lat,lon],{pane:'mapBackdrop',radius:Math.min(1500,acc),color:'#38bdf8',weight:1,opacity:0.55,fillColor:'#38bdf8',fillOpacity:0.12,interactive:false}).addTo(liveLayer);
+                        const bearing=Number(point.bearing_degrees);
+                        const arrow=isFinite(bearing)
+                            ?'<i class="fas fa-location-arrow" style="transform:rotate('+bearing+'deg)"></i>'
+                            :'<span class="map-live-core"></span>';
+                        liveMarker=L.marker([lat,lon],{keyboard:false,pane:'live',zIndexOffset:1000,icon:L.divIcon({
+                            className:'map-live-marker'+(fresh?' is-live':''),
+                            html:'<span class="map-live-ring"></span><span class="map-live-dot">'+arrow+'</span>',
+                            iconSize:[30,30],iconAnchor:[15,15]
+                        })}).addTo(liveLayer);
+                        liveMarker.bindPopup(popupHtml(
+                            fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'),
+                            [at.toLocaleString(dateLocale(),{day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}),(acc>0?'±'+Math.round(acc)+' m':'')]
+                        ));
+                        const badge=document.getElementById('ma-map-live'), text=document.getElementById('ma-map-live-text');
+                        if(badge&&text){
+                            badge.hidden=false;
+                            badge.classList.toggle('is-stale',!fresh);
+                            text.textContent=(fresh?tr('map_live_now','Live location'):tr('map_live_last','Last known location'))+' · '+at.toLocaleTimeString(dateLocale(),{hour:'2-digit',minute:'2-digit'});
+                        }
+                    }
+                    async function pollLive(){
+                        if(!mapStarted||!map||!mapHost||mapHost.hidden||document.hidden) return;
+                        if(!liveRangeActive()){ clearLiveMarker(); return; }
+                        const seq=++liveSeq;
+                        const params=new URLSearchParams({
+                            limit:'1',
+                            from:new Date(Date.now()-20*60000).toISOString(),
+                            to:new Date(Date.now()+60000).toISOString()
+                        });
+                        try{
+                            const res=await fetch(pointsApi+'&'+params.toString(),{credentials:'same-origin',cache:'no-store'});
+                            const data=await res.json();
+                            if(seq!==liveSeq) return;
+                            if(!res.ok||!data.ok) return;
+                            const point=(data.points||[])[0];
+                            if(!point){ clearLiveMarker(); return; }
+                            renderLiveMarker(point);
+                        }catch(e){ /* next poll retries */ }
+                    }
                     async function pointsRequest(body){
                         const res=await fetch(pointsApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
                         const data=await res.json();
@@ -1200,20 +1420,423 @@ $metricButtons = [
                                 const b=window.L.latLngBounds(areaStart,end);
                                 areaStart=null;
                                 if(Math.abs(map.latLngToContainerPoint(b.getNorthEast()).x-map.latLngToContainerPoint(b.getSouthWest()).x)<8){ areaClear(); return; }
-                                areaBox=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
-                                areaRect.setBounds(b);
-                                try{
-                                    const data=await pointsRequest(Object.assign({action:'count',bbox:areaBox},areaRange()));
-                                    areaInfo.textContent=data.count+' '+tr('points_unit','points');
-                                    areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
-                                    areaSmooth.hidden=data.count<2; areaToleranceWrap.hidden=data.count<2;
-                                    areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
-                                    areaDel.disabled=data.count===0;
-                                }catch(err){ showError((err&&err.message)||t.error); }
+                                areaApply(b);
                             });
                         }
                     }
+                    async function areaApply(b){
+                        areaBox=[b.getWest(),b.getSouth(),b.getEast(),b.getNorth()];
+                        if(!areaRect) areaRect=window.L.rectangle(b,{color:'#ef4444',weight:2,fillOpacity:0.12,interactive:false}).addTo(map);
+                        areaRect.setBounds(b);
+                        try{
+                            const data=await pointsRequest(Object.assign({action:'count',bbox:areaBox},areaRange()));
+                            areaInfo.textContent=data.count+' '+tr('points_unit','points');
+                            areaInfo.hidden=false; areaDel.hidden=false; areaCancel.hidden=false;
+                            areaSmooth.hidden=data.count<2; areaToleranceWrap.hidden=data.count<2;
+                            areaDel.innerHTML='<i class="fas fa-trash"></i> '+tr('points_delete','Delete');
+                            areaDel.disabled=data.count===0;
+                        }catch(err){ showError((err&&err.message)||t.error); }
+                    }
                     areaBtn?.addEventListener('click',()=>setAreaMode(!areaMode));
+
+                    const visitsApi='/apps/steps/api/session_gateway.php?endpoint=geolocation_stops';
+                    const placesApi='/apps/steps/api/session_gateway.php?endpoint=places';
+                    const fmtDur=sec=>{ sec=Math.max(0,Math.round(sec||0)); const h=Math.floor(sec/3600), m=Math.floor(sec%3600/60); return h?h+' h '+m+' min':m+' min'; };
+                    const fmtAt=iso=>iso?new Date(iso).toLocaleString([],{dateStyle:'short',timeStyle:'short'}):'';
+                    const statusLabel=st=>tr('visit_status_'+st,st||'unidentified');
+                    async function visitsRequest(body){
+                        const res=await fetch(visitsApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+                        const data=await res.json().catch(()=>({}));
+                        if(!res.ok||!data.ok) throw new Error((data&&data.error)||'visit_failed');
+                        return data;
+                    }
+                    function statusTone(st){
+                        if(st==='confirmed') return 'confirmed';
+                        if(st==='provisional') return 'provisional';
+                        if(st==='manual') return 'manual';
+                        return 'muted';
+                    }
+                    function categoryHuman(cat){
+                        if(!cat) return '';
+                        const known={
+                            'building=college':'College / Educational Building',
+                            'building=school':'School / Educational Building',
+                            'building=university':'University',
+                            'amenity=university':'University',
+                            'amenity=school':'School',
+                            'amenity=college':'College',
+                            'leisure=pitch':'Sports pitch',
+                            'leisure=track':'Sports track',
+                            'leisure=park':'Park',
+                            'landuse=grass':'Grass / open land',
+                            'public_transport=stop_position':'Transit stop',
+                            'railway=station':'Railway station',
+                            'amenity=restaurant':'Restaurant',
+                            'shop=supermarket':'Supermarket'
+                        };
+                        if(known[cat]) return known[cat];
+                        return String(cat).replace(/=/g,' · ').replace(/_/g,' ');
+                    }
+                    function statusBadge(status){
+                        const c=document.createElement('span');
+                        c.className='visit-md3-status is-'+statusTone(status);
+                        c.textContent=statusLabel(status);
+                        return c;
+                    }
+                    function placeAvatar(photoUrl, status){
+                        const av=document.createElement('div');
+                        av.className='visit-md3-avatar is-'+statusTone(status);
+                        if(photoUrl){
+                            const img=document.createElement('img'); img.src=photoUrl; img.alt=''; img.loading='lazy'; av.appendChild(img);
+                        } else {
+                            av.innerHTML='<span class="material-symbols-rounded" aria-hidden="true">location_on</span>';
+                        }
+                        return av;
+                    }
+                    function iconEl(name, cls){
+                        const s=document.createElement('span'); s.className='material-symbols-rounded'+(cls?' '+cls:''); s.setAttribute('aria-hidden','true'); s.textContent=name; return s;
+                    }
+                    function visitPopup(p){
+                        const div=document.createElement('div'); div.className='visit-md3-pop';
+                        const top=document.createElement('div'); top.className='visit-md3-pop-top';
+                        const ident=document.createElement('div'); ident.className='visit-md3-pop-ident';
+                        ident.appendChild(placeAvatar(p.photo_url, p.detection_status));
+                        const copy=document.createElement('div'); copy.className='min-w-0';
+                        const title=document.createElement('h3'); title.className='visit-md3-title'; title.textContent=p.place_name||tr('visit_unidentified','Unidentified place'); copy.appendChild(title);
+                        const badges=document.createElement('div'); badges.className='visit-md3-badges';
+                        badges.appendChild(statusBadge(p.detection_status));
+                        if(p.category){
+                            const human=categoryHuman(p.category);
+                            if(human && human!==p.category){ const h=document.createElement('span'); h.className='visit-md3-cat-human'; h.textContent=human; badges.appendChild(h); }
+                            const raw=document.createElement('span'); raw.className='visit-md3-cat'; raw.textContent=p.category; badges.appendChild(raw);
+                        }
+                        copy.appendChild(badges); ident.appendChild(copy); top.appendChild(ident);
+                        const closeBtn=document.createElement('button'); closeBtn.type='button'; closeBtn.className='modal-close'; closeBtn.setAttribute('aria-label',tr('close','Close'));
+                        closeBtn.appendChild(iconEl('close'));
+                        closeBtn.addEventListener('click',()=>map.closePopup());
+                        top.appendChild(closeBtn); div.appendChild(top);
+                        const tele=document.createElement('div'); tele.className='visit-md3-telemetry';
+                        const timeRow=document.createElement('div'); timeRow.className='visit-md3-row';
+                        const timeLeft=document.createElement('div'); timeLeft.className='visit-md3-row-start';
+                        timeLeft.appendChild(iconEl('schedule'));
+                        const timeTxt=document.createElement('span'); timeTxt.className='visit-md3-time';
+                        timeTxt.textContent=[fmtAt(p.arrived_at),fmtAt(p.departed_at)].filter(Boolean).join(' → ')||'—';
+                        timeLeft.appendChild(timeTxt); timeRow.appendChild(timeLeft);
+                        const dur=document.createElement('span'); dur.className='visit-md3-pill'; dur.textContent=fmtDur(p.dwell_s); timeRow.appendChild(dur);
+                        tele.appendChild(timeRow);
+                        if(p.address){
+                            const addr=document.createElement('div'); addr.className='visit-md3-row-start';
+                            addr.appendChild(iconEl('location_on'));
+                            const a=document.createElement('span'); a.textContent=p.address; addr.appendChild(a); tele.appendChild(addr);
+                        }
+                        if(p.confidence!=null){
+                            const pct=Math.max(0,Math.min(100,Math.round(Number(p.confidence)*100)));
+                            const conf=document.createElement('div'); conf.className='visit-md3-conf';
+                            const confTop=document.createElement('div'); confTop.className='visit-md3-conf-top';
+                            const confLabel=document.createElement('span'); confLabel.className='visit-md3-conf-label';
+                            confLabel.appendChild(iconEl('verified')); confLabel.appendChild(document.createTextNode(tr('visit_confidence','Detection confidence')));
+                            const confVal=document.createElement('span'); confVal.className='visit-md3-conf-val'; confVal.textContent=pct+'%';
+                            confTop.appendChild(confLabel); confTop.appendChild(confVal); conf.appendChild(confTop);
+                            const track=document.createElement('div'); track.className='visit-md3-conf-track';
+                            const fill=document.createElement('div'); fill.className='visit-md3-conf-fill'; fill.style.width=pct+'%'; track.appendChild(fill);
+                            conf.appendChild(track); tele.appendChild(conf);
+                        }
+                        div.appendChild(tele);
+                        if(p.photo_attribution){
+                            const attr=document.createElement('div'); attr.className='visit-md3-attr';
+                            attr.appendChild(iconEl('photo_camera'));
+                            const t=document.createElement('span'); t.textContent=p.photo_attribution; attr.appendChild(t); div.appendChild(attr);
+                        }
+                        const ids=Array.isArray(p.visit_ids)?p.visit_ids:[];
+                        if(ids.length){
+                            const b=document.createElement('button'); b.type='button'; b.className='visit-md3-edit-btn';
+                            b.appendChild(iconEl('edit_location_alt')); b.appendChild(document.createTextNode(tr('visit_edit','Edit place')));
+                            b.addEventListener('click',()=>{ map.closePopup(); openVisitEditor(ids[ids.length-1]); });
+                            div.appendChild(b);
+                        }
+                        return div;
+                    }
+                    function m3Select(options, value, onChange, mono){
+                        const wrap=document.createElement('div'); wrap.className='m3-select';
+                        const trigger=document.createElement('button'); trigger.type='button'; trigger.className='m3-select-trigger';
+                        const valueEl=document.createElement('span'); valueEl.className='m3-select-value'+(mono?' font-mono':'');
+                        const chev=iconEl('expand_more','m3-select-chevron');
+                        trigger.appendChild(valueEl); trigger.appendChild(chev); wrap.appendChild(trigger);
+                        const menu=document.createElement('div'); menu.className='m3-select-menu'; wrap.appendChild(menu);
+                        let current=value;
+                        const render=()=>{
+                            const opt=options.find(o=>o.value===current)||options[0]||{value:'',label:''};
+                            current=opt.value; valueEl.textContent=opt.label;
+                            menu.textContent='';
+                            options.forEach(o=>{
+                                const row=document.createElement('div'); row.className='m3-select-option'+(o.value===current?' selected':'');
+                                const lab=document.createElement('span'); if(mono) lab.className='font-mono'; lab.style.fontSize=mono?'12.5px':''; lab.textContent=o.label; row.appendChild(lab);
+                                const ck=iconEl('check', o.value===current?'':'check-off'); row.appendChild(ck);
+                                row.addEventListener('click',e=>{ e.stopPropagation(); current=o.value; wrap.classList.remove('open'); render(); if(onChange) onChange(current); });
+                                menu.appendChild(row);
+                            });
+                        };
+                        trigger.addEventListener('click',e=>{
+                            e.stopPropagation();
+                            const willOpen=!wrap.classList.contains('open');
+                            document.querySelectorAll('.m3-select.open').forEach(el=>{ if(el!==wrap) el.classList.remove('open'); });
+                            wrap.classList.toggle('open', willOpen);
+                        });
+                        render();
+                        return {
+                            el: wrap,
+                            get: ()=>current,
+                            set: v=>{ current=v; render(); }
+                        };
+                    }
+                    document.addEventListener('click',()=>{ document.querySelectorAll('.m3-select.open').forEach(el=>el.classList.remove('open')); });
+                    let menuEl=null;
+                    function closeMapMenu(){ if(menuEl){ menuEl.remove(); menuEl=null; } }
+                    function openMapMenu(latlng,ev,visit){
+                        closeMapMenu();
+                        const host=map.getContainer();
+                        menuEl=document.createElement('div'); menuEl.className='map-ctx-menu'; menuEl.setAttribute('role','menu');
+                        const add=(icon,label,fn)=>{
+                            const b=document.createElement('button'); b.type='button'; b.setAttribute('role','menuitem');
+                            const i=document.createElement('i'); i.className='fas fa-'+icon; b.appendChild(i); b.appendChild(document.createTextNode(' '+label));
+                            b.addEventListener('click',()=>{ closeMapMenu(); fn(); }); menuEl.appendChild(b);
+                        };
+                        const coords=latlng.lat.toFixed(6)+', '+latlng.lng.toFixed(6);
+                        const head=document.createElement('div'); head.className='map-ctx-head'; head.textContent=coords; menuEl.appendChild(head);
+                        if(visit&&Array.isArray(visit.visit_ids)&&visit.visit_ids.length){
+                            add('pen',tr('visit_edit','Edit place'),()=>openVisitEditor(visit.visit_ids[visit.visit_ids.length-1]));
+                        }
+                        add('map-pin',tr('ctx_add_place','Add place here…'),()=>openPlaceCreator(latlng));
+                        add('vector-square',tr('ctx_select_area','Select points nearby (100 m)'),()=>{
+                            areaClear(); setAreaMode(true);
+                            areaApply(window.L.latLng(latlng).toBounds(200));
+                        });
+                        add('draw-polygon',tr('ctx_draw_area','Draw selection area'),()=>{ areaClear(); setAreaMode(true); });
+                        add('copy',tr('ctx_copy','Copy coordinates'),()=>{ try{ navigator.clipboard.writeText(coords); }catch(e){} });
+                        host.appendChild(menuEl);
+                        const r=host.getBoundingClientRect();
+                        let x=ev.clientX-r.left, y=ev.clientY-r.top;
+                        x=Math.max(4,Math.min(x,r.width-menuEl.offsetWidth-4)); y=Math.max(4,Math.min(y,r.height-menuEl.offsetHeight-4));
+                        menuEl.style.left=x+'px'; menuEl.style.top=y+'px';
+                        menuEl.querySelector('button')?.focus();
+                    }
+                    function modal(titleText, opts){
+                        opts=opts||{};
+                        const ov=document.createElement('div'); ov.className='visit-modal visit-md3-overlay';
+                        const box=document.createElement('div'); box.className='visit-modal-box visit-md3-box'+(opts.narrow?' is-narrow':''); box.setAttribute('role','dialog'); box.setAttribute('aria-modal','true');
+                        const head=document.createElement('div'); head.className='visit-md3-head';
+                        const main=document.createElement('div'); main.className='visit-md3-head-main';
+                        const iconWrap=document.createElement('div'); iconWrap.className='visit-md3-head-icon'; iconWrap.appendChild(iconEl(opts.icon||'edit_location_alt')); main.appendChild(iconWrap);
+                        const titles=document.createElement('div');
+                        const h=document.createElement('h2'); h.textContent=titleText; titles.appendChild(h);
+                        if(opts.subtitle){ const p=document.createElement('p'); p.textContent=opts.subtitle; titles.appendChild(p); }
+                        main.appendChild(titles); head.appendChild(main);
+                        const x=document.createElement('button'); x.type='button'; x.className='modal-close'; x.setAttribute('aria-label',tr('close','Close')); x.appendChild(iconEl('close')); head.appendChild(x);
+                        box.appendChild(head); ov.appendChild(box);
+                        const close=()=>{ ov.remove(); document.removeEventListener('keydown',onKey); };
+                        const onKey=e=>{ if(e.key==='Escape') close(); };
+                        x.addEventListener('click',close); ov.addEventListener('mousedown',e=>{ if(e.target===ov) close(); }); document.addEventListener('keydown',onKey);
+                        document.body.appendChild(ov);
+                        return {ov,box,head,close};
+                    }
+                    function tagOptions(){
+                        return [
+                            {value:'',label:tr('visit_tag_none','No tag')},
+                            {value:'home',label:tr('tag_home','Home')},
+                            {value:'work',label:tr('tag_work','Work')},
+                            {value:'transit',label:tr('tag_transit','Transit')},
+                            {value:'school',label:tr('tag_study','Study')},
+                            {value:'favorite',label:tr('tag_favorite','Favorite')},
+                            {value:'gym',label:tr('tag_gym','Gym')},
+                            {value:'parents',label:tr('tag_parents','Parents')}
+                        ];
+                    }
+                    function tagQuickValues(){ return ['','home','work','transit','school']; }
+                    async function openVisitEditor(id){
+                        const m=modal(tr('visit_edit','Edit place'),{subtitle:tr('visit_edit_subtitle','Verify venue identity, category tag, and detection rules'),icon:'edit_location_alt'});
+                        const scroll=document.createElement('div'); scroll.className='visit-md3-scroll';
+                        const loading=document.createElement('div'); loading.className='visit-md3-banner'; loading.textContent=tr('map_trip_loading','Loading…'); scroll.appendChild(loading);
+                        m.box.appendChild(scroll);
+                        let v;
+                        try{
+                            const res=await fetch(visitsApi+'&id='+encodeURIComponent(id),{credentials:'same-origin'});
+                            const data=await res.json(); v=(data.visits||[])[0];
+                            if(!res.ok||!v) throw new Error('not_found');
+                        }catch(e){ loading.textContent=(e&&e.message)||'error'; return; }
+                        scroll.textContent='';
+                        const confPct=v.confidence!=null?Math.max(0,Math.min(100,Math.round(Number(v.confidence)*100))):null;
+                        const banner=document.createElement('div'); banner.className='visit-md3-banner';
+                        banner.appendChild(placeAvatar(v.photo_url, v.detection_status));
+                        const bcopy=document.createElement('div'); bcopy.className='visit-md3-banner-copy';
+                        const brow=document.createElement('div'); brow.className='visit-md3-banner-title-row';
+                        const btitle=document.createElement('span'); btitle.className='visit-md3-title'; btitle.style.fontSize='16px'; btitle.textContent=v.place_name||tr('visit_unidentified','Unidentified place'); brow.appendChild(btitle);
+                        brow.appendChild(statusBadge(v.detection_status)); bcopy.appendChild(brow);
+                        const bmeta=document.createElement('div'); bmeta.className='visit-md3-banner-meta';
+                        const metaBits=[v.category,[fmtAt(v.arrived_at),fmtAt(v.departed_at)].filter(Boolean).join(' → '),fmtDur(v.duration_s!=null?v.duration_s:v.dwell_s),v.address].filter(Boolean);
+                        bmeta.appendChild(document.createTextNode(metaBits.join(' · ')));
+                        if(confPct!=null){ bmeta.appendChild(document.createTextNode(' · ')); const sc=document.createElement('span'); sc.className='is-conf'; sc.textContent=confPct+'%'; bmeta.appendChild(sc); }
+                        bcopy.appendChild(bmeta);
+                        if(v.photo_attribution){ const ba=document.createElement('div'); ba.className='visit-md3-banner-attr'; ba.textContent=v.photo_attribution; bcopy.appendChild(ba); }
+                        banner.appendChild(bcopy); scroll.appendChild(banner);
+                        const grid=document.createElement('div'); grid.className='visit-md3-grid';
+                        const left=document.createElement('div'); left.className='visit-md3-col';
+                        const right=document.createElement('div'); right.className='visit-md3-col';
+                        const cands=v.candidates||[];
+                        let selectedCandidateId=null;
+                        const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.maxLength=80; nameIn.className='visit-md3-input'; nameIn.value=v.display_name||v.place_name||'';
+                        const catOpts=[];
+                        const pushCat=val=>{ if(!val) return; if(!catOpts.some(o=>o.value===val)) catOpts.push({value:val,label:val}); };
+                        pushCat(v.category); cands.forEach(c=>pushCat(c.category));
+                        if(!catOpts.length) pushCat('building=college');
+                        const catSelect=m3Select(catOpts, v.category||catOpts[0].value, null, true);
+                        const tagOpts=tagOptions();
+                        let tagValue=v.place_tag||'';
+                        const chips=document.createElement('div'); chips.className='visit-md3-chips';
+                        const syncChips=()=>{ chips.querySelectorAll('.visit-md3-chip').forEach(btn=>btn.classList.toggle('is-active', btn.getAttribute('data-chip')===tagValue)); };
+                        const tagSelectCtl=m3Select(tagOpts, tagValue, val=>{ tagValue=val; syncChips(); }, false);
+                        const leftHead=document.createElement('div'); leftHead.className='visit-md3-sec-label';
+                        const leftLab=document.createElement('span'); leftLab.appendChild(iconEl('near_me')); leftLab.appendChild(document.createTextNode('1. '+tr('visit_candidates','Possible places'))); leftHead.appendChild(leftLab);
+                        const leftCount=document.createElement('span'); leftCount.className='visit-md3-sec-count'; leftCount.textContent=cands.length+' '+(tr('visit_candidates_count','candidates')); leftHead.appendChild(leftCount);
+                        left.appendChild(leftHead);
+                        const list=document.createElement('div'); list.className='visit-md3-cands';
+                        if(!cands.length){
+                            const empty=document.createElement('div'); empty.className='visit-md3-banner-attr'; empty.textContent=tr('visit_no_candidates','No nearby candidates yet'); list.appendChild(empty);
+                        } else {
+                            cands.forEach(c=>{
+                                const b=document.createElement('button'); b.type='button'; b.className='visit-md3-cand'+(c.selected?' is-selected':'');
+                                if(c.selected) selectedCandidateId=c.id;
+                                const main=document.createElement('div'); main.className='visit-md3-cand-main';
+                                const t1=document.createElement('strong'); t1.textContent=c.name||tr('visit_unnamed','Unnamed object'); main.appendChild(t1);
+                                const t2=document.createElement('span'); t2.textContent=[c.category,c.distance_m!=null?Math.round(c.distance_m)+' m':''].filter(Boolean).join(' · '); main.appendChild(t2);
+                                b.appendChild(main);
+                                const score=document.createElement('span'); score.className='visit-md3-cand-score'; score.textContent=Math.round((c.score||0)*100)+'%'; b.appendChild(score);
+                                b.addEventListener('click',()=>{
+                                    list.querySelectorAll('.visit-md3-cand').forEach(el=>el.classList.remove('is-selected'));
+                                    b.classList.add('is-selected');
+                                    selectedCandidateId=c.id;
+                                    if(c.name) nameIn.value=c.name;
+                                    if(c.category){ pushCat(c.category); catSelect.set(c.category); }
+                                });
+                                list.appendChild(b);
+                            });
+                        }
+                        left.appendChild(list);
+                        const rightHead=document.createElement('div'); rightHead.className='visit-md3-sec-label';
+                        const rightLab=document.createElement('span'); rightLab.appendChild(iconEl('tune')); rightLab.appendChild(document.createTextNode('2. '+tr('visit_details_rules','Place details & rules'))); rightHead.appendChild(rightLab);
+                        right.appendChild(rightHead);
+                        const details=document.createElement('div'); details.className='visit-md3-details';
+                        const nameField=document.createElement('div'); nameField.className='visit-md3-field';
+                        const nameLab=document.createElement('label'); nameLab.textContent=tr('map_trip_name','Name'); nameField.appendChild(nameLab); nameField.appendChild(nameIn); details.appendChild(nameField);
+                        const catField=document.createElement('div'); catField.className='visit-md3-field';
+                        const catLab=document.createElement('label'); catLab.textContent=tr('visit_category','Category'); catField.appendChild(catLab); catField.appendChild(catSelect.el); details.appendChild(catField);
+                        const tagField=document.createElement('div'); tagField.className='visit-md3-field';
+                        const tagLab=document.createElement('label'); tagLab.textContent=tr('visit_tag','Tag'); tagField.appendChild(tagLab); tagField.appendChild(tagSelectCtl.el);
+                        tagQuickValues().forEach(val=>{
+                            const opt=tagOpts.find(o=>o.value===val)||{value:val,label:val||tr('visit_tag_none','No tag')};
+                            const chipBtn=document.createElement('button'); chipBtn.type='button'; chipBtn.className='visit-md3-chip'; chipBtn.setAttribute('data-chip',val); chipBtn.textContent=opt.label;
+                            chipBtn.addEventListener('click',()=>{ tagValue=val; tagSelectCtl.set(val); syncChips(); });
+                            chips.appendChild(chipBtn);
+                        });
+                        tagField.appendChild(chips); details.appendChild(tagField); syncChips();
+                        right.appendChild(details);
+                        grid.appendChild(left); grid.appendChild(right); scroll.appendChild(grid);
+                        const msg=document.createElement('div'); msg.className='visit-md3-msg'; scroll.appendChild(msg);
+                        const foot=document.createElement('div'); foot.className='visit-md3-foot';
+                        const footLeft=document.createElement('div'); footLeft.className='visit-md3-foot-left';
+                        const done=async fn=>{ try{ msg.textContent=''; await fn(); m.close(); chunkCache.clear(); fetchViewport(); loadVisits(); }catch(e){ msg.textContent=(e&&e.message)||'error'; } };
+                        const secBtn=(label,icon,fn,danger)=>{
+                            const b=document.createElement('button'); b.type='button'; b.className='visit-md3-sec-btn'+(danger?' is-danger':'');
+                            b.appendChild(iconEl(icon)); b.appendChild(document.createTextNode(label)); b.addEventListener('click',fn); footLeft.appendChild(b); return b;
+                        };
+                        secBtn(tr('visit_retry','Detect again'),'refresh',()=>done(()=>visitsRequest({action:'retry',id:v.id})));
+                        if(v.osm_id) secBtn(tr('visit_refresh_photo','Refresh photo'),'image_search',()=>done(()=>visitsRequest({action:'refresh_photo',id:v.id,osm_type:v.osm_type,osm_id:v.osm_id})));
+                        if(v.osm_id) secBtn(tr('visit_block','Never suggest this place'),'block',()=>done(()=>visitsRequest({action:'block',id:v.id})),true);
+                        foot.appendChild(footLeft);
+                        const save=document.createElement('button'); save.type='button'; save.className='visit-md3-save-btn';
+                        save.appendChild(iconEl('check')); save.appendChild(document.createTextNode(tr('visit_save','Save')));
+                        save.addEventListener('click',()=>done(async()=>{
+                            if(selectedCandidateId!=null) await visitsRequest({action:'select_candidate',id:v.id,candidate_id:selectedCandidateId});
+                            await visitsRequest({action:'assign',id:v.id,name:nameIn.value,category:catSelect.get(),tag:tagSelectCtl.get()});
+                        }));
+                        foot.appendChild(save); m.box.appendChild(foot);
+                        nameIn.focus();
+                    }
+                    function openPlaceCreator(latlng){
+                        const m=modal(tr('ctx_add_place','Add place here…'),{narrow:true,subtitle:tr('ctx_add_place_hint','Create a named place at this map location'),icon:'add_location_alt'});
+                        const scroll=document.createElement('div'); scroll.className='visit-md3-scroll';
+                        const details=document.createElement('div'); details.className='visit-md3-details'; details.style.margin='20px 24px';
+                        const nameIn=document.createElement('input'); nameIn.type='text'; nameIn.maxLength=80; nameIn.className='visit-md3-input';
+                        const nameField=document.createElement('div'); nameField.className='visit-md3-field';
+                        const nameLab=document.createElement('label'); nameLab.textContent=tr('map_trip_name','Name'); nameField.appendChild(nameLab); nameField.appendChild(nameIn); details.appendChild(nameField);
+                        let tagValue='';
+                        const tagOpts=tagOptions();
+                        const chips=document.createElement('div'); chips.className='visit-md3-chips';
+                        const syncChips=()=>{ chips.querySelectorAll('.visit-md3-chip').forEach(btn=>btn.classList.toggle('is-active', btn.getAttribute('data-chip')===tagValue)); };
+                        const tagSelectCtl=m3Select(tagOpts, tagValue, val=>{ tagValue=val; syncChips(); }, false);
+                        const tagField=document.createElement('div'); tagField.className='visit-md3-field';
+                        const tagLab=document.createElement('label'); tagLab.textContent=tr('visit_tag','Tag'); tagField.appendChild(tagLab); tagField.appendChild(tagSelectCtl.el);
+                        tagQuickValues().forEach(val=>{
+                            const opt=tagOpts.find(o=>o.value===val)||{value:val,label:val||tr('visit_tag_none','No tag')};
+                            const chipBtn=document.createElement('button'); chipBtn.type='button'; chipBtn.className='visit-md3-chip'; chipBtn.setAttribute('data-chip',val); chipBtn.textContent=opt.label;
+                            chipBtn.addEventListener('click',()=>{ tagValue=val; tagSelectCtl.set(val); syncChips(); });
+                            chips.appendChild(chipBtn);
+                        });
+                        tagField.appendChild(chips); details.appendChild(tagField); syncChips();
+                        const radIn=document.createElement('input'); radIn.type='number'; radIn.min='20'; radIn.max='1000'; radIn.value='60'; radIn.className='visit-md3-input';
+                        const radField=document.createElement('div'); radField.className='visit-md3-field';
+                        const radLab=document.createElement('label'); radLab.textContent=tr('location_radius','Radius (m)'); radField.appendChild(radLab); radField.appendChild(radIn); details.appendChild(radField);
+                        scroll.appendChild(details);
+                        const msg=document.createElement('div'); msg.className='visit-md3-msg'; scroll.appendChild(msg);
+                        m.box.appendChild(scroll);
+                        const foot=document.createElement('div'); foot.className='visit-md3-foot';
+                        const save=document.createElement('button'); save.type='button'; save.className='visit-md3-save-btn';
+                        save.appendChild(iconEl('check')); save.appendChild(document.createTextNode(tr('visit_save','Save')));
+                        save.addEventListener('click',async()=>{
+                            const name=nameIn.value.trim()||(tagSelectCtl.get()?(tagOpts.find(o=>o.value===tagSelectCtl.get())||{}).label:'');
+                            if(!name){ msg.textContent=tr('visit_name_required','Enter a name'); return; }
+                            try{
+                                const res=await fetch(placesApi,{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',name:name,tag:tagSelectCtl.get()||'custom',latitude:latlng.lat,longitude:latlng.lng,radius_m:Number(radIn.value)||60})});
+                                const data=await res.json().catch(()=>({}));
+                                if(!res.ok||data.ok===false) throw new Error((data&&data.error)||'place_failed');
+                                m.close(); window.dispatchEvent(new Event('steps-places-changed')); chunkCache.clear(); fetchViewport();
+                            }catch(e){ msg.textContent=(e&&e.message)||'error'; }
+                        });
+                        foot.appendChild(document.createElement('div')); foot.appendChild(save); m.box.appendChild(foot);
+                        nameIn.focus();
+                    }
+                    let visitsSeq=0;
+                    async function loadVisits(){
+                        const host=document.getElementById('ma-visits-list'); if(!host) return;
+                        const seq=++visitsSeq;
+                        try{
+                            const res=await fetch(visitsApi+'&limit=200',{credentials:'same-origin'});
+                            const data=await res.json(); if(seq!==visitsSeq) return;
+                            if(!res.ok||!data.ok) throw new Error('visits_failed');
+                            const from=new Date(fromInput.value+'T00:00:00Z').getTime(), to=new Date(toInput.value+'T23:59:59Z').getTime();
+                            const rows=(data.visits||[]).filter(v=>{ const t=Date.parse(v.arrived_at); return t>=from&&t<=to; });
+                            host.textContent='';
+                            if(!rows.length){ const e=document.createElement('span'); e.className='trip-empty'; e.textContent=tr('visit_none','No visits in this range'); host.appendChild(e); return; }
+                            rows.forEach(v=>{
+                                const b=document.createElement('button'); b.type='button'; b.className='visit-row';
+                                if(v.photo_url){
+                                    const av=document.createElement('span'); av.className='visit-row-photo';
+                                    const img=document.createElement('img'); img.src=v.photo_url; img.alt=''; img.loading='lazy'; av.appendChild(img); b.appendChild(av);
+                                } else {
+                                    const dot=document.createElement('i'); dot.className='visit-dot'; dot.style.background=VISIT_COLORS[v.detection_status]||VISIT_COLORS.unidentified; b.appendChild(dot);
+                                }
+                                const txt=document.createElement('span'); txt.className='visit-row-text';
+                                const a=document.createElement('strong'); a.textContent=v.place_name||tr('visit_unidentified','Unidentified place'); txt.appendChild(a);
+                                const sub=document.createElement('small'); sub.textContent=[fmtAt(v.arrived_at),fmtDur(v.duration_s),v.category].filter(Boolean).join(' · '); txt.appendChild(sub);
+                                b.appendChild(txt);
+                                b.addEventListener('click',()=>{ if(v.latitude!=null&&map) map.setView([v.latitude,v.longitude],Math.max(map.getZoom(),17)); openVisitEditor(v.id); });
+                                host.appendChild(b);
+                            });
+                        }catch(e){ host.textContent=''; }
+                    }
+                    window.addEventListener('steps-visits-refresh',loadVisits);
+                    loadVisits();
+                    document.addEventListener('mousedown',e=>{ if(menuEl&&!menuEl.contains(e.target)) closeMapMenu(); });
+                    document.addEventListener('keydown',e=>{ if(e.key==='Escape') closeMapMenu(); });
                     areaCancel?.addEventListener('click',areaClear);
                     // Smoothing keeps one simplified line per pass through the box, so a
                     // chaotic 250 m cloud becomes one or two readable routes.
@@ -1268,11 +1891,18 @@ $metricButtons = [
                             ptEl('pt-total').textContent='('+data.total+')';
                             ptEl('pt-all').checked=false;
                             ptRows.forEach(r=>{
-                                const row=document.createElement('label'); row.className='points-row';
-                                const cb=document.createElement('input'); cb.type='checkbox'; cb.setAttribute('data-pt-id',r.id); cb.addEventListener('change',ptSync);
+                                const row=document.createElement('label'); row.className='points-row m3-checkbox-wrapper';
+                                const cb=document.createElement('input'); cb.type='checkbox'; cb.className='m3-checkbox-input'; cb.setAttribute('data-pt-id',r.id); cb.addEventListener('change',ptSync);
+                                const box=document.createElement('span'); box.className='m3-checkbox-box'; box.innerHTML='<svg class="m3-checkbox-svg" viewBox="0 0 16 16"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline></svg>';
                                 const text=document.createElement('span'); text.textContent=String(r.source_at).slice(0,19)+' · '+Number(r.latitude).toFixed(5)+', '+Number(r.longitude).toFixed(5);
-                                const tag=document.createElement('em'); tag.textContent=r.quality_state+' · '+r.source_type+(r.accuracy_m?' · ±'+Math.round(r.accuracy_m)+' m':'');
-                                row.appendChild(cb); row.appendChild(text); row.appendChild(tag); host.appendChild(row);
+                                const tag=document.createElement('em'); tag.className='points-meta';
+                                const state=String(r.quality_state||'');
+                                const acc=r.accuracy_m!=null?Number(r.accuracy_m):null;
+                                const lowAcc=acc!=null&&acc>=50;
+                                if(state==='flagged'||state==='suspect'||state==='rejected'||lowAcc) tag.classList.add('is-flagged');
+                                else if(state==='accepted'||(acc!=null&&acc<=10)) tag.classList.add('is-accepted');
+                                tag.textContent=state+' · '+r.source_type+(acc!=null?' · ±'+Math.round(acc)+' m':'');
+                                row.appendChild(cb); row.appendChild(box); row.appendChild(text); row.appendChild(tag); host.appendChild(row);
                             });
                             if(!ptRows.length){ const e=document.createElement('p'); e.className='location-hint'; e.textContent=t.empty; host.appendChild(e); }
                             ptTotal=Number(data.total)||0; ptPager();
@@ -1284,7 +1914,7 @@ $metricButtons = [
                         opts=opts||{};
                         let Lf; try{ Lf=await ensureLeaflet(); }catch(e){ return; }
                         const ov=document.createElement('div'); ov.className='picker-overlay';
-                        ov.innerHTML='<div class="picker-box"><div class="picker-head"><strong></strong><button type="button" class="picker-x" aria-label="Close"><i class="fas fa-xmark"></i></button></div><div class="picker-map"></div><div class="picker-foot"><span class="picker-coords">—</span><button type="button" class="excel-btn picker-ok" disabled>OK</button><button type="button" class="excel-btn picker-cancel"></button></div></div>';
+                        ov.innerHTML='<div class="picker-box"><div class="picker-head"><strong></strong><button type="button" class="picker-x" aria-label="Close"><span class="material-symbols-rounded" aria-hidden="true">close</span></button></div><div class="picker-map"></div><div class="picker-foot"><span class="picker-coords">—</span><button type="button" class="excel-btn picker-ok" disabled>OK</button><button type="button" class="excel-btn picker-cancel"></button></div></div>';
                         ov.querySelector('strong').textContent=opts.title||tr('pick_title','Click the map to choose a location');
                         ov.querySelector('.picker-ok').textContent=tr('pick_ok','Select');
                         ov.querySelector('.picker-cancel').textContent=tr('cancel','Cancel');
@@ -1394,6 +2024,15 @@ $metricButtons = [
                         clearPrefetchQueue(true);
                         chunkCache.clear();
                         if(mapStarted){ fetchViewport(); loadTrips(); }
+                    };
+                    // Import completion and point deletion happen outside this
+                    // closure. Drop the cached chunks so the next draw reflects the
+                    // new rows instead of a viewport captured before them.
+                    window.stepsMapInvalidate=()=>{
+                        didFit=false;
+                        chunkCache.clear();
+                        clearPrefetchQueue(true);
+                        if(mapStarted){ fetchViewport({dir:null}); loadTrips(); }
                     };
                     document.getElementById('ma-map-family')?.addEventListener('change',onRangeChanged);
                     async function loadFamilyTargets(){
@@ -1618,7 +2257,30 @@ $metricButtons = [
                     const syncSpeedLegend=()=>{ const l=document.getElementById('ma-speed-legend'); if(l) l.hidden=!selectedLayers().includes('speed'); };
                     section.querySelectorAll('input[data-layer]').forEach(input=>input.addEventListener('change',()=>{ syncSpeedLegend(); saveSettings(); fetchViewport(); }));
                     setTimeout(syncSpeedLegend,300);
-                    setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); },30000);
+                    let pointRevision = null;
+                    let revisionPending = false;
+                    async function pollPointRevision(){
+                        if(!mapStarted||!mapHost||mapHost.hidden||document.hidden||revisionPending) return;
+                        revisionPending=true;
+                        try{
+                            const response=await fetch('/apps/steps/api/session_gateway.php?endpoint=geolocation_points&revision=1',{credentials:'same-origin',cache:'no-store'});
+                            if(!response.ok) return;
+                            const data=await response.json();
+                            if(!data.ok) return;
+                            const revision=String(data.revision||'');
+                            if(pointRevision!==null&&pointRevision!==revision){
+                                cancelPrefetch(); chunkCache.clear();
+                                await fetchViewport(); loadTrips();
+                            }
+                            pointRevision=revision;
+                        }catch(e){}finally{ revisionPending=false; }
+                    }
+                    setInterval(pollPointRevision,3000);
+                    setInterval(()=>{ if(!mapHost||mapHost.hidden) return; fetchViewport(); pollLive(); },30000);
+                    // The live marker is cheap (one row) and updates every 10 s, so a
+                    // moving phone visibly walks across the map.
+                    setInterval(()=>{ pollLive(); },10000);
+                    document.addEventListener('visibilitychange',()=>{ if(!document.hidden) pollLive(); });
                     window.addEventListener('steps-map-shown',()=>{ startMapWorkspace(); });
                     document.addEventListener('visibilitychange',()=>{ if(document.hidden) cancelPrefetch(); });
                     window.addEventListener('offline',()=>cancelPrefetch());
@@ -1655,13 +2317,18 @@ $metricButtons = [
 
         <div id="stats-modal" style="display:none;">
             <div class="stats-content stats-experience">
-                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                <header class="stats-hero">
-                    <span class="stats-eyebrow"><i class="fas fa-wand-magic-sparkles" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_private_eyebrow'] ?? 'Private to your account'); ?></span>
-                    <h2><?php echo htmlspecialchars($translations['stats_experience_title'] ?? 'Activity & Movement'); ?></h2>
-                    <p><?php echo htmlspecialchars($translations['stats_experience_subtitle'] ?? 'Your steps, journeys and milestones, brought together in one calm view.'); ?></p>
-                    <div id="stats-freshness" class="stats-freshness" role="status" aria-live="polite"></div>
-                </header>
+                <header class="md3-modal-head stats-hero" style="flex-direction:column;align-items:stretch;gap:16px;">
+                    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:16px;">
+                        <div>
+                            <div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;">
+                                <h2 style="font-size:18px;font-weight:700;"><?php echo htmlspecialchars($translations['stats_experience_title'] ?? 'Activity & Movement'); ?></h2>
+                                <span class="stats-eyebrow" style="display:inline-flex;align-items:center;gap:4px;padding:2px 10px;border-radius:999px;background:rgba(76,154,255,0.15);border:1px solid rgba(76,154,255,0.3);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.06em;color:#4C9AFF;"><i class="fas fa-lock" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_private_eyebrow'] ?? 'Private to your account'); ?></span>
+                            </div>
+                            <p style="margin:4px 0 0;font-size:13px;color:#9FA3AA;"><?php echo htmlspecialchars($translations['stats_experience_subtitle'] ?? 'Your steps, journeys and milestones, brought together in one calm view.'); ?></p>
+                            <div id="stats-freshness" class="stats-freshness" role="status" aria-live="polite"></div>
+                        </div>
+                        <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+                    </div>
                 <div class="stats-tabbar" role="tablist" aria-label="<?php echo htmlspecialchars($translations['stats_sections'] ?? 'Statistics sections'); ?>">
                     <button type="button" class="stats-tab stats-tab--overview is-active" role="tab" aria-selected="true" data-stats-tab="overview"><i class="fa-solid fa-chart-simple" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_overview'] ?? 'Overview'); ?></span></button>
                     <button type="button" class="stats-tab stats-tab--activity" role="tab" aria-selected="false" data-stats-tab="activity"><i class="fa-solid fa-shoe-prints" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_activity'] ?? 'Steps & Health'); ?></span></button>
@@ -1669,7 +2336,8 @@ $metricButtons = [
                     <button type="button" class="stats-tab stats-tab--achievements" role="tab" aria-selected="false" data-stats-tab="achievements"><i class="fa-solid fa-trophy" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_achievements'] ?? 'Achievements'); ?></span></button>
                     <button type="button" class="stats-tab stats-tab--quality" role="tab" aria-selected="false" data-stats-tab="quality"><i class="fa-solid fa-shield-heart" aria-hidden="true"></i><span><?php echo htmlspecialchars($translations['stats_tab_quality'] ?? 'Data Quality'); ?></span></button>
                 </div>
-                <div class="stats-panels">
+                </header>
+                <div class="md3-modal-body stats-panels">
                     <section class="stats-panel is-active" role="tabpanel" data-stats-panel="overview">
                         <div class="stats-metric-grid">
                             <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_active_days'] ?? 'Active days'); ?></span><strong id="stats-overview-days">—</strong><small><?php echo htmlspecialchars($translations['stats_active_days_hint'] ?? 'days with recorded movement'); ?></small></article>
@@ -1684,17 +2352,29 @@ $metricButtons = [
                                 <strong id="stats-overview-steps">—</strong>
                                 <p id="stats-overview-average"></p>
                             </article>
-                            <article class="stats-card">
-                                <h3><i class="fas fa-compass" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_reach'] ?? 'Your reach'); ?></h3>
+                            <article class="stats-card stats-reach-card">
+                                <div class="stats-reach-head">
+                                    <h3><i class="fas fa-globe" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_reach'] ?? 'Your reach'); ?></h3>
+                                    <span id="stats-overview-reach-count" class="stats-reach-count" hidden></span>
+                                </div>
                                 <div id="stats-overview-reach" class="stats-reach"></div>
                             </article>
                         </div>
                     </section>
                     <section class="stats-panel" role="tabpanel" data-stats-panel="activity" hidden>
                         <div class="stats-grid">
-                            <section class="stats-card">
-                                <h3 class="stats-card-title stats-card-title--steps"><i class="fa-solid fa-chart-column" aria-hidden="true"></i><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
-                                <div class="stats-chart-wrap"><canvas id="stats-years-chart"></canvas></div>
+                            <section class="stats-card" id="stats-yearly-share-card">
+                                <h3 class="stats-card-title stats-card-title--steps"><i class="fa-solid fa-chart-pie" aria-hidden="true"></i><?php echo htmlspecialchars($translations['statistics_yearly_distribution'] ?? 'Yearly Step Share'); ?></h3>
+                                <div class="stats-yearly-share">
+                                    <div class="stats-yearly-donut-wrap">
+                                        <canvas id="stats-years-chart"></canvas>
+                                        <div class="stats-yearly-donut-center" id="stats-yearly-donut-center" aria-hidden="true">
+                                            <strong id="stats-yearly-donut-pct">—</strong>
+                                            <span id="stats-yearly-donut-steps">—</span>
+                                        </div>
+                                    </div>
+                                    <div class="stats-yearly-metrics" id="stats-yearly-metrics"></div>
+                                </div>
                             </section>
                             <section class="stats-card">
                                 <h3 id="stats-monthly-title" class="stats-card-title stats-card-title--calendar"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i><?php echo htmlspecialchars($translations['statistics_monthly_intensity'] ?? 'Monthly Step Intensity'); ?></h3>
@@ -1720,7 +2400,8 @@ $metricButtons = [
                             <div><span class="stats-card-kicker"><?php echo htmlspecialchars($translations['stats_earned_only'] ?? 'Earned only'); ?></span><h3><?php echo htmlspecialchars($translations['stats_milestones'] ?? 'Milestones you unlocked'); ?></h3></div>
                             <strong id="stats-achievement-count" class="stats-achievement-count">—</strong>
                         </div>
-                        <div id="stats-achievement-grid" class="stats-achievement-grid"></div>
+                        <div id="stats-ach-year-filters" aria-label="Filter by year"></div>
+                        <div id="stats-achievement-grid" class="stats-ach-year-stack"></div>
                         <p id="stats-achievement-empty" class="stats-empty-state" hidden><?php echo htmlspecialchars($translations['stats_no_achievements'] ?? 'Your first milestone is still ahead. Keep moving — unlocked achievements will appear here.'); ?></p>
                     </section>
                     <section class="stats-panel" role="tabpanel" data-stats-panel="quality" hidden>
@@ -1731,7 +2412,7 @@ $metricButtons = [
                             <article class="stats-metric"><span><?php echo htmlspecialchars($translations['stats_devices'] ?? 'Devices'); ?></span><strong id="stats-quality-devices">—</strong><small><?php echo htmlspecialchars($translations['stats_devices_hint'] ?? 'paired sources'); ?></small></article>
                         </div>
                         <article class="stats-card">
-                            <h3><i class="fas fa-circle-nodes" aria-hidden="true"></i> <?php echo htmlspecialchars($translations['stats_sources'] ?? 'Sources'); ?></h3>
+                            <h3><span class="material-symbols-rounded" aria-hidden="true">hub</span> <?php echo htmlspecialchars($translations['stats_sources'] ?? 'Sources'); ?></h3>
                             <div id="stats-quality-sources" class="stats-sources"></div>
                             <p class="stats-note"><?php echo htmlspecialchars($translations['stats_quality_note'] ?? 'Quality is computed from your own samples. Nothing here is shared, sold or used to infer transport.'); ?></p>
                         </article>
@@ -1742,16 +2423,14 @@ $metricButtons = [
         <!-- Info Modal -->
         <div id="info-modal" style="display:none;">
             <div class="info-content">
-                <button class="modal-close"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                <div class="info-scroll">
-                <div class="info-header">
-                    <div class="info-header-icon">
-                        <i class="fas fa-file-lines" style="font-size:28px" aria-hidden="true"></i>
+                <div class="md3-modal-head">
+                    <div class="md3-modal-head-main">
+                        <div class="md3-modal-icon"><i class="fas fa-circle-info" aria-hidden="true"></i></div>
+                        <div><h2><?php echo htmlspecialchars($translations['app_info'] ?? 'Application Information'); ?></h2></div>
                     </div>
-                    <div>
-                        <h2><?php echo htmlspecialchars($translations['app_info'] ?? 'Application Information'); ?></h2>
-                    </div>
+                    <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 </div>
+                <div class="md3-modal-body info-scroll">
                 <div class="info-grid">
                     <div class="info-card">
                         <div class="info-card-icon">
@@ -1812,7 +2491,7 @@ $metricButtons = [
             /* Mobile pairing modal — shared layout with the Spends companion modal */
             #mobile-app-modal { position:fixed; inset:0; align-items:center; justify-content:center; padding:16px; z-index:10040; background:rgba(10,14,18,.48); -webkit-backdrop-filter:blur(14px); backdrop-filter:blur(14px); box-sizing:border-box; }
             #mobile-app-modal .mobile-app-content { position:relative; max-width:800px; width:min(800px,calc(100vw - 32px)); max-height:calc(100dvh - 32px); overflow:auto; padding:26px 26px 22px; border:1px solid var(--border-color); border-radius:18px; background:color-mix(in srgb,var(--modal-bg) 92%,var(--surface-solid)); box-shadow:var(--shadow-soft); box-sizing:border-box; }
-            #mobile-app-modal .modal-close { position:absolute; top:16px; right:16px; }
+            #mobile-app-modal .modal-close { position:static; }
             #mobile-app-modal .ma-header { margin:0 0 20px; padding-right:44px; }
             #mobile-app-modal .ma-header h1 { font-size:22px; margin:0 0 6px; font-weight:700; letter-spacing:-.3px; color:var(--text-color); }
             #mobile-app-modal .ma-header p { margin:0; font-size:14px; line-height:1.5; color:var(--muted-text); }
@@ -1867,15 +2546,17 @@ $metricButtons = [
         </style>
         <div id="mobile-app-modal" style="display:none;">
             <div class="mobile-app-content">
-                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <i class="fas fa-xmark" style="font-size:14px" aria-hidden="true"></i>
-                </button>
-
-                <div class="ma-header">
-                    <h1><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h1>
-                    <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                <div class="md3-modal-head">
+                    <div class="md3-modal-head-main">
+                        <div class="md3-modal-icon"><i class="fas fa-mobile-screen-button" aria-hidden="true"></i></div>
+                        <div>
+                            <h2><?php echo htmlspecialchars($translations['mobile_app_modal_title'] ?? 'Mobile App'); ?></h2>
+                            <p><?php echo htmlspecialchars($translations['info_card_mobile_text'] ?? 'Install the companion Android app to sync steps and health data from your phone to this dashboard.'); ?></p>
+                        </div>
+                    </div>
+                    <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 </div>
-
+                <div class="md3-modal-body">
                 <section class="ma-panel" id="ma-devices">
                     <div class="ma-panel-head">
                         <h3><?php echo htmlspecialchars($translations['mobile_app_devices_title'] ?? 'Connected devices'); ?></h3>
@@ -1973,53 +2654,73 @@ $metricButtons = [
                         </div>
                     </div>
                 </div>
+                </div>
             </div>
         </div>
 
         <!-- Settings Modal -->
         <div id="settings-modal" style="display:none;">
             <div class="settings-content">
-                <button id="close-settings" class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                <h2><i class="fas fa-cog"></i> <?php echo htmlspecialchars($translations['settings_title']); ?></h2>
-                <div class="settings-tab-bar" role="tablist">
-                    <button type="button" class="settings-tab active" data-settings-tab="profile" role="tab" aria-selected="true">
-                        <i class="fas fa-user-edit"></i> <?php echo htmlspecialchars($translations['settings_tab_profile'] ?? $translations['settings_title']); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="chart" role="tab" aria-selected="false">
-                        <i class="fas fa-chart-area"></i> <?php echo htmlspecialchars($translations['settings_tab_chart'] ?? 'Chart'); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="map" role="tab" aria-selected="false">
-                        <i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['map_settings_title'] ?? 'Map'); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="render" role="tab" aria-selected="false">
-                        <i class="fas fa-film"></i> <span><?php echo htmlspecialchars($translations['map_render_title'] ?? 'Poster and video'); ?></span>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="points" role="tab" aria-selected="false">
-                        <i class="fas fa-location-crosshairs"></i> <span><?php echo htmlspecialchars($translations['points_title'] ?? 'Location points'); ?></span>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="location" role="tab" aria-selected="false">
-                        <i class="fas fa-earth-europe"></i> <?php echo htmlspecialchars($translations['location_data_title'] ?? 'Location data'); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="family" role="tab" aria-selected="false">
-                        <i class="fas fa-people-roof"></i> <?php echo htmlspecialchars($translations['family_title'] ?? 'Family'); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="achievements" role="tab" aria-selected="false">
-                        <i class="fas fa-trophy"></i> <?php echo htmlspecialchars($translations['achievement_title'] ?? 'Achievements'); ?>
-                    </button>
-                    <button type="button" class="settings-tab" data-settings-tab="backups" role="tab" aria-selected="false">
-                        <i class="fas fa-database"></i> <?php echo htmlspecialchars($translations['manage_backups'] ?? 'Manage Backups'); ?>
-                    </button>
+                <div class="md3-modal-head">
+                    <div class="md3-modal-head-main">
+                        <div class="md3-modal-icon"><i class="fas fa-gear" aria-hidden="true"></i></div>
+                        <div>
+                            <h2><?php echo htmlspecialchars($translations['settings_title']); ?></h2>
+                            <p><?php echo htmlspecialchars($translations['settings_subtitle'] ?? 'Configure profile biometrics, map styling, exports, and backups'); ?></p>
+                        </div>
+                    </div>
+                    <button id="close-settings" class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 </div>
+                <div class="settings-layout">
+                <div class="settings-tab-bar" role="tablist">
+                    <?php
+                    $settingsTabs = [
+                        ['profile', 'fa-user-edit', $translations['settings_tab_profile'] ?? $translations['settings_title'] ?? 'Settings', true],
+                        ['chart', 'fa-chart-area', $translations['settings_tab_chart'] ?? 'Chart', false],
+                        ['map', 'fa-map-location-dot', $translations['map_settings_title'] ?? 'Map', false],
+                        ['render', 'fa-film', $translations['map_render_title'] ?? 'Poster and video', false],
+                        ['points', 'fa-location-crosshairs', $translations['points_title'] ?? 'Location points', false],
+                        ['location', 'fa-earth-europe', $translations['location_data_title'] ?? 'Location data', false],
+                        ['family', 'fa-people-roof', $translations['family_title'] ?? 'Family', false],
+                        ['achievements', 'fa-trophy', $translations['achievement_title'] ?? 'Achievements', false],
+                        ['backups', 'fa-database', $translations['manage_backups'] ?? 'Manage Backups', false],
+                    ];
+                    foreach ($settingsTabs as [$tabId, $tabIcon, $tabLabel, $tabActive]):
+                    ?>
+                    <button type="button" class="settings-tab<?php echo $tabActive ? ' active' : ''; ?>" data-settings-tab="<?php echo htmlspecialchars($tabId); ?>" role="tab" aria-selected="<?php echo $tabActive ? 'true' : 'false'; ?>" title="<?php echo htmlspecialchars($tabLabel); ?>">
+                        <i class="fas <?php echo htmlspecialchars($tabIcon); ?>" aria-hidden="true"></i>
+                        <span class="settings-tab-label truncate"><?php echo htmlspecialchars($tabLabel); ?></span>
+                    </button>
+                    <?php endforeach; ?>
+                </div>
+                <div class="settings-main">
+                <div class="settings-main-scroll">
                 <div id="settings-panel-profile" class="settings-tab-panel active" role="tabpanel">
+                    <div class="settings-pane-title">
+                        <h3><?php echo htmlspecialchars($translations['settings_profile_biometrics'] ?? 'Profile & Biometrics'); ?></h3>
+                        <p><?php echo htmlspecialchars($translations['settings_profile_hint'] ?? 'Used to calculate stride distance, daily targets, and calorie estimates.'); ?></p>
+                    </div>
                     <form id="settings-form" method="post" enctype="multipart/form-data">
                         <input type="hidden" name="settings" value="1">
+                        <div class="settings-tile">
+                            <div class="tile-title"><?php echo htmlspecialchars($translations['occupation_title'] ?? 'Occupation'); ?></div>
+                            <hr>
+                            <div class="tile-content">
+                                <span class="tile-icon"><i class="fas fa-briefcase"></i></span>
+                                <select name="occupation" aria-label="<?php echo htmlspecialchars($translations['occupation_title'] ?? 'Occupation'); ?>">
+                                    <?php foreach (steps_occupation_values() as $occupation): ?>
+                                        <option value="<?php echo htmlspecialchars($occupation); ?>" <?php echo ($userSettings['occupation'] ?? 'prefer_not_to_say') === $occupation ? 'selected' : ''; ?>><?php echo htmlspecialchars($translations['occupation_' . $occupation] ?? $occupation); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                            </div>
+                        </div>
                         <div class="settings-tile">
                             <div class="tile-title"><?php echo htmlspecialchars($translations['goal_steps']); ?></div>
                             <hr>
                             <div class="tile-content">
                                 <span class="tile-icon"><i class="fas fa-walking"></i></span>
                                 <input type="text" name="goal_steps" value="<?php echo $userSettings['goal_steps'] / 1000; ?>" pattern="[0-9.,]*" inputmode="decimal">
-                                <span><?php echo htmlspecialchars($translations['thousands'] ?? ''); ?></span>
+                                <span class="tile-unit"><?php echo htmlspecialchars($translations['thousands'] ?? 'k'); ?></span>
                             </div>
                         </div>
                         <div class="settings-tile">
@@ -2028,7 +2729,7 @@ $metricButtons = [
                             <div class="tile-content">
                                 <span class="tile-icon"><i class="fas fa-ruler-vertical"></i></span>
                                 <input type="text" name="height" value="<?php echo $userSettings['height']; ?>" pattern="\d*" inputmode="numeric">
-                                <span>cm</span>
+                                <span class="tile-unit">cm</span>
                             </div>
                         </div>
                         <div class="settings-tile">
@@ -2037,7 +2738,7 @@ $metricButtons = [
                             <div class="tile-content">
                                 <span class="tile-icon"><i class="fas fa-weight"></i></span>
                                 <input type="text" name="weight" value="<?php echo $userSettings['weight']; ?>" pattern="\d*" inputmode="numeric">
-                                <span>kg</span>
+                                <span class="tile-unit">kg</span>
                             </div>
                         </div>
                         <div class="settings-tile">
@@ -2046,7 +2747,7 @@ $metricButtons = [
                             <div class="tile-content">
                                 <span class="tile-icon"><i class="fas fa-ruler"></i></span>
                                 <input type="text" name="stride_length" value="<?php echo $userSettings['stride_length']; ?>" pattern="\d*" inputmode="numeric">
-                                <span>cm</span>
+                                <span class="tile-unit">cm</span>
                             </div>
                         </div>
                         <div class="settings-tile">
@@ -2055,7 +2756,7 @@ $metricButtons = [
                             <div class="tile-content">
                                 <span class="tile-icon"><i class="fas fa-birthday-cake"></i></span>
                                 <input type="date" name="birth_date" value="<?php echo $userSettings['birth_date']; ?>">
-                                <span></span>
+                                <span class="tile-unit"><?php echo htmlspecialchars($translations['year'] ?? 'y'); ?></span>
                             </div>
                         </div>
                     </form>
@@ -2231,7 +2932,7 @@ $metricButtons = [
                         <section class="location-section">
                             <div class="location-section-head"><h3><i class="fas fa-list-check"></i> <?php echo htmlspecialchars($translations['points_list'] ?? 'Points'); ?> <small id="pt-total"></small></h3></div>
                             <div class="settings-actions-row">
-                                <label class="location-consent"><input type="checkbox" id="pt-all"> <?php echo htmlspecialchars($translations['points_select_page'] ?? 'Select page'); ?></label>
+                                <label class="location-consent m3-checkbox-wrapper"><input type="checkbox" id="pt-all" class="m3-checkbox-input"><span class="m3-checkbox-box"><svg class="m3-checkbox-svg" viewBox="0 0 16 16"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline></svg></span> <?php echo htmlspecialchars($translations['points_select_page'] ?? 'Select page'); ?></label>
                                 <button type="button" id="pt-delete" class="excel-btn" disabled><i class="fas fa-trash"></i> <?php echo htmlspecialchars($translations['points_delete_selected'] ?? 'Delete selected'); ?></button>
                             </div>
                             <div class="pager" id="pt-pager">
@@ -2248,23 +2949,47 @@ $metricButtons = [
                     </div>
                 </div>
                 <div id="settings-panel-location" class="settings-tab-panel" role="tabpanel">
+                    <div id="settings-loc-subtabs" role="tablist">
+                        <button type="button" class="locdata-pill is-active" data-locsec="stats"><?php echo htmlspecialchars($translations['locdata_stats'] ?? 'Statistics & Import'); ?></button>
+                        <button type="button" class="locdata-pill" data-locsec="export"><?php echo htmlspecialchars($translations['locdata_export'] ?? 'Export & Views'); ?></button>
+                        <button type="button" class="locdata-pill" data-locsec="corrections"><?php echo htmlspecialchars($translations['locdata_corrections'] ?? 'Corrections & Places'); ?></button>
+                        <button type="button" class="locdata-pill" data-locsec="privacy"><?php echo htmlspecialchars($translations['locdata_privacy'] ?? 'Notifications & Privacy'); ?></button>
+                    </div>
                     <div class="location-panel">
-                        <section class="location-section">
-                            <div class="location-section-head">
-                                <h3><i class="fas fa-chart-simple"></i> <?php echo htmlspecialchars($translations['location_stats_title'] ?? 'Movement statistics'); ?></h3>
-                                <div class="location-actions">
-                                    <label class="location-tz"><span><?php echo htmlspecialchars($translations['timeline_timezone'] ?? 'Timezone'); ?></span><input type="text" id="location-stats-tz" value="UTC" placeholder="Europe/Kyiv"></label>
-                                    <button type="button" id="location-stats-refresh" class="excel-btn"><i class="fas fa-rotate"></i> <?php echo htmlspecialchars($translations['location_stats_refresh'] ?? 'Recompute'); ?></button>
+                        <section class="location-section loc-stats-section" data-locgroup="stats">
+                            <div class="location-section-head loc-stats-head">
+                                <div class="loc-stats-head-left">
+                                    <h3><span class="material-symbols-rounded loc-stats-icon" aria-hidden="true">bar_chart</span> <?php echo htmlspecialchars($translations['location_stats_title'] ?? 'Movement statistics'); ?></h3>
+                                    <span id="location-stats-period" class="loc-period-badge font-mono" hidden></span>
+                                </div>
+                                <div class="location-actions loc-stats-actions">
+                                    <label class="location-tz"><span><?php echo htmlspecialchars($translations['timeline_timezone'] ?? 'Timezone'); ?></span>
+                                        <select id="location-stats-tz" aria-label="<?php echo htmlspecialchars($translations['timeline_timezone'] ?? 'Timezone'); ?>">
+                                            <option value="UTC">UTC</option>
+                                            <option value="Europe/Warsaw">Europe/Warsaw</option>
+                                            <option value="Europe/Kyiv">Europe/Kyiv</option>
+                                            <option value="Europe/Berlin">Europe/Berlin</option>
+                                            <option value="Europe/Prague">Europe/Prague</option>
+                                            <option value="Europe/London">Europe/London</option>
+                                            <option value="America/New_York">America/New_York</option>
+                                            <option value="America/Los_Angeles">America/Los_Angeles</option>
+                                            <option value="Asia/Tokyo">Asia/Tokyo</option>
+                                        </select>
+                                    </label>
+                                    <button type="button" id="location-stats-refresh" class="excel-btn loc-recompute-btn"><span class="material-symbols-rounded icon-sm" aria-hidden="true">refresh</span> <?php echo htmlspecialchars($translations['location_stats_refresh'] ?? 'Recompute'); ?></button>
                                 </div>
                             </div>
                             <p id="location-stats-status" class="location-status" role="status" aria-live="polite"></p>
-                            <div id="location-stats-cards" class="location-cards"></div>
+                            <div id="location-stats-cards" class="location-cards loc-kpi-grid"></div>
                             <div id="location-stats-warnings" class="location-warnings"></div>
-                            <div id="location-stats-details" class="location-details"></div>
-                            <div id="location-stats-boundary" class="location-hint"></div>
-                            <ul id="location-stats-assumptions" class="location-assumptions"></ul>
+                            <div id="location-stats-details" class="location-details loc-bento"></div>
+                            <details class="loc-boundary-notes">
+                                <summary><?php echo htmlspecialchars($translations['location_stats_boundary_notes'] ?? 'Boundary dataset & methodology notes'); ?></summary>
+                                <div id="location-stats-boundary" class="location-hint"></div>
+                                <ul id="location-stats-assumptions" class="location-assumptions"></ul>
+                            </details>
                         </section>
-                        <section class="location-section">
+                        <section class="location-section" data-locgroup="stats">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-file-import"></i> <?php echo htmlspecialchars($translations['location_import_title'] ?? 'Import location history'); ?></h3>
                             </div>
@@ -2277,7 +3002,7 @@ $metricButtons = [
                             <p id="location-import-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-import-history" class="location-import-history"></div>
                         </section>
-                        <section class="location-section">
+                        <section class="location-section is-hidden" data-locgroup="export">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-file-export"></i> <?php echo htmlspecialchars($translations['location_export_title'] ?? 'Export and backup'); ?></h3>
                             </div>
@@ -2311,7 +3036,7 @@ $metricButtons = [
                             <p id="location-export-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="location-export-history" class="location-import-history"></div>
                         </section>
-                        <section class="location-section" id="location-explore-section">
+                        <section class="location-section is-hidden" id="location-explore-section" data-locgroup="export">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-magnifying-glass"></i> <?php echo htmlspecialchars($translations['location_search_title'] ?? 'Search and saved views'); ?></h3>
                             </div>
@@ -2347,7 +3072,7 @@ $metricButtons = [
                                 <div id="location-saved-views" class="location-import-history"></div>
                             </div>
                         </section>
-                        <section class="location-section" id="location-analytics-section">
+                        <section class="location-section is-hidden" id="location-analytics-section" data-locgroup="export">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['location_analytics_title'] ?? 'Private mobility analytics'); ?></h3>
                                 <div class="location-actions">
@@ -2361,7 +3086,7 @@ $metricButtons = [
                             <div id="location-analytics-places" class="location-details"></div>
                             <p class="location-hint"><?php echo htmlspecialchars($translations['location_analytics_hint'] ?? 'Metrics are bounded aggregates. Coverage and confidence are shown; no transport mode is inferred.'); ?></p>
                         </section>
-                        <section class="location-section" id="location-tools-section">
+                        <section class="location-section is-hidden" id="location-tools-section" data-locgroup="corrections">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-sliders"></i> <?php echo htmlspecialchars($translations['location_tools_title'] ?? 'Location management'); ?></h3>
                                 <button type="button" id="location-quality-reprocess" class="excel-btn"><i class="fas fa-shield-halved"></i> <?php echo htmlspecialchars($translations['location_quality_reprocess'] ?? 'Recheck quality'); ?></button>
@@ -2418,6 +3143,12 @@ $metricButtons = [
                             </div>
                             <div class="location-tools-grid">
                                 <div class="location-tool-card">
+                                    <h4><?php echo htmlspecialchars($translations['location_places_detect_title'] ?? 'Automatic place detection'); ?></h4>
+                                    <p class="location-hint"><?php echo htmlspecialchars($translations['location_places_detect_hint'] ?? 'Visits are saved to the database immediately. The background worker looks them up in OpenStreetMap and writes the name back.'); ?></p>
+                                    <p id="location-places-detect-status" class="location-hint"></p>
+                                    <button type="button" id="location-places-detect" class="excel-btn"><i class="fas fa-map-location-dot"></i> <?php echo htmlspecialchars($translations['location_places_detect_run'] ?? 'Detect places now'); ?></button>
+                                </div>
+                                <div class="location-tool-card">
                                     <h4><?php echo htmlspecialchars($translations['location_places_title'] ?? 'Places'); ?></h4>
                                     <div class="place-chips" id="place-chips"></div>
                                     <div class="location-tool-row">
@@ -2449,7 +3180,7 @@ $metricButtons = [
                             </div>
                             <p id="location-tools-status" class="location-status" role="status" aria-live="polite"></p>
                         </section>
-                        <section class="location-section" id="notifications-section">
+                        <section class="location-section is-hidden" id="notifications-section" data-locgroup="privacy">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-bell"></i> <?php echo htmlspecialchars($translations['notifications_title'] ?? 'Notifications and webhooks'); ?></h3>
                                 <button type="button" id="notifications-webhook-test" class="excel-btn"><i class="fas fa-paper-plane"></i> <?php echo htmlspecialchars($translations['notifications_test'] ?? 'Send test event'); ?></button>
@@ -2486,7 +3217,7 @@ $metricButtons = [
                             </div>
                             <p id="notifications-status" class="location-status" role="status" aria-live="polite"></p>
                         </section>
-                        <section class="location-section" id="geo-privacy-section">
+                        <section class="location-section is-hidden" id="geo-privacy-section" data-locgroup="privacy">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-user-shield"></i> <?php echo htmlspecialchars($translations['geo_privacy_title'] ?? 'Privacy and data deletion'); ?></h3>
                             </div>
@@ -2581,7 +3312,7 @@ $metricButtons = [
                             load();
                         })();
                         </script>
-                        <section class="location-section" id="immich-section">
+                        <section class="location-section is-hidden" id="immich-section" data-locgroup="privacy">
                             <div class="location-section-head">
                                 <h3><i class="fas fa-images"></i> <?php echo htmlspecialchars($translations['immich_title'] ?? 'Immich photos'); ?></h3>
                             </div>
@@ -2630,7 +3361,7 @@ $metricButtons = [
                                 </div>
                             </div>
                             <p class="location-hint"><?php echo htmlspecialchars($translations['achievement_hint'] ?? 'Private milestones based only on your confirmed history. There is no leaderboard and nothing is shared publicly.'); ?></p>
-                            <label class="location-import-option"><input type="checkbox" id="achievements-enabled" checked> <span><?php echo htmlspecialchars($translations['achievement_enable'] ?? 'Enable achievements'); ?></span></label>
+                            <label class="location-import-option m3-checkbox-wrapper"><input type="checkbox" id="achievements-enabled" class="m3-checkbox-input" checked> <span class="m3-checkbox-box"><svg class="m3-checkbox-svg" viewBox="0 0 16 16"><polyline points="3.5 8.5 6.5 11.5 12.5 4.5"></polyline></svg></span><span><?php echo htmlspecialchars($translations['achievement_enable'] ?? 'Enable achievements'); ?></span></label>
                             <p id="achievements-status" class="location-status" role="status" aria-live="polite"></p>
                             <div id="achievements-bridge" class="achievement-bridge" hidden></div>
                             <div id="achievements-list" class="location-import-history"></div>
@@ -2888,13 +3619,22 @@ $metricButtons = [
                         </div>
                     </div>
                 </div>
+                </div>
+                </div>
+                </div>
+                <div class="md3-modal-foot">
+                    <button type="button" class="excel-btn" id="settings-md3-close"><?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?></button>
+                    <button type="button" class="excel-btn" id="settings-md3-save" style="background:var(--primary-color);color:#fff;"><?php echo htmlspecialchars($translations['save'] ?? 'Save Changes'); ?></button>
+                </div>
             </div>
         </div>
         
         <div id="day-steps-modal" style="display:none;">
             <div class="day-steps-content">
-                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                <div class="day-steps-title"><?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?></div>
+                <div class="md3-modal-head" style="padding:16px 24px;border-bottom:1px solid rgba(255,255,255,0.07);">
+                    <div class="day-steps-title"><?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?></div>
+                    <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+                </div>
                 <div class="day-steps-date" id="day-steps-date"></div>
                 <input type="text" id="day-steps-input" inputmode="numeric" placeholder="0" autocomplete="off" autocorrect="off" spellcheck="false" aria-label="<?php echo htmlspecialchars($translations['steps'] ?? 'Steps'); ?>">
                 <div class="day-steps-actions">
@@ -2906,8 +3646,17 @@ $metricButtons = [
 
         <div id="add-steps-modal" style="display:none;">
             <div class="add-steps-content add-steps-merged">
-                <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
-                <h2 class="add-steps-main-title"><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps']); ?></h2>
+                <div class="md3-modal-head">
+                    <div class="md3-modal-head-main">
+                        <div class="md3-modal-icon"><i class="fas fa-plus" aria-hidden="true"></i></div>
+                        <div>
+                            <h2><?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps']); ?></h2>
+                            <p><?php echo htmlspecialchars($translations['add_modal_subtitle'] ?? 'Enter daily steps manually or import ZIP exports'); ?></p>
+                        </div>
+                    </div>
+                    <button class="modal-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
+                </div>
+                <h2 class="add-steps-main-title" hidden><i class="fas fa-plus"></i> <?php echo htmlspecialchars($translations['add_action_tooltip'] ?? $translations['add_steps']); ?></h2>
                 <div class="add-tab-bar" role="tablist">
                     <button type="button" class="add-tab active" data-add-tab="manual" role="tab" aria-selected="true">
                         <i class="fas fa-keyboard"></i> <?php echo htmlspecialchars($translations['add_tab_manual'] ?? 'Manual'); ?>
@@ -2933,139 +3682,138 @@ $metricButtons = [
                     </form>
                 </div>
                 <div id="add-panel-video" class="add-tab-panel" role="tabpanel">
-                    <div class="video-analysis-content">
-                        <div class="va-head">
+                    <div class="zip-import-layout video-analysis-content">
+                        <div class="zip-import-head va-head">
                             <h2><i class="fas fa-file-archive"></i> <?php echo htmlspecialchars($translations['zeep_analysis'] ?? 'Zeep Life'); ?></h2>
                             <p class="va-sub"><?php echo htmlspecialchars($translations['zeep_hint'] ?? ''); ?></p>
                         </div>
-                        <div class="video-inline-scroll">
-                            <div class="va-grid">
-                                <div class="va-steps" id="zl-steps">
-                                    <div class="va-progress"><div class="va-progress-fill"></div></div>
-                                    <div class="va-steps-row">
-                                        <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
-                                        <span class="va-step-line"></span>
-                                        <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
-                                        <span class="va-step-line"></span>
-                                        <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
+                        <div class="va-steps zip-import-steps" id="zl-steps">
+                            <div class="va-progress"><div class="va-progress-fill"></div></div>
+                            <div class="va-steps-row">
+                                <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
+                                <span class="va-step-line"></span>
+                                <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
+                                <span class="va-step-line"></span>
+                                <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
+                            </div>
+                        </div>
+                        <div class="zip-import-stack va-grid">
+                            <section class="va-segment zip-import-card" data-step-section="1">
+                                <div class="va-segment-h"><i class="fas fa-file-zipper"></i> <?php echo htmlspecialchars($translations['zeep_zip_section'] ?? 'ZIP archive'); ?></div>
+                                <div class="va-field">
+                                    <label for="zl-zip"><?php echo htmlspecialchars($translations['zeep_zip_file_label'] ?? 'Archive file'); ?> (.zip)</label>
+                                    <input type="file" id="zl-zip" accept=".zip,application/zip" data-wizard-keep-enabled="1">
+                                </div>
+                                <div class="va-field">
+                                    <label for="zl-password"><?php echo htmlspecialchars($translations['zeep_password_label'] ?? 'Archive password'); ?></label>
+                                    <div class="zl-password-wrap">
+                                        <input type="password" id="zl-password" class="zl-secret-input" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" name="zeep_archive_password" data-wizard-keep-enabled="1" data-lpignore="true" data-1p-ignore data-form-type="other">
+                                        <button type="button" class="zl-password-toggle" id="zl-password-toggle" aria-label="<?php echo htmlspecialchars($translations['zeep_password_show'] ?? 'Show password'); ?>" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
                                     </div>
                                 </div>
-                                <section class="va-segment" data-step-section="1">
-                                    <div class="va-segment-h"><i class="fas fa-file-zipper"></i> <?php echo htmlspecialchars($translations['zeep_zip_section'] ?? 'ZIP archive'); ?></div>
-                                    <div class="va-field">
-                                        <label for="zl-zip"><?php echo htmlspecialchars($translations['zeep_zip_file_label'] ?? 'Archive file'); ?> (.zip)</label>
-                                        <input type="file" id="zl-zip" accept=".zip,application/zip" data-wizard-keep-enabled="1">
+                                <div class="video-btn-row zip-import-actions">
+                                    <button type="button" class="excel-btn" id="zl-next-step1" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['zeep_continue'] ?? 'Continue'); ?></button>
+                                </div>
+                            </section>
+                            <section class="va-segment zip-import-card" data-step-section="2" style="display:none;">
+                                <div class="va-segment-h"><i class="fas fa-circle-check"></i> <?php echo htmlspecialchars($translations['zeep_ready_section'] ?? 'Ready'); ?></div>
+                                <p class="va-sub zeep-ready-hint"><?php echo htmlspecialchars($translations['zeep_ready_hint'] ?? ''); ?></p>
+                                <div class="video-btn-row zip-import-actions">
+                                    <button type="button" class="excel-btn" id="zl-next" style="background:var(--primary-color);color:#fff;"><?php echo htmlspecialchars($translations['zeep_continue'] ?? 'Continue'); ?></button>
+                                </div>
+                            </section>
+                            <section class="va-segment zip-import-card" data-step-section="3" style="display:none;">
+                                <div class="va-segment-h"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($translations['video_section_actions'] ?? 'Actions'); ?></div>
+                                <div class="video-btn-row zip-import-actions">
+                                    <button type="button" class="excel-btn" id="zl-start" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['zeep_start'] ?? 'Import'); ?></button>
+                                </div>
+                            </section>
+                            <section class="va-segment zip-import-card" id="zl-job-panel" style="display:none;" aria-live="polite">
+                                <div class="va-segment-h"><i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['video_section_progress'] ?? 'Status'); ?></div>
+                                <p id="zl-msg">—</p>
+                                <div id="zl-progress-bar"><div id="zl-progress-fill"></div></div>
+                                <p id="zl-meta"></p>
+                                <div class="video-btn-row zip-import-actions"><button type="button" class="excel-btn worker-stop-btn" id="zl-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
+                            </section>
+                            <section class="zip-import-guide takeout-guide-segment" id="zeep-guide-segment" data-step-section="1">
+                                <button type="button" class="takeout-guide-card-btn" id="zeep-guide-open-btn">
+                                    <div class="takeout-guide-card-icon"><i class="fas fa-book-open"></i></div>
+                                    <div class="takeout-guide-card-text">
+                                        <strong><?php echo htmlspecialchars($translations['zeep_guide_title'] ?? 'How to export Zeep Life data'); ?></strong>
+                                        <span><?php echo htmlspecialchars($translations['zeep_guide_btn_sub'] ?? 'Step-by-step instruction with screenshots'); ?></span>
                                     </div>
-                                    <div class="va-field">
-                                        <label for="zl-password"><?php echo htmlspecialchars($translations['zeep_password_label'] ?? 'Archive password'); ?></label>
-                                        <div class="zl-password-wrap">
-                                            <input type="password" id="zl-password" class="zl-secret-input" autocomplete="off" autocapitalize="off" spellcheck="false" inputmode="text" name="zeep_archive_password" data-wizard-keep-enabled="1" data-lpignore="true" data-1p-ignore data-form-type="other">
-                                            <button type="button" class="zl-password-toggle" id="zl-password-toggle" aria-label="<?php echo htmlspecialchars($translations['zeep_password_show'] ?? 'Show password'); ?>" aria-pressed="false"><i class="fas fa-eye" aria-hidden="true"></i></button>
-                                        </div>
-                                    </div>
-                                    <div class="video-btn-row">
-                                        <button type="button" class="excel-btn" id="zl-next-step1" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['zeep_continue'] ?? 'Continue'); ?></button>
-                                    </div>
-                                </section>
-                                <section class="va-segment" data-step-section="2" style="display:none;">
-                                    <div class="va-segment-h"><i class="fas fa-circle-check"></i> <?php echo htmlspecialchars($translations['zeep_ready_section'] ?? 'Ready'); ?></div>
-                                    <p class="va-sub zeep-ready-hint"><?php echo htmlspecialchars($translations['zeep_ready_hint'] ?? ''); ?></p>
-                                    <div class="video-btn-row">
-                                        <button type="button" class="excel-btn" id="zl-next" style="background:var(--primary-color);color:#fff;"><?php echo htmlspecialchars($translations['zeep_continue'] ?? 'Continue'); ?></button>
-                                    </div>
-                                </section>
-                                <section class="va-segment" data-step-section="3" style="display:none;">
-                                    <div class="va-segment-h"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($translations['video_section_actions'] ?? 'Actions'); ?></div>
-                                    <div class="video-btn-row">
-                                        <button type="button" class="excel-btn" id="zl-start" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['zeep_start'] ?? 'Import'); ?></button>
-                                    </div>
-                                </section>
-                                <section class="va-segment" id="zl-job-panel" style="display:none;" aria-live="polite">
-                                    <div class="va-segment-h"><i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['video_section_progress'] ?? 'Status'); ?></div>
-                                    <p id="zl-msg">—</p>
-                                    <div id="zl-progress-bar"><div id="zl-progress-fill"></div></div>
-                                    <p id="zl-meta"></p>
-                                    <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="zl-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
-                                </section>
-                                <section class="va-segment takeout-guide-segment" id="zeep-guide-segment" data-step-section="1">
-                                    <button type="button" class="takeout-guide-card-btn" id="zeep-guide-open-btn">
-                                        <div class="takeout-guide-card-icon"><i class="fas fa-book-open"></i></div>
-                                        <div class="takeout-guide-card-text">
-                                            <strong><?php echo htmlspecialchars($translations['zeep_guide_title'] ?? 'How to export Zeep Life data'); ?></strong>
-                                            <span><?php echo htmlspecialchars($translations['zeep_guide_btn_sub'] ?? 'Step-by-step instruction with screenshots'); ?></span>
-                                        </div>
-                                        <i class="fas fa-chevron-right takeout-guide-card-arrow"></i>
-                                    </button>
-                                </section>
-                            </div>
+                                    <i class="fas fa-chevron-right takeout-guide-card-arrow"></i>
+                                </button>
+                            </section>
                         </div>
                     </div>
                 </div>
                 <div id="add-panel-takeout" class="add-tab-panel" role="tabpanel">
-                    <div class="video-analysis-content">
-                        <div class="va-head">
+                    <div class="zip-import-layout video-analysis-content">
+                        <div class="zip-import-head va-head">
                             <h2><i class="fas fa-file-archive"></i> <?php echo htmlspecialchars($translations['add_tab_fit'] ?? 'Takeout'); ?></h2>
                             <p class="va-sub takeout-hint"><?php echo htmlspecialchars($translations['takeout_hint'] ?? ''); ?></p>
                         </div>
-                        <div class="video-inline-scroll">
-                            <div class="va-grid">
-                                <div class="va-steps" id="ft-steps">
-                                    <div class="va-progress"><div class="va-progress-fill"></div></div>
-                                    <div class="va-steps-row">
-                                        <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
-                                        <span class="va-step-line"></span>
-                                        <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
-                                        <span class="va-step-line"></span>
-                                        <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
-                                    </div>
-                                </div>
-                                <section class="va-segment" data-step-section="1">
-                                    <div class="va-segment-h"><i class="fas fa-file-zipper"></i> <?php echo htmlspecialchars($translations['takeout_zip_section'] ?? 'ZIP archive'); ?></div>
-                                    <div class="va-field">
-                                        <label for="ft-zip"><?php echo htmlspecialchars($translations['takeout_zip_file_label'] ?? 'Archive file'); ?> (.zip)</label>
-                                        <input type="file" id="ft-zip" accept=".zip,application/zip">
-                                    </div>
-                                </section>
-                                <section class="va-segment" data-step-section="2" style="display:none;">
-                                    <div class="va-segment-h"><i class="fas fa-language"></i> <?php echo htmlspecialchars($translations['video_section_options'] ?? 'Recognition'); ?></div>
-                                    <div class="va-field">
-                                        <label for="ft-lang"><?php echo htmlspecialchars($translations['video_ocr_lang'] ?? 'OCR language'); ?></label>
-                                        <select id="ft-lang">
-                                            <option value="eng" <?php echo $stepsVideoOcrTess === 'eng' ? 'selected' : ''; ?>>English</option>
-                                            <option value="rus" <?php echo $stepsVideoOcrTess === 'rus' ? 'selected' : ''; ?>>Русский</option>
-                                            <option value="ukr" <?php echo $stepsVideoOcrTess === 'ukr' ? 'selected' : ''; ?>>Українська</option>
-                                            <option value="bel" <?php echo $stepsVideoOcrTess === 'bel' ? 'selected' : ''; ?>>Беларуская</option>
-                                        </select>
-                                    </div>
-                                    <div class="va-field">
-                                        <label for="ft-year"><?php echo htmlspecialchars($translations['video_year_label'] ?? 'Year'); ?></label>
-                                        <input type="text" id="ft-year" placeholder="-" value="-" autocomplete="off">
-                                    </div>
-                                </section>
-                                <section class="va-segment" data-step-section="3" style="display:none;">
-                                    <div class="va-segment-h"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($translations['video_section_actions'] ?? 'Actions'); ?></div>
-                                    <div class="video-btn-row">
-                                        <button type="button" class="excel-btn" id="ft-start" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['takeout_start'] ?? 'Import'); ?></button>
-                                    </div>
-                                </section>
-                                <section class="va-segment" id="ft-job-panel" style="display:none;" aria-live="polite">
-                                    <div class="va-segment-h"><i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['video_section_progress'] ?? 'Status'); ?></div>
-                                    <p id="ft-msg">—</p>
-                                    <div id="ft-progress-bar"><div id="ft-progress-fill"></div></div>
-                                    <p id="ft-meta"></p>
-                                    <div class="video-btn-row"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
-                                </section>
-                                <section class="va-segment takeout-guide-segment" id="takeout-guide-segment">
-                                    <button type="button" class="takeout-guide-card-btn" id="takeout-guide-open-btn">
-                                        <div class="takeout-guide-card-icon"><i class="fas fa-book-open"></i></div>
-                                        <div class="takeout-guide-card-text">
-                                            <strong><?php echo htmlspecialchars($translations['takeout_guide_title'] ?? 'How to create a Google Takeout archive'); ?></strong>
-                                            <span><?php echo htmlspecialchars($translations['takeout_guide_btn_sub'] ?? 'Step-by-step instruction with screenshots'); ?></span>
-                                        </div>
-                                        <i class="fas fa-chevron-right takeout-guide-card-arrow"></i>
-                                    </button>
-                                </section>
+                        <div class="va-steps zip-import-steps" id="ft-steps">
+                            <div class="va-progress"><div class="va-progress-fill"></div></div>
+                            <div class="va-steps-row">
+                                <button type="button" class="va-step-dot is-active" data-step-target="1">1</button>
+                                <span class="va-step-line"></span>
+                                <button type="button" class="va-step-dot" data-step-target="2" disabled>2</button>
+                                <span class="va-step-line"></span>
+                                <button type="button" class="va-step-dot" data-step-target="3" disabled>3</button>
                             </div>
+                        </div>
+                        <div class="zip-import-stack va-grid">
+                            <section class="va-segment zip-import-card" data-step-section="1">
+                                <div class="va-segment-h"><i class="fas fa-file-zipper"></i> <?php echo htmlspecialchars($translations['takeout_zip_section'] ?? 'ZIP archive'); ?></div>
+                                <div class="va-field">
+                                    <label for="ft-zip"><?php echo htmlspecialchars($translations['takeout_zip_file_label'] ?? 'Archive file'); ?> (.zip)</label>
+                                    <input type="file" id="ft-zip" accept=".zip,application/zip" data-wizard-keep-enabled="1">
+                                </div>
+                                <div class="video-btn-row zip-import-actions">
+                                    <button type="button" class="excel-btn" id="ft-next-step1" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['takeout_continue'] ?? $translations['zeep_continue'] ?? 'Continue'); ?></button>
+                                </div>
+                            </section>
+                            <section class="va-segment zip-import-card" data-step-section="2" style="display:none;">
+                                <div class="va-segment-h"><i class="fas fa-language"></i> <?php echo htmlspecialchars($translations['video_section_options'] ?? 'Recognition'); ?></div>
+                                <div class="va-field">
+                                    <label for="ft-lang"><?php echo htmlspecialchars($translations['video_ocr_lang'] ?? 'OCR language'); ?></label>
+                                    <select id="ft-lang">
+                                        <option value="eng" <?php echo $stepsVideoOcrTess === 'eng' ? 'selected' : ''; ?>>English</option>
+                                        <option value="rus" <?php echo $stepsVideoOcrTess === 'rus' ? 'selected' : ''; ?>>Русский</option>
+                                        <option value="ukr" <?php echo $stepsVideoOcrTess === 'ukr' ? 'selected' : ''; ?>>Українська</option>
+                                        <option value="bel" <?php echo $stepsVideoOcrTess === 'bel' ? 'selected' : ''; ?>>Беларуская</option>
+                                    </select>
+                                </div>
+                                <div class="va-field">
+                                    <label for="ft-year"><?php echo htmlspecialchars($translations['video_year_label'] ?? 'Year'); ?></label>
+                                    <input type="text" id="ft-year" placeholder="-" value="-" autocomplete="off">
+                                </div>
+                            </section>
+                            <section class="va-segment zip-import-card" data-step-section="3" style="display:none;">
+                                <div class="va-segment-h"><i class="fas fa-bolt"></i> <?php echo htmlspecialchars($translations['video_section_actions'] ?? 'Actions'); ?></div>
+                                <div class="video-btn-row zip-import-actions">
+                                    <button type="button" class="excel-btn" id="ft-start" style="background:var(--primary-color);color:#fff;" disabled><?php echo htmlspecialchars($translations['takeout_start'] ?? 'Import'); ?></button>
+                                </div>
+                            </section>
+                            <section class="va-segment zip-import-card" id="ft-job-panel" style="display:none;" aria-live="polite">
+                                <div class="va-segment-h"><i class="fas fa-chart-line"></i> <?php echo htmlspecialchars($translations['video_section_progress'] ?? 'Status'); ?></div>
+                                <p id="ft-msg">—</p>
+                                <div id="ft-progress-bar"><div id="ft-progress-fill"></div></div>
+                                <p id="ft-meta"></p>
+                                <div class="video-btn-row zip-import-actions"><button type="button" class="excel-btn worker-stop-btn" id="ft-stop"><?php echo htmlspecialchars($translations['stop'] ?? 'Stop'); ?></button></div>
+                            </section>
+                            <section class="zip-import-guide takeout-guide-segment" id="takeout-guide-segment" data-step-section="1">
+                                <button type="button" class="takeout-guide-card-btn" id="takeout-guide-open-btn">
+                                    <div class="takeout-guide-card-icon"><i class="fas fa-book-open"></i></div>
+                                    <div class="takeout-guide-card-text">
+                                        <strong><?php echo htmlspecialchars($translations['takeout_guide_title'] ?? 'How to create a Google Takeout archive'); ?></strong>
+                                        <span><?php echo htmlspecialchars($translations['takeout_guide_btn_sub'] ?? 'Step-by-step instruction with screenshots'); ?></span>
+                                    </div>
+                                    <i class="fas fa-chevron-right takeout-guide-card-arrow"></i>
+                                </button>
+                            </section>
                         </div>
                     </div>
                 </div>
@@ -3079,7 +3827,7 @@ $metricButtons = [
                         <span><?php echo htmlspecialchars($translations['back'] ?? 'Back'); ?></span>
                     </button>
                     <h2 class="guide-expand-title"><i class="fas fa-book-open"></i> <span id="guide-expand-title-text"></span></h2>
-                    <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+                    <button type="button" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 </div>
                 <div class="guide-expand-frame-wrap">
                     <iframe id="guide-expand-frame" name="steps-guide-expand" loading="lazy"></iframe>
@@ -3101,9 +3849,7 @@ $metricButtons = [
         <!-- Alert Modal -->
         <div id="alert-modal" style="display:none;">
             <div class="alert-content">
-                <button class="modal-close alert-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <i class="fas fa-xmark" style="font-size:18px" aria-hidden="true"></i>
-                </button>
+                <button class="modal-close alert-close" type="button" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 <div class="alert-header" id="alert-header">
                     <h3 class="alert-title" id="alert-title"></h3>
                     <p class="alert-subtitle" id="alert-subtitle"></p>
@@ -3123,9 +3869,7 @@ $metricButtons = [
         </div>
         <div id="video-confirm-modal" style="display:none;">
             <div class="video-confirm-inner excel-content">
-                <button class="modal-close" type="button" id="video-confirm-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <i class="fas fa-xmark" style="font-size:18px" aria-hidden="true"></i>
-                </button>
+                <button class="modal-close" type="button" id="video-confirm-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 <div style="display:flex;align-items:center;justify-content:flex-start;gap:10px;flex-wrap:wrap;margin-bottom:4px;max-width:100%;padding-right:48px;box-sizing:border-box;">
                     <button type="button" id="video-confirm-gaps-btn" class="excel-btn" style="display:none;flex-shrink:0;padding:8px 12px;background:#ffc107;color:#212529;align-self:flex-start;" title="<?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Missing days in range'); ?>" aria-label="<?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Gaps'); ?>"><i class="fas fa-exclamation-triangle"></i></button>
                     <h2 id="video-confirm-title" style="margin:0;flex:1;min-width:0;"><i class="fas fa-clipboard-list"></i> <?php echo htmlspecialchars($translations['video_confirm_title'] ?? 'Recognized steps'); ?></h2>
@@ -3167,9 +3911,7 @@ $metricButtons = [
         </div>
         <div id="video-confirm-gaps-modal" style="display:none;">
             <div class="video-confirm-gaps-inner excel-content">
-                <button class="modal-close" type="button" id="video-confirm-gaps-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>">
-                    <i class="fas fa-xmark" style="font-size:18px" aria-hidden="true"></i>
-                </button>
+                <button class="modal-close" type="button" id="video-confirm-gaps-close-x" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
                 <h2 style="margin-top:0;"><i class="fas fa-calendar-day"></i> <span id="video-confirm-gaps-heading"><?php echo htmlspecialchars($translations['video_gaps_title'] ?? 'Missing days'); ?></span></h2>
                 <p id="video-confirm-gaps-sub" style="text-align:left;font-size:14px;opacity:0.9;"><?php echo htmlspecialchars($translations['video_gaps_sub'] ?? 'Days between the first and last recognized date with no data. Enter steps, then apply.'); ?></p>
                 <div id="video-confirm-gaps-body" class="excel-table-container" style="max-height:50vh;overflow:auto;"></div>
@@ -3179,7 +3921,7 @@ $metricButtons = [
             </div>
         </div>
         <div id="global-image-viewer" aria-hidden="true">
-            <button type="button" id="global-image-viewer-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><i class="fas fa-xmark" aria-hidden="true"></i></button>
+            <button type="button" id="global-image-viewer-close" class="modal-close" aria-label="<?php echo htmlspecialchars($translations['close'] ?? 'Close'); ?>"><span class="material-symbols-rounded" aria-hidden="true">close</span></button>
             <img id="global-image-viewer-img" src="" alt="">
         </div>
 

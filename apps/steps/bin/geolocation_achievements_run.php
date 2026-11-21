@@ -9,6 +9,7 @@
  * imports, edits, deletions and preference changes. Every pass is bounded and
  * deterministic; disabled owners are skipped without touching stored rows.
  */
+require_once __DIR__ . '/worker_limits.php';
 require_once dirname(__DIR__, 3) . '/lib/app_db.php';
 require_once dirname(__DIR__) . '/core/geolocation_schema.php';
 require_once dirname(__DIR__) . '/core/geolocation_achievements.php';

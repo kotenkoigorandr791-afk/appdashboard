@@ -17,8 +17,10 @@ $geoEndpoint = strtolower((string)$sub);
 // public_api_bootstrap() and scopes all queries by the resolved owner.
 $geoEndpoints = [
     'geolocation', 'geolocation_map', 'geolocation_trips', 'geolocation_stops',
-    'geolocation_achievements', 'geolocation_quality', 'geolocation_matching',
-    'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics', 'geolocation_points',
+    'geolocation_achievements', 'geolocation_statistics', 'geolocation_quality', 'geolocation_matching',
+    'geolocation_search', 'geolocation_saved_views', 'geolocation_analytics', 'geolocation_points', 'geolocation_place_prefs',
+    'geolocation_place_photo',
+    'geolocation_exports', 'geolocation_export_download',
     'places', 'geofences', 'devices',
 ];
 if (in_array($geoEndpoint, $geoEndpoints, true)) {
@@ -45,6 +47,7 @@ if ($method === 'GET' && in_array(strtolower((string)$sub), ['version', 'apk'], 
             'size_bytes' => (int)($meta['size_bytes'] ?? 0),
             'built_at' => (int)($meta['built_at'] ?? 0),
             'apk_path' => '/api/steps/apk',
+            'release_notes' => array_values(array_filter((array)($meta['release_notes'] ?? []), 'is_string')),
         ], JSON_UNESCAPED_UNICODE));
     }
     $apkFile = APP_ROOT . '/downloads/stepmonitor.apk';

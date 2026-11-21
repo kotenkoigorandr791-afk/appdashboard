@@ -46,19 +46,31 @@ final class StepsGeolocationIngestion
                 return ['status' => 'duplicate', 'id' => (string)$knownId, 'client_event_id' => $event];
             }
             if (!empty($point['dedupe_nearby'])) {
+                // Points from the same import file are distinct samples of a
+                // track, even when consecutive samples are a few metres apart.
+                // Only points from other files/sources are nearby duplicates.
+                $sameFile = StepsGeolocationDomain::isUuid($importFileId)
+                    ? ' AND NOT EXISTS (
+                            SELECT 1 FROM geo_import_points same_file
+                             WHERE same_file.point_id = p.id AND same_file.user_email = :owner
+                               AND same_file.import_file_id = :file)'
+                    : '';
                 $nearby = $pdo->prepare(
-                    "SELECT id FROM geo_location_points
-                      WHERE user_email = :owner AND quality_state <> 'rejected'
-                        AND source_at BETWEEN :from AND :to
-                        AND ST_DWithin(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :radius)
-                   ORDER BY ST_Distance(position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) ASC
+                    "SELECT p.id FROM geo_location_points p
+                      WHERE p.user_email = :owner AND p.quality_state <> 'rejected'
+                        AND p.source_at BETWEEN :from AND :to
+                        AND ST_DWithin(p.position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography, :radius)"
+                    . $sameFile . "
+                   ORDER BY ST_Distance(p.position::geography, ST_SetSRID(ST_MakePoint(:lon, :lat), 4326)::geography) ASC
                       LIMIT 1"
                 );
                 $atTs = strtotime($at);
-                $nearby->execute([
+                $nearbyParams = [
                     ':owner' => $owner, ':from' => gmdate('c', $atTs - 30), ':to' => gmdate('c', $atTs + 30),
                     ':lon' => (float)$lon, ':lat' => (float)$lat, ':radius' => 25,
-                ]);
+                ];
+                if ($sameFile !== '') $nearbyParams[':file'] = $importFileId;
+                $nearby->execute($nearbyParams);
                 $nearbyId = $nearby->fetchColumn();
                 if ($nearbyId) {
                     self::linkSource($pdo, $owner, (string)$nearbyId, $namespace, $sourceEventId);
@@ -73,6 +85,7 @@ final class StepsGeolocationIngestion
         $appVersion = StepsGeolocationDomain::normalizeDeviceName((string)($point['app_version'] ?? ''));
         $pdo->beginTransaction();
         try {
+            $pdo->exec('SET LOCAL synchronous_commit = off');
             // The row lock makes a concurrent revoke wait, so a revoked device
             // can never slip a point in after the revoke was acknowledged.
             $lock = $pdo->prepare('SELECT status, name, platform, app_version FROM geo_devices WHERE user_email = :owner AND id = :device FOR UPDATE');
@@ -84,14 +97,13 @@ final class StepsGeolocationIngestion
                     $pdo->rollBack();
                     return ['status' => 'rejected', 'error' => $status === 'paused' ? 'device_paused' : 'device_revoked'];
                 }
-                $stmt = $pdo->prepare('UPDATE geo_devices SET name = :name, platform = :platform, app_version = :app_version, last_seen_at = now(), updated_at = now() WHERE user_email = :owner AND id = :device');
-                $stmt->execute([
-                    ':name' => $name !== '' ? $name : (string)$existingDevice['name'],
-                    ':platform' => $platform !== '' ? $platform : (string)$existingDevice['platform'],
-                    ':app_version' => $appVersion !== '' ? $appVersion : (string)$existingDevice['app_version'],
-                    ':owner' => $owner,
-                    ':device' => $device,
-                ]);
+                $newName = $name !== '' ? $name : (string)$existingDevice['name'];
+                $newPlatform = $platform !== '' ? $platform : (string)$existingDevice['platform'];
+                $newVersion = $appVersion !== '' ? $appVersion : (string)$existingDevice['app_version'];
+                if ($newName !== (string)$existingDevice['name'] || $newPlatform !== (string)$existingDevice['platform'] || $newVersion !== (string)$existingDevice['app_version']) {
+                    $stmt = $pdo->prepare('UPDATE geo_devices SET name = :name, platform = :platform, app_version = :app_version, updated_at = now() WHERE user_email = :owner AND id = :device');
+                    $stmt->execute([':name' => $newName, ':platform' => $newPlatform, ':app_version' => $newVersion, ':owner' => $owner, ':device' => $device]);
+                }
                 if ($source === 'mobile') {
                     $pdo->prepare(
                         "UPDATE geo_devices
@@ -157,9 +169,12 @@ final class StepsGeolocationIngestion
             }
             if ($id && $namespace !== '' && $sourceEventId !== '') self::linkSource($pdo, $owner, (string)$id, $namespace, $sourceEventId);
             if ($id && $importFileId !== '' && StepsGeolocationDomain::isUuid($importFileId)) self::linkImport($pdo, $owner, $importFileId, (string)$id);
-            if ($id) {
-                $touch = $pdo->prepare('UPDATE geo_devices SET last_upload_at = now(), last_seen_at = now() WHERE user_email = :owner AND id = :device');
-                $touch->execute([':owner' => $owner, ':device' => $device]);
+            if ($existingDevice || $id) {
+                $touch = $pdo->prepare('UPDATE geo_devices SET last_upload_at = CASE WHEN :inserted = 1 THEN now() ELSE last_upload_at END, last_seen_at = now() WHERE user_email = :owner AND id = :device');
+                $touch->bindValue(':inserted', $id ? 1 : 0, PDO::PARAM_INT);
+                $touch->bindValue(':owner', $owner);
+                $touch->bindValue(':device', $device);
+                $touch->execute();
             }
             $pdo->commit();
             if ($id) {

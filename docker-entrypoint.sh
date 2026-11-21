@@ -41,6 +41,17 @@ chmod 0775 /var/log/modsecurity 2>/dev/null || true
   printf 'max_file_uploads=20\n'
 } > /usr/local/etc/php/conf.d/appdashboard-upload.ini
 APP_ROOT=/var/www/AppDashboard
+# The code tree is a host bind mount on Docker Desktop (virtiofs). When that
+# filesystem daemon runs out of host descriptors every open() on the mount fails
+# with EMFILE and nginx answers 500. Keep a small container-local copy of the
+# public assets so nginx has something to serve during such an outage (see the
+# @project_static_fallback locations in nginx/appdashboard.conf.template).
+STATIC_FALLBACK_DIR=/var/www/static-fallback
+mkdir -p "$STATIC_FALLBACK_DIR/project" 2>/dev/null || true
+for _static_dir in assets onboarding; do
+  rm -rf "$STATIC_FALLBACK_DIR/project/$_static_dir" 2>/dev/null || true
+  cp -a "$APP_ROOT/project/$_static_dir" "$STATIC_FALLBACK_DIR/project/" 2>/dev/null || true
+done
 APPDATA_BASE_DIR="${APPDATA_BASE_DIR:-/opt/ApplicationData}"
 APPDATA_DATA_DIR="${APPDATA_DATA_DIR:-/opt/AppDashboard/data}"
 UPLOADS_BASE_DIR="${UPLOADS_BASE_DIR:-${APPDATA_BASE_DIR%/}/dashboard/uploads}"
@@ -67,10 +78,10 @@ chmod 0770 "$APPDATA_TMP_DIR" "$APPDATA_NGINX_TMP_DIR" 2>/dev/null || true
 sed -i 's|^listen = .*php[0-9.]*-fpm.sock|listen = /run/php/php-fpm.sock|' /usr/local/etc/php-fpm.d/docker.conf 2>/dev/null || true
 if [ -f /usr/local/etc/php-fpm.d/www.conf ]; then
   sed -i 's/^pm = .*/pm = dynamic/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-200}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-30}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-20}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
-  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-60}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_children = .*/pm.max_children = '"${PHP_FPM_MAX_CHILDREN:-48}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.start_servers = .*/pm.start_servers = '"${PHP_FPM_START_SERVERS:-24}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.min_spare_servers = .*/pm.min_spare_servers = '"${PHP_FPM_MIN_SPARE:-16}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
+  sed -i 's/^pm.max_spare_servers = .*/pm.max_spare_servers = '"${PHP_FPM_MAX_SPARE:-32}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   sed -i 's/^;\?pm.max_requests = .*/pm.max_requests = '"${PHP_FPM_MAX_REQUESTS:-500}"'/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
   grep -q '^pm.max_requests' /usr/local/etc/php-fpm.d/www.conf || printf '\npm.max_requests = %s\n' "${PHP_FPM_MAX_REQUESTS:-500}" >> /usr/local/etc/php-fpm.d/www.conf
   sed -i 's/^;\?listen.backlog = .*/listen.backlog = 4096/' /usr/local/etc/php-fpm.d/www.conf 2>/dev/null || true
@@ -186,31 +197,37 @@ chown -h www-data:www-data "$APP_ROOT/data" "$APP_ROOT/uploads" 2>/dev/null || t
 chmod -R u+rwX,g+rwX "$UPLOADS_BASE_DIR" 2>/dev/null || true
 chown www-data:www-data "$APPDATA_BASE_DIR" 2>/dev/null || true
 chmod 750 "$APPDATA_DATA_DIR" 2>/dev/null || true
-# MQTT credentials, ACL and the broker persistence file live on the APPDATA
-# volume so they survive container replacement and never land in the image.
-# Keep the broker config in sync with the bind-mounted source tree so paths do
-# not depend on an image rebuild.
+# MQTT: AppArmor on the host only allows mosquitto to read /etc/mosquitto and
+# /var/lib/mosquitto/mosquitto.db. APPDATA keeps durable mirrors across rebuilds.
 if [ -f /var/www/AppDashboard/deploy/mosquitto/smarthome.conf ]; then
   cp /var/www/AppDashboard/deploy/mosquitto/smarthome.conf /etc/mosquitto/conf.d/smarthome.conf
   chmod 0644 /etc/mosquitto/conf.d/smarthome.conf
 fi
-mkdir -p /etc/mosquitto "$APPDATA_MOSQUITTO_DIR"
-touch "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl"
-chown -R mosquitto:mosquitto "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
-chmod 0700 "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
-chmod 0600 "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl" 2>/dev/null || true
+mkdir -p /etc/mosquitto /var/lib/mosquitto /var/log/mosquitto "$APPDATA_MOSQUITTO_DIR"
 if [ -f /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-apps-appdata.sh /var/www/AppDashboard || true
 elif [ -f /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh ]; then
   sh /var/www/AppDashboard/deploy/scripts/ensure-spends-appdata.sh /var/www/AppDashboard/apps/spends || true
 fi
-# ensure-apps-appdata chowns the whole APPDATA tree to www-data; the broker runs
-# as the mosquitto user and needs its own credentials/state directory back.
+# ensure-apps-appdata chowns the whole APPDATA tree to www-data; restore the
+# broker mirror dir, then seed runtime paths AppArmor actually allows.
 mkdir -p "$APPDATA_MOSQUITTO_DIR"
-touch "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl"
 chown -R mosquitto:mosquitto "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
 chmod 0700 "$APPDATA_MOSQUITTO_DIR" 2>/dev/null || true
-chmod 0600 "$APPDATA_MOSQUITTO_DIR/smarthome.passwd" "$APPDATA_MOSQUITTO_DIR/smarthome.acl" 2>/dev/null || true
+for f in smarthome.passwd smarthome.acl; do
+  if [ -s "$APPDATA_MOSQUITTO_DIR/$f" ]; then
+    cp -a "$APPDATA_MOSQUITTO_DIR/$f" "/etc/mosquitto/$f"
+  else
+    touch "/etc/mosquitto/$f"
+  fi
+  chown mosquitto:mosquitto "/etc/mosquitto/$f" 2>/dev/null || true
+  chmod 0600 "/etc/mosquitto/$f" 2>/dev/null || true
+done
+if [ -s "$APPDATA_MOSQUITTO_DIR/mosquitto.db" ]; then
+  cp -a "$APPDATA_MOSQUITTO_DIR/mosquitto.db" /var/lib/mosquitto/mosquitto.db
+fi
+chown -R mosquitto:mosquitto /var/lib/mosquitto /var/log/mosquitto 2>/dev/null || true
+chmod 0755 /var/lib/mosquitto /var/log/mosquitto 2>/dev/null || true
 # Seed the bundled lopaka build only when the app directory is absent or
 # empty. A bind-mounted checkout must never be wiped: the previous guard keyed
 # off index.html, which the lopaka rewrite no longer ships, so it deleted the
@@ -243,11 +260,15 @@ if [ "${RUN_STARTUP_DEPS:-1}" = "1" ]; then
       needs_install=1
     fi
     [ "$needs_install" = "1" ] || return 0
+    # Only fix ownership of the tree that is about to be rewritten. The old
+    # unconditional chown -R over every vendor dir walked ~36k inodes on the
+    # virtiofs bind mount at each container start, which is exactly the kind of
+    # burst that pushes Docker Desktop's virtiofsd to its descriptor limit.
+    chown -R www-data:www-data "$dir/vendor" "$dir/composer.lock" 2>/dev/null || true
     su -s /bin/bash www-data -c "cd $dir && composer install --no-interaction --no-progress --no-dev --prefer-dist --optimize-autoloader"
   }
   {
   mkdir -p /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
-  chown -R www-data:www-data /var/www/AppDashboard/vendor /var/www/AppDashboard/webssh/vendor /var/www/AppDashboard/apps/cloud/vendor
   install_composer_deps /var/www/AppDashboard sentry/sentry
   install_composer_deps /var/www/AppDashboard pimple/pimple
   install_composer_deps /var/www/AppDashboard/webssh cboden/ratchet

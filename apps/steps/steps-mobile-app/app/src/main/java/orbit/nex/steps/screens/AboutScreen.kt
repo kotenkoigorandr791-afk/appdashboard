@@ -112,11 +112,15 @@ fun AboutScreen(modifier: Modifier = Modifier) {
     }
     var testingConn by remember { mutableStateOf(false) }
     var connResult by remember { mutableStateOf<Boolean?>(null) }
+    var connectionLatency by remember { mutableStateOf<Long?>(null) }
+    var confirmDisconnect by remember { mutableStateOf(false) }
     val updateChecker = remember { AppUpdateChecker(context) }
     var autoUpdate by remember { mutableStateOf(prefs.isAutoUpdateEnabled()) }
     var updateBusy by remember { mutableStateOf(false) }
     var updateStatus by remember { mutableStateOf<String?>(null) }
     var downloadedApk by remember { mutableStateOf(updateChecker.latestDownloaded()) }
+    var latestUpdate by remember { mutableStateOf<orbit.nex.steps.updates.UpdateInfo?>(null) }
+    var updateAvailable by remember { mutableStateOf(false) }
     var profile by remember { mutableStateOf(profileFromJson(prefs.getProfileCache(Long.MAX_VALUE)) ?: ServerProfile()) }
     var profilePhotoModel by remember {
         mutableStateOf(localAvatarFile(context).takeIf { it.exists() }?.absolutePath ?: profile.photo.takeIf { it.isNotBlank() })
@@ -130,7 +134,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         if (fetched.error == null) {
             // Download photo to local file for genuine offline caching
             if (fetched.photo.isNotBlank()) {
-                downloadAvatarFile(context, fetched.photo)
+                withContext(Dispatchers.IO) { downloadAvatarFile(context, fetched.photo) }
             }
             profile = fetched
             profilePhotoModel = localAvatarFile(context).takeIf { it.exists() }?.absolutePath
@@ -146,7 +150,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         Triple("data", Icons.Filled.Storage, R.string.settings_group_data),
         Triple("perms", Icons.Filled.Security, R.string.perms_title),
         Triple("location", Icons.Filled.LocationOn, R.string.settings_group_location),
-        Triple("points", Icons.Filled.Place, R.string.points_title),
+        Triple("points", Icons.Filled.ScatterPlot, R.string.points_title),
         Triple("look", Icons.Filled.Palette, R.string.settings_personalization),
         Triple("updates", Icons.Filled.Update, R.string.settings_update_title),
         Triple("logs", Icons.AutoMirrored.Filled.ListAlt, R.string.settings_logs_title),
@@ -168,6 +172,27 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
         item { Spacer(Modifier.height(Spacing.sm)) }
     }
+    if (confirmDisconnect) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmDisconnect = false },
+            icon = { Icon(Icons.Filled.LinkOff, contentDescription = null, tint = MaterialTheme.colorScheme.error) },
+            title = { Text(stringResource(R.string.account_disconnect_title)) },
+            text = { Text(stringResource(R.string.account_disconnect_desc)) },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                configs = emptyList()
+                prefs.setWebhookConfigs(emptyList())
+                prefs.clearConnectionEstablished()
+                prefs.clearServerDataCache()
+                localAvatarFile(context).delete()
+                status = context.getString(R.string.auth_waiting)
+                profile = ServerProfile()
+                profilePhotoModel = null
+                confirmDisconnect = false
+                open = null
+            }) { Text(stringResource(R.string.auth_disconnect), color = MaterialTheme.colorScheme.error) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmDisconnect = false }) { Text(stringResource(R.string.action_cancel)) } },
+        )
+    }
     val current = open
     val windowed = mapOf(
         "profile" to Intent(context, SettingsActivity::class.java).putExtra("section", SettingsSection.PROFILE.name),
@@ -185,9 +210,24 @@ fun AboutScreen(modifier: Modifier = Modifier) {
             Surface(
                 shape = MaterialTheme.shapes.large,
                 color = MaterialTheme.colorScheme.background,
-                modifier = Modifier.fillMaxWidth(0.96f).fillMaxHeight(0.92f),
+                modifier = Modifier.fillMaxWidth(if (current == "account") 1f else 0.96f).fillMaxHeight(if (current == "account") 1f else 0.92f),
             ) {
                 when (current) {
+                    "account" -> AccountDetails(
+                        profile = profile,
+                        photo = profilePhotoModel,
+                        connected = configs.any { it.isEnabled },
+                        connectedAt = prefs.getConnectionEstablishedAt(),
+                        syncs = prefs.getWebhookLogs().size,
+                        pending = orbit.nex.steps.location.LocationTrackingManager.pendingCount(context),
+                        testing = testingConn,
+                        result = connResult,
+                        latency = connectionLatency,
+                        onBack = dismiss,
+                        onTest = { scope.launch { testingConn = true; connResult = null; val start = android.os.SystemClock.elapsedRealtime(); connResult = testConnection(configs.firstOrNull { it.isEnabled }, prefs); connectionLatency = android.os.SystemClock.elapsedRealtime() - start; testingConn = false } },
+                        onDisconnect = { confirmDisconnect = true },
+                        prefs = prefs,
+                    )
                     "sync" -> SettingsScreen(onBack = dismiss, section = SettingsSection.SYNC)
                     "perms" -> SettingsScreen(onBack = dismiss, section = SettingsSection.PERMISSIONS)
                     else -> Column {
@@ -195,15 +235,37 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                             IconButton(onClick = dismiss) {
                                 Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd))
                             }
-                            Text(stringResource(if (current == "account") R.string.auth_title else R.string.settings_update_title), style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(if (current == "account") R.string.account_title else R.string.settings_update_title), style = MaterialTheme.typography.titleLarge, maxLines = 1)
                         }
-                        LazyColumn(Modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        LazyColumn(Modifier.fillMaxSize().padding(horizontal = Layout.screenPadding), verticalArrangement = Arrangement.spacedBy(Spacing.md), contentPadding = PaddingValues(top = Spacing.sm, bottom = Spacing.lg)) {
                             if (current == "account") {
         item {
             Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.auth_title), style = MaterialTheme.typography.titleMedium)
-                    Text(status, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                        if (profilePhotoModel != null) {
+                            AsyncImage(model = profilePhotoModel, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(52.dp).clip(CircleShape))
+                        } else {
+                            Icon(Icons.Filled.AccountCircle, contentDescription = null, modifier = Modifier.size(52.dp), tint = MaterialTheme.colorScheme.primary)
+                        }
+                        Column(Modifier.weight(1f)) {
+                            Text(profile.name.ifBlank { profile.email.ifBlank { stringResource(R.string.account_title) } }, style = MaterialTheme.typography.titleMedium)
+                            if (profile.email.isNotBlank() && profile.name.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
+                    }
+                    if (configs.any { it.isEnabled }) {
+                        val connectedAt = prefs.getConnectionEstablishedAt()
+                        Surface(shape = MaterialTheme.shapes.medium, color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                            Row(Modifier.padding(Spacing.md), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(Spacing.md)) {
+                                Icon(Icons.Filled.Event, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                                Column {
+                                    Text(stringResource(R.string.connection_date), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                    Text(if (connectedAt > 0) java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(connectedAt)) else stringResource(R.string.connection_date_unknown), style = MaterialTheme.typography.bodyMedium)
+                                }
+                            }
+                        }
+                    }
                     if (configs.any { it.isEnabled }) {
                         Button(
                             onClick = {
@@ -236,6 +298,7 @@ fun AboutScreen(modifier: Modifier = Modifier) {
                         OutlinedButton(onClick = {
                             configs = emptyList()
                             prefs.setWebhookConfigs(emptyList())
+                            prefs.clearConnectionEstablished()
                             prefs.clearServerDataCache()
                             localAvatarFile(context).delete()
                             status = context.getString(R.string.auth_waiting)
@@ -252,80 +315,57 @@ fun AboutScreen(modifier: Modifier = Modifier) {
         }
                             } else {
         item {
-            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(stringResource(R.string.settings_update_title), style = MaterialTheme.typography.titleMedium)
-                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(Icons.Filled.SystemUpdate, contentDescription = null, modifier = Modifier.size(32.dp))
                         Column(Modifier.weight(1f)) {
-                            Text(stringResource(R.string.settings_update_automatic))
-                            Text(
-                                stringResource(R.string.settings_update_automatic_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
+                            Text(context.getString(R.string.app_version_short, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(if (updateAvailable) context.getString(R.string.update_available_version, latestUpdate?.version_name.orEmpty()) else updateStatus ?: context.getString(R.string.update_check_button), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        Switch(
-                            checked = autoUpdate,
-                            onCheckedChange = {
-                                autoUpdate = it
-                                prefs.setAutoUpdateEnabled(it)
-                            },
-                        )
                     }
-                    Text(
-                        context.getString(R.string.app_version_short, BuildConfig.VERSION_NAME),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Button(
-                        onClick = {
-                            scope.launch {
-                                updateBusy = true
+                    Button(onClick = {
+                        scope.launch {
+                            updateBusy = true
+                            if (updateAvailable && latestUpdate != null) {
+                                updateStatus = context.getString(R.string.update_downloading)
+                                val file = updateChecker.downloadApk(latestUpdate!!)
+                                if (file != null) { downloadedApk = file; updateStatus = context.getString(R.string.update_downloaded_text, latestUpdate!!.version_name); updateChecker.install(file) }
+                                else updateStatus = context.getString(R.string.update_download_failed)
+                            } else {
                                 updateStatus = context.getString(R.string.update_checking)
                                 val check = updateChecker.checkForUpdate()
-                                when (check.outcome) {
-                                    CheckOutcome.NOT_CONNECTED -> updateStatus = context.getString(R.string.update_not_connected)
-                                    CheckOutcome.UP_TO_DATE -> updateStatus = context.getString(R.string.update_up_to_date)
-                                    CheckOutcome.ERROR -> updateStatus = context.getString(R.string.update_check_failed)
-                                    CheckOutcome.UPDATE_AVAILABLE -> {
-                                        val info = check.info
-                                        if (info == null) {
-                                            updateStatus = context.getString(R.string.update_check_failed)
-                                        } else {
-                                            updateStatus = context.getString(R.string.update_downloading)
-                                            val file = updateChecker.downloadApk(info)
-                                            if (file != null) {
-                                                downloadedApk = file
-                                                updateStatus = context.getString(R.string.update_downloaded_text, info.version_name)
-                                            } else {
-                                                updateStatus = context.getString(R.string.update_download_failed)
-                                            }
-                                        }
-                                    }
-                                }
-                                updateBusy = false
+                                latestUpdate = check.info
+                                updateAvailable = check.outcome == CheckOutcome.UPDATE_AVAILABLE && check.info != null
+                                updateStatus = context.getString(when (check.outcome) { CheckOutcome.NOT_CONNECTED -> R.string.update_not_connected; CheckOutcome.UP_TO_DATE -> R.string.update_up_to_date; CheckOutcome.ERROR -> R.string.update_check_failed; CheckOutcome.UPDATE_AVAILABLE -> R.string.update_check_button })
                             }
-                        },
-                        enabled = prefs.getWebhookConfigs().any { it.isEnabled } && !updateBusy,
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        if (updateBusy) {
-                            CircularProgressIndicator(modifier = Modifier.size(18.dp), strokeWidth = 2.dp, color = MaterialTheme.colorScheme.onPrimary)
-                            Spacer(Modifier.size(8.dp))
-                        } else {
-                            Icon(Icons.Filled.Update, contentDescription = null)
-                            Spacer(Modifier.size(8.dp))
+                            updateBusy = false
                         }
-                        Text(stringResource(R.string.update_check_button))
+                    }, enabled = prefs.getWebhookConfigs().any { it.isEnabled } && !updateBusy, modifier = Modifier.fillMaxWidth()) {
+                        if (updateBusy) CircularProgressIndicator(Modifier.size(18.dp), strokeWidth = 2.dp) else Icon(if (updateAvailable) Icons.Filled.Download else Icons.Filled.Update, contentDescription = null)
+                        Spacer(Modifier.size(8.dp))
+                        Text(stringResource(if (updateAvailable) R.string.update_download_install else R.string.update_check_button))
                     }
-                    downloadedApk?.let { file ->
-                        OutlinedButton(onClick = { updateChecker.install(file) }, modifier = Modifier.fillMaxWidth()) {
-                            Text(stringResource(R.string.update_install))
-                        }
-                    }
-                    updateStatus?.let { status ->
-                        Text(status, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
+                    downloadedApk?.let { file -> OutlinedButton(onClick = { updateChecker.install(file) }, modifier = Modifier.fillMaxWidth()) { Text(stringResource(R.string.update_install)) } }
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Row(Modifier.padding(Spacing.lg), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) { Text(stringResource(R.string.settings_update_automatic), style = MaterialTheme.typography.titleMedium); Text(stringResource(R.string.settings_update_automatic_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Switch(checked = autoUpdate, onCheckedChange = { autoUpdate = it; prefs.setAutoUpdateEnabled(it) })
+                }
+            }
+        }
+        item {
+            Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(Spacing.lg), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(stringResource(R.string.update_whats_new, latestUpdate?.version_name ?: BuildConfig.VERSION_NAME), style = MaterialTheme.typography.titleMedium)
+                    val notes = latestUpdate?.release_notes.orEmpty()
+                    if (notes.isEmpty()) Text(stringResource(R.string.update_notes_unavailable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    else notes.forEach { Text("•  $it", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                    Text(stringResource(R.string.update_source_build, latestUpdate?.version_code ?: BuildConfig.VERSION_CODE), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         }
@@ -347,8 +387,53 @@ private suspend fun testConnection(config: WebhookConfig?, prefs: PreferencesMan
         OkHttpClient().newCall(builder.build()).execute().use { response ->
             if (response.code == 401 || response.code == 403) prefs.markAuthError(response.code)
             if (!response.isSuccessful) error("HTTP ${response.code}")
-            prefs.markSyncSuccess()
             true
         }
     }.getOrDefault(false)
+}
+
+@Composable
+private fun AccountDetails(profile: ServerProfile, photo: String?, connected: Boolean, connectedAt: Long, syncs: Int, pending: Int, testing: Boolean, result: Boolean?, latency: Long?, onBack: () -> Unit, onTest: () -> Unit, onDisconnect: () -> Unit, prefs: PreferencesManager) {
+    val context = LocalContext.current
+    var points by remember { mutableStateOf<Int?>(null) }
+    LaunchedEffect(connected) {
+        val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled } ?: return@LaunchedEffect
+        val page = orbit.nex.steps.location.PointManagementRepository(prefs, context).loadPage(config, 0, null, null, null, null)
+        if (page.error == null) points = page.total
+    }
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.settings_back_cd)) }
+            Text(stringResource(R.string.account_title), style = MaterialTheme.typography.titleLarge)
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.fillMaxWidth().padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (photo != null) AsyncImage(model = photo, contentDescription = null, contentScale = ContentScale.Crop, modifier = Modifier.size(72.dp).clip(CircleShape))
+                else Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface, modifier = Modifier.size(72.dp)) { androidx.compose.foundation.layout.Box(contentAlignment = Alignment.Center) { Text(profile.name.split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.take(1).uppercase() }.ifBlank { "?" }, style = MaterialTheme.typography.titleLarge) } }
+                Text(profile.name.ifBlank { profile.email.ifBlank { stringResource(R.string.account_title) } }, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                if (profile.email.isNotBlank()) Text(profile.email, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Surface(shape = RoundedCornerShape(30.dp), color = MaterialTheme.colorScheme.surface, modifier = Modifier.fillMaxWidth()) {
+                    Text(if (connected) stringResource(R.string.account_connected_since, if (connectedAt > 0) java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM).format(java.util.Date(connectedAt)) else "—") else stringResource(R.string.account_status_disconnected), modifier = Modifier.padding(10.dp), textAlign = TextAlign.Center, style = MaterialTheme.typography.labelMedium)
+                }
+            }
+        }
+        Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(22.dp), modifier = Modifier.fillMaxWidth()) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(stringResource(R.string.account_server_connection), style = MaterialTheme.typography.titleSmall)
+                    Text(when (result) { true -> stringResource(R.string.account_reachable, latency ?: 0L); false -> stringResource(R.string.account_unreachable); null -> if (connected) stringResource(R.string.auth_connected) else stringResource(R.string.account_status_disconnected) }, style = MaterialTheme.typography.bodySmall, color = when (result) { true -> MaterialTheme.semantic.success; false -> MaterialTheme.colorScheme.error; null -> MaterialTheme.colorScheme.onSurfaceVariant })
+                }
+                FilledTonalButton(onClick = onTest, enabled = connected && !testing) { if (testing) CircularProgressIndicator(Modifier.size(16.dp), strokeWidth = 2.dp) else Text(stringResource(R.string.account_test)) }
+            }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(Triple(Icons.Filled.Sync, syncs.toString(), R.string.account_syncs), Triple(Icons.Filled.LocationOn, points?.let { java.text.NumberFormat.getIntegerInstance().format(it) } ?: "—", R.string.points_title), Triple(Icons.Filled.Schedule, pending.toString(), R.string.account_pending)).forEach { (icon, value, label) ->
+                Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant), shape = RoundedCornerShape(18.dp), modifier = Modifier.weight(1f)) {
+                    Column(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) { Icon(icon, null, Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant); Text(value, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold); Text(stringResource(label), style = MaterialTheme.typography.labelSmall, maxLines = 1) }
+                }
+            }
+        }
+        Spacer(Modifier.weight(1f))
+        if (connected) OutlinedButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error), shape = RoundedCornerShape(14.dp)) { Icon(Icons.Filled.LinkOff, null, Modifier.size(18.dp)); Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.account_disconnect)) }
+    }
 }

@@ -10,6 +10,10 @@
 final class StepsGeolocationMap
 {
     public const RAW_ZOOM = 13;
+    // Only states that hide a point from every view are filtered out. Pending
+    // and flagged points are still real records: a large import can stay in the
+    // quality queue for a while and must not disappear from the map meanwhile.
+    private const VISIBLE_QUALITY = "quality_state NOT IN ('rejected','excluded_by_user','private_redacted')";
     public const MAX_POINTS = 500;
     public const MAX_SPAN_DEG = 90.0;
 
@@ -98,11 +102,18 @@ final class StepsGeolocationMap
     {
         $stmt = $pdo->prepare(
             "SELECT ST_XMin(extent) AS min_lon, ST_YMin(extent) AS min_lat, ST_XMax(extent) AS max_lon, ST_YMax(extent) AS max_lat
-               FROM (SELECT ST_Extent(position) AS extent FROM geo_location_points
-                      WHERE user_email = :owner AND source_at BETWEEN :from AND :to AND quality_state = 'accepted') s
+               FROM (
+                    SELECT ST_Extent(position) AS extent FROM (
+                        SELECT position FROM geo_location_points
+                         WHERE user_email = :owner AND source_at BETWEEN :from AND :to AND " . self::VISIBLE_QUALITY . "
+                        UNION ALL
+                        SELECT s.position FROM geo_stops s
+                         WHERE s.user_email = :owner2 AND s.started_at <= :to2 AND COALESCE(s.ended_at, s.started_at) >= :from2 AND s.deleted_at IS NULL
+                    ) pts
+               ) s
               WHERE extent IS NOT NULL"
         );
-        $stmt->execute([':owner' => $owner, ':from' => $from, ':to' => $to]);
+        $stmt->execute([':owner' => $owner, ':owner2' => $owner, ':from' => $from, ':to' => $to, ':from2' => $from, ':to2' => $to]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         if (!$row) return null;
         $pad = 0.01;
@@ -380,36 +391,68 @@ final class StepsGeolocationMap
             }
 
             if (in_array('visits', $layers, true)) {
+                require_once __DIR__ . '/geolocation_place_photos.php';
                 $stmt = $pdo->prepare(
-                    "SELECT v.id, v.arrived_at, v.departed_at, v.confidence, p.name AS place_name, p.tag AS place_tag,
-                            round(ST_Y(s.position)::numeric, $precision) AS lat,
-                            round(ST_X(s.position)::numeric, $precision) AS lon
+                    "SELECT v.id, v.arrived_at, v.departed_at, v.confidence, v.place_id, v.osm_type, v.osm_id, v.display_name, v.category, v.address, v.detection_status,
+                            p.name AS place_name, p.tag AS place_tag,
+                            ph.status AS photo_status, ph.attribution AS photo_attribution,
+                            round(ST_Y(COALESCE(op.position, s.position))::numeric, $precision) AS lat,
+                            round(ST_X(COALESCE(op.position, s.position))::numeric, $precision) AS lon
                        FROM geo_visits v
                        LEFT JOIN geo_places p ON p.id = v.place_id
                        LEFT JOIN geo_stops s ON s.id = v.stop_id
+                       LEFT JOIN geo_osm_places op ON op.osm_type = v.osm_type AND op.osm_id = v.osm_id
+                       LEFT JOIN geo_osm_place_photos ph ON ph.osm_type = v.osm_type AND ph.osm_id = v.osm_id
                       WHERE v.user_email = :owner AND s.position IS NOT NULL
-                        AND s.position && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
+                        AND COALESCE(op.position, s.position) && ST_MakeEnvelope(:minLon, :minLat, :maxLon, :maxLat, 4326)
                         AND v.arrived_at BETWEEN :from AND :to
-                   ORDER BY v.arrived_at DESC LIMIT 200"
+                   ORDER BY v.arrived_at DESC LIMIT 400"
                 );
                 $stmt->execute([':owner' => $owner, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat'], ':from' => $from, ':to' => $to]);
                 $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+                $groups = [];
                 foreach ($rows as $row) {
+                    $key = $row['place_id'] ? 'p:' . $row['place_id'] : ($row['osm_id'] !== null ? 'o:' . $row['osm_type'] . ':' . $row['osm_id'] : 'v:' . $row['id']);
+                    if (!isset($groups[$key])) {
+                        $groups[$key] = $row + ['visit_count' => 0, 'dwell_s' => 0, 'visit_ids' => []];
+                    }
+                    $groups[$key]['visit_count']++;
+                    if (count($groups[$key]['visit_ids']) < 20) $groups[$key]['visit_ids'][] = (string)$row['id'];
+                    $end = $row['departed_at'] !== null ? strtotime((string)$row['departed_at']) : strtotime((string)$row['arrived_at']);
+                    $groups[$key]['dwell_s'] += max(0, $end - strtotime((string)$row['arrived_at']));
+                }
+                foreach ($groups as $key => $row) {
+                    $name = (string)($row['display_name'] !== '' ? $row['display_name'] : ($row['place_name'] ?? ''));
+                    $photoUrl = null;
+                    if (($row['photo_status'] ?? '') === 'ready' && $row['osm_id'] !== null && $row['osm_type']) {
+                        $photoUrl = StepsGeolocationPlacePhotos::publicUrl((string)$row['osm_type'], (int)$row['osm_id']);
+                    }
                     $features[] = [
                         'type' => 'Feature',
                         'geometry' => ['type' => 'Point', 'coordinates' => [(float)$row['lon'], (float)$row['lat']]],
                         'properties' => [
                             'layer' => 'visit',
                             'id' => (string)$row['id'],
-                            'place_name' => (string)($row['place_name'] ?? ''),
+                            'place_key' => $key,
+                            'place_name' => $name,
                             'place_tag' => (string)($row['place_tag'] ?? ''),
+                            'category' => (string)$row['category'],
+                            'address' => (string)$row['address'],
+                            'detection_status' => (string)$row['detection_status'],
+                            'visit_count' => (int)$row['visit_count'],
+                            'dwell_s' => (int)$row['dwell_s'],
+                            'visit_ids' => $row['visit_ids'],
                             'arrived_at' => $row['arrived_at'],
                             'departed_at' => $row['departed_at'],
                             'confidence' => $row['confidence'] !== null ? (float)$row['confidence'] : null,
+                            'osm_type' => $row['osm_type'],
+                            'osm_id' => $row['osm_id'] !== null ? (int)$row['osm_id'] : null,
+                            'photo_url' => $photoUrl,
+                            'photo_attribution' => (string)($row['photo_attribution'] ?? ''),
                         ],
                     ];
                 }
-                $meta['counts']['visits'] = count($rows);
+                $meta['counts']['visits'] = count($groups);
             }
         }
 
@@ -420,7 +463,7 @@ final class StepsGeolocationMap
                             round(ST_X(ST_Centroid(ST_Collect(position)))::numeric, $precision) AS lon,
                             COUNT(*) AS total
                        FROM geo_location_points
-                      WHERE $where AND quality_state = 'accepted'
+                      WHERE $where AND " . self::VISIBLE_QUALITY . "
                    GROUP BY ST_SnapToGrid(position, $cell)
                    ORDER BY total DESC LIMIT $limit"
                 );
@@ -442,7 +485,7 @@ final class StepsGeolocationMap
                                round(ST_Y(position)::numeric, $precision) AS lat,
                                round(ST_X(position)::numeric, $precision) AS lon
                           FROM geo_location_points
-                         WHERE $where AND quality_state NOT IN ('rejected','excluded_by_user','private_redacted')"
+                         WHERE $where AND " . self::VISIBLE_QUALITY
                     . ($cursorAt !== '' && $cursorId !== '' ? ' AND (source_at, id) > (:cursor_at, :cursor_id)' : '')
                     . " ORDER BY source_at ASC, id ASC LIMIT " . ($limit + 1);
                 $pointParams = $params;
@@ -486,7 +529,7 @@ final class StepsGeolocationMap
             // Heat is a density overlay: a street walked once is already drawn by
             // the trip track, so only cells passed by two or more separate routes
             // are returned. Otherwise heat just hides the underlying track.
-            $heatMinWeight = 2;
+            $heatMinWeight = 1;
             $segParams = [':owner' => $owner, ':from' => $from, ':to' => $to, ':minLon' => $bbox['minLon'], ':minLat' => $bbox['minLat'], ':maxLon' => $bbox['maxLon'], ':maxLat' => $bbox['maxLat']];
             if ($device !== '') $segParams[':device'] = $device;
             $pointSql = self::trackCte($device !== '') . ", segs AS (

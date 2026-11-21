@@ -12,6 +12,8 @@ const ocrT=ocrI18n[currentLang]||ocrI18n.en;
 let expensesData = <?= json_encode($allStoresExpenses ?? [], $jsonFlags) ?: '{}' ?>;
 let incomesData  = <?= json_encode($allIncomes ?? [], $jsonFlags) ?: '{}' ?>;
 let allDates     = <?= json_encode($allDates ?? [], $jsonFlags) ?: '[]' ?>;
+// {date: {store: {source: 'manual'|'ocr'|..., note: 'raw notification'}}}
+let expenseActivityMeta = <?= json_encode($expenseActivityMeta ?? [], $jsonFlags) ?: '{}' ?>;
 let userSettings = <?= json_encode($userSettings, $jsonFlags) ?: '{}' ?>;
 let currentUser  = <?= json_encode($currentUser, $jsonFlags) ?: '""' ?>;
 const currentUserFolder = <?= json_encode($currentUserFolder, $jsonFlags) ?: '""' ?>;
@@ -30,6 +32,7 @@ let pendingDelete = { type:'', id:'', name:'' };
 let pendingConfirmAction=null;
 let inputPromptResolver=null;
 let totalRowsDB   = <?= (int)$totalRows ?>;
+let tablePageInfo = { page: <?= (int)($tablePage ?? 1) ?>, perPage: <?= (int)($tablePerPage ?? 20) ?>, total: <?= (int)($totalRows ?? 0) ?>, totalPages: <?= (int)($tableTotalPages ?? 1) ?> };
 const tableYearMin = <?= (int)($tableMinYear ?? date('Y')) ?>;
 const tableYearMax = <?= (int)($tableMaxYear ?? date('Y')) ?>;
 let pendingScrollDate = null;
@@ -51,7 +54,7 @@ function updateFinancialSummary(){
 
 // ══ Modal helpers ═══════════════════════════════════════════════════════════
 function syncModalBodyState(){document.body.classList.toggle('modal-open',!!document.querySelector('.modal[style*="display: flex"]'));}
-function setupModalChrome(){document.querySelectorAll('.modal-content').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
+function setupModalChrome(){document.querySelectorAll('.modal-content:not(.tx-sheet):not(.history-sheet)').forEach(content=>{if(content.querySelector(':scope > .modal-topbar'))return;const close=content.querySelector(':scope > .modal-close'),title=Array.from(content.children).find(el=>/H[23]/.test(el.tagName)),topbar=document.createElement('div'),label=title||document.createElement('div'),body=document.createElement('div');topbar.className='modal-topbar';label.classList.add('modal-topbar-title');body.className='modal-body';topbar.appendChild(label);if(close)topbar.appendChild(close);Array.from(content.childNodes).forEach(node=>{if(node!==topbar&&node!==close&&node!==label)body.appendChild(node);});content.appendChild(topbar);content.appendChild(body);});}
 function showModal(id) { setupModalChrome(); document.getElementById(id).style.display='flex'; syncModalBodyState(); }
 function closeModal(id) { document.getElementById(id).style.display='none'; syncModalBodyState(); }
 function confirmWithModal(message,action,confirmLabel=t('delete','Delete')){
@@ -83,6 +86,590 @@ function resolveInputPrompt(value){
     if(resolve)resolve(value==null?null:String(value));
 }
 
+// ══ Custom dropdowns (every native select) ═════════════════════════════════
+// The concept renders dropdowns as a button plus a menu, so every <select> in
+// the app is replaced by that component while the native element stays in the
+// DOM as the single source of truth for form submits and existing listeners.
+const CS_PAGE_SIZE = 8;
+const CS_SVG_NS = 'http://www.w3.org/2000/svg';
+
+function csShouldSkip(select) {
+    return !select || select.multiple || select.hidden
+        || select.getAttribute('aria-hidden') === 'true'
+        || select.dataset.nativeSelect === '1';
+}
+
+function csOptions(select) {
+    return Array.from(select.options);
+}
+
+function csSync(select) {
+    const ui = select._cs;
+    if (!ui) return;
+    const selected = select.selectedOptions[0];
+    ui.label.textContent = selected ? selected.textContent.trim() : '';
+    ui.trigger.disabled = select.disabled;
+    ui.trigger.setAttribute('aria-label', selected ? selected.textContent.trim() : '');
+}
+
+function csCloseOthers(keep) {
+    document.querySelectorAll('.cs-select.is-open').forEach(wrap => {
+        if (wrap === keep) return;
+        wrap.classList.remove('is-open');
+        const menu = wrap._csMenu;
+        const trigger = wrap.querySelector('.cs-trigger');
+        if (menu) menu.hidden = true;
+        if (trigger) trigger.setAttribute('aria-expanded', 'false');
+    });
+}
+
+function csChoose(select, value) {
+    if (select.value === value) { select._cs.close(); return; }
+    select.value = value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    csSync(select);
+    select._cs.close();
+    select._cs.trigger.focus();
+}
+
+function enhanceSelect(select) {
+    if (!select || select.dataset.csReady === '1' || csShouldSkip(select)) return;
+    select.dataset.csReady = '1';
+    const wrap = document.createElement('span');
+    wrap.className = 'cs-select' + (select.classList.contains('manual-cal-select') ? ' cs-inline' : '');
+    select.parentNode.insertBefore(wrap, select);
+    wrap.appendChild(select);
+    select.classList.add('cs-native');
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'cs-trigger';
+    trigger.setAttribute('aria-haspopup', 'listbox');
+    trigger.setAttribute('aria-expanded', 'false');
+    const label = document.createElement('span');
+    label.className = 'cs-label';
+    const chevron = document.createElementNS(CS_SVG_NS, 'svg');
+    chevron.setAttribute('viewBox', '0 0 24 24');
+    chevron.setAttribute('class', 'cs-chevron');
+    chevron.setAttribute('aria-hidden', 'true');
+    const polyline = document.createElementNS(CS_SVG_NS, 'polyline');
+    polyline.setAttribute('points', '6 9 12 15 18 9');
+    polyline.setAttribute('fill', 'none');
+    polyline.setAttribute('stroke', 'currentColor');
+    polyline.setAttribute('stroke-width', '2');
+    polyline.setAttribute('stroke-linecap', 'round');
+    polyline.setAttribute('stroke-linejoin', 'round');
+    chevron.appendChild(polyline);
+    trigger.append(label, chevron);
+
+    const menu = document.createElement('div');
+    menu.className = 'cs-menu';
+    menu.hidden = true;
+    const list = document.createElement('div');
+    list.className = 'cs-list';
+    list.setAttribute('role', 'listbox');
+    const pager = document.createElement('div');
+    pager.className = 'cs-pager';
+    pager.hidden = true;
+    menu.append(list, pager);
+    wrap.append(trigger);
+    // The menu lives on <body>: a modal with backdrop-filter becomes the
+    // containing block for position:fixed, which would offset the menu.
+    document.body.appendChild(menu);
+
+    const ui = {
+        wrap, trigger, label, menu, list, pager, page: 0,
+        open() {
+            csCloseOthers(wrap);
+            const options = csOptions(select);
+            const selectedIndex = options.findIndex(option => option.value === select.value);
+            ui.page = selectedIndex >= 0 ? Math.floor(selectedIndex / CS_PAGE_SIZE) : 0;
+            wrap.classList.add('is-open');
+            trigger.setAttribute('aria-expanded', 'true');
+            menu.hidden = false;
+            ui.render(selectedIndex);
+            ui.position();
+            // Fonts and scrollbars settle one frame later; re-measure then.
+            requestAnimationFrame(() => { if (wrap.classList.contains('is-open')) ui.position(); });
+            const active = list.querySelector('.cs-option.is-active');
+            if (active) active.focus({ preventScroll: true }); else trigger.focus();
+        },
+        position() {
+            const rect = trigger.getBoundingClientRect();
+            const margin = 8;
+            const preferred = Math.min(280, window.innerHeight * 0.46);
+            const spaceBelow = window.innerHeight - rect.bottom - margin;
+            const spaceAbove = rect.top - margin;
+            const openUp = spaceBelow < Math.min(180, preferred) && spaceAbove > spaceBelow;
+            const available = Math.max(140, openUp ? spaceAbove : spaceBelow);
+            menu.style.maxHeight = Math.min(preferred, available) + 'px';
+            menu.style.width = rect.width + 'px';
+            menu.style.left = Math.max(margin, Math.min(rect.left, window.innerWidth - rect.width - margin)) + 'px';
+            menu.style.top = openUp
+                ? Math.max(margin, rect.top - Math.min(menu.offsetHeight || preferred, available) - 6) + 'px'
+                : (rect.bottom + 6) + 'px';
+        },
+        close() {
+            wrap.classList.remove('is-open');
+            trigger.setAttribute('aria-expanded', 'false');
+            menu.hidden = true;
+        },
+        render(focusIndex) {
+            const options = csOptions(select);
+            const pageCount = Math.max(1, Math.ceil(options.length / CS_PAGE_SIZE));
+            ui.page = Math.max(0, Math.min(ui.page, pageCount - 1));
+            const start = ui.page * CS_PAGE_SIZE;
+            list.replaceChildren();
+            if (!options.length) {
+                const empty = document.createElement('div');
+                empty.className = 'cs-empty';
+                empty.textContent = t('no_data', 'No data');
+                list.appendChild(empty);
+            }
+            options.slice(start, start + CS_PAGE_SIZE).forEach((option, index) => {
+                const item = document.createElement('button');
+                item.type = 'button';
+                item.className = 'cs-option';
+                item.setAttribute('role', 'option');
+                item.setAttribute('aria-selected', option.value === select.value ? 'true' : 'false');
+                if (option.disabled) item.disabled = true;
+                const text = document.createElement('span');
+                text.className = 'cs-option-label';
+                text.textContent = option.textContent.trim();
+                item.appendChild(text);
+                if (option.value === select.value) {
+                    const dot = document.createElement('span');
+                    dot.className = 'cs-option-dot';
+                    item.appendChild(dot);
+                }
+                item.onclick = () => csChoose(select, option.value);
+                if (focusIndex !== undefined && start + index === focusIndex) item.classList.add('is-active');
+                list.appendChild(item);
+            });
+            pager.hidden = pageCount <= 1;
+            if (pageCount > 1) {
+                pager.replaceChildren();
+                const previous = document.createElement('button');
+                previous.type = 'button';
+                previous.textContent = '‹';
+                previous.setAttribute('aria-label', t('settings_previous', 'Previous page'));
+                previous.disabled = ui.page === 0;
+                previous.onclick = () => { ui.page--; ui.render(); };
+                const status = document.createElement('span');
+                status.className = 'cs-pager-status';
+                status.textContent = t('settings_page', '%1$d of %2$d')
+                    .replace('%1$d', String(ui.page + 1)).replace('%2$d', String(pageCount));
+                const next = document.createElement('button');
+                next.type = 'button';
+                next.textContent = '›';
+                next.setAttribute('aria-label', t('settings_next', 'Next page'));
+                next.disabled = ui.page === pageCount - 1;
+                next.onclick = () => { ui.page++; ui.render(); };
+                pager.append(previous, status, next);
+            }
+        },
+        move(delta) {
+            const options = csOptions(select);
+            if (!options.length) return;
+            const items = Array.from(list.querySelectorAll('.cs-option:not(:disabled)'));
+            if (!items.length) return;
+            const current = items.indexOf(document.activeElement);
+            const nextIndex = Math.max(0, Math.min(items.length - 1, current + delta));
+            items[nextIndex].focus();
+        }
+    };
+    select._cs = ui;
+    wrap._csMenu = menu;
+    csSync(select);
+
+    trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        if (wrap.classList.contains('is-open')) ui.close(); else ui.open();
+    });
+    trigger.addEventListener('keydown', event => {
+        if (['ArrowDown', 'ArrowUp', 'Enter', ' '].includes(event.key)) {
+            event.preventDefault();
+            ui.open();
+        }
+    });
+    menu.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            // Escape closes the list, not the modal behind it.
+            event.preventDefault();
+            event.stopPropagation();
+            ui.close();
+            trigger.focus();
+        }
+        else if (event.key === 'ArrowDown') { event.preventDefault(); ui.move(1); }
+        else if (event.key === 'ArrowUp') { event.preventDefault(); ui.move(-1); }
+        else if (event.key === 'PageDown') { event.preventDefault(); ui.page++; ui.render(); }
+        else if (event.key === 'PageUp') { event.preventDefault(); ui.page--; ui.render(); }
+        else if (event.key === 'Home' || event.key === 'End') {
+            event.preventDefault();
+            const items = Array.from(list.querySelectorAll('.cs-option:not(:disabled)'));
+            if (items.length) items[event.key === 'Home' ? 0 : items.length - 1].focus();
+        }
+    });
+    select.addEventListener('change', () => csSync(select));
+    // Options are filled by other code (stores, currencies, analytics), so the
+    // trigger label follows the native element instead of caching the text.
+    new MutationObserver(() => csSync(select)).observe(select, { childList: true, subtree: true, characterData: true });
+}
+
+function enhanceAllSelects(root) {
+    const scope = root || document;
+    if (scope.tagName === 'SELECT') enhanceSelect(scope);
+    (scope.querySelectorAll ? scope.querySelectorAll('select') : []).forEach(enhanceSelect);
+}
+
+window.syncCustomSelects = function () {
+    enhanceAllSelects(document);
+    document.querySelectorAll('select[data-cs-ready="1"]').forEach(csSync);
+};
+
+function initCustomSelects() {
+    enhanceAllSelects(document);
+    new MutationObserver(mutations => {
+        mutations.forEach(mutation => {
+            mutation.addedNodes.forEach(node => {
+                if (node.nodeType === 1) enhanceAllSelects(node);
+            });
+        });
+    }).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('mousedown', event => {
+        if (!event.target.closest('.cs-select') && !event.target.closest('.cs-menu')) csCloseOthers(null);
+    }, true);
+    // A fixed-position menu cannot follow a scroll, so any scroll closes it.
+    window.addEventListener('scroll', event => {
+        if (event.target instanceof Element && event.target.closest && event.target.closest('.cs-menu')) return;
+        csCloseOthers(null);
+    }, true);
+    window.addEventListener('resize', () => csCloseOthers(null));
+}
+
+// ══ Custom calendar field ══════════════════════════════════════════════════
+// Every <input type="date"> is replaced by a styled trigger plus a month grid,
+// so the native browser popup (which cannot be themed) never shows. The native
+// input stays in the DOM as the value holder for forms and existing handlers.
+const CAL_SVG_NS = 'http://www.w3.org/2000/svg';
+let openCalendar = null;
+
+function calYmd(date) {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+function calParse(value) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(value || '')) return null;
+    const [y, m, d] = value.split('-').map(Number);
+    const date = new Date(y, m - 1, d);
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+function calFormat(input, date) {
+    if (!date) return '';
+    try {
+        return new Intl.DateTimeFormat(currentLang || 'en', { day: '2-digit', month: 'short', year: 'numeric' }).format(date);
+    } catch (_) {
+        return calYmd(date);
+    }
+}
+function calBounds(input) {
+    const min = calParse(input.min);
+    const max = calParse(input.max);
+    return { min, max };
+}
+function calLabelFor(input) {
+    const date = calParse(input.value);
+    return calFormat(input, date);
+}
+
+function closeCalendar() {
+    if (!openCalendar) return;
+    openCalendar.pop.hidden = true;
+    openCalendar.input.closest('.cal-field-wrap')?.classList.remove('is-open');
+    openCalendar = null;
+}
+function csCloseForCalendar() {
+    if (typeof csCloseOthers === 'function') csCloseOthers(null);
+}
+
+function enhanceDateField(input) {
+    if (!input || input.dataset.calReady === '1' || input.dataset.nativeDate === '1') return;
+    if (input.closest('#data-table')) return;
+    input.dataset.calReady = '1';
+
+    const wrap = document.createElement('span');
+    wrap.className = 'cal-field-wrap';
+    input.parentNode.insertBefore(wrap, input);
+    wrap.appendChild(input);
+    input.classList.add('cal-native');
+    if (!input.type) input.type = 'date';
+
+    const trigger = document.createElement('button');
+    trigger.type = 'button';
+    trigger.className = 'cal-trigger';
+    trigger.setAttribute('aria-haspopup', 'dialog');
+    const label = document.createElement('span');
+    label.className = 'cal-label';
+    const icon = document.createElementNS(CAL_SVG_NS, 'svg');
+    icon.setAttribute('viewBox', '0 0 24 24');
+    icon.setAttribute('class', 'cal-icon');
+    icon.setAttribute('aria-hidden', 'true');
+    icon.setAttribute('fill', 'none');
+    icon.setAttribute('stroke', 'currentColor');
+    icon.setAttribute('stroke-width', '2');
+    icon.setAttribute('stroke-linecap', 'round');
+    icon.setAttribute('stroke-linejoin', 'round');
+    [['rect', { x: 3, y: 4.5, width: 18, height: 17, rx: 2.5 }], ['line', { x1: 16, y1: 2.5, x2: 16, y2: 6.5 }], ['line', { x1: 8, y1: 2.5, x2: 8, y2: 6.5 }], ['line', { x1: 3, y1: 10, x2: 21, y2: 10 }]]
+        .forEach(([tag, attrs]) => {
+            const node = document.createElementNS(CAL_SVG_NS, tag);
+            Object.entries(attrs).forEach(([name, value]) => node.setAttribute(name, String(value)));
+            icon.appendChild(node);
+        });
+    trigger.append(label, icon);
+    wrap.appendChild(trigger);
+
+    const pop = document.createElement('div');
+    pop.className = 'cal-pop';
+    pop.hidden = true;
+    pop.setAttribute('role', 'dialog');
+    pop.innerHTML = `
+        <div class="cal-pop-head">
+            <button type="button" class="cal-nav" data-dir="-1" aria-label="${t('prev_month', 'Previous month')}">‹</button>
+            <div class="cal-selects">
+                <select class="cal-month" aria-label="${t('month_label', 'Month')}" data-native-select="0"></select>
+                <select class="cal-year" aria-label="${t('year_label', 'Year')}" data-native-select="0"></select>
+            </div>
+            <button type="button" class="cal-nav" data-dir="1" aria-label="${t('next_month', 'Next month')}">›</button>
+        </div>
+        <div class="cal-dows"></div>
+        <div class="cal-grid"></div>
+        <div class="cal-foot">
+            <button type="button" class="cal-today">${t('today', 'Today')}</button>
+            <button type="button" class="cal-clear">${t('calendar_clear', 'Clear')}</button>
+        </div>`;
+    // Same containment problem as the dropdown: keep the popup on <body>.
+    document.body.appendChild(pop);
+
+    const monthSelect = pop.querySelector('.cal-month');
+    const yearSelect = pop.querySelector('.cal-year');
+    const grid = pop.querySelector('.cal-grid');
+    const dows = pop.querySelector('.cal-dows');
+    const navButtons = pop.querySelectorAll('.cal-nav');
+
+    monthNames.forEach((name, index) => {
+        const option = document.createElement('option');
+        option.value = String(index);
+        option.textContent = name;
+        monthSelect.appendChild(option);
+    });
+
+    const dowsList = (() => {
+        const monday = new Date(2024, 0, 1);
+        return Array.from({ length: 7 }, (_, index) => {
+            const day = new Date(monday);
+            day.setDate(monday.getDate() + index);
+            try { return new Intl.DateTimeFormat(currentLang || 'en', { weekday: 'short' }).format(day); }
+            catch (_) { return ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'][index]; }
+        });
+    })();
+    dows.replaceChildren();
+    dowsList.forEach(name => {
+        const cell = document.createElement('span');
+        cell.className = 'cal-dow';
+        cell.textContent = name;
+        dows.appendChild(cell);
+    });
+
+    let viewYear = 0;
+    let viewMonth = 0;
+
+    function fillYears() {
+        const { min, max } = calBounds(input);
+        const nowYear = new Date().getFullYear();
+        const first = min ? min.getFullYear() : Math.min(1900, nowYear);
+        const last = max ? max.getFullYear() : Math.max(nowYear, viewYear);
+        const previous = yearSelect.value;
+        yearSelect.replaceChildren();
+        for (let year = first; year <= last; year++) {
+            const option = document.createElement('option');
+            option.value = String(year);
+            option.textContent = String(year);
+            yearSelect.appendChild(option);
+        }
+        yearSelect.value = previous && Number(previous) >= first && Number(previous) <= last ? previous : String(viewYear);
+        if (typeof csSync === 'function' && yearSelect._cs) csSync(yearSelect);
+        if (typeof csSync === 'function' && monthSelect._cs) csSync(monthSelect);
+    }
+
+    function render() {
+        const { min, max } = calBounds(input);
+        const selected = calParse(input.value);
+        const today = new Date();
+        const todayYmd = calYmd(today);
+        monthSelect.value = String(viewMonth);
+        yearSelect.value = String(viewYear);
+        if (monthSelect._cs) csSync(monthSelect);
+        if (yearSelect._cs) csSync(yearSelect);
+
+        grid.replaceChildren();
+        const firstWeekday = (new Date(viewYear, viewMonth, 1).getDay() + 6) % 7;
+        for (let i = 0; i < firstWeekday; i++) {
+            const blank = document.createElement('span');
+            blank.className = 'cal-blank';
+            grid.appendChild(blank);
+        }
+        const days = new Date(viewYear, viewMonth + 1, 0).getDate();
+        for (let day = 1; day <= days; day++) {
+            const date = new Date(viewYear, viewMonth, day);
+            const ymd = calYmd(date);
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'cal-day';
+            button.textContent = String(day);
+            button.dataset.date = ymd;
+            button.disabled = (min && date < min) || (max && date > max);
+            if (ymd === todayYmd) button.classList.add('is-today');
+            if (selected && ymd === calYmd(selected)) button.setAttribute('aria-selected', 'true');
+            button.onclick = () => pick(ymd);
+            grid.appendChild(button);
+        }
+    }
+
+    function position() {
+        const rect = trigger.getBoundingClientRect();
+        const margin = 8;
+        const width = 300;
+        const height = pop.offsetHeight || 340;
+        const spaceBelow = window.innerHeight - rect.bottom - margin;
+        const openUp = spaceBelow < height && rect.top - margin > spaceBelow;
+        pop.style.width = Math.min(width, window.innerWidth - margin * 2) + 'px';
+        pop.style.left = Math.max(margin, Math.min(rect.left, window.innerWidth - width - margin)) + 'px';
+        pop.style.top = openUp ? Math.max(margin, rect.top - height - 6) + 'px' : rect.bottom + 6 + 'px';
+    }
+
+    function open() {
+        closeCalendar();
+        csCloseForCalendar();
+        const selected = calParse(input.value) || new Date();
+        viewYear = selected.getFullYear();
+        viewMonth = selected.getMonth();
+        const { max } = calBounds(input);
+        if (max && new Date(viewYear, viewMonth, 1) > max) {
+            viewYear = max.getFullYear();
+            viewMonth = max.getMonth();
+        }
+        fillYears();
+        render();
+        pop.hidden = false;
+        wrap.classList.add('is-open');
+        trigger.setAttribute('aria-expanded', 'true');
+        openCalendar = { input, pop };
+        position();
+        requestAnimationFrame(() => { if (openCalendar && openCalendar.input === input) position(); });
+    }
+
+    function pick(ymd) {
+        input.value = ymd;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        syncLabel();
+        close();
+    }
+    function close() {
+        pop.hidden = true;
+        wrap.classList.remove('is-open');
+        trigger.setAttribute('aria-expanded', 'false');
+        if (openCalendar && openCalendar.input === input) openCalendar = null;
+    }
+    function syncLabel() {
+        const text = calLabelFor(input);
+        label.textContent = text || t('calendar_placeholder', 'dd.mm.yyyy');
+        label.classList.toggle('is-empty', !text);
+        trigger.disabled = input.disabled;
+        trigger.classList.toggle('is-disabled', input.disabled);
+        trigger.setAttribute('aria-label', text || t('select_date_label', 'Select date'));
+    }
+
+    trigger.addEventListener('click', event => {
+        event.stopPropagation();
+        if (openCalendar && openCalendar.input === input) { close(); return; }
+        open();
+    });
+    navButtons.forEach(button => {
+        button.addEventListener('click', event => {
+            event.stopPropagation();
+            viewMonth += Number(button.dataset.dir);
+            if (viewMonth > 11) { viewMonth = 0; viewYear++; }
+            if (viewMonth < 0) { viewMonth = 11; viewYear--; }
+            fillYears();
+            render();
+        });
+    });
+    monthSelect.addEventListener('change', () => { viewMonth = Number(monthSelect.value); render(); });
+    yearSelect.addEventListener('change', () => { viewYear = Number(yearSelect.value); render(); });
+    pop.querySelector('.cal-today').onclick = event => {
+        event.stopPropagation();
+        const now = new Date();
+        const { min, max } = calBounds(input);
+        if ((min && now < min) || (max && now > max)) return;
+        pick(calYmd(now));
+    };
+    pop.querySelector('.cal-clear').onclick = event => {
+        event.stopPropagation();
+        input.value = '';
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.dispatchEvent(new Event('change', { bubbles: true }));
+        syncLabel();
+        close();
+    };
+    input.addEventListener('change', syncLabel);
+    input.addEventListener('input', syncLabel);
+    // Other code writes input.value directly (default ranges, resets), which
+    // fires no event: trap the property so the label never goes stale.
+    const valueDescriptor = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value');
+    Object.defineProperty(input, 'value', {
+        configurable: true,
+        get() { return valueDescriptor.get.call(this); },
+        set(value) { valueDescriptor.set.call(this, value); syncLabel(); }
+    });
+    new MutationObserver(syncLabel).observe(input, { attributes: true, attributeFilter: ['min', 'max', 'disabled', 'required'] });
+
+    enhanceSelect(monthSelect);
+    enhanceSelect(yearSelect);
+    syncLabel();
+    trigger.setAttribute('aria-expanded', 'false');
+}
+
+function enhanceAllDateFields(root) {
+    const scope = root || document;
+    if (scope.matches && scope.matches('input[type="date"]')) enhanceDateField(scope);
+    (scope.querySelectorAll ? scope.querySelectorAll('input[type="date"]') : []).forEach(enhanceDateField);
+}
+
+function initDateFields() {
+    enhanceAllDateFields(document);
+    new MutationObserver(mutations => {
+        mutations.forEach(mutation => mutation.addedNodes.forEach(node => {
+            if (node.nodeType === 1) enhanceAllDateFields(node);
+        }));
+    }).observe(document.body, { childList: true, subtree: true });
+    document.addEventListener('mousedown', event => {
+        if (!event.target.closest) return;
+        if (!event.target.closest('.cal-field-wrap') && !event.target.closest('.cal-pop') && !event.target.closest('.cs-menu')) closeCalendar();
+    }, true);
+    window.addEventListener('scroll', event => {
+        if (event.target instanceof Element && event.target.closest && event.target.closest('.cal-pop')) return;
+        closeCalendar();
+    }, true);
+    window.addEventListener('resize', () => closeCalendar());
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape' && openCalendar) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            closeCalendar();
+        }
+    }, true);
+}
+
 // ══ Notification ═══════════════════════════════════════════════════════════
 function showNotification(message, type='info') {
     const c = document.getElementById('notification-container');
@@ -100,14 +687,16 @@ function showNotification(message, type='info') {
 }
 
 // ══ Server-side table data ════════════════════════════════════════════════════
-function loadPage() {
+function loadPage(page) {
     const monthRange = getMonthDateRange();
     const params = new URLSearchParams({
         get_expenses_page: 1,
         months_window: 0,
         sort: 'date_asc',
         start_date: monthRange.start_date,
-        end_date: monthRange.end_date
+        end_date: monthRange.end_date,
+        page: String(page || 1),
+        per_page: String(tablePageInfo.perPage || 20)
     });
 
     fetch('?' + params.toString())
@@ -180,6 +769,12 @@ function loadPage() {
         });
 
         totalRowsDB = data.total;
+        tablePageInfo = {
+            page: data.page || 1,
+            perPage: data.perPage || tablePageInfo.perPage || 20,
+            total: data.total || 0,
+            totalPages: data.totalPages || 1
+        };
         renderPagination();
         highlightCurrentDate();
         if (pendingScrollDate) { scrollToTableRow(pendingScrollDate); pendingScrollDate = null; }
@@ -187,13 +782,43 @@ function loadPage() {
         document.querySelectorAll('#data-table tbody input').forEach(inp=>{
             inp.defaultValue = inp.value;
         });
+        initTableInputSelection();
     })
     .catch(e=>{ console.error('loadPage error:', e); });
 }
 
 function renderPagination() {
     const p = document.getElementById('pagination');
-    if (p) { p.innerHTML = ''; p.style.display = 'none'; }
+    if (!p) return;
+    p.innerHTML = '';
+    const page = tablePageInfo.page || 1;
+    const totalPages = tablePageInfo.totalPages || 1;
+    if (totalPages <= 1) { p.style.display = 'none'; return; }
+    p.style.display = 'flex';
+    const addButton = (label, target, opts = {}) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = label;
+        if (opts.title) b.title = opts.title;
+        if (target === page) {
+            b.classList.add('active');
+            b.setAttribute('aria-current', 'page');
+        } else if (opts.disabled) {
+            b.disabled = true;
+        } else {
+            b.onclick = () => loadPage(target);
+        }
+        p.appendChild(b);
+    };
+    const pushPage = n => addButton(String(n), n);
+    addButton('‹', page - 1, { disabled: page <= 1, title: t('prev_page', 'Previous page') });
+    const span = 2;
+    if (totalPages > 1) pushPage(1);
+    if (page - span > 2) p.appendChild(document.createTextNode('…'));
+    for (let n = Math.max(2, page - span); n <= Math.min(totalPages - 1, page + span); n++) pushPage(n);
+    if (page + span < totalPages - 1) p.appendChild(document.createTextNode('…'));
+    if (totalPages > 1) pushPage(totalPages);
+    addButton('›', page + 1, { disabled: page >= totalPages, title: t('next_page', 'Next page') });
 }
 
 // ══ Month pagination ═══════════════════════════════════════════════════════
@@ -241,10 +866,13 @@ function renderMonthPagination() {
     label.textContent = monthNamesShort[month] + ' ' + year;
     container.appendChild(label);
 
-    // Next month button
+    // Next month button: the future has no expenses, so it stops at this month.
     const nextBtn = document.createElement('button');
     nextBtn.innerHTML = '▶';
     nextBtn.title = t('next_month','Next month');
+    const nowDate = new Date();
+    nextBtn.disabled = year > nowDate.getFullYear()
+        || (year === nowDate.getFullYear() && month >= nowDate.getMonth());
     nextBtn.onclick = () => { navigateMonth(1); };
     container.appendChild(nextBtn);
 
@@ -274,6 +902,7 @@ function renderMonthPagination() {
     const pop = buildMonthPickerPopup(month, year);
     container.appendChild(pop);
     calBtn.onclick = (e) => { e.stopPropagation(); pop.classList.toggle('open'); };
+    renderPagination();
 }
 
 let calReopen = false;
@@ -286,61 +915,83 @@ function buildMonthPickerPopup(month, year) {
     title.textContent = t('select_date_label','Select Date:');
     pop.appendChild(title);
 
-    const grid = document.createElement('div');
-    grid.className = 'table-cal-grid';
+    // Two steps with a short slide: pick the year first (any year back to 1900),
+    // then the month.
+    const today = new Date();
+    const newestYear = today.getFullYear();
+    const OLDEST_YEAR = 1900;
+    let pickedYear = year;
 
-    const yearSel = document.createElement('select');
-    yearSel.setAttribute('data-cal-year','1');
-    yearSel.setAttribute('aria-label', t('year_label','Year'));
-    // Any past year must stay reachable: months without data still render empty cells.
-    const minYear = Math.min(2000, tableYearMin);
-    const maxYear = Math.max(tableYearMax, year, (new Date()).getFullYear());
-    for (let y = minYear; y <= maxYear; y++) {
-        const o = document.createElement('option');
-        o.value = y; o.textContent = y;
-        if (y === year) o.selected = true;
-        yearSel.appendChild(o);
+    const yearsPanel = document.createElement('div');
+    yearsPanel.className = 'table-cal-panel table-cal-years';
+    for (let y = newestYear; y >= OLDEST_YEAR; y--) {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'table-cal-cell';
+        cell.textContent = String(y);
+        if (y === pickedYear) cell.classList.add('is-active');
+        cell.onclick = () => { pickedYear = y; showMonths(); };
+        yearsPanel.appendChild(cell);
     }
 
-    const monthSel = document.createElement('select');
-    monthSel.setAttribute('data-cal-month','1');
-    monthSel.setAttribute('aria-label', t('month_label','Month'));
-    monthNames.forEach((m,i)=>{
-        const o = document.createElement('option');
-        o.value = i; o.textContent = m;
-        if (i === month) o.selected = true;
-        monthSel.appendChild(o);
+    const monthsPanel = document.createElement('div');
+    monthsPanel.className = 'table-cal-panel table-cal-months';
+    monthsPanel.hidden = true;
+
+    const monthsHead = document.createElement('div');
+    monthsHead.className = 'table-cal-head';
+    const backBtn = document.createElement('button');
+    backBtn.type = 'button';
+    backBtn.className = 'table-cal-back';
+    backBtn.textContent = '‹ ' + t('year_label', 'Year');
+    backBtn.onclick = () => showYears();
+    const pickedLabel = document.createElement('strong');
+    pickedLabel.textContent = String(pickedYear);
+    monthsHead.appendChild(backBtn);
+    monthsHead.appendChild(pickedLabel);
+    monthsPanel.appendChild(monthsHead);
+
+    monthNames.forEach((name, i) => {
+        const cell = document.createElement('button');
+        cell.type = 'button';
+        cell.className = 'table-cal-cell';
+        cell.textContent = name;
+        // Months after the current one are disabled for the current year.
+        cell.disabled = pickedYear === today.getFullYear() && i > today.getMonth();
+        if (i === month) cell.classList.add('is-active');
+        cell.onclick = () => {
+            currentYear = pickedYear;
+            currentMonth = i;
+            calReopen = true;
+            loadPageWithMonth();
+        };
+        monthsPanel.appendChild(cell);
     });
 
-    const yearField = document.createElement('label');
-    yearField.className = 'table-cal-field';
-    const yearCap = document.createElement('span');
-    yearCap.textContent = t('year_label','Year');
-    yearField.appendChild(yearCap);
-    yearField.appendChild(yearSel);
+    function replayAnimation(el) {
+        el.style.animation = 'none';
+        void el.offsetWidth;
+        el.style.animation = '';
+    }
+    function showMonths() {
+        pickedLabel.textContent = String(pickedYear);
+        yearsPanel.hidden = true;
+        monthsPanel.hidden = false;
+        replayAnimation(monthsPanel);
+    }
+    function showYears() {
+        monthsPanel.hidden = true;
+        yearsPanel.hidden = false;
+        replayAnimation(yearsPanel);
+        setTimeout(() => {
+            const active = yearsPanel.querySelector('.is-active');
+            if (active) yearsPanel.scrollTop = Math.max(0, active.offsetTop - yearsPanel.clientHeight / 2);
+        }, 0);
+    }
 
-    const monthField = document.createElement('label');
-    monthField.className = 'table-cal-field';
-    const monthCap = document.createElement('span');
-    monthCap.textContent = t('month_label','Month');
-    monthField.appendChild(monthCap);
-    monthField.appendChild(monthSel);
-
-    grid.appendChild(yearField);
-    grid.appendChild(monthField);
-    pop.appendChild(grid);
-
-    const apply = () => {
-        const y = parseInt(yearSel.value,10);
-        const m = parseInt(monthSel.value,10);
-        if (isNaN(y) || isNaN(m)) return;
-        currentYear = y;
-        currentMonth = m;
-        calReopen = true;
-        loadPageWithMonth();
-    };
-    yearSel.onchange = apply;
-    monthSel.onchange = apply;
+    pop.appendChild(yearsPanel);
+    pop.appendChild(monthsPanel);
+    setTimeout(showYears, 0);
     return pop;
 }
 
@@ -354,10 +1005,14 @@ document.addEventListener('click', e => {
 
 function navigateMonth(direction) {
     const { month, year } = getMonthData();
-    currentMonth = month + direction;
-    currentYear = year;
-    if (currentMonth > 11) { currentMonth = 0; currentYear++; }
-    if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+    let nextMonth = month + direction;
+    let nextYear = year;
+    if (nextMonth > 11) { nextMonth = 0; nextYear++; }
+    if (nextMonth < 0) { nextMonth = 11; nextYear--; }
+    const now = new Date();
+    if (nextYear > now.getFullYear() || (nextYear === now.getFullYear() && nextMonth > now.getMonth())) return;
+    currentMonth = nextMonth;
+    currentYear = nextYear;
     loadPageWithMonth();
 }
 
@@ -368,7 +1023,7 @@ function loadPageWithMonth() {
         if (pop) pop.classList.add('open');
         calReopen = false;
     }
-    loadPage();
+    loadPage(1);
 }
 
 function getMonthDateRange() {
@@ -444,17 +1099,19 @@ function scheduleSave(input) {
     saveTimeout = setTimeout(()=>saveExpense(input), 800);
 }
 
-function saveExpense(input) {
+function saveExpense(input, options={}) {
     expensesData = (expensesData && typeof expensesData === 'object') ? expensesData : {};
     incomesData  = (incomesData  && typeof incomesData  === 'object') ? incomesData  : {};
     const date  = input.getAttribute('data-date');
     const store = input.getAttribute('data-store');
     const isIncome = input.getAttribute('data-income')==='1';
+    const before = input.defaultValue;
     let   val   = input.value.trim().replace(/,/g,'.');
     let   amount= safeCalc(val);
     amount = parseFloat(amount.toFixed(2));
     input.defaultValue = amount!==0?amount.toFixed(2):'';
     input.value = input.defaultValue;
+    if (options.history !== false) recordCellEdit(cellRef(input), before, input.defaultValue);
     
     if(isIncome){
         incomesData[date]=amount;
@@ -613,7 +1270,11 @@ function attachAmountCurrencyPicker(input){
     };
     input.addEventListener('input',maybeShow);
     input.addEventListener('focus',maybeShow);
-    input.addEventListener('blur',()=>setTimeout(hideAmountCurrencyPopover,220));
+    // Clicking a cell that already holds a number used to open the picker and
+    // close it again in the same gesture; a plain click always re-opens it now.
+    input.addEventListener('click',maybeShow);
+    input.addEventListener('mouseup',maybeShow);
+    input.addEventListener('blur',()=>setTimeout(()=>{ if(document.activeElement!==input) hideAmountCurrencyPopover(); },220));
 }
 
 function previewExpression(input) {
@@ -775,7 +1436,9 @@ function updateChart() {
         scales:{y:{beginAtZero:!datasets.some(d=>d.data.some(v=>v!==null&&v<0)),title:{display:true,text:`${t('chart_amount','Amount')} (${chartCurrency})`,color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}},
                x:{title:{display:true,text:t('chart_month','Month'),color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},ticks:{color:'<?= $theme==='dark'?'#b0b0b0':'#000' ?>'},grid:{color:'<?= $theme==='dark'?'#5a5a5a':'rgba(0,0,0,0.1)' ?>'},border:{color:'<?= $theme==='dark'?'#7a7a7a':'#666' ?>'}}},
         plugins:{legend:{display:!hideChartLegend,labels:{color:'<?= $theme==='dark'?'#fff':'#000' ?>',filter:item=>{const ds=datasets[item.datasetIndex];return !!ds&&!ds._dash&&ds.label!=='';}}},
-                 tooltip:{mode:'nearest',intersect:false,filter:item=>item.dataset.label!=='',callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
+                 // A store with 0 in the hovered month has nothing to report, so it
+                 // never appears in the tooltip list.
+                 tooltip:{mode:'nearest',intersect:false,filter:item=>item.dataset.label!==''&&Number(item.parsed.y)!==0,callbacks:{label:c=>`${c.dataset.label}: ${c.parsed.y.toFixed(2)} ${chartCurrency}`}}}}});
     const chartLegendBtn=document.getElementById('chart-legend-btn');
     if(chartLegendBtn){
         chartLegendBtn.style.display=hideChartLegend?'':'none';
@@ -786,6 +1449,253 @@ function updateChart() {
         btn.textContent=chartMode==='total'?translations.per_store_expenses:(chartMode==='stores'?t('chart_by_category','By category'):translations.total_expenses);
     });
     updateYearButtons();
+    renderActivityFeed();
+}
+
+// ══ Activity feed (transactions under the dashboard) ═══════════════════════
+const ACTIVITY_PAGE_SIZE = 6;
+let activityTransactions = [];
+let activityPage = 1;
+let activitySourceFilter = 'all';
+let activeActivityId = null;
+
+function activityEsc(value){
+    return String(value == null ? '' : value).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+}
+function activityCurrency(){ return (chartCurrency || userSettings.currency || 'USD').toUpperCase(); }
+function activityConvert(amount){
+    const base = (userSettings.currency || 'USD').toUpperCase();
+    const target = activityCurrency();
+    const conv = (exchangeRatesToUSD[base] || 1) / (exchangeRatesToUSD[target] || 1);
+    return (Number(amount) || 0) * conv;
+}
+function activityAmountText(amount){
+    return `${activityConvert(amount).toFixed(2)} ${activityCurrency()}`;
+}
+function activityDateLabel(date){
+    const d = new Date(`${date}T00:00:00`);
+    if (isNaN(d.getTime())) return String(date || '');
+    try {
+        return new Intl.DateTimeFormat(document.documentElement.lang || currentLang || 'en',
+            {weekday:'long', day:'numeric', month:'short'}).format(d);
+    } catch (e) { return String(date || ''); }
+}
+function activityFullDate(date){
+    const d = new Date(`${date}T00:00:00`);
+    if (isNaN(d.getTime())) return String(date || '');
+    try {
+        return new Intl.DateTimeFormat(document.documentElement.lang || currentLang || 'en',
+            {day:'numeric', month:'long', year:'numeric'}).format(d);
+    } catch (e) { return String(date || ''); }
+}
+function activityStoreCategory(store){
+    const entry = (userSettings.stores || []).find(s => s && s.name === store);
+    return entry && entry.category ? categoryLabel(entry.category) : t('store_category_other', 'Other');
+}
+
+// One card transaction per (date, store) pair — the expenses table stores sums.
+function buildActivityTransactions(){
+    const list = [];
+    const metaAll = (expenseActivityMeta && typeof expenseActivityMeta === 'object') ? expenseActivityMeta : {};
+    Object.keys(expensesData || {}).forEach(date => {
+        const row = expensesData[date] || {};
+        Object.keys(row).forEach(store => {
+            const amount = Number(row[store]) || 0;
+            if (!(amount > 0.0001)) return;
+            const meta = (metaAll[date] && metaAll[date][store]) || {};
+            const raw = String(meta.source || 'manual').toLowerCase();
+            const source = (raw === 'manual' || raw === 'subscription') ? 'manual' : 'notification';
+            list.push({
+                id: `${date}|${store}`,
+                date: date,
+                store: store,
+                amount: amount,
+                source: source,
+                raw: String(meta.note || ''),
+                category: activityStoreCategory(store)
+            });
+        });
+    });
+    list.sort((a, b) => a.date === b.date ? a.store.localeCompare(b.store) : (a.date < b.date ? 1 : -1));
+    return list;
+}
+function activityTransactionsForView(){
+    const all = buildActivityTransactions();
+    return activitySourceFilter === 'all' ? all : all.filter(tx => tx.source === activitySourceFilter);
+}
+function activityStoreIcon(store){
+    const key = String(store || '').trim().toLowerCase();
+    const badge = (bg, border, inner) => `<span class="activity-card__icon" style="background:${bg};border-color:${border}">${inner}</span>`;
+    if (key === 'lidl') return badge('#0050AA', '#1E6BC4', '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="15" fill="#FFF000" stroke="#E60A14" stroke-width="2.4"/><text x="20" y="24" text-anchor="middle" fill="#0050AA" font-size="10" font-weight="900" font-family="sans-serif">LIDL</text></svg>');
+    if (key === 'biedronka') return badge('#FFD600', '#E6C200', '<svg viewBox="0 0 40 40" aria-hidden="true"><ellipse cx="20" cy="23" rx="9" ry="10" fill="#E30613"/><circle cx="20" cy="12" r="4" fill="#1D1D1B"/><line x1="20" y1="13" x2="20" y2="33" stroke="#1D1D1B" stroke-width="1.8"/></svg>');
+    if (key === 'kfc') return badge('#A3080C', '#C8102E', '<svg viewBox="0 0 40 40" aria-hidden="true"><rect x="7" y="7" width="26" height="26" rx="5" fill="#fff"/><text x="20" y="24" text-anchor="middle" fill="#181818" font-size="9" font-weight="900" font-family="sans-serif">KFC</text></svg>');
+    if (key === 'auchan') return badge('#E2001A', '#FF334B', '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="20" r="13" fill="#fff"/><path d="M14 25 L20 13 L26 25 M16.5 21 H23.5" stroke="#E2001A" stroke-width="2.4" fill="none" stroke-linecap="round"/></svg>');
+    if (key === 'stokrotka' || key === 'stocrotka') return badge('#1E3B18', '#3E7A30', '<svg viewBox="0 0 40 40" aria-hidden="true"><circle cx="20" cy="12" r="3.6" fill="#fff"/><circle cx="28" cy="20" r="3.6" fill="#fff"/><circle cx="20" cy="28" r="3.6" fill="#fff"/><circle cx="12" cy="20" r="3.6" fill="#fff"/><circle cx="20" cy="20" r="4" fill="#FFD600"/></svg>');
+    const initial = (String(store || '?').trim().charAt(0) || '?').toUpperCase();
+    return `<span class="activity-card__icon activity-card__icon--initial">${activityEsc(initial)}</span>`;
+}
+function activityCardHtml(tx, showDate){
+    const sourceLabel = tx.source === 'notification'
+        ? `🔔 ${t('activity_filter_notification', 'Notification')}`
+        : `✏️ ${t('activity_filter_manual', 'Manual')}`;
+    return `<button type="button" class="activity-card" data-tx-id="${activityEsc(tx.id)}" onclick="openTxDetails('${activityEsc(tx.id).replace(/'/g, "\\'")}')" title="${activityEsc(tx.store)}">
+        ${activityStoreIcon(tx.store)}
+        <span class="activity-card__main">
+            <span class="activity-card__row">
+                <span class="activity-card__store">${activityEsc(tx.store)}</span>
+                ${showDate ? `<span class="activity-card__date">${activityEsc(activityDateLabel(tx.date))}</span>` : ''}
+            </span>
+            <span class="activity-card__meta">${sourceLabel}<span class="activity-card__dot">·</span><span class="activity-card__category">${activityEsc(tx.category)}</span></span>
+        </span>
+        <span class="activity-card__amount">-${activityAmountText(tx.amount)}</span>
+    </button>`;
+}
+function activityGroupHtml(list, showDate){
+    const groups = [];
+    let current = null;
+    list.forEach(tx => {
+        if (!current || current.date !== tx.date) { current = {date: tx.date, items: []}; groups.push(current); }
+        current.items.push(tx);
+    });
+    return groups.map(group => `<div class="activity-group">
+        ${showDate ? `<div class="activity-group__label">${activityEsc(activityDateLabel(group.date))}</div>` : ''}
+        <div class="activity-group__grid">${group.items.map(tx => activityCardHtml(tx, !showDate)).join('')}</div>
+    </div>`).join('');
+}
+function activityPageList(){
+    const n = Math.max(1, Math.ceil(activityTransactions.length / ACTIVITY_PAGE_SIZE));
+    if (activityPage > n) activityPage = n;
+    if (activityPage < 1) activityPage = 1;
+    return {page: activityPage, totalPages: n};
+}
+function renderActivityFeed(){
+    const listEl = document.getElementById('dashboard-activity-list');
+    if (!listEl) return;
+    activityTransactions = buildActivityTransactions();
+    const badge = document.getElementById('tx-total-badge');
+    if (badge) badge.textContent = String(activityTransactions.length);
+    const pager = document.getElementById('dashboard-activity-pagination');
+    if (!activityTransactions.length) {
+        listEl.innerHTML = `<div class="activity-empty">${activityEsc(t('activity_empty', 'No transactions yet.'))}</div>`;
+        if (pager) pager.innerHTML = '';
+        return;
+    }
+    const {page, totalPages} = activityPageList();
+    const start = (page - 1) * ACTIVITY_PAGE_SIZE;
+    const slice = activityTransactions.slice(start, start + ACTIVITY_PAGE_SIZE);
+    listEl.innerHTML = activityGroupHtml(slice, true);
+    if (pager) pager.innerHTML = activityPaginationHtml(start, slice.length, activityTransactions.length, page, totalPages);
+}
+function activityPaginationHtml(start, count, total, page, totalPages){
+    const summary = `${t('activity_shown', 'Showing')} ${start + 1}–${start + count} ${t('activity_of', 'of')} ${total}`;
+    const btn = (label, target, disabled, active) => `<button type="button" class="activity-pager__btn${active ? ' is-active' : ''}" ${disabled ? 'disabled' : ''} onclick="goToActivityPage(${target})">${label}</button>`;
+    let pages = '';
+    const windowSize = 5;
+    let from = Math.max(1, page - 2), to = Math.min(totalPages, from + windowSize - 1);
+    from = Math.max(1, to - windowSize + 1);
+    if (from > 1) pages += btn('1', 1, false, page === 1) + (from > 2 ? '<span class="activity-pager__gap">…</span>' : '');
+    for (let p = from; p <= to; p++) pages += btn(String(p), p, false, p === page);
+    if (to < totalPages) pages += (to < totalPages - 1 ? '<span class="activity-pager__gap">…</span>' : '') + btn(String(totalPages), totalPages, false, page === totalPages);
+    return `<div class="activity-pager__summary">${activityEsc(summary)}</div>
+        <div class="activity-pager__controls">
+            ${btn(`← ${activityEsc(t('activity_prev', 'Back'))}`, page - 1, page === 1, false)}
+            ${pages}
+            ${btn(`${activityEsc(t('activity_next', 'Next'))} →`, page + 1, page === totalPages, false)}
+        </div>`;
+}
+function goToActivityPage(page){
+    activityPage = Number(page) || 1;
+    renderActivityFeed();
+    const section = document.getElementById('dashboard-activity-section');
+    if (section && section.scrollIntoView) section.scrollIntoView({behavior: 'smooth', block: 'start'});
+}
+function activityFilteredList(){
+    const query = String(document.getElementById('history-search-input')?.value || '').toLowerCase().trim();
+    return activityTransactions.filter(tx => {
+        if (activitySourceFilter !== 'all' && tx.source !== activitySourceFilter) return false;
+        if (!query) return true;
+        return tx.store.toLowerCase().includes(query)
+            || tx.category.toLowerCase().includes(query)
+            || activityConvert(tx.amount).toFixed(2).includes(query);
+    });
+}
+function renderFullActivity(){
+    const container = document.getElementById('full-activity-list');
+    if (!container) return;
+    const list = activityFilteredList();
+    container.innerHTML = list.length
+        ? activityGroupHtml(list, true)
+        : `<div class="activity-empty">${activityEsc(t('activity_no_results', 'No transactions match the filter'))}</div>`;
+}
+function setActivitySourceFilter(source){
+    activitySourceFilter = source || 'all';
+    document.querySelectorAll('#history-source-filters .hist-filter').forEach(btn => {
+        btn.classList.toggle('is-active', btn.dataset.source === activitySourceFilter);
+    });
+    renderFullActivity();
+}
+function openActivityHistory(){
+    activityTransactions = buildActivityTransactions();
+    setActivitySourceFilter('all');
+    const search = document.getElementById('history-search-input');
+    if (search) search.value = '';
+    renderFullActivity();
+    showModal('activity-history-modal');
+}
+function openTxDetails(id){
+    const tx = activityTransactions.find(item => item.id === id) || buildActivityTransactions().find(item => item.id === id);
+    if (!tx) return;
+    activeActivityId = tx.id;
+    const box = document.getElementById('tx-details-content');
+    if (!box) return;
+    const sourceText = tx.source === 'notification'
+        ? t('activity_source_notification', 'Notification (Google Wallet / Bank)')
+        : t('activity_source_manual', 'Manual entry');
+    box.innerHTML = `
+        <div class="tx-detail__hero">
+            ${activityStoreIcon(tx.store)}
+            <div class="tx-detail__hero-text">
+                <h4>${activityEsc(tx.store)}</h4>
+                <span class="tx-detail__badge">${tx.source === 'notification' ? '🔔' : '✏️'} ${activityEsc(tx.source === 'notification' ? t('activity_filter_notification', 'Notification') : t('activity_filter_manual', 'Manual'))}</span>
+            </div>
+            <div class="tx-detail__amount">-${activityAmountText(tx.amount)}</div>
+        </div>
+        <div class="tx-detail__table">
+            <div><span>${activityEsc(t('activity_date', 'Date'))}</span><b>${activityEsc(activityFullDate(tx.date))}</b></div>
+            <div><span>${activityEsc(t('activity_category', 'Category'))}</span><b>${activityEsc(tx.category)}</b></div>
+            <div><span>${activityEsc(t('activity_source', 'Source'))}</span><b>${activityEsc(sourceText)}</b></div>
+        </div>
+        ${tx.raw ? `<div class="tx-detail__raw"><div class="tx-detail__raw-title">🔔 ${activityEsc(t('activity_raw_notification', 'Original notification'))}</div><p>${activityEsc(tx.raw)}</p></div>` : ''}
+        <div class="tx-detail__actions">
+            <button type="button" class="tx-detail__delete" onclick="deleteTransaction('${activityEsc(tx.id).replace(/'/g, "\\'")}')">${activityEsc(t('activity_delete', 'Delete transaction'))}</button>
+            <button type="button" class="tx-detail__done" onclick="closeModal('tx-details-modal')">${activityEsc(t('activity_done', 'Done'))}</button>
+        </div>`;
+    showModal('tx-details-modal');
+}
+function deleteTransaction(id){
+    const tx = activityTransactions.find(item => item.id === id);
+    if (!tx) return;
+    const doDelete = () => {
+        fetch('', {method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: new URLSearchParams({update_expense: '1', date: tx.date, store: tx.store, amount: '0'})})
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') { showNotification(d.message || t('error_generic', 'Error'), 'error'); return; }
+            if (expensesData[tx.date]) { delete expensesData[tx.date][tx.store]; }
+            if (expenseActivityMeta[tx.date]) { delete expenseActivityMeta[tx.date][tx.store]; }
+            closeModal('tx-details-modal');
+            updateFinancialSummary();
+            updateChart();
+            renderFullActivity();
+            showNotification(`${t('activity_deleted', 'Transaction deleted')}: ${tx.store}`, 'success');
+        })
+        .catch(e => showNotification(`${t('network_error', 'Network error')}: ${e}`, 'error'));
+    };
+    if (typeof confirmWithModal === 'function') {
+        confirmWithModal(`${t('activity_delete_confirm', 'Delete this transaction?')} ${tx.store} · ${activityAmountText(tx.amount)}`, doDelete, t('delete', 'Delete'));
+    } else {
+        doDelete();
+    }
 }
 function renderChartLegend(){
     const list=document.getElementById('chart-legend-list');
@@ -821,15 +1731,18 @@ function openChartLegend(){
 }
 
 function yearHasData(y){return availableYears.includes(Number(y));}
+// A year that has not started yet can be neither scanned nor charted.
+function highestSelectableYear(){return new Date().getFullYear();}
 function updateYearButtons(){
+    const maxYear=highestSelectableYear();
     const prev=document.getElementById('chart-year-prev-btn');
     const next=document.getElementById('chart-year-next-btn');
     if(prev)prev.disabled=!yearHasData(currentChartYear-1);
-    if(next)next.disabled=!yearHasData(currentChartYear+1);
+    if(next)next.disabled=currentChartYear+1>maxYear||!yearHasData(currentChartYear+1);
     const ap=document.getElementById('analytics-year-prev-btn');
     const an=document.getElementById('analytics-year-next-btn');
     if(ap)ap.disabled=!yearHasData(analyticsYear-1);
-    if(an)an.disabled=!yearHasData(analyticsYear+1);
+    if(an)an.disabled=analyticsYear+1>maxYear||!yearHasData(analyticsYear+1);
     const yl=document.getElementById('analytics-year-label');
     if(yl)yl.textContent=String(analyticsYear);
 }
@@ -845,7 +1758,7 @@ function loadAvailableYears(){
 
 function changeChartYear(d) {
     const target=currentChartYear+d;
-    if(!yearHasData(target))return;
+    if(target>highestSelectableYear()||!yearHasData(target))return;
     currentChartYear = target;
     // Load data for new year
     fetch(`?year_data=${currentChartYear}`)
@@ -862,7 +1775,7 @@ function changeChartYear(d) {
 }
 function changeAnalyticsYear(d){
     const target=analyticsYear+Number(d);
-    if(!yearHasData(target))return;
+    if(target>highestSelectableYear()||!yearHasData(target))return;
     analyticsYear=target;
     updateYearButtons();
     loadOCRAnalytics();
@@ -991,7 +1904,6 @@ document.addEventListener('click',e=>{
     if(tab)xrSetBase(tab.dataset.base);
 });
 
-function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
 
 function highlightCurrentDate() {
     document.querySelectorAll('#data-table .current-date-row').forEach(r=>r.classList.remove('current-date-row'));
@@ -1183,6 +2095,8 @@ function manualAddCalendarShift(delta){
     let month = (manualAddCalView.month || 0) + Number(delta || 0);
     year += Math.floor(month / 12);
     month = ((month % 12) + 12) % 12;
+    const now = new Date();
+    if(year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())) return;
     manualAddCalView = { year, month };
     renderManualCalendar();
 }
@@ -1204,7 +2118,8 @@ function manualAddFillCalendarSelects(year, month){
         }
     }
     const minYear = 2000;
-    const maxYear = Math.max(new Date().getFullYear() + 1, year);
+    const now = new Date();
+    const maxYear = Math.max(now.getFullYear(), year);
     if(!yearSel.options.length || Number(yearSel.options[0].value) !== minYear || Number(yearSel.options[yearSel.options.length - 1].value) !== maxYear){
         yearSel.textContent = '';
         for(let y = minYear; y <= maxYear; y++){
@@ -1214,6 +2129,10 @@ function manualAddFillCalendarSelects(year, month){
             yearSel.appendChild(o);
         }
     }
+    // The current year stops at the current month, the future is unreachable.
+    Array.from(monthSel.options).forEach((option, index) => {
+        option.disabled = Number(year) === now.getFullYear() && index > now.getMonth();
+    });
     monthSel.value = String(month);
     yearSel.value = String(year);
 }
@@ -1224,6 +2143,8 @@ function manualAddCalendarJump(){
     const month = Number(monthSel.value);
     const year  = Number(yearSel.value);
     if(!Number.isFinite(month) || !Number.isFinite(year)) return;
+    const now = new Date();
+    if(year > now.getFullYear() || (year === now.getFullYear() && month > now.getMonth())) return;
     manualAddCalView = { year, month };
     renderManualCalendar();
 }
@@ -1261,6 +2182,7 @@ function renderManualCalendar(){
         btn.className = 'manual-cal-day';
         btn.textContent = String(day);
         btn.setAttribute('data-date', ymd);
+        btn.disabled = ymd > today;
         if(ymd === manualAddState.date) btn.classList.add('selected');
         if(ymd === today) btn.classList.add('today');
         btn.onclick = () => manualAddPickDate(ymd);
@@ -1729,6 +2651,7 @@ async function saveManualExpense(){
         }
         if(!allDates.includes(date)){ allDates.push(date); allDates.sort(); }
         updateFinancialSummary();
+        activityPage = 1;
         loadAvailableYears().then(() => updateChart());
         // Show the new row in the table right away.
         const dd = new Date(date + 'T00:00:00');
@@ -2117,8 +3040,9 @@ function saveGoalEditor(){
 let currentStoreId=null,storePhotoFile=null,pendingOCRStoreRaw='',storePhotoObjectUrl='';
 const cropIconSvg='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" y1="4" x2="8.12" y2="15.88"/><line x1="14.47" y1="14.48" x2="20" y2="20"/><line x1="8.12" y1="8.12" x2="12" y2="12"/></svg>';
 const storeCategoryIcons={food:'M4 10h16M6 10l1 10h10l1-10M8 10V6a4 4 0 0 1 8 0v4',groceries:'M4 10h16M6 10l1 10h10l1-10M9 10V7a3 3 0 0 1 6 0v3',cafes:'M5 8h12v5a5 5 0 0 1-5 5H10a5 5 0 0 1-5-5V8Zm12 2h2a2 2 0 0 1 0 4h-2M6 4h10',clothes:'M16 4l4 4-3 3v9H7v-9L4 8l4-4 2 2h4l2-2Z',shoes:'M4 15c4 0 7-1 10-5l6 5v3H4v-3Z',home:'M3 11l9-7 9 7v9H5v-9Zm6 9v-6h6v6',apartment:'M6 21V3h12v18M9 7h2m2 0h2M9 11h2m2 0h2M9 15h2m2 0h2',utilities:'M13 2 5 14h6l-1 8 8-12h-6l1-8Z',transport:'M6 17h12l1-6-2-5H7l-2 5 1 6Zm1 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',car:'M5 16h14l-1-5-2-4H8l-2 4-1 5Zm2 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Zm10 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4Z',travel:'M3 11l18-8-8 18-2-8-8-2Z',health:'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Zm0-9v4m-2-2h4',pharmacy:'M10 3h4v6h6v4h-6v8h-4v-8H4V9h6V3Z',beauty:'M12 3c4 4 4 8 0 12-4-4-4-8 0-12Zm-6 18h12',children:'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Zm-7 9a7 7 0 0 1 14 0',pets:'M5 10a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm14 0a2 2 0 1 0 0-4 2 2 0 0 0 0 4Zm-7 2c3 0 6 3 6 6H6c0-3 3-6 6-6Z',build:'M4 20h16M7 20V9l5-5 5 5v11M9 12h6M9 16h6',education:'M3 7l9-4 9 4-9 4-9-4Zm4 4v5c3 2 7 2 10 0v-5',sports:'M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18Zm-6-9h12M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18',electronics:'M4 5h16v11H4V5Zm6 15h4',subscriptions:'M7 7h10M7 12h10M7 17h6M5 3h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Z',entertainment:'M7 4v16l10-8L7 4Z',gifts:'M20 12v8H4v-8M2 7h20v5H2V7Zm10 0v13M12 7C9 7 8 3 10 3s2 4 2 4Zm0 0c3 0 4-4 2-4s-2 4-2 4Z',services:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6Zm0-13v3m0 14v3M4.2 4.2l2.1 2.1m11.4 11.4 2.1 2.1M2 12h3m14 0h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1',finance:'M4 7h16M6 7a6 6 0 0 1 12 0M6 7v13h12V7M9 12h6M9 16h6',taxes:'M6 2h9l5 5v15H6V2Zm8 0v6h6M9 13h6M9 17h4',insurance:'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z',charity:'M12 21s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 11c0 5.6-7 10-7 10Z',other:'M12 3l9 5-9 5-9-5 9-5Zm-7 9 7 4 7-4M5 16l7 4 7-4'};
-const visEyeSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>';
-const visEyeOffSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27z"/></svg>';
+// Material 3 outlined visibility / visibility_off.
+const visEyeSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.75 12 5.75 21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.25"/></svg>';
+const visEyeOffSvg='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2.5 12S6 5.75 12 5.75 21.5 12 21.5 12 18 18.25 12 18.25 2.5 12 2.5 12Z"/><circle cx="12" cy="12" r="3.25"/><path d="M3.5 3.5 20.5 20.5"/></svg>';
 function storeCategoryIcon(key){return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${storeCategoryIcons[key]||storeCategoryIcons.other}"/></svg>`;}
 function closeAddEditStoreModal(){pendingOCRStoreRaw='';closeModal('add-edit-store-modal');}
 function selectedStoreCategories(){return new Set((userSettings.stores||[]).filter(s=>String(s.id)!==String(currentStoreId)).map(s=>s.category||'other'));}
@@ -2128,13 +3052,13 @@ function previewStorePhoto(input){const file=input.files&&input.files[0];if(!fil
 function cropStorePhoto(){const p=document.getElementById('store-photo-preview');if(!p||!p.getAttribute('src'))return;currentCropType='pending-store';currentCropId='';const ci=document.getElementById('crop-image');ci.src=p.src;showModal('crop-modal');requestAnimationFrame(()=>{if(cropper)cropper.destroy();cropper=new Cropper(ci,{aspectRatio:1,viewMode:2,autoCropArea:.95,background:false,responsive:true,restore:false,checkOrientation:true,guides:true,center:true,dragMode:'move',cropBoxMovable:true,cropBoxResizable:true,minCropBoxWidth:40,minCropBoxHeight:40});});}
 function rekeyExpensesDataStore(oldN,newN){if(!oldN||oldN===newN)return;Object.keys(expensesData||{}).forEach(d=>{const o=expensesData[d];if(o&&Object.prototype.hasOwnProperty.call(o,oldN)){o[newN]=o[oldN];delete o[oldN];}});}
 function storePhotoUrl(s,withPhoto){if(!withPhoto||!s||!s.photo_url)return'';return `${s.photo_url}${s.photo_url.includes('?')?'&':'?'}t=${Date.now()}`;}
-function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(photoU){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
+function applyStoreToSettingsUI(s,withPhoto){if(!s)return;const idStr=String(s.id);const prevI=(userSettings.stores||[]).findIndex(x=>String(x.id)===idStr);if(prevI>=0){rekeyExpensesDataStore(userSettings.stores[prevI].name,s.name);userSettings.stores[prevI]={...userSettings.stores[prevI],...s};}else{userSettings.stores.push(s);Object.keys(expensesData||{}).forEach(d=>{if(expensesData[d]&&typeof expensesData[d][s.name]==='undefined')expensesData[d][s.name]=0;});}const list=document.getElementById('store-list');if(!list)return;let row=list.querySelector(`.store-item[data-store-id="${CSS.escape(idStr)}"]`);const photoU=storePhotoUrl(s,withPhoto);if(!row){row=document.createElement('div');row.className='store-item';row.dataset.storeId=idStr;row.innerHTML=`<span style="flex:1;"></span><button class="visibility-toggle" data-store-id="${idStr}" data-visible="${s.visible!==false?'true':'false'}" title="${translations.visible||'Visible'}"></button><button class="edit-store-btn" type="button">${translations.edit_store||'Edit'}</button><button class="delete-store-btn" type="button"><svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg> ${translations.delete||'Delete'}</button>`;list.appendChild(row);}row.dataset.storeName=s.name;row.setAttribute('data-visible',s.visible!==false?'true':'false');row.querySelector('span').textContent=s.name;row.querySelector('.edit-store-btn').onclick=()=>showAddEditStoreModal(s.id,s.name,s.visible,'',s.category);row.querySelector('.delete-store-btn').onclick=()=>confirmDeleteStore(s.id,s.name);const vt=row.querySelector('.visibility-toggle');if(vt){vt.setAttribute('data-visible',s.visible!==false?'true':'false');vt.innerHTML=s.visible!==false?visEyeSvg:visEyeOffSvg;vt.onclick=()=>toggleStoreVisibility(vt);}let img=row.querySelector('img.store-icon');if(photoU){if(!img){img=document.createElement('img');img.className='store-icon';row.insertBefore(img,row.firstChild);}img.src=photoU;img.alt=s.name;}refreshCategoryPicker();loadAvailableYears().then(()=>updateChart());loadPage(1);}
 function saveStore(){const name=document.getElementById('store-name-input').value.trim();if(!name){showNotification(t('store_name_required','Store name is required'),'error');return;}const withPhoto=!!storePhotoFile,pendingRaw=pendingOCRStoreRaw,fd=new FormData();fd.append('add_edit_store','1');fd.append('store_id',currentStoreId||Date.now());fd.append('store_name',name);fd.append('store_category',document.getElementById('store-category-input')?.value||'other');if(storePhotoFile)fd.append('store_photo',storePhotoFile,'store_photo.png');fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}closeAddEditStoreModal();showNotification(translations.store_saved||'Store saved','success');if(d.store)applyStoreToSettingsUI(d.store,withPhoto);if(pendingRaw&&d.store){const selected=readUnresolvedSelections();selected[pendingRaw]=d.store.name;renderUnresolvedModal(selected);}storePhotoFile=null;}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
 function confirmDeleteStore(id,name){pendingConfirmAction=null;pendingDelete={type:'store',id,name};document.getElementById('confirm-delete-title').textContent=translations.confirm_delete_store||t('confirm_action_title','Confirm action');document.getElementById('confirm-delete-message').textContent=translations.confirm_delete_store_message||`Delete store "${name}"?`;document.getElementById('confirm-delete-action').textContent=t('delete','Delete');showModal('confirm-delete-modal');}
 function executeDelete(){const action=pendingConfirmAction;pendingConfirmAction=null;closeModal('confirm-delete-modal');if(action){action();return;}if(pendingDelete.type==='store')deleteStore(pendingDelete.id,pendingDelete.name);}
 function removeDataTableStoreColumnByName(storeName){const ths=document.querySelectorAll('#data-table thead th');let col=-1;ths.forEach((th,idx)=>{if(idx>0&&th.textContent.trim()===storeName)col=idx;});if(col<0)return;document.querySelectorAll('#data-table tr').forEach(tr=>{const c=tr.children[col];if(c)c.remove();});if(typeof updateChart==='function')updateChart();}
 function deleteStore(id,name){const fd=new FormData();fd.append('delete_store','1');fd.append('store_id',id);fd.append('store_name',name);fetch('',{method:'POST',body:fd}).then(r=>r.json()).then(d=>{if(d.status!=='success'){showNotification(d.message||t('error_generic','Error'),'error');return;}const idS=String(id);userSettings.stores=userSettings.stores.filter(s=>String(s.id)!==idS);Object.keys(expensesData||{}).forEach(dt=>{if(expensesData[dt]&&Object.prototype.hasOwnProperty.call(expensesData[dt],name))delete expensesData[dt][name];});document.querySelector(`#store-list .store-item[data-store-id="${CSS.escape(idS)}"]`)?.remove();document.querySelector(`.store-visibility-table .visibility-toggle[data-store-id="${CSS.escape(idS)}"]`)?.closest('tr')?.remove();removeDataTableStoreColumnByName(name);refreshCategoryPicker();showNotification(translations.delete_store_ok||'Store deleted','success');closeModal('confirm-delete-modal');}).catch(e=>showNotification(`${t('network_error','Network error')}: ${e}`,'error'));}
-function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;scheduleSaveTableSettings();}
+function toggleStoreVisibility(btn){const nv=btn.getAttribute('data-visible')!=='true';btn.setAttribute('data-visible',nv?'true':'false');btn.innerHTML=nv?visEyeSvg:visEyeOffSvg;const row=btn.closest('.store-item');if(row)row.setAttribute('data-visible',nv?'true':'false');scheduleSaveTableSettings();}
 
 // ══ Crop modal ═════════════════════════════════════════════════════════════
 function closeCropModal(){closeModal('crop-modal');if(cropper){cropper.destroy();cropper=null;}}
@@ -2660,132 +3584,759 @@ function expenseGradientStyle(value,min,max){
     const sat1=dark?78:72,sat2=dark?84:78;
     return `background-image:linear-gradient(90deg,hsl(${hue} ${sat1}% ${lightness}%),hsl(${hue2} ${sat2}% ${lightness}%));-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;`;
 }
-const analyticsPagination = { store: 0, category: 0 };
+// ══ Statistics window ══════════════════════════════════════════════════════
+const analyticsState = { store: '__all__', payload: null, hidden: new Set() };
+let lastAnalyticsPayload = null;
 
-function getAnalyticsPageSize() {
-    const modalBody = document.querySelector('#ocr-analytics-modal .modal-body');
-    const bodyHeight = modalBody?.clientHeight || Math.round(window.innerHeight * 0.75);
-    const rowHeight = 44;
-    const reserve = 200;
-    return Math.max(1, Math.floor(Math.max(rowHeight, bodyHeight - reserve) / rowHeight));
+const analyticsPalette = [
+    { fill: '#7B3B46', stroke: '#B25565' },
+    { fill: '#2B536E', stroke: '#447FA6' },
+    { fill: '#8A6D1F', stroke: '#C9A227' },
+    { fill: '#4A6B33', stroke: '#6B8E4E' },
+    { fill: '#5F3F78', stroke: '#8A5FA8' }
+];
+const analyticsChartBox = { width: 1040, height: 315, left: 46, right: 24, top: 14, bottom: 34 };
+
+function analyticsStoreRows() {
+    const payload = analyticsState.payload || {};
+    return (payload.store_summary || [])
+        .map(row => ({ ...row, label: row.store }))
+        .filter(row => Number(row.total) > 0);
+}
+function analyticsCategoryRows() {
+    const payload = analyticsState.payload || {};
+    const selected = analyticsState.store;
+    const categories = (payload.category_summary || [])
+        .map(row => ({ ...row, label: categoryLabel(row.category) }))
+        .filter(row => Number(row.total) > 0)
+        .sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+    if (selected === '__all__') return categories;
+    const store = analyticsStoreRows().find(row => row.store === selected);
+    if (!store) return categories;
+    return [{
+        label: categoryLabel(store.category || 'other'),
+        today: store.today,
+        year_day_avg: store.year_day_avg,
+        total: store.total
+    }];
 }
 
-function renderAnalyticsSummaryTable(id, rows, nameKey) {
-    const el = document.getElementById(id);
-    if (!el) return;
-    if (!rows || !rows.length) { el.textContent = t('no_data', 'No data'); return; }
+// Biggest totals read as red, mid ones amber, the rest green.
+function analyticsTotalClass(values, value) {
+    const max = Math.max(0, ...values.map(v => Number(v) || 0));
+    const n = Number(value) || 0;
+    if (!max || n <= 0) return 'is-ok';
+    const share = n / max;
+    return share >= .6 ? 'is-hot' : share >= .3 ? 'is-warm' : 'is-ok';
+}
 
-    const kind = id === 'analytics-store-summary' ? 'store' : 'category';
-    const pageSize = getAnalyticsPageSize();
-    const pageCount = Math.ceil(rows.length / pageSize);
-    analyticsPagination[kind] = Math.max(0, Math.min(analyticsPagination[kind], pageCount - 1));
-
-    const paginationEl = document.getElementById(`${kind === 'store' ? 'analytics-store' : 'analytics-category'}-pagination`);
-    if (paginationEl) {
-        paginationEl.hidden = pageCount <= 1;
-        if (pageCount > 1) {
-            paginationEl.replaceChildren();
-            const previous = document.createElement('button');
-            previous.type = 'button'; previous.className = 'settings-page-btn'; previous.textContent = '‹';
-            previous.setAttribute('aria-label', t('settings_previous', 'Previous page'));
-            previous.disabled = analyticsPagination[kind] === 0;
-            previous.onclick = () => { analyticsPagination[kind]--; renderAnalyticsSummaryTable(id, rows, nameKey); };
-            const status = document.createElement('span');
-            status.className = 'settings-page-status'; status.setAttribute('aria-live', 'polite');
-            status.textContent = t('settings_page', '%1$d of %2$d')
-                .replace('%1$d', String(analyticsPagination[kind] + 1)).replace('%2$d', String(pageCount));
-            const next = document.createElement('button');
-            next.type = 'button'; next.className = 'settings-page-btn'; next.textContent = '›';
-            next.setAttribute('aria-label', t('settings_next', 'Next page'));
-            next.disabled = analyticsPagination[kind] === pageCount - 1;
-            next.onclick = () => { analyticsPagination[kind]++; renderAnalyticsSummaryTable(id, rows, nameKey); };
-            paginationEl.append(previous, status, next);
-        }
+function renderAnalyticsSummaryTable(id, rows, nameKey, kind) {
+    const host = document.getElementById(id);
+    if (!host) return;
+    host.replaceChildren();
+    if (!rows.length) {
+        const empty = document.createElement('div');
+        empty.className = 'analytics-empty';
+        empty.textContent = t('no_data', 'No data');
+        host.appendChild(empty);
+        return;
     }
-
-    el.innerHTML = '';
-    const totals = rows.map(r => Number(r.total) || 0).filter(v => v > 0);
-    const min = totals.length ? Math.min(...totals) : 0, max = totals.length ? Math.max(...totals) : 0;
+    const totals = rows.map(row => row.total);
+    const selected = analyticsState.store;
     const table = document.createElement('table');
-    table.className = 'analytics-summary-table';
-    table.innerHTML = `<thead><tr><th>${nameKey}</th><th>${t('today','Today')}</th><th>${t('average_day_year','Avg/day')}</th><th>${t('total_expenses','Total')}</th></tr></thead>`;
+    table.className = 'analytics-table';
+    const head = document.createElement('thead');
+    const headRow = document.createElement('tr');
+    [nameKey, t('today', 'Today'), t('average_day_year', 'Avg/day'), t('total_expenses', 'Total')].forEach((label, index) => {
+        const th = document.createElement('th');
+        th.textContent = label;
+        if (index === 0) th.scope = 'col';
+        headRow.appendChild(th);
+    });
+    head.appendChild(headRow);
+    table.appendChild(head);
     const body = document.createElement('tbody');
-    const start = analyticsPagination[kind] * pageSize;
-    rows.slice(start, start + pageSize).forEach(row => {
+    rows.forEach(row => {
         const tr = document.createElement('tr');
-        tr.innerHTML = `<td>${row.label}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.today, min, max)}">${money(row.today)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.year_day_avg, min, max)}">${money(row.year_day_avg)}</td><td class="expense-gradient-cell" style="${expenseGradientStyle(row.total, min, max)}">${money(row.total)}</td>`;
+        if (kind === 'store') {
+            if (selected !== '__all__' && selected === row.store) tr.classList.add('is-selected');
+            else if (selected !== '__all__') tr.classList.add('is-dimmed');
+            tr.tabIndex = 0;
+            tr.setAttribute('role', 'button');
+            tr.setAttribute('aria-pressed', selected === row.store ? 'true' : 'false');
+            tr.title = t('analytics_filter_hint', 'Click a row to filter');
+            tr.onclick = () => selectAnalyticsStore(row.store);
+            tr.onkeydown = event => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    selectAnalyticsStore(row.store);
+                }
+            };
+        }
+        const nameCell = document.createElement('td');
+        nameCell.className = 'analytics-name';
+        if (kind === 'store' && selected === row.store) {
+            const dot = document.createElement('span');
+            dot.className = 'analytics-store-dot';
+            nameCell.appendChild(dot);
+        }
+        nameCell.appendChild(document.createTextNode(row.label));
+        const today = document.createElement('td');
+        today.className = 'analytics-num is-ok';
+        today.textContent = money(row.today);
+        const avg = document.createElement('td');
+        avg.className = 'analytics-num is-ok';
+        avg.textContent = money(row.year_day_avg);
+        const total = document.createElement('td');
+        total.className = 'analytics-num ' + analyticsTotalClass(totals, row.total);
+        total.textContent = money(row.total);
+        tr.append(nameCell, today, avg, total);
         body.appendChild(tr);
     });
     table.appendChild(body);
-    el.appendChild(table);
+    host.appendChild(table);
 }
-function renderAnalyticsSummaries(payload){
-    analyticsPagination.store = 0;
-    analyticsPagination.category = 0;
-    const stores=(payload.store_summary||[]).map(r=>({...r,label:r.store}));
-    const categories=(payload.category_summary||[]).map(r=>({...r,label:categoryLabel(r.category)})).sort((a,b)=>(b.total||0)-(a.total||0));
-    renderAnalyticsSummaryTable('analytics-store-summary',stores,t('store_name','Store'));
-    renderAnalyticsSummaryTable('analytics-category-summary',categories,t('store_category','Category'));
+
+function renderAnalyticsSummaries(payload) {
+    analyticsState.payload = payload;
+    if (analyticsState.store !== '__all__'
+        && !(payload.store_summary || []).some(row => row.store === analyticsState.store)) {
+        analyticsState.store = '__all__';
+    }
+    const badge = document.getElementById('analytics-category-badge');
+    const reset = document.getElementById('analytics-reset-filter');
+    const selected = analyticsState.store;
+    if (badge) {
+        badge.hidden = selected === '__all__';
+        badge.textContent = selected === '__all__' ? '' : selected;
+    }
+    if (reset) reset.hidden = selected === '__all__';
+    const select = document.getElementById('ocr-analytics-store');
+    if (select && select.value !== selected) select.value = selected;
+    if (window.syncCustomSelects) syncCustomSelects();
+    renderAnalyticsSummaryTable('analytics-store-summary', analyticsStoreRows(), t('store_name', 'Store'), 'store');
+    renderAnalyticsSummaryTable('analytics-category-summary', analyticsCategoryRows(), t('store_category', 'Category'), 'category');
+    ['analytics-store-pagination', 'analytics-category-pagination'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) { el.hidden = true; el.replaceChildren(); }
+    });
 }
-function chartTextColor(){
-    const html=document.documentElement;
-    if(html.classList.contains('dark')||html.classList.contains('theme-dark'))return '#f3f4f6';
-    if(html.classList.contains('light')||html.classList.contains('theme-light'))return '#111827';
-    // Fallback: detect theme from CSS variable (--bg-color set server-side)
-    const bg=getComputedStyle(html).getPropertyValue('--bg-color').trim().toLowerCase();
-    if(bg){
-        const m=bg.match(/^#([0-9a-f]{6})$/);
-        if(m){
-            const v=parseInt(m[1],16),r=(v>>16)&255,g=(v>>8)&255,b=v&255;
-            return (r*0.299+g*0.587+b*0.114)<128?'#f3f4f6':'#111827';
-        }
-        if(bg.includes('rgba')||bg.includes('rgb')){
-            const nums=bg.match(/[\d.]+/g);
-            if(nums&&nums.length>=3){
-                const lum=(+nums[0])*0.299+(+nums[1])*0.587+(+nums[2])*0.114;
-                return lum<128?'#f3f4f6':'#111827';
+
+// Rows per month for the chart: all visible categories, or the picked store.
+function analyticsChartSeries() {
+    const payload = analyticsState.payload || {};
+    const monthly = payload.monthly || [];
+    const selected = analyticsState.store;
+    if (selected === '__all__') {
+        const stores = analyticsStoreRows();
+        const labels = [...new Set(monthly.map(row => row.ym))].sort();
+        const grouped = new Map();
+        stores.forEach(store => {
+            const key = store.category || 'other';
+            if (!grouped.has(key)) grouped.set(key, { label: categoryLabel(key), members: [], total: 0 });
+            const entry = grouped.get(key);
+            entry.members.push(store.store);
+            entry.total += Number(store.total) || 0;
+        });
+        const series = [...grouped.entries()]
+            .sort((a, b) => b[1].total - a[1].total)
+            .map(([key, entry], index) => {
+                const palette = analyticsPalette[index % analyticsPalette.length];
+                return {
+                    key: categoryLabel(key),
+                    label: entry.label,
+                    fill: palette.fill,
+                    stroke: palette.stroke,
+                    values: labels.map(ym => monthly
+                        .filter(row => row.ym === ym && entry.members.includes(row.store))
+                        .reduce((sum, row) => sum + (Number(row.amount_sum) || 0), 0))
+                };
+            });
+        return { labels, series };
+    }
+    const rows = monthly.filter(row => row.store === selected);
+    const labels = [...new Set(rows.map(row => row.ym))].sort();
+    const store = analyticsStoreRows().find(row => row.store === selected);
+    const palette = analyticsPalette[0];
+    return {
+        labels,
+        series: [{
+            key: 'amount',
+            label: categoryLabel(store?.category || 'other'),
+            fill: palette.fill,
+            stroke: palette.stroke,
+            values: labels.map(ym => rows
+                .filter(row => row.ym === ym)
+                .reduce((sum, row) => sum + (Number(row.amount_sum) || 0), 0))
+        }]
+    };
+}
+
+function analyticsScaleMax(maxValue) {
+    if (!(maxValue > 0)) return 10;
+    const magnitude = Math.pow(10, Math.floor(Math.log10(maxValue)));
+    const normalized = maxValue / magnitude;
+    const factor = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+    return Math.max(1, factor * magnitude);
+}
+
+function renderAnalyticsLegend(series) {
+    const legend = document.getElementById('analytics-bars-legend');
+    if (!legend) return;
+    legend.replaceChildren();
+    series.forEach(item => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.className = 'analytics-legend-btn' + (analyticsState.hidden.has(item.key) ? ' is-off' : '');
+        button.setAttribute('aria-pressed', analyticsState.hidden.has(item.key) ? 'false' : 'true');
+        const swatch = document.createElement('span');
+        swatch.className = 'analytics-legend-swatch';
+        swatch.style.background = item.fill;
+        swatch.style.borderColor = item.stroke;
+        const label = document.createElement('span');
+        label.textContent = item.label;
+        button.append(swatch, label);
+        button.onclick = () => {
+            const visibleKeys = series.filter(entry => !analyticsState.hidden.has(entry.key));
+            if (analyticsState.hidden.has(item.key)) analyticsState.hidden.delete(item.key);
+            else if (visibleKeys.length > 1) analyticsState.hidden.add(item.key);
+            renderAnalyticsChart();
+        };
+        legend.appendChild(button);
+    });
+}
+
+function positionAnalyticsTooltip(event, tooltip) {
+    const host = tooltip.parentElement;
+    if (!host) return;
+    const rect = host.getBoundingClientRect();
+    const tipWidth = tooltip.offsetWidth || 190;
+    const tipHeight = tooltip.offsetHeight || 120;
+    let left = event.clientX - rect.left + 14;
+    let top = event.clientY - rect.top - 24;
+    if (left + tipWidth > rect.width - 6) left = event.clientX - rect.left - tipWidth - 14;
+    if (left < 6) left = 6;
+    if (top + tipHeight > rect.height - 6) top = rect.height - tipHeight - 6;
+    if (top < 6) top = 6;
+    tooltip.style.left = left + 'px';
+    tooltip.style.top = top + 'px';
+}
+
+function showAnalyticsTooltip(event, label, items) {
+    const tooltip = document.getElementById('analytics-tooltip');
+    const rowsHost = document.getElementById('analytics-tooltip-rows');
+    const month = document.getElementById('analytics-tooltip-month');
+    const totalEl = document.getElementById('analytics-tooltip-total');
+    if (!tooltip || !rowsHost || !month || !totalEl) return;
+    // Only series that actually spent money in this period are listed; a month
+    // full of zero-value stores used to flood the tooltip.
+    const visible = items.filter(item => Number(item.value) > 0);
+    month.textContent = label;
+    rowsHost.replaceChildren();
+    let total = 0;
+    visible.forEach(item => {
+        total += Number(item.value) || 0;
+        const row = document.createElement('div');
+        row.className = 'analytics-tooltip-row';
+        const key = document.createElement('span');
+        key.className = 'analytics-tooltip-key';
+        const swatch = document.createElement('span');
+        swatch.className = 'analytics-tooltip-swatch';
+        swatch.style.background = item.fill;
+        swatch.style.borderColor = item.stroke;
+        const name = document.createElement('span');
+        name.textContent = item.label + ':';
+        key.append(swatch, name);
+        const value = document.createElement('span');
+        value.className = 'analytics-tooltip-value';
+        value.textContent = money(item.value);
+        row.append(key, value);
+        rowsHost.appendChild(row);
+    });
+    if (!visible.length) {
+        const empty = document.createElement('div');
+        empty.className = 'analytics-tooltip-row';
+        empty.textContent = t('no_data', 'No data');
+        rowsHost.appendChild(empty);
+    }
+    totalEl.textContent = money(total);
+    tooltip.classList.add('is-visible');
+    tooltip.setAttribute('aria-hidden', 'false');
+    positionAnalyticsTooltip(event, tooltip);
+}
+
+function hideAnalyticsTooltip() {
+    const tooltip = document.getElementById('analytics-tooltip');
+    if (!tooltip) return;
+    tooltip.classList.remove('is-visible');
+    tooltip.setAttribute('aria-hidden', 'true');
+}
+
+function analyticsTextColor() {
+    return getComputedStyle(document.documentElement).getPropertyValue('--text-color').trim() || '#f3f4f6';
+}
+
+function renderAnalyticsChart() {
+    const gridLayer = document.getElementById('analytics-grid-layer');
+    const barsLayer = document.getElementById('analytics-bars-layer');
+    const labelsLayer = document.getElementById('analytics-labels-layer');
+    if (!gridLayer || !barsLayer || !labelsLayer) return;
+    if (!analyticsState.payload) return;
+
+    const all = analyticsChartSeries();
+    renderAnalyticsLegend(all.series);
+    const visibleSeries = all.series.filter(item => !analyticsState.hidden.has(item.key));
+    const series = all.labels.map((label, index) => ({
+        label,
+        values: visibleSeries.map(item => Number(item.values[index]) || 0)
+    }));
+    gridLayer.replaceChildren();
+    barsLayer.replaceChildren();
+    labelsLayer.replaceChildren();
+    if (!all.labels.length) return;
+
+    const { width, height, left, right, top, bottom } = analyticsChartBox;
+    const chartW = width - left - right;
+    const chartH = height - top - bottom;
+    const maxValue = Math.max(0, ...series.map(point => point.values.reduce((sum, value) => sum + value, 0)));
+    const scaleMax = analyticsScaleMax(maxValue);
+    const step = scaleMax / 5;
+    const svgNS = 'http://www.w3.org/2000/svg';
+    const axisColor = analyticsTextColor();
+
+    const make = (tag, attrs) => {
+        const node = document.createElementNS(svgNS, tag);
+        Object.entries(attrs).forEach(([name, value]) => node.setAttribute(name, String(value)));
+        return node;
+    };
+
+    for (let value = 0; value <= scaleMax + 0.0001; value += step) {
+        const y = top + chartH - (value / scaleMax) * chartH;
+        gridLayer.appendChild(make('line', {
+            x1: left, y1: y.toFixed(1), x2: left + chartW, y2: y.toFixed(1),
+            stroke: value === 0 ? '#323532' : '#262826', 'stroke-width': 1
+        }));
+        const tick = make('text', {
+            x: left - 10, y: (y + 3.5).toFixed(1), fill: '#8e928e',
+            'font-size': 10.5, 'text-anchor': 'end'
+        });
+        tick.textContent = (Math.round(value * 100) / 100).toString();
+        labelsLayer.appendChild(tick);
+    }
+
+    const columnWidth = chartW / series.length;
+    for (let index = 0; index <= series.length; index++) {
+        const x = left + index * columnWidth;
+        gridLayer.appendChild(make('line', {
+            x1: x.toFixed(1), y1: top, x2: x.toFixed(1), y2: top + chartH,
+            stroke: '#242624', 'stroke-width': 1
+        }));
+    }
+
+    const barWidth = Math.min(168, columnWidth * 0.72);
+    series.forEach((point, index) => {
+        const centerX = left + index * columnWidth + columnWidth / 2;
+        const barX = centerX - barWidth / 2;
+        const baseY = top + chartH;
+        const group = make('g', { class: 'analytics-bar-group' });
+        group.appendChild(make('rect', {
+            x: barX.toFixed(1), y: top, width: barWidth.toFixed(1), height: chartH, fill: 'transparent'
+        }));
+        let cursorY = baseY;
+        visibleSeries.forEach((item, seriesIndex) => {
+            const value = point.values[seriesIndex];
+            if (!(value > 0)) return;
+            const segmentHeight = (value / scaleMax) * chartH;
+            const segmentY = cursorY - segmentHeight;
+            group.appendChild(make('rect', {
+                class: 'analytics-bar-rect',
+                x: barX.toFixed(1), y: segmentY.toFixed(1),
+                width: barWidth.toFixed(1), height: segmentHeight.toFixed(1),
+                fill: item.fill, stroke: item.stroke, 'stroke-width': 1
+            }));
+            cursorY = segmentY;
+        });
+        const items = visibleSeries.map((item, seriesIndex) => ({
+            label: item.label, fill: item.fill, stroke: item.stroke, value: point.values[seriesIndex]
+        }));
+        group.addEventListener('mousemove', event => showAnalyticsTooltip(event, point.label, items));
+        group.addEventListener('mouseleave', hideAnalyticsTooltip);
+        barsLayer.appendChild(group);
+
+        const caption = make('text', {
+            x: centerX.toFixed(1), y: top + chartH + 20, fill: axisColor,
+            'font-size': 11, 'text-anchor': 'middle'
+        });
+        caption.textContent = point.label.length > 7 ? point.label.slice(5) : point.label;
+        labelsLayer.appendChild(caption);
+    });
+}
+
+function buildOCRAnalyticsChart(payload, selectedStore) {
+    lastAnalyticsPayload = payload;
+    if (typeof selectedStore === 'string') analyticsState.store = selectedStore;
+    renderAnalyticsSummaries(payload);
+    renderAnalyticsChart();
+}
+
+// The picker filters the already loaded year payload, so every store stays in
+// the table (dimmed) and no extra request is needed per click.
+function renderAnalyticsSelection() {
+    renderAnalyticsSummaries(analyticsState.payload || {});
+    renderAnalyticsChart();
+}
+function selectAnalyticsStore(store) {
+    analyticsState.store = store === analyticsState.store && store !== '__all__' ? '__all__' : store;
+    const select = document.getElementById('ocr-analytics-store');
+    if (select) select.value = analyticsState.store;
+    renderAnalyticsSelection();
+}
+
+function onAnalyticsStoreChange() {
+    const select = document.getElementById('ocr-analytics-store');
+    analyticsState.store = select ? select.value : '__all__';
+    renderAnalyticsSelection();
+}
+
+function loadOCRAnalytics() {
+    const select = document.getElementById('ocr-analytics-store');
+    fetch(`?get_ocr_stats=1&store=__all__&year=${encodeURIComponent(analyticsYear)}`)
+        .then(r => r.json())
+        .then(d => {
+            if (d.status !== 'success') { showNotification(t('failed_load_analytics', 'Failed to load analytics'), 'error'); return; }
+            const store = analyticsState.store || '__all__';
+            if (select) {
+                const options = [{ value: '__all__', label: t('all_stores', 'All stores') }]
+                    .concat((d.stores || []).map(name => ({ value: name, label: name })));
+                select.replaceChildren();
+                options.forEach(option => {
+                    const node = document.createElement('option');
+                    node.value = option.value;
+                    node.textContent = option.label;
+                    select.appendChild(node);
+                });
+                select.value = (d.stores || []).includes(store) ? store : '__all__';
             }
+            buildOCRAnalyticsChart(d, select ? select.value : store);
+        })
+        .catch(() => showNotification(t('failed_load_analytics', 'Failed to load analytics'), 'error'));
+}
+
+function showOCRAnalyticsModal() {
+    showModal('ocr-analytics-modal');
+    updateYearButtons();
+    loadOCRAnalytics();
+}
+
+// ══ Excel-like cell selection ══════════════════════════════════════════════
+const tableSelection = { anchor: null, dragging: false, inputs: [] };
+const undoStack = [];
+const redoStack = [];
+
+function tableGridInputs() {
+    return Array.from(document.querySelectorAll('#data-table tbody input'));
+}
+function tableGridCols() {
+    const stores = (userSettings.stores || []).filter(store => store.visible !== false).length;
+    return stores + (userSettings.show_incomes ? 1 : 0);
+}
+function isCellInput(el) {
+    return !!el && el.tagName === 'INPUT' && !!el.closest && !!el.closest('#data-table tbody');
+}
+function markCell(input, on) {
+    const td = input.closest('td');
+    if (td) td.classList.toggle('cell-selected', on);
+}
+function clearCellSelection() {
+    document.querySelectorAll('#data-table td.cell-selected').forEach(td => td.classList.remove('cell-selected'));
+    tableSelection.inputs = [];
+    tableSelection.anchor = null;
+    tableSelection.dragging = false;
+    tableSelection.lastHover = null;
+}
+function selectCellRange(from, to, additive) {
+    const inputs = tableGridInputs();
+    const cols = tableGridCols();
+    const start = inputs.indexOf(from);
+    const end = inputs.indexOf(to);
+    if (start < 0 || end < 0 || cols <= 0) return;
+    if (!additive) {
+        document.querySelectorAll('#data-table td.cell-selected').forEach(td => td.classList.remove('cell-selected'));
+        tableSelection.inputs = [];
+    }
+    const rowA = Math.floor(start / cols), colA = start % cols;
+    const rowB = Math.floor(end / cols), colB = end % cols;
+    const firstRow = Math.min(rowA, rowB), lastRow = Math.max(rowA, rowB);
+    const firstCol = Math.min(colA, colB), lastCol = Math.max(colA, colB);
+    const picked = new Set(tableSelection.inputs);
+    for (let row = firstRow; row <= lastRow; row++) {
+        for (let col = firstCol; col <= lastCol; col++) {
+            const input = inputs[row * cols + col];
+            if (!input) continue;
+            picked.add(input);
+            markCell(input, true);
         }
     }
-    return '#111827';
+    tableSelection.inputs = [...picked];
 }
-window.chartTextColor=chartTextColor;
-function buildOCRAnalyticsChart(payload,selectedStore){
-    renderAnalyticsSummaries(payload);
-    const canvas=document.getElementById('ocr-analytics-chart');
-    if(!canvas)return;
-    const ctx=canvas.getContext('2d');
-    if(ocrAnalyticsChart)ocrAnalyticsChart.destroy();
-    const monthly=payload.monthly||[];
-    const color=chartTextColor();
-    if(selectedStore==='__all__'){
-        const labels=[...new Set(monthly.map(r=>r.ym))].sort();
-        const categories=[...new Set((payload.category_summary||[]).map(r=>r.category))];
-        const datasets=categories.map((cat,i)=>({type:'bar',label:categoryLabel(cat),data:labels.map(ym=>monthly.filter(r=>r.ym===ym).reduce((sum,r)=>{const st=(payload.store_summary||[]).find(s=>s.store===r.store);return sum+(st&&st.category===cat?Number(r.amount_sum||0):0);},0)),backgroundColor:storeColors[i%storeColors.length]+'66',borderColor:storeColors[i%storeColors.length],borderWidth:1,stack:'amount'}));
-        ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets},options:{responsive:true,maintainAspectRatio:false,scales:{x:{stacked:true,ticks:{color:chartTextColor()}},y:{stacked:true,beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
+function selectAllTableCells() {
+    const inputs = tableGridInputs();
+    if (!inputs.length) return;
+    clearCellSelection();
+    tableSelection.inputs = inputs.slice();
+    tableSelection.anchor = inputs[0];
+    inputs.forEach(input => markCell(input, true));
+}
+function selectionBounds() {
+    const inputs = tableGridInputs();
+    const cols = tableGridCols();
+    const selected = tableSelection.inputs.filter(input => inputs.includes(input));
+    if (!selected.length || cols <= 0) return null;
+    const indexes = selected.map(input => inputs.indexOf(input));
+    const rows = indexes.map(index => Math.floor(index / cols));
+    const columns = indexes.map(index => index % cols);
+    return {
+        inputs, cols,
+        firstRow: Math.min(...rows), lastRow: Math.max(...rows),
+        firstCol: Math.min(...columns), lastCol: Math.max(...columns)
+    };
+}
+function selectionTsv() {
+    const bounds = selectionBounds();
+    if (!bounds) return '';
+    const lines = [];
+    for (let row = bounds.firstRow; row <= bounds.lastRow; row++) {
+        const cells = [];
+        for (let col = bounds.firstCol; col <= bounds.lastCol; col++) {
+            const input = bounds.inputs[row * bounds.cols + col];
+            cells.push(input ? String(input.value || '').replace(/\t/g, ' ') : '');
+        }
+        lines.push(cells.join('\t'));
+    }
+    return lines.join('\n');
+}
+function writeClipboard(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).catch(() => copyViaTextarea(text));
         return;
     }
-    const daily=payload.daily||[];
-    const labels=[...new Set(daily.map(r=>r.date))].sort();
-    const amounts=labels.map(d=>{const row=daily.find(r=>r.date===d);return row?Number(row.amount):0;});
-    ocrAnalyticsChart=new Chart(ctx,{type:'bar',data:{labels,datasets:[{label:t('chart_amount','Amount'),data:amounts,backgroundColor:'rgba(239,68,68,.45)',borderColor:'rgba(239,68,68,1)',borderWidth:1}]},options:{responsive:true,maintainAspectRatio:false,scales:{x:{ticks:{color:chartTextColor()}},y:{beginAtZero:true,ticks:{color:chartTextColor()}}},plugins:{legend:{labels:{color:chartTextColor()}}}}});
+    copyViaTextarea(text);
 }
-let lastAnalyticsPayload = null;
-function loadOCRAnalytics(){
-    const select=document.getElementById('ocr-analytics-store');
-    const store=select?select.value:'__all__';
-    fetch(`?get_ocr_stats=1&store=${encodeURIComponent(store)}&year=${encodeURIComponent(analyticsYear)}`).then(r=>r.json()).then(d=>{
-        if(d.status!=='success'){showNotification(t('failed_load_analytics','Failed to load analytics'),'error');return;}
-        if(select&&select.options.length<=1)(d.stores||[]).forEach(s=>{const o=document.createElement('option');o.value=s;o.textContent=s;select.appendChild(o);});
-        lastAnalyticsPayload = d;
-        buildOCRAnalyticsChart(d,store);
-    }).catch(()=>showNotification(t('failed_load_analytics','Failed to load analytics'),'error'));
+function copyViaTextarea(text) {
+    const area = document.createElement('textarea');
+    area.value = text;
+    area.setAttribute('readonly', '');
+    area.style.position = 'fixed';
+    area.style.opacity = '0';
+    document.body.appendChild(area);
+    area.select();
+    try { document.execCommand('copy'); } catch (_) { /* clipboard unavailable */ }
+    area.remove();
 }
-function showOCRAnalyticsModal(){showModal('ocr-analytics-modal');updateYearButtons();loadOCRAnalytics();}
+function copySelectedCells() {
+    const text = selectionTsv();
+    if (!text) return false;
+    writeClipboard(text);
+    showNotification(t('cells_copied', 'Selected cells copied'), 'success');
+    return true;
+}
+function attachTableCellSelection(input) {
+    if (!input || input.dataset.cellSelectionReady === '1') return;
+    input.dataset.cellSelectionReady = '1';
+    input.addEventListener('mousedown', event => {
+        if (event.button !== 0) return;
+        // Suppress the browser's own text-selection drag: it scrolls the table
+        // under the pointer and would fight the spreadsheet-style range.
+        event.preventDefault();
+        if (event.shiftKey && tableSelection.anchor) {
+            selectCellRange(tableSelection.anchor, input, event.ctrlKey || event.metaKey);
+            input.focus({ preventScroll: true });
+            return;
+        }
+        tableSelection.anchor = input;
+        tableSelection.dragging = true;
+        tableSelection.lastHover = input;
+        selectCellRange(input, input, event.ctrlKey || event.metaKey);
+        input.focus({ preventScroll: true });
+        input.select();
+        // The currency hint floats over the cells below and would break a drag.
+        hideAmountCurrencyPopover();
+    });
+    input.addEventListener('focus', () => {
+        if (tableSelection.dragging) return;
+        if (tableSelection.inputs.includes(input)) return;
+        tableSelection.anchor = input;
+        selectCellRange(input, input, false);
+    });
+}
+function initTableInputSelection() {
+    tableGridInputs().forEach(attachTableCellSelection);
+    clearCellSelection();
+}
+document.addEventListener('mouseup', () => {
+    tableSelection.dragging = false;
+    tableSelection.lastHover = null;
+});
+// First Escape drops the cell selection; only the next one closes the table.
+document.addEventListener('keydown', event => {
+    if (event.key !== 'Escape' || !tableSelection.inputs.length) return;
+    clearCellSelection();
+    event.stopImmediatePropagation();
+}, true);
+// A drag follows the pointer across cells; elementFromPoint keeps it working
+// even when the pointer jumps over a cell border between two mousemove events.
+document.addEventListener('mousemove', event => {
+    if (!tableSelection.dragging || !tableSelection.anchor) return;
+    if (event.buttons === 0) { tableSelection.dragging = false; return; }
+    let el = document.elementFromPoint(event.clientX, event.clientY);
+    if (!isCellInput(el) && el && el.closest) el = el.closest('#data-table tbody td')?.querySelector('input') || null;
+    if (!isCellInput(el) || el === tableSelection.lastHover) return;
+    tableSelection.lastHover = el;
+    selectCellRange(tableSelection.anchor, el, false);
+});
+document.addEventListener('mousedown', event => {
+    if (event.target.closest && event.target.closest('#data-table')) return;
+    clearCellSelection();
+});
+
+// ══ Undo / redo for table edits ════════════════════════════════════════════
+function cellRef(input) {
+    return {
+        date: input.getAttribute('data-date'),
+        store: input.getAttribute('data-store'),
+        income: input.getAttribute('data-income') === '1'
+    };
+}
+function findCellInput(ref) {
+    return tableGridInputs().find(input => {
+        if (input.getAttribute('data-date') !== ref.date) return false;
+        if (ref.income) return input.getAttribute('data-income') === '1';
+        return input.getAttribute('data-store') === ref.store;
+    }) || null;
+}
+function recordCellEdit(ref, before, after) {
+    if (before === after) return;
+    undoStack.push({ ref, before, after });
+    if (undoStack.length > 200) undoStack.shift();
+    redoStack.length = 0;
+}
+function applyCellHistory(ref, value) {
+    const input = findCellInput(ref);
+    if (!input) {
+        showNotification(t('undo_not_on_page', 'Open the table on that month to undo this edit'), 'warning');
+        return false;
+    }
+    input.value = value;
+    saveExpense(input, { history: false });
+    return true;
+}
+function undoCellEdit() {
+    const entry = undoStack.pop();
+    if (!entry) { showNotification(t('undo_nothing', 'Nothing to undo'), 'info'); return; }
+    if (applyCellHistory(entry.ref, entry.before)) redoStack.push(entry);
+}
+function redoCellEdit() {
+    const entry = redoStack.pop();
+    if (!entry) { showNotification(t('redo_nothing', 'Nothing to redo'), 'info'); return; }
+    if (applyCellHistory(entry.ref, entry.after)) undoStack.push(entry);
+}
+
+// ══ Keyboard shortcuts ═════════════════════════════════════════════════════
+function hotkeyTypingTarget(el) {
+    if (!el) return false;
+    if (el.isContentEditable) return true;
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') return true;
+    if (el.tagName !== 'INPUT') return false;
+    const type = (el.getAttribute('type') || 'text').toLowerCase();
+    return !['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file'].includes(type);
+}
+function openModalElement() {
+    return document.querySelector('.modal[style*="display: flex"]');
+}
+function flushPendingSaves() {
+    clearTimeout(saveTimeout);
+    const dirty = tableGridInputs().filter(input => input.value.trim() !== input.defaultValue);
+    dirty.forEach(input => saveExpense(input));
+    if (dirty.length) showNotification(t('shortcuts_saved', 'Edits saved'), 'success');
+}
+function setupWizardEnterKeys() {
+    const modal = document.getElementById('manual-add-modal');
+    if (!modal) return;
+    modal.addEventListener('keydown', event => {
+        if (event.key !== 'Enter' || event.isComposing) return;
+        const el = document.activeElement;
+        if (!el || el.tagName === 'TEXTAREA' || el.tagName === 'BUTTON') return;
+        event.preventDefault();
+        if (manualAddState.step < 3) manualAddGo(manualAddState.step + 1);
+        else saveManualExpense();
+    });
+}
+function handleHotkeys(event) {
+    const key = event.key;
+    const mod = event.ctrlKey || event.metaKey;
+    if (mod) {
+        const lower = key.toLowerCase();
+        if (lower === 'z' && !event.shiftKey) {
+            if (isCellInput(document.activeElement) || undoStack.length) {
+                event.preventDefault();
+                undoCellEdit();
+            }
+            return;
+        }
+        if ((lower === 'z' && event.shiftKey) || (lower === 'y' && !event.shiftKey)) {
+            event.preventDefault();
+            redoCellEdit();
+            return;
+        }
+        if (lower === 'c' && tableSelection.inputs.length && !window.getSelection()?.toString()) {
+            if (copySelectedCells()) event.preventDefault();
+            return;
+        }
+        if (lower === 'a' && isCellInput(document.activeElement)) {
+            event.preventDefault();
+            selectAllTableCells();
+            return;
+        }
+        if (lower === 's') {
+            event.preventDefault();
+            flushPendingSaves();
+            return;
+        }
+        return;
+    }
+    if (event.altKey) return;
+    if (key === '?' || (key === '/' && event.shiftKey)) {
+        event.preventDefault();
+        showModal('shortcuts-modal');
+        return;
+    }
+    if (hotkeyTypingTarget(document.activeElement)) return;
+    const open = openModalElement();
+    if (open) {
+        if (open.id === 'ocr-analytics-modal' && (key === 'ArrowLeft' || key === 'ArrowRight')) {
+            event.preventDefault();
+            changeAnalyticsYear(key === 'ArrowLeft' ? -1 : 1);
+        }
+        return;
+    }
+    if (key === 'PageUp') { event.preventDefault(); navigateMonth(-1); }
+    else if (key === 'PageDown') { event.preventDefault(); navigateMonth(1); }
+    else if (key === 'n' || key === 'N') { event.preventDefault(); openManualAddModal(); }
+    else if (key === 't' || key === 'T') { event.preventDefault(); showModal('expenses-table-modal'); }
+    else if (key === 'a' || key === 'A') { event.preventDefault(); showOCRAnalyticsModal(); }
+    else if (key === ',') { event.preventDefault(); showModal('settings-modal'); }
+}
+function initHotkeys() {
+    document.addEventListener('keydown', handleHotkeys);
+    setupWizardEnterKeys();
+}
 
 // ══ DOMContentLoaded ═══════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',function(){
 setupModalChrome();
+initCustomSelects();
+initDateFields();
+initHotkeys();
 updateFinancialSummary();
 loadAvailableYears().then(()=>{updateChart();});
     highlightCurrentDate();
@@ -2800,6 +4351,7 @@ loadAvailableYears().then(()=>{updateChart();});
         attachCellContextMenu(input);
         attachAmountCurrencyPicker(input);
     });
+    initTableInputSelection();
     const acp=document.getElementById('amount-currency-popover');
     if(acp)acp.addEventListener('mousedown',e=>e.preventDefault());
     window.addEventListener('scroll',()=>{if(currencyPopoverInput)positionAmountCurrencyPopover(currencyPopoverInput);},true);
@@ -2911,7 +4463,9 @@ loadAvailableYears().then(()=>{updateChart();});
             menu.hidden=true;
             btn.setAttribute('aria-expanded','false');
         };
-        ['button[onclick*="settings-modal"]','button[onclick*="backup-modal"]','button[onclick*="showShareModal"]','button[onclick*="exchange-rates-modal"]','#mobile-app-btn'].forEach(function(sel){
+        // Account-level settings stay in the avatar menu; chart actions
+        // (share, rates) remain in the top bar as their own buttons.
+        ['button[onclick*="settings-modal"]','button[onclick*="backup-modal"]','#mobile-app-btn'].forEach(function(sel){
             document.querySelectorAll('.header-buttons '+sel).forEach(function(el){
                 if(el.closest('#profile-menu'))return;
                 const label=el.getAttribute('title')||el.textContent.trim();

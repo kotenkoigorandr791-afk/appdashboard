@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -50,6 +51,13 @@ class LocationUploader(
     private val appContext = context.applicationContext
 
     suspend fun uploadPending(
+        config: WebhookConfig,
+        prefs: PreferencesManager,
+        limit: Int = LocationEventStore.DEFAULT_BATCH,
+        writeLog: Boolean = true,
+    ): UploadReport = LocationMutationLock.mutex.withLock { uploadPendingUnlocked(config, prefs, limit, writeLog) }
+
+    private suspend fun uploadPendingUnlocked(
         config: WebhookConfig,
         prefs: PreferencesManager,
         limit: Int = LocationEventStore.DEFAULT_BATCH,

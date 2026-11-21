@@ -1,0 +1,298 @@
+/* Auto-extracted from MD3 preview — visual tokens & motion */
+.app-steps.md3 {
+  color: #E3E5E8;
+  font-family: Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+/* Unified Google Material Symbols Rounded (24px default for 44px touch targets) */
+    .app-steps.md3 .material-symbols-rounded {
+      font-family: 'Material Symbols Rounded';
+      font-weight: normal;
+      font-style: normal;
+      font-size: 24px;
+      line-height: 1;
+      letter-spacing: normal;
+      text-transform: none;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      white-space: nowrap;
+      word-wrap: normal;
+      direction: ltr;
+      -webkit-font-smoothing: antialiased;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      user-select: none;
+    }
+    .app-steps.md3 .material-symbols-rounded.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+    }
+    .app-steps.md3 .icon-sm {
+      font-size: 20px !important;
+      font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+    .app-steps.md3 .icon-sm.filled {
+      font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+    }
+
+    /* Uniform Top Bar 44x44px Action Button (1:2 icon-to-container ratio) */
+    .app-steps.md3 .topbar-icon-btn {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      background-color: #242528;
+      border: 1px solid #34363B;
+      color: #D2D5DA;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  border-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  transform 160ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .topbar-icon-btn:hover {
+      background-color: #2E3034;
+      border-color: #464950;
+      color: #FFFFFF;
+    }
+    .app-steps.md3 .topbar-icon-btn:active {
+      transform: scale(0.95);
+    }
+    .app-steps.md3 .topbar-icon-btn.is-active {
+      background-color: rgba(76, 154, 255, 0.16);
+      border-color: rgba(76, 154, 255, 0.48);
+      color: #4C9AFF;
+    }
+
+    /* Material 3 Button Micro-interactions */
+    .app-steps.md3 .md-btn {
+      transition: background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  border-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  transform 160ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .md-btn:active {
+      transform: scale(0.98);
+    }
+
+    /* Unified Material Input & Select */
+    .app-steps.md3 .md-input {
+      height: 42px;
+      background-color: #1C1D1F;
+      border: 1px solid #34363B;
+      border-radius: 12px;
+      color: #E3E5E8;
+      transition: border-color 200ms cubic-bezier(0.2, 0, 0, 1),
+                  box-shadow 200ms cubic-bezier(0.2, 0, 0, 1),
+                  background-color 200ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .md-input:hover {
+      border-color: #484B52;
+    }
+    .app-steps.md3 .md-input:focus {
+      outline: none;
+      border-color: #4C9AFF;
+      box-shadow: 0 0 0 3px rgba(76, 154, 255, 0.18);
+      background-color: #212225;
+    }
+
+    /* Material Range Slider */
+    input[type="range"].md-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      height: 6px;
+      border-radius: 999px;
+      background: #2E3034;
+      outline: none;
+    }
+    input[type="range"].md-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #4C9AFF;
+      border: 2px solid #121314;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+      transition: transform 180ms cubic-bezier(0.2, 0, 0, 1), background-color 180ms ease;
+    }
+    input[type="range"].md-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.14);
+      background: #73B2FF;
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(159, 163, 170, 0.22);
+      border-radius: 9999px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(159, 163, 170, 0.38);
+    }
+
+    /* =====================================================================
+       CUSTOM MATERIAL DESIGN 3 CONTROLS (Dropdowns, Calendars, Checkboxes)
+    ====================================================================== */
+    /* Custom Animated Dropdown Menu */
+    .app-steps.md3 .m3-select-menu {
+      transform-origin: top center;
+      animation: m3MenuOpen 200ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+    @keyframes m3MenuOpen {
+      from {
+        opacity: 0;
+        transform: translateY(-6px) scaleY(0.95);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scaleY(1);
+      }
+    }
+    .app-steps.md3 .m3-select-chevron {
+      transition: transform 220ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .m3-select-open .m3-select-chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Custom Animated Calendar Popover */
+    .app-steps.md3 .m3-calendar-popover {
+      transform-origin: top left;
+      animation: m3CalPop 220ms cubic-bezier(0.2, 0, 0, 1) forwards;
+    }
+    @keyframes m3CalPop {
+      from {
+        opacity: 0;
+        transform: translateY(-8px) scale(0.96);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    /* Custom Animated M3 Checkbox with SVG Path Draw */
+    .app-steps.md3 .m3-checkbox-wrapper {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .app-steps.md3 .m3-checkbox-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    .app-steps.md3 .m3-checkbox-box {
+      width: 20px;
+      height: 20px;
+      border-radius: 6px;
+      background-color: #1C1D1F;
+      border: 1.5px solid #484B52;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background-color 180ms cubic-bezier(0.2, 0, 0, 1),
+                  border-color 180ms cubic-bezier(0.2, 0, 0, 1),
+                  box-shadow 180ms cubic-bezier(0.2, 0, 0, 1),
+                  transform 140ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .m3-checkbox-wrapper:hover .m3-checkbox-box {
+      border-color: #60A5FA;
+      box-shadow: 0 0 0 4px rgba(96, 165, 250, 0.12);
+    }
+    .app-steps.md3 .m3-checkbox-wrapper:active .m3-checkbox-box {
+      transform: scale(0.92);
+    }
+    .app-steps.md3 .m3-checkbox-input:checked + .m3-checkbox-box {
+      background-color: #3B82F6;
+      border-color: #60A5FA;
+    }
+    .app-steps.md3 .m3-checkbox-svg {
+      width: 14px;
+      height: 14px;
+      stroke: #FFFFFF;
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+      stroke-dasharray: 20;
+      stroke-dashoffset: 20;
+      transition: stroke-dashoffset 220ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .m3-checkbox-input:checked + .m3-checkbox-box .m3-checkbox-svg {
+      stroke-dashoffset: 0;
+    }
+
+    /* Custom Animated M3 Switch */
+    .app-steps.md3 .m3-switch-track {
+      width: 36px;
+      height: 20px;
+      border-radius: 999px;
+      background-color: #2E3034;
+      border: 1px solid #484B52;
+      padding: 2px;
+      display: inline-flex;
+      align-items: center;
+      flex-shrink: 0;
+      transition: background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  border-color 220ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .m3-switch-track.is-on {
+      background-color: #3B82F6;
+      border-color: #60A5FA;
+    }
+    .app-steps.md3 .m3-switch-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background-color: #A0A4AB;
+      transition: transform 220ms cubic-bezier(0.2, 0, 0, 1),
+                  background-color 220ms cubic-bezier(0.2, 0, 0, 1),
+                  width 160ms ease;
+    }
+    .app-steps.md3 .m3-switch-track.is-on .m3-switch-thumb {
+      transform: translateX(16px);
+      background-color: #FFFFFF;
+    }
+
+    /* Neutral Charcoal Vector Map Canvas */
+    .app-steps.md3 .map-canvas-bg {
+      background-color: #161719;
+      background-image:
+        radial-gradient(circle at 42% 46%, rgba(76, 154, 255, 0.06) 0%, transparent 58%),
+        linear-gradient(rgba(255, 255, 255, 0.025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+      background-size: 100% 100%, 48px 48px, 48px 48px;
+    }
+
+    /* Modal Backdrop & M3 Motion Curve */
+    .app-steps.md3 .modal-backdrop {
+      backdrop-filter: blur(8px);
+      background-color: rgba(10, 11, 12, 0.78);
+      animation: fadeIn 200ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    .app-steps.md3 .modal-panel {
+      animation: scaleIn 250ms cubic-bezier(0.2, 0, 0, 1);
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes scaleIn {
+      from { opacity: 0; transform: scale(0.97) translateY(6px); }
+      to { opacity: 1; transform: scale(1) translateY(0); }
+    }
+  

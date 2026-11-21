@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 La mappa ora mostra la tua posizione attuale con un cerchio di precisione e una freccia che indica dove guardi
+* ⚡ I punti vengono inviati al server subito dopo la registrazione, così la mappa web si aggiorna in tempo reale
+* 📞 Corretti i punti mancanti dopo le chiamate e altre pause: la registrazione ora si riprende da sola
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Corretto l'attribuzione dei dati salute al giorno sbagliato per gli utenti a est di UTC: distanza, calorie, sonno e polso ora contano nel giorno in cui si verificano

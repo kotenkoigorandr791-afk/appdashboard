@@ -43,6 +43,9 @@ perf_assert(str_contains($body, 'viewportSeq'), 'stale-response sequence guard m
 perf_assert(str_contains($body, 'bboxQuery()'), 'bounded viewport bbox missing');
 perf_assert(str_contains($body, 'window.stepsMapPerf'), 'map performance counters missing');
 perf_assert(str_contains($body, "extent:'1'"), 'bounded extent lookup missing');
+// Background imports/removals must invalidate the cached viewport chunks.
+perf_assert(str_contains($body, 'window.stepsMapInvalidate'), 'map cache invalidation hook missing');
+perf_assert(str_contains($scripts, 'stepsMapInvalidate'), 'import completion does not refresh the map');
 
 // Chart rendering is deferred until idle/interaction.
 perf_assert(str_contains($scripts, 'requestIdleCallback'), 'chart paint is not deferred to idle');

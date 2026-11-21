@@ -44,10 +44,10 @@ final class ExpenseChartRenderer extends BaseRenderer implements AppRendererInte
           <button class="md3-chip md3-chip--filter" data-sp-chart-kind="pie">' . sp_h(sp_t('pie')) . '</button>
         </div>
         <label class="sp-lang-picker"><span class="material-symbols-outlined">date_range</span>
-          <select class="md3-select" data-sp-chart-period>
-            <option value="6">6 ' . sp_h(sp_t('months') ?? 'months') . '</option>
-            <option value="12" selected>12 ' . sp_h(sp_t('months') ?? 'months') . '</option>
-            <option value="0">' . sp_h(sp_t('total')) . '</option>
+          <select class="md3-select" data-sp-chart-period aria-label="' . sp_h(sp_t('date_range')) . '">
+            <option value="6">' . sp_h(sp_t('period_6_months')) . '</option>
+            <option value="12" selected>' . sp_h(sp_t('period_12_months')) . '</option>
+            <option value="0">' . sp_h(sp_t('period_all')) . '</option>
           </select>
         </label>
       </div>

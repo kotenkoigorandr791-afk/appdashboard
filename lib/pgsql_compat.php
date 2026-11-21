@@ -99,7 +99,7 @@ final class AppDatabase {
     }
     public static function connect(): self {
         if (self::$instance === null) {
-            self::$instance = new self(app_pdo_connect(false));
+            self::$instance = new self(app_pdo_connect(false, 'main'));
         } else {
             try {
                 if (self::$instance->publicPathSet) return self::$instance;
@@ -115,7 +115,7 @@ final class AppDatabase {
     public static function connectUserSchema(string $schemaSql, array $initSql = []): self {
         $key = $schemaSql . '|' . implode(';', $initSql);
         if (!isset(self::$userInstances[$key])) {
-            $pdo = app_pdo_connect(true);
+            $pdo = app_pdo_connect(true, 'user');
             $pdo->exec('SET search_path TO ' . $schemaSql . ', public');
             foreach ($initSql as $q) $pdo->exec($q);
             self::$userInstances[$key] = new self($pdo, $schemaSql, $initSql);

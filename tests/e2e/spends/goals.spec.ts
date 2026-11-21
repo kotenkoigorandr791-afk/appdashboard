@@ -72,7 +72,8 @@ test.describe('spends — goals', () => {
   test('goals settings section renders editor UI', async ({ page }) => {
     await login(page);
     await page.goto('/apps/spends/?lang=en&theme=light', { waitUntil: 'domcontentloaded' });
-    await page.locator('.header-btn[title*="Settings"], .header-btn[onclick*="settings-modal"]').first().click();
+    await page.locator('#profile-menu-btn').click();
+    await page.locator('#profile-menu [onclick*="settings-modal"]').first().click();
     await expect(page.locator('#settings-modal')).toBeVisible();
     await page.locator('[data-settings-section="goals"]').click();
     await expect(page.locator('#settings-section-goals')).toBeVisible();

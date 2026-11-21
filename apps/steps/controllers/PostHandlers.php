@@ -15,8 +15,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if ($goalSteps === false || $goalSteps < 0)
             exit(json_encode(['status' => 'error', 'message' => $translations['invalid_goal_steps'] ?? 'Invalid goal steps']));
 
+        $occupation = isset($_POST['occupation']) ? (string)$_POST['occupation'] : null;
+        if ($occupation !== null && !in_array($occupation, steps_occupation_values(), true)) exit(json_encode(['status' => 'error', 'message' => 'invalid_occupation']));
         try {
             $userDb->exec('BEGIN');
+            if ($occupation !== null) saveUserSetting($userDb, 'occupation', $occupation);
             saveUserSetting($userDb, 'goal_steps',    (string)(int)($goalSteps * 1000));
             saveUserSetting($userDb, 'height',        (string)(filter_var($_POST['height'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 170));
             saveUserSetting($userDb, 'weight',        (string)(filter_var($_POST['weight'],        FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]) ?: 70));

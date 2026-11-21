@@ -21,7 +21,7 @@ test.describe('spends — mobile features API', () => {
     const api = (path: string, init?: Record<string, unknown>) =>
       page.evaluate(
         async ({ p, i, tok }) => {
-          const r = await fetch(p, { ...i, headers: { ...((i as any)?.headers || {}), Authorization: `Bearer ${tok}`, Accept: 'application/json' } });
+          const r = await fetch(p, { ...i, headers: { ...((i as any)?.headers || {}), Authorization: `Bearer ${tok}`, 'X-Device-Id': 'e2e0e2e0e2e0e2e0e2e0e2e0e2e0e2e0', Accept: 'application/json' } });
           return { status: r.status, json: await r.json().catch(() => null) };
         },
         { p: path, i: init, tok: token },
@@ -123,8 +123,7 @@ test.describe('spends — mobile features API', () => {
     );
     const [name, color, store, payment, add] = boxes;
     expect(name.right).toBeLessThanOrEqual(color.x + 1);
-    expect(color.y).toBeGreaterThanOrEqual(name.bottom - 1);
-    expect(store.y).toBeGreaterThanOrEqual(color.bottom - 1);
+    expect(store.y).toBeGreaterThanOrEqual(Math.max(name.bottom, color.bottom) - 1);
     expect(payment.y).toBeGreaterThanOrEqual(store.bottom - 1);
     expect(add.y).toBeGreaterThanOrEqual(payment.bottom - 1);
     expect(add.right).toBeLessThanOrEqual(390);

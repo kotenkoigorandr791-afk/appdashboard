@@ -1,4 +1,5 @@
 package orbit.nex.steps.screens
+import kotlinx.coroutines.launch
 
 import orbit.nex.steps.ui.theme.Spacing
 import android.app.Activity
@@ -70,6 +71,9 @@ import orbit.nex.steps.ui.theme.AppThemeRevision
 fun PersonalizationScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
+    val noticeHost = remember { androidx.compose.material3.SnackbarHostState() }
+    val noticeScope = androidx.compose.runtime.rememberCoroutineScope()
+    fun showNotice() { noticeScope.launch { noticeHost.showSnackbar(context.getString(R.string.saved_toast)) } }
 
     var themeMode by remember { mutableStateOf(prefs.getThemeMode()) }
     var amoledEnabled by remember { mutableStateOf(prefs.isAmoledEnabled()) }
@@ -79,6 +83,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
     var showRestartDialog by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { androidx.compose.material3.SnackbarHost(noticeHost) { data -> orbit.nex.steps.components.SavedToast(data.visuals.message, Modifier.padding(bottom = 8.dp), onDismiss = { data.dismiss() }) } },
         topBar = {
             TopAppBar(
                 title = { Text(stringResource(R.string.settings_personalization)) },
@@ -124,7 +129,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                             selected = themeMode == value,
                                             onClick = {
                                                 themeMode = value
-                                                prefs.setThemeMode(value)
+                                                prefs.setThemeMode(value); showNotice()
                                                 val nightMode = when (value) {
                                                     "light" -> AppCompatDelegate.MODE_NIGHT_NO
                                                     "dark" -> AppCompatDelegate.MODE_NIGHT_YES
@@ -165,7 +170,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                             checked = amoledEnabled,
                                             onCheckedChange = {
                                                 amoledEnabled = it
-                                                prefs.setAmoledEnabled(it)
+                                                prefs.setAmoledEnabled(it); showNotice()
                                                 AppThemeRevision.bump()
                                             },
                                         )
@@ -188,7 +193,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                             .fillMaxWidth()
                                             .clickable {
                                                 accentColor = value
-                                                prefs.setAccentColor(value)
+                                                prefs.setAccentColor(value); showNotice()
                                                 AppThemeRevision.bump()
                                             }
                                             .padding(vertical = Spacing.sm),
@@ -223,7 +228,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                             .fillMaxWidth()
                                             .clickable {
                                                 language = tag
-                                                prefs.setAppLanguage(tag)
+                                                prefs.setAppLanguage(tag); showNotice()
                                                 if (tag.isEmpty()) {
                                                     AppCompatDelegate.setApplicationLocales(LocaleListCompat.getEmptyLocaleList())
                                                 } else {
@@ -256,7 +261,7 @@ fun PersonalizationScreen(onBack: () -> Unit) {
                                         checked = portraitOnly,
                                         onCheckedChange = {
                                             portraitOnly = it
-                                            prefs.setPortraitOnly(it)
+                                            prefs.setPortraitOnly(it); showNotice()
                                             (context as? Activity)?.requestedOrientation =
                                                 if (it) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED
                                         },

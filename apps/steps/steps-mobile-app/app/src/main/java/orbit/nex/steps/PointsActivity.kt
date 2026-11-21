@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -47,6 +48,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -57,7 +59,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -88,7 +93,7 @@ class PointsActivity : ComponentActivity() {
 private fun PointsScreen(onBack: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
-    val repository = remember { PointManagementRepository(prefs) }
+    val repository = remember { PointManagementRepository(prefs, context) }
     val scope = rememberCoroutineScope()
     val config = remember { prefs.getWebhookConfigs().firstOrNull { it.isEnabled } }
     var from by remember { mutableStateOf("") }
@@ -134,6 +139,16 @@ private fun PointsScreen(onBack: () -> Unit) {
         loadJob = scope.launch { load() }
     }
     LaunchedEffect(config?.url) { loadHistory() }
+    // Returning from the map-selection screen may have deleted points there, so
+    // the list must not keep showing rows that no longer exist on the server.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) scope.launch { load() }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     Scaffold(topBar = {
         TopAppBar(
@@ -174,13 +189,13 @@ private fun PointsScreen(onBack: () -> Unit) {
                             onClick = {
                                 context.startActivity(Intent(context, PointSelectionActivity::class.java))
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.weight(1f).height(64.dp),
                         ) {
                             Icon(Icons.Filled.Map, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text(stringResource(R.string.points_select_on_map), modifier = Modifier.padding(start = 6.dp))
+                            Text(stringResource(R.string.points_select_on_map), modifier = Modifier.padding(start = 6.dp), textAlign = androidx.compose.ui.text.style.TextAlign.Center)
                         }
                         if (selected.isNotEmpty()) {
-                            Button(onClick = { pendingDelete = true }, modifier = Modifier.weight(1f)) {
+                            Button(onClick = { pendingDelete = true }, modifier = Modifier.weight(1f).height(64.dp)) {
                                 Icon(Icons.Filled.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Text(stringResource(R.string.points_delete_count, selected.size), modifier = Modifier.padding(start = 6.dp))
                             }
@@ -281,12 +296,14 @@ private fun PointsScreen(onBack: () -> Unit) {
                     val ids = selected
                     scope.launch {
                         val active = config ?: return@launch
-                        repository.deleteIds(active, ids).onSuccess {
-                            notice = context.getString(R.string.points_deleted, ids.size)
+                        repository.deleteIds(active, ids).onSuccess { deleted ->
+                            notice = context.getString(R.string.points_deleted, deleted)
                             selected = emptySet()
                             page = 0
                             load()
-                        }.onFailure { error = it.message }
+                        }.onFailure { failure ->
+                            error = failure.message ?: failure.javaClass.simpleName
+                        }
                     }
                 }) { Text(stringResource(R.string.points_delete_forever)) }
             },

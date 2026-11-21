@@ -114,7 +114,7 @@ function spends_mobile_snapshot_revision(string $email): string
     $key = 'mobile_snapshot_revision:' . hash('sha256', $email);
     // Time bucket keeps the revision moving even when Redis is unavailable, so
     // clients are never stuck on a permanent "not_modified" answer.
-    $bucket = (string)floor(time() / 15);
+    $bucket = (string)floor(time() / 120);
     $redis = app_redis();
     if (!$redis) return '1-' . $bucket;
     try {

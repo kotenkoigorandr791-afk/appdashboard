@@ -38,9 +38,13 @@ data class StoredLocationEvent(
  * acknowledgements are reconciled per row, so a retry after process death
  * cannot store the same point twice.
  */
+object LocationMutationLock {
+    val mutex = kotlinx.coroutines.sync.Mutex()
+}
+
 class LocationEventStore(context: Context) {
 
-    private val helper = Helper(context.applicationContext)
+    private val helper = sharedHelper(context)
 
     fun insert(deviceId: String, event: LocationEvent): Boolean {
         val values = ContentValues().apply {
@@ -209,6 +213,29 @@ class LocationEventStore(context: Context) {
         )
     }
 
+    fun syncedEvents(): List<StoredLocationEvent> {
+        val out = mutableListOf<StoredLocationEvent>()
+        helper.readableDatabase.rawQuery(
+            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, $COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS, $COLUMN_STATE FROM $TABLE WHERE $COLUMN_STATE IN ('$STATE_ACCEPTED','$STATE_DUPLICATE')", null,
+        ).use { cursor -> while (cursor.moveToNext()) out += cursor.toEvent() }
+        return out
+    }
+
+    fun pendingEvents(): List<StoredLocationEvent> {
+        val out = mutableListOf<StoredLocationEvent>()
+        helper.readableDatabase.rawQuery(
+            "SELECT $COLUMN_ID, $COLUMN_EVENT_ID, $COLUMN_PAYLOAD, $COLUMN_CREATED_AT, $COLUMN_DEVICE_SEQUENCE, $COLUMN_ATTEMPTS, $COLUMN_STATE FROM $TABLE WHERE $COLUMN_STATE IN ('$STATE_PENDING','$STATE_UPLOADING','$STATE_FAILED','$STATE_REJECTED') ORDER BY $COLUMN_DEVICE_SEQUENCE DESC, $COLUMN_ID DESC", null,
+        ).use { cursor -> while (cursor.moveToNext()) out += cursor.toEvent() }
+        return out
+    }
+
+    fun removeEvents(eventIds: List<String>) {
+        eventIds.chunked(500).filter { it.isNotEmpty() }.forEach { ids ->
+            val placeholders = ids.joinToString(",") { "?" }
+            helper.writableDatabase.delete(TABLE, "$COLUMN_EVENT_ID IN ($placeholders)", ids.toTypedArray())
+        }
+    }
+
     /** Drops every queued and settled row; used when the owner resets diagnostics. */
     fun clearAll() {
         helper.writableDatabase.delete(TABLE, null, null)
@@ -275,6 +302,10 @@ class LocationEventStore(context: Context) {
     }
 
     companion object {
+        @Volatile private var shared: Helper? = null
+        private fun sharedHelper(context: Context): Helper = shared ?: synchronized(this) {
+            shared ?: Helper(context.applicationContext).also { shared = it }
+        }
         const val DEFAULT_BATCH = 50
         private const val MAX_SETTLED_ROWS = 5_000
         private const val RETENTION_DAYS = 7L

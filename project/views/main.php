@@ -977,8 +977,10 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         #notifications-panel{display:flex;flex-direction:column;visibility:hidden;position:fixed;top:62px;right:16px;width:min(420px,calc(100vw - 24px));max-height:min(620px,calc(100vh - 78px));background:var(--modal-bg);border:1px solid var(--border-color);border-radius:var(--casa-radius);box-shadow:var(--glass-shadow);z-index:100020;overflow:hidden;color:var(--text-color);opacity:0;pointer-events:none;transform:translateY(-8px) scale(.98);transform-origin:top right;transition:opacity .16s ease,transform .16s ease,visibility 0s linear .16s;backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));-webkit-backdrop-filter:blur(var(--glass-blur)) saturate(var(--glass-sat));}
         #notifications-panel.open{visibility:visible;opacity:1;pointer-events:auto;transform:translateY(0) scale(1);transition-delay:0s;}
         .notifications-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border-bottom:1px solid var(--border-color);font-weight:700;}
-        .notifications-actions{display:flex;gap:8px;align-items:center;}
-        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;gap:6px;position:relative;overflow:visible;}
+        /* stretch keeps both header buttons at one height even when a longer
+           translation wraps to a second line, at any font scale. */
+        .notifications-actions{display:flex;gap:8px;align-items:stretch;min-width:0;}
+        .notifications-actions button{border:1px solid var(--border-color);background:var(--group-block-bg);color:var(--text-color);border-radius:8px;padding:7px 10px;cursor:pointer;font-size:12px;display:inline-flex;align-items:center;justify-content:center;gap:6px;position:relative;overflow:visible;min-height:32px;line-height:1.2;text-align:center;}
         .notifications-actions button svg{width:14px;height:14px;stroke:currentColor;flex-shrink:0;}
         .notifications-actions button:disabled{opacity:.45;cursor:not-allowed;}
         .notifications-actions button.mark-read-done{background:rgba(34,197,94,.15);color:#22c55e;border-color:rgba(34,197,94,.3);}
@@ -2084,7 +2086,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             overflow: hidden;
         }
         .weather-settings-header {
-            padding: 24px 72px 20px 24px;
+            padding: 30px 72px 26px 24px;
             border-bottom: 0;
             background: var(--modal-bg);
         }
@@ -2098,11 +2100,12 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             position: relative;
             display: flex;
             width: min(100%, 430px);
-            padding: 4px;
+            padding: 5px;
             background: var(--modal-bg);
             border: 1px solid var(--border-color);
             border-radius: 20px;
-            margin: 0;
+            /* Centred under the title, with a little breathing room above/below. */
+            margin: 8px auto 10px;
             box-sizing: border-box;
         }
         .location-switch .slider {
@@ -2123,7 +2126,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             position: relative;
             z-index: 1;
             width: 50%;
-            padding: 12px 14px;
+            padding: 14px 16px;
             border: 0;
             background: var(--modal-bg);
             border-radius: 16px;
@@ -2134,7 +2137,7 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
             line-height: 1.25;
             cursor: pointer;
             transition: color .2s;
-            min-height: 44px;
+            min-height: 50px;
             display: inline-flex;
             align-items: center;
             justify-content: center;
@@ -4443,7 +4446,7 @@ window.__SHELL_I18N=<?php echo json_encode([
             <span class="app-rail-service-name"><?php echo $showAppFrame ? my_htmlspecialchars(array_key_first(array_filter($apps,function($a)use($selectedApp){return $a['folder']===$selectedApp;}))?? ucfirst((string)$selectedApp)) : ''; ?></span>
             </div>
         </div>
-        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *; fullscreen *" allowfullscreen src="<?php echo $appIframeBootDefer ? 'about:blank' : my_htmlspecialchars($appIframeSrc); ?>"<?php if ($appIframeBootDefer): ?> data-boot-src="<?php echo my_htmlspecialchars($appIframeSrc); ?>"<?php endif; ?>></iframe>
+        <iframe id="app-iframe" name="devtools-app" title="Application<?php echo $selectedApp ? ': '.my_htmlspecialchars($selectedApp) : ''; ?>" class="mobile-vv-fill" allow="clipboard-write *; clipboard-read *; fullscreen *" src="<?php echo $appIframeBootDefer ? 'about:blank' : my_htmlspecialchars($appIframeSrc); ?>"<?php if ($appIframeBootDefer): ?> data-boot-src="<?php echo my_htmlspecialchars($appIframeSrc); ?>"<?php endif; ?>></iframe>
         <?php if ($appIframeBootDefer): ?>
         <script>(function(){var iframe=document.getElementById('app-iframe');if(!iframe)return;var boot=iframe.getAttribute('data-boot-src');if(!boot)return;var t=window.__AP_BOOT_THEME__||'light';try{var u=new URL(boot,window.location.href);u.searchParams.set('theme',t);iframe.setAttribute('src',u.toString());}catch(e){iframe.setAttribute('src',boot);}iframe.removeAttribute('data-boot-src');})();</script>
         <?php endif; ?>

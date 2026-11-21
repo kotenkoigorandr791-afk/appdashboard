@@ -1,13 +1,15 @@
 <?php
 $parts = public_api_parse_path();
 $sub = strtolower((string)($parts[1] ?? ''));
-public_api_rate_limit($sub === 'ocr' ? 'spends_ocr' : 'spends', $sub === 'ocr' ? 12 : 240, 60);
+public_api_rate_limit($sub === 'ocr' ? 'spends_ocr' : 'spends', $sub === 'ocr' ? 12 : 1200, 60);
 if ($sub === 'utils' && str_starts_with((string)($parts[2] ?? ''), 'expense_ocr_app')) {
     require APP_ROOT . '/apps/spends/utils/expense_ocr_app.php';
     exit;
 }
 // JSON/multipart OCR API for the mobile app: /api/spends/ocr/{start|status|resolve|set_dates|cancel|finalize|stores|active_job}
 if ($sub === 'ocr') {
+    require_once APP_ROOT . '/apps/spends/core/mobile_sync.php';
+    if (strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET')) === 'POST') register_shutdown_function('spends_mobile_invalidate_snapshot');
     $_GET['api'] = strtolower((string)($parts[2] ?? ''));
     $_GET['job_id'] = (string)($_GET['job_id'] ?? '');
     require APP_ROOT . '/apps/spends/utils/expense_ocr_app.php';

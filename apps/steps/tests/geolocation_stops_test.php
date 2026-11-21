@@ -67,4 +67,19 @@ $strict = $t;
 $strict['min_duration_s'] = 3600.0;
 geo_stops_assert(StepsGeolocationStops::detect($jitter, $strict)['stops'] === [], 'custom duration threshold ignored');
 
+// Sparse 3-point dwell on a long route must not become a place (adaptive min ~ ceil(sqrt(N)*factor)).
+$sparseLong = [];
+for ($i = 0; $i < 100; $i++) {
+    $lat = 50.40 + $i * 0.001;
+    $lon = 30.40 + $i * 0.001;
+    $sparseLong[] = $make($i * 60, $lat, $lon);
+}
+// Inject a short 3-sample dwell mid-route that would pass fixed min_points=3.
+$sparseLong[40] = $make(40 * 60, 50.45, 30.52);
+$sparseLong[41] = $make(40 * 60 + 180, 50.4501, 30.5201);
+$sparseLong[42] = $make(40 * 60 + 360, 50.45005, 30.52005);
+$sparseDetected = StepsGeolocationStops::detect($sparseLong, $t);
+geo_stops_assert($sparseDetected['stops'] === [], 'sparse dwell on long route became a stop');
+geo_stops_assert(($jitterDetected = StepsGeolocationStops::detect($jitter, $t)) && ($jitterDetected['stops'][0]['adaptive_min_points'] ?? 0) >= 3, 'adaptive_min_points missing');
+
 echo "ok\n";

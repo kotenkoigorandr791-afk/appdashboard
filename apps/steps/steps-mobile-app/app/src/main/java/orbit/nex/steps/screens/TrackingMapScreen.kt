@@ -3,11 +3,13 @@ package orbit.nex.steps.screens
 import orbit.nex.steps.ui.theme.Spacing
 import orbit.nex.steps.ui.theme.semantic
 import android.graphics.Canvas
+import android.location.Location
 import android.graphics.Color as AndroidColor
 import android.location.LocationManager
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Point
+import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -54,9 +56,11 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -103,6 +107,9 @@ import orbit.nex.steps.location.LocationPermissions
 import orbit.nex.steps.location.LocationEventStore
 import orbit.nex.steps.location.LocationTrackingManager
 import orbit.nex.steps.location.TrackingState
+import orbit.nex.steps.location.LiveLocationProvider
+import orbit.nex.steps.location.LiveLocationState
+import orbit.nex.steps.location.PlacePhotoCache
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -119,12 +126,14 @@ internal enum class MapStyle(val key: String, val titleRes: Int) {
 }
 
 private object TrackingMapCache {
-    private val data = mutableMapOf<String, GeoMapData>()
+    private val data = mutableMapOf<String, Pair<Long, GeoMapData>>()
+    fun clear() = data.clear()
 
     fun get(configUrl: String?, day: LocalDate): GeoMapData? = data["${configUrl.orEmpty()}:${day}"]
+        ?.takeIf { android.os.SystemClock.elapsedRealtime() - it.first < 20_000L }?.second
 
     fun put(configUrl: String?, day: LocalDate, value: GeoMapData) {
-        if (value.error == null) data["${configUrl.orEmpty()}:${day}"] = value
+        if (value.error == null) data["${configUrl.orEmpty()}:${day}"] = android.os.SystemClock.elapsedRealtime() to value
     }
 }
 
@@ -157,11 +166,31 @@ internal object EsriStreet : OnlineTileSourceBase(
             MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
 }
 
+internal object EsriLight : OnlineTileSourceBase(
+    "NexStepsOsmStreet", 0, 19, 256, ".png",
+    arrayOf("https://tile.openstreetmap.org/"),
+    "© OpenStreetMap contributors",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getX(pMapTileIndex) + "/" + MapTileIndex.getY(pMapTileIndex) + ".png"
+}
+
 /** Esri imagery uses z/y/x order instead of the usual z/x/y. */
 internal object EsriSatellite : OnlineTileSourceBase(
     "EsriWorldImagery", 0, 19, 256, ".jpg",
     arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
     "Esri, Maxar, Earthstar Geographics",
+) {
+    override fun getTileURLString(pMapTileIndex: Long): String =
+        baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
+            MapTileIndex.getY(pMapTileIndex) + "/" + MapTileIndex.getX(pMapTileIndex)
+}
+
+private object EsriLightLabels : OnlineTileSourceBase(
+    "EsriLightGrayLabels", 0, 19, 256, ".png",
+    arrayOf("https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Reference/MapServer/tile/"),
+    "Esri, HERE, Garmin, © OpenStreetMap contributors",
 ) {
     override fun getTileURLString(pMapTileIndex: Long): String =
         baseUrl + MapTileIndex.getZoom(pMapTileIndex) + "/" +
@@ -224,6 +253,85 @@ private class HeatmapOverlay(
     }
 }
 
+/**
+ * "Where am I" puck, drawn like the one in consumer map apps: an accuracy halo,
+ * a white-ringed blue dot, and a translucent cone plus arrow that show which way
+ * the phone is facing. It is repainted on every location or compass update and
+ * survives the overlay rebuild that follows a day reload.
+ */
+private class UserLocationOverlay(
+    private val state: LiveLocationState,
+) : Overlay(), KeepOverlay {
+
+    private val halo = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val cone = Paint(Paint.ANTI_ALIAS_FLAG)
+    private val point = Point()
+    private val conePath = Path()
+    private val arrowPath = Path()
+
+    override fun draw(canvas: Canvas, mapView: MapView, shadow: Boolean) {
+        if (shadow) return
+        val fix = state.fix ?: return
+        val projection = mapView.projection
+        projection.toPixels(GeoPoint(fix.latitude, fix.longitude), point)
+        val x = point.x.toFloat()
+        val y = point.y.toFloat()
+        val density = mapView.resources.displayMetrics.density
+
+        fix.accuracyM?.takeIf { it > 0f }?.let { accuracy ->
+            val radius = projection.metersToPixels(accuracy, fix.latitude, fix.longitude)
+                .coerceIn(7f * density, 900f * density)
+            halo.style = Paint.Style.FILL
+            halo.color = AndroidColor.argb(26, 33, 150, 243)
+            canvas.drawCircle(x, y, radius, halo)
+            halo.style = Paint.Style.STROKE
+            halo.strokeWidth = 1.4f * density
+            halo.color = AndroidColor.argb(70, 33, 150, 243)
+            canvas.drawCircle(x, y, radius, halo)
+        }
+
+        val heading = state.headingDeg
+        if (heading != null) {
+            val radius = 54f * density
+            // Wedge pointing up, rotated to the current heading.
+            conePath.reset()
+            conePath.moveTo(0f, 0f)
+            conePath.lineTo(-radius * 0.438f, -radius * 0.899f)
+            conePath.arcTo(RectF(-radius, -radius, radius, radius), -90f - 26f, 52f)
+            conePath.close()
+            cone.color = AndroidColor.argb(42, 33, 150, 243)
+            canvas.save()
+            canvas.translate(x, y)
+            canvas.rotate(heading)
+            canvas.drawPath(conePath, cone)
+            canvas.restore()
+        }
+
+        fill.style = Paint.Style.FILL
+        fill.color = AndroidColor.WHITE
+        canvas.drawCircle(x, y, 11f * density, fill)
+        fill.color = AndroidColor.rgb(33, 150, 243)
+        canvas.drawCircle(x, y, 8f * density, fill)
+
+        // Direction arrow sits on top of the dot, like a map app puck.
+        if (heading != null) {
+            arrowPath.reset()
+            arrowPath.moveTo(0f, -7f * density)
+            arrowPath.lineTo(-4.6f * density, 4.2f * density)
+            arrowPath.lineTo(0f, 2.2f * density)
+            arrowPath.lineTo(4.6f * density, 4.2f * density)
+            arrowPath.close()
+            canvas.save()
+            canvas.translate(x, y)
+            canvas.rotate(heading)
+            fill.color = AndroidColor.WHITE
+            canvas.drawPath(arrowPath, fill)
+            canvas.restore()
+        }
+    }
+}
+
 /** Slowest to fastest buckets returned by the server `speed` layer. */
 private val SPEED_BUCKET_COLORS = intArrayOf(
     AndroidColor.rgb(56, 189, 248),
@@ -252,7 +360,7 @@ private fun dot(color: Int, border: Int, sizeDp: Int): GradientDrawable =
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TrackingMapScreen(modifier: Modifier = Modifier) {
+fun TrackingMapScreen(modifier: Modifier = Modifier, isVisible: Boolean = true) {
     val context = LocalContext.current
     val prefs = remember { PreferencesManager(context) }
     val manager = remember { LocationTrackingManager(context) }
@@ -267,35 +375,50 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             osmdroidTileCache = java.io.File(context.filesDir, "osmdroid/tiles")
             tileFileSystemCacheMaxBytes = 1024L * 1024 * 1024
             tileFileSystemCacheTrimBytes = 800L * 1024 * 1024
-            expirationOverrideDuration = 90L * 24 * 3600 * 1000
-            expirationExtendedDuration = 90L * 24 * 3600 * 1000
             tileDownloadThreads = 4
         }
     }
 
     var trackingState by remember { mutableStateOf(manager.state()) }
+    var trackingNotice by remember { mutableStateOf<String?>(null) }
+    var trackingNoticeError by remember { mutableStateOf(false) }
+    fun reportTracking() {
+        trackingState = manager.state()
+        trackingNoticeError = trackingState == TrackingState.PERMISSION_MISSING || trackingState == TrackingState.NOT_CONNECTED
+        trackingNotice = context.getString(when (trackingState) {
+            TrackingState.RUNNING -> R.string.tracking_status_running
+            TrackingState.PAUSED -> R.string.tracking_status_paused
+            TrackingState.PERMISSION_MISSING -> R.string.tracking_status_permission
+            TrackingState.NOT_CONNECTED -> R.string.tracking_status_no_connection
+            TrackingState.OFF -> R.string.tracking_status_off
+        })
+    }
+    LaunchedEffect(trackingNotice) { if (trackingNotice != null) { delay(3500); trackingNotice = null } }
     var permissionDenied by remember { mutableStateOf(LocationPermissions.state(context) == LocationPermissionState.DENIED) }
     var pendingUploads by remember { mutableStateOf(LocationTrackingManager.pendingCount(context)) }
     var lastUploadAt by remember { mutableStateOf(prefs.getLocationUploadOkAt()) }
     var lastError by remember { mutableStateOf(prefs.getLocationUploadError()) }
 
     // A stored day from the future has nothing to show, so it opens on today.
-    var selectedDay by remember {
-        mutableStateOf(
-            (prefs.getMapDay()?.let { runCatching { LocalDate.parse(it) }.getOrNull() } ?: LocalDate.now())
-                .coerceAtMost(LocalDate.now()),
-        )
-    }
+    var selectedDay by remember { mutableStateOf(LocalDate.now()) }
     // Server data and the local outbox stay separate so that a sync landing in
     // the background never duplicates the measurements still waiting for it.
     var remoteData by remember { mutableStateOf(GeoMapData()) }
     var localEvents by remember { mutableStateOf<List<StoredLocationEvent>>(emptyList()) }
+    val mapRevision by orbit.nex.steps.location.GeoMapChanges.revision.collectAsState()
+    var seenRevision by remember { mutableStateOf(mapRevision) }
     val data = remember(remoteData, localEvents) { remoteData.withLocalEvents(localEvents) }
     var loading by remember { mutableStateOf(false) }
     var mapStyle by remember { mutableStateOf(MapStyle.fromKey(prefs.getMapBasemap())) }
     var layers by remember { mutableStateOf(prefs.getMapLayers()) }
     var showLayers by remember { mutableStateOf(false) }
-    var myLocation by remember { mutableStateOf<GeoPoint?>(null) }
+    // Live puck state: position, accuracy and heading. It is intentionally
+    // separate from the recorded day data, so it works with tracking off too.
+    val liveState = remember { LiveLocationState() }
+    val userOverlay = remember { UserLocationOverlay(liveState) }
+    val followState = remember { mutableStateOf(prefs.getMapCamera() == null) }
+    val latestFollow = rememberUpdatedState(followState.value)
+    val latestDay = rememberUpdatedState(selectedDay)
     var hintVisible by remember { mutableStateOf(true) }
     LaunchedEffect(selectedDay) { hintVisible = true; delay(3_000); hintVisible = false }
     var showPanels by remember { mutableStateOf(false) }
@@ -310,7 +433,8 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     }
 
     // Server state is polled so the switch and sync box track the service.
-    LaunchedEffect(Unit) {
+    LaunchedEffect(isVisible) {
+        if (!isVisible) return@LaunchedEffect
         while (true) {
             manager.reconcile()
             trackingState = manager.state()
@@ -327,7 +451,26 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
 
     val config = prefs.getWebhookConfigs().firstOrNull { it.isEnabled }
 
-    LaunchedEffect(selectedDay, config) {
+    LaunchedEffect(config?.url, isVisible) {
+        val active = config ?: return@LaunchedEffect
+        if (!isVisible) return@LaunchedEffect
+        var lastFullReconcile = 0L
+        while (true) {
+            val now = android.os.SystemClock.elapsedRealtime()
+            val force = lastFullReconcile == 0L || now - lastFullReconcile >= 60_000L
+            if (repository.reconcileDeleted(active, context, force) && force) lastFullReconcile = now
+            delay(LIVE_MAP_REFRESH_MS)
+        }
+    }
+
+    LaunchedEffect(selectedDay, config, mapRevision, isVisible) {
+        if (mapRevision != seenRevision) {
+            TrackingMapCache.clear()
+            remoteData = GeoMapData()
+            localEvents = emptyList()
+            seenRevision = mapRevision
+        }
+        if (!isVisible) return@LaunchedEffect
         localEvents = runCatching { LocationEventStore(context).eventsForDay(selectedDay) }.getOrDefault(localEvents)
         val cached = TrackingMapCache.get(config?.url, selectedDay)
         if (cached == null) remoteData = GeoMapData()
@@ -344,11 +487,27 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         loading = false
     }
 
+    // While today is open, re-read the server so points recorded elsewhere show
+    // up without switching days. The endpoint caches for 20s, so 10s polling
+    // stays cheap and still feels live.
+    LaunchedEffect(selectedDay, config?.url, mapRevision, isVisible) {
+        if (!isVisible) return@LaunchedEffect
+        val activeConfig = config ?: return@LaunchedEffect
+        while (true) {
+            delay(LIVE_MAP_REFRESH_MS)
+            if (selectedDay != LocalDate.now()) continue
+            val remote = repository.loadDay(activeConfig, selectedDay)
+            if (remote.error != null) continue
+            TrackingMapCache.put(activeConfig.url, selectedDay, remote)
+            remoteData = remote
+        }
+    }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) {
         if (LocationPermissions.hasForeground(context)) manager.start()
-        trackingState = manager.state()
+        reportTracking()
     }
 
     val mapView = remember {
@@ -366,6 +525,8 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         }.getOrNull()
         MapView(context).apply {
             setMultiTouchControls(true)
+            overlays.add(MapRotationOverlay(this))
+            if (!darkTheme) setTilesScaledToDpi(false)
             zoomController.setVisibility(org.osmdroid.views.CustomZoomButtonsController.Visibility.NEVER)
             setHorizontalMapRepetitionEnabled(false)
             setVerticalMapRepetitionEnabled(false)
@@ -385,25 +546,31 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             }
         }
     }
+    val labelsOverlay = remember {
+        TilesOverlay(MapTileProviderBasic(context).apply { setTileSource(EsriLightLabels) }, context)
+    }
     val roadsOverlay = remember {
         TilesOverlay(MapTileProviderBasic(context).apply { setTileSource(EsriTransportation) }, context)
     }
     DisposableEffect(Unit) {
-        mapView.onResume()
         onDispose {
             val center = mapView.mapCenter
             prefs.setMapCamera(center.latitude, center.longitude, mapView.zoomLevelDouble)
             prefs.setMapDay(selectedDay.toString())
-            mapView.onPause()
             mapView.onDetach()
         }
     }
 
-    LaunchedEffect(resolvedStyle) {
+    DisposableEffect(isVisible) {
+        if (isVisible) mapView.onResume()
+        onDispose { if (isVisible) mapView.onPause() }
+    }
+
+    LaunchedEffect(resolvedStyle, darkTheme) {
         mapView.setTileSource(
             when (resolvedStyle) {
                 MapStyle.SATELLITE -> EsriSatellite
-                MapStyle.NORMAL -> EsriStreet
+                MapStyle.NORMAL -> if (darkTheme) EsriStreet else EsriLight
             }
         )
         // Same street tiles in both themes; dark mode inverts them the way the
@@ -420,34 +587,65 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         mapView.invalidate()
     }
 
+    // Foreground live position. The recording service runs on its own schedule,
+    // so the visible map keeps its own high-accuracy stream for the puck.
+    val liveProvider = remember {
+        LiveLocationProvider(
+            context = context,
+            state = liveState,
+            onFix = { fix ->
+                mapView.invalidate()
+                if (latestFollow.value && latestDay.value == LocalDate.now()) {
+                    mapView.controller.animateTo(GeoPoint(fix.latitude, fix.longitude))
+                }
+            },
+            onDirectionChanged = { mapView.invalidate() },
+        )
+    }
+    DisposableEffect(Unit) {
+        mapView.overlays.add(userOverlay)
+        // Touching the map means the user wants to browse, so stop following.
+        mapView.setOnTouchListener { _, event ->
+            if (event.actionMasked == android.view.MotionEvent.ACTION_DOWN) followState.value = false
+            false
+        }
+        onDispose { mapView.overlays.remove(userOverlay) }
+    }
+    DisposableEffect(isVisible) {
+        if (isVisible) liveProvider.start()
+        onDispose { liveProvider.stop() }
+    }
+
     // Overlays are rebuilt only when the day data or the enabled layers change.
-    LaunchedEffect(data, layers, resolvedStyle, myLocation) {
-        rebuildOverlays(mapView, data, layers, myLocation)
+    LaunchedEffect(data, layers, resolvedStyle, darkTheme, config?.url) {
+        val active = config
+        if (active != null && GeoLayer.VISITS.key in layers) {
+            data.points.filter { it.layer == "visit" && it.osmType != null && it.osmId != null }.forEach { feature ->
+                PlacePhotoCache.ensure(context, prefs, active, feature.osmType!!, feature.osmId!!)
+            }
+        }
+        rebuildOverlays(mapView, data, layers, darkTheme)
         mapView.overlays.remove(roadsOverlay)
+        mapView.overlays.remove(labelsOverlay)
         if (resolvedStyle == MapStyle.SATELLITE) mapView.overlays.add(0, roadsOverlay)
         val box = data.bbox
-        if (!restoringCamera && !data.isEmpty && box != null && fittedDay != selectedDay) {
+        if (!restoringCamera && !followState.value && !data.isEmpty && box != null && fittedDay != selectedDay) {
             fittedDay = selectedDay
             fitBoundingBox(mapView, box)
         }
     }
 
-    @android.annotation.SuppressLint("MissingPermission")
     fun locate() {
-        val client = com.google.android.gms.location.LocationServices.getFusedLocationProviderClient(context)
-        fun show(location: android.location.Location?) {
-            if (location == null) return
-            val point = GeoPoint(location.latitude, location.longitude)
-            myLocation = point
-            mapView.controller.setZoom(16.0)
-            mapView.controller.animateTo(point)
-            restoringCamera = false
+        followState.value = true
+        restoringCamera = false
+        fittedDay = selectedDay
+        val fix = liveState.fix
+        if (fix != null) {
+            mapView.controller.setZoom(maxOf(mapView.zoomLevelDouble, 16.0))
+            mapView.controller.animateTo(GeoPoint(fix.latitude, fix.longitude))
+        } else {
+            liveProvider.refresh()
         }
-        client.getCurrentLocation(com.google.android.gms.location.Priority.PRIORITY_HIGH_ACCURACY, null)
-            .addOnSuccessListener { location ->
-                if (location != null) show(location) else client.lastLocation.addOnSuccessListener { show(it) }
-            }
-            .addOnFailureListener { client.lastLocation.addOnSuccessListener { show(it) } }
     }
 
     val locateLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
@@ -481,6 +679,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
         val controlIconSize = (22.dp * uiScale).coerceAtLeast(15.dp)
 
         AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        Text(if (resolvedStyle == MapStyle.NORMAL && !darkTheme) "© OpenStreetMap contributors" else "© Esri, HERE, Garmin, © OpenStreetMap contributors", modifier = Modifier.align(Alignment.BottomStart).padding(start = 4.dp, bottom = 2.dp).background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f)).padding(horizontal = 3.dp), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurface)
 
         // Floating header: what is recording and which day is shown. Both pills
         // always share one row and split the available width, so they fit even
@@ -508,7 +707,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                         } else {
                             manager.stop()
                         }
-                        trackingState = manager.state()
+                        if (!enabled || LocationPermissions.hasForeground(context)) reportTracking()
                     },
                 )
             }
@@ -557,13 +756,6 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                 onClick = { showPanels = true },
             )
             MapControlButton(
-                icon = Icons.Filled.Layers,
-                contentDescription = stringResource(R.string.map_layers),
-                size = controlSize,
-                iconSize = controlIconSize,
-                onClick = { showLayers = true },
-            )
-            MapControlButton(
                 icon = Icons.Filled.MyLocation,
                 contentDescription = stringResource(R.string.map_locate),
                 size = controlSize,
@@ -572,6 +764,13 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
                     if (LocationPermissions.hasForeground(context)) locate()
                     else locateLauncher.launch(LocationPermissions.foregroundPermissions())
                 },
+            )
+            MapControlButton(
+                icon = Icons.Filled.Layers,
+                contentDescription = stringResource(R.string.map_layers),
+                size = controlSize,
+                iconSize = controlIconSize,
+                onClick = { showLayers = true },
             )
         }
 
@@ -589,6 +788,8 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             }
         }
 
+        trackingNotice?.let { orbit.nex.steps.components.SavedToast(it, Modifier.align(Alignment.BottomCenter).padding(bottom = 90.dp), trackingNoticeError) { trackingNotice = null } }
+
         // The legend and the sync state stack together along the bottom edge.
         // The status box spans the free width so it does not leave a large empty
         // strip on the right side of the map.
@@ -596,7 +797,7 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
             Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(start = edge, end = edge, bottom = edge),
+                .padding(start = edge, end = edge, bottom = edge + 22.dp),
             verticalArrangement = Arrangement.spacedBy(Spacing.sm),
         ) {
             if (GeoLayer.SPEED.key in layers) {
@@ -613,7 +814,15 @@ fun TrackingMapScreen(modifier: Modifier = Modifier) {
     }
 
     if (showPanels) {
-        LocationPanelsSheet(onDismiss = { showPanels = false })
+        LocationPanelsSheet(onDismiss = { showPanels = false }, onTripSelected = { day, path ->
+            showPanels = false
+            followState.value = false
+            restoringCamera = false
+            selectedDay = day
+            fittedDay = day
+            val box = orbit.nex.steps.location.GeoBoundingBox(path.maxOf { it.lat }, path.minOf { it.lat }, path.maxOf { it.lon }, path.minOf { it.lon })
+            fitBoundingBox(mapView, box)
+        })
     }
 
     if (showLayers) {
@@ -850,7 +1059,7 @@ private fun SyncStatusBox(
     val failed = error != null
     Surface(
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+        color = MaterialTheme.colorScheme.surface,
         shadowElevation = 4.dp,
         modifier = modifier,
     ) {
@@ -897,9 +1106,19 @@ private fun SyncStatusBox(
 /** Replaces every overlay, so a reload never stacks duplicate lines or dots. */
 internal interface KeepOverlay
 
-internal class StyledInfoWindow(mapView: MapView) : org.osmdroid.views.overlay.infowindow.InfoWindow(R.layout.map_info_window, mapView) {
+internal class MapRotationOverlay(mapView: MapView) : org.osmdroid.views.overlay.gestures.RotationGestureOverlay(mapView), KeepOverlay
+
+internal class StyledInfoWindow(mapView: MapView, private val dark: Boolean = false) : org.osmdroid.views.overlay.infowindow.InfoWindow(R.layout.map_info_window, mapView) {
     override fun onOpen(item: Any?) {
         val marker = item as? Marker
+        val bg = android.graphics.drawable.GradientDrawable().apply {
+            setColor(if (dark) AndroidColor.rgb(38, 39, 43) else AndroidColor.WHITE)
+            cornerRadius = 16f * mView.resources.displayMetrics.density
+            setStroke((mView.resources.displayMetrics.density).toInt().coerceAtLeast(1), if (dark) AndroidColor.DKGRAY else AndroidColor.LTGRAY)
+        }
+        mView.background = bg
+        mView.findViewById<android.widget.TextView>(R.id.info_title).setTextColor(if (dark) AndroidColor.WHITE else AndroidColor.BLACK)
+        mView.findViewById<android.widget.TextView>(R.id.info_snippet).setTextColor(if (dark) AndroidColor.LTGRAY else AndroidColor.DKGRAY)
         mView.findViewById<android.widget.TextView>(R.id.info_title).text = marker?.title.orEmpty()
         mView.findViewById<android.widget.TextView>(R.id.info_snippet).apply {
             text = marker?.snippet.orEmpty()
@@ -911,8 +1130,10 @@ internal class StyledInfoWindow(mapView: MapView) : org.osmdroid.views.overlay.i
     override fun onClose() {}
 }
 
-internal fun styleMarker(marker: Marker, mapView: MapView) {
-    if (marker.title.isNullOrBlank()) marker.setInfoWindow(null) else marker.setInfoWindow(StyledInfoWindow(mapView))
+internal fun styleMarker(marker: Marker, mapView: MapView, dark: Boolean) {
+    if (marker.title.isNullOrBlank()) marker.title = mapView.context.getString(R.string.map_coordinates)
+    marker.snippet = mapView.context.getString(R.string.map_coordinates_values, marker.position.latitude, marker.position.longitude)
+    marker.setInfoWindow(StyledInfoWindow(mapView, dark))
 }
 
 internal fun configureOsm(context: android.content.Context) {
@@ -922,14 +1143,21 @@ internal fun configureOsm(context: android.content.Context) {
         osmdroidTileCache = java.io.File(context.filesDir, "osmdroid/tiles")
         tileFileSystemCacheMaxBytes = 1024L * 1024 * 1024
         tileFileSystemCacheTrimBytes = 800L * 1024 * 1024
-        expirationOverrideDuration = 90L * 24 * 3600 * 1000
-        expirationExtendedDuration = 90L * 24 * 3600 * 1000
         tileDownloadThreads = 4
     }
 }
 
+private class BasemapLabels(context: android.content.Context) : TilesOverlay(
+    MapTileProviderBasic(context).apply { setTileSource(EsriLightLabels) }, context
+), KeepOverlay
+
+private class BasemapRoads(context: android.content.Context) : TilesOverlay(
+    MapTileProviderBasic(context).apply { setTileSource(EsriTransportation) }, context
+), KeepOverlay
+
 internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean) {
-    mapView.setTileSource(if (style == MapStyle.SATELLITE) EsriSatellite else EsriStreet)
+    mapView.overlays.removeAll { it is BasemapRoads || it is BasemapLabels }
+    mapView.setTileSource(if (style == MapStyle.SATELLITE) EsriSatellite else if (darkTheme) EsriStreet else EsriLight)
     mapView.overlayManager.tilesOverlay.setColorFilter(
         if (style == MapStyle.NORMAL && darkTheme) TilesOverlay.INVERT_COLORS else null
     )
@@ -942,7 +1170,7 @@ internal fun applyBasemap(mapView: MapView, style: MapStyle, darkTheme: Boolean)
     mapView.invalidate()
 }
 
-internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>, myLocation: GeoPoint? = null) {
+internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<String>, dark: Boolean = false) {
     mapView.overlays.removeAll { it !is KeepOverlay }
     val resources = mapView.resources
     val density = resources.displayMetrics.density
@@ -950,8 +1178,8 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
     val stopColor = AndroidColor.rgb(240, 150, 40)
     val placeColor = AndroidColor.rgb(120, 80, 220)
     val visitColor = AndroidColor.rgb(40, 170, 110)
-    val pointColor = AndroidColor.argb(150, 90, 90, 100)
-    val pendingPointColor = AndroidColor.argb(220, 232, 132, 20)
+    val pointColor = AndroidColor.rgb(46, 125, 255)
+    val pendingPointColor = AndroidColor.rgb(168, 112, 0)
     val speedOn = GeoLayer.SPEED.key in layers && data.speed.isNotEmpty()
 
     fun addPolyline(path: List<GeoLatLon>, color: Int, widthDp: Float, dashed: Boolean = false) {
@@ -962,24 +1190,31 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
         line.outlinePaint.strokeCap = android.graphics.Paint.Cap.ROUND
         line.outlinePaint.strokeJoin = android.graphics.Paint.Join.ROUND
         if (dashed) line.outlinePaint.pathEffect = android.graphics.DashPathEffect(floatArrayOf(14f * density, 10f * density), 0f)
+        line.setOnClickListener { _, map, position ->
+            val marker = Marker(map).apply {
+                this.position = position
+                icon = android.graphics.drawable.ColorDrawable(AndroidColor.TRANSPARENT)
+                title = map.context.getString(R.string.map_coordinates)
+                snippet = map.context.getString(R.string.map_coordinates_values, position.latitude, position.longitude)
+                setInfoWindow(StyledInfoWindow(map, dark))
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            }
+            map.overlays.add(marker)
+            marker.showInfoWindow()
+            true
+        }
         mapView.overlays.add(line)
     }
 
-    // A speed-coloured track replaces the plain trip line: drawing both would
-    // simply hide the colour scale under the solid stroke.
-    if (speedOn) {
-        if (GeoLayer.TRIPS.key in layers) data.trips.filter { !it.pending && it.kind == "trip" }.forEach { trip -> addPolyline(trip.path, AndroidColor.argb(170, 148, 163, 184), 3.5f) }
-        data.speed.forEach { segment ->
-            val casing = AndroidColor.argb(90, 0, 0, 0)
-            addPolyline(segment.path, casing, 7.5f)
-            addPolyline(segment.path, SPEED_BUCKET_COLORS[segment.bucket.coerceIn(0, 5)], 5.5f)
-        }
-    } else if (GeoLayer.TRIPS.key in layers) {
+    if (GeoLayer.TRIPS.key in layers) {
         data.trips.filter { !it.pending && it.kind == "trip" }.forEach { trip -> addPolyline(trip.path, tripColor, 5f) }
     }
     data.trips.filter { it.kind == "smooth" }.forEach { trip -> addPolyline(trip.path, AndroidColor.rgb(52, 211, 153), 4f) }
     data.trips.filter { it.kind == "matched" }.forEach { trip -> addPolyline(trip.path, AndroidColor.rgb(167, 139, 250), 4f, dashed = true) }
-    data.trips.filter { it.pending }.forEach { trip -> addPolyline(trip.path, pendingPointColor, 4f, dashed = true) }
+    data.trips.filter { it.pending }.forEach { trip -> addPolyline(trip.path, pendingPointColor, 5f) }
+    if (speedOn) {
+        data.speed.forEach { segment -> addPolyline(segment.path, SPEED_BUCKET_COLORS[segment.bucket.coerceIn(0, 5)], 3f) }
+    }
 
     // Only repeatedly travelled streets are returned by the server, and the
     // overlay goes on top of the track so the hotspots stay readable.
@@ -987,56 +1222,67 @@ internal fun rebuildOverlays(mapView: MapView, data: GeoMapData, layers: Set<Str
         mapView.overlays.add(HeatmapOverlay(data.heat))
     }
 
-    fun addPoints(layerKey: String, color: Int, border: Int, sizeDp: Int, title: (GeoPointFeature) -> String?) {
-        if (layerKey !in layers) return
-        data.points.filter { it.layer == layerKey }.forEach { feature ->
+    fun addPoints(featureLayer: String, toggleKey: String, color: Int, border: Int, sizeDp: Int, title: (GeoPointFeature) -> String?) {
+        if (toggleKey !in layers) return
+        data.points.filter { it.layer == featureLayer }.forEach { feature ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            marker.icon = dot(color, border, (sizeDp * density).toInt())
+            val photo = if (featureLayer == "visit" && feature.osmType != null && feature.osmId != null) {
+                PlacePhotoCache.memoryGet(PlacePhotoCache.key(feature.osmType, feature.osmId))
+            } else null
+            marker.icon = if (photo != null) {
+                val size = (sizeDp * density * 2.2f).toInt().coerceIn(36, 72)
+                android.graphics.drawable.BitmapDrawable(
+                    resources,
+                    PlacePhotoCache.circularIcon(photo, size, border, 2.5f * density),
+                )
+            } else {
+                dot(color, border, (sizeDp * density).toInt())
+            }
             title(feature)?.let { marker.title = it }
-            styleMarker(marker, mapView)
+            styleMarker(marker, mapView, dark)
+            if (!feature.photoAttribution.isNullOrBlank()) {
+                marker.snippet = listOfNotNull(marker.snippet, feature.photoAttribution).joinToString("\n")
+            }
             mapView.overlays.add(marker)
         }
     }
 
-    addPoints("stop", stopColor, AndroidColor.WHITE, 14) { feature ->
+    addPoints("stop", GeoLayer.STOPS.key, stopColor, AndroidColor.WHITE, 14) { feature ->
         if (feature.count > 1) feature.count.toString() else null
     }
-    addPoints("place", placeColor, AndroidColor.WHITE, 16) { it.label }
-    addPoints("visit", visitColor, AndroidColor.WHITE, 12) { it.label }
+    addPoints("place", GeoLayer.PLACES.key, placeColor, AndroidColor.WHITE, 16) { it.label }
+    addPoints("visit", GeoLayer.VISITS.key, visitColor, AndroidColor.WHITE, 14) { feature ->
+        feature.label ?: mapView.context.getString(R.string.visit_unidentified)
+    }
     // Raw points and aggregated clusters are decoration: dense days would be
     // unreadable as markers, so only clustered positions are drawn.
     if (GeoLayer.POINTS.key in layers) {
-        data.points.filter { it.layer == "point_cluster" || it.layer == "point" }.forEach { feature ->
+        data.points.filter { it.layer == "point_cluster" || it.layer == "point" || it.layer == "local_synced" }.forEach { feature ->
             val marker = Marker(mapView)
             marker.position = GeoPoint(feature.lat, feature.lon)
             marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             marker.icon = dot(pointColor, AndroidColor.TRANSPARENT, (6 + feature.count.coerceAtMost(6)) * density.toInt())
-            styleMarker(marker, mapView)
+            styleMarker(marker, mapView, dark)
             mapView.overlays.add(marker)
         }
     }
     // Measurements that have not reached the server yet are always drawn, even
     // with the points layer off, so nothing recorded on the device is invisible.
-    data.points.filter { it.pending }.forEach { feature ->
+    if (GeoLayer.POINTS.key in layers) data.points.filter { it.pending }.forEach { feature ->
         val marker = Marker(mapView)
         marker.position = GeoPoint(feature.lat, feature.lon)
         marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
         marker.icon = dot(pendingPointColor, AndroidColor.WHITE, (9 * density).toInt())
-        marker.setInfoWindow(null)
-        marker.setOnMarkerClickListener { _, _ -> true }
+        styleMarker(marker, mapView, dark)
         mapView.overlays.add(marker)
     }
-    myLocation?.let { point ->
-        val marker = Marker(mapView)
-        marker.position = point
-        marker.setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-        marker.icon = dot(AndroidColor.rgb(33, 150, 243), AndroidColor.WHITE, (16 * density).toInt())
-        marker.setInfoWindow(null)
-        marker.setInfoWindow(null)
-        marker.setOnMarkerClickListener { _, _ -> true }
-        mapView.overlays.add(marker)
+    // The live puck stays on top of every rebuilt layer.
+    val live = mapView.overlays.filterIsInstance<UserLocationOverlay>()
+    if (live.isNotEmpty()) {
+        mapView.overlays.removeAll(live)
+        mapView.overlays.addAll(live)
     }
     mapView.invalidate()
 }
@@ -1073,30 +1319,78 @@ private fun SpeedLegend(modifier: Modifier = Modifier) {
 
 private val SPEED_LEGEND_LABELS = listOf("0–3", "3–6", "6–12", "12–25", "25–50", "50+")
 
-private fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoMapData {
-    // Only measurements the server has not confirmed yet: accepted rows stay in
-    // the outbox for a few days and would otherwise duplicate server points.
-    val local = events.filter { it.isPending }.sortedBy { it.deviceSequence }.mapNotNull { event ->
-        runCatching { JSONObject(event.payload) }.getOrNull()?.let { payload ->
-            val lat = payload.optDouble("latitude", Double.NaN)
-            val lon = payload.optDouble("longitude", Double.NaN)
-            if (lat.isNaN() || lon.isNaN() || lat !in -90.0..90.0 || lon !in -180.0..180.0) null else GeoPointFeature("local_point", lat, lon, null, 1, 0.5f, pending = true)
-        }
+/** Server refresh cadence for the open (today) map. */
+private const val LIVE_MAP_REFRESH_MS = 10_000L
+
+internal fun GeoMapData.withLocalEvents(events: List<StoredLocationEvent>): GeoMapData {
+    data class LocalFix(val point: GeoPointFeature, val timestamp: java.time.Instant?, val speed: Double?)
+    val local = events.filter { it.state != LocationEventStore.STATE_ACCEPTED && it.state != LocationEventStore.STATE_DUPLICATE }.sortedBy { it.deviceSequence }.mapNotNull { event ->
+        val payload = runCatching { JSONObject(event.payload) }.getOrNull() ?: return@mapNotNull null
+        val lat = payload.optDouble("latitude", Double.NaN)
+        val lon = payload.optDouble("longitude", Double.NaN)
+        if (!lat.isFinite() || !lon.isFinite() || lat !in -90.0..90.0 || lon !in -180.0..180.0) return@mapNotNull null
+        val pending = event.state != LocationEventStore.STATE_ACCEPTED && event.state != LocationEventStore.STATE_DUPLICATE
+        LocalFix(GeoPointFeature(if (pending) "local_point" else "local_synced", lat, lon, null, 1, 0.5f, pending),
+            runCatching { java.time.Instant.parse(payload.optString("source_at")) }.getOrNull(),
+            payload.optDouble("speed_mps", Double.NaN).takeIf { it.isFinite() && it >= 0 })
     }
     if (local.isEmpty()) return this
-    val localPath = local.map { GeoLatLon(it.lat, it.lon) }
-    val anchor = (trips.filter { !it.pending }.lastOrNull()?.path?.lastOrNull() ?: speed.lastOrNull()?.path?.lastOrNull())
-    val connector = GeoTrip("local", "", listOfNotNull(anchor) + localPath, 0.0, pending = true)
-    val coordinates = points + local
+    val localTrips = mutableListOf<GeoTrip>()
+    val localSpeed = mutableListOf<GeoSpeedSegment>()
+    var runPending: Boolean? = null
+    val runPath = mutableListOf<GeoLatLon>()
+    fun flushRun() {
+        if (runPath.size >= 2) localTrips += GeoTrip("local", "", runPath.toList(), 0.0, runPending == true)
+        runPath.clear()
+        runPending = null
+    }
+    val heatPaths = mutableListOf<Pair<Pair<Int, Int>, List<GeoLatLon>>>()
+    local.zipWithNext().forEach { (previous, current) ->
+        val a = GeoLatLon(previous.point.lat, previous.point.lon)
+        val b = GeoLatLon(current.point.lat, current.point.lon)
+        val seconds = if (previous.timestamp != null && current.timestamp != null) java.time.Duration.between(previous.timestamp, current.timestamp).seconds else 0L
+        if (seconds < 0 || seconds > 300) { flushRun(); return@forEach }
+        if (a == b) return@forEach
+        val path = listOf(a, b)
+        if (runPending != current.point.pending || (runPath.isNotEmpty() && runPath.last() != a)) {
+            flushRun()
+            runPending = current.point.pending
+            runPath += a
+        }
+        runPath += b
+        if (current.point.pending || previous.point.pending || speed.isEmpty() || heat.isEmpty()) {
+            val distance = FloatArray(1)
+            Location.distanceBetween(a.lat, a.lon, b.lat, b.lon, distance)
+            val kmh = (current.speed ?: if (seconds > 0) distance[0].toDouble() / seconds else 0.0) * 3.6
+            val bucket = when { kmh < 3 -> 0; kmh < 6 -> 1; kmh < 12 -> 2; kmh < 25 -> 3; kmh < 50 -> 4; else -> 5 }
+            if (current.point.pending || previous.point.pending || speed.isEmpty()) localSpeed += GeoSpeedSegment(path, bucket, kmh)
+            if (current.point.pending || previous.point.pending || heat.isEmpty()) {
+                val cell = kotlin.math.floor((a.lat + b.lat) / 0.0004).toInt() to kotlin.math.floor((a.lon + b.lon) / 0.0004).toInt()
+                heatPaths += cell to path
+            }
+        }
+    }
+    flushRun()
+    val density = heatPaths.groupingBy { it.first }.eachCount()
+    val maxDensity = density.values.maxOrNull()?.coerceAtLeast(1) ?: 1
+    val localHeat = heatPaths.map { (cell, path) ->
+        val weight = density[cell] ?: 1
+        GeoHeatLine(path, weight, 0.35f + 0.65f * (weight - 1).toFloat() / (maxDensity - 1).coerceAtLeast(1))
+    }
+    val coordinates = points + local.map { it.point }
     val localBox = GeoBoundingBox(coordinates.maxOf { it.lat }, coordinates.minOf { it.lat }, coordinates.maxOf { it.lon }, coordinates.minOf { it.lon })
     val merged = bbox?.let { GeoBoundingBox(maxOf(it.north, localBox.north), minOf(it.south, localBox.south), maxOf(it.east, localBox.east), minOf(it.west, localBox.west)) } ?: localBox
-    return copy(points = coordinates, trips = if (connector.path.size >= 2) trips + connector else trips, bbox = merged)
+    return copy(points = coordinates, trips = trips + localTrips, speed = speed + localSpeed, heat = heat + localHeat, bbox = merged)
 }
 
 private fun fitBoundingBox(mapView: MapView, bbox: GeoBoundingBox) {
-    if (bbox.north <= bbox.south || bbox.east <= bbox.west) return
+    if (bbox.north == bbox.south && bbox.east == bbox.west) {
+        mapView.controller.setZoom(17.0)
+        mapView.controller.animateTo(GeoPoint(bbox.north, bbox.east))
+        return
+    }
     runCatching {
-        val box = org.osmdroid.util.BoundingBox(bbox.north, bbox.east, bbox.south, bbox.west)
+        val box = org.osmdroid.util.BoundingBox(bbox.north + 0.00001, bbox.east + 0.00001, bbox.south - 0.00001, bbox.west - 0.00001)
         mapView.zoomToBoundingBox(box, true, (48 * mapView.resources.displayMetrics.density).toInt())
     }
 }

@@ -20,7 +20,7 @@ map $is_secure_conn $uir_token {
     default "";
 }
 limit_req_zone $binary_remote_addr zone=appdashboard_auth:10m rate=12r/m;
-limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=600r/m;
+limit_req_zone $binary_remote_addr zone=appdashboard_api:10m rate=3000r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_admin:10m rate=30r/m;
 limit_req_zone $binary_remote_addr zone=appdashboard_heavy:10m rate=60r/m;
 limit_req_status 429;
@@ -80,8 +80,8 @@ server {
     gzip_types text/css application/javascript application/json image/svg+xml
                text/plain text/xml application/xml font/ttf font/otf application/wasm;
 
-    access_log /var/log/nginx/appdashboard_access.log;
-    access_log /var/log/nginx/appdashboard_timing.log app_timing;
+    access_log /var/log/nginx/appdashboard_access.log combined buffer=64k flush=5s;
+    access_log /var/log/nginx/appdashboard_timing.log app_timing buffer=64k flush=5s;
     error_log  /var/log/nginx/appdashboard_error.log;
     modsecurity on;
     modsecurity_rules_file /etc/nginx/modsecurity/appdashboard.conf;
@@ -139,7 +139,7 @@ server {
         return 403;
     }
 
-    location ~ ^/(graphify-out|tasks|docs|instructions|deploy|nginx|tests|scripts|bot|appdashboard-mcp|lib|tmp|temp|webssh)(/|$) { return 404; }
+    location ~ ^/(tasks|docs|instructions|deploy|nginx|tests|scripts|bot|appdashboard-mcp|lib|tmp|temp|webssh)(/|$) { return 404; }
     location ~ ^/(AGENTS\.md|README[^/]*\.md|Dockerfile|composer\.(json|lock|phar)|package(-lock)?\.json|supervisord\.conf|docker-entrypoint\.sh|VERSION|db\.php|storage_helper\.php|smart_log(_boot)?\.php)$ { return 404; }
     location ~ /vendor/ { return 403; }
     location ~ /node_modules/ { return 403; }
@@ -244,7 +244,7 @@ server {
     }
 
     location = /map/api/token {
-        limit_req zone=appdashboard_api burst=200 nodelay;
+        limit_req zone=appdashboard_api burst=400 nodelay;
         rewrite ^ /apps/map/index.php last;
     }
     location = /map/api/tokens {
@@ -691,6 +691,7 @@ server {
     location ^~ /project/assets/ {
         modsecurity off;
         try_files $uri =404;
+        error_page 500 503 = @project_static_fallback;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
     }
@@ -698,8 +699,22 @@ server {
     location ^~ /project/onboarding/ {
         modsecurity off;
         try_files $uri =404;
+        error_page 500 503 = @project_static_fallback;
         expires 1d;
         add_header Cache-Control "public, max-age=86400";
+    }
+
+    # Docker Desktop's virtiofs daemon limits how many host descriptors it can
+    # hold for the bind-mounted code tree; when it is exhausted nginx cannot
+    # open a file on that mount and would answer 500 for every page load.
+    # docker-entrypoint.sh keeps a container-local copy of these directories so
+    # the assets keep loading until the mount recovers.
+    location @project_static_fallback {
+        modsecurity off;
+        root /var/www/static-fallback;
+        try_files $uri =404;
+        add_header Cache-Control "no-store" always;
+        access_log off;
     }
 
     # Internal PHP includes under /project/ must never be requested directly:

@@ -1213,15 +1213,18 @@ function switchPage(page, fromRoute) {
     if (viewToggle) viewToggle.style.display = 'flex';
     if (statsStrip) statsStrip.style.display = state.homeView === 'tiles' ? 'grid' : 'none';
     if (state.homeView === 'map') {
-      document.getElementById('page-home')?.classList.remove('active');
-      document.getElementById('page-home').style.display = 'none';
-      document.getElementById('page-map')?.classList.add('active');
-      document.getElementById('page-map').style.display = 'block';
+      const homePageEl = document.getElementById('page-home');
+      const mapPageEl = document.getElementById('page-map');
+      homePageEl?.classList.remove('active');
+      if (homePageEl) homePageEl.style.display = 'none';
+      mapPageEl?.classList.add('active');
+      if (mapPageEl) mapPageEl.style.display = 'block';
       fpUpdateMapMode();
       if (!FP.canvas) fpInit(); else { fpRebuildDeviceChips(); fpRender(); }
     } else {
-      document.getElementById('page-map')?.classList.remove('active');
-      document.getElementById('page-map').style.display = 'none';
+      const mapPageEl = document.getElementById('page-map');
+      mapPageEl?.classList.remove('active');
+      if (mapPageEl) mapPageEl.style.display = 'none';
       fpUpdateMapMode();
       renderHome();
     }

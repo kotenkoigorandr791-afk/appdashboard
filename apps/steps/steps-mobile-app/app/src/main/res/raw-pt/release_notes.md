@@ -1,3 +1,9 @@
+## v1.10.11 - 2026-11-19
+
+* 📍 O mapa agora mostra sua posição atual com círculo de precisão e uma seta indicando para onde você olha
+* ⚡ Os pontos são enviados ao servidor logo após o registro, então o mapa na web atualiza em tempo real
+* 📞 Corrigidos os pontos que faltavam após chamadas e outras pausas — a gravação agora se recupera sozinha
+
 ## v1.9.34 - 2026-09-29
 
 * 🕒 Corrigida a atribuição dos dados de saúde ao dia errado para utilizadores a leste de UTC — distância, calorias, sono e pulso passam a contar no dia em que ocorrem
