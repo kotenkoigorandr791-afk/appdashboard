@@ -81,6 +81,9 @@ jobs:
             ghcr.io/${{ github.repository }}-py:latest
             ghcr.io/${{ github.repository }}-py:${{ steps.version.outputs.value }}
             ghcr.io/${{ github.repository }}-py:sha-${{ github.sha }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/appdashboard-py:latest
+            ${{ secrets.DOCKERHUB_USERNAME }}/appdashboard-py:${{ steps.version.outputs.value }}
+            ${{ secrets.DOCKERHUB_USERNAME }}/appdashboard-py:sha-${{ github.sha }}
       - name: Delete old image versions
         if: github.event_name == 'push'
         env:

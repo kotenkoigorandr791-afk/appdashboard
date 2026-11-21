@@ -13,32 +13,15 @@ ENV XDG_DATA_HOME=/opt/ApplicationData/models
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg libgl1 libglib2.0-0 fonts-dejavu-core curl perl xz-utils \
     tesseract-ocr tesseract-ocr-eng tesseract-ocr-rus tesseract-ocr-ukr tesseract-ocr-bel \
+    latexmk texlive-latex-recommended texlive-latex-extra \
+    texlive-fonts-recommended texlive-lang-cyrillic texlive-luatex cm-super \
     && rm -rf /var/lib/apt/lists/*
-
-RUN set -eux; \
-    workdir="$(mktemp -d)"; \
-    curl -fsSL https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz | tar -xz -C "$workdir"; \
-    installer="$(find "$workdir" -maxdepth 2 -type f -name install-tl -print -quit)"; \
-    perl "$installer" --no-interaction --scheme=small --texdir=/opt/texlive; \
-    texbin="$(find /opt/texlive -type d -path '*/bin/*-linux' -print -quit)"; \
-    ln -sfn "$texbin" /opt/texlive/tlbin; \
-    packages="latexmk collection-latexrecommended collection-latexextra collection-fontsrecommended collection-langcyrillic cm-super luatex"; \
-    for attempt in 1 2 3; do \
-        if /opt/texlive/tlbin/tlmgr install $packages; then break; fi; \
-        if [ "$attempt" = 3 ]; then exit 1; fi; \
-        sleep 15; \
-    done; \
-    /opt/texlive/tlbin/mktexlsr; \
-    rm -rf "$workdir"
-
-ENV PATH=/opt/texlive/tlbin:${PATH}
 
 # Fail the image build instead of the user's first compile. The editor sends
 # Cyrillic documents, and pdflatex with \usepackage[T2A]{fontenc} dies with
-# "Encoding file `t2aenc.def' not found" unless collection-langcyrillic (the
-# cyrillic package) is installed -- scheme=small does not include it. Both
-# engines the sidecar selects are exercised here: pdflatex for Latin/short
-# documents, lualatex + fontspec for Unicode text.
+# "Encoding file `t2aenc.def' not found" unless texlive-lang-cyrillic is
+# installed. Both engines the sidecar selects are exercised here: pdflatex
+# for Latin/short documents, lualatex + fontspec for Unicode text.
 RUN set -eux; \
     work=/tmp/latex-smoke; mkdir -p "$work"; cd "$work"; \
     printf '\\documentclass{article}\n\\usepackage[T2A]{fontenc}\n\\usepackage[utf8]{inputenc}\n\\usepackage[russian,english]{babel}\n\\begin{document}\nПривет, мир! Тест 0123.\n\\end{document}\n' > t2a.tex; \
