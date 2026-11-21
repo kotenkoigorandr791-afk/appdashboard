@@ -59,15 +59,28 @@ final class AppDatabaseStatement {
         }
     }
     public function execute(): AppDatabaseResult {
+        $run = function (): AppDatabaseResult {
+            try {
+                $this->stmt->execute();
+            } catch (PDOException $e) {
+                if (!app_db_is_transient_connection_error($e)) throw $e;
+                $this->reprepare();
+                if ($this->db->needsScopedSessionPublic()) $this->db->beginScopedSessionPublic();
+                $this->stmt->execute();
+            }
+            $this->db->setLastChanges($this->stmt->rowCount());
+            return new AppDatabaseResult($this->stmt);
+        };
+        if (!$this->db->needsScopedSessionPublic()) return $run();
+        $this->db->beginScopedSessionPublic();
         try {
-            $this->stmt->execute();
-        } catch (PDOException $e) {
-            if (!app_db_is_transient_connection_error($e)) throw $e;
-            $this->reprepare();
-            $this->stmt->execute();
+            $result = $run();
+            $this->db->endScopedSessionPublic(true);
+            return $result;
+        } catch (Throwable $e) {
+            $this->db->endScopedSessionPublic(false);
+            throw $e;
         }
-        $this->db->setLastChanges($this->stmt->rowCount());
-        return new AppDatabaseResult($this->stmt);
     }
     public function fetch(int $mode = PDO::FETCH_ASSOC): ?array {
         $row = $this->stmt->fetch($mode);
@@ -84,6 +97,7 @@ final class AppDatabase {
     private int $lastChanges = 0;
     private bool $publicPathSet = false;
     private bool $exceptions = true;
+    private int $txnDepth = 0;
     private function __construct(PDO $pdo, ?string $schemaSql = null, array $initSql = []) {
         $this->pdo = $pdo;
         $this->schemaSql = $schemaSql;
@@ -92,18 +106,14 @@ final class AppDatabase {
     public function reconnect(): void {
         $this->publicPathSet = false;
         $this->pdo = app_pdo_connect(true);
-        if ($this->schemaSql !== null) {
-            $this->pdo->exec('SET search_path TO ' . $this->schemaSql . ', public');
-            foreach ($this->initSql as $q) $this->pdo->exec($q);
-        }
+        $this->txnDepth = 0;
     }
     public static function connect(): self {
         if (self::$instance === null) {
             self::$instance = new self(app_pdo_connect(false, 'main'));
         } else {
             try {
-                if (self::$instance->publicPathSet) return self::$instance;
-                self::$instance->pdo->exec('SET search_path TO public');
+                app_pdo_reset_session(self::$instance->pdo);
                 self::$instance->publicPathSet = true;
             } catch (PDOException $e) {
                 if (!app_db_is_transient_connection_error($e)) throw $e;
@@ -116,11 +126,42 @@ final class AppDatabase {
         $key = $schemaSql . '|' . implode(';', $initSql);
         if (!isset(self::$userInstances[$key])) {
             $pdo = app_pdo_connect(true, 'user');
-            $pdo->exec('SET search_path TO ' . $schemaSql . ', public');
-            foreach ($initSql as $q) $pdo->exec($q);
             self::$userInstances[$key] = new self($pdo, $schemaSql, $initSql);
         }
         return self::$userInstances[$key];
+    }
+    private function needsScopedSession(): bool {
+        return $this->schemaSql !== null && $this->initSql !== [];
+    }
+    private function beginScopedSession(): void {
+        if (!$this->needsScopedSession()) return;
+        if ($this->txnDepth > 0) {
+            $this->txnDepth++;
+            return;
+        }
+        $this->pdo->exec('BEGIN');
+        $this->txnDepth = 1;
+        $this->pdo->exec('SET LOCAL search_path TO ' . $this->schemaSql . ', public');
+        foreach ($this->initSql as $q) $this->pdo->exec((string)$q);
+    }
+    private function endScopedSession(bool $ok): void {
+        if (!$this->needsScopedSession() || $this->txnDepth <= 0) return;
+        $this->txnDepth--;
+        if ($this->txnDepth > 0) return;
+        $this->pdo->exec($ok ? 'COMMIT' : 'ROLLBACK');
+    }
+    /** @template T @param callable():T $fn @return T */
+    private function withScopedSession(callable $fn): mixed {
+        if (!$this->needsScopedSession()) return $fn();
+        $this->beginScopedSession();
+        try {
+            $result = $fn();
+            $this->endScopedSession(true);
+            return $result;
+        } catch (Throwable $e) {
+            $this->endScopedSession(false);
+            throw $e;
+        }
     }
     public static function escapeString(string $value): string {
         return str_replace("'", "''", $value);
@@ -129,21 +170,34 @@ final class AppDatabase {
     public function busyTimeout(int $ms): void {}
     public function setLastChanges(int $n): void { $this->lastChanges = $n; }
     public function exec(string $sql): bool {
-        $parts = app_sql_split_statements($sql);
-        foreach ($parts as $part) {
-            try {
-                $this->lastChanges = $this->pdo->exec($part) ?: 0;
-            } catch (PDOException $e) {
-                if (app_db_is_transient_connection_error($e)) {
-                    $this->reconnect();
-                    $this->lastChanges = $this->pdo->exec($part) ?: 0;
+        return (bool)$this->withScopedSession(function () use ($sql) {
+            $parts = app_sql_split_statements($sql);
+            $scoped = $this->needsScopedSession();
+            foreach ($parts as $part) {
+                $upper = strtoupper(ltrim($part));
+                if ($scoped && (str_starts_with($upper, 'BEGIN') || str_starts_with($upper, 'START TRANSACTION'))) {
+                    $this->txnDepth++;
                     continue;
                 }
-                if ($this->exceptions) throw $e;
-                return false;
+                if ($scoped && (str_starts_with($upper, 'COMMIT') || str_starts_with($upper, 'ROLLBACK'))) {
+                    if ($this->txnDepth > 1) $this->txnDepth--;
+                    continue;
+                }
+                try {
+                    $this->lastChanges = $this->pdo->exec($part) ?: 0;
+                } catch (PDOException $e) {
+                    if (app_db_is_transient_connection_error($e)) {
+                        $this->reconnect();
+                        if ($scoped) $this->beginScopedSession();
+                        $this->lastChanges = $this->pdo->exec($part) ?: 0;
+                        continue;
+                    }
+                    if ($this->exceptions) throw $e;
+                    return false;
+                }
             }
-        }
-        return true;
+            return true;
+        });
     }
     public function prepare(string $sql): AppDatabaseStatement {
         try {
@@ -155,14 +209,17 @@ final class AppDatabase {
         }
     }
     public function query(string $sql): AppDatabaseResult {
-        try {
-            $stmt = $this->pdo->query($sql);
-        } catch (PDOException $e) {
-            if (!app_db_is_transient_connection_error($e)) throw $e;
-            $this->reconnect();
-            $stmt = $this->pdo->query($sql);
-        }
-        return new AppDatabaseResult($stmt ?: null);
+        return $this->withScopedSession(function () use ($sql) {
+            try {
+                $stmt = $this->pdo->query($sql);
+            } catch (PDOException $e) {
+                if (!app_db_is_transient_connection_error($e)) throw $e;
+                $this->reconnect();
+                $this->beginScopedSession();
+                $stmt = $this->pdo->query($sql);
+            }
+            return new AppDatabaseResult($stmt ?: null);
+        });
     }
     public function querySingle(string $sql, bool $entireRow = false): mixed {
         $res = $this->query($sql);
@@ -173,10 +230,15 @@ final class AppDatabase {
     }
     public function changes(): int { return $this->lastChanges; }
     public function lastInsertRowID(): int {
-        $v = $this->pdo->query("SELECT lastval()")->fetchColumn();
-        return (int)($v ?: 0);
+        return (int)$this->withScopedSession(function () {
+            $v = $this->pdo->query("SELECT lastval()")->fetchColumn();
+            return (int)($v ?: 0);
+        });
     }
     public function getPdo(): PDO { return $this->pdo; }
+    public function beginScopedSessionPublic(): void { $this->beginScopedSession(); }
+    public function endScopedSessionPublic(bool $ok): void { $this->endScopedSession($ok); }
+    public function needsScopedSessionPublic(): bool { return $this->needsScopedSession(); }
 }
 function app_sql_split_statements(string $sql): array {
     $out = [];
