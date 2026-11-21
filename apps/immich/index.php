@@ -21,7 +21,12 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
     oauth_provision_user_services((string)($_SESSION['user']['email'] ?? ''), $_SESSION['user'] ?? []);
     $base = rtrim(oauth_iframe_app_url('immich'), '/');
     if ($assetOk) {
-        oauth_redirect_iframe($base . '/photos/' . rawurlencode($asset));
+        // location.replace keeps Immich deep-links from stacking iframe history
+        // (browser Back must return to the previous shell app, e.g. Steps).
+        $photoUrl = $base . '/photos/' . rawurlencode($asset);
+        header('Content-Type: text/html; charset=utf-8');
+        echo '<!DOCTYPE html><html><head><meta charset="utf-8"><script>location.replace(' . json_encode($photoUrl, JSON_HEX_TAG | JSON_HEX_AMP | JSON_HEX_APOS | JSON_HEX_QUOT) . ');</script></head><body></body></html>';
+        exit;
     }
     $params = ['autoLaunch' => '1'];
     if ($theme !== '') {
@@ -32,4 +37,10 @@ if (getenv('APP_AUTH_SERVICE_BRIDGE') !== '1') {
     }
     oauth_redirect_iframe($base . '/auth/login?' . http_build_query($params));
 }
-oauth_redirect_html(oauth_app_bridge_url('immich', $theme) . ($assetOk ? '&asset=' . rawurlencode($asset) : ''));
+$bridge = oauth_app_bridge_url('immich', $theme);
+if ($assetOk) {
+    $next = oauth_app_return_url('immich', $theme);
+    $sep = str_contains($next, '?') ? '&' : '?';
+    $bridge = oauth_bridge_url($next . $sep . 'asset=' . rawurlencode($asset));
+}
+oauth_redirect_html($bridge);

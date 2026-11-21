@@ -780,21 +780,20 @@ $metricButtons = [
                                 const size=Math.max(32, baseRadius*4+14);
                                 const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
                                 const photoCard=photoPopupCard(p);
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="map-photo-marker-ring is-loading"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span><img alt="" decoding="async">'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
-                                photoMarker.bindPopup(photoCard,{maxWidth:260,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
+                                const ringStyle='width:'+size+'px;height:'+size+'px';
+                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="map-photo-marker-ring is-loading" style="'+ringStyle+'"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span>'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
+                                photoMarker.bindPopup(photoCard,{maxWidth:280,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
                                 photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
                                 const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
-                                const ringImg=ring&&ring.querySelector('img');
-                                if(ringImg && p.thumbnail){
+                                if(ring && p.thumbnail){
                                     const fill=()=>{
-                                        if(ringImg.dataset.filled) return;
-                                        ringImg.dataset.filled='1';
+                                        if(ring.dataset.filled) return;
+                                        ring.dataset.filled='1';
                                         loadPhotoThumb(p.thumbnail).then(loaded=>{
-                                            ringImg.src=loaded.src;
-                                            ringImg.classList.add('is-ready');
+                                            ring.style.setProperty('--photo-thumb','url('+JSON.stringify(String(loaded.src))+')');
+                                            ring.classList.add('is-ready','has-thumb');
                                             ring.classList.remove('is-loading');
-                                            const fb=ring.querySelector('.map-photo-fallback'); if(fb) fb.remove();
-                                        }).catch(()=>{ ring.classList.remove('is-loading'); });
+                                        }).catch(()=>{ ring.classList.remove('is-loading'); ring.classList.add('is-ready'); });
                                     };
                                     if('IntersectionObserver' in window){
                                         const io=new IntersectionObserver((entries)=>{

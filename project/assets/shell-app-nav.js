@@ -246,6 +246,24 @@
     setTimeout(finish, 45000);
   }
 
+  // Replacing the iframe node drops its session history so browser Back
+  // updates the shell URL instead of walking Steps→Immich inside the frame.
+  function replaceAppIframe(src, title) {
+    var old = document.getElementById('app-iframe');
+    if (!old || !old.parentNode) return null;
+    var neu = document.createElement('iframe');
+    neu.id = 'app-iframe';
+    neu.name = old.getAttribute('name') || 'devtools-app';
+    neu.title = title || old.title || 'Application';
+    neu.className = old.className || 'mobile-vv-fill';
+    var allow = old.getAttribute('allow');
+    if (allow) neu.setAttribute('allow', allow);
+    else neu.setAttribute('allow', 'clipboard-write *; clipboard-read *; fullscreen *');
+    neu.setAttribute('src', src);
+    old.parentNode.replaceChild(neu, old);
+    return neu;
+  }
+
   function showApp(folder, push, opts) {
     opts = opts || {};
     var app = byFolder(folder);
@@ -263,7 +281,7 @@
       return;
     }
     var iframe = document.getElementById('app-iframe');
-    var rail = document.getElementById('app-icon-rail');
+    var rail = frame.querySelector('#app-icon-rail') || document.getElementById('app-icon-rail');
     var nameEl = frame.querySelector('.app-rail-service-name');
     if (nameEl) nameEl.textContent = app.name || folder;
     if (rail) {
@@ -287,16 +305,15 @@
     }
     mountAppChrome();
     setMenuVars(app);
-    if (iframe) {
-      var next = iframeSrc(folder, opts);
-      var needLoad = iframe.getAttribute('src') !== next || !!opts.asset;
+    var next = iframeSrc(folder, opts);
+    var needLoad = !iframe || iframe.getAttribute('src') !== next || !!opts.asset || currentFolder !== folder;
+    if (needLoad) {
+      var token = ++loadGen;
+      showAppLoading(app);
+      iframe = replaceAppIframe(next, 'Application: ' + folder) || iframe;
+      waitIframeLoad(iframe, token);
+    } else if (iframe) {
       iframe.title = 'Application: ' + folder;
-      if (needLoad) {
-        var token = ++loadGen;
-        showAppLoading(app);
-        iframe.setAttribute('src', next);
-        waitIframeLoad(iframe, token);
-      }
     }
     currentFolder = folder;
     // Update document title to reflect current app
@@ -304,8 +321,11 @@
     document.title = appTitle;
     var url = new URL(app.href, window.location.origin);
     if (opts.asset) url.searchParams.set('asset', String(opts.asset));
+    else url.searchParams.delete('asset');
     if (push !== false) {
       history.pushState({ shellApp: folder, asset: opts.asset || null }, appTitle, url.pathname + url.search);
+    } else {
+      history.replaceState({ shellApp: folder, asset: opts.asset || null }, appTitle, url.pathname + url.search);
     }
     try {
       fetch('/main?app=' + encodeURIComponent(folder) + '&_visit=1', { method: 'GET', credentials: 'same-origin', keepalive: true }).catch(function () {});
@@ -322,8 +342,12 @@
     if (typeof window.updateEdgeAppShellTheme === 'function') window.updateEdgeAppShellTheme(document.body.classList.contains('dark-theme') || document.body.classList.contains('theme-dark') ? 'dark' : 'light');
     if (frame) {
       frame.hidden = true;
-      var iframe = document.getElementById('app-iframe');
-      if (iframe) iframe.setAttribute('src', 'about:blank');
+      var rail = frame.querySelector('#app-icon-rail') || document.getElementById('app-icon-rail');
+      if (rail) {
+        rail.classList.add('hidden');
+        rail.style.display = 'none';
+      }
+      replaceAppIframe('about:blank', 'Application');
     }
     if (home) home.hidden = false;
     document.body.classList.remove('shell-app-open', 'app-modal-open', 'shell-local-app');
@@ -402,9 +426,12 @@
 
   function onPopState(e) {
     hideAppLoading();
-    var folder = (e.state && e.state.shellApp) || new URL(window.location.href).searchParams.get('app');
-    if (folder) showApp(folder, false);
-    else showHome(false);
+    var url = new URL(window.location.href);
+    var folder = (e.state && e.state.shellApp) || url.searchParams.get('app');
+    if (folder) {
+      var asset = (e.state && e.state.asset) || url.searchParams.get('asset') || '';
+      showApp(folder, false, asset ? { asset: asset } : {});
+    } else showHome(false);
   }
 
   document.addEventListener('click', onClick, true);

@@ -1115,20 +1115,21 @@
         .immich-card { display: flex; flex-direction: column; gap: 4px; border: 1px solid rgba(127,127,127,.16); border-radius: 10px; overflow: hidden; padding-bottom: 6px; background: rgba(127,127,127,.05); }
         .immich-card img { width: 100%; height: 105px; object-fit: cover; background: rgba(127,127,127,.12); }
         .immich-card span { font-size: 10px; padding: 0 6px; color: var(--muted-text); }
-        .map-photo-marker { background: transparent !important; border: 0 !important; }
-        .map-photo-marker-ring { position: relative; display: block; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #f59e0b; box-shadow: 0 2px 10px rgba(0,0,0,.45); background: #1f2937; }
-        .map-photo-marker-ring.is-loading { background: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); }
-        .map-photo-marker-ring .map-photo-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #111; font-size: 14px; z-index: 1; }
-        .map-photo-marker-ring img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .2s ease; z-index: 2; }
-        .map-photo-marker-ring img.is-ready { opacity: 1; }
+        .map-photo-marker { background: transparent !important; border: 0 !important; overflow: visible !important; }
+        .map-photo-marker-ring { position: relative; display: block; box-sizing: border-box; width: 100%; height: 100%; border-radius: 50%; overflow: hidden; border: 2.5px solid #f59e0b; box-shadow: 0 2px 10px rgba(0,0,0,.45); background-color: #1f2937; background-position: center; background-repeat: no-repeat; background-size: cover; }
+        .map-photo-marker-ring.is-loading { background-image: linear-gradient(135deg, #f59e0b 0%, #b45309 100%); background-size: auto; }
+        .map-photo-marker-ring.is-ready { background-image: none; }
+        .map-photo-marker-ring.is-ready.has-thumb { background-image: var(--photo-thumb); }
+        .map-photo-marker-ring .map-photo-fallback { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #111; font-size: 14px; z-index: 1; pointer-events: none; }
+        .map-photo-marker-ring.is-ready .map-photo-fallback { display: none; }
         .map-photo-marker .map-photo-count { position: absolute; top: -6px; right: -8px; z-index: 3; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px; background: #111; color: #fff; font-size: 10px; line-height: 16px; text-align: center; border: 1px solid rgba(255,255,255,.55); font-style: normal; }
         .leaflet-popup.photo-md3-leaflet .leaflet-popup-content-wrapper { background: transparent; box-shadow: none; padding: 0; border: 0; }
         .leaflet-popup.photo-md3-leaflet .leaflet-popup-content { margin: 0; width: auto !important; }
         .leaflet-popup.photo-md3-leaflet .leaflet-popup-tip { background: rgba(20,22,28,.92); }
         .leaflet-popup.photo-md3-leaflet a.leaflet-popup-close-button { display: none; }
-        .photo-md3-pop { width: min(240px, 72vw); background: rgba(18,20,26,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
-        .photo-md3-media { position: relative; aspect-ratio: 4/5; background: #0b0d12; }
-        .photo-md3-media img { width: 100%; height: 100%; object-fit: cover; display: block; opacity: 0; transition: opacity .25s ease; }
+        .photo-md3-pop { width: min(260px, 78vw); background: rgba(18,20,26,.94); border: 1px solid rgba(255,255,255,.1); border-radius: 18px; overflow: hidden; box-shadow: 0 18px 40px rgba(0,0,0,.45); backdrop-filter: blur(10px); }
+        .photo-md3-media { position: relative; aspect-ratio: 1 / 1; background: #0b0d12; display: flex; align-items: center; justify-content: center; }
+        .photo-md3-media img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; display: block; opacity: 0; transition: opacity .25s ease; }
         .photo-md3-media img.is-ready { opacity: 1; }
         .photo-md3-skeleton { position: absolute; inset: 0; background: linear-gradient(110deg, #1a1d24 20%, #2a2f3a 40%, #1a1d24 60%); background-size: 200% 100%; animation: photoMd3Shimmer 1.2s linear infinite; }
         .photo-md3-actions { display: flex; gap: 6px; padding: 8px; }
@@ -1140,10 +1141,10 @@
         .photo-md3-info div + div { margin-top: 4px; opacity: .85; }
         .photo-md3-lightbox { position: fixed; inset: 0; z-index: 12000; background: rgba(0,0,0,.82); display: flex; align-items: center; justify-content: center; padding: 24px; }
         .photo-md3-lightbox[hidden] { display: none !important; }
-        .photo-md3-lightbox-card { width: min(920px, 96vw); max-height: 92vh; background: #111318; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 24px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; }
+        .photo-md3-lightbox-card { width: min(720px, 92vw); max-height: 92vh; background: #111318; border-radius: 20px; overflow: hidden; border: 1px solid rgba(255,255,255,.08); box-shadow: 0 24px 80px rgba(0,0,0,.55); display: flex; flex-direction: column; }
         .photo-md3-lightbox-top { display: flex; justify-content: flex-end; gap: 8px; padding: 10px; }
-        .photo-md3-lightbox-media { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; background: #000; }
-        .photo-md3-lightbox-media img { max-width: 100%; max-height: min(78vh, 900px); object-fit: contain; }
+        .photo-md3-lightbox-media { flex: 1; min-height: min(56vw, 520px); max-height: min(78vh, 720px); aspect-ratio: 1 / 1; display: flex; align-items: center; justify-content: center; background: #000; margin: 0 auto; width: 100%; }
+        .photo-md3-lightbox-media img { max-width: 100%; max-height: 100%; width: auto; height: auto; object-fit: contain; }
         .photo-md3-lightbox-meta { padding: 12px 14px 16px; color: #e5e7eb; font-size: 13px; }
         @keyframes photoMd3Shimmer { to { background-position-x: -200%; } }
         .map-place-photo { background: transparent !important; border: 0 !important; }
