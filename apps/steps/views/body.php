@@ -777,11 +777,33 @@ $metricButtons = [
                             } else if(p.layer==='photo_cluster'){
                                 const [plon,plat]=feature.geometry.coordinates;
                                 const count=Math.max(1, parseInt(p.count,10)||1);
+                                const size=Math.max(32, baseRadius*4+14);
                                 const countHtml=count>1?'<em class="map-photo-count">'+count+'</em>':'';
                                 const photoCard=photoPopupCard(p);
-                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker'+(count>1?' has-count':''),html:'<span><i class="fas fa-camera"></i>'+countHtml+'</span>',iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layerGroup);
+                                const photoMarker=L.marker([plat,plon],{keyboard:false,icon:L.divIcon({className:'map-photo-marker',html:'<span class="map-photo-marker-ring is-loading"><span class="map-photo-fallback"><i class="fas fa-camera"></i></span><img alt="" decoding="async">'+countHtml+'</span>',iconSize:[size,size],iconAnchor:[size/2,size/2]})}).addTo(layerGroup);
                                 photoMarker.bindPopup(photoCard,{maxWidth:260,className:'photo-md3-leaflet',closeButton:false,autoPanPadding:[24,24]});
                                 photoMarker.on('popupopen',()=>{ if(typeof photoCard._photoLoad==='function') photoCard._photoLoad(); });
+                                const ring=photoMarker.getElement()&&photoMarker.getElement().querySelector('.map-photo-marker-ring');
+                                const ringImg=ring&&ring.querySelector('img');
+                                if(ringImg && p.thumbnail){
+                                    const fill=()=>{
+                                        if(ringImg.dataset.filled) return;
+                                        ringImg.dataset.filled='1';
+                                        loadPhotoThumb(p.thumbnail).then(loaded=>{
+                                            ringImg.src=loaded.src;
+                                            ringImg.classList.add('is-ready');
+                                            ring.classList.remove('is-loading');
+                                            const fb=ring.querySelector('.map-photo-fallback'); if(fb) fb.remove();
+                                        }).catch(()=>{ ring.classList.remove('is-loading'); });
+                                    };
+                                    if('IntersectionObserver' in window){
+                                        const io=new IntersectionObserver((entries)=>{
+                                            if(entries.some(e=>e.isIntersecting)){ io.disconnect(); fill(); }
+                                        },{root:null,rootMargin:'120px',threshold:0.01});
+                                        const el=photoMarker.getElement();
+                                        if(el) io.observe(el); else fill();
+                                    } else fill();
+                                }
                             } else if(p.layer==='visit'){
                                 const vc=VISIT_COLORS[p.detection_status]||VISIT_COLORS.unidentified;
                                 const [vlon,vlat]=feature.geometry.coordinates;
