@@ -453,12 +453,51 @@ if storage_pool_mounted; then
     fi
   fi
   export STORAGE_STATE_DIR="$APPDATA_DATA_DIR/storage"
+  # `docker exec` does not inherit the env this script just exported to
+  # supervisord/its children; without this, any ad-hoc `docker exec ... php ...`
+  # session silently falls back to the legacy APPDATA_BASE_DIR default and
+  # writes outside the pool. Persist the resolved values so interactive and
+  # login shells opened via `docker exec` pick up the same roots.
+  {
+    printf 'export APPDATA_BASE_DIR=%q\n' "$APPDATA_BASE_DIR"
+    printf 'export UPLOADS_BASE_DIR=%q\n' "$UPLOADS_BASE_DIR"
+    printf 'export APPDATA_DATA_DIR=%q\n' "$APPDATA_DATA_DIR"
+    printf 'export STORAGE_ROOT=%q\n' "$STORAGE_ROOT"
+    printf 'export STORAGE_STATE_DIR=%q\n' "$STORAGE_STATE_DIR"
+  } > /etc/profile.d/appdashboard-storage.sh
+  chmod 0644 /etc/profile.d/appdashboard-storage.sh
+  # Also persist as JSON on the metadata volume so shell/storage_helper.php can
+  # recover the resolved roots even for processes that bypass supervisord's
+  # environment and /etc/profile.d entirely (e.g. `docker exec appdashboard
+  # php script.php` with no login shell). This is read, never trusted blindly:
+  # it only fills in for an unset env var, matching the normal getenv() default.
+  mkdir -p "$APPDATA_DATA_DIR/storage"
+  cat > "$APPDATA_DATA_DIR/storage/runtime-env.json" <<JSON
+{
+  "APPDATA_BASE_DIR": "$APPDATA_BASE_DIR",
+  "UPLOADS_BASE_DIR": "$UPLOADS_BASE_DIR",
+  "APPDATA_DATA_DIR": "$APPDATA_DATA_DIR",
+  "STORAGE_ROOT": "$STORAGE_ROOT",
+  "STORAGE_STATE_DIR": "$STORAGE_STATE_DIR"
+}
+JSON
+  chmod 0644 "$APPDATA_DATA_DIR/storage/runtime-env.json"
 elif [ -f "$APPDATA_DATA_DIR/.storage-unified-appdata" ] && [ "${STORAGE_REQUIRE_POOL:-1}" = "1" ]; then
   # The pool was provisioned before, but no expected disk is mounted now.
   # Refusing to start is safer than silently writing to the legacy/system disk.
   echo "[storage] FATAL: merged storage is not mounted. Refusing to start to avoid writing outside the pool." >&2
   echo "[storage] Mount the disks, or set STORAGE_REQUIRE_POOL=0 to allow legacy paths." >&2
   exit 1
+fi
+# The nginx config is rendered from the template earlier in this script,
+# before APPDATA_BASE_DIR/UPLOADS_BASE_DIR are known to have moved onto the
+# pool. Its static media `alias` directives (uploads, films, recipes, ...)
+# would otherwise keep serving straight from the legacy appdata volume even
+# after application code has moved writes to /storage, making newly-written
+# files 404. Retarget them to the resolved roots now that they are final.
+NGINX_SITE_CONF=/tmp/appdashboard-nginx.conf
+if [ -f "$NGINX_SITE_CONF" ] && [ "$APPDATA_BASE_DIR" != "/opt/ApplicationData" ]; then
+  sed -i "s#alias /opt/ApplicationData/#alias ${APPDATA_BASE_DIR}/#g" "$NGINX_SITE_CONF"
 fi
 if [ -f /var/www/AppDashboard/supervisord.conf ]; then
   cp /var/www/AppDashboard/supervisord.conf /etc/supervisor/conf.d/appdashboard.conf

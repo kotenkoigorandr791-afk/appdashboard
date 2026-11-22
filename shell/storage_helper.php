@@ -1,17 +1,53 @@
 <?php
 declare(strict_types=1);
+/**
+ * Recover an env var that the entrypoint resolved but a bypassing process
+ * (e.g. `docker exec appdashboard php script.php` with no login shell, so
+ * /etc/profile.d never ran) did not inherit. The entrypoint persists its
+ * resolved roots to this fixed, volume-backed path on every boot
+ * (docker-entrypoint.sh). getenv() always wins; this only fills a gap, it
+ * never overrides an explicitly-set env var, and it is not a hardcoded
+ * directory default — it is the same value the live app actually uses.
+ */
+function storage_runtime_env_fallback(string $key): ?string {
+    static $cache = null;
+    if ($cache === null) {
+        $path = '/opt/AppDashboard/data/storage/runtime-env.json';
+        $raw = is_readable($path) ? @file_get_contents($path) : false;
+        $data = is_string($raw) ? json_decode($raw, true) : null;
+        $cache = is_array($data) ? $data : [];
+    }
+    $value = $cache[$key] ?? null;
+    return is_string($value) && trim($value) !== '' ? $value : null;
+}
+/**
+ * docker-compose.yml bakes a legacy default into the container's static env
+ * (APPDATA_BASE_DIR=/opt/ApplicationData etc.) so getenv() is *never* empty —
+ * the entrypoint's runtime override only reaches supervisord's own process
+ * tree, not `docker exec`. The runtime file, rewritten by the entrypoint on
+ * every boot, is the authoritative "what this boot actually resolved to", so
+ * it takes priority over a getenv() value whenever both are present.
+ */
+function storage_resolved_env(string $key): ?string {
+    $value = storage_runtime_env_fallback($key);
+    if ($value === null) {
+        $env = getenv($key);
+        $value = (is_string($env) && trim($env) !== '') ? $env : null;
+    }
+    return $value;
+}
 function appdata_base_dir(): string {
-    $base = getenv('APPDATA_BASE_DIR');
+    $base = storage_resolved_env('APPDATA_BASE_DIR');
     if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
     return rtrim($base, '/');
 }
 function appdata_uploads_base_dir(): string {
-    $base = getenv('UPLOADS_BASE_DIR');
+    $base = storage_resolved_env('UPLOADS_BASE_DIR');
     if (!is_string($base) || trim($base) === '') $base = appdata_base_dir() . '/dashboard/uploads';
     return rtrim($base, '/');
 }
 function appdata_data_dir(): string {
-    $base = getenv('APPDATA_DATA_DIR');
+    $base = storage_resolved_env('APPDATA_DATA_DIR');
     if (!is_string($base) || trim($base) === '') $base = '/opt/AppDashboard/data';
     return rtrim($base, '/');
 }
@@ -67,7 +103,7 @@ function appdata_user_root_dir(string $appKey, string $user, string $rootKey = '
     return $sub === '' ? $base : ($base . '/' . $sub);
 }
 function app_storage_root_path(): string {
-    $root = getenv('STORAGE_ROOT');
+    $root = storage_resolved_env('STORAGE_ROOT');
     if (!is_string($root) || trim($root) === '') $root = '/storage';
     return rtrim($root, '/');
 }

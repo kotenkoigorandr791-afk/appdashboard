@@ -29,7 +29,9 @@ function storage_env(string $name, string $default = ''): string {
 }
 
 function storage_root(): string {
-    return rtrim(storage_env('STORAGE_ROOT', '/storage'), '/') ?: '/storage';
+    $root = function_exists('storage_resolved_env') ? (storage_resolved_env('STORAGE_ROOT') ?? '') : '';
+    if ($root === '') $root = storage_env('STORAGE_ROOT', '');
+    return rtrim($root !== '' ? $root : '/storage', '/') ?: '/storage';
 }
 
 function storage_disks_root(): string {
@@ -67,7 +69,8 @@ function storage_state_dir(): string {
         storage_ensure_dir($explicit);
         return rtrim($explicit, '/');
     }
-    $data = storage_env('APPDATA_DATA_DIR', '');
+    $data = function_exists('storage_resolved_env') ? (storage_resolved_env('APPDATA_DATA_DIR') ?? '') : '';
+    if ($data === '') $data = storage_env('APPDATA_DATA_DIR', '');
     if ($data === '') {
         storage_fail('APPDATA_DATA_DIR is not set and STORAGE_STATE_DIR was not given; refusing to use a repo-relative fallback.');
     }
@@ -91,9 +94,9 @@ function storage_fail(string $message): never {
  * once from each web/CLI entrypoint before any storage write.
  */
 function storage_assert_ready(bool $requirePool = true): void {
-    $appdataBase = storage_env('APPDATA_BASE_DIR', '');
+    $appdataBase = function_exists('appdata_base_dir') ? appdata_base_dir() : storage_env('APPDATA_BASE_DIR', '');
     if ($appdataBase === '') storage_fail('APPDATA_BASE_DIR is not set.');
-    $appdataData = storage_env('APPDATA_DATA_DIR', '');
+    $appdataData = function_exists('appdata_data_dir') ? appdata_data_dir() : storage_env('APPDATA_DATA_DIR', '');
     if ($appdataData === '') storage_fail('APPDATA_DATA_DIR is not set.');
     foreach ([$appdataBase, $appdataData] as $dir) {
         if (!is_dir($dir) || !is_writable($dir)) {

@@ -60,6 +60,52 @@ rather than introducing a new split.
 - `/run/php`, `/var/log/*`: ephemeral/log, volume-backed where it matters
   (`appdashboard-logs`).
 
+## Bugs found and fixed while verifying the live container (2026-11-22)
+
+Verification on the running `appdashboard` container found that the entrypoint's env override
+to `/storage` (`docker-entrypoint.sh:450-451`) was **not actually reaching every writer/reader**:
+
+1. **`docker-compose.yml` bakes the legacy values as static container env**
+   (`APPDATA_BASE_DIR: /opt/ApplicationData`, etc., `docker-compose.yml:215-218`). The
+   entrypoint's `export APPDATA_BASE_DIR=.../storage/applications` only changes the shell/
+   supervisord process tree's env, not the container's recorded env — so any `docker exec
+   appdashboard php script.php` (no login shell) always got `getenv('APPDATA_BASE_DIR') ===
+   '/opt/ApplicationData'`, never empty, so the "default if unset" fallback in
+   `appdata_base_dir()` never kicked in and the wrong value won. This is the explanation for
+   ~770 files of real, recent user data found sitting in `/opt/ApplicationData/{cloud,films,
+   spends,steps,smart_home}` despite the pool being mounted and unified.
+   **Fix:** the entrypoint now also writes the final resolved roots to
+   `$APPDATA_DATA_DIR/storage/runtime-env.json` (metadata volume) and to
+   `/etc/profile.d/appdashboard-storage.sh` on every boot. `shell/storage_helper.php` and
+   `lib/Storage/bootstrap.php` now resolve `APPDATA_BASE_DIR` / `UPLOADS_BASE_DIR` /
+   `APPDATA_DATA_DIR` / `STORAGE_ROOT` from that JSON file **first**, falling back to `getenv()`
+   only if the file is absent (e.g. before the pool is ever unified) — so every PHP process,
+   including bare `docker exec ... php ...`, resolves the real, current root.
+2. **nginx served static media straight from `/opt/ApplicationData`, never from `/storage`.**
+   `nginx/appdashboard.conf.template` hardcodes `alias /opt/ApplicationData/...` for `/uploads/`,
+   `/apps/films/uploads/`, `/apps/recipes/{products,recipes}/`, `/apps/steps/`,
+   `/apps/spends/users/`, `/apps/smart_home/data/`, `/apps/films/comments/`. The template is
+   rendered to `/tmp/appdashboard-nginx.conf` *before* the storage-pool block runs, so it always
+   had the pre-override path. Any file actually written to `/storage/...` by PHP after
+   unification was unreachable (404) through these nginx routes.
+   **Fix:** the entrypoint now rewrites `alias /opt/ApplicationData/` → `alias
+   $APPDATA_BASE_DIR/` in the rendered nginx conf once the final root is known, right before
+   `exec supervisord`. Verified live: wrote a file under `/storage/applications/dashboard/
+   uploads/`, fetched it via `http://localhost/uploads/...` → 200 with the right content.
+3. **Stale legacy data migrated.** `cloud` (640 files/30M), `films` (2), `spends` (22/404K),
+   `steps` (153/3.8M), `smart_home` (1) were merged into `/storage/applications/<app>` with
+   `tar --keep-newer-files` (never overwriting a newer pool copy), backed up first to
+   `/storage/backup/legacy-appdata-migration-<timestamp>.tar.gz`, then the legacy directories
+   were renamed to `/opt/ApplicationData/.migrated-<app>-<timestamp>` (not deleted, so rollback
+   is a plain `mv` back) rather than removed outright.
+
+After these two fixes, `docker exec appdashboard php scripts/storage/check-paths.php` (run with
+no special env, the way an operator actually would) resolves every app/user path under
+`/storage`, and `/opt/ApplicationData` now only holds the documented metadata/cache set (tmp,
+sessions, nginx tmp, mosquitto, composer cache, and intentionally-excluded regenerable caches:
+`models`, `bot-venv`, `cloud_video_tmp`, `cloud_libreoffice_home`, `latex-texmf`,
+`latex-pdf-cache`, `huggingface`, `tinytex`) plus the `.migrated-*` rollback copies.
+
 ## Known deliberate deviations from a strict "no host mounts" policy
 
 The main `appdashboard` service currently bind-mounts `/:/host` (rw) and `${HOME}:/host-home`
