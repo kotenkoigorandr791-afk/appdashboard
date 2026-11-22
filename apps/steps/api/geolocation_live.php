@@ -20,17 +20,11 @@ $method = strtoupper((string)($_SERVER['REQUEST_METHOD'] ?? 'GET'));
 
 function steps_live_ticket_dirs(): array
 {
-    $dirs = [];
-    foreach ([getenv('APPDATA_BASE_DIR'), '/storage/applications', '/opt/ApplicationData'] as $base) {
-        if (!is_string($base) || trim($base) === '') continue;
-        $dir = rtrim($base, '/') . '/steps_runtime/live_ws_tickets';
-        if (!is_dir($dir)) @mkdir($dir, 0770, true);
-        if (is_dir($dir)) {
-            @chmod($dir, 0770);
-            $dirs[] = $dir;
-        }
-    }
-    return array_values(array_unique($dirs));
+    if (!function_exists('appdata_base_dir')) require_once dirname(__DIR__, 3) . '/shell/storage_helper.php';
+    $dir = rtrim(appdata_base_dir(), '/') . '/steps_runtime/live_ws_tickets';
+    if (!is_dir($dir)) @mkdir($dir, 0770, true);
+    @chmod($dir, 0770);
+    return [$dir];
 }
 
 if ($method === 'GET') {

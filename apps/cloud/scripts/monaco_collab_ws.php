@@ -25,8 +25,8 @@ function ws_ticket_directories(): array
 {
     // Tickets live on the APPDATA volume shared by PHP-FPM and this service.
     // Never use the code tree (a bind mount) or the container temp layer.
-    $base = getenv('APPDATA_BASE_DIR');
-    if (!is_string($base) || trim($base) === '') $base = '/opt/ApplicationData';
+    if (!function_exists('appdata_base_dir')) require_once dirname(__DIR__, 3) . '/shell/storage_helper.php';
+    $base = appdata_base_dir();
     $dirs = [
         rtrim($base, '/') . '/cloud_runtime/monaco_collab_tickets',
         sys_get_temp_dir() . '/cloud_monaco_tickets',

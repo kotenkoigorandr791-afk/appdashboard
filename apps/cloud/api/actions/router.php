@@ -1179,8 +1179,7 @@ function cloud_video_jobs_dir(): string {
     return $dir;
 }
 function cloud_video_tmp_dir(): string {
-    $appdataBase = getenv('APPDATA_BASE_DIR');
-    if (!is_string($appdataBase) || trim($appdataBase) === '') $appdataBase = '/opt/ApplicationData';
+    $appdataBase = appdata_base_dir();
     $base = is_dir($appdataBase) && is_writable($appdataBase) ? rtrim($appdataBase, '/') : upload_sessions_dir();
     $dir = $base . '/cloud_video_tmp';
     if (!is_dir($dir)) @mkdir($dir, 0775, true);
@@ -4520,8 +4519,7 @@ if ($action === 'monaco_collab_ticket') {
     // Tickets must live on the APPDATA volume shared by PHP-FPM and the
     // WebSocket service. Never write them into the code tree (bind mount) or
     // the container temp layer.
-    $appdataBase = getenv('APPDATA_BASE_DIR');
-    if (!is_string($appdataBase) || trim($appdataBase) === '') $appdataBase = '/opt/ApplicationData';
+    $appdataBase = appdata_base_dir();
     $ticketDirs = [
         rtrim($appdataBase, '/') . '/cloud_runtime/monaco_collab_tickets',
         sys_get_temp_dir() . '/cloud_monaco_tickets',

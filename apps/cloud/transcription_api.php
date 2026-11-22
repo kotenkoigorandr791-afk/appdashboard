@@ -19,8 +19,7 @@ function app_path($relativePath = '') {
     if ($baseDir === false) $baseDir = __DIR__;
     if ($relativePath === '') return $baseDir;
     $rel = str_replace('\\', '/', (string)$relativePath);
-    $appdata = getenv('APPDATA_BASE_DIR');
-    if (!is_string($appdata) || trim($appdata) === '') $appdata = '/opt/ApplicationData';
+    $appdata = appdata_base_dir();
     $runtime = [
         'temp' => 'cloud_runtime/temp',
         'temp_convert' => 'cloud_runtime/temp_convert',

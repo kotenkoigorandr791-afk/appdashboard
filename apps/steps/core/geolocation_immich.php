@@ -108,8 +108,8 @@ final class StepsGeolocationImmich
 
     private static function thumbCacheDir(string $owner): string
     {
-        $base = rtrim((string)(getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData'), '/');
-        return $base . '/steps/immich-thumbs/' . substr(hash('sha256', strtolower($owner)), 0, 32);
+        if (!function_exists('appdata_base_dir')) require_once dirname(__DIR__, 3) . '/shell/storage_helper.php';
+        return rtrim(appdata_base_dir(), '/') . '/steps/immich-thumbs/' . substr(hash('sha256', strtolower($owner)), 0, 32);
     }
 
     private static function thumbCachePaths(string $owner, string $assetId, string $size): array

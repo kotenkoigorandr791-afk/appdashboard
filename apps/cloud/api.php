@@ -71,8 +71,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit; }
 
 // Cloud storage root lives on the APPDATA volume; the code tree is a bind mount.
 if (!defined('STORAGE_DIR')) {
-    $__cloudStorageBase = getenv('APPDATA_BASE_DIR');
-    if (!is_string($__cloudStorageBase) || trim($__cloudStorageBase) === '') $__cloudStorageBase = '/opt/ApplicationData';
+    $__cloudStorageBase = appdata_base_dir();
     define('STORAGE_DIR', rtrim($__cloudStorageBase, '/') . '/cloud');
     unset($__cloudStorageBase);
 }
@@ -170,8 +169,7 @@ function ensure_cloud_encryption_consents_table_impl(): void {
 // api.php - add after constants
 
 // Runtime data lives on the APPDATA volume; no repository symlinks.
-$cloudAppDataBase = getenv('APPDATA_BASE_DIR');
-if (!is_string($cloudAppDataBase) || trim($cloudAppDataBase) === '') $cloudAppDataBase = '/opt/ApplicationData';
+$cloudAppDataBase = appdata_base_dir();
 define('CLOUD_RUNTIME_DIR', rtrim($cloudAppDataBase, '/') . '/cloud_runtime');
 define('UPLOAD_SESSIONS_DIR', CLOUD_RUNTIME_DIR . '/upload_sessions');
 @mkdir(UPLOAD_SESSIONS_DIR, 0775, true);
