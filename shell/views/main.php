@@ -1910,6 +1910,25 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
     .ap-turnstile-hp label {
       display: block;
     }
+
+    /* ── Mobile auth top bar: one uniform 36px control height ── */
+    @media (max-width: 600px) {
+      #auth-top-bar { --auth-topbar-h: 56px; padding: 10px 14px; }
+      #auth-top-bar .auth-top-bar-right { gap: 8px; }
+      #auth-top-bar .auth-brand-link { width: 36px; height: 36px; border-radius: 10px; box-sizing: border-box; }
+      #auth-top-bar .auth-brand-link svg { width: 20px; height: 20px; }
+      #auth-top-bar .theme-toggle { height: 36px; padding: 3px; border-radius: 10px; align-items: center; box-sizing: border-box; }
+      #auth-top-bar .theme-toggle button { height: 30px; padding: 0 11px; border-radius: 8px; display: inline-flex; align-items: center; font-size: 12px; line-height: 1; }
+      #auth-top-bar .lang-selector { height: 36px; }
+      #auth-top-bar .lang-selector, #auth-top-bar .lang-selector-btn { border-radius: 10px; }
+      #auth-top-bar .lang-selector-btn { height: 36px; padding: 0 10px; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; box-sizing: border-box; }
+      #auth-top-bar .lang-selector-label { overflow: hidden; text-overflow: ellipsis; max-width: 96px; }
+      #auth-top-bar .lang-selector-menu { right: 0; }
+    }
+    @media (max-width: 380px) {
+      #auth-top-bar .theme-toggle button { padding: 0 8px; font-size: 11px; }
+      #auth-top-bar .lang-selector-label { max-width: 64px; }
+    }
  </style>
 
 <style>

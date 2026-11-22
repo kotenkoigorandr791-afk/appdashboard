@@ -114,6 +114,24 @@
             box-shadow: 0 18px 50px rgba(30, 50, 80, 0.14);
         }
         html[data-embedded="1"] .muted { opacity: 0.65; }
+
+        /* Mobile: one uniform 36px control height, controls on their own row */
+        @media (max-width: 600px) {
+            header { flex-wrap: wrap; gap: 8px; padding: 8px 10px; }
+            /* logo carries an inline width/height, so it needs !important */
+            header > div:first-child img { width: 28px !important; height: 28px !important; }
+            header .title { font-size: 1rem; }
+            .card { overflow-wrap: anywhere; }
+            .controls { width: 100%; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
+            #backHomeBtn { height: 36px; padding: 0 12px; border-radius: 10px; display: inline-flex; align-items: center; gap: 6px; font-size: 13px; box-sizing: border-box; }
+            #languageSelect { height: 36px; padding: 0 10px; border-radius: 10px; font-size: 13px; box-sizing: border-box; }
+            .theme-toggle { height: 36px; padding: 3px; border-radius: 10px; display: inline-flex; align-items: center; box-sizing: border-box; }
+            .theme-toggle button { height: 30px; padding: 0 10px; border-radius: 8px; display: inline-flex; align-items: center; font-size: 12px; line-height: 1; box-sizing: border-box; }
+        }
+        @media (max-width: 380px) {
+            .theme-toggle button { padding: 0 8px; font-size: 11px; }
+            .back-home-btn span[data-i18n] { display: none; }
+        }
     </style>
 <link rel="icon" href="/shell/assets/privacy-terms.svg" type="image/svg+xml">
 <link rel="shortcut icon" href="/shell/assets/privacy-terms.svg" type="image/svg+xml">

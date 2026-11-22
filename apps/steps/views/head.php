@@ -5499,6 +5499,65 @@ body.md3-steps.light .picker-x:hover {
     border-color: #CBD5E1 !important;
     color: #0F172A !important;
 }
+
+        /* --- Mobile/tablet top bar fit (last-loaded, overrides shell + app rules) --- */
+        @media (max-width: 900px) {
+            body.md3-steps .app-steps.md3 .app-brand { min-width: 0; flex: 0 1 auto; overflow: hidden; }
+            body.md3-steps .app-steps.md3 .app-brand-text { min-width: 0; overflow: hidden; }
+            body.md3-steps .app-steps.md3 .app-brand-text h1 { overflow: hidden; text-overflow: ellipsis; }
+            body.md3-steps .app-steps.md3 .mode-switch span.mode-label { display: none; }
+            body.md3-steps .app-steps.md3 .mode-switch { flex: 0 0 auto; }
+            body.md3-steps .app-steps.md3 .mode-switch-btn { flex-shrink: 0; padding: 0 12px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { width: auto; flex: 0 1 auto; min-width: 0; justify-content: flex-end; margin-left: auto; }
+        }
+        @media (max-width: 640px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 109px; } /* two-row bar, keeps .app-steps padding in sync */
+            body.md3-steps .app-steps.md3 .app-topbar { height: auto; min-height: 0; padding-top: 8px; padding-bottom: 8px; }
+            body.md3-steps .app-steps.md3 .app-topbar-inner { height: auto; flex-wrap: wrap; row-gap: 8px; column-gap: 8px; }
+            body.md3-steps .app-steps.md3 .app-brand { order: 0; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { order: 1; gap: 4px; }
+            body.md3-steps .app-steps.md3 .mode-switch { order: 2; flex: 1 0 100%; height: 38px; margin: 0; padding: 3px; justify-content: center; }
+            body.md3-steps .app-steps.md3 .mode-switch-btn { flex: 1 1 0; justify-content: center; padding: 0 10px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn { width: 34px; height: 34px; min-width: 34px; min-height: 34px; font-size: 19px; }
+        }
+        @media (max-width: 480px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 97px; }
+            body.md3-steps .app-steps.md3 .app-brand-mark { width: 32px; height: 32px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { gap: 3px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn { width: 30px; height: 30px; min-width: 30px; min-height: 30px; font-size: 17px; }
+        }
+        @media (max-width: 340px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 89px; }
+            body.md3-steps .app-steps.md3 .app-brand { display: none; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions { gap: 2px; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn { width: 28px; height: 28px; min-width: 28px; min-height: 28px; font-size: 16px; }
+        }
+        /* Add-steps tab bar must not widen the modal at phone widths */
+        @media (max-width: 900px) {
+            body.md3-steps #add-steps-modal .add-tab-bar { align-self: stretch; width: auto; max-width: 100%; min-width: 0; box-sizing: border-box; }
+            body.md3-steps #add-steps-modal .add-tab { min-width: 0; }
+        }
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>
