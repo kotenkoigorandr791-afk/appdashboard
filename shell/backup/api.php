@@ -491,7 +491,11 @@ function resticValidSourcePath(string $path): bool {
 function resticDataDir(): string {
     $base = getenv('APPDATA_DATA_DIR');
     if ($base === false || trim((string)$base) === '') {
-        $base = defined('APP_ROOT') ? APP_ROOT . '/data' : dirname(__DIR__, 2) . '/data';
+        if (PHP_SAPI === 'cli') {
+            fwrite(STDERR, '[storage] APPDATA_DATA_DIR is not set; refusing to use a repo-relative fallback.' . PHP_EOL);
+            exit(1);
+        }
+        throw new RuntimeException('[storage] APPDATA_DATA_DIR is not set.');
     }
     $dir = rtrim((string)$base, '/') . '/backup';
     resticEnsureDir($dir);
@@ -1792,7 +1796,7 @@ function resticAssertInsideRoot(string $real): bool
     // wizard opens /opt/ApplicationData and the backup state directory even
     // when the whole host is mounted at /host). Keep the allow-list narrow.
     $candidates = [
-        getenv('APPDATA_DATA_DIR') ?: (defined('APP_ROOT') ? APP_ROOT . '/data' : '/opt/AppDashboard/data'),
+        getenv('APPDATA_DATA_DIR') ?: '/opt/AppDashboard/data',
         getenv('APPDATA_BASE_DIR') ?: '/opt/ApplicationData',
         getenv('UPLOADS_BASE_DIR') ?: '',
         getenv('STORAGE_ROOT') ?: '/storage',

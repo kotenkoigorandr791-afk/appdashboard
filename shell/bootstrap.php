@@ -14,6 +14,8 @@ require_once APP_ROOT . '/lib/app_version.php';
 app_sentry_bootstrap('dashboard');
 require_once APP_ROOT . '/lib/app_session.php';
 require_once APP_ROOT . '/shell/storage_helper.php';
+require_once APP_ROOT . '/lib/Storage/bootstrap.php';
+storage_assert_ready();
 app_session_start();
 require_once APP_ROOT . '/db.php';
 require_once APP_ROOT . '/lib/admin_security.php';
