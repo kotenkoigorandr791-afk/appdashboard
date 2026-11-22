@@ -67,6 +67,13 @@ function public_api_validate_token(AppDatabase $db, string $rawToken, string $de
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     if ((int)($row['expires_at'] ?? 0) < time()) return null;
+    if ((int)($row['last_used_at'] ?? 0) < time() - app_client_auth_token_idle_ttl()
+        && in_array((string)($row['app_id'] ?? ''), app_client_auth_token_idle_apps(), true)) {
+        $dead = $db->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE token_hash = :h AND revoked = 0");
+        $dead->bindValue(':h', $hash, PDO::PARAM_STR);
+        $dead->execute();
+        return null;
+    }
     $tokenDeviceId = (string)($row['device_id'] ?? '');
     if ($tokenDeviceId === 'mcp_external' && $deviceId !== '') {
         $claim = $db->prepare("UPDATE client_auth_tokens SET device_id = :d WHERE token_hash = :h AND device_id = 'mcp_external'");

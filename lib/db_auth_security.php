@@ -1,6 +1,25 @@
 <?php
 declare(strict_types=1);
 require_once __DIR__ . '/db_config.php';
+function app_client_auth_token_idle_ttl(): int {
+    // Pairing tokens that are never used again should not stay valid forever.
+    $ttl = (int)(getenv('CLIENT_AUTH_TOKEN_IDLE_TTL') ?: (30 * 24 * 3600));
+    return max(3600, $ttl);
+}
+function app_client_auth_token_idle_apps(): array {
+    // Only companion-app pairing tokens age out automatically; API keys, cloud
+    // sessions and MCP clients keep their own explicit lifetimes.
+    return ['steps', 'kanboard', 'spends'];
+}
+function app_client_auth_tokens_expire_idle(AppDatabase $db): int {
+    $apps = app_client_auth_token_idle_apps();
+    $placeholders = implode(',', array_fill(0, count($apps), '?'));
+    $stmt = $db->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE revoked = 0 AND last_used_at < ? AND app_id IN ($placeholders)");
+    $stmt->bindValue(1, time() - app_client_auth_token_idle_ttl(), PDO::PARAM_INT);
+    foreach ($apps as $i => $app) $stmt->bindValue($i + 2, $app, PDO::PARAM_STR);
+    $stmt->execute();
+    return (int)$db->changes();
+}
 function appClientAuthTokenAppId($appId): string {
     $appId = strtolower(trim((string)$appId));
     if ($appId === '' || !preg_match('/^[a-z0-9_]{1,32}$/', $appId)) return '';
@@ -66,6 +85,15 @@ function app_db_validate_bearer_token(AppDatabase $db, string $rawToken, ?string
     $row = $stmt->execute()->fetch(PDO::FETCH_ASSOC);
     if (!$row) return null;
     if ((int)($row['expires_at'] ?? 0) < time()) return null;
+    // Idle expiry: a token nobody used for the idle TTL is dead even if its
+    // absolute expiry is still in the future.
+    if ((int)($row['last_used_at'] ?? 0) < time() - app_client_auth_token_idle_ttl()
+        && in_array((string)($row['app_id'] ?? ''), app_client_auth_token_idle_apps(), true)) {
+        $dead = $db->prepare("UPDATE client_auth_tokens SET revoked = 1, token_plain = '', device_id = '' WHERE token_hash = :h AND revoked = 0");
+        $dead->bindValue(':h', $hash, PDO::PARAM_STR);
+        $dead->execute();
+        return null;
+    }
     if ($deviceId !== null && $deviceId !== '' && (string)($row['device_id'] ?? '') !== '' && !hash_equals((string)$row['device_id'], $deviceId)) return null;
     $upd = $db->prepare('UPDATE client_auth_tokens SET last_used_at = :u WHERE token_hash = :h');
     $upd->bindValue(':u', time(), PDO::PARAM_INT);

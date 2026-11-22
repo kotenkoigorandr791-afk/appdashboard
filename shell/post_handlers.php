@@ -773,10 +773,32 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
         try{
             $tokenDb=getDB();
             ensureClientAuthTokensSchema($tokenDb);
-            $stmt=$tokenDb->prepare("SELECT token_hash, device_name, device_id, platform, created_at, last_used_at, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC");
+            if(!function_exists('app_client_auth_tokens_expire_idle')){
+                require_once dirname(__DIR__) . '/lib/db_auth_security.php';
+            }
+            // Devices that sat unused past the idle TTL are disconnected first,
+            // so the list never offers links that can no longer pair or sync.
+            app_client_auth_tokens_expire_idle($tokenDb);
+            $perPage=isset($_POST['per_page'])?(int)$_POST['per_page']:0;
+            $perPage=$perPage>0?max(1,min($perPage,50)):0; // 0 keeps the legacy "return everything" behaviour
+            $page=max(1,(int)($_POST['page']??1));
+            $countStmt=$tokenDb->prepare("SELECT COUNT(*) FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t");
+            $countStmt->bindValue(':e',$email,PDO::PARAM_STR);
+            $countStmt->bindValue(':a',$tokenApp,PDO::PARAM_STR);
+            $countStmt->bindValue(':t',time(),PDO::PARAM_INT);
+            $total=(int)$countStmt->execute()->fetchColumn();
+            $pages=$perPage>0?max(1,(int)ceil($total/$perPage)):1;
+            if($page>$pages)$page=$pages;
+            $sql="SELECT token_hash, device_name, device_id, platform, created_at, last_used_at, expires_at FROM client_auth_tokens WHERE email = :e AND app_id = :a AND revoked = 0 AND expires_at > :t ORDER BY created_at DESC";
+            if($perPage>0)$sql.=" LIMIT :lim OFFSET :off";
+            $stmt=$tokenDb->prepare($sql);
             $stmt->bindValue(':e',$email,PDO::PARAM_STR);
             $stmt->bindValue(':a',$tokenApp,PDO::PARAM_STR);
             $stmt->bindValue(':t',time(),PDO::PARAM_INT);
+            if($perPage>0){
+                $stmt->bindValue(':lim',$perPage,PDO::PARAM_INT);
+                $stmt->bindValue(':off',($page-1)*$perPage,PDO::PARAM_INT);
+            }
             $result=$stmt->execute();
             $rows=[];
             while($row=$result->fetch(PDO::FETCH_ASSOC)){
@@ -793,9 +815,18 @@ if($_SERVER['REQUEST_METHOD']==='POST'){
                     'claimed'=>$claimed,
                     'created_at'=>(int)($row['created_at']??0),
                     'last_used_at'=>(int)($row['last_used_at']??0),
+                    'expires_at'=>(int)($row['expires_at']??0),
                 ];
             }
-            echo json_encode(['success'=>true,'devices'=>$devices]);
+            echo json_encode([
+                'success'=>true,
+                'devices'=>$devices,
+                'total'=>$total,
+                'page'=>$page,
+                'per_page'=>$perPage,
+                'pages'=>$pages,
+                'idle_days'=>(int)ceil(app_client_auth_token_idle_ttl()/86400),
+            ]);
         }catch(Throwable $e){
             echo json_encode(['success'=>false,'error'=>$e->getMessage()]);
         }

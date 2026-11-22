@@ -1037,6 +1037,98 @@ $bootThemeDark = ($bootThemeResolved === 'dark');
         #bottom-bar .bottom-bar-actions .user-profile{background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.08);border-radius:999px;width:36px;height:36px;padding:0 !important;box-shadow:none;margin:0;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);flex-shrink:0;box-sizing:border-box;overflow:hidden;}
         #bottom-bar .bottom-bar-actions .user-profile:hover{background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.12);}
         #bottom-bar .bottom-bar-actions .user-avatar{width:100%;height:100%;border:0 !important;border-radius:999px;object-fit:cover;display:block;}
+        /* Phones: the app menu is a horizontal navigation bar under the menu button
+           instead of a full-height drawer sliding in from the left. */
+        @media (max-width:768px){
+            #sidebar{
+                top:64px;
+                left:8px;
+                right:8px;
+                width:auto;
+                height:auto;
+                max-height:min(58vh,420px);
+                padding:8px;
+                border:1px solid var(--border-color);
+                border-radius:16px;
+                overflow:hidden;
+                background:var(--bg-color,#0f1419)!important;
+                box-shadow:0 18px 44px rgba(0,0,0,.42);
+                transform:translateY(-10px);
+                opacity:0;
+                visibility:hidden;
+                pointer-events:none;
+                transition:transform .22s ease,opacity .18s ease,visibility 0s linear .22s;
+            }
+            body.shell-app-open #sidebar{
+                top:calc(var(--shell-menu-button-mobile-top) + var(--shell-menu-button-mobile-height) + 8px);
+                height:auto;
+                max-height:min(58vh,420px);
+                border-radius:16px;
+            }
+            #sidebar.open{
+                transform:none;
+                opacity:1;
+                visibility:visible;
+                pointer-events:auto;
+                transition:transform .22s ease,opacity .18s ease,visibility 0s;
+            }
+            #sidebar #sidebarWeatherWidget{display:none!important;}
+            #sidebar .group-letter{display:none!important;}
+            #sidebar #app-list-container{
+                flex:1 1 auto;
+                min-height:0;
+                padding:0 0 6px;
+                overflow-x:auto;
+                overflow-y:hidden;
+                scrollbar-width:none;
+                -ms-overflow-style:none;
+            }
+            #sidebar #app-list-container::-webkit-scrollbar{display:none;}
+            #sidebar #app-list{display:flex;gap:6px;}
+            #sidebar .group-block{display:contents;}
+            #sidebar .group-block ul{display:flex;gap:6px;}
+            #sidebar #app-list li{
+                width:auto;
+                margin:0;
+                padding:0;
+                background:transparent;
+                border:0;
+                flex:0 0 auto;
+            }
+            #sidebar #app-list a,
+            #sidebar #app-list a.app-tile-link{
+                flex-direction:column-reverse;
+                gap:4px;
+                width:66px;
+                max-width:66px;
+                min-height:65px;
+                justify-content:center;
+                align-items:center;
+                padding:7px 4px;
+                border-radius:12px;
+                background:var(--app-item-bg);
+                border:1px solid transparent;
+                box-sizing:border-box;
+            }
+            #sidebar .sidebar-app-icon-wrap{order:0;margin:0;width:24px;height:24px;}
+            #sidebar .sidebar-app-icon,
+            #sidebar .sidebar-app-icon-svg{width:24px!important;height:24px!important;}
+            #sidebar .sidebar-app-name{
+                order:1;
+                flex:none;
+                width:100%;
+                font-size:9.5px;
+                line-height:1.12;
+                text-align:center;
+                white-space:normal;
+                overflow:hidden;
+                text-overflow:clip;
+                max-height:2.3em;
+            }
+            #sidebar .tooltip{display:none!important;}
+            #sidebar #bottom-bar{position:relative;display:flex;align-items:center;gap:6px;margin-top:2px;padding-top:6px;flex-shrink:0;border-top:1px solid var(--border-color);}
+            #sidebar .bottom-bar-actions{position:static;margin-left:auto;align-self:center;gap:6px;}
+        }
         .search-container.open + #support-chat-btn.app-page-chat,
         .search-container:hover + #support-chat-btn.app-page-chat{display:none!important;}
         #clear-search{display:none!important;}

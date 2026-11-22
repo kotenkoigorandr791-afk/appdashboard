@@ -5558,6 +5558,308 @@ body.md3-steps.light .picker-x:hover {
             body.md3-steps #add-steps-modal .add-tab-bar { align-self: stretch; width: auto; max-width: 100%; min-width: 0; box-sizing: border-box; }
             body.md3-steps #add-steps-modal .add-tab { min-width: 0; }
         }
+
+        /* --- Phones: one-row top bar, readable compact cards, stacked settings --- */
+        @media (max-width: 640px) {
+            body.md3-steps .app-steps.md3 { --topbar-height: 60px; }
+            body.md3-steps .app-steps.md3 .app-topbar {
+                height: var(--topbar-height) !important;
+                min-height: var(--topbar-height) !important;
+                padding: 0 10px 0 var(--topbar-left-pad) !important;
+                gap: 6px !important;
+            }
+            body.md3-steps .app-steps.md3 .app-topbar-inner {
+                flex-wrap: nowrap !important;
+                height: 100% !important;
+                gap: 6px !important;
+            }
+            body.md3-steps .app-steps.md3 .app-brand { display: none !important; }
+            body.md3-steps .app-steps.md3 .mode-switch {
+                order: 0 !important;
+                flex: 0 0 auto !important;
+                height: 36px !important;
+                padding: 3px !important;
+                margin: 0 !important;
+                border-radius: 11px !important;
+            }
+            body.md3-steps .app-steps.md3 .mode-switch-btn {
+                flex: 0 0 auto !important;
+                height: 100% !important;
+                padding: 0 7px !important;
+                border-radius: 8px !important;
+            }
+            body.md3-steps .app-steps.md3 .mode-switch-btn .material-symbols-rounded { font-size: 19px !important; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions {
+                order: 1 !important;
+                width: auto !important;
+                flex: 0 0 auto !important;
+                justify-content: flex-end !important;
+                gap: 3px !important;
+                margin-left: auto !important;
+            }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn {
+                width: 30px !important;
+                height: 30px !important;
+                min-width: 30px !important;
+                min-height: 30px !important;
+                border-radius: 10px !important;
+                font-size: 18px !important;
+            }
+            body.md3-steps .app-steps.md3 .topbar-icon-btn .material-symbols-rounded { font-size: 18px !important; }
+            body.md3-steps .app-steps.md3 #user-button img {
+                width: 22px !important;
+                height: 22px !important;
+                border-radius: 50% !important;
+            }
+            .app-steps { padding-top: calc(var(--topbar-height) + 12px) !important; }
+
+            /* Four KPI cards in a tidy 2x2 grid instead of four full-height rows. */
+            body.md3-steps .kpi-row {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 10px !important;
+            }
+            body.md3-steps .kpi-card {
+                padding: 14px !important;
+                min-height: 0 !important;
+                border-radius: 14px !important;
+            }
+            body.md3-steps .kpi-card-top { margin: 0 0 10px !important; gap: 6px !important; }
+            body.md3-steps .kpi-label { font-size: 10.5px !important; letter-spacing: 0.04em !important; line-height: 1.15 !important; }
+            body.md3-steps .kpi-icon-badge { width: 26px !important; height: 26px !important; border-radius: 7px !important; }
+            body.md3-steps .kpi-icon-badge .material-symbols-rounded { font-size: 17px !important; }
+            body.md3-steps .kpi-value { font-size: 26px !important; }
+            body.md3-steps .kpi-unit { font-size: 12px !important; }
+            body.md3-steps .kpi-badge { font-size: 11px !important; padding: 1px 8px !important; border-radius: 7px !important; }
+            body.md3-steps .kpi-sub { font-size: 11px !important; margin-top: 8px !important; line-height: 1.3 !important; }
+            body.md3-steps .kpi-bar { height: 6px !important; margin-top: 10px !important; }
+
+            /* Period date and the calendar (Today) button always share one row. */
+            body.md3-steps .step-activity-toolbar {
+                display: grid !important;
+                grid-template-columns: minmax(0, 1fr) auto;
+                grid-template-areas:
+                    "types types"
+                    "view view"
+                    "period today";
+                gap: 8px !important;
+                align-items: center !important;
+                width: 100% !important;
+            }
+            body.md3-steps .step-activity-toolbar > .data-type-selector { grid-area: types; width: 100% !important; }
+            body.md3-steps .step-activity-toolbar > .view-selector { grid-area: view; width: 100% !important; }
+            body.md3-steps .step-activity-toolbar > .period-nav {
+                grid-area: period;
+                width: 100% !important;
+                min-width: 0 !important;
+                justify-content: space-between !important;
+            }
+            body.md3-steps .step-activity-toolbar > .period-nav .chart-range-label {
+                flex: 1 1 auto !important;
+                min-width: 0 !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                font-size: 11px !important;
+                padding: 0 4px !important;
+            }
+            body.md3-steps .step-activity-toolbar > .btn-today { grid-area: today; flex: 0 0 auto !important; }
+
+            /* Keep the date field and the step input on one row in the add dialog. */
+            body.md3-steps #add-steps-modal .current-date { flex-wrap: nowrap !important; }
+            body.md3-steps #add-steps-modal .current-date input[type="date"],
+            body.md3-steps #add-steps-modal .current-date input[type="text"] { flex: 1 1 0 !important; min-width: 0 !important; }
+        }
+        @media (max-width: 380px) {
+            body.md3-steps .app-steps.md3 .app-topbar-actions { gap: 2px !important; }
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #sharepoint-share-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #add-steps-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stepmonitor-apk-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #stats-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #settings-button,
+            body.md3-steps .app-steps.md3 .app-topbar-actions > #info-button,
+            body.md3-steps .app-steps.md3 #user-button,
+            body.md3-steps .app-steps.md3 .topbar-icon-btn {
+                width: 28px !important;
+                height: 28px !important;
+                min-width: 28px !important;
+                min-height: 28px !important;
+                font-size: 17px !important;
+            }
+            body.md3-steps .app-steps.md3 .mode-switch { height: 34px !important; padding: 2px !important; }
+            body.md3-steps .app-steps.md3 .mode-switch-btn { padding: 0 5px !important; }
+            body.md3-steps .kpi-card { padding: 12px !important; }
+            body.md3-steps .kpi-label { font-size: 9.5px !important; }
+            body.md3-steps .kpi-value { font-size: 22px !important; white-space: nowrap !important; }
+            body.md3-steps .kpi-unit { font-size: 11px !important; }
+            body.md3-steps .kpi-sub { font-size: 10.5px !important; }
+            body.md3-steps .step-activity-toolbar { gap: 6px !important; }
+            body.md3-steps .step-activity-toolbar > .period-nav .chart-nav { width: 26px !important; min-width: 26px !important; }
+            body.md3-steps .step-activity-toolbar > .period-nav .chart-range-label { font-size: 10px !important; padding: 0 2px !important; }
+            /* Calendar button loses its label, keeps the icon, so the date fits. */
+            body.md3-steps .step-activity-toolbar > .btn-today { font-size: 0 !important; gap: 0 !important; padding: 0 11px !important; }
+            body.md3-steps .step-activity-toolbar > .btn-today .material-symbols-rounded { font-size: 18px !important; }
+        }
+        @media (max-width: 340px) {
+            /* The APK download button is the least useful one on a phone. */
+            body.md3-steps .app-steps.md3 #stepmonitor-apk-button { display: none !important; }
+            body.md3-steps .kpi-metric-row { gap: 4px !important; }
+            body.md3-steps .kpi-value { font-size: 20px !important; }
+            body.md3-steps .kpi-unit { font-size: 10px !important; }
+        }
+
+        /* Settings: rail of tabs becomes a scrollable strip above the panel. */
+        @media (max-width: 820px) {
+            body.md3-steps #settings-modal .settings-layout { flex-direction: column !important; }
+            body.md3-steps #settings-modal .settings-tab-bar {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 0 0 auto !important;
+                height: auto !important;
+                min-height: 0 !important;
+                max-height: none !important;
+                align-self: stretch !important;
+                flex-direction: row !important;
+                flex-wrap: nowrap !important;
+                justify-content: flex-start !important;
+                gap: 4px !important;
+                padding: 6px !important;
+                margin: 0 !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                border-right: none !important;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.07) !important;
+                border-radius: 0 !important;
+                scrollbar-width: none;
+                -ms-overflow-style: none;
+            }
+            body.md3-steps #settings-modal .settings-tab-bar::-webkit-scrollbar { display: none; }
+            body.md3-steps #settings-modal .settings-tab {
+                width: auto !important;
+                flex: 0 0 auto !important;
+                height: 38px !important;
+                min-height: 38px !important;
+                max-height: 38px !important;
+                padding: 0 12px !important;
+                justify-content: center !important;
+                border-radius: 10px !important;
+            }
+            body.md3-steps #settings-modal .settings-main { min-height: 0 !important; }
+            body.md3-steps #settings-modal .settings-main-scroll { padding: 14px 12px 20px !important; }
+            body.md3-steps #settings-modal .settings-tab-panel { max-width: 100% !important; overflow-x: hidden !important; }
+            body.md3-steps #settings-modal .settings-pane-title h3 { font-size: 18px !important; }
+            body.md3-steps #settings-modal .settings-pane-title p { font-size: 12.5px !important; }
+            body.md3-steps #settings-modal .settings-tile { border-radius: 12px !important; }
+        }
+
+        /* --- Map on phones/tablets: controls stacked below, page scrolls, HUD fits --- */
+        @media (max-width: 1100px) {
+            /* The panel is a normal block under the map here, so the overlay
+               toggles would float on top of the map for no reason. */
+            body.md3-steps #map-view #ma-sidebar-show,
+            body.md3-steps #map-view #ma-sidebar-hide { display: none !important; }
+            /* The app still sets map-sidebar-open; never lock scrolling then
+               (modal locks keep their own body.modal-open rules). */
+            body.md3-steps.map-sidebar-open:not(.modal-open) {
+                overflow-y: auto !important;
+                overflow-x: hidden !important;
+                height: auto !important;
+            }
+            body.md3-steps .map-workspace.is-collapsed .map-sidebar { display: flex !important; }
+            body.md3-steps #map-view:not([hidden]) { min-height: 0 !important; }
+        }
+        @media (max-width: 820px) {
+            body.md3-steps #map-view .map-stage {
+                height: min(58vh, 520px) !important;
+                min-height: 320px !important;
+            }
+            body.md3-steps .map-hud {
+                right: 14px !important;
+                left: 14px !important;
+                max-width: calc(100% - 28px) !important;
+                box-sizing: border-box !important;
+            }
+            /* Summary used to be clipped to one ellipsised line; wrap it instead. */
+            body.md3-steps .map-hud p {
+                white-space: normal !important;
+                overflow: visible !important;
+                text-overflow: clip !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+            }
+        }
+        @media (max-width: 380px) {
+            body.md3-steps .map-hud p { font-size: 11px !important; line-height: 1.35 !important; }
+        }
+
+        /* --- Statistics on phones: compact tabs + 2-up cards, far less scrolling --- */
+        @media (max-width: 640px) {
+            body.md3-steps #stats-modal .stats-content {
+                width: 100vw !important;
+                max-width: 100vw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+                border-radius: 0 !important;
+            }
+            body.md3-steps #stats-modal .stats-hero { padding: 14px 14px 0 !important; }
+            body.md3-steps #stats-modal .stats-hero h2 { font-size: 17px !important; }
+            body.md3-steps #stats-modal .stats-hero p { font-size: 12px !important; line-height: 1.4 !important; }
+            body.md3-steps #stats-modal .stats-eyebrow { font-size: 9px !important; padding: 1px 8px !important; }
+            body.md3-steps #stats-modal .stats-freshness { margin-top: 6px !important; gap: 4px !important; }
+            body.md3-steps #stats-modal .stats-freshness span { font-size: 9.5px !important; padding: 3px 7px !important; }
+            body.md3-steps #stats-modal .stats-tabbar {
+                display: flex !important;
+                flex-wrap: wrap !important;
+                grid-template-columns: none !important;
+                gap: 4px !important;
+                padding: 4px !important;
+                margin: 8px 0 12px !important;
+                border-radius: 12px !important;
+            }
+            body.md3-steps #stats-modal .stats-tab {
+                flex: 1 1 calc(50% - 4px) !important;
+                height: 34px !important;
+                min-height: 34px !important;
+                max-height: 34px !important;
+                padding: 0 8px !important;
+                font-size: 11px !important;
+                font-weight: 600 !important;
+                gap: 5px !important;
+                border-radius: 9px !important;
+                white-space: nowrap !important;
+            }
+            body.md3-steps #stats-modal .stats-tab span {
+                display: inline !important;
+                min-width: 0 !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+            }
+            body.md3-steps #stats-modal .stats-tabbar { justify-content: flex-start !important; }
+            body.md3-steps #stats-modal .stats-tab > i {
+                width: 20px !important;
+                height: 20px !important;
+                font-size: 10px !important;
+                border-radius: 6px !important;
+            }
+            body.md3-steps #stats-modal .stats-panels { padding: 0 12px 16px !important; gap: 12px !important; }
+            body.md3-steps #stats-modal .stats-metric-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 8px !important;
+            }
+            body.md3-steps #stats-modal .stats-metric { padding: 10px 12px !important; border-radius: 12px !important; }
+            body.md3-steps #stats-modal .stats-metric strong { font-size: 22px !important; line-height: 1.1 !important; }
+            body.md3-steps #stats-modal .stats-metric span,
+            body.md3-steps #stats-modal .stats-metric small { font-size: 10.5px !important; line-height: 1.3 !important; }
+            body.md3-steps #stats-modal .stats-overview-split { grid-template-columns: 1fr !important; gap: 10px !important; }
+            body.md3-steps #stats-modal .stats-card { padding: 12px !important; border-radius: 14px !important; }
+            body.md3-steps #stats-modal .stats-card h3 { font-size: 14px !important; margin-bottom: 8px !important; }
+            body.md3-steps #stats-modal .stats-chart-wrap { height: 240px !important; }
+        }
 </style>
 <?php require_once dirname(__DIR__, 3) . '/lib/sentry_bootstrap.php'; app_sentry_browser_script('steps'); ?>
 </head>

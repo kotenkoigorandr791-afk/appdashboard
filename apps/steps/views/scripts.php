@@ -376,8 +376,10 @@
 
                 const closeModal = (result) => {
                     modal.removeEventListener('keydown', handleKeyDown, true);
-                    document.body.classList.remove('modal-open');
                     modal.style.display = 'none';
+                    // Another modal may still be open underneath: recompute the lock
+                    // instead of dropping it, otherwise the shell menu button pops back.
+                    refreshBodyModalLock();
                     resolve(result);
                 };
                 const handleKeyDown = (e) => {
@@ -529,6 +531,11 @@
             if (modal) {
                 if (modal.firstElementChild) modal.firstElementChild.classList.add('modal-content');
                 document.body.classList.add('modal-open');
+                // Mark the layer the way the shell looks for open dialogs, so it
+                // keeps the floating menu button hidden instead of restoring it.
+                modal.classList.add('is-open');
+                modal.setAttribute('role', 'dialog');
+                modal.setAttribute('aria-modal', 'true');
                 modal.style.removeProperty('pointer-events');
                 modal.style.removeProperty('visibility');
                 modal.style.setProperty('display', 'flex', 'important');
@@ -573,6 +580,8 @@
             const modal = document.getElementById(modalId);
             if (modal) {
                 modal.style.setProperty('display', 'none', 'important');
+                modal.classList.remove('is-open');
+                modal.removeAttribute('aria-modal');
                 modal.style.removeProperty('pointer-events');
                 modal.style.removeProperty('visibility');
                 document.querySelectorAll('.topbar-icon-btn.is-active').forEach(btn => btn.classList.remove('is-active'));

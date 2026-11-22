@@ -2782,6 +2782,14 @@ $metricButtons = [
             #mobile-app-modal .ma-device-name { font-size:13px; font-weight:700; color:var(--text-color); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
             #mobile-app-modal .ma-device-state { flex:0 0 auto; font-size:11px; opacity:.75; }
             #mobile-app-modal .ma-device-meta { font-size:11px; opacity:.7; margin:2px 0 8px; }
+            #mobile-app-modal .ma-pager { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:10px; padding-top:10px; border-top:1px solid color-mix(in srgb,var(--border-color) 70%,transparent); }
+            #mobile-app-modal .ma-pager .ma-btn { min-width:88px; }
+            #mobile-app-modal .ma-pager-info { font-size:11px; opacity:.75; font-variant-numeric:tabular-nums; }
+            #mobile-app-modal .ma-idle-hint { margin:8px 0 0; font-size:11px; line-height:1.4; opacity:.6; }
+            @media (max-width:420px) {
+                #mobile-app-modal .ma-pager .ma-btn { min-width:0; padding:6px 10px; }
+                #mobile-app-modal .ma-pager-info { font-size:10.5px; }
+            }
             #mobile-app-modal .ma-btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:6px 12px; border:1px solid var(--border-color); border-radius:var(--radius-sm); background:var(--surface-solid); color:var(--primary-text); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; }
             #mobile-app-modal .ma-btn:hover { background:color-mix(in srgb,var(--primary-color) 12%,var(--surface-solid)); }
             #mobile-app-modal .ma-btn:disabled { opacity:.6; cursor:wait; }
@@ -2841,6 +2849,12 @@ $metricButtons = [
                     </div>
                     <p class="ma-empty" id="mobile-app-devices-empty"><?php echo htmlspecialchars($translations['mobile_app_devices_empty'] ?? 'No devices connected yet.'); ?></p>
                     <ul class="ma-device-list" id="mobile-app-devices-list"></ul>
+                    <div class="ma-pager" id="mobile-app-devices-pager" hidden>
+                        <button type="button" class="ma-btn ma-btn-sm" id="mobile-app-devices-prev"><?php echo htmlspecialchars($translations['mobile_app_devices_prev'] ?? 'Previous'); ?></button>
+                        <span class="ma-pager-info" id="mobile-app-devices-page-info"></span>
+                        <button type="button" class="ma-btn ma-btn-sm" id="mobile-app-devices-next"><?php echo htmlspecialchars($translations['mobile_app_devices_next'] ?? 'Next'); ?></button>
+                    </div>
+                    <p class="ma-idle-hint" id="mobile-app-devices-idle"></p>
                     <p class="ma-error" id="mobile-app-devices-error" hidden></p>
                 </section>
 
@@ -4286,6 +4300,13 @@ $metricButtons = [
             const devicesEmpty = document.getElementById('mobile-app-devices-empty');
             const devicesError = document.getElementById('mobile-app-devices-error');
             const devicesRefresh = document.getElementById('mobile-app-devices-refresh');
+            const devicesPager = document.getElementById('mobile-app-devices-pager');
+            const devicesPageInfo = document.getElementById('mobile-app-devices-page-info');
+            const devicesPrev = document.getElementById('mobile-app-devices-prev');
+            const devicesNext = document.getElementById('mobile-app-devices-next');
+            const devicesIdleHint = document.getElementById('mobile-app-devices-idle');
+            const devicesPerPage = 5;
+            let devicesPage = 1;
             // Server-computed: the browser origin, or the configured LAN host when
             // the dashboard is opened on loopback. Never the container's address.
             const endpoint = <?php echo json_encode($stepmonitorLanEndpoint, JSON_HEX_TAG); ?> || (window.location.origin + '/api/steps');
@@ -4298,7 +4319,11 @@ $metricButtons = [
                 waiting: <?php echo json_encode($translations['mobile_app_devices_state_pending'] ?? 'Waiting for the phone', JSON_HEX_TAG); ?>,
                 created: <?php echo json_encode($translations['mobile_app_devices_created'] ?? 'Added {t}', JSON_HEX_TAG); ?>,
                 lastUsed: <?php echo json_encode($translations['mobile_app_devices_last_used'] ?? 'Last used {t}', JSON_HEX_TAG); ?>,
-                disconnect: <?php echo json_encode($translations['mobile_app_devices_disconnect'] ?? 'Disconnect', JSON_HEX_TAG); ?>
+                disconnect: <?php echo json_encode($translations['mobile_app_devices_disconnect'] ?? 'Disconnect', JSON_HEX_TAG); ?>,
+                expires: <?php echo json_encode($translations['mobile_app_devices_expires'] ?? 'Expires {t}', JSON_HEX_TAG); ?>,
+                page: <?php echo json_encode($translations['mobile_app_devices_page'] ?? 'Page {page} of {pages}', JSON_HEX_TAG); ?>,
+                idleDays: <?php echo (int)round(max(3600, (int)(getenv('CLIENT_AUTH_TOKEN_IDLE_TTL') ?: (30 * 24 * 3600))) / 86400); ?>,
+                idleHint: <?php echo json_encode($translations['mobile_app_devices_idle_hint'] ?? 'Devices unused for {days} days are disconnected automatically.', JSON_HEX_TAG); ?>
             };
 
             function esc(v) { return String(v == null ? '' : v).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
@@ -4341,7 +4366,8 @@ $metricButtons = [
                 return res.json().catch(function () { return null; });
             }
 
-            function renderDevices(devices) {
+            function renderDevices(devices, meta) {
+                meta = meta || {};
                 devicesList.innerHTML = '';
                 devicesEmpty.style.display = devices.length ? 'none' : 'block';
                 devices.forEach(function (device) {
@@ -4362,6 +4388,7 @@ $metricButtons = [
                     const parts = [];
                     if (device.created_at) parts.push(t.created.replace('{t}', fmt(device.created_at)));
                     if (device.claimed && device.last_used_at) parts.push(t.lastUsed.replace('{t}', fmt(device.last_used_at)));
+                    if (device.expires_at) parts.push(t.expires.replace('{t}', fmt(device.expires_at)));
                     meta.textContent = parts.join(' · ');
 
                     const row = document.createElement('div');
@@ -4376,6 +4403,8 @@ $metricButtons = [
                             const data = await request('revoke_mcp_token', { token_hash: device.token_hash });
                             if (!data || !data.success) throw new Error((data && (data.error || data.message)) || t.devicesError);
                             await fetchDevices();
+                            // The last row of a page may have just been removed.
+                            if (!devicesList.children.length && devicesPage > 1) await fetchDevices(devicesPage - 1);
                         } catch (error) {
                             showDevicesError(String(error && error.message ? error.message : error));
                         } finally { btn.disabled = false; }
@@ -4384,13 +4413,23 @@ $metricButtons = [
                     li.appendChild(top); li.appendChild(meta); li.appendChild(row);
                     devicesList.appendChild(li);
                 });
+                const pages = Math.max(1, Number(meta.pages) || 1);
+                devicesPage = Math.min(Math.max(1, Number(meta.page) || devicesPage), pages);
+                const showPager = (Number(meta.total) || 0) > devicesPerPage;
+                devicesPager.hidden = !showPager;
+                if (showPager) {
+                    devicesPageInfo.textContent = t.page.replace('{page}', String(devicesPage)).replace('{pages}', String(pages));
+                    devicesPrev.disabled = devicesPage <= 1;
+                    devicesNext.disabled = devicesPage >= pages;
+                }
             }
-            async function fetchDevices() {
+            async function fetchDevices(page) {
+                if (typeof page === 'number') devicesPage = Math.max(1, page);
                 showDevicesError('');
                 try {
-                    const data = await request('list_mobile_tokens', {});
+                    const data = await request('list_mobile_tokens', { page: devicesPage, per_page: devicesPerPage });
                     if (!data || !data.success) throw new Error((data && (data.error || data.message)) || t.devicesError);
-                    renderDevices(Array.isArray(data.devices) ? data.devices : []);
+                    renderDevices(Array.isArray(data.devices) ? data.devices : [], data);
                 } catch (error) {
                     showDevicesError(String(error && error.message ? error.message : error));
                 }
@@ -4416,7 +4455,10 @@ $metricButtons = [
                     copyText(target ? target.textContent.trim() : '', btn);
                 });
             });
-            devicesRefresh.addEventListener('click', fetchDevices);
+            devicesRefresh.addEventListener('click', function () { fetchDevices(1); });
+            devicesPrev.addEventListener('click', function () { if (devicesPage > 1) fetchDevices(devicesPage - 1); });
+            devicesNext.addEventListener('click', function () { fetchDevices(devicesPage + 1); });
+            if (devicesIdleHint) devicesIdleHint.textContent = t.idleHint.replace('{days}', String(t.idleDays));
 
             window.openMobileAppModal = function () {
                 if (typeof openModal === 'function') openModal('mobile-app-modal');
