@@ -26,6 +26,7 @@ import orbit.nex.finance.data.SyncLog
 import orbit.nex.finance.data.CurrencyConversion
 import orbit.nex.finance.data.WalletNotification
 import orbit.nex.finance.data.WalletParser
+import orbit.nex.finance.data.walletCaptureId
 import java.time.LocalDate
 import java.util.Locale
 
@@ -115,6 +116,7 @@ class WalletListener : NotificationListenerService() {
                 // for confirmation. The write is durable, so it is replayed later
                 // when the phone is offline.
                 val item = OutboxItem(
+                    id = walletCaptureId(today, parsed.store, converted, "notification"),
                     kind = "expense",
                     date = today,
                     store = parsed.store,
@@ -335,7 +337,15 @@ object WalletScanner {
             val duplicate = snapshot.expenses.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - converted) < 0.005 } ||
                 store.extrasNow().outbox.any { it.date == today && it.store == parsed.store && kotlin.math.abs(it.amount - converted) < 0.005 }
             if (!duplicate) {
-                val item = OutboxItem(kind = "expense", date = today, store = parsed.store, amount = converted, source = "notification", raw = parsed.raw)
+                val item = OutboxItem(
+                    id = walletCaptureId(today, parsed.store, converted, "notification"),
+                    kind = "expense",
+                    date = today,
+                    store = parsed.store,
+                    amount = converted,
+                    source = "notification",
+                    raw = parsed.raw,
+                )
                 OutboxSync.enqueue(store, item)
             }
             val stored = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)

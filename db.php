@@ -2998,19 +2998,43 @@ function appAccessLookupIpMeta(string $ip): array {
     if ($ip === '' || $ip === '0.0.0.0' || filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
         return [];
     }
+    // This used to run on every public API request, adding a 1.5s timeout to
+    // each call even when country/VPN blocking was disabled. Cache the answer
+    // per IP so enabling the feature costs one lookup per hour, not per request.
+    static $local = [];
+    if (array_key_exists($ip, $local)) return $local[$ip];
+    $cacheKey = 'geometa:' . hash('sha256', $ip);
+    $redis = function_exists('app_redis') ? app_redis() : null;
+    if ($redis) {
+        try {
+            $hit = $redis->get(app_redis_key($cacheKey));
+            if (is_string($hit) && $hit !== '') {
+                $decoded = json_decode($hit, true);
+                if (is_array($decoded)) return $local[$ip] = $decoded;
+            }
+        } catch (Throwable $e) {
+        }
+    }
     $url = 'http://ip-api.com/json/' . rawurlencode($ip) . '?fields=status,countryCode,proxy,hosting,mobile,query';
     $ctx = stream_context_create(['http' => ['timeout' => 1.5, 'ignore_errors' => true]]);
     $raw = @file_get_contents($url, false, $ctx);
     $data = is_string($raw) ? json_decode($raw, true) : null;
-    return is_array($data) && ($data['status'] ?? '') === 'success' ? $data : [];
+    if (!is_array($data) || ($data['status'] ?? '') !== 'success') return $local[$ip] = [];
+    if ($redis) {
+        try { $redis->set(app_redis_key($cacheKey), json_encode($data), ['EX' => 3600]); } catch (Throwable $e) {}
+    }
+    return $local[$ip] = $data;
 }
 function appAccessHostCountry(): string {
     $forced = strtoupper(trim((string)getenv('APP_HOST_COUNTRY')));
     if (preg_match('/^[A-Z]{2}$/', $forced)) return $forced;
     $cache = json_decode(getConfig('app_access_host_country_cache', '{}'), true);
     if (is_array($cache) && (int)($cache['expires'] ?? 0) > time()) {
+        // An empty country is a valid cached answer (private host / lookup
+        // failed). Returning it avoids repeating the 1.5s external call on
+        // every single API request.
         $country = strtoupper((string)($cache['country'] ?? ''));
-        if (preg_match('/^[A-Z]{2}$/', $country)) return $country;
+        return preg_match('/^[A-Z]{2}$/', $country) ? $country : '';
     }
     $ip = (string)($_SERVER['SERVER_ADDR'] ?? '');
     if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
@@ -3026,7 +3050,8 @@ function appAccessHostCountry(): string {
     $meta = appAccessLookupIpMeta($ip);
     $country = strtoupper((string)($meta['countryCode'] ?? ''));
     if (!preg_match('/^[A-Z]{2}$/', $country)) $country = '';
-    setConfig('app_access_host_country_cache', json_encode(['country' => $country, 'expires' => time() + 86400], JSON_UNESCAPED_UNICODE));
+    // Retry a failed lookup sooner than a successful one.
+    setConfig('app_access_host_country_cache', json_encode(['country' => $country, 'expires' => time() + ($country !== '' ? 86400 : 3600)], JSON_UNESCAPED_UNICODE));
     return $country;
 }
 function appAccessClientMeta(): array {
@@ -3042,6 +3067,10 @@ function appAccessClientMeta(): array {
 }
 function appAccessRequestBlocked(): bool {
     $cfg = loadAppAccessSecurityConfig();
+    // Most installs leave both restrictions off. The GeoIP lookup below is an
+    // external HTTP call, so skipping it entirely is the difference between a
+    // ~1.5s and a ~10ms response on every authenticated API request.
+    if ($cfg['blocked_countries'] === [] && empty($cfg['block_vpn'])) return false;
     $meta = appAccessClientMeta();
     if ($meta['country'] !== '' && in_array($meta['country'], $cfg['blocked_countries'], true)) return true;
     return $cfg['block_vpn'] && $meta['vpn'];

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.first
  * replayed in order on the next refresh or reconnect.
  */
 object OutboxSync {
+    private const val FLUSH_BATCH_SIZE = 50
 
     /** Stores a write. The UI overlays the outbox on the server snapshot. */
     suspend fun enqueue(store: SessionStore, item: OutboxItem) {
@@ -29,22 +30,36 @@ object OutboxSync {
         if (session.token.isBlank() || session.endpoint.isBlank()) return false
         val pending = store.extrasNow().outbox.sortedBy { it.at }
         if (pending.isEmpty()) return true
-        val sent = mutableSetOf<String>()
+        // One HTTP round trip used to be made per queued write. After a long
+        // offline period that meant hundreds of requests (and hundreds of
+        // server transactions). Send bounded batches instead; signatures keep
+        // retries idempotent.
         var failed = false
-        for (item in pending) {
-            val body = when (item.kind) {
-                "income" -> """{"incomes":[${api.incomeJson(Income(item.date, item.amount), mode = item.mode, signature = item.id)}]}"""
-                else -> """{"expenses":[${api.expenseJson(Expense(item.date, item.store, item.amount, entrySource = item.source, ocrRawStore = item.raw), mode = item.mode, signature = item.id)}]}"""
+        for (chunk in pending.chunked(FLUSH_BATCH_SIZE)) {
+            val expenses = chunk.filter { it.kind != "income" }
+                .joinToString(",") { item ->
+                    api.expenseJson(
+                        Expense(item.date, item.store, item.amount, entrySource = item.source, ocrRawStore = item.raw),
+                        mode = item.mode,
+                        signature = item.id,
+                    )
+                }
+            val incomes = chunk.filter { it.kind == "income" }
+                .joinToString(",") { item ->
+                    api.incomeJson(Income(item.date, item.amount), mode = item.mode, signature = item.id)
+                }
+            val parts = buildList {
+                if (expenses.isNotEmpty()) add("\"expenses\":[$expenses]")
+                if (incomes.isNotEmpty()) add("\"incomes\":[$incomes]")
             }
             try {
-                api.pushJson(session, body)
-                sent += item.id
+                api.pushJson(session, "{${parts.joinToString(",")}}")
+                store.removeOutbox(chunk.map { it.id }.toSet())
             } catch (_: Exception) {
                 failed = true
                 break
             }
         }
-        if (sent.isNotEmpty()) store.removeOutbox(sent)
         return !failed
     }
 

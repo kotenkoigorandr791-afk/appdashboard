@@ -14,6 +14,21 @@ function spends_mobile_signature(string $date, string $store, float $amount, str
     return hash('sha256', $normDate . '|' . $normStore . '|' . $normAmount . '|' . $normRaw);
 }
 
+function spends_mobile_audit_now(): string
+{
+    return gmdate('Y-m-d\TH:i:s\Z');
+}
+
+/**
+ * A wallet notification can be delivered more than once (for example when the
+ * system reposts it or the listener reconnects). Such a capture must stay one
+ * ledger row: identical merchant, day and amount are the same payment.
+ */
+function spends_mobile_is_duplicate_capture(?array $existing, float $amount): bool
+{
+    return $existing !== null && abs((float)($existing['amount'] ?? 0) - $amount) < 0.005;
+}
+
 function spends_mobile_asset_url(string $path): string
 {
     if ($path === '' || filter_var($path, FILTER_VALIDATE_URL)) {
@@ -43,19 +58,22 @@ function spends_mobile_ensure_store(AppDatabase $udb, string $store, string $cat
     if ($store === '') {
         return ['ok' => false, 'message' => 'empty_store'];
     }
+    // A batch push usually contains many rows for the same few stores. Resolve
+    // each store once per request instead of issuing a SELECT per row.
+    static $cache = [];
+    $cacheKey = spl_object_id($udb) . '|' . mb_strtolower($store);
+    if (isset($cache[$cacheKey])) return ['ok' => true, 'store' => $cache[$cacheKey]];
     $existing = $udb->prepare('SELECT id, name, category, visible FROM stores WHERE name = :n LIMIT 1');
     $existing->bindValue(':n', $store);
     $row = $existing->execute()->fetch(PDO::FETCH_ASSOC);
     if ($row) {
-        return [
-            'ok' => true,
-            'store' => [
-                'id' => (string)$row['id'],
-                'name' => (string)$row['name'],
-                'category' => spendsNormalizeStoreCategory($row['category'] ?? 'other'),
-                'visible' => (int)($row['visible'] ?? 1) === 1,
-            ],
+        $cache[$cacheKey] = [
+            'id' => (string)$row['id'],
+            'name' => (string)$row['name'],
+            'category' => spendsNormalizeStoreCategory($row['category'] ?? 'other'),
+            'visible' => (int)($row['visible'] ?? 1) === 1,
         ];
+        return ['ok' => true, 'store' => $cache[$cacheKey]];
     }
     $id = (string)(int)(microtime(true) * 1000) . bin2hex(random_bytes(2));
     $cat = spendsNormalizeStoreCategory($category);
@@ -66,22 +84,51 @@ function spends_mobile_ensure_store(AppDatabase $udb, string $store, string $cat
     $ins->execute();
     $existing->bindValue(':n', $store);
     $row = $existing->execute()->fetch(PDO::FETCH_ASSOC) ?: ['id' => $id, 'name' => $store, 'category' => $cat, 'visible' => 1];
-    return [
-        'ok' => true,
-        'store' => [
-            'id' => (string)$row['id'],
-            'name' => (string)$row['name'],
-            'category' => spendsNormalizeStoreCategory($row['category'] ?? 'other'),
-            'visible' => (int)($row['visible'] ?? 1) === 1,
-        ],
+    $cache[$cacheKey] = [
+        'id' => (string)$row['id'],
+        'name' => (string)$row['name'],
+        'category' => spendsNormalizeStoreCategory($row['category'] ?? 'other'),
+        'visible' => (int)($row['visible'] ?? 1) === 1,
     ];
+    return ['ok' => true, 'store' => $cache[$cacheKey]];
+}
+
+function &spends_mobile_ledger_cache(AppDatabase $udb): array
+{
+    static $cache = [];
+    $key = spl_object_id($udb);
+    if (!isset($cache[$key])) $cache[$key] = [];
+    return $cache[$key];
+}
+
+function spends_mobile_ledger_preload(AppDatabase $udb, array $signatures): void
+{
+    $signatures = array_values(array_filter(array_unique(array_map('strval', $signatures)), static fn($s) => $s !== ''));
+    if ($signatures === []) return;
+    $cache = &spends_mobile_ledger_cache($udb);
+    $missing = [];
+    foreach ($signatures as $signature) {
+        if (array_key_exists($signature, $cache)) continue;
+        $cache[$signature] = false;
+        $missing[] = $signature;
+    }
+    foreach (array_chunk($missing, 500) as $chunk) {
+        $placeholders = implode(',', array_fill(0, count($chunk), '?'));
+        $st = $udb->prepare("SELECT signature FROM ocr_entries WHERE signature IN ($placeholders)");
+        foreach ($chunk as $i => $signature) $st->bindValue($i + 1, $signature, PDO::PARAM_STR);
+        $st->execute();
+        while (($found = $st->fetch(PDO::FETCH_NUM)) !== null) $cache[(string)($found[0] ?? '')] = true;
+    }
 }
 
 function spends_mobile_ledger_has(AppDatabase $udb, string $signature): bool
 {
+    $cache = &spends_mobile_ledger_cache($udb);
+    if (array_key_exists($signature, $cache)) return $cache[$signature];
     $st = $udb->prepare('SELECT 1 FROM ocr_entries WHERE signature = :s LIMIT 1');
     $st->bindValue(':s', $signature);
-    return (bool)$st->execute()->fetchColumn();
+    $row = $st->execute()->fetch(PDO::FETCH_NUM);
+    return $cache[$signature] = (bool)($row[0] ?? false);
 }
 
 function spends_mobile_ledger_put(
@@ -107,36 +154,69 @@ function spends_mobile_ledger_put(
     $st->bindValue(':i', $imageName);
     $st->bindValue(':c', date('c'));
     $st->execute();
+    $cache = &spends_mobile_ledger_cache($udb);
+    $cache[$signature] = true;
 }
 
-function spends_mobile_snapshot_revision(string $email): string
+function spends_mobile_db_revision(AppDatabase $udb): string
 {
+    // Worker/OCR writes bypass the HTTP shutdown hook that bumps the Redis
+    // revision. The audit trigger always refreshes updated_at, so the maximum
+    // value is a cheap, reliable fallback signal for those writes.
+    $max = $udb->querySingle("SELECT COALESCE(MAX(updated_at), '') FROM expenses");
+    return (string)($max ?? '');
+}
+
+function spends_mobile_db_fingerprint(AppDatabase $udb): string
+{
+    $row = $udb->query("SELECT
+        (SELECT COALESCE(MAX(updated_at), '') FROM expenses) AS expenses_rev,
+        (SELECT COUNT(*) || ':' || COALESCE(SUM(amount), 0) FROM incomes) AS incomes_rev,
+        (SELECT COUNT(*) FROM stores) AS stores_rev,
+        (SELECT COUNT(*) FROM tags) AS tags_rev,
+        (SELECT COUNT(*) FROM goals) AS goals_rev,
+        (SELECT COUNT(*) FROM subscriptions) AS subscriptions_rev")->fetch(PDO::FETCH_ASSOC) ?: [];
+    return hash('sha256', implode('|', $row));
+}
+
+function spends_mobile_snapshot_revision(string $email, ?AppDatabase $udb = null): string
+{
+    if ($udb === null) {
+        try { $udb = getUserSQLite($email); } catch (Throwable $e) { $udb = null; }
+    }
+    $dbRevision = $udb ? spends_mobile_db_revision($udb) : '';
     $key = 'mobile_snapshot_revision:' . hash('sha256', $email);
-    // Time bucket keeps the revision moving even when Redis is unavailable, so
-    // clients are never stuck on a permanent "not_modified" answer.
-    $bucket = (string)floor(time() / 120);
     $redis = app_redis();
-    if (!$redis) return '1-' . $bucket;
+    if (!$redis) {
+        // No Redis: fall back to a database fingerprint that also notices
+        // income/tag/goal/store changes, so clients are never stuck.
+        return 'db-' . ($udb ? spends_mobile_db_fingerprint($udb) : '1');
+    }
     try {
         $fullKey = app_redis_key('spends:' . $key);
         $revision = $redis->get($fullKey);
-        if (is_string($revision) && $revision !== '') return $revision . '-' . $bucket;
+        if (is_string($revision) && $revision !== '') return $revision . ':' . $dbRevision;
         $redis->set($fullKey, '1');
     } catch (Throwable $e) {
     }
-    return '1-' . $bucket;
+    return '1:' . $dbRevision;
 }
 
 function spends_mobile_sync_is_current(string $knownRevision): bool
 {
     $email = spends_mobile_current_email();
-    return $email !== '' && $knownRevision !== '' && hash_equals(spends_mobile_snapshot_revision($email), $knownRevision);
+    if ($email === '' || $knownRevision === '') return false;
+    try {
+        return hash_equals(spends_mobile_snapshot_revision($email), $knownRevision);
+    } catch (Throwable $e) {
+        return false;
+    }
 }
 
 function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $knownRevision = ''): array
 {
     $email = spends_mobile_current_email();
-    $revision = spends_mobile_snapshot_revision($email);
+    $revision = spends_mobile_snapshot_revision($email, $udb);
     if ($knownRevision !== '' && hash_equals($revision, $knownRevision)) {
         return ['status' => 'not_modified', 'revision' => $revision, 'server_time' => time()];
     }
@@ -162,7 +242,7 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
     }
 
     $expenses = [];
-    $er = $udb->query('SELECT date, store, amount, entry_source, ocr_raw_store FROM expenses WHERE amount > 0 ORDER BY date DESC, store ASC');
+    $er = $udb->query('SELECT date, store, amount, entry_source, ocr_raw_store, created_at, updated_at, is_edited, edited_at, edited_via FROM expenses WHERE amount > 0 ORDER BY date DESC, store ASC');
     while ($row = $er->fetch(PDO::FETCH_ASSOC)) {
         $date = (string)$row['date'];
         $store = (string)$row['store'];
@@ -175,6 +255,11 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
             'entry_source' => (string)($row['entry_source'] ?? 'manual'),
             'ocr_raw_store' => $raw,
             'signature' => spends_mobile_signature($date, $store, $amount, $raw),
+            'created_at' => (string)($row['created_at'] ?? ''),
+            'updated_at' => (string)($row['updated_at'] ?? ''),
+            'is_edited' => (int)($row['is_edited'] ?? 0) === 1,
+            'edited_at' => (string)($row['edited_at'] ?? ''),
+            'edited_via' => (string)($row['edited_via'] ?? ''),
         ];
     }
 
@@ -188,12 +273,6 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
             'amount' => $amount,
             'signature' => spends_mobile_signature($date, '__income__', $amount),
         ];
-    }
-
-    $known = [];
-    $lr = $udb->query('SELECT signature FROM ocr_entries');
-    while ($row = $lr->fetch(PDO::FETCH_ASSOC)) {
-        $known[] = (string)$row['signature'];
     }
 
     $snapshot = [
@@ -224,7 +303,6 @@ function spends_mobile_pull(AppDatabase $udb, array $userSettings, string $known
         'subscriptions' => function_exists('spendsSubscriptionList') ? spendsSubscriptionList($udb) : [],
         'goals' => function_exists('spendsGoalList') ? spendsGoalList($udb, true) : [],
         'tags' => function_exists('spendsTagList') ? spendsTagList($udb) : [],
-        'known_signatures' => $known,
         // Tag ids per payment: "YYYY-MM-DD\tstore" => [tag id, ...]
         'expense_tags' => function_exists('spendsExpenseTagsFor') ? spendsExpenseTagsFor($udb, '0000-01-01', '9999-12-31') : [],
     ];
@@ -252,6 +330,19 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
     $updated = 0;
     $skipped = 0;
     $errors = [];
+
+    // The client sends one stable signature per queued write. Resolve them in
+    // one indexed query instead of one SELECT per row in the batch.
+    $preloadSignatures = [];
+    foreach (($payload['expenses'] ?? []) as $row) {
+        $signature = is_array($row) ? trim((string)($row['signature'] ?? '')) : '';
+        if ($signature !== '') $preloadSignatures[] = $signature;
+    }
+    foreach (($payload['incomes'] ?? []) as $row) {
+        $signature = is_array($row) ? trim((string)($row['signature'] ?? '')) : '';
+        if ($signature !== '') $preloadSignatures[] = $signature;
+    }
+    spends_mobile_ledger_preload($udb, $preloadSignatures);
 
     foreach (($payload['stores'] ?? []) as $storeRow) {
         if (!is_array($storeRow)) {
@@ -321,19 +412,31 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             'subscription' => 'subscription',
             default => 'manual',
         };
+        // One merchant can only produce one identical payment per day. A
+        // duplicate notification has a different raw text and therefore used to
+        // get a fresh signature, which doubled the amount under mode=add.
+        if ($mode !== 'delete' && $entrySource === 'notification' && spends_mobile_is_duplicate_capture($prev, $amount)) {
+            spends_mobile_ledger_put($udb, $signature, $date, $store, $amount, $raw !== '' ? $raw : $source, 'mobile:' . $source);
+            $skipped++;
+            continue;
+        }
+        $now = spends_mobile_audit_now();
         if ($mode === 'add') {
             // Multiple captures at the same store on the same day must accumulate,
             // otherwise every new payment would overwrite the previous one.
-            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:e,:r)
-                ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2), entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
+            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store,created_at,updated_at) VALUES (:d,:s,:a,:e,:r,:now,:now)
+                ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2), entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store), updated_at=excluded.updated_at");
         } else {
-            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,:e,:r)
-                ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount, entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
+            // An explicit set is a person editing the payment, not an automated
+            // capture, so record who changed it and when.
+            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store,created_at,updated_at,is_edited,edited_at,edited_via) VALUES (:d,:s,:a,:e,:r,:now,:now,1,:now,'mobile')
+                ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount, entry_source=excluded.entry_source, ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store), updated_at=excluded.updated_at, is_edited=1, edited_at=excluded.edited_at, edited_via='mobile'");
         }
         $st->bindValue(':d', $date);
         $st->bindValue(':s', $store);
         $st->bindValue(':a', $amount, PDO::PARAM_STR);
         $st->bindValue(':e', $entrySource);
+        $st->bindValue(':now', $now);
         if ($raw === '') {
             $st->bindValue(':r', null, PDO::PARAM_NULL);
         } else {
@@ -412,11 +515,22 @@ function spends_mobile_push(AppDatabase $udb, array $payload): array
             continue;
         }
         spends_mobile_ensure_store($udb, $store, (string)($row['category'] ?? 'other'));
-        $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'ocr',:r)
-            ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2), entry_source='ocr', ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store)");
+        $existingCapture = $udb->prepare('SELECT amount FROM expenses WHERE date = :d AND store = :s LIMIT 1');
+        $existingCapture->bindValue(':d', $date);
+        $existingCapture->bindValue(':s', $store);
+        $existingRow = $existingCapture->execute()->fetch(PDO::FETCH_ASSOC) ?: null;
+        if (spends_mobile_is_duplicate_capture($existingRow, $amount)) {
+            spends_mobile_ledger_put($udb, $signature, $date, $store, $amount, $raw !== '' ? $raw : 'wallet', 'wallet');
+            $skipped++;
+            continue;
+        }
+        $now = spends_mobile_audit_now();
+        $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store,created_at,updated_at) VALUES (:d,:s,:a,'ocr',:r,:now,:now)
+            ON CONFLICT (user_id,date,store) DO UPDATE SET amount=ROUND((expenses.amount+excluded.amount)::numeric,2), entry_source='ocr', ocr_raw_store=COALESCE(NULLIF(excluded.ocr_raw_store,''), expenses.ocr_raw_store), updated_at=excluded.updated_at");
         $st->bindValue(':d', $date);
         $st->bindValue(':s', $store);
         $st->bindValue(':a', $amount, PDO::PARAM_STR);
+        $st->bindValue(':now', $now);
         if ($raw === '') {
             $st->bindValue(':r', null, PDO::PARAM_NULL);
         } else {

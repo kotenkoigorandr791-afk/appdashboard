@@ -79,15 +79,19 @@ if ($sub === 'sync' && $method === 'POST') {
     if (!is_array($payload)) {
         $payload = $_POST;
     }
-    $pdo = $udb->getPdo();
+    // AppDatabase runs each statement in its own scoped transaction, so a raw
+    // PDO transaction would be committed by the first write and the final
+    // commit would throw "There is no active transaction". Use the wrapper so
+    // the whole push stays atomic.
     try {
-        $pdo->beginTransaction();
+        $udb->exec('BEGIN');
         $result = spends_mobile_push($udb, is_array($payload) ? $payload : []);
-        $pdo->commit();
+        $udb->exec('COMMIT');
         spends_mobile_invalidate_snapshot();
         exit(json_encode($result, JSON_UNESCAPED_UNICODE));
     } catch (Throwable $e) {
-        if ($pdo->inTransaction()) $pdo->rollBack();
+        $udb->exec('ROLLBACK');
+        error_log('spends sync push failed: ' . $e->getMessage() . ' at ' . $e->getFile() . ':' . $e->getLine());
         public_api_json(['status' => 'error', 'message' => 'sync_failed'], 500);
     }
 }

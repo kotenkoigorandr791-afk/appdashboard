@@ -86,6 +86,18 @@ data class BackupEntry(
 )
 
 /**
+ * Stable id for an automatically captured payment. A notification is often
+ * reposted by the system; deriving the id from the payment itself means every
+ * copy collapses into one durable write instead of being summed twice.
+ */
+fun walletCaptureId(date: String, store: String, amount: Double, source: String = "wallet"): String {
+    val normalized = String.format(java.util.Locale.US, "%.2f", amount)
+    val key = listOf(date, store.trim().lowercase(java.util.Locale.ROOT), normalized).joinToString("|")
+    val digest = java.security.MessageDigest.getInstance("SHA-256").digest(key.toByteArray(Charsets.UTF_8))
+    return source + ":" + digest.joinToString("") { "%02x".format(it) }
+}
+
+/**
  * One durable ledger write waiting for the server.
  * kind = "expense" | "income"; an expense with amount 0 deletes the row.
  */

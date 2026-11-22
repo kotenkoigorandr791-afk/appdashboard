@@ -26,6 +26,7 @@ import orbit.nex.finance.data.SpendsApi
 import orbit.nex.finance.data.SyncLog
 import orbit.nex.finance.data.CurrencyConversion
 import orbit.nex.finance.data.withOutbox
+import orbit.nex.finance.data.walletCaptureId
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.contentOrNull
@@ -241,7 +242,7 @@ class SpendsViewModel(private val store: SessionStore, private val api: SpendsAp
         store.saveExtras(extras.copy(pending = extras.pending + item))
     }
     fun confirmPending(item: PendingCapture) = launch {
-        OutboxSync.enqueue(store, OutboxItem(kind = "expense", date = item.date, store = item.store, amount = item.amount, source = "wallet", raw = item.raw))
+        OutboxSync.enqueue(store, OutboxItem(id = walletCaptureId(item.date, item.store, item.amount, "wallet"), kind = "expense", date = item.date, store = item.store, amount = item.amount, source = "wallet", raw = item.raw))
         store.updateExtras { extras -> extras.copy(pending = extras.pending.filterNot { it.at == item.at && it.store == item.store }) }
         val delivered = runCatching { OutboxSync.flush(store, api) }.getOrDefault(false)
         markSaved()

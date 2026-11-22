@@ -51,19 +51,27 @@ function spendsExpenseTagsSet(AppDatabase $udb, string $date, string $store, arr
     if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $date) || trim($store) === '') return ['status' => 'error', 'message' => 'invalid_data'];
     $pdo = $udb->getPdo();
     $ownTransaction = !$pdo->inTransaction();
-    if ($ownTransaction) $pdo->beginTransaction();
-    $del = $udb->prepare('DELETE FROM expense_tags WHERE date = :d AND store = :s');
-    $del->bindValue(':d', $date);
-    $del->bindValue(':s', $store);
-    $del->execute();
-    $ins = $udb->prepare('INSERT INTO expense_tags (date, store, tag_id) SELECT :d, :s, id FROM tags WHERE id = :t ON CONFLICT DO NOTHING');
-    foreach (array_slice(array_unique(array_map('strval', $tagIds)), 0, 20) as $tid) {
-        $ins->bindValue(':d', $date);
-        $ins->bindValue(':s', $store);
-        $ins->bindValue(':t', $tid);
-        $ins->execute();
+    // AppDatabase wraps every statement in its own scoped transaction, so a raw
+    // PDO transaction was committed by the first DELETE and the final commit
+    // threw "There is no active transaction". Use the wrapper like /sync does.
+    if ($ownTransaction) $udb->exec('BEGIN');
+    try {
+        $del = $udb->prepare('DELETE FROM expense_tags WHERE date = :d AND store = :s');
+        $del->bindValue(':d', $date);
+        $del->bindValue(':s', $store);
+        $del->execute();
+        $ins = $udb->prepare('INSERT INTO expense_tags (date, store, tag_id) SELECT :d, :s, id FROM tags WHERE id = :t ON CONFLICT DO NOTHING');
+        foreach (array_slice(array_unique(array_map('strval', $tagIds)), 0, 20) as $tid) {
+            $ins->bindValue(':d', $date);
+            $ins->bindValue(':s', $store);
+            $ins->bindValue(':t', $tid);
+            $ins->execute();
+        }
+        if ($ownTransaction) $udb->exec('COMMIT');
+    } catch (Throwable $e) {
+        if ($ownTransaction) $udb->exec('ROLLBACK');
+        throw $e;
     }
-    if ($ownTransaction) $pdo->commit();
     return ['status' => 'success'];
 }
 

@@ -68,7 +68,11 @@ class SessionStore(private val context: Context) {
 
     /** Adds durable writes to the outbox in the order they were captured. */
     suspend fun enqueueOutbox(items: List<OutboxItem>): LocalExtras = updateExtras { extras ->
-        if (items.isEmpty()) extras else extras.copy(outbox = extras.outbox + items)
+        if (items.isEmpty()) return@updateExtras extras
+        // Capture ids are stable, so a reposted notification cannot queue the
+        // same payment twice while the first copy is still waiting to upload.
+        val known = extras.outbox.mapTo(mutableSetOf()) { it.id }
+        extras.copy(outbox = extras.outbox + items.filter { known.add(it.id) })
     }
 
     suspend fun removeOutbox(ids: Set<String>): LocalExtras = updateExtras { extras ->

@@ -69,6 +69,7 @@ import orbit.nex.finance.data.OutboxItem
 import orbit.nex.finance.data.OutboxSync
 import orbit.nex.finance.data.Session
 import orbit.nex.finance.data.Snapshot
+import orbit.nex.finance.data.walletCaptureId
 import orbit.nex.finance.ui.AppBackground
 import orbit.nex.finance.ui.DetailScreen
 import orbit.nex.finance.ui.SpendsTheme
@@ -261,14 +262,17 @@ private fun DisputeScreen(
                                     busy = true
                                     scope.launch {
                         val amount = amountText.replace(',', '.').toDoubleOrNull() ?: 0.0
+                                        val captureDate = dispute.date.ifBlank { LocalDate.now().toString() }
+                                        val captureSource = if (dispute.source == "ocr") "ocr" else "notification"
                                         OutboxSync.enqueue(
                                             app.store,
                                             OutboxItem(
+                                                id = if (captureSource == "notification") walletCaptureId(captureDate, storeName, amount, captureSource) else java.util.UUID.randomUUID().toString(),
                                                 kind = "expense",
-                                                date = dispute.date.ifBlank { LocalDate.now().toString() },
+                                                date = captureDate,
                                                 store = storeName,
                                                 amount = amount,
-                                                source = if (dispute.source == "ocr") "ocr" else "notification",
+                                                source = captureSource,
                                                 raw = if (dispute.source == "ocr") dispute.rawName else "",
                                             ),
                                         )

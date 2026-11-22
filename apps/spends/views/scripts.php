@@ -1665,12 +1665,30 @@ function openTxDetails(id){
             <div><span>${activityEsc(t('activity_category', 'Category'))}</span><b>${activityEsc(tx.category)}</b></div>
             <div><span>${activityEsc(t('activity_source', 'Source'))}</span><b>${activityEsc(sourceText)}</b></div>
         </div>
-        ${tx.raw ? `<div class="tx-detail__raw"><div class="tx-detail__raw-title">🔔 ${activityEsc(t('activity_raw_notification', 'Original notification'))}</div><p>${activityEsc(tx.raw)}</p></div>` : ''}
+        <div id="tx-detail-raw-slot"></div>
         <div class="tx-detail__actions">
             <button type="button" class="tx-detail__delete" onclick="deleteTransaction('${activityEsc(tx.id).replace(/'/g, "\\'")}')">${activityEsc(t('activity_delete', 'Delete transaction'))}</button>
             <button type="button" class="tx-detail__done" onclick="closeModal('tx-details-modal')">${activityEsc(t('activity_done', 'Done'))}</button>
         </div>`;
     showModal('tx-details-modal');
+    // The page ships only source/amount for the year; the encrypted OCR note is
+    // fetched on demand for the card the user actually opened.
+    const renderRaw = (raw) => {
+        const slot = document.getElementById('tx-detail-raw-slot');
+        if (slot && raw) slot.innerHTML = `<div class="tx-detail__raw"><div class="tx-detail__raw-title">🔔 ${activityEsc(t('activity_raw_notification', 'Original notification'))}</div><p>${activityEsc(raw)}</p></div>`;
+    };
+    if (tx.raw) {
+        renderRaw(tx.raw);
+    } else {
+        fetch(`?get_expense_meta=1&date=${encodeURIComponent(tx.date)}&store=${encodeURIComponent(tx.store)}`, {headers: {'Accept': 'application/json'}})
+            .then(r => r.json())
+            .then(d => {
+                if (activeActivityId !== tx.id || !d || d.status !== 'success') return;
+                tx.raw = String((d.meta && d.meta.ocr_raw_store) || '');
+                renderRaw(tx.raw);
+            })
+            .catch(() => {});
+    }
 }
 function deleteTransaction(id){
     const tx = activityTransactions.find(item => item.id === id);

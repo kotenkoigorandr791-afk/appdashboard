@@ -30,6 +30,7 @@ function app_user_db_connect(string $appPrefix, string $email): AppDatabase {
             app_spends_subscriptions_ensure($main);
             app_spends_goals_ensure($main);
             app_spends_tags_ensure($main);
+            app_spends_expense_audit_ensure($main);
             app_spends_migrate_legacy($main, $uid, $email);
             app_spends_encrypt_existing($main, $uid);
             app_once_mark($readyKey, __FILE__);
@@ -61,6 +62,38 @@ function app_spends_tags_ensure(AppDatabase $db): void {
 function app_spends_goals_ensure(AppDatabase $db): void {
     require_once __DIR__ . '/schema_once.php';
     app_once_wrap('spends_goals', __FILE__, fn() => app_spends_goals_ensure_impl($db));
+}
+
+/**
+ * Audit columns on expenses: when the row was created, when it last changed,
+ * and whether a person edited it (and from where). Kept in its own migration
+ * because app_spends_shared_ensure_impl() returns early on provisioned installs.
+ */
+function app_spends_expense_audit_ensure(AppDatabase $db): void {
+    require_once __DIR__ . '/schema_once.php';
+    app_once_wrap('spends_expense_audit', __FILE__, fn() => app_spends_expense_audit_ensure_impl($db));
+}
+function app_spends_expense_audit_ensure_impl(AppDatabase $db): void {
+    static $done = false;
+    if ($done) return;
+    $sc = APP_SPENDS_SHARED_SCHEMA;
+    $db->exec("ALTER TABLE $sc.expenses ADD COLUMN IF NOT EXISTS created_at TEXT NOT NULL DEFAULT ''");
+    $db->exec("ALTER TABLE $sc.expenses ADD COLUMN IF NOT EXISTS updated_at TEXT NOT NULL DEFAULT ''");
+    $db->exec("ALTER TABLE $sc.expenses ADD COLUMN IF NOT EXISTS is_edited BIGINT NOT NULL DEFAULT 0");
+    $db->exec("ALTER TABLE $sc.expenses ADD COLUMN IF NOT EXISTS edited_at TEXT NOT NULL DEFAULT ''");
+    $db->exec("ALTER TABLE $sc.expenses ADD COLUMN IF NOT EXISTS edited_via TEXT NOT NULL DEFAULT ''");
+    // The trigger guarantees a timestamp on every write, including imports and
+    // OCR/worker paths that never mention these columns explicitly.
+    // AppDatabase::exec() splits statements on semicolons and does not know
+    // dollar-quoting, so keep the function body in a normal string literal.
+    $fnBody = "BEGIN IF TG_OP = 'INSERT' THEN NEW.created_at := COALESCE(NULLIF(NEW.created_at, ''), to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"')); END IF; NEW.updated_at := to_char(now() AT TIME ZONE 'UTC', 'YYYY-MM-DD\"T\"HH24:MI:SS\"Z\"'); RETURN NEW; END";
+    $db->exec("CREATE OR REPLACE FUNCTION $sc.spends_expenses_audit() RETURNS trigger LANGUAGE plpgsql AS '" . str_replace("'", "''", $fnBody) . "'");
+    $db->exec("DROP TRIGGER IF EXISTS spends_expenses_audit ON $sc.expenses");
+    $db->exec("CREATE TRIGGER spends_expenses_audit BEFORE INSERT OR UPDATE ON $sc.expenses FOR EACH ROW EXECUTE FUNCTION $sc.spends_expenses_audit()");
+    // Mobile sync asks for MAX(updated_at); tag usage counts filter by tag_id.
+    $db->exec("CREATE INDEX IF NOT EXISTS spends_expenses_user_updated ON $sc.expenses(user_id, updated_at DESC)");
+    $db->exec("CREATE INDEX IF NOT EXISTS spends_expense_tags_user_tag ON $sc.expense_tags(user_id, tag_id)");
+    $done = true;
 }
 function app_spends_tags_ensure_impl(AppDatabase $db): void {
     static $done = false;
@@ -178,7 +211,7 @@ function app_spends_shared_ensure_impl(AppDatabase $db): void {
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.settings ($uid, key TEXT NOT NULL, value TEXT, PRIMARY KEY (user_id, key))");
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.stores ($uid, id TEXT NOT NULL, name TEXT NOT NULL, visible BIGINT NOT NULL DEFAULT 1, sort_order BIGINT NOT NULL DEFAULT 0, category TEXT NOT NULL DEFAULT 'other', PRIMARY KEY (user_id, id))");
             $db->exec("CREATE UNIQUE INDEX IF NOT EXISTS spends_stores_user_name ON $sc.stores(user_id, name)");
-            $db->exec("CREATE TABLE IF NOT EXISTS $sc.expenses ($uid, date TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, entry_source TEXT NOT NULL DEFAULT 'manual', ocr_raw_store TEXT, PRIMARY KEY (user_id, date, store))");
+            $db->exec("CREATE TABLE IF NOT EXISTS $sc.expenses ($uid, date TEXT NOT NULL, store TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, entry_source TEXT NOT NULL DEFAULT 'manual', ocr_raw_store TEXT, created_at TEXT NOT NULL DEFAULT '', updated_at TEXT NOT NULL DEFAULT '', is_edited BIGINT NOT NULL DEFAULT 0, edited_at TEXT NOT NULL DEFAULT '', edited_via TEXT NOT NULL DEFAULT '', PRIMARY KEY (user_id, date, store))");
             $db->exec("CREATE INDEX IF NOT EXISTS spends_expenses_user_store ON $sc.expenses(user_id, store)");
             $db->exec("CREATE INDEX IF NOT EXISTS spends_expenses_user_date_store ON $sc.expenses(user_id, date DESC, store ASC)");
             $db->exec("CREATE TABLE IF NOT EXISTS $sc.incomes ($uid, date TEXT NOT NULL, amount DOUBLE PRECISION NOT NULL DEFAULT 0, PRIMARY KEY (user_id, date))");

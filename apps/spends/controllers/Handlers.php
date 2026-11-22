@@ -46,13 +46,21 @@ if (isset($_GET['get_expense_meta'])) {
     $date = trim($_GET['date'] ?? '');
     $store = trim($_GET['store'] ?? '');
     if ($date === '' || $store === '') exit(json_encode(['status'=>'error','message'=>$__t('msg_invalid_data')]));
-    $st = $udb->prepare("SELECT entry_source, ocr_raw_store FROM expenses WHERE date=:d AND store=:s LIMIT 1");
+    $st = $udb->prepare("SELECT entry_source, ocr_raw_store, created_at, updated_at, is_edited, edited_at, edited_via FROM expenses WHERE date=:d AND store=:s LIMIT 1");
     $st->bindValue(':d', $date);
     $st->bindValue(':s', $store);
     $row = $st->execute()->fetch(PDO::FETCH_ASSOC) ?: [];
     $source = strtolower((string)($row['entry_source'] ?? 'manual'));
     $ocrRaw = spends_decrypt($row['ocr_raw_store'] ?? '', spends_db_user_id($udb), 'ocr');
-    exit(json_encode(['status'=>'success','meta'=>['entry_source'=>$source,'ocr_raw_store'=>$ocrRaw]]));
+    exit(json_encode(['status'=>'success','meta'=>[
+        'entry_source'=>$source,
+        'ocr_raw_store'=>$ocrRaw,
+        'created_at'=>(string)($row['created_at'] ?? ''),
+        'updated_at'=>(string)($row['updated_at'] ?? ''),
+        'is_edited'=>(int)($row['is_edited'] ?? 0) === 1,
+        'edited_at'=>(string)($row['edited_at'] ?? ''),
+        'edited_via'=>(string)($row['edited_via'] ?? ''),
+    ]]));
 }
 if (isset($_GET['get_ocr_stats'])) {
     if (!spendsRateLimit('ocr_stats:' . $currentUser, 60, 60)) {
@@ -620,8 +628,9 @@ if (isset($_POST['add_edit_store'])) {
         $st->bindValue(':id', $storeId);
         $st->execute();
         if ($oldName !== $storeName) {
-            $st2 = $udb->prepare('UPDATE expenses SET store=:n WHERE store=:o');
+            $st2 = $udb->prepare("UPDATE expenses SET store=:n, is_edited=1, edited_at=:now, edited_via='web' WHERE store=:o");
             $st2->bindValue(':n', $storeName);
+            $st2->bindValue(':now', gmdate('Y-m-d\TH:i:s\Z'));
             $st2->bindValue(':o', $oldName);
             $st2->execute();
             $safe = getSafeFolderName($currentUser);
@@ -730,10 +739,20 @@ if (isset($_POST['update_expense'])) {
     $amount = filter_var($_POST['amount'] ?? 0, FILTER_VALIDATE_FLOAT);
     if ($date && $store && $amount !== false) {
         $isZero = abs($amount) < 0.005;
-        $st = $udb->prepare($isZero ? 'DELETE FROM expenses WHERE date=:d AND store=:s' : "INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store) VALUES (:d,:s,:a,'manual',NULL) ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount,entry_source='manual',ocr_raw_store=NULL");
+        if ($isZero) {
+            $st = $udb->prepare('DELETE FROM expenses WHERE date=:d AND store=:s');
+        } else {
+            $now = gmdate('Y-m-d\TH:i:s\Z');
+            // A web edit must be distinguishable from an automated capture so
+            // the phone can avoid overwriting a human change with stale data.
+            $st = $udb->prepare("INSERT INTO expenses (date,store,amount,entry_source,ocr_raw_store,created_at,updated_at,is_edited,edited_at,edited_via) VALUES (:d,:s,:a,'manual',NULL,:created,:updated,1,:edited,'web') ON CONFLICT (user_id,date,store) DO UPDATE SET amount=excluded.amount,entry_source='manual',ocr_raw_store=NULL,updated_at=excluded.updated_at,is_edited=1,edited_at=excluded.edited_at,edited_via='web'");
+            $st->bindValue(':a', $amount, PDO::PARAM_STR);
+            $st->bindValue(':created', $now);
+            $st->bindValue(':updated', $now);
+            $st->bindValue(':edited', $now);
+        }
         $st->bindValue(':d', $date);
         $st->bindValue(':s', $store);
-        if (!$isZero) $st->bindValue(':a', $amount, PDO::PARAM_STR);
         $st->execute();
         exit(json_encode(['status'=>'success']));
     }
@@ -1493,16 +1512,17 @@ $allIncomes = [];
 // Source and raw notification text for the activity feed: one row per
 // (date, store), matching the expenses primary key.
 $expenseActivityMeta = [];
-$activityUserId = '';
-try { $activityUserId = spends_db_user_id($udb); } catch (Throwable $e) {}
 if (!empty($storeNames)) {
     $inListAll = implode(',', array_map(fn($s) => "'" . AppDatabase::escapeString($s) . "'", $storeNames));
-    $aRes = $udb->query("SELECT date, store, amount, entry_source, ocr_raw_store FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
+    // The initial payload only needs amounts and sources. Decrypting every
+    // OCR note here cost one AES/HKDF operation per row on every page load; the
+    // note is fetched by openTxDetails() when the user actually opens a card.
+    $aRes = $udb->query("SELECT date, store, amount, entry_source FROM expenses WHERE store IN ($inListAll) AND date LIKE '$currentYear-%' ORDER BY date ASC");
     while ($row = $aRes->fetch(PDO::FETCH_ASSOC)) {
         $allStoresExpenses[$row['date']][$row['store']] = (float)$row['amount'];
         $expenseActivityMeta[$row['date']][$row['store']] = [
             'source' => strtolower((string)($row['entry_source'] ?? 'manual')),
-            'note' => spends_decrypt($row['ocr_raw_store'] ?? '', $activityUserId, 'ocr'),
+            'note' => '',
         ];
     }
 }
